@@ -8,28 +8,28 @@
 
 #### 1.1 Setup do Projeto Vite + TypeScript
 
-- [ ] 1.1.1 Criar projeto com `npm create vite@latest ccisga -- --template react-ts`
-- [ ] 1.1.2 Configurar `tsconfig.json` com `strict: true` e path alias `@/*` apontando para `src/*`
-- [ ] 1.1.3 Configurar `tsconfig.app.json` com `baseUrl: "."` e `paths: { "@/*": ["./src/*"] }`
-- [ ] 1.1.4 Configurar `vite.config.ts` com resolve alias `@` → `./src`
-- [ ] 1.1.5 Criar `.env` com `VITE_API_BASE_URL=https://web.qualityautomacao.com.br/INTEGRACAO`
-- [ ] 1.1.6 Criar `.env.example` com variáveis documentadas (sem valores secretos)
-- [ ] 1.1.7 Configurar `.gitignore` (node_modules, dist, .env, .env.local)
+- [x] 1.1.1 Criar projeto com `npm create vite@latest ccisga -- --template react-ts`
+- [x] 1.1.2 Configurar `tsconfig.json` com `strict: true` e path alias `@/*` apontando para `src/*`
+- [x] 1.1.3 Configurar `tsconfig.app.json` com `baseUrl: "."` e `paths: { "@/*": ["./src/*"] }`
+- [x] 1.1.4 Configurar `vite.config.ts` com resolve alias `@` → `./src`
+- [x] 1.1.5 Criar `.env` com `VITE_API_BASE_URL=https://web.qualityautomacao.com.br/INTEGRACAO`
+- [x] 1.1.6 Criar `.env.example` com variáveis documentadas (sem valores secretos)
+- [x] 1.1.7 Configurar `.gitignore` (node_modules, dist, .env, .env.local)
 
 #### 1.2 Instalar e Configurar Dependências
 
-- [ ] 1.2.1 Instalar TailwindCSS v3: `npm install -D tailwindcss postcss autoprefixer` e gerar configs
-- [ ] 1.2.2 Configurar `tailwind.config.ts` com `content: ['./index.html', './src/**/*.{ts,tsx}']` e tema customizado (cores navy, accent, etc.)
-- [ ] 1.2.3 Configurar `postcss.config.js` com plugins tailwindcss e autoprefixer
-- [ ] 1.2.4 Configurar `src/index.css` com diretivas `@tailwind base/components/utilities` e fonte Inter via Google Fonts
-- [ ] 1.2.5 Inicializar shadcn/ui: `npx shadcn-ui@latest init` — gerar `components.json` com estilo "default" e alias `@/components/ui`
-- [ ] 1.2.6 Instalar React Router v6: `npm install react-router-dom`
-- [ ] 1.2.7 Instalar TanStack Query: `npm install @tanstack/react-query`
-- [ ] 1.2.8 Instalar Zustand: `npm install zustand`
-- [ ] 1.2.9 Instalar Axios: `npm install axios`
-- [ ] 1.2.10 Instalar Recharts: `npm install recharts`
-- [ ] 1.2.11 Instalar Lucide React (ícones): `npm install lucide-react`
-- [ ] 1.2.12 Instalar componentes shadcn/ui necessários: Button, Input, Select, Card, Table, Tabs, Badge, Skeleton, DropdownMenu, Sheet, Separator
+- [x] 1.2.1 Instalar TailwindCSS v3: `npm install -D tailwindcss postcss autoprefixer` e gerar configs
+- [x] 1.2.2 Configurar `tailwind.config.ts` com `content: ['./index.html', './src/**/*.{ts,tsx}']` e tema customizado (cores navy, accent, etc.)
+- [x] 1.2.3 Configurar `postcss.config.js` com plugins tailwindcss e autoprefixer
+- [x] 1.2.4 Configurar `src/index.css` com diretivas `@tailwind base/components/utilities` e fonte Inter via Google Fonts
+- [x] 1.2.5 Inicializar shadcn/ui: `npx shadcn-ui@latest init` — gerar `components.json` com estilo "default" e alias `@/components/ui`
+- [x] 1.2.6 Instalar React Router v6: `npm install react-router-dom`
+- [x] 1.2.7 Instalar TanStack Query: `npm install @tanstack/react-query`
+- [x] 1.2.8 Instalar Zustand: `npm install zustand`
+- [x] 1.2.9 Instalar Axios: `npm install axios`
+- [x] 1.2.10 Instalar Recharts: `npm install recharts`
+- [x] 1.2.11 Instalar Lucide React (ícones): `npm install lucide-react`
+- [x] 1.2.12 Instalar componentes shadcn/ui necessários: Button, Input, Select, Card, Table, Tabs, Badge, Skeleton, DropdownMenu, Sheet, Separator
 
 #### 1.3 Client HTTP com Interceptor READ-ONLY
 
