@@ -44,7 +44,7 @@ Always consult Context7 before implementing patterns you're uncertain about. Thi
 ## Scope of Work
 
 ### You implement:
-- **HTTP Client:** `src/api/client.ts` — Axios instance with GET-only interceptor, API-Key injection, 401 handling
+- **HTTP Client:** `src/api/client.ts` — Axios instance with GET-only interceptor, CHAVE query parameter injection, 401 handling
 - **Endpoint functions:** `src/api/endpoints/*.ts` — One file per domain, only `client.get()` calls
 - **API types:** `src/api/types/*.ts` — Response types only, one file per entity/domain
 - **Filter store:** `src/store/filters.ts` — Zustand store for global filters (empresa, período)
@@ -59,7 +59,7 @@ Always consult Context7 before implementing patterns you're uncertain about. Thi
 ## API External Details
 
 - **Base URL:** Configured via `VITE_API_BASE_URL` environment variable (default: `https://web.qualityautomacao.com.br/INTEGRACAO/`)
-- **Authentication:** `API-Key` header on all requests
+- **Authentication:** `CHAVE` query parameter on all requests (integration key per business unit)
 - **Format:** JSON (OpenAPI 3.1.0)
 - **Pagination:** Cursor-based with `ultimoCodigo` (last record code) + `limite` (page size)
 
@@ -82,9 +82,10 @@ client.interceptors.request.use((config) => {
     return Promise.reject(new Error(`Método ${method} bloqueado. Sistema READ-ONLY.`))
   }
 
-  const token = /* retrieve from storage */
-  if (token) {
-    config.headers['API-Key'] = token
+  // Inject CHAVE as query parameter
+  const chave = /* retrieve from storage */
+  if (chave) {
+    config.params = { ...config.params, CHAVE: chave }
   }
 
   return config

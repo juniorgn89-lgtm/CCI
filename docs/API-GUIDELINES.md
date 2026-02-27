@@ -15,7 +15,7 @@ O CCISGA usa **apenas GET** para consumir dados da API Quality Automação.
 ## API Externa
 
 - **Base URL:** `https://web.qualityautomacao.com.br/INTEGRACAO/`
-- **Autenticação:** Header `API-Key` em todas as requisições
+- **Autenticação:** Query parameter `CHAVE` em todas as requisições (chave de integração por unidade de negócio)
 - **Formato:** JSON (OpenAPI 3.1.0)
 
 ## Client HTTP (`src/api/client.ts`)
@@ -23,7 +23,7 @@ O CCISGA usa **apenas GET** para consumir dados da API Quality Automação.
 Instância Axios com:
 
 1. **Interceptor GET-only:** rejeita qualquer método que não seja GET (exceto POST em rota `/auth` ou `/login`)
-2. **Interceptor de auth:** injeta header `API-Key` com token armazenado
+2. **Interceptor de auth:** injeta query parameter `CHAVE` com token armazenado em todas as requisições
 3. **Interceptor de 401:** redireciona para login quando token expira
 
 ## Padrão de Endpoint (`src/api/endpoints/*.ts`)

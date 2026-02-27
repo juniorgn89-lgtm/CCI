@@ -36,7 +36,7 @@
 - [ ] 1.3.1 Criar `src/api/client.ts` com instância Axios configurada com `baseURL` do `.env`
 - [ ] 1.3.2 Implementar interceptor de request que **rejeita** qualquer método que não seja GET (lança erro)
 - [ ] 1.3.3 Adicionar exceção no interceptor apenas para `POST` em rota contendo `/auth` ou `/login`
-- [ ] 1.3.4 Implementar interceptor de request que injeta header `API-Key` com token armazenado
+- [ ] 1.3.4 Implementar interceptor de request que injeta query parameter `CHAVE` com token armazenado em todas as requisições
 - [ ] 1.3.5 Implementar interceptor de response que detecta 401 e redireciona para login
 - [ ] 1.3.6 Exportar instância tipada do client para uso nos endpoints
 

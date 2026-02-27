@@ -41,7 +41,7 @@ Esta é a responsabilidade principal deste agente. O client HTTP DEVE:
 
 1. **Bloquear** qualquer requisição que não seja GET (lançar erro no interceptor)
 2. **Exceção única:** POST em rota contendo `/auth` ou `/login`
-3. **Injetar** header `API-Key` com token em todas as requisições
+3. **Injetar** query parameter `CHAVE` com token armazenado em todas as requisições
 4. **Detectar** 401 e redirecionar para login
 
 ### O que nunca criar
@@ -54,7 +54,7 @@ Esta é a responsabilidade principal deste agente. O client HTTP DEVE:
 ## API Externa
 
 - **Base URL:** `https://web.qualityautomacao.com.br/INTEGRACAO/`
-- **Auth:** Header `API-Key`
+- **Auth:** Query parameter `CHAVE` (chave de integração por unidade de negócio)
 - **Formato:** JSON (OpenAPI 3.1.0)
 - **Paginação:** cursor-based com `ultimoCodigo` + `limite`
 
@@ -78,10 +78,10 @@ client.interceptors.request.use((config) => {
     return Promise.reject(new Error(`Método ${method} bloqueado. Sistema READ-ONLY.`))
   }
 
-  // Injetar token
-  const token = /* obter token da memória */
-  if (token) {
-    config.headers['API-Key'] = token
+  // Injetar CHAVE como query parameter
+  const chave = /* obter chave da memória */
+  if (chave) {
+    config.params = { ...config.params, CHAVE: chave }
   }
 
   return config

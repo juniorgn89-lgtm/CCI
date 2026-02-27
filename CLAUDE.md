@@ -60,7 +60,7 @@ Full design tokens: `docs/DESIGN-SYSTEM.md`
 ## API Integration
 
 - Base URL configured via `VITE_API_BASE_URL` in `.env`
-- Auth: `API-Key` header on all requests
+- Auth: `CHAVE` query parameter on all requests (integration key per business unit)
 - Pagination: cursor-based with `ultimoCodigo` + `limite` params
 - Common params: `empresaCodigo`, `dataInicial` (yyyy-MM-dd), `dataFinal` (yyyy-MM-dd)
 

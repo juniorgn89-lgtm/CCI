@@ -56,7 +56,7 @@ O sistema é **puramente de leitura** — não possui funcionalidades de criaç�
 | **Métodos HTTP** | GET exclusivamente (exceção: POST para login) |
 | **Idioma da interface** | Português Brasileiro (pt-BR) |
 | **Idioma do código** | Inglês |
-| **Autenticação** | Bearer Token / JWT via API-Key |
+| **Autenticação** | Query parameter `CHAVE` (chave de integração por unidade de negócio) |
 | **Backend próprio** | Não — frontend-only consumindo API externa |
 
 ---
@@ -117,7 +117,7 @@ Todos os usuários são **pré-cadastrados** (não há auto-registro). O acesso 
 | RF-01.3 | Armazenamento seguro do token (memória/httpOnly cookie, nunca localStorage) |
 | RF-01.4 | Proteção de rotas — redirecionar para login quando não autenticado |
 | RF-01.5 | Logout com limpeza completa de estado e cache |
-| RF-01.6 | Interceptor no header `API-Key` para todas as requisições autenticadas |
+| RF-01.6 | Interceptor que injeta query parameter `CHAVE` em todas as requisições autenticadas |
 
 ### RF-02: Filtros Globais (Smart Linked Filters)
 
@@ -340,7 +340,7 @@ flowchart TD
 | RNF-02.2 | Interceptor HTTP que **bloqueia** qualquer requisição não-GET (exceto POST /auth) |
 | RNF-02.3 | Rotas protegidas com redirecionamento para login |
 | RNF-02.4 | Limpeza de estado e cache no logout |
-| RNF-02.5 | Headers de segurança no client HTTP (API-Key, Bearer Token) |
+| RNF-02.5 | Injeção automática do query parameter `CHAVE` no client HTTP para autenticação |
 
 ### RNF-03: Usabilidade
 
@@ -1080,7 +1080,7 @@ Configuração inicial do projeto com Vite, TypeScript, TailwindCSS, shadcn/ui, 
 
 ### EP-02: Autenticação e Controle de Acesso
 
-Login, logout, armazenamento seguro de token, proteção de rotas e interceptor de API-Key.
+Login, logout, armazenamento seguro da chave de integração (`CHAVE`), proteção de rotas e interceptor de autenticação.
 
 ### EP-03: Layout e Design System
 
