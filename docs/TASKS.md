@@ -33,70 +33,70 @@
 
 #### 1.3 Client HTTP com Interceptor READ-ONLY
 
-- [ ] 1.3.1 Criar `src/api/client.ts` com instância Axios configurada com `baseURL` do `.env`
-- [ ] 1.3.2 Implementar interceptor de request que **rejeita** qualquer método que não seja GET (lança erro)
-- [ ] 1.3.3 Adicionar exceção no interceptor apenas para `POST` em rota contendo `/auth` ou `/login`
-- [ ] 1.3.4 Implementar interceptor de request que injeta query parameter `CHAVE` com token armazenado em todas as requisições
-- [ ] 1.3.5 Implementar interceptor de response que detecta 401 e redireciona para login
-- [ ] 1.3.6 Exportar instância tipada do client para uso nos endpoints
+- [x] 1.3.1 Criar `src/api/client.ts` com instância Axios configurada com `baseURL` do `.env`
+- [x] 1.3.2 Implementar interceptor de request que **rejeita** qualquer método que não seja GET (lança erro)
+- [x] 1.3.3 Adicionar exceção no interceptor apenas para `POST` em rota contendo `/auth` ou `/login`
+- [x] 1.3.4 Implementar interceptor de request que injeta query parameter `CHAVE` com token armazenado em todas as requisições
+- [x] 1.3.5 Implementar interceptor de response que detecta 401 e redireciona para login
+- [x] 1.3.6 Exportar instância tipada do client para uso nos endpoints
 
 #### 1.4 Tipos Base da API
 
-- [ ] 1.4.1 Criar `src/api/types/common.ts` com tipo `PaginatedResponse<T>` (`{ resultados: T[]; ultimoCodigo: number }`)
-- [ ] 1.4.2 Criar `src/api/types/auth.ts` com tipo `LoginResponse` (token, usuario)
-- [ ] 1.4.3 Criar `src/api/types/empresa.ts` com tipo `Empresa` (codigo, cnpj, razaoSocial, nomeFantasia, etc.)
+- [x] 1.4.1 Criar `src/api/types/common.ts` com tipo `PaginatedResponse<T>` (`{ resultados: T[]; ultimoCodigo: number }`)
+- [x] 1.4.2 Criar `src/api/types/auth.ts` com tipo `LoginResponse` (token, usuario)
+- [x] 1.4.3 Criar `src/api/types/empresa.ts` com tipo `Empresa` (codigo, cnpj, razaoSocial, nomeFantasia, etc.)
 
 #### 1.5 Autenticação
 
-- [ ] 1.5.1 Criar `src/api/endpoints/auth.ts` com função `login(email, password)` que faz POST (única exceção) e retorna token
-- [ ] 1.5.2 Criar `src/hooks/useAuth.ts` com estado de autenticação (token em memória, isAuthenticated, login, logout)
-- [ ] 1.5.3 Criar `src/pages/Login/index.tsx` — formulário com email, senha, botão "Entrar", logo do CCISGA
-- [ ] 1.5.4 Estilizar tela de login: centralizada, card branco com sombra, fundo gray-50, logo acima
-- [ ] 1.5.5 Implementar lógica de login: chamada ao endpoint, armazenamento do token, redirect para Dashboard
-- [ ] 1.5.6 Implementar tratamento de erro de login: mensagem "Credenciais inválidas" em vermelho
-- [ ] 1.5.7 Criar `src/components/layout/ProtectedRoute.tsx` que verifica isAuthenticated e redireciona para `/login`
-- [ ] 1.5.8 Implementar logout no hook useAuth: limpar token, limpar cache React Query, redirecionar para login
+- [x] 1.5.1 Criar `src/api/endpoints/auth.ts` com função `login(email, password)` que faz POST (única exceção) e retorna token
+- [x] 1.5.2 Criar `src/hooks/useAuth.ts` com estado de autenticação (token em memória, isAuthenticated, login, logout)
+- [x] 1.5.3 Criar `src/pages/Login/index.tsx` — formulário com email, senha, botão "Entrar", logo do CCISGA
+- [x] 1.5.4 Estilizar tela de login: centralizada, card branco com sombra, fundo gray-50, logo acima
+- [x] 1.5.5 Implementar lógica de login: chamada ao endpoint, armazenamento do token, redirect para Dashboard
+- [x] 1.5.6 Implementar tratamento de erro de login: mensagem "Credenciais inválidas" em vermelho
+- [x] 1.5.7 Criar `src/components/layout/ProtectedRoute.tsx` que verifica isAuthenticated e redireciona para `/login`
+- [x] 1.5.8 Implementar logout no hook useAuth: limpar token, limpar cache React Query, redirecionar para login
 
 #### 1.6 Roteamento
 
-- [ ] 1.6.1 Criar `src/routes/index.tsx` com definição de todas as rotas (login público, demais protegidas)
-- [ ] 1.6.2 Configurar `src/App.tsx` com providers: `BrowserRouter`, `QueryClientProvider`, rotas
-- [ ] 1.6.3 Configurar `QueryClient` com defaults: `staleTime: 5 * 60 * 1000`, `retry: 2`
-- [ ] 1.6.4 Definir rotas: `/login` (público), `/` redireciona para `/dashboard`, `/dashboard`, `/combustiveis`, `/produtos`, `/conveniencias`, `/estoques`, `/produtividade`, `/financeiro`, `/relatorios`
-- [ ] 1.6.5 Envolver rotas protegidas com `ProtectedRoute` e `AppLayout`
+- [x] 1.6.1 Criar `src/routes/index.tsx` com definição de todas as rotas (login público, demais protegidas)
+- [x] 1.6.2 Configurar `src/App.tsx` com providers: `BrowserRouter`, `QueryClientProvider`, rotas
+- [x] 1.6.3 Configurar `QueryClient` com defaults: `staleTime: 5 * 60 * 1000`, `retry: 2`
+- [x] 1.6.4 Definir rotas: `/login` (público), `/` redireciona para `/dashboard`, `/dashboard`, `/combustiveis`, `/produtos`, `/conveniencias`, `/estoques`, `/produtividade`, `/financeiro`, `/relatorios`
+- [x] 1.6.5 Envolver rotas protegidas com `ProtectedRoute` e `AppLayout`
 
 #### 1.7 Layout Principal
 
-- [ ] 1.7.1 Criar `src/components/layout/Sidebar.tsx` — menu lateral com ícones e labels para cada módulo
-- [ ] 1.7.2 Estilizar Sidebar: `bg-[#1e3a5f]`, largura `w-64` expandida / `w-16` colapsada, transição suave
-- [ ] 1.7.3 Implementar itens do Sidebar: Dashboard, Combustíveis, Produtos, Conveniências, Estoques, Produtividade, Financeiro, Relatórios — cada um com ícone Lucide
-- [ ] 1.7.4 Implementar item ativo: `bg-white/10 border-l-4 border-[#2563eb]` baseado na rota atual
-- [ ] 1.7.5 Implementar toggle de colapsar/expandir com botão no topo do sidebar
-- [ ] 1.7.6 Criar `src/components/layout/Header.tsx` — barra superior com título do módulo atual, filtros globais e botão de logout
-- [ ] 1.7.7 Criar `src/components/layout/AppLayout.tsx` — composição de Sidebar + Header + área de conteúdo (`<Outlet />`)
-- [ ] 1.7.8 Estilizar AppLayout: sidebar à esquerda, header fixo no topo, conteúdo com scroll, fundo gray-50
+- [x] 1.7.1 Criar `src/components/layout/Sidebar.tsx` — menu lateral com ícones e labels para cada módulo
+- [x] 1.7.2 Estilizar Sidebar: `bg-[#1e3a5f]`, largura `w-64` expandida / `w-16` colapsada, transição suave
+- [x] 1.7.3 Implementar itens do Sidebar: Dashboard, Combustíveis, Produtos, Conveniências, Estoques, Produtividade, Financeiro, Relatórios — cada um com ícone Lucide
+- [x] 1.7.4 Implementar item ativo: `bg-white/10 border-l-4 border-[#2563eb]` baseado na rota atual
+- [x] 1.7.5 Implementar toggle de colapsar/expandir com botão no topo do sidebar
+- [x] 1.7.6 Criar `src/components/layout/Header.tsx` — barra superior com título do módulo atual, filtros globais e botão de logout
+- [x] 1.7.7 Criar `src/components/layout/AppLayout.tsx` — composição de Sidebar + Header + área de conteúdo (`<Outlet />`)
+- [x] 1.7.8 Estilizar AppLayout: sidebar à esquerda, header fixo no topo, conteúdo com scroll, fundo gray-50
 
 #### 1.8 Filtros Globais (Zustand)
 
-- [ ] 1.8.1 Criar `src/store/filters.ts` com Zustand store: `{ empresaCodigo, dataInicial, dataFinal, setEmpresa, setPeriodo }`
-- [ ] 1.8.2 Criar `src/hooks/useFilters.ts` como wrapper do store com helpers (período formatado, query params)
-- [ ] 1.8.3 Criar `src/api/endpoints/empresas.ts` com função `fetchEmpresas()` → `GET /INTEGRACAO/EMPRESAS`
-- [ ] 1.8.4 Criar `src/components/filters/CompanySelect.tsx` — select populado via `useQuery` de empresas
-- [ ] 1.8.5 Criar `src/components/filters/PeriodSelect.tsx` — seletores de ano e mês
-- [ ] 1.8.6 Criar `src/components/filters/DateRangePicker.tsx` — input de intervalo de datas
-- [ ] 1.8.7 Criar `src/components/filters/GlobalFilterBar.tsx` — composição de CompanySelect + PeriodSelect + DateRangePicker
-- [ ] 1.8.8 Integrar GlobalFilterBar no Header
-- [ ] 1.8.9 Implementar invalidação de queries ao alterar filtro: `queryClient.invalidateQueries()` no setter do Zustand
+- [x] 1.8.1 Criar `src/store/filters.ts` com Zustand store: `{ empresaCodigo, dataInicial, dataFinal, setEmpresa, setPeriodo }`
+- [x] 1.8.2 Criar `src/hooks/useFilters.ts` como wrapper do store com helpers (período formatado, query params)
+- [x] 1.8.3 Criar `src/api/endpoints/empresas.ts` com função `fetchEmpresas()` → `GET /INTEGRACAO/EMPRESAS`
+- [x] 1.8.4 Criar `src/components/filters/CompanySelect.tsx` — select populado via `useQuery` de empresas
+- [x] 1.8.5 Criar `src/components/filters/PeriodSelect.tsx` — seletores de ano e mês
+- [x] 1.8.6 Criar `src/components/filters/DateRangePicker.tsx` — input de intervalo de datas
+- [x] 1.8.7 Criar `src/components/filters/GlobalFilterBar.tsx` — composição de CompanySelect + PeriodSelect + DateRangePicker
+- [x] 1.8.8 Integrar GlobalFilterBar no Header
+- [x] 1.8.9 Implementar invalidação de queries ao alterar filtro: `queryClient.invalidateQueries()` no setter do Zustand
 
 #### 1.9 Componentes Base do Design System
 
-- [ ] 1.9.1 Criar `src/components/kpi/KpiCard.tsx` — card com ícone, label, valor formatado, variação (positiva/negativa com cor)
-- [ ] 1.9.2 Criar `src/components/kpi/KpiGrid.tsx` — grid responsivo de KpiCards (4-5 cols desktop, 2 tablet, 1 mobile)
-- [ ] 1.9.3 Criar `src/components/tables/DataTable.tsx` — tabela genérica com shadcn/ui Table, cabeçalho estilizado, linhas alternadas, ordenação por coluna
-- [ ] 1.9.4 Criar `src/components/tables/HeatmapCell.tsx` — célula com fundo gradiente proporcional ao valor (verde para positivo, vermelho para negativo)
-- [ ] 1.9.5 Criar `src/lib/formatters.ts` — funções: `formatCurrency(value)`, `formatNumber(value)`, `formatPercent(value)`, `formatDate(date)`, `formatLiters(value)`
-- [ ] 1.9.6 Criar `src/lib/constants.ts` — constantes: cores do design system, breakpoints, staleTime por domínio
-- [ ] 1.9.7 Criar `src/lib/utils.ts` — helper `cn()` para merge de classes Tailwind (via clsx + tailwind-merge)
+- [x] 1.9.1 Criar `src/components/kpi/KpiCard.tsx` — card com ícone, label, valor formatado, variação (positiva/negativa com cor)
+- [x] 1.9.2 Criar `src/components/kpi/KpiGrid.tsx` — grid responsivo de KpiCards (4-5 cols desktop, 2 tablet, 1 mobile)
+- [x] 1.9.3 Criar `src/components/tables/DataTable.tsx` — tabela genérica com shadcn/ui Table, cabeçalho estilizado, linhas alternadas, ordenação por coluna
+- [x] 1.9.4 Criar `src/components/tables/HeatmapCell.tsx` — célula com fundo gradiente proporcional ao valor (verde para positivo, vermelho para negativo)
+- [x] 1.9.5 Criar `src/lib/formatters.ts` — funções: `formatCurrency(value)`, `formatNumber(value)`, `formatPercent(value)`, `formatDate(date)`, `formatLiters(value)`
+- [x] 1.9.6 Criar `src/lib/constants.ts` — constantes: cores do design system, breakpoints, staleTime por domínio
+- [x] 1.9.7 Criar `src/lib/utils.ts` — helper `cn()` para merge de classes Tailwind (via clsx + tailwind-merge)
 
 ---
 
@@ -106,8 +106,8 @@
 
 #### 2.1 Tipos e Endpoints de Vendas
 
-- [ ] 2.1.1 Criar `src/api/types/venda.ts` com tipos: `Venda`, `VendaItem`, `VendaResumo`, `VendaFormaPagamento`
-- [ ] 2.1.2 Criar `src/api/endpoints/vendas.ts` com funções:
+- [x] 2.1.1 Criar `src/api/types/venda.ts` com tipos: `Venda`, `VendaItem`, `VendaResumo`, `VendaFormaPagamento`
+- [x] 2.1.2 Criar `src/api/endpoints/vendas.ts` com funções:
   - `fetchVendas(params)` → `GET /INTEGRACAO/VENDA`
   - `fetchVendaResumo(params)` → `GET /INTEGRACAO/VENDA_RESUMO`
   - `fetchVendaItens(params)` → `GET /INTEGRACAO/VENDA_ITEM`
@@ -115,7 +115,7 @@
 
 #### 2.2 Hook do Dashboard
 
-- [ ] 2.2.1 Criar `src/pages/Dashboard/hooks/useDashboardData.ts` que:
+- [x] 2.2.1 Criar `src/pages/Dashboard/hooks/useDashboardData.ts` que:
   - Lê filtros globais do Zustand
   - Usa `useQuery` para buscar `VENDA_RESUMO` com filtros aplicados
   - Usa `useQuery` para buscar `EMPRESAS`
@@ -124,17 +124,17 @@
 
 #### 2.3 Componentes do Dashboard
 
-- [ ] 2.3.1 Criar `src/pages/Dashboard/components/SectorCards.tsx` — 3 cards (Combustível, Automotivos, Conveniência) com faturamento, variação e projeção mensal
-- [ ] 2.3.2 Estilizar SectorCards: cards com borda colorida à esquerda (azul para combustível, verde para automotivos, amarelo para conveniência)
-- [ ] 2.3.3 Criar `src/pages/Dashboard/components/ProjectionTable.tsx` — tabela com colunas: Período, Realizado, Projeção, Meta, % Atingido; células com heatmap de % atingido
-- [ ] 2.3.4 Criar `src/pages/Dashboard/components/SectorDetailTable.tsx` — tabela por empresa com colunas: Empresa, Faturamento, Volume, Margem, Variação; com heatmap na coluna de variação
+- [x] 2.3.1 Criar `src/pages/Dashboard/components/SectorCards.tsx` — 3 cards (Combustível, Automotivos, Conveniência) com faturamento, variação e projeção mensal
+- [x] 2.3.2 Estilizar SectorCards: cards com borda colorida à esquerda (azul para combustível, verde para automotivos, amarelo para conveniência)
+- [x] 2.3.3 Criar `src/pages/Dashboard/components/ProjectionTable.tsx` — tabela com colunas: Período, Realizado, Projeção, Meta, % Atingido; células com heatmap de % atingido
+- [x] 2.3.4 Criar `src/pages/Dashboard/components/SectorDetailTable.tsx` — tabela por empresa com colunas: Empresa, Faturamento, Volume, Margem, Variação; com heatmap na coluna de variação
 
 #### 2.4 Página do Dashboard
 
-- [ ] 2.4.1 Criar `src/pages/Dashboard/index.tsx` compondo: KpiGrid (4 KPIs no topo), SectorCards (3 cards), ProjectionTable, SectorDetailTable
-- [ ] 2.4.2 Implementar cross-filter: ao clicar em SectorCard, navegar para módulo correspondente com filtro de grupo pré-aplicado
-- [ ] 2.4.3 Implementar loading states com Skeleton nos cards e tabelas enquanto dados carregam
-- [ ] 2.4.4 Implementar tratamento de erro: mensagem amigável se API falhar
+- [x] 2.4.1 Criar `src/pages/Dashboard/index.tsx` compondo: KpiGrid (4 KPIs no topo), SectorCards (3 cards), ProjectionTable, SectorDetailTable
+- [x] 2.4.2 Implementar cross-filter: ao clicar em SectorCard, navegar para módulo correspondente com filtro de grupo pré-aplicado
+- [x] 2.4.3 Implementar loading states com Skeleton nos cards e tabelas enquanto dados carregam
+- [x] 2.4.4 Implementar tratamento de erro: mensagem amigável se API falhar
 
 ---
 
@@ -144,8 +144,8 @@
 
 #### 3.1 Tipos e Endpoints de Combustíveis
 
-- [ ] 3.1.1 Criar `src/api/types/combustivel.ts` (se necessário, ou adicionar em types existentes) com tipos: `Abastecimento`, `Tanque`, `Bico`, `Bomba`, `LMC`, `TrocaPreco`
-- [ ] 3.1.2 Criar `src/api/endpoints/combustiveis.ts` com funções:
+- [x] 3.1.1 Criar `src/api/types/combustivel.ts` (se necessário, ou adicionar em types existentes) com tipos: `Abastecimento`, `Tanque`, `Bico`, `Bomba`, `LMC`, `TrocaPreco`
+- [x] 3.1.2 Criar `src/api/endpoints/combustiveis.ts` com funções:
   - `fetchAbastecimentos(params)` → `GET /INTEGRACAO/ABASTECIMENTO`
   - `fetchTanques(params)` → `GET /INTEGRACAO/TANQUE`
   - `fetchBicos(params)` → `GET /INTEGRACAO/BICO`
@@ -155,7 +155,7 @@
 
 #### 3.2 Hook de Combustíveis
 
-- [ ] 3.2.1 Criar `src/pages/Combustiveis/hooks/useFuelData.ts` que:
+- [x] 3.2.1 Criar `src/pages/Combustiveis/hooks/useFuelData.ts` que:
   - Lê filtros globais do Zustand
   - Usa `useQuery` para buscar abastecimentos no período
   - Processa dados: agrupa por dia, agrupa por tipo de combustível, calcula KPIs
@@ -163,11 +163,11 @@
 
 #### 3.3 Componentes de Combustíveis
 
-- [ ] 3.3.1 Criar `src/pages/Combustiveis/components/FuelKpis.tsx` — KpiGrid com: Litros Vendidos, Faturamento, Margem Média, Preço Médio de Venda
-- [ ] 3.3.2 Criar `src/pages/Combustiveis/components/DailyTable.tsx` — tabela dia a dia com colunas: Data, Litros, Faturamento, Custo, Margem R$, Margem %, com heatmap na margem
-- [ ] 3.3.3 Criar `src/pages/Combustiveis/components/FuelTypeTable.tsx` — tabela por combustível: Tipo, Litros, Faturamento, Preço Médio, Margem
-- [ ] 3.3.4 Criar `src/pages/Combustiveis/components/MonthlyChart.tsx` — gráfico de área (Recharts) com evolução mensal de litros e faturamento
-- [ ] 3.3.5 Criar `src/pages/Combustiveis/components/WeeklyAnalysis.tsx` — tabela/gráfico agrupado por dia da semana (segunda a domingo)
+- [x] 3.3.1 Criar `src/pages/Combustiveis/components/FuelKpis.tsx` — KpiGrid com: Litros Vendidos, Faturamento, Margem Média, Preço Médio de Venda
+- [x] 3.3.2 Criar `src/pages/Combustiveis/components/DailyTable.tsx` — tabela dia a dia com colunas: Data, Litros, Faturamento, Custo, Margem R$, Margem %, com heatmap na margem
+- [x] 3.3.3 Criar `src/pages/Combustiveis/components/FuelTypeTable.tsx` — tabela por combustível: Tipo, Litros, Faturamento, Preço Médio, Margem
+- [x] 3.3.4 Criar `src/pages/Combustiveis/components/MonthlyChart.tsx` — gráfico de área (Recharts) com evolução mensal de litros e faturamento
+- [x] 3.3.5 Criar `src/pages/Combustiveis/components/WeeklyAnalysis.tsx` — tabela/gráfico agrupado por dia da semana (segunda a domingo)
 
 #### 3.4 Página de Combustíveis
 
