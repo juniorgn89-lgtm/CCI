@@ -171,9 +171,9 @@
 
 #### 3.4 Página de Combustíveis
 
-- [ ] 3.4.1 Criar `src/pages/Combustiveis/index.tsx` com: FuelKpis no topo, Tabs (Dia a Dia | Por Combustível | Evolução | Semanal), conteúdo da aba ativa
-- [ ] 3.4.2 Implementar navegação por Tabs usando shadcn/ui Tabs
-- [ ] 3.4.3 Implementar loading states e tratamento de erro
+- [x] 3.4.1 Criar `src/pages/Combustiveis/index.tsx` com: FuelKpis no topo, Tabs (Dia a Dia | Por Combustível | Evolução | Semanal), conteúdo da aba ativa
+- [x] 3.4.2 Implementar navegação por Tabs usando shadcn/ui Tabs
+- [x] 3.4.3 Implementar loading states e tratamento de erro
 
 ---
 
