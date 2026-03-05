@@ -5,7 +5,8 @@
       "Bash(curl -s -o /tmp/api-docs.json -w \"%{http_code}\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
       "Bash(curl -s -o /tmp/api-docs.json -w \"%{http_code}\" -H \"Accept: application/json\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
       "Bash(curl -s -v \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
-      "Bash(curl -s -v -H \"API-Key: test\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")"
+      "Bash(curl -s -v -H \"API-Key: test\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

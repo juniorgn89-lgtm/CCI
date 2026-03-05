@@ -183,8 +183,8 @@
 
 #### 4.1 Tipos e Endpoints de Produtos
 
-- [ ] 4.1.1 Criar `src/api/types/produto.ts` com tipos: `Produto`, `ProdutoEstoque`, `Grupo`, `GrupoMeta`, `ProdutoMeta`
-- [ ] 4.1.2 Criar `src/api/endpoints/produtos.ts` com funções:
+- [x] 4.1.1 Criar `src/api/types/produto.ts` com tipos: `Produto`, `ProdutoEstoque`, `Grupo`, `GrupoMeta`, `ProdutoMeta`
+- [x] 4.1.2 Criar `src/api/endpoints/produtos.ts` com funções:
   - `fetchProdutos(params)` → `GET /INTEGRACAO/PRODUTO`
   - `fetchGrupos(params)` → `GET /INTEGRACAO/GRUPO`
   - `fetchProdutoMeta(params)` → `GET /INTEGRACAO/PRODUTO_META`
@@ -192,29 +192,29 @@
 
 #### 4.2 Hook e Componentes de Produtos
 
-- [ ] 4.2.1 Criar `src/pages/Produtos/hooks/useProductData.ts` — busca vendas de itens automotivos, agrupa por grupo, calcula Pareto e Curva ABC
-- [ ] 4.2.2 Criar `src/pages/Produtos/components/ProductKpis.tsx` — KPIs: Faturamento, Qtd Vendida, Margem Total, Ticket Médio
-- [ ] 4.2.3 Criar `src/pages/Produtos/components/GroupTable.tsx` — tabela por grupo com heatmap de margem
-- [ ] 4.2.4 Criar `src/pages/Produtos/components/ParetoChart.tsx` — gráfico de Pareto (barras + linha acumulativa)
-- [ ] 4.2.5 Criar `src/pages/Produtos/components/AbcCurve.tsx` — tabela com classificação ABC e indicadores visuais
+- [x] 4.2.1 Criar `src/pages/Produtos/hooks/useProductData.ts` — busca vendas de itens automotivos, agrupa por grupo, calcula Pareto e Curva ABC
+- [x] 4.2.2 Criar `src/pages/Produtos/components/ProductKpis.tsx` — KPIs: Faturamento, Qtd Vendida, Margem Total, Ticket Médio
+- [x] 4.2.3 Criar `src/pages/Produtos/components/GroupTable.tsx` — tabela por grupo com heatmap de margem
+- [x] 4.2.4 Criar `src/pages/Produtos/components/ParetoChart.tsx` — gráfico de Pareto (barras + linha acumulativa)
+- [x] 4.2.5 Criar `src/pages/Produtos/components/AbcCurve.tsx` — tabela com classificação ABC e indicadores visuais
 
 #### 4.3 Página de Produtos
 
-- [ ] 4.3.1 Criar `src/pages/Produtos/index.tsx` com: ProductKpis, Tabs (Por Grupo | Pareto | Curva ABC)
-- [ ] 4.3.2 Implementar loading states e tratamento de erro
+- [x] 4.3.1 Criar `src/pages/Produtos/index.tsx` com: ProductKpis, Tabs (Por Grupo | Pareto | Curva ABC)
+- [x] 4.3.2 Implementar loading states e tratamento de erro
 
 #### 4.4 Hook e Componentes de Conveniências
 
-- [ ] 4.4.1 Criar `src/pages/Conveniencias/hooks/useConvenienceData.ts` — busca vendas de itens de conveniência, agrupa por dia e por grupo
-- [ ] 4.4.2 Criar `src/pages/Conveniencias/components/ConvenienceKpis.tsx` — KPIs: Faturamento, Margem, Qtd Itens, Ticket Médio
-- [ ] 4.4.3 Criar `src/pages/Conveniencias/components/DailyTable.tsx` — tabela dia a dia com heatmap
-- [ ] 4.4.4 Criar `src/pages/Conveniencias/components/GroupTable.tsx` — tabela por grupo de conveniência
-- [ ] 4.4.5 Criar `src/pages/Conveniencias/components/RevenueChart.tsx` — gráfico de barras/área de faturamento
+- [x] 4.4.1 Criar `src/pages/Conveniencias/hooks/useConvenienceData.ts` — busca vendas de itens de conveniência, agrupa por dia e por grupo
+- [x] 4.4.2 Criar `src/pages/Conveniencias/components/ConvenienceKpis.tsx` — KPIs: Faturamento, Margem, Qtd Itens, Ticket Médio
+- [x] 4.4.3 Criar `src/pages/Conveniencias/components/DailyTable.tsx` — tabela dia a dia com heatmap
+- [x] 4.4.4 Criar `src/pages/Conveniencias/components/GroupTable.tsx` — tabela por grupo de conveniência
+- [x] 4.4.5 Criar `src/pages/Conveniencias/components/RevenueChart.tsx` — gráfico de barras/área de faturamento
 
 #### 4.5 Página de Conveniências
 
-- [ ] 4.5.1 Criar `src/pages/Conveniencias/index.tsx` com: ConvenienceKpis, Tabs (Dia a Dia | Por Grupo | Evolução)
-- [ ] 4.5.2 Implementar loading states e tratamento de erro
+- [x] 4.5.1 Criar `src/pages/Conveniencias/index.tsx` com: ConvenienceKpis, Tabs (Dia a Dia | Por Grupo | Evolução)
+- [x] 4.5.2 Implementar loading states e tratamento de erro
 
 ---
 
@@ -224,8 +224,8 @@
 
 #### 5.1 Tipos e Endpoints de Estoques
 
-- [ ] 5.1.1 Criar `src/api/types/estoque.ts` com tipos: `Estoque`, `EstoquePeriodo`, `ProdutoEstoque`, `ContagemEstoque`
-- [ ] 5.1.2 Criar `src/api/endpoints/estoques.ts` com funções:
+- [x] 5.1.1 Criar `src/api/types/estoque.ts` com tipos: `Estoque`, `EstoquePeriodo`, `ProdutoEstoque`, `ContagemEstoque`
+- [x] 5.1.2 Criar `src/api/endpoints/estoques.ts` com funções:
   - `fetchProdutoEstoque(params)` → `GET /INTEGRACAO/PRODUTO_ESTOQUE`
   - `fetchEstoque(params)` → `GET /INTEGRACAO/ESTOQUE`
   - `fetchEstoquePeriodo(params)` → `GET /INTEGRACAO/ESTOQUE_PERIODO`
@@ -233,39 +233,39 @@
 
 #### 5.2 Hook e Componentes de Estoques
 
-- [ ] 5.2.1 Criar `src/pages/Estoques/hooks/useStockData.ts` — busca posição de estoque, calcula KPIs (valor total, itens abaixo mínimo, giro)
-- [ ] 5.2.2 Criar `src/pages/Estoques/components/StockKpis.tsx` — KPIs: Valor Total Estoque, Itens Abaixo Mínimo, Giro Médio
-- [ ] 5.2.3 Criar `src/pages/Estoques/components/StockTable.tsx` — tabela de posição de estoque por produto (Produto, Qtd, Valor Custo, Valor Venda, Status)
-- [ ] 5.2.4 Criar `src/pages/Estoques/components/StockMovementChart.tsx` — gráfico de barras agrupadas (entradas vs. saídas por período)
+- [x] 5.2.1 Criar `src/pages/Estoques/hooks/useStockData.ts` — busca posição de estoque, calcula KPIs (valor total, itens abaixo mínimo, giro)
+- [x] 5.2.2 Criar `src/pages/Estoques/components/StockKpis.tsx` — KPIs: Valor Total Estoque, Itens Abaixo Mínimo, Giro Médio
+- [x] 5.2.3 Criar `src/pages/Estoques/components/StockTable.tsx` — tabela de posição de estoque por produto (Produto, Qtd, Valor Custo, Valor Venda, Status)
+- [x] 5.2.4 Criar `src/pages/Estoques/components/StockMovementChart.tsx` — gráfico de barras agrupadas (entradas vs. saídas por período)
 
 #### 5.3 Página de Estoques
 
-- [ ] 5.3.1 Criar `src/pages/Estoques/index.tsx` com: StockKpis, StockTable, StockMovementChart
-- [ ] 5.3.2 Implementar loading states e tratamento de erro
+- [x] 5.3.1 Criar `src/pages/Estoques/index.tsx` com: StockKpis, StockTable, StockMovementChart
+- [x] 5.3.2 Implementar loading states e tratamento de erro
 
 #### 5.4 Tipos e Endpoints de Funcionários
 
-- [ ] 5.4.1 Criar `src/api/types/funcionario.ts` com tipos: `Funcionario`, `FuncionarioMeta`, `Funcao`, `Placares`
-- [ ] 5.4.2 Criar `src/api/endpoints/funcionarios.ts` com funções:
+- [x] 5.4.1 Criar `src/api/types/funcionario.ts` com tipos: `Funcionario`, `FuncionarioMeta`, `Funcao`, `Placares`
+- [x] 5.4.2 Criar `src/api/endpoints/funcionarios.ts` com funções:
   - `fetchFuncionarios(params)` → `GET /INTEGRACAO/FUNCIONARIO`
   - `fetchFuncionarioMeta(params)` → `GET /INTEGRACAO/FUNCIONARIO_META`
   - `fetchFuncoes(params)` → `GET /INTEGRACAO/FUNCOES`
   - `fetchPlacares(params)` → `GET /INTEGRACAO/PLACARES`
-- [ ] 5.4.3 Criar `src/api/endpoints/relatorios.ts` com função:
+- [x] 5.4.3 Criar `src/api/endpoints/relatorios.ts` com função:
   - `fetchProdutividadeFuncionario(params)` → `GET /INTEGRACAO/RELATORIO/PRODUTIVIDADE_FUNCIONARIO`
 
 #### 5.5 Hook e Componentes de Produtividade
 
-- [ ] 5.5.1 Criar `src/pages/Produtividade/hooks/useProductivityData.ts` — busca relatório de produtividade, calcula rankings e campeão
-- [ ] 5.5.2 Criar `src/pages/Produtividade/components/ChampionCard.tsx` — card destacado do funcionário campeão com foto/ícone, nome, valor vendido, badge
-- [ ] 5.5.3 Criar `src/pages/Produtividade/components/SalesRanking.tsx` — gráfico de barras horizontais dos funcionários ordenados por vendas
-- [ ] 5.5.4 Criar `src/pages/Produtividade/components/ConversionRanking.tsx` — ranking por taxa de conversão
-- [ ] 5.5.5 Criar `src/pages/Produtividade/components/TicketRanking.tsx` — ranking por ticket médio
+- [x] 5.5.1 Criar `src/pages/Produtividade/hooks/useProductivityData.ts` — busca relatório de produtividade, calcula rankings e campeão
+- [x] 5.5.2 Criar `src/pages/Produtividade/components/ChampionCard.tsx` — card destacado do funcionário campeão com foto/ícone, nome, valor vendido, badge
+- [x] 5.5.3 Criar `src/pages/Produtividade/components/SalesRanking.tsx` — gráfico de barras horizontais dos funcionários ordenados por vendas
+- [x] 5.5.4 Criar `src/pages/Produtividade/components/ConversionRanking.tsx` — ranking por taxa de conversão
+- [x] 5.5.5 Criar `src/pages/Produtividade/components/TicketRanking.tsx` — ranking por ticket médio
 
 #### 5.6 Página de Produtividade
 
-- [ ] 5.6.1 Criar `src/pages/Produtividade/index.tsx` com: ChampionCard, Tabs (Ranking Geral | Conversão | Ticket Médio)
-- [ ] 5.6.2 Implementar loading states e tratamento de erro
+- [x] 5.6.1 Criar `src/pages/Produtividade/index.tsx` com: ChampionCard, Tabs (Ranking Geral | Conversão | Ticket Médio)
+- [x] 5.6.2 Implementar loading states e tratamento de erro
 
 ---
 
@@ -275,8 +275,8 @@
 
 #### 6.1 Tipos e Endpoints Financeiros
 
-- [ ] 6.1.1 Criar `src/api/types/financeiro.ts` com tipos: `TituloReceber`, `TituloPagar`, `Duplicata`, `MovimentoConta`, `DRE`, `Caixa`, `CaixaApresentado`, `Conta`
-- [ ] 6.1.2 Criar `src/api/endpoints/financeiro.ts` com funções:
+- [x] 6.1.1 Criar `src/api/types/financeiro.ts` com tipos: `TituloReceber`, `TituloPagar`, `Duplicata`, `MovimentoConta`, `DRE`, `Caixa`, `CaixaApresentado`, `Conta`
+- [x] 6.1.2 Criar `src/api/endpoints/financeiro.ts` com funções:
   - `fetchTitulosReceber(params)` → `GET /INTEGRACAO/TITULO_RECEBER`
   - `fetchTitulosPagar(params)` → `GET /INTEGRACAO/TITULO_PAGAR`
   - `fetchDuplicatas(params)` → `GET /INTEGRACAO/DUPLICATA`
