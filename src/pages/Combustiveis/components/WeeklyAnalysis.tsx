@@ -9,6 +9,7 @@ import {
   Legend,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
 
 interface WeeklyRow {
   dia: string
@@ -20,12 +21,6 @@ interface WeeklyRow {
 
 interface WeeklyAnalysisProps {
   data: WeeklyRow[]
-}
-
-const formatCurrencyShort = (value: number) => {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`
-  return `R$ ${value.toFixed(0)}`
 }
 
 const WeeklyAnalysis = ({ data }: WeeklyAnalysisProps) => {
@@ -44,7 +39,7 @@ const WeeklyAnalysis = ({ data }: WeeklyAnalysisProps) => {
             formatter={(value: number, name: string) => [
               name.includes('Litros')
                 ? value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
-                : 'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                : formatCurrencyTooltip(value),
               name,
             ]}
           />

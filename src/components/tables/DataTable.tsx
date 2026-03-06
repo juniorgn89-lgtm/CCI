@@ -81,7 +81,7 @@ const DataTable = <T extends Record<string, unknown>>({
   }
 
   return (
-    <Table>
+    <Table className="min-w-[600px]">
       <TableHeader>
         <TableRow className="bg-gray-100 hover:bg-gray-100">
           {columns.map((col) => (
@@ -95,6 +95,15 @@ const DataTable = <T extends Record<string, unknown>>({
                 col.className
               )}
               onClick={col.sortable ? () => handleSort(col.key) : undefined}
+              aria-sort={
+                col.sortable && sortKey === col.key && sortDirection
+                  ? sortDirection === 'asc' ? 'ascending' : 'descending'
+                  : undefined
+              }
+              role={col.sortable ? 'button' : undefined}
+              tabIndex={col.sortable ? 0 : undefined}
+              onKeyDown={col.sortable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort(col.key) } } : undefined}
+              aria-label={col.sortable ? `Ordenar por ${col.label}` : undefined}
             >
               <div
                 className={cn(

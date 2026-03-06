@@ -56,7 +56,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         </button>
       </div>
 
-      <nav className="mt-2 flex-1 space-y-1 px-2">
+      <nav aria-label="Menu principal" className="mt-2 flex-1 space-y-1 px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.path
           const Icon = item.icon
@@ -65,6 +65,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             <Link
               key={item.path}
               to={item.path}
+              aria-label={collapsed ? item.label : undefined}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive

@@ -8,16 +8,11 @@ import {
   Tooltip,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
 import type { RankingRow } from '@/pages/Produtividade/hooks/useProductivityData'
 
 interface SalesRankingProps {
   data: RankingRow[]
-}
-
-const formatCurrencyShort = (value: number) => {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`
-  return `R$ ${value.toFixed(0)}`
 }
 
 const SalesRanking = ({ data }: SalesRankingProps) => {
@@ -38,7 +33,7 @@ const SalesRanking = ({ data }: SalesRankingProps) => {
           />
           <Tooltip
             formatter={(value: number) => [
-              'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+              formatCurrencyTooltip(value),
               'Total Vendas',
             ]}
           />

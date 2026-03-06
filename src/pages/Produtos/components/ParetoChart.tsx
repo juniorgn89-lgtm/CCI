@@ -10,16 +10,11 @@ import {
   Legend,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
 import type { ParetoRow } from '@/pages/Produtos/hooks/useProductData'
 
 interface ParetoChartProps {
   data: ParetoRow[]
-}
-
-const formatCurrencyShort = (value: number) => {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`
-  return `R$ ${value.toFixed(0)}`
 }
 
 const ParetoChart = ({ data }: ParetoChartProps) => {
@@ -54,7 +49,7 @@ const ParetoChart = ({ data }: ParetoChartProps) => {
           <Tooltip
             formatter={(value: number, name: string) =>
               name === 'Faturamento'
-                ? ['R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), name]
+                ? [formatCurrencyTooltip(value), name]
                 : [`${value.toFixed(1)}%`, name]
             }
           />

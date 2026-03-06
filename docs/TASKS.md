@@ -287,17 +287,17 @@
 
 #### 6.2 Hook e Componentes Financeiros
 
-- [ ] 6.2.1 Criar `src/pages/Financeiro/hooks/useFinanceData.ts` — busca títulos, movimentações e DRE; calcula KPIs financeiros
-- [ ] 6.2.2 Criar `src/pages/Financeiro/components/FinanceKpis.tsx` — KPIs: Total a Receber, Total a Pagar, Saldo Líquido, Inadimplência
-- [ ] 6.2.3 Criar `src/pages/Financeiro/components/ReceivablesTable.tsx` — tabela de títulos a receber: Cliente, Data Vencimento, Valor, Situação; com filtro de situação (aberto/pago/todos)
-- [ ] 6.2.4 Criar `src/pages/Financeiro/components/PayablesTable.tsx` — tabela de títulos a pagar: Fornecedor, Data Vencimento, Valor, Situação
-- [ ] 6.2.5 Criar `src/pages/Financeiro/components/CashFlowChart.tsx` — gráfico de área com duas séries: entradas (verde) e saídas (vermelho) por período
+- [x] 6.2.1 Criar `src/pages/Financeiro/hooks/useFinanceData.ts` — busca títulos, movimentações e DRE; calcula KPIs financeiros
+- [x] 6.2.2 Criar `src/pages/Financeiro/components/FinanceKpis.tsx` — KPIs: Total a Receber, Total a Pagar, Saldo Líquido, Inadimplência
+- [x] 6.2.3 Criar `src/pages/Financeiro/components/ReceivablesTable.tsx` — tabela de títulos a receber: Cliente, Data Vencimento, Valor, Situação; com filtro de situação (aberto/pago/todos)
+- [x] 6.2.4 Criar `src/pages/Financeiro/components/PayablesTable.tsx` — tabela de títulos a pagar: Fornecedor, Data Vencimento, Valor, Situação
+- [x] 6.2.5 Criar `src/pages/Financeiro/components/CashFlowChart.tsx` — gráfico de área com duas séries: entradas (verde) e saídas (vermelho) por período
 
 #### 6.3 Página Financeiro
 
-- [ ] 6.3.1 Criar `src/pages/Financeiro/index.tsx` com: FinanceKpis, Tabs (Receber | Pagar | Fluxo de Caixa | DRE)
-- [ ] 6.3.2 Implementar visualização de DRE: tabela hierárquica com grupos contábeis e totalizadores
-- [ ] 6.3.3 Implementar loading states e tratamento de erro
+- [x] 6.3.1 Criar `src/pages/Financeiro/index.tsx` com: FinanceKpis, Tabs (Receber | Pagar | Fluxo de Caixa | DRE)
+- [x] 6.3.2 Implementar visualização de DRE: tabela hierárquica com grupos contábeis e totalizadores
+- [x] 6.3.3 Implementar loading states e tratamento de erro
 
 ---
 
@@ -307,14 +307,14 @@
 
 #### 7.1 Componentes de Gráficos Reutilizáveis
 
-- [ ] 7.1.1 Criar `src/components/charts/AreaChart.tsx` — componente Recharts de AreaChart com config padrão (cores, tooltip, responsividade)
-- [ ] 7.1.2 Criar `src/components/charts/BarChart.tsx` — componente de barras verticais com tooltips e cores do design system
-- [ ] 7.1.3 Criar `src/components/charts/HorizontalBarChart.tsx` — barras horizontais para rankings
-- [ ] 7.1.4 Criar `src/components/charts/PieChart.tsx` — gráfico de pizza/donut para distribuições
+- [x] 7.1.1 Criar `src/components/charts/AreaChart.tsx` — componente Recharts de AreaChart com config padrão (cores, tooltip, responsividade)
+- [x] 7.1.2 Criar `src/components/charts/BarChart.tsx` — componente de barras verticais com tooltips e cores do design system
+- [x] 7.1.3 Criar `src/components/charts/HorizontalBarChart.tsx` — barras horizontais para rankings
+- [x] 7.1.4 Criar `src/components/charts/PieChart.tsx` — gráfico de pizza/donut para distribuições
 
 #### 7.2 Endpoints de Relatórios
 
-- [ ] 7.2.1 Adicionar em `src/api/endpoints/relatorios.ts`:
+- [x] 7.2.1 Adicionar em `src/api/endpoints/relatorios.ts`:
   - `fetchMapaDesempenho(params)` → `GET /INTEGRACAO/RELATORIO/MAPA_DESEMPENHO`
   - `fetchVendaPeriodo(params)` → `GET /INTEGRACAO/RELATORIO/VENDA_PERIODO`
   - `fetchRelatorioPersonalizado(codigo, params)` → `GET /INTEGRACAO/RELATORIO/RELATORIO_PERSONALIZADO/{codigo}`
@@ -322,13 +322,13 @@
 
 #### 7.3 Componentes de Relatórios
 
-- [ ] 7.3.1 Criar `src/pages/Relatorios/components/ReportSelector.tsx` — lista/grid de relatórios disponíveis com nome e descrição, selecionável
-- [ ] 7.3.2 Criar `src/pages/Relatorios/components/ReportViewer.tsx` — visualizador do relatório selecionado com parâmetros dinâmicos (data, empresa, produto, etc.) e resultado renderizado
+- [x] 7.3.1 Criar `src/pages/Relatorios/components/ReportSelector.tsx` — lista/grid de relatórios disponíveis com nome e descrição, selecionável
+- [x] 7.3.2 Criar `src/pages/Relatorios/components/ReportViewer.tsx` — visualizador do relatório selecionado com parâmetros dinâmicos (data, empresa, produto, etc.) e resultado renderizado
 
 #### 7.4 Página de Relatórios
 
-- [ ] 7.4.1 Criar `src/pages/Relatorios/index.tsx` com: ReportSelector à esquerda/topo, ReportViewer como área principal
-- [ ] 7.4.2 Implementar loading states e tratamento de erro
+- [x] 7.4.1 Criar `src/pages/Relatorios/index.tsx` com: ReportSelector à esquerda/topo, ReportViewer como área principal
+- [x] 7.4.2 Implementar loading states e tratamento de erro
 
 ---
 
@@ -338,41 +338,41 @@
 
 #### 8.1 Responsividade
 
-- [ ] 8.1.1 Testar e ajustar Sidebar em tablet (colapsada por padrão) e mobile (oculta com menu hambúrguer via Sheet do shadcn/ui)
-- [ ] 8.1.2 Testar e ajustar KpiGrid: 4-5 colunas desktop, 2 tablet, 1 mobile
-- [ ] 8.1.3 Testar e ajustar DataTable: scroll horizontal em telas menores
-- [ ] 8.1.4 Testar e ajustar gráficos Recharts: `<ResponsiveContainer>` em todos os charts
-- [ ] 8.1.5 Testar e ajustar FilterBar: empilhada em mobile
+- [x] 8.1.1 Testar e ajustar Sidebar em tablet (colapsada por padrão) e mobile (oculta com menu hambúrguer via Sheet do shadcn/ui)
+- [x] 8.1.2 Testar e ajustar KpiGrid: 4-5 colunas desktop, 2 tablet, 1 mobile
+- [x] 8.1.3 Testar e ajustar DataTable: scroll horizontal em telas menores
+- [x] 8.1.4 Testar e ajustar gráficos Recharts: `<ResponsiveContainer>` em todos os charts
+- [x] 8.1.5 Testar e ajustar FilterBar: empilhada em mobile
 
 #### 8.2 Loading e Error States
 
-- [ ] 8.2.1 Implementar skeletons (shadcn/ui Skeleton) em todos os KpiCards enquanto dados carregam
-- [ ] 8.2.2 Implementar skeletons em todas as tabelas enquanto dados carregam
-- [ ] 8.2.3 Implementar componente de erro amigável ("Não foi possível carregar os dados. Tente novamente.") com botão de retry
-- [ ] 8.2.4 Implementar empty state quando não há dados para o período/empresa selecionado
+- [x] 8.2.1 Implementar skeletons (shadcn/ui Skeleton) em todos os KpiCards enquanto dados carregam
+- [x] 8.2.2 Implementar skeletons em todas as tabelas enquanto dados carregam
+- [x] 8.2.3 Implementar componente de erro amigável ("Não foi possível carregar os dados. Tente novamente.") com botão de retry
+- [x] 8.2.4 Implementar empty state quando não há dados para o período/empresa selecionado
 
 #### 8.3 Refinamentos Visuais
 
-- [ ] 8.3.1 Revisar consistência de espaçamentos (padding, margin, gap) em todos os módulos
-- [ ] 8.3.2 Revisar consistência de cores (heatmap, variações, ícones) em todos os módulos
-- [ ] 8.3.3 Revisar formatação de números (moeda, percentual, litros) em todos os módulos
-- [ ] 8.3.4 Adicionar animações sutis de transição entre abas e carregamento de dados
-- [ ] 8.3.5 Revisar acessibilidade: contraste de cores, aria-labels em componentes interativos
+- [x] 8.3.1 Revisar consistência de espaçamentos (padding, margin, gap) em todos os módulos
+- [x] 8.3.2 Revisar consistência de cores (heatmap, variações, ícones) em todos os módulos
+- [x] 8.3.3 Revisar formatação de números (moeda, percentual, litros) em todos os módulos
+- [x] 8.3.4 Adicionar animações sutis de transição entre abas e carregamento de dados
+- [x] 8.3.5 Revisar acessibilidade: contraste de cores, aria-labels em componentes interativos
 
 #### 8.4 Cross-filter e Navegação
 
-- [ ] 8.4.1 Implementar cross-filter do Dashboard para módulo Combustíveis (clique no SectorCard → navega com filtro de grupo)
-- [ ] 8.4.2 Implementar cross-filter do Dashboard para módulo Produtos
-- [ ] 8.4.3 Implementar cross-filter do Dashboard para módulo Conveniências
-- [ ] 8.4.4 Implementar breadcrumb ou indicador visual de filtro pré-aplicado via cross-filter
+- [x] 8.4.1 Implementar cross-filter do Dashboard para módulo Combustíveis (clique no SectorCard → navega com filtro de grupo)
+- [x] 8.4.2 Implementar cross-filter do Dashboard para módulo Produtos
+- [x] 8.4.3 Implementar cross-filter do Dashboard para módulo Conveniências
+- [x] 8.4.4 Implementar breadcrumb ou indicador visual de filtro pré-aplicado via cross-filter
 
 #### 8.5 Validação Final READ-ONLY
 
-- [ ] 8.5.1 Auditar todo o código para garantir zero `useMutation` imports
-- [ ] 8.5.2 Auditar todo o código para garantir zero chamadas `.post()`, `.put()`, `.delete()`, `.patch()` (exceto auth.ts)
-- [ ] 8.5.3 Auditar toda a interface para garantir zero botões de criar/editar/excluir
-- [ ] 8.5.4 Verificar no DevTools (aba Network) que nenhuma requisição não-GET é disparada durante uso completo do sistema
-- [ ] 8.5.5 Verificar que o interceptor HTTP rejeita tentativas manuais de POST/PUT/DELETE
+- [x] 8.5.1 Auditar todo o código para garantir zero `useMutation` imports
+- [x] 8.5.2 Auditar todo o código para garantir zero chamadas `.post()`, `.put()`, `.delete()`, `.patch()` (exceto auth.ts)
+- [x] 8.5.3 Auditar toda a interface para garantir zero botões de criar/editar/excluir
+- [x] 8.5.4 Verificar no DevTools (aba Network) que nenhuma requisição não-GET é disparada durante uso completo do sistema
+- [x] 8.5.5 Verificar que o interceptor HTTP rejeita tentativas manuais de POST/PUT/DELETE
 
 ---
 

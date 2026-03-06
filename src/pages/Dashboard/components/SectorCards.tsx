@@ -33,7 +33,11 @@ const SectorCards = ({ data }: SectorCardsProps) => {
         return (
           <div
             key={sector.label}
-            onClick={() => navigate(config.route)}
+            onClick={() => navigate(`${config.route}?from=dashboard`)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`${config.route}?from=dashboard`) } }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Ir para ${sector.label}`}
             className={cn(
               'cursor-pointer rounded-xl border-l-4 bg-white p-5 shadow-sm transition-shadow hover:shadow-md',
               config.color

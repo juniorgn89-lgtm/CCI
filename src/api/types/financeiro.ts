@@ -19,70 +19,181 @@ export interface TituloReceber {
   tituloNumero: number
 }
 
+export interface TituloPagarPagamento {
+  pagamentoCodigo: number
+  tipo: string
+  detalhe: string
+  valor: number
+  dataPagamento: string
+  codigoDocumento: string
+  tipoDocumento: string
+}
+
 export interface TituloPagar {
   codigo: number
   empresaCodigo: number
-  fornecedorCodigo: number
+  tituloPagarCodigo: number
+  notaEntradaCodigo: number
   dataMovimento: string
-  dataVencimento: string
+  vencimento: string
   dataPagamento: string
-  valorOriginal: number
-  valorPago: number
-  valorAberto: number
   situacao: string
+  tipo: string
+  tipoLancamento: string
+  valor: number
+  valorPago: number
+  desconto: number
+  acrescimo: number
+  cheque: number
+  dinheiro: number
+  troco: number
+  adiantamento: number
+  cartao: number
+  fornecedorCodigo: number
+  planoContaGerencialCodigo: number
+  descricao: string
+  numeroTitulo: string
+  nomeFornecedor: string
+  cpfCnpjFornecedor: string
+  pagamento: TituloPagarPagamento[]
+  numeroRemessa: number
+  planoContaGerencialNivel: string
+  planoContaGerencialDescricao: string
+  centroCustoCodigo: number
+  centroCustoDescricao: string
+  parcela: number
+  quantidadeParcelas: number
+  linhaDigitavel: string
+  autorizado: boolean
+  nossoNumero: string
+  bancoFornecedor: string
+  agenciaFornecedor: string
+  contaFornecedor: string
+  tipoChavePixFornecedor: string
+  chavePixFornecedor: string
+  qrCodePix: string
+  tipoTributo: string
+  codigoReceitaTributo: number
+  renavam: string
+  placa: string
+  codigoMunicipio: number
+  digitoFgts: number
+  lacreConSocialFgts: number
+  identificadorFgts: number
+}
+
+export interface DuplicataPagamento {
+  recebimentoCodigo: number
+  tipo: string
+  detalhe: string
+  valor: number
+  dataRecebimento: string
 }
 
 export interface Duplicata {
   codigo: number
   empresaCodigo: number
-  numeroDuplicata: string
-  dataEmissao: string
-  dataVencimento: string
-  valor: number
+  duplicataCodigo: number
+  dataPagamento: string
   valorPago: number
+  pendente: boolean
+  dataMovimento: string
+  vencimento: string
+  clienteCodigo: number
+  valorDuplicata: number
   situacao: string
+  valorAcrescimo: number
+  valorDesconto: number
+  valorLiquido: number
+  numeroDocumento: string
+  nossoNumero: string
+  nomeCliente: string
+  cpfCnpjCliente: string
+  pagamento: DuplicataPagamento[]
+  remessaBoleto: string
+  hierarquiaPlanoConta: string
+  planoContaGerencialCodigo: number
 }
 
 export interface MovimentoConta {
   codigo: number
   empresaCodigo: number
-  contaCodigo: number
-  data: string
+  movimentoContaCodigo: number
   valor: number
-  tipo: string
+  dataMovimento: string
   descricao: string
   tipoDocumentoOrigem: string
+  codigoTipoDocumentoOrigem: number
+  documentoOrigemCodigo: number
+  tipo: string
+  conciliado: boolean
+  evento: string
+  saldo: number
+  contaCodigo: number
+  planoContaGerencialCodigo: number
+  centroCustoCodigo: number
+  documento: string
+  lote: string
+  daraHoraConciliacao: string
+  usuarioConciliacao: string
+  codigoPessoa: number
+  tipoPessoa: string
+}
+
+export interface DreVendasGrupo {
+  produtoGrupo: string
+  valorVenda: number
+  acrescimo: number
+  desconto: number
+  cmv: number
 }
 
 export interface DreApuracaoReceita {
-  descricao: string
+  planoContaGerencialPAI: string
+  planoContaGerencialFILHO: string
+  centroCusto: number[]
+  data: string
+  descricaoDocumento: string
   valor: number
 }
 
 export interface DreApuracaoPagamentos {
-  descricao: string
-  valor: number
-}
-
-export interface DreVendasGrupo {
-  descricao: string
+  planoContaGerencialPAI: string
+  planoContaGerencialFILHO: string
+  centroCusto: number[]
+  data: string
+  descricaoDocumento: string
   valor: number
 }
 
 export interface DRE {
+  empresaCodigo: number[]
+  receitaBruta: number
+  vendasGrupo: DreVendasGrupo[]
+  deducaoFiscal: number
   apuracaoReceita: DreApuracaoReceita[]
   apuracaoPagamentos: DreApuracaoPagamentos[]
-  vendasGrupo: DreVendasGrupo[]
 }
 
 export interface Caixa {
   codigo: number
   empresaCodigo: number
-  data: string
-  turno: number
-  abertura: number
-  fechamento: number
+  caixaCodigo: number
+  dataMovimento: string
+  turnoCodigo: number
+  turno: string
+  pdvCodigo: number
+  funcionarioCodigo: number
+  centroCusto: number
+  abertura: string
+  fechamento: string
+  fechado: boolean
   consolidado: boolean
+  tipoInclusao: string
+  bloqueado: boolean
+  tipoBloqueio: string
+  apurado: number
+  diferenca: number
 }
 
 export interface CaixaApresentado {
@@ -99,8 +210,7 @@ export interface Conta {
   empresaCodigo: number
   contaCodigo: number
   descricao: string
-  banco: string
-  agencia: string
-  numeroConta: string
+  saldoAtual: number
   ativo: boolean
+  usaOfx: boolean
 }

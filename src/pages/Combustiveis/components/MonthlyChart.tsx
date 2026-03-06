@@ -9,6 +9,7 @@ import {
   Legend,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrencyShort, formatLitersShort, formatCurrencyTooltip } from '@/lib/formatters'
 
 interface MonthlyRow {
   mes: string
@@ -26,18 +27,6 @@ const formatMonth = (mes: string) => {
   return `${months[Number(month) - 1]}/${year.slice(2)}`
 }
 
-const formatCurrencyShort = (value: number) => {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`
-  return `R$ ${value.toFixed(0)}`
-}
-
-const formatLitersShort = (value: number) => {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M L`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K L`
-  return `${value.toFixed(0)} L`
-}
-
 const MonthlyChart = ({ data }: MonthlyChartProps) => {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -52,7 +41,7 @@ const MonthlyChart = ({ data }: MonthlyChartProps) => {
             formatter={(value: number, name: string) =>
               name === 'Litros'
                 ? [value.toLocaleString('pt-BR') + ' L', name]
-                : ['R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), name]
+                : [formatCurrencyTooltip(value), name]
             }
             labelFormatter={formatMonth}
           />

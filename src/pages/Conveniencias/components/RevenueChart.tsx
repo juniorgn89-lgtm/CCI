@@ -9,6 +9,7 @@ import {
   Legend,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
 import type { RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 interface RevenueChartProps {
@@ -19,12 +20,6 @@ const formatMonth = (mes: string) => {
   const [year, month] = mes.split('-')
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
   return `${months[Number(month) - 1]}/${year.slice(2)}`
-}
-
-const formatCurrencyShort = (value: number) => {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`
-  return `R$ ${value.toFixed(0)}`
 }
 
 const RevenueChart = ({ data }: RevenueChartProps) => {
@@ -38,7 +33,7 @@ const RevenueChart = ({ data }: RevenueChartProps) => {
           <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
           <Tooltip
             formatter={(value: number, name: string) => [
-              'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+              formatCurrencyTooltip(value),
               name,
             ]}
             labelFormatter={formatMonth}

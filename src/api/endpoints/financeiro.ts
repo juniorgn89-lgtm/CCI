@@ -26,41 +26,69 @@ interface FetchTitulosReceberParams {
 }
 
 interface FetchTitulosPagarParams {
-  empresaCodigo?: number
   dataInicial?: string
   dataFinal?: string
-  tipoData?: 'EMISSAO' | 'ENTRADA'
+  dataHoraAtualizacao?: string
+  apenasPendente?: boolean
+  dataFiltro?: 'MOVIMENTO' | 'VENCIMENTO' | 'PAGAMENTO'
   ultimoCodigo?: number
   limite?: number
+  empresaCodigo?: number
+  notaEntradaCodigo?: number
+  tituloPagarCodigo?: number
+  fornecedorCodigo?: number
+  linhaDigitavel?: string
+  autorizado?: boolean
+  tipoLancamento?: 'BOLETO' | 'TRIBUTO' | 'CREDITO_CONTA' | 'TED' | 'DOC' | 'PIX' | 'LANCAMENTO_MANUAL' | 'CONVENIO'
 }
 
 interface FetchDuplicatasParams {
-  empresaCodigo?: number
   dataInicial?: string
   dataFinal?: string
+  dataHoraAtualizacao?: string
+  apenasPendente?: boolean
+  dataFiltro?: 'MOVIMENTO' | 'VENCIMENTO' | 'PAGAMENTO'
   ultimoCodigo?: number
   limite?: number
+  empresaCodigo?: number
+  notaEntradaCodigo?: number
+  tituloPagarCodigo?: number
+  fornecedorCodigo?: number
+  linhaDigitavel?: string
+  autorizado?: boolean
+  tipoLancamento?: 'BOLETO' | 'TRIBUTO' | 'CREDITO_CONTA' | 'TED' | 'DOC' | 'PIX' | 'LANCAMENTO_MANUAL' | 'CONVENIO'
 }
 
 interface FetchMovimentosContaParams {
   empresaCodigo?: number
-  contaCodigo?: number
   dataInicial?: string
   dataFinal?: string
   ultimoCodigo?: number
   limite?: number
+  mostraSaldo?: boolean
+  dataHoraAtualizacao?: string
+  documentoOrigemCodigo?: number
+  tipoDocumentoOrigem?: string
+  contaCodigo?: number
 }
 
 interface FetchDreParams {
-  empresaCodigo?: number
-  dataInicial?: string
-  dataFinal?: string
+  dataInicial: string
+  dataFinal: string
+  apuracaoCaixa?: boolean
+  cfopOutrasSaidas?: boolean
+  apurarJurosDescontos?: boolean
+  filiais?: number[]
+  centroCustoCodigo?: number[]
+  apurarCentroCustoProduto?: boolean
 }
 
 interface FetchCaixasParams {
+  dataInicial: string
+  dataFinal: string
+  turno?: number
   empresaCodigo?: number
-  dataInicial?: string
-  dataFinal?: string
+  individual?: boolean
   ultimoCodigo?: number
   limite?: number
 }
