@@ -30,11 +30,11 @@ const StockMovementChart = ({ data }: StockMovementChartProps) => {
           <XAxis dataKey="dataMovimento" tickFormatter={formatDate} tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip
-            labelFormatter={formatDate}
-            formatter={(value: number, name: string) => [
+            labelFormatter={formatDate as never}
+            formatter={((value: number, name: string) => [
               value.toLocaleString('pt-BR'),
               name,
-            ]}
+            ]) as never}
           />
           <Legend />
           <Bar

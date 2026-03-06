@@ -36,11 +36,11 @@ const CashFlowChart = ({ data }: CashFlowChartProps) => {
           />
           <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
           <Tooltip
-            formatter={(value: number, name: string) => [
+            formatter={((value: number, name: string) => [
               formatCurrencyTooltip(value),
               name,
-            ]}
-            labelFormatter={(label: string) => formatDate(label)}
+            ]) as never}
+            labelFormatter={((label: string) => formatDate(label)) as never}
           />
           <Legend />
           <Area

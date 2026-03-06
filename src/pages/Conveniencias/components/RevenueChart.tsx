@@ -32,11 +32,11 @@ const RevenueChart = ({ data }: RevenueChartProps) => {
           <XAxis dataKey="mes" tickFormatter={formatMonth} tick={{ fontSize: 12 }} />
           <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
           <Tooltip
-            formatter={(value: number, name: string) => [
+            formatter={((value: number, name: string) => [
               formatCurrencyTooltip(value),
               name,
-            ]}
-            labelFormatter={formatMonth}
+            ]) as never}
+            labelFormatter={formatMonth as never}
           />
           <Legend />
           <Area

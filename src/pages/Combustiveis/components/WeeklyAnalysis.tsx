@@ -36,12 +36,12 @@ const WeeklyAnalysis = ({ data }: WeeklyAnalysisProps) => {
           <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
           <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
           <Tooltip
-            formatter={(value: number, name: string) => [
+            formatter={((value: number, name: string) => [
               name.includes('Litros')
                 ? value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
                 : formatCurrencyTooltip(value),
               name,
-            ]}
+            ]) as never}
           />
           <Legend />
           <Bar dataKey="mediaFaturamento" name="Média Faturamento" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />

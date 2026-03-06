@@ -1,4 +1,5 @@
 import { client } from '@/api/client'
+import type { PaginatedResponse } from '@/api/types/common'
 import type { Empresa } from '@/api/types/empresa'
 
 interface FetchEmpresasParams {
@@ -8,4 +9,4 @@ interface FetchEmpresasParams {
 }
 
 export const fetchEmpresas = (params?: FetchEmpresasParams) =>
-  client.get<Empresa[]>('/EMPRESAS', { params }).then((res) => res.data)
+  client.get<PaginatedResponse<Empresa>>('/EMPRESAS', { params }).then((res) => res.data)

@@ -32,10 +32,10 @@ const SalesRanking = ({ data }: SalesRankingProps) => {
             width={110}
           />
           <Tooltip
-            formatter={(value: number) => [
+            formatter={((value: number) => [
               formatCurrencyTooltip(value),
               'Total Vendas',
-            ]}
+            ]) as never}
           />
           <Bar dataKey="totalVendas" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
         </BarChart>

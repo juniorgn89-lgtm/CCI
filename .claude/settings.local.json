@@ -6,7 +6,13 @@
       "Bash(curl -s -o /tmp/api-docs.json -w \"%{http_code}\" -H \"Accept: application/json\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
       "Bash(curl -s -v \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
       "Bash(curl -s -v -H \"API-Key: test\" \"https://web.qualityautomacao.com.br/INTEGRACAO/v3/api-docs/integracao\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run build)",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/PRODUTO?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&limite=10\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/GRUPO?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&limite=50\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f''{r[\"\"grupoCodigo\"\"]:>8} | {r[\"\"tipoGrupo\"\"]:>15} | {r[\"\"nome\"\"]}''\\) for r in data[''resultados'']]\")",
+      "Bash(curl -s --max-time 20 \"https://web.qualityautomacao.com.br/INTEGRACAO/LMC?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&dataInicial=2026-01-01&dataFinal=2026-01-31&limite=2\")"
     ]
   }
 }

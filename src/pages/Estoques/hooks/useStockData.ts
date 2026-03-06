@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutoEstoque, fetchEstoquePeriodo } from '@/api/endpoints/estoques'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatNumber } from '@/lib/formatters'
 
 export interface StockRow {
   produtoCodigo: number

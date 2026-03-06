@@ -38,12 +38,12 @@ const MonthlyChart = ({ data }: MonthlyChartProps) => {
           <YAxis yAxisId="litros" orientation="left" tickFormatter={formatLitersShort} tick={{ fontSize: 12 }} />
           <YAxis yAxisId="faturamento" orientation="right" tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
           <Tooltip
-            formatter={(value: number, name: string) =>
+            formatter={((value: number, name: string) =>
               name === 'Litros'
                 ? [value.toLocaleString('pt-BR') + ' L', name]
                 : [formatCurrencyTooltip(value), name]
-            }
-            labelFormatter={formatMonth}
+            ) as never}
+            labelFormatter={formatMonth as never}
           />
           <Legend />
           <Area

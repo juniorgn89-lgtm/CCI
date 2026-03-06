@@ -1,9 +1,9 @@
 import { Navigate, Outlet } from 'react-router-dom'
 
 const ProtectedRoute = () => {
-  const token = sessionStorage.getItem('auth_token')
+  const authenticated = sessionStorage.getItem('app_authenticated') === 'true'
 
-  if (!token) {
+  if (!authenticated) {
     return <Navigate to="/login" replace />
   }
 

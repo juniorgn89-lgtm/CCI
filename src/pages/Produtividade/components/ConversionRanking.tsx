@@ -35,7 +35,7 @@ const ConversionRanking = ({ data }: ConversionRankingProps) => {
             width={110}
           />
           <Tooltip
-            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Taxa de Conversão']}
+            formatter={((value: number) => [`${value.toFixed(1)}%`, 'Taxa de Conversão']) as never}
           />
           <Bar dataKey="taxaConversao" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
         </BarChart>

@@ -12,11 +12,13 @@ import {
 const CompanySelect = () => {
   const { empresaCodigo, setEmpresa } = useFilters()
 
-  const { data: empresas = [], isLoading } = useQuery({
+  const { data: empresasData, isLoading } = useQuery({
     queryKey: ['empresas'],
-    queryFn: fetchEmpresas,
+    queryFn: () => fetchEmpresas(),
     staleTime: 10 * 60 * 1000,
   })
+
+  const empresas = empresasData?.resultados ?? []
 
   const handleChange = (value: string) => {
     setEmpresa(value === 'all' ? null : Number(value))
@@ -31,7 +33,7 @@ const CompanySelect = () => {
         <SelectItem value="all">Todas as empresas</SelectItem>
         {empresas.map((empresa) => (
           <SelectItem key={empresa.codigo} value={empresa.codigo.toString()}>
-            {empresa.nomeFantasia}
+            {empresa.fantasia}
           </SelectItem>
         ))}
       </SelectContent>

@@ -16,17 +16,19 @@ const useFuelData = () => {
   }
 
   const {
-    data: abastecimentos = [],
+    data: abastecimentosData,
     isLoading,
   } = useQuery({
     queryKey: ['abastecimentos', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentos(filterParams),
   })
 
+  const abastecimentos = abastecimentosData?.resultados ?? []
+
   const computed = useMemo(() => {
     const totalLitros = abastecimentos.reduce((acc, a) => acc + a.quantidade, 0)
     const totalFaturamento = abastecimentos.reduce((acc, a) => acc + a.valorTotal, 0)
-    const totalCusto = abastecimentos.reduce((acc, a) => acc + a.quantidade * a.precoA, 0)
+    const totalCusto = abastecimentos.reduce((acc, a) => acc + a.quantidade * a.precoCadastro, 0)
     const margemTotal = totalFaturamento - totalCusto
     const margemPercent = totalFaturamento > 0 ? (margemTotal / totalFaturamento) * 100 : 0
     const precoMedioVenda = totalLitros > 0 ? totalFaturamento / totalLitros : 0
@@ -41,12 +43,12 @@ const useFuelData = () => {
     // --- Group by day ---
     const byDay = new Map<string, { litros: number; faturamento: number; custo: number }>()
     for (const a of abastecimentos) {
-      const day = a.dataHora.split('T')[0]
+      const day = a.dataHoraAbastecimento.split('T')[0]
       const prev = byDay.get(day) ?? { litros: 0, faturamento: 0, custo: 0 }
       byDay.set(day, {
         litros: prev.litros + a.quantidade,
         faturamento: prev.faturamento + a.valorTotal,
-        custo: prev.custo + a.quantidade * a.precoA,
+        custo: prev.custo + a.quantidade * a.precoCadastro,
       })
     }
 
@@ -68,11 +70,11 @@ const useFuelData = () => {
     // --- Group by fuel type (produtoCodigo) ---
     const byFuelType = new Map<number, { litros: number; faturamento: number; custo: number }>()
     for (const a of abastecimentos) {
-      const prev = byFuelType.get(a.produtoCodigo) ?? { litros: 0, faturamento: 0, custo: 0 }
-      byFuelType.set(a.produtoCodigo, {
+      const prev = byFuelType.get(a.codigoProduto) ?? { litros: 0, faturamento: 0, custo: 0 }
+      byFuelType.set(a.codigoProduto, {
         litros: prev.litros + a.quantidade,
         faturamento: prev.faturamento + a.valorTotal,
-        custo: prev.custo + a.quantidade * a.precoA,
+        custo: prev.custo + a.quantidade * a.precoCadastro,
       })
     }
 
@@ -96,7 +98,7 @@ const useFuelData = () => {
     // --- Monthly evolution (group by yyyy-MM) ---
     const byMonth = new Map<string, { litros: number; faturamento: number }>()
     for (const a of abastecimentos) {
-      const month = a.dataHora.substring(0, 7)
+      const month = a.dataHoraAbastecimento.substring(0, 7)
       const prev = byMonth.get(month) ?? { litros: 0, faturamento: 0 }
       byMonth.set(month, {
         litros: prev.litros + a.quantidade,
@@ -115,7 +117,7 @@ const useFuelData = () => {
     // --- Weekly analysis (group by day of week) ---
     const byWeekday = Array.from({ length: 7 }, () => ({ litros: 0, faturamento: 0, count: 0 }))
     for (const a of abastecimentos) {
-      const dayOfWeek = new Date(a.dataHora).getDay()
+      const dayOfWeek = new Date(a.dataHoraAbastecimento).getDay()
       byWeekday[dayOfWeek].litros += a.quantidade
       byWeekday[dayOfWeek].faturamento += a.valorTotal
       byWeekday[dayOfWeek].count += 1

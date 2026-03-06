@@ -74,8 +74,8 @@ const AreaChart = ({
             <YAxis tickFormatter={yTickFormatter} tick={{ fontSize: 12 }} />
           )}
           <Tooltip
-            formatter={tooltipFormatter}
-            labelFormatter={tooltipLabelFormatter}
+            formatter={tooltipFormatter as never}
+            labelFormatter={tooltipLabelFormatter as never}
           />
           <Legend />
           {series.map((s, i) => (

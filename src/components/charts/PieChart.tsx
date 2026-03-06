@@ -55,7 +55,7 @@ const PieChart = ({
             outerRadius={outerRadius}
             paddingAngle={2}
             label={({ name, percent }) =>
-              `${name}: ${(percent * 100).toFixed(1)}%`
+              `${name}: ${((percent ?? 0) * 100).toFixed(1)}%`
             }
             labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
           >
@@ -66,7 +66,7 @@ const PieChart = ({
               />
             ))}
           </Pie>
-          <Tooltip formatter={tooltipFormatter} />
+          <Tooltip formatter={tooltipFormatter as never} />
           <Legend />
         </RechartsPieChart>
       </ResponsiveContainer>

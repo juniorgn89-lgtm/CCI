@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 
 const Login = () => {
-  const [email, setEmail] = useState('')
+  const [user, setUser] = useState('')
   const [password, setPassword] = useState('')
   const { login, isLoading, error } = useAuth()
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    login(email, password)
+    login(user, password)
   }
 
   return (
@@ -33,15 +33,15 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                  E-mail
+                <label htmlFor="user" className="text-sm font-medium text-gray-700">
+                  Usuário
                 </label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="user"
+                  type="text"
+                  placeholder="Usuário"
+                  value={user}
+                  onChange={(e) => setUser(e.target.value)}
                   required
                 />
               </div>

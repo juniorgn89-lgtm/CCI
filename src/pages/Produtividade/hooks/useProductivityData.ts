@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchProdutividadeFuncionario } from '@/api/endpoints/relatorios'
-import type { ProdutividadeFuncionario } from '@/api/types/funcionario'
+import { fetchPlacares, fetchFuncionarios } from '@/api/endpoints/funcionarios'
 
 export interface RankingRow {
   funcionarioCodigo: number
@@ -18,27 +17,44 @@ const useProductivityData = () => {
   const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
 
   const {
-    data: produtividade,
-    isLoading,
+    data: placaresData,
+    isLoading: isLoadingPlacares,
   } = useQuery({
-    queryKey: ['produtividadeFuncionario', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchProdutividadeFuncionario({
+    queryKey: ['placares', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchPlacares({
       empresaCodigo: empresaCodigo ?? undefined,
       dataInicial,
       dataFinal,
     }),
   })
 
-  const computed = useMemo(() => {
-    const dados: ProdutividadeFuncionario[] = produtividade ?? []
+  const {
+    data: funcionariosData,
+    isLoading: isLoadingFuncionarios,
+  } = useQuery({
+    queryKey: ['funcionarios', empresaCodigo],
+    queryFn: () => fetchFuncionarios({
+      empresaCodigo: empresaCodigo ?? undefined,
+      ativo: true,
+    }),
+    enabled: !!empresaCodigo,
+  })
 
-    const ranking: RankingRow[] = dados.map((d) => ({
-      funcionarioCodigo: d.funcionarioCodigo,
-      funcionarioNome: d.funcionarioNome,
-      totalVendas: d.totalVendas,
-      quantidadeVendas: d.quantidadeVendas,
-      ticketMedio: d.ticketMedio,
-      taxaConversao: d.taxaConversao,
+  const isLoading = isLoadingPlacares || isLoadingFuncionarios
+
+  const computed = useMemo(() => {
+    const placares = placaresData?.resultados ?? []
+    const funcionarios = funcionariosData?.resultados ?? []
+
+    const nomeMap = new Map(funcionarios.map((f) => [f.funcionarioCodigo, f.nome]))
+
+    const ranking: RankingRow[] = placares.map((p) => ({
+      funcionarioCodigo: p.funcionarioCodigo,
+      funcionarioNome: nomeMap.get(p.funcionarioCodigo) ?? `Funcionário ${p.funcionarioCodigo}`,
+      totalVendas: p.totalVendas,
+      quantidadeVendas: p.quantidadeVendas,
+      ticketMedio: p.ticketMedio,
+      taxaConversao: p.taxaConversao,
     }))
 
     const salesRanking = [...ranking].sort((a, b) => b.totalVendas - a.totalVendas)
@@ -48,7 +64,7 @@ const useProductivityData = () => {
     const champion = salesRanking.length > 0 ? salesRanking[0] : null
 
     return { champion, salesRanking, conversionRanking, ticketRanking }
-  }, [produtividade])
+  }, [placaresData, funcionariosData])
 
   return {
     ...computed,

@@ -5,15 +5,11 @@ const client = axios.create({
 })
 
 // --- Request interceptor: READ-ONLY enforcement ---
-// Rejects any method that is not GET, except POST on auth/login routes.
+// Rejects any method that is not GET.
 client.interceptors.request.use((config) => {
   const method = (config.method ?? 'get').toLowerCase()
-  const url = (config.url ?? '').toLowerCase()
 
-  const isGet = method === 'get'
-  const isAuthPost = method === 'post' && (/\/auth/i.test(url) || /\/login/i.test(url))
-
-  if (!isGet && !isAuthPost) {
+  if (method !== 'get') {
     return Promise.reject(
       new Error(`READ-ONLY: método ${method.toUpperCase()} bloqueado. Apenas GET é permitido.`)
     )
@@ -22,14 +18,14 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-// --- Request interceptor: inject CHAVE query parameter ---
+// --- Request interceptor: inject CHAVE query parameter from env ---
 client.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('auth_token')
+  const chave = import.meta.env.VITE_API_KEY
 
-  if (token) {
+  if (chave) {
     config.params = {
       ...config.params,
-      CHAVE: token,
+      CHAVE: chave,
     }
   }
 
@@ -41,7 +37,6 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      sessionStorage.removeItem('auth_token')
       window.location.href = '/login'
     }
 

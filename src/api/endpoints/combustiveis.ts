@@ -59,16 +59,16 @@ interface FetchTrocaPrecoParams {
 }
 
 export const fetchAbastecimentos = (params?: FetchAbastecimentosParams) =>
-  client.get<Abastecimento[]>('/ABASTECIMENTO', { params }).then((res) => res.data)
+  client.get<PaginatedResponse<Abastecimento>>('/ABASTECIMENTO', { params }).then((res) => res.data)
 
 export const fetchTanques = (params?: FetchTanquesParams) =>
-  client.get<Tanque[]>('/TANQUE', { params }).then((res) => res.data)
+  client.get<PaginatedResponse<Tanque>>('/TANQUE', { params }).then((res) => res.data)
 
 export const fetchBicos = (params?: FetchBicosParams) =>
-  client.get<Bico[]>('/BICO', { params }).then((res) => res.data)
+  client.get<PaginatedResponse<Bico>>('/BICO', { params }).then((res) => res.data)
 
 export const fetchBombas = (params?: FetchBombasParams) =>
-  client.get<Bomba[]>('/BOMBA', { params }).then((res) => res.data)
+  client.get<PaginatedResponse<Bomba>>('/BOMBA', { params }).then((res) => res.data)
 
 export const fetchLmc = (params?: FetchLmcParams) =>
   client.get<PaginatedResponse<LMC>>('/LMC', { params }).then((res) => res.data)

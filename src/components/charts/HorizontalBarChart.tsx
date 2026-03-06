@@ -56,7 +56,7 @@ const HorizontalBarChart = ({
             tick={{ fontSize: 12 }}
             width={categoryWidth}
           />
-          <Tooltip formatter={tooltipFormatter} />
+          <Tooltip formatter={tooltipFormatter as never} />
           <Bar
             dataKey={dataKey}
             name={name ?? dataKey}

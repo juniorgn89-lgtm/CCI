@@ -47,11 +47,11 @@ const ParetoChart = ({ data }: ParetoChartProps) => {
             tick={{ fontSize: 12 }}
           />
           <Tooltip
-            formatter={(value: number, name: string) =>
+            formatter={((value: number, name: string) =>
               name === 'Faturamento'
                 ? [formatCurrencyTooltip(value), name]
                 : [`${value.toFixed(1)}%`, name]
-            }
+            ) as never}
           />
           <Legend />
           <Bar

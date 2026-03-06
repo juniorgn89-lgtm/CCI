@@ -32,10 +32,10 @@ const TicketRanking = ({ data }: TicketRankingProps) => {
             width={110}
           />
           <Tooltip
-            formatter={(value: number) => [
+            formatter={((value: number) => [
               formatCurrencyTooltip(value),
               'Ticket Médio',
-            ]}
+            ]) as never}
           />
           <Bar dataKey="ticketMedio" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
         </BarChart>

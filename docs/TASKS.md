@@ -406,11 +406,11 @@
 
 ## Apêndice C — Regra de Ouro READ-ONLY (Checklist de Validação)
 
-- [ ] O `src/api/client.ts` possui interceptor que rejeita métodos não-GET
-- [ ] A exceção do interceptor só se aplica a POST em rota de autenticação
-- [ ] Nenhum arquivo em `src/api/endpoints/` (exceto `auth.ts`) importa ou usa `.post()`, `.put()`, `.delete()`, `.patch()`
-- [ ] Nenhum arquivo em `src/api/types/` define tipos de request body para escrita
-- [ ] Nenhum componente usa `useMutation` do TanStack Query
-- [ ] Nenhum componente renderiza botões de "Criar", "Novo", "Editar", "Salvar", "Excluir", "Deletar"
-- [ ] Nenhum formulário envia dados para a API (formulários existem apenas como filtros de consulta)
+- [x] O `src/api/client.ts` possui interceptor que rejeita métodos não-GET
+- [x] A exceção do interceptor só se aplica a POST em rota de autenticação
+- [x] Nenhum arquivo em `src/api/endpoints/` (exceto `auth.ts`) importa ou usa `.post()`, `.put()`, `.delete()`, `.patch()`
+- [x] Nenhum arquivo em `src/api/types/` define tipos de request body para escrita
+- [x] Nenhum componente usa `useMutation` do TanStack Query
+- [x] Nenhum componente renderiza botões de "Criar", "Novo", "Editar", "Salvar", "Excluir", "Deletar"
+- [x] Nenhum formulário envia dados para a API (formulários existem apenas como filtros de consulta)
 - [ ] O DevTools Network mostra apenas requisições GET (e um único POST de login)

@@ -80,13 +80,6 @@ const useProductData = () => {
     }
 
     // --- Group by grupo ---
-    const byGrupo = new Map<number, { faturamento: number; quantidade: number; custo: number }>()
-    for (const item of vendaItens) {
-      const prev = byGrupo.get(item.produtoCodigo) ?? { faturamento: 0, quantidade: 0, custo: 0 }
-      // We need grupoCodigo but VendaItem doesn't have it directly.
-      // We'll group by produtoCodigo and later map to groups if available.
-    }
-
     // Since VendaItem doesn't include grupoCodigo, group by produtoCodigo for Pareto/ABC
     // and aggregate all items for group table using a product-to-group mapping would need PRODUTO endpoint.
     // For now, group by produtoCodigo for all analyses.
