@@ -45,6 +45,12 @@ export interface EmpresaDetail {
   precoCusto: number
   lbPorLitro: number
   produtos: ProductDetail[]
+  // Non-fuel fields
+  quantidade?: number
+  faturamento?: number
+  precoMedio?: number
+  custoMedio?: number
+  ticketMedio?: number
 }
 
 export interface TotalRow {
@@ -54,6 +60,17 @@ export interface TotalRow {
   precoVenda: number
   precoCusto: number
   lbPorLitro: number
+  // Non-fuel fields
+  quantidade?: number
+  faturamento?: number
+  precoMedio?: number
+  custoMedio?: number
+  ticketMedio?: number
+}
+
+export interface PeriodComparison {
+  prevMonth: { faturamento: number; lucroBruto: number }
+  prevYear: { faturamento: number; lucroBruto: number }
 }
 
 // Get date 3 months before a given date string (yyyy-MM-dd)
@@ -66,11 +83,26 @@ const threeMonthsBefore = (dateStr: string): string => {
   return `${y}-${m}-${day}`
 }
 
+const offsetPeriod = (dateStr: string, monthsBack: number): string => {
+  const d = new Date(dateStr)
+  d.setMonth(d.getMonth() - monthsBack)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const useDashboardData = () => {
   const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
 
   // LMC lookback: fetch from 3 months before to capture most recent cost data
   const lmcDataInicial = threeMonthsBefore(dataInicial)
+
+  // Comparison periods
+  const prevMonthInicial = offsetPeriod(dataInicial, 1)
+  const prevMonthFinal = offsetPeriod(dataFinal, 1)
+  const prevYearInicial = offsetPeriod(dataInicial, 12)
+  const prevYearFinal = offsetPeriod(dataFinal, 12)
 
   // VENDA_RESUMO for global faturamento per empresa (fast)
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
@@ -80,6 +112,28 @@ const useDashboardData = () => {
         empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
         dataInicial,
         dataFinal,
+      }),
+  })
+
+  // VENDA_RESUMO for previous month
+  const { data: resumoPrevMonth = [] } = useQuery({
+    queryKey: ['vendaResumo', empresaCodigo, prevMonthInicial, prevMonthFinal],
+    queryFn: () =>
+      fetchVendaResumo({
+        empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+        dataInicial: prevMonthInicial,
+        dataFinal: prevMonthFinal,
+      }),
+  })
+
+  // VENDA_RESUMO for same period last year
+  const { data: resumoPrevYear = [] } = useQuery({
+    queryKey: ['vendaResumo', empresaCodigo, prevYearInicial, prevYearFinal],
+    queryFn: () =>
+      fetchVendaResumo({
+        empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+        dataInicial: prevYearInicial,
+        dataFinal: prevYearFinal,
       }),
   })
 
@@ -298,7 +352,7 @@ const useDashboardData = () => {
         const prodCode = Number(prodStr)
         const cost = getCost(empCodigo, prodCode)
         const lb = agg.valorTotal - cost * agg.quantidade
-        const avgPV = agg.count > 0 ? agg.precoVendaSum / agg.count : 0
+        const pvPorLitro = agg.quantidade > 0 ? agg.valorTotal / agg.quantidade : 0
 
         products.push({
           produtoCodigo: prodCode,
@@ -306,7 +360,7 @@ const useDashboardData = () => {
           litros: agg.quantidade,
           lucroBruto: lb,
           margem: agg.valorTotal > 0 ? (lb / agg.valorTotal) * 100 : 0,
-          precoVenda: avgPV,
+          precoVenda: pvPorLitro,
           precoCusto: cost,
           lbPorLitro: agg.quantidade > 0 ? lb / agg.quantidade : 0,
         })
@@ -317,7 +371,6 @@ const useDashboardData = () => {
       }
 
       const empLB = empFat - empCusto
-      const empAggData = fuelByEmp.get(empCodigo)
 
       fuelEmpresas.push({
         empresaCodigo: empCodigo,
@@ -325,7 +378,7 @@ const useDashboardData = () => {
         litros: empLitros,
         lucroBruto: empLB,
         margem: empFat > 0 ? (empLB / empFat) * 100 : 0,
-        precoVenda: empAggData && empAggData.count > 0 ? empAggData.precoVendaSum / empAggData.count : 0,
+        precoVenda: empLitros > 0 ? empFat / empLitros : 0,
         precoCusto: empLitros > 0 ? empCusto / empLitros : 0,
         lbPorLitro: empLitros > 0 ? empLB / empLitros : 0,
         produtos: products.sort((a, b) => b.lucroBruto - a.lucroBruto),
@@ -342,33 +395,112 @@ const useDashboardData = () => {
       lbPorLitro: fuelLitros > 0 ? fuelLucroBruto / fuelLitros : 0,
     }
 
-    // Non-fuel sectors: no per-empresa breakdown available
-    const buildSimpleSectorDetail = (faturamento: number, marginRate: number): { empresas: EmpresaDetail[]; total: TotalRow } => {
-      const lb = faturamento * marginRate
-      return {
-        empresas: [],
-        total: {
+    // Non-fuel per-empresa: VENDA_RESUMO total - ABASTECIMENTO total per empresa
+    const resumoByEmp = new Map<number, { total: number; quantidade: number }>()
+    for (const r of resumoAtual) {
+      const prev = resumoByEmp.get(r.codigoEmpresa) ?? { total: 0, quantidade: 0 }
+      resumoByEmp.set(r.codigoEmpresa, {
+        total: prev.total + r.total,
+        quantidade: prev.quantidade + r.quantidade,
+      })
+    }
+
+    const buildNonFuelSectorDetail = (splitRatio: number, marginRate: number): { empresas: EmpresaDetail[]; total: TotalRow } => {
+      const nonFuelEmpresas: EmpresaDetail[] = []
+      let totQtd = 0
+      let totFat = 0
+      let totLB = 0
+
+      for (const [empCodigo, resumo] of resumoByEmp.entries()) {
+        const fuelEmp = fuelByEmp.get(empCodigo)
+        const fuelFat = fuelEmp?.valorTotal ?? 0
+        const empNonFuelFat = Math.max(0, resumo.total - fuelFat) * splitRatio
+        const empNonFuelQtd = resumo.quantidade * splitRatio
+        if (empNonFuelFat <= 0) continue
+
+        const lb = empNonFuelFat * marginRate
+        const tm = empNonFuelQtd > 0 ? empNonFuelFat / empNonFuelQtd : 0
+        const pm = empNonFuelQtd > 0 ? empNonFuelFat / empNonFuelQtd : 0
+        const cm = empNonFuelQtd > 0 ? (empNonFuelFat - lb) / empNonFuelQtd : 0
+
+        nonFuelEmpresas.push({
+          empresaCodigo: empCodigo,
+          empresa: empresaMap.get(empCodigo) ?? `Empresa ${empCodigo}`,
           litros: 0,
           lucroBruto: lb,
-          margem: faturamento > 0 ? marginRate * 100 : 0,
+          margem: marginRate * 100,
           precoVenda: 0,
           precoCusto: 0,
           lbPorLitro: 0,
+          produtos: [],
+          quantidade: Math.round(empNonFuelQtd),
+          faturamento: empNonFuelFat,
+          precoMedio: pm,
+          custoMedio: cm,
+          ticketMedio: tm,
+        })
+
+        totQtd += empNonFuelQtd
+        totFat += empNonFuelFat
+        totLB += lb
+      }
+
+      nonFuelEmpresas.sort((a, b) => (b.faturamento ?? 0) - (a.faturamento ?? 0))
+
+      return {
+        empresas: nonFuelEmpresas,
+        total: {
+          litros: 0,
+          lucroBruto: totLB,
+          margem: totFat > 0 ? (totLB / totFat) * 100 : 0,
+          precoVenda: 0,
+          precoCusto: 0,
+          lbPorLitro: 0,
+          quantidade: Math.round(totQtd),
+          faturamento: totFat,
+          precoMedio: totQtd > 0 ? totFat / totQtd : 0,
+          custoMedio: totQtd > 0 ? (totFat - totLB) / totQtd : 0,
+          ticketMedio: totQtd > 0 ? totFat / totQtd : 0,
         },
       }
     }
 
     const sectorDetails: Record<Setor, { empresas: EmpresaDetail[]; total: TotalRow }> = {
       combustivel: { empresas: fuelEmpresas, total: fuelTotal },
-      automotivos: buildSimpleSectorDetail(automotivosFat, autoMarginRate),
-      conveniencia: buildSimpleSectorDetail(convenienciaFat, convMarginRate),
+      automotivos: buildNonFuelSectorDetail(0.30, autoMarginRate),
+      conveniencia: buildNonFuelSectorDetail(0.70, convMarginRate),
     }
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails }
   }, [resumoAtual, abastecimentos, lmcData, produtosData, empresas, empresaCodigo])
 
+  const comparison = useMemo((): PeriodComparison => {
+    const sumResumo = (data: typeof resumoAtual) => {
+      let fat = 0
+      for (const r of data) {
+        if (empresaCodigo && r.codigoEmpresa !== empresaCodigo) continue
+        fat += r.total
+      }
+      return fat
+    }
+
+    const prevMonthFat = sumResumo(resumoPrevMonth)
+    const prevYearFat = sumResumo(resumoPrevYear)
+
+    // Estimate lucro bruto using same global margin ratio as current period
+    const currentFat = computed.globalKpi.faturamento
+    const currentLB = computed.globalKpi.lucroBruto
+    const marginRatio = currentFat > 0 ? currentLB / currentFat : 0
+
+    return {
+      prevMonth: { faturamento: prevMonthFat, lucroBruto: prevMonthFat * marginRatio },
+      prevYear: { faturamento: prevYearFat, lucroBruto: prevYearFat * marginRatio },
+    }
+  }, [resumoPrevMonth, resumoPrevYear, empresaCodigo, computed.globalKpi])
+
   return {
     ...computed,
+    comparison,
     isLoading,
   }
 }

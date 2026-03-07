@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import DashboardFilters from '@/pages/Dashboard/components/DashboardFilters'
+import DashboardSummary from '@/pages/Dashboard/components/DashboardSummary'
 import SectorKpiCards from '@/pages/Dashboard/components/SectorKpiCards'
 import SectorDetailSection from '@/pages/Dashboard/components/SectorDetailSection'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
@@ -13,12 +13,10 @@ const KpiCardSkeleton = () => (
 )
 
 const Dashboard = () => {
-  const { sectorKpis, globalKpi, projectionData, sectorDetails, isLoading } = useDashboardData()
+  const { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, isLoading } = useDashboardData()
 
   return (
     <div className="animate-fade-in space-y-6">
-      <DashboardFilters />
-
       {isLoading ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -33,6 +31,8 @@ const Dashboard = () => {
         </div>
       ) : (
         <>
+          <DashboardSummary sectorKpis={sectorKpis} globalKpi={globalKpi} comparison={comparison} />
+
           <SectorKpiCards
             sectorKpis={sectorKpis}
             globalKpi={globalKpi}
