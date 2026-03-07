@@ -35,7 +35,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col bg-[#1e3a5f] text-white transition-all duration-300',
+        'hidden md:flex flex-col bg-[#1e3a5f] text-white transition-all duration-300 dark:bg-gray-900',
         collapsed ? 'w-16' : 'w-64'
       )}
     >

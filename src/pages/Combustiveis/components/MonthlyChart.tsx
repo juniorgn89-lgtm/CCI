@@ -1,7 +1,8 @@
 import {
   ResponsiveContainer,
-  AreaChart,
+  ComposedChart,
   Area,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -10,50 +11,81 @@ import {
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrencyShort, formatLitersShort, formatCurrencyTooltip } from '@/lib/formatters'
+import type { DailyRow } from '@/pages/Combustiveis/hooks/useFuelData'
 
-interface MonthlyRow {
-  mes: string
-  litros: number
-  faturamento: number
+interface EvolutionChartProps {
+  data: DailyRow[]
 }
 
-interface MonthlyChartProps {
-  data: MonthlyRow[]
+const formatDay = (date: string) => {
+  const [, month, day] = date.split('-')
+  return `${day}/${month}`
 }
 
-const formatMonth = (mes: string) => {
-  const [year, month] = mes.split('-')
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  return `${months[Number(month) - 1]}/${year.slice(2)}`
-}
-
-const MonthlyChart = ({ data }: MonthlyChartProps) => {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">Evolução Mensal</h3>
+const EvolutionChart = ({ data }: EvolutionChartProps) => (
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="mb-6">
+      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Evolução do período</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400">Faturamento e litros vendidos por dia</p>
+    </div>
+    {data.length === 0 ? (
+      <div className="flex h-[350px] items-center justify-center text-sm text-gray-400">
+        Sem dados para o período selecionado.
+      </div>
+    ) : (
       <ResponsiveContainer width="100%" height={350}>
-        <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="mes" tickFormatter={formatMonth} tick={{ fontSize: 12 }} />
-          <YAxis yAxisId="litros" orientation="left" tickFormatter={formatLitersShort} tick={{ fontSize: 12 }} />
-          <YAxis yAxisId="faturamento" orientation="right" tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
+        <ComposedChart data={data}>
+          <defs>
+            <linearGradient id="gradFat" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CHART_COLORS[1]} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={CHART_COLORS[1]} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+          <XAxis
+            dataKey="data"
+            tickFormatter={formatDay}
+            tick={{ fontSize: 11, fill: '#9ca3af' }}
+            axisLine={false}
+            tickLine={false}
+            interval={data.length > 15 ? Math.floor(data.length / 10) : 0}
+          />
+          <YAxis
+            yAxisId="litros"
+            orientation="left"
+            tickFormatter={formatLitersShort}
+            tick={{ fontSize: 12, fill: '#9ca3af' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            yAxisId="faturamento"
+            orientation="right"
+            tickFormatter={formatCurrencyShort}
+            tick={{ fontSize: 12, fill: '#9ca3af' }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
+            contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
             formatter={((value: number, name: string) =>
               name === 'Litros'
-                ? [value.toLocaleString('pt-BR') + ' L', name]
+                ? [value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L', name]
                 : [formatCurrencyTooltip(value), name]
             ) as never}
-            labelFormatter={formatMonth as never}
+            labelFormatter={((label: string) => {
+              const [y, m, d] = label.split('-')
+              return `${d}/${m}/${y}`
+            }) as never}
           />
-          <Legend />
-          <Area
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar
             yAxisId="litros"
-            type="monotone"
             dataKey="litros"
             name="Litros"
-            stroke={CHART_COLORS[0]}
             fill={CHART_COLORS[0]}
-            fillOpacity={0.15}
+            fillOpacity={0.7}
+            radius={[4, 4, 0, 0]}
           />
           <Area
             yAxisId="faturamento"
@@ -61,13 +93,13 @@ const MonthlyChart = ({ data }: MonthlyChartProps) => {
             dataKey="faturamento"
             name="Faturamento"
             stroke={CHART_COLORS[1]}
-            fill={CHART_COLORS[1]}
-            fillOpacity={0.15}
+            fill="url(#gradFat)"
+            strokeWidth={2}
           />
-        </AreaChart>
+        </ComposedChart>
       </ResponsiveContainer>
-    </div>
-  )
-}
+    )}
+  </div>
+)
 
-export default MonthlyChart
+export default EvolutionChart

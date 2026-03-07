@@ -83,12 +83,12 @@ const DataTable = <T extends Record<string, unknown>>({
   return (
     <Table className="min-w-[600px]">
       <TableHeader>
-        <TableRow className="bg-gray-100 hover:bg-gray-100">
+        <TableRow className="bg-gray-100 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800">
           {columns.map((col) => (
             <TableHead
               key={col.key}
               className={cn(
-                'text-xs font-medium uppercase text-gray-600',
+                'text-xs font-medium uppercase text-gray-600 dark:text-gray-400',
                 col.align === 'right' && 'text-right',
                 col.align === 'center' && 'text-center',
                 col.sortable && 'cursor-pointer select-none',
@@ -119,13 +119,13 @@ const DataTable = <T extends Record<string, unknown>>({
           ))}
         </TableRow>
       </TableHeader>
-      <TableBody className="divide-y divide-gray-200">
+      <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
         {sortedData.map((row, index) => (
           <TableRow
             key={keyExtractor(row)}
             className={cn(
-              'hover:bg-blue-50',
-              index % 2 === 1 && 'bg-gray-50'
+              'hover:bg-blue-50/50 dark:hover:bg-gray-800/50',
+              index % 2 === 1 && 'bg-gray-50 dark:bg-gray-800/30'
             )}
           >
             {columns.map((col) => (

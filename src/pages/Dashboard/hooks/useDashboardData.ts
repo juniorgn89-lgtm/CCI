@@ -117,24 +117,26 @@ const useDashboardData = () => {
 
   // VENDA_RESUMO for previous month
   const { data: resumoPrevMonth = [] } = useQuery({
-    queryKey: ['vendaResumo', empresaCodigo, prevMonthInicial, prevMonthFinal],
+    queryKey: ['vendaResumoPrevMonth', empresaCodigo, prevMonthInicial, prevMonthFinal],
     queryFn: () =>
       fetchVendaResumo({
         empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
         dataInicial: prevMonthInicial,
         dataFinal: prevMonthFinal,
       }),
+    retry: false,
   })
 
   // VENDA_RESUMO for same period last year
   const { data: resumoPrevYear = [] } = useQuery({
-    queryKey: ['vendaResumo', empresaCodigo, prevYearInicial, prevYearFinal],
+    queryKey: ['vendaResumoPrevYear', empresaCodigo, prevYearInicial, prevYearFinal],
     queryFn: () =>
       fetchVendaResumo({
         empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
         dataInicial: prevYearInicial,
         dataFinal: prevYearFinal,
       }),
+    retry: false,
   })
 
   // ABASTECIMENTO for fuel detail (fast, paginated)

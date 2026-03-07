@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import Sidebar, { navItems } from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
+import TopLoader from '@/components/feedback/TopLoader'
 
 const getInitialCollapsed = () => {
   if (typeof window === 'undefined') return false
@@ -24,7 +25,8 @@ const AppLayout = () => {
   }, [])
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+      <TopLoader />
       {/* Desktop sidebar */}
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
 
@@ -66,7 +68,11 @@ const AppLayout = () => {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
-        <main role="main" className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main
+          role="main"
+          className="flex-1 overflow-y-auto p-4 md:p-6"
+          onClick={() => { if (!collapsed) setCollapsed(true) }}
+        >
           <Outlet />
         </main>
       </div>
