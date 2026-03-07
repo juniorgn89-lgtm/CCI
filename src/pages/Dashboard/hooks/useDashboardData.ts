@@ -56,8 +56,21 @@ export interface TotalRow {
   lbPorLitro: number
 }
 
+// Get date 3 months before a given date string (yyyy-MM-dd)
+const threeMonthsBefore = (dateStr: string): string => {
+  const d = new Date(dateStr)
+  d.setMonth(d.getMonth() - 3)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const useDashboardData = () => {
   const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+
+  // LMC lookback: fetch from 3 months before to capture most recent cost data
+  const lmcDataInicial = threeMonthsBefore(dataInicial)
 
   // VENDA_RESUMO for global faturamento per empresa (fast)
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
@@ -87,21 +100,21 @@ const useDashboardData = () => {
       ),
   })
 
-  // LMC for cost prices (paginated)
+  // LMC for cost prices — fetch broader range (3 months back) as fallback
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
-    queryKey: ['lmc-dash', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['lmc-dash', empresaCodigo, lmcDataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) =>
           fetchLmc({
             empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
-            dataInicial,
+            dataInicial: lmcDataInicial,
             dataFinal,
             ultimoCodigo: p.ultimoCodigo,
             limite: p.limite,
           }),
         1000,
-        20
+        50
       ),
   })
 
@@ -140,19 +153,23 @@ const useDashboardData = () => {
       productMap.set(p.produtoCodigo, p.nome)
     }
 
-    // Build cost map from LMC: empresa+produtoLmcCodigo → average precoCusto
-    // LMC produtoCodigo is an array; we use produtoLmcCodigo as the key
-    const costMap = new Map<string, { total: number; count: number }>()
-    for (const lmc of lmcData) {
+    // Build cost map from LMC: empresa+produtoCodigo → most recent precoCusto
+    // Use the latest LMC entry per empresa+product (sort by dataMovimento desc)
+    const costMap = new Map<string, number>()
+    const sortedLmc = [...lmcData].sort(
+      (a, b) => b.dataMovimento.localeCompare(a.dataMovimento)
+    )
+    for (const lmc of sortedLmc) {
       for (const prodCode of lmc.produtoCodigo) {
         const key = `${lmc.empresaCodigo}-${prodCode}`
-        const prev = costMap.get(key) ?? { total: 0, count: 0 }
-        costMap.set(key, { total: prev.total + lmc.precoCusto, count: prev.count + 1 })
+        // Only keep most recent (first encountered after desc sort)
+        if (!costMap.has(key) && lmc.precoCusto > 0) {
+          costMap.set(key, lmc.precoCusto)
+        }
       }
     }
     const getCost = (empresaCod: number, produtoCod: number): number => {
-      const entry = costMap.get(`${empresaCod}-${produtoCod}`)
-      return entry ? entry.total / entry.count : 0
+      return costMap.get(`${empresaCod}-${produtoCod}`) ?? 0
     }
 
     // Global faturamento from VENDA_RESUMO
@@ -172,7 +189,6 @@ const useDashboardData = () => {
       const prodCode = Number(a.codigoProduto)
       const key = `${a.empresaCodigo}-${prodCode}`
 
-      // By empresa+product
       const prev = fuelByEmpProd.get(key) ?? { quantidade: 0, valorTotal: 0, precoVendaSum: 0, count: 0 }
       fuelByEmpProd.set(key, {
         quantidade: prev.quantidade + a.quantidade,
@@ -181,7 +197,6 @@ const useDashboardData = () => {
         count: prev.count + 1,
       })
 
-      // By empresa total
       const prevEmp = fuelByEmp.get(a.empresaCodigo) ?? { quantidade: 0, valorTotal: 0, precoVendaSum: 0, count: 0 }
       fuelByEmp.set(a.empresaCodigo, {
         quantidade: prevEmp.quantidade + a.quantidade,
@@ -205,25 +220,15 @@ const useDashboardData = () => {
     const fuelLucroBruto = fuelFaturamento - fuelCusto
     const fuelMargem = fuelFaturamento > 0 ? (fuelLucroBruto / fuelFaturamento) * 100 : 0
 
-    // Estimate other sectors from VENDA_RESUMO
-    // Modelo 65 = NFC-e (typically conveniência), Modelo 55 = NF-e
-    const resumoByEmpresa = new Map<number, { total55: number; total65: number }>()
-    for (const r of resumoAtual) {
-      const prev = resumoByEmpresa.get(r.codigoEmpresa) ?? { total55: 0, total65: 0 }
-      if (r.modelo === '65') {
-        prev.total65 += r.total
-      } else {
-        prev.total55 += r.total
-      }
-      resumoByEmpresa.set(r.codigoEmpresa, prev)
-    }
-
-    // Non-fuel faturamento = total from VENDA_RESUMO minus fuel
+    // Non-fuel faturamento = total VENDA_RESUMO - fuel ABASTECIMENTO
     const nonFuelFat = Math.max(0, faturamentoGlobal - fuelFaturamento)
-    // Split non-fuel into automotivos vs conveniência using modelo 65 ratio
-    const total65 = resumoAtual.filter((r) => r.modelo === '65').reduce((s, r) => s + r.total, 0)
-    const convenienciaFat = Math.min(total65, nonFuelFat)
-    const automotivosFat = Math.max(0, nonFuelFat - convenienciaFat)
+    // Split non-fuel: 30% automotivos, 70% conveniência (typical gas station ratio)
+    const automotivosFat = nonFuelFat * 0.30
+    const convenienciaFat = nonFuelFat * 0.70
+
+    // Estimated margins
+    const autoMarginRate = 0.66
+    const convMarginRate = 0.50
 
     // Sector KPIs
     const sectorKpis: SectorKpi[] = [
@@ -236,15 +241,15 @@ const useDashboardData = () => {
       },
       {
         label: 'Automotivos',
-        lucroBruto: automotivosFat * 0.66, // estimated margin
+        lucroBruto: automotivosFat * autoMarginRate,
         faturamento: automotivosFat,
-        margem: 66,
+        margem: autoMarginRate * 100,
       },
       {
         label: 'Conveniência',
-        lucroBruto: convenienciaFat * 0.50,
+        lucroBruto: convenienciaFat * convMarginRate,
         faturamento: convenienciaFat,
-        margem: 50,
+        margem: convMarginRate * 100,
       },
     ]
 
@@ -337,9 +342,8 @@ const useDashboardData = () => {
       lbPorLitro: fuelLitros > 0 ? fuelLucroBruto / fuelLitros : 0,
     }
 
-    // Simple per-empresa detail for automotivos/conveniência from VENDA_RESUMO
+    // Non-fuel sectors: no per-empresa breakdown available
     const buildSimpleSectorDetail = (faturamento: number, marginRate: number): { empresas: EmpresaDetail[]; total: TotalRow } => {
-      // Can't break down by empresa without item data — show aggregate
       const lb = faturamento * marginRate
       return {
         empresas: [],
@@ -356,8 +360,8 @@ const useDashboardData = () => {
 
     const sectorDetails: Record<Setor, { empresas: EmpresaDetail[]; total: TotalRow }> = {
       combustivel: { empresas: fuelEmpresas, total: fuelTotal },
-      automotivos: buildSimpleSectorDetail(automotivosFat, 0.66),
-      conveniencia: buildSimpleSectorDetail(convenienciaFat, 0.50),
+      automotivos: buildSimpleSectorDetail(automotivosFat, autoMarginRate),
+      conveniencia: buildSimpleSectorDetail(convenienciaFat, convMarginRate),
     }
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails }
