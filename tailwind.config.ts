@@ -70,7 +70,7 @@ export default {
   			},
   		},
   		animation: {
-  			'fade-in': 'fade-in 0.2s ease-out',
+  			'fade-in': 'fade-in 0.2s ease-out forwards',
   		}
   	}
   },

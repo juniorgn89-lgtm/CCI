@@ -10,7 +10,7 @@ export interface ProdutoEstoque {
   produtoCodigo: number
   saldo: number
   estoqueCodigo: number
-  saldoEstoque: SaldoEstoque[]
+  saldoEstoque: SaldoEstoque[] | null
 }
 
 export interface Estoque {

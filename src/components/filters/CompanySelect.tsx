@@ -21,16 +21,15 @@ const CompanySelect = () => {
   const empresas = empresasData?.resultados ?? []
 
   const handleChange = (value: string) => {
-    setEmpresa(value === 'all' ? null : Number(value))
+    setEmpresa(Number(value))
   }
 
   return (
-    <Select value={empresaCodigo?.toString() ?? 'all'} onValueChange={handleChange}>
+    <Select value={empresaCodigo?.toString() ?? ''} onValueChange={handleChange}>
       <SelectTrigger className="h-9 w-[180px] text-sm" disabled={isLoading}>
-        <SelectValue placeholder="Empresa" />
+        <SelectValue placeholder="Selecione a empresa" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Todas as empresas</SelectItem>
         {empresas.map((empresa) => (
           <SelectItem key={empresa.codigo} value={empresa.codigo.toString()}>
             {empresa.fantasia}

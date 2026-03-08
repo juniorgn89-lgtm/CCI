@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Fuel, CalendarDays, BarChart3, Calendar, List } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
+import { useFilterStore } from '@/store/filters'
 import FuelKpis from '@/pages/Combustiveis/components/FuelKpis'
 import AbastecimentosTable from '@/pages/Combustiveis/components/AbastecimentosTable'
 import DailyTable from '@/pages/Combustiveis/components/DailyTable'
@@ -30,6 +32,7 @@ const KpiSkeleton = () => (
 
 const Combustiveis = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')
+  const { empresaCodigo } = useFilterStore()
   const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, frentistas, combustiveis, isLoading } = useFuelData()
 
   return (
@@ -47,6 +50,7 @@ const Combustiveis = () => {
         </div>
       </div>
 
+      {!empresaCodigo ? <SelectCompanyState /> : (<>
       {/* KPIs */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -96,6 +100,7 @@ const Combustiveis = () => {
           {activeTab === 'semanal' && <WeeklyAnalysis data={weeklyAnalysis} />}
         </>
       )}
+      </>)}
     </div>
   )
 }

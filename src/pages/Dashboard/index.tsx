@@ -1,8 +1,10 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import DashboardSummary from '@/pages/Dashboard/components/DashboardSummary'
 import SectorKpiCards from '@/pages/Dashboard/components/SectorKpiCards'
 import SectorDetailSection from '@/pages/Dashboard/components/SectorDetailSection'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
+import { useFilterStore } from '@/store/filters'
 
 const KpiCardSkeleton = () => (
   <div className="rounded-xl border-l-4 border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -13,7 +15,16 @@ const KpiCardSkeleton = () => (
 )
 
 const Dashboard = () => {
+  const { empresaCodigo } = useFilterStore()
   const { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, isLoading } = useDashboardData()
+
+  if (!empresaCodigo) {
+    return (
+      <div className="animate-fade-in space-y-6">
+        <SelectCompanyState />
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fade-in space-y-6">

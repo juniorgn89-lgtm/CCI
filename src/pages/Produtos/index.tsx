@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Package, List, BarChart3, Trophy, PieChart } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
+import { useFilterStore } from '@/store/filters'
 import ProductKpis from '@/pages/Produtos/components/ProductKpis'
 import ProductTable from '@/pages/Produtos/components/ProductTable'
 import TopSellersChart from '@/pages/Produtos/components/TopSellersChart'
@@ -28,6 +30,7 @@ const KpiSkeleton = () => (
 
 const Produtos = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('produtos')
+  const { empresaCodigo } = useFilterStore()
   const { kpis, productTable, topSellers, abcData, gruposList, isLoading } = useProductData()
 
   return (
@@ -45,6 +48,7 @@ const Produtos = () => {
         </div>
       </div>
 
+      {!empresaCodigo ? <SelectCompanyState /> : (<>
       {/* KPIs */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -91,6 +95,7 @@ const Produtos = () => {
           {activeTab === 'abc' && <AbcCurve data={abcData} />}
         </>
       )}
+      </>)}
     </div>
   )
 }

@@ -18,7 +18,19 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''count:'', len\\(d.get\\(''resultados'',[]\\)\\)\\)\")",
       "Bash(curl -s --max-time 10 \"https://web.qualityautomacao.com.br/INTEGRACAO/LMC?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&dataInicial=2026-02-01&dataFinal=2026-02-28&limite=100\")",
       "Bash(python3 -c \" import sys,json d=json.load\\(sys.stdin\\) for r in d[''resultados''][:5]: print\\(f''emp={r[\"\"empresaCodigo\"\"]} prod={r[\"\"produtoCodigo\"\"]} custo={r[\"\"precoCusto\"\"]}''\\)\")",
-      "Bash(npm list @supabase/supabase-js)"
+      "Bash(npm list @supabase/supabase-js)",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/PRODUTO_ESTOQUE?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/PRODUTO_ESTOQUE?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&empresaCodigo=1\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/ESTOQUE_PERIODO?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&dataFinal=2026-03-31\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/EMPRESA?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f''{e[\"\"codigo\"\"]}: {e.get\\(\"\"fantasia\"\",\"\"\"\"\\)}''\\) for e in data.get\\(''resultados'',[]\\)]\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/EMPRESAS?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/PRODUTO_ESTOQUE?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&empresaCodigo=7411\")",
+      "Bash(curl -s \"https://web.qualityautomacao.com.br/INTEGRACAO/PRODUTO?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&limite=3\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5175/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5175/)",
+      "Bash(curl -s http://localhost:5175/estoques)"
     ]
   }
 }
