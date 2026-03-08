@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import Sidebar, { navItems } from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import TopLoader from '@/components/feedback/TopLoader'
+import usePrefetch from '@/hooks/usePrefetch'
 
 const getInitialCollapsed = () => {
   if (typeof window === 'undefined') return false
@@ -13,6 +14,7 @@ const getInitialCollapsed = () => {
 }
 
 const AppLayout = () => {
+  usePrefetch()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { pathname } = useLocation()

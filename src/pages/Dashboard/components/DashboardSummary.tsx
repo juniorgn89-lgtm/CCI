@@ -62,14 +62,14 @@ const ChangeTag = ({ value, label }: { value: number | null; label: string }) =>
   )
 }
 
-const DashboardSummary = ({ sectorKpis, globalKpi, comparison }: DashboardSummaryProps) => {
+const DashboardSummary = ({ globalKpi, comparison }: DashboardSummaryProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
   const period = formatPeriod(dataInicial, dataFinal)
 
-  const fuel = sectorKpis.find((k) => k.label === 'Combustível')
-
   const fatVsPrevMonth = pctChange(globalKpi.faturamento, comparison.prevMonth.faturamento)
   const fatVsPrevYear = pctChange(globalKpi.faturamento, comparison.prevYear.faturamento)
+  const lbVsPrevMonth = pctChange(globalKpi.lucroBruto, comparison.prevMonth.lucroBruto)
+  const lbVsPrevYear = pctChange(globalKpi.lucroBruto, comparison.prevYear.lucroBruto)
 
   return (
     <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-[#1e3a5f]/5 to-white p-5 shadow-sm dark:border-gray-700 dark:from-[#1e3a5f]/20 dark:to-gray-900">
@@ -92,11 +92,10 @@ const DashboardSummary = ({ sectorKpis, globalKpi, comparison }: DashboardSummar
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Lucro bruto</p>
           <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(globalKpi.lucroBruto)}</p>
-          {fuel?.lbPorLitro !== undefined && (
-            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-              Combustível: {formatCurrency(fuel.lbPorLitro)}/litro
-            </p>
-          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <ChangeTag value={lbVsPrevMonth} label={`vs ${prevMonthLabel(dataInicial)}`} />
+            <ChangeTag value={lbVsPrevYear} label={`vs ${prevYearLabel(dataInicial)}`} />
+          </div>
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Margem geral</p>

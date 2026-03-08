@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchAbastecimentos, fetchBombas, fetchBicos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos } from '@/api/endpoints/produtos'
@@ -104,17 +104,18 @@ const useFuelData = () => {
 
   // Current period
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
-    queryKey: ['fuel-abast', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
         1000, 50
       ),
+    placeholderData: keepPreviousData,
   })
 
   // Previous month
   const { data: prevMonthAbast = [] } = useQuery({
-    queryKey: ['fuel-abast-prevMonth', empresaCodigo, prevMonthInicial, prevMonthFinal],
+    queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchAbastecimentos({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
@@ -125,7 +126,7 @@ const useFuelData = () => {
 
   // Previous year
   const { data: prevYearAbast = [] } = useQuery({
-    queryKey: ['fuel-abast-prevYear', empresaCodigo, prevYearInicial, prevYearFinal],
+    queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchAbastecimentos({ dataInicial: prevYearInicial, dataFinal: prevYearFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
@@ -134,9 +135,9 @@ const useFuelData = () => {
     retry: false,
   })
 
-  // 12-month evolution data (separate query for the chart)
+  // 12-month evolution data
   const { data: evolutionAbast = [] } = useQuery({
-    queryKey: ['fuel-abast-evolution', empresaCodigo, evolution12mInicialFirst, dataFinal],
+    queryKey: ['abastecimentos', evolution12mInicialFirst, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchAbastecimentos({ dataInicial: evolution12mInicialFirst, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
@@ -147,7 +148,7 @@ const useFuelData = () => {
 
   // LMC for costs
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
-    queryKey: ['fuel-lmc', empresaCodigo, lmcDataInicial, dataFinal],
+    queryKey: ['lmc', lmcDataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchLmc({
@@ -157,6 +158,7 @@ const useFuelData = () => {
         }),
         1000, 50
       ),
+    placeholderData: keepPreviousData,
   })
 
   // Cached reference data

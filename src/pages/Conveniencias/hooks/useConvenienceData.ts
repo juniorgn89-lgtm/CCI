@@ -45,7 +45,7 @@ const useConvenienceData = () => {
     data: vendaItensData,
     isLoading: isLoadingItens,
   } = useQuery({
-    queryKey: ['vendaItens', 'conveniencias', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['vendaItens', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaItens(filterParams),
   })
 

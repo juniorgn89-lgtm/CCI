@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Fuel, Package, Store, Globe, TrendingUp, ChevronDown } from 'lucide-react'
+import { Fuel, Package, Store, Globe, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { SectorKpi, ProjectionRow } from '@/pages/Dashboard/hooks/useDashboardData'
@@ -12,10 +12,10 @@ interface SectorKpiCardsProps {
 
 const sectorIcons = [Fuel, Package, Store, Globe]
 const sectorColors = [
-  'border-red-500 bg-red-50/30 dark:bg-red-950/30',
-  'border-blue-500 bg-blue-50/30 dark:bg-blue-950/30',
-  'border-amber-500 bg-amber-50/30 dark:bg-amber-950/30',
-  'border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30',
+  'border-red-500',
+  'border-blue-500',
+  'border-amber-500',
+  'border-emerald-500',
 ]
 
 const SectorKpiCards = ({ sectorKpis, globalKpi, projectionData }: SectorKpiCardsProps) => {
@@ -46,6 +46,27 @@ const SectorKpiCards = ({ sectorKpis, globalKpi, projectionData }: SectorKpiCard
               <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {formatCurrency(kpi.lucroBruto)}
               </p>
+
+              {kpi.prevYearLucroBruto != null && kpi.prevYearLucroBruto > 0 && (() => {
+                const diff = kpi.lucroBruto - kpi.prevYearLucroBruto
+                const pct = (diff / kpi.prevYearLucroBruto) * 100
+                const positive = diff >= 0
+                const isNeutral = Math.abs(pct) < 0.5
+                const badgeColor = isNeutral
+                  ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                  : positive
+                    ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                    : 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                const Icon = isNeutral ? TrendingUp : positive ? TrendingUp : TrendingDown
+                const text = isNeutral ? 'estável' : `${positive ? '+' : ''}${pct.toFixed(1)}%`
+                return (
+                  <div className={cn('mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', badgeColor)}>
+                    <Icon className="h-3 w-3" />
+                    <span>{text}</span>
+                    <span className="text-[10px] opacity-70">vs ano anterior</span>
+                  </div>
+                )
+              })()}
 
               <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <div>

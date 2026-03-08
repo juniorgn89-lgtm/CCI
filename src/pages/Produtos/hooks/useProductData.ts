@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -58,7 +58,7 @@ export interface AbcRow {
 
 // ── Helper: previous month range ───────────────────────────────
 
-const getPrevMonthRange = (dataInicial: string, dataFinal: string) => {
+const getPrevMonthRange = (dataInicial: string, _dataFinal: string) => {
   const d = new Date(dataInicial)
   d.setMonth(d.getMonth() - 1)
   const y = d.getFullYear()
@@ -83,13 +83,14 @@ const useProductData = () => {
 
   // Current period venda itens
   const { data: vendaItensData, isLoading: l1 } = useQuery({
-    queryKey: ['vendaItens', 'produtos', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['vendaItens', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaItens(filterParams),
+    placeholderData: keepPreviousData,
   })
 
   // Previous month venda itens (for KPI comparison)
   const { data: prevMonthData, isLoading: l2 } = useQuery({
-    queryKey: ['vendaItens', 'produtos-prev', empresaCodigo, prevMonth.dataInicial, prevMonth.dataFinal],
+    queryKey: ['vendaItens', empresaCodigo, prevMonth.dataInicial, prevMonth.dataFinal],
     queryFn: () => fetchVendaItens({
       empresaCodigo: empresaCodigo ?? undefined,
       dataInicial: prevMonth.dataInicial,

@@ -39,7 +39,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatLiters(kpis.litros),
       icon: Droplets,
       borderColor: 'border-blue-500',
-      bgColor: 'bg-blue-50/30 dark:bg-blue-950/30',
+      bgColor: '',
       change: pctChange(kpis.litros, kpis.prevMonth.litros),
     },
     {
@@ -47,7 +47,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatCurrency(kpis.faturamento),
       icon: DollarSign,
       borderColor: 'border-emerald-500',
-      bgColor: 'bg-emerald-50/30 dark:bg-emerald-950/30',
+      bgColor: '',
       change: pctChange(kpis.faturamento, kpis.prevMonth.faturamento),
     },
     {
@@ -55,7 +55,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatCurrency(kpis.lucroBruto),
       icon: TrendingUp,
       borderColor: 'border-violet-500',
-      bgColor: 'bg-violet-50/30 dark:bg-violet-950/30',
+      bgColor: '',
       change: pctChange(kpis.lucroBruto, kpis.prevMonth.lucroBruto),
     },
     {
@@ -63,7 +63,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: `${kpis.margemPercent.toFixed(1)}%`,
       icon: BarChart3,
       borderColor: 'border-amber-500',
-      bgColor: 'bg-amber-50/30 dark:bg-amber-950/30',
+      bgColor: '',
       change: 0,
     },
     {
@@ -71,7 +71,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatCurrency(kpis.precoMedioVenda),
       icon: Tag,
       borderColor: 'border-cyan-500',
-      bgColor: 'bg-cyan-50/30 dark:bg-cyan-950/30',
+      bgColor: '',
       change: 0,
     },
     {
@@ -79,7 +79,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatCurrency(kpis.lbPorLitro),
       icon: Fuel,
       borderColor: 'border-rose-500',
-      bgColor: 'bg-rose-50/30 dark:bg-rose-950/30',
+      bgColor: '',
       change: 0,
     },
     {
@@ -87,7 +87,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: new Intl.NumberFormat('pt-BR').format(kpis.totalAbastecimentos),
       icon: Receipt,
       borderColor: 'border-indigo-500',
-      bgColor: 'bg-indigo-50/30 dark:bg-indigo-950/30',
+      bgColor: '',
       change: 0,
     },
     {
@@ -95,7 +95,7 @@ const FuelKpis = ({ kpis }: FuelKpisProps) => {
       value: formatCurrency(kpis.ticketMedio),
       icon: DollarSign,
       borderColor: 'border-teal-500',
-      bgColor: 'bg-teal-50/30 dark:bg-teal-950/30',
+      bgColor: '',
       change: 0,
     },
   ]

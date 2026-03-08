@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
@@ -15,6 +15,7 @@ export interface SectorKpi {
   faturamento: number
   margem: number
   lbPorLitro?: number
+  prevYearLucroBruto?: number
 }
 
 export interface ProjectionRow {
@@ -104,7 +105,7 @@ const useDashboardData = () => {
   const prevYearInicial = offsetPeriod(dataInicial, 12)
   const prevYearFinal = offsetPeriod(dataFinal, 12)
 
-  // VENDA_RESUMO for global faturamento per empresa (fast)
+  // VENDA_RESUMO for global faturamento per empresa
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
     queryKey: ['vendaResumo', empresaCodigo, dataInicial, dataFinal],
     queryFn: () =>
@@ -113,6 +114,7 @@ const useDashboardData = () => {
         dataInicial,
         dataFinal,
       }),
+    placeholderData: keepPreviousData,
   })
 
   // VENDA_RESUMO for previous month
@@ -139,39 +141,30 @@ const useDashboardData = () => {
     retry: false,
   })
 
-  // ABASTECIMENTO for fuel detail (fast, paginated)
+  // ABASTECIMENTO for fuel detail (shared key with Combustíveis page)
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
-    queryKey: ['abastecimentos-dash', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
-        (p) =>
-          fetchAbastecimentos({
-            dataInicial,
-            dataFinal,
-            ultimoCodigo: p.ultimoCodigo,
-            limite: p.limite,
-          }),
-        1000,
-        50
+        (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        1000, 50
       ),
+    placeholderData: keepPreviousData,
   })
 
-  // LMC for cost prices — fetch broader range (3 months back) as fallback
+  // LMC for cost prices (shared key with Combustíveis page)
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
-    queryKey: ['lmc-dash', empresaCodigo, lmcDataInicial, dataFinal],
+    queryKey: ['lmc', lmcDataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
-        (p) =>
-          fetchLmc({
-            empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
-            dataInicial: lmcDataInicial,
-            dataFinal,
-            ultimoCodigo: p.ultimoCodigo,
-            limite: p.limite,
-          }),
-        1000,
-        50
+        (p) => fetchLmc({
+          empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+          dataInicial: lmcDataInicial, dataFinal,
+          ultimoCodigo: p.ultimoCodigo, limite: p.limite,
+        }),
+        1000, 50
       ),
+    placeholderData: keepPreviousData,
   })
 
   // Products (cached)
@@ -180,8 +173,7 @@ const useDashboardData = () => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000,
-        10
+        1000, 10
       ),
     staleTime: 30 * 60 * 1000,
   })
@@ -309,14 +301,33 @@ const useDashboardData = () => {
       },
     ]
 
+    // Previous year faturamento for variation calculation
+    const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => {
+      if (empresaCodigo && r.codigoEmpresa !== empresaCodigo) return acc
+      return acc + r.total
+    }, 0)
+
+    // Distribute prevYear faturamento proportionally across sectors
+    if (prevYearGlobalFat > 0 && faturamentoGlobal > 0) {
+      for (const kpi of sectorKpis) {
+        const sectorShare = kpi.faturamento / faturamentoGlobal
+        const prevYearSectorFat = prevYearGlobalFat * sectorShare
+        const marginRate = kpi.faturamento > 0 ? kpi.lucroBruto / kpi.faturamento : 0
+        kpi.prevYearLucroBruto = prevYearSectorFat * marginRate
+      }
+    }
+
     const globalLucroBruto = sectorKpis.reduce((s, k) => s + k.lucroBruto, 0)
     const globalMargem = faturamentoGlobal > 0 ? (globalLucroBruto / faturamentoGlobal) * 100 : 0
+
+    const prevYearGlobalLB = sectorKpis.reduce((s, k) => s + (k.prevYearLucroBruto ?? 0), 0)
 
     const globalKpi: SectorKpi = {
       label: 'Global',
       lucroBruto: globalLucroBruto,
       faturamento: faturamentoGlobal,
       margem: globalMargem,
+      prevYearLucroBruto: prevYearGlobalFat > 0 ? prevYearGlobalLB : undefined,
     }
 
     // Projection table
@@ -474,7 +485,7 @@ const useDashboardData = () => {
     }
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails }
-  }, [resumoAtual, abastecimentos, lmcData, produtosData, empresas, empresaCodigo])
+  }, [resumoAtual, resumoPrevYear, abastecimentos, lmcData, produtosData, empresas, empresaCodigo])
 
   const comparison = useMemo((): PeriodComparison => {
     const sumResumo = (data: typeof resumoAtual) => {

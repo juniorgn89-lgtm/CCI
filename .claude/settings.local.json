@@ -17,7 +17,8 @@
       "Bash(curl -s --max-time 10 \"https://web.qualityautomacao.com.br/INTEGRACAO/LMC?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&dataInicial=2026-02-01&dataFinal=2026-02-28&limite=3\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''count:'', len\\(d.get\\(''resultados'',[]\\)\\)\\)\")",
       "Bash(curl -s --max-time 10 \"https://web.qualityautomacao.com.br/INTEGRACAO/LMC?CHAVE=dd278f8b-bd9e-422b-8992-972a0623c910&dataInicial=2026-02-01&dataFinal=2026-02-28&limite=100\")",
-      "Bash(python3 -c \" import sys,json d=json.load\\(sys.stdin\\) for r in d[''resultados''][:5]: print\\(f''emp={r[\"\"empresaCodigo\"\"]} prod={r[\"\"produtoCodigo\"\"]} custo={r[\"\"precoCusto\"\"]}''\\)\")"
+      "Bash(python3 -c \" import sys,json d=json.load\\(sys.stdin\\) for r in d[''resultados''][:5]: print\\(f''emp={r[\"\"empresaCodigo\"\"]} prod={r[\"\"produtoCodigo\"\"]} custo={r[\"\"precoCusto\"\"]}''\\)\")",
+      "Bash(npm list @supabase/supabase-js)"
     ]
   }
 }
