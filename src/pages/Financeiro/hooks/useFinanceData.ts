@@ -2,10 +2,75 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchDre } from '@/api/endpoints/financeiro'
-import { formatCurrency } from '@/lib/formatters'
+
+export interface FinanceKpiData {
+  totalReceber: number
+  totalPagar: number
+  saldoLiquido: number
+  inadimplencia: number
+  inadimplenciaPercent: number
+  totalVencidosReceber: number
+  totalVencidosPagar: number
+  countReceber: number
+  countPagar: number
+  countVencidosReceber: number
+  countVencidosPagar: number
+}
+
+export interface ReceivableRow {
+  codigo: number
+  empresaCodigo: number
+  tituloCodigo: number
+  clienteCodigo: number
+  nomeCliente: string
+  cpfCnpjCliente: string
+  dataMovimento: string
+  dataVencimento: string
+  valor: number
+  pendente: boolean
+  tipo: string
+  documento: string
+  situacaoLabel: string
+  statusTag: 'vencido' | 'a-vencer' | 'pago'
+  diasAtraso: number
+  [key: string]: unknown
+}
+
+export interface PayableRow {
+  codigo: number
+  empresaCodigo: number
+  tituloPagarCodigo: number
+  fornecedorCodigo: number
+  nomeFornecedor: string
+  cpfCnpjFornecedor: string
+  dataMovimento: string
+  vencimento: string
+  valor: number
+  valorPago: number
+  situacao: string
+  tipo: string
+  descricao: string
+  parcela: number
+  quantidadeParcelas: number
+  situacaoLabel: string
+  statusTag: 'vencido' | 'a-vencer' | 'pago' | 'cancelado'
+  diasAtraso: number
+  saldoRestante: number
+  [key: string]: unknown
+}
+
+export interface CashFlowRow {
+  data: string
+  entradas: number
+  saidas: number
+  saldo: number
+  saldoAcumulado: number
+}
 
 const useFinanceData = () => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const hasEmpresa = empresaCodigos.length > 0
 
   const filterParams = {
     empresaCodigo: empresaCodigo ?? undefined,
@@ -19,6 +84,7 @@ const useFinanceData = () => {
   } = useQuery({
     queryKey: ['titulosReceber', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchTitulosReceber(filterParams),
+    enabled: hasEmpresa,
   })
 
   const {
@@ -27,6 +93,7 @@ const useFinanceData = () => {
   } = useQuery({
     queryKey: ['titulosPagar', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchTitulosPagar(filterParams),
+    enabled: hasEmpresa,
   })
 
   const {
@@ -35,6 +102,7 @@ const useFinanceData = () => {
   } = useQuery({
     queryKey: ['movimentosConta', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchMovimentosConta(filterParams),
+    enabled: hasEmpresa,
   })
 
   const {
@@ -45,8 +113,9 @@ const useFinanceData = () => {
     queryFn: () => fetchDre({
       dataInicial,
       dataFinal,
-      filiais: empresaCodigo ? [empresaCodigo] : undefined,
+      filiais: empresaCodigos.length > 0 ? empresaCodigos : undefined,
     }),
+    enabled: hasEmpresa,
   })
 
   const titulosReceber = receberResponse?.resultados ?? []
@@ -56,41 +125,83 @@ const useFinanceData = () => {
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos || isLoadingDre
 
   const computed = useMemo(() => {
-    const totalReceber = titulosReceber
-      .filter((t) => t.pendente)
-      .reduce((acc, t) => acc + t.valor, 0)
+    const hoje = new Date().toISOString().split('T')[0]
 
-    const totalPagar = titulosPagar
-      .filter((t) => t.situacao !== 'PAGO')
-      .reduce((acc, t) => acc + t.valor - t.valorPago, 0)
+    // --- KPI computations ---
+    const pendentesReceber = titulosReceber.filter((t) => t.pendente)
+    const totalReceber = pendentesReceber.reduce((acc, t) => acc + t.valor, 0)
+
+    const pendentesPagar = titulosPagar.filter((t) => t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO')
+    const totalPagar = pendentesPagar.reduce((acc, t) => acc + t.valor - t.valorPago, 0)
 
     const saldoLiquido = totalReceber - totalPagar
 
-    const hoje = new Date().toISOString().split('T')[0]
-    const inadimplencia = titulosReceber
-      .filter((t) => t.pendente && t.dataVencimento < hoje)
-      .reduce((acc, t) => acc + t.valor, 0)
+    const vencidosReceber = pendentesReceber.filter((t) => t.dataVencimento < hoje)
+    const inadimplencia = vencidosReceber.reduce((acc, t) => acc + t.valor, 0)
+    const inadimplenciaPercent = totalReceber > 0 ? (inadimplencia / totalReceber) * 100 : 0
 
-    const kpis = {
-      totalReceber: { value: formatCurrency(totalReceber) },
-      totalPagar: { value: formatCurrency(totalPagar) },
-      saldoLiquido: { value: formatCurrency(saldoLiquido) },
-      inadimplencia: { value: formatCurrency(inadimplencia) },
+    const vencidosPagar = pendentesPagar.filter((t) => t.vencimento < hoje)
+    const totalVencidosPagar = vencidosPagar.reduce((acc, t) => acc + t.valor - t.valorPago, 0)
+
+    const kpis: FinanceKpiData = {
+      totalReceber,
+      totalPagar,
+      saldoLiquido,
+      inadimplencia,
+      inadimplenciaPercent,
+      totalVencidosReceber: inadimplencia,
+      totalVencidosPagar,
+      countReceber: pendentesReceber.length,
+      countPagar: pendentesPagar.length,
+      countVencidosReceber: vencidosReceber.length,
+      countVencidosPagar: vencidosPagar.length,
     }
 
-    // Receivables table data
-    const receivablesData = titulosReceber.map((t) => ({
-      ...t,
-      situacaoLabel: t.pendente ? 'Aberto' : 'Pago',
-    }))
+    // --- Receivables table ---
+    const receivablesData: ReceivableRow[] = titulosReceber.map((t) => {
+      const isOverdue = t.pendente && t.dataVencimento < hoje
+      const diasAtraso = isOverdue
+        ? Math.floor((new Date(hoje).getTime() - new Date(t.dataVencimento).getTime()) / (1000 * 60 * 60 * 24))
+        : 0
 
-    // Payables table data
-    const payablesData = titulosPagar.map((t) => ({
-      ...t,
-      situacaoLabel: t.situacao === 'PAGO' ? 'Pago' : t.situacao === 'CANCELADO' ? 'Cancelado' : 'Aberto',
-    }))
+      let statusTag: ReceivableRow['statusTag'] = 'pago'
+      if (t.pendente) {
+        statusTag = isOverdue ? 'vencido' : 'a-vencer'
+      }
 
-    // Cash flow chart data - group movements by day
+      return {
+        ...t,
+        situacaoLabel: t.pendente ? (isOverdue ? 'Vencido' : 'A Vencer') : 'Pago',
+        statusTag,
+        diasAtraso,
+      }
+    })
+
+    // --- Payables table ---
+    const payablesData: PayableRow[] = titulosPagar.map((t) => {
+      const isPending = t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO'
+      const isOverdue = isPending && t.vencimento < hoje
+      const diasAtraso = isOverdue
+        ? Math.floor((new Date(hoje).getTime() - new Date(t.vencimento).getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+
+      let statusTag: PayableRow['statusTag'] = 'pago'
+      if (t.situacao === 'CANCELADO') {
+        statusTag = 'cancelado'
+      } else if (isPending) {
+        statusTag = isOverdue ? 'vencido' : 'a-vencer'
+      }
+
+      return {
+        ...t,
+        situacaoLabel: t.situacao === 'PAGO' ? 'Pago' : t.situacao === 'CANCELADO' ? 'Cancelado' : isOverdue ? 'Vencido' : 'A Vencer',
+        statusTag,
+        diasAtraso,
+        saldoRestante: t.valor - t.valorPago,
+      }
+    })
+
+    // --- Cash flow chart data ---
     const byDay = new Map<string, { entradas: number; saidas: number }>()
     for (const m of movimentos) {
       const day = m.dataMovimento.split('T')[0]
@@ -103,14 +214,19 @@ const useFinanceData = () => {
       byDay.set(day, prev)
     }
 
-    const cashFlowData = Array.from(byDay.entries())
+    let saldoAcumulado = 0
+    const cashFlowData: CashFlowRow[] = Array.from(byDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([data, values]) => ({
-        data,
-        entradas: values.entradas,
-        saidas: values.saidas,
-        saldo: values.entradas - values.saidas,
-      }))
+      .map(([data, values]) => {
+        saldoAcumulado += values.entradas - values.saidas
+        return {
+          data,
+          entradas: values.entradas,
+          saidas: values.saidas,
+          saldo: values.entradas - values.saidas,
+          saldoAcumulado,
+        }
+      })
 
     return { kpis, receivablesData, payablesData, cashFlowData, dreData }
   }, [titulosReceber, titulosPagar, movimentos, dreData])
@@ -118,6 +234,7 @@ const useFinanceData = () => {
   return {
     ...computed,
     isLoading,
+    hasEmpresa,
   }
 }
 

@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { StockRow } from '@/pages/Estoques/hooks/useStockData'
 
 interface StockTableProps {
@@ -96,6 +98,20 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
     setPage(0)
   }
 
+  const csvColumns: ExportColumn<StockRow>[] = [
+    { header: 'Produto', accessor: (r) => r.produtoNome },
+    { header: 'Código', accessor: (r) => r.produtoCodigo },
+    { header: 'Categoria', accessor: (r) => r.categoria },
+    { header: 'SKU', accessor: (r) => r.codigoSku },
+    { header: 'Local', accessor: (r) => r.local },
+    { header: 'Saldo', accessor: (r) => r.saldo },
+    { header: 'Status', accessor: (r) => r.status },
+  ]
+
+  const handleExport = useCallback(() => {
+    exportToCsv('estoque-posicao', filtered, csvColumns)
+  }, [filtered])
+
   const SortHeader = ({ label, colKey }: { label: string; colKey: SortKey }) => (
     <th
       className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -148,6 +164,8 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
               ))}
             </select>
           </div>
+
+          <ExportButton onExport={handleExport} />
 
           {/* Status filter */}
           <select

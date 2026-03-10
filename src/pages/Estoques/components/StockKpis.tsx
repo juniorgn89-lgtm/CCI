@@ -3,8 +3,12 @@ import type { LucideIcon } from 'lucide-react'
 import { formatNumber } from '@/lib/formatters'
 import type { StockKpiData } from '@/pages/Estoques/hooks/useStockData'
 
+type TabKey = 'posicao' | 'movimentacao' | 'alertas' | 'historico' | 'analise'
+type AlertFilter = 'all' | 'danger' | 'warning' | 'caution'
+
 interface StockKpisProps {
   kpis: StockKpiData
+  onNavigate?: (tab: TabKey, alertFilter?: AlertFilter) => void
 }
 
 interface KpiItem {
@@ -14,10 +18,11 @@ interface KpiItem {
   icon: LucideIcon
   borderColor: string
   iconColor: string
-  alertBg?: string
+  targetTab: TabKey
+  alertFilter?: AlertFilter
 }
 
-const StockKpis = ({ kpis }: StockKpisProps) => {
+const StockKpis = ({ kpis, onNavigate }: StockKpisProps) => {
   const items: KpiItem[] = [
     {
       label: 'Total de Produtos',
@@ -26,6 +31,7 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
       icon: Package,
       borderColor: 'border-blue-500',
       iconColor: 'text-blue-500',
+      targetTab: 'posicao',
     },
     {
       label: 'Saldo Total',
@@ -34,6 +40,7 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
       icon: Layers,
       borderColor: 'border-emerald-500',
       iconColor: 'text-emerald-500',
+      targetTab: 'movimentacao',
     },
     {
       label: 'Estoque Baixo',
@@ -42,7 +49,8 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
       icon: AlertTriangle,
       borderColor: 'border-amber-500',
       iconColor: 'text-amber-500',
-      alertBg: kpis.produtosBaixoEstoque > 0 ? 'bg-amber-50 dark:bg-amber-950/20' : undefined,
+      targetTab: 'alertas',
+      alertFilter: 'caution',
     },
     {
       label: 'Sem Estoque',
@@ -51,7 +59,8 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
       icon: XCircle,
       borderColor: 'border-red-500',
       iconColor: 'text-red-500',
-      alertBg: kpis.produtosSemEstoque > 0 ? 'bg-red-50 dark:bg-red-950/20' : undefined,
+      targetTab: 'alertas',
+      alertFilter: 'danger',
     },
   ]
 
@@ -60,9 +69,11 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
       {items.map((item) => {
         const Icon = item.icon
         return (
-          <div
+          <button
             key={item.label}
-            className={`rounded-xl border-l-4 ${item.borderColor} ${item.alertBg ?? 'bg-white dark:bg-gray-900'} p-5 shadow-sm transition-shadow hover:shadow-md`}
+            type="button"
+            onClick={() => onNavigate?.(item.targetTab, item.alertFilter)}
+            className={`rounded-xl border-l-4 ${item.borderColor} bg-white p-5 text-left shadow-sm transition-all hover:shadow-md hover:ring-1 hover:ring-gray-200 active:scale-[0.98] dark:bg-gray-900 dark:hover:ring-gray-700`}
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{item.label}</p>
@@ -76,7 +87,7 @@ const StockKpis = ({ kpis }: StockKpisProps) => {
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
               {item.subtitle}
             </p>
-          </div>
+          </button>
         )
       })}
     </div>

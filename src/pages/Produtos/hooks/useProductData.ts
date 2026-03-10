@@ -71,7 +71,9 @@ const getPrevMonthRange = (dataInicial: string, _dataFinal: string) => {
 // ── Hook ───────────────────────────────────────────────────────
 
 const useProductData = () => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const hasEmpresa = empresaCodigos.length > 0
   const prevMonth = getPrevMonthRange(dataInicial, dataFinal)
 
   const filterParams = {
@@ -86,6 +88,7 @@ const useProductData = () => {
     queryKey: ['vendaItens', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaItens(filterParams),
     placeholderData: keepPreviousData,
+    enabled: hasEmpresa,
   })
 
   // Previous month venda itens (for KPI comparison)
@@ -97,19 +100,23 @@ const useProductData = () => {
       dataFinal: prevMonth.dataFinal,
       usaProdutoLmc: false,
     }),
+    enabled: hasEmpresa,
   })
 
   // Products (for name mapping)
   const { data: produtosData, isLoading: l3 } = useQuery({
     queryKey: ['produtos-all'],
-    queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
+    queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
   })
 
   // Groups (for group name mapping)
   const { data: gruposData, isLoading: l4 } = useQuery({
     queryKey: ['grupos'],
-    queryFn: () => fetchGrupos(),
+    queryFn: () => fetchAllPages(
+      (p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 100
+    ),
     staleTime: 30 * 60 * 1000,
   })
 
@@ -119,7 +126,7 @@ const useProductData = () => {
     const vendaItens = vendaItensData?.resultados ?? []
     const prevItens = prevMonthData?.resultados ?? []
     const produtos = produtosData ?? []
-    const grupos = gruposData?.resultados ?? []
+    const grupos = gruposData ?? []
 
     // ── Maps ──
     const produtoMap = new Map<number, { nome: string; grupoCodigo: number }>()
@@ -227,7 +234,7 @@ const useProductData = () => {
     return { kpis, productTable, topSellers, abcData, gruposList }
   }, [vendaItensData, prevMonthData, produtosData, gruposData])
 
-  return { ...computed, isLoading }
+  return { ...computed, isLoading, hasEmpresa }
 }
 
 export default useProductData

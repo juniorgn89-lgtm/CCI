@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Fuel, CalendarDays, BarChart3, Calendar, List } from 'lucide-react'
+import { Fuel, CalendarDays, BarChart3, Calendar, List, GaugeCircle, Users } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
@@ -10,33 +10,44 @@ import DailyTable from '@/pages/Combustiveis/components/DailyTable'
 import FuelTypeTable from '@/pages/Combustiveis/components/FuelTypeTable'
 import MonthlyChart from '@/pages/Combustiveis/components/MonthlyChart'
 import WeeklyAnalysis from '@/pages/Combustiveis/components/WeeklyAnalysis'
+import BombaView from '@/pages/Combustiveis/components/BombaView'
+import FreentistaTable from '@/pages/Combustiveis/components/FreentistaTable'
 import useFuelData from '@/pages/Combustiveis/hooks/useFuelData'
 
-type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal'
+type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas'
 
 const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
   { key: 'abastecimentos', label: 'Abastecimentos', icon: List },
   { key: 'diario', label: 'Dia a dia', icon: CalendarDays },
-  { key: 'tipo', label: 'Por combustível', icon: Fuel },
-  { key: 'evolucao', label: 'Evolução', icon: BarChart3 },
+  { key: 'tipo', label: 'Por combustivel', icon: Fuel },
+  { key: 'bombas', label: 'Por bomba', icon: GaugeCircle },
+  { key: 'frentistas', label: 'Frentistas', icon: Users },
+  { key: 'evolucao', label: 'Evolucao', icon: BarChart3 },
   { key: 'semanal', label: 'Semanal', icon: Calendar },
 ]
 
 const KpiSkeleton = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <Skeleton className="h-10 w-10 rounded-lg" />
+    <div className="flex items-center justify-between">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-8 rounded-lg" />
+    </div>
     <Skeleton className="mt-4 h-7 w-32" />
-    <Skeleton className="mt-2 h-4 w-24" />
+    <Skeleton className="mt-2 h-4 w-20" />
   </div>
 )
 
 const Combustiveis = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')
-  const { empresaCodigo } = useFilterStore()
-  const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, frentistas, combustiveis, isLoading } = useFuelData()
+  const { empresaCodigos } = useFilterStore()
+  const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, bombaData, frentistaData, frentistas, combustiveis, isLoading } = useFuelData()
+
+  const handleNavigateTab = (tab: TabKey) => {
+    setActiveTab(tab)
+  }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="space-y-6">
       {/* Page header */}
       <div>
         <div className="flex items-center gap-3">
@@ -44,20 +55,20 @@ const Combustiveis = () => {
             <Fuel className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Combustíveis</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Combustiveis</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhamento de abastecimentos e performance</p>
           </div>
         </div>
       </div>
 
-      {!empresaCodigo ? <SelectCompanyState /> : (<>
+      {empresaCodigos.length === 0 ? <SelectCompanyState /> : (<>
       {/* KPIs */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
         </div>
       ) : kpis ? (
-        <FuelKpis kpis={kpis} />
+        <FuelKpis kpis={kpis} onNavigateTab={handleNavigateTab} />
       ) : null}
 
       {/* Tabs */}
@@ -96,6 +107,8 @@ const Combustiveis = () => {
           )}
           {activeTab === 'diario' && <DailyTable data={dailyData} />}
           {activeTab === 'tipo' && <FuelTypeTable data={fuelTypeData} />}
+          {activeTab === 'bombas' && <BombaView data={bombaData} />}
+          {activeTab === 'frentistas' && <FreentistaTable data={frentistaData} />}
           {activeTab === 'evolucao' && <MonthlyChart data={dailyData} />}
           {activeTab === 'semanal' && <WeeklyAnalysis data={weeklyAnalysis} />}
         </>

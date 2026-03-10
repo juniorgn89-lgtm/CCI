@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 
 interface FilterState {
-  empresaCodigo: number | null
+  empresaCodigos: number[]
   dataInicial: string
   dataFinal: string
-  setEmpresa: (codigo: number | null) => void
+  setEmpresas: (codigos: number[]) => void
   setPeriodo: (dataInicial: string, dataFinal: string) => void
 }
 
@@ -16,12 +16,12 @@ const lastDay = new Date(year, month + 1, 0)
 const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
 
 export const useFilterStore = create<FilterState>((set) => ({
-  empresaCodigo: null,
+  empresaCodigos: [],
   dataInicial: firstDay,
   dataFinal: lastDayStr,
 
-  setEmpresa: (codigo) => {
-    set({ empresaCodigo: codigo })
+  setEmpresas: (codigos) => {
+    set({ empresaCodigos: codigos })
   },
 
   setPeriodo: (dataInicial, dataFinal) => {

@@ -74,6 +74,28 @@ export interface PeriodComparison {
   prevYear: { faturamento: number; lucroBruto: number }
 }
 
+export interface QuickStats {
+  litrosVendidos: number
+  totalAbastecimentos: number
+  receitaDia: number
+  ticketMedio: number
+  produtosVendidos: number
+  margemMedia: number
+}
+
+export interface SalesEvolutionPoint {
+  date: string
+  fuelRevenue: number
+  nonFuelRevenue: number
+}
+
+export interface FrentistaRankingItem {
+  codigoFrentista: number
+  litros: number
+  receita: number
+  atendimentos: number
+}
+
 // Get date 3 months before a given date string (yyyy-MM-dd)
 const threeMonthsBefore = (dateStr: string): string => {
   const d = new Date(dateStr)
@@ -94,7 +116,9 @@ const offsetPeriod = (dateStr: string, monthsBack: number): string => {
 }
 
 const useDashboardData = () => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+
+  const hasEmpresa = empresaCodigos.length > 0
 
   // LMC lookback: fetch from 3 months before to capture most recent cost data
   const lmcDataInicial = threeMonthsBefore(dataInicial)
@@ -107,37 +131,40 @@ const useDashboardData = () => {
 
   // VENDA_RESUMO for global faturamento per empresa
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
-    queryKey: ['vendaResumo', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['vendaResumo', empresaCodigos, dataInicial, dataFinal],
     queryFn: () =>
       fetchVendaResumo({
-        empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+        empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial,
         dataFinal,
       }),
+    enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
 
   // VENDA_RESUMO for previous month
   const { data: resumoPrevMonth = [] } = useQuery({
-    queryKey: ['vendaResumoPrevMonth', empresaCodigo, prevMonthInicial, prevMonthFinal],
+    queryKey: ['vendaResumoPrevMonth', empresaCodigos, prevMonthInicial, prevMonthFinal],
     queryFn: () =>
       fetchVendaResumo({
-        empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+        empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial: prevMonthInicial,
         dataFinal: prevMonthFinal,
       }),
+    enabled: hasEmpresa,
     retry: false,
   })
 
   // VENDA_RESUMO for same period last year
   const { data: resumoPrevYear = [] } = useQuery({
-    queryKey: ['vendaResumoPrevYear', empresaCodigo, prevYearInicial, prevYearFinal],
+    queryKey: ['vendaResumoPrevYear', empresaCodigos, prevYearInicial, prevYearFinal],
     queryFn: () =>
       fetchVendaResumo({
-        empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+        empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial: prevYearInicial,
         dataFinal: prevYearFinal,
       }),
+    enabled: hasEmpresa,
     retry: false,
   })
 
@@ -149,7 +176,32 @@ const useDashboardData = () => {
         (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
         1000, 50
       ),
+    enabled: hasEmpresa,
     placeholderData: keepPreviousData,
+  })
+
+  // ABASTECIMENTO for previous month (fuel prev month comparison)
+  const { data: abastPrevMonth = [] } = useQuery({
+    queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
+    queryFn: () =>
+      fetchAllPages(
+        (p) => fetchAbastecimentos({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        1000, 50
+      ),
+    enabled: hasEmpresa,
+    retry: false,
+  })
+
+  // ABASTECIMENTO for same period last year (fuel prev year comparison)
+  const { data: abastPrevYear = [] } = useQuery({
+    queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
+    queryFn: () =>
+      fetchAllPages(
+        (p) => fetchAbastecimentos({ dataInicial: prevYearInicial, dataFinal: prevYearFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        1000, 50
+      ),
+    enabled: hasEmpresa,
+    retry: false,
   })
 
   // LMC for cost prices (shared key with Combustíveis page)
@@ -158,12 +210,13 @@ const useDashboardData = () => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchLmc({
-          empresaCodigo: empresaCodigo ? [empresaCodigo] : undefined,
+          empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
           dataInicial: lmcDataInicial, dataFinal,
           ultimoCodigo: p.ultimoCodigo, limite: p.limite,
         }),
         1000, 50
       ),
+    enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
 
@@ -173,7 +226,7 @@ const useDashboardData = () => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 10
+        1000, 100
       ),
     staleTime: 30 * 60 * 1000,
   })
@@ -188,6 +241,12 @@ const useDashboardData = () => {
   const empresas = empresasData?.resultados ?? []
   const isLoading = isLoadingResumo || isLoadingAbast || isLoadingLmc || isLoadingProdutos || isLoadingEmpresas
 
+  // Helper: check if an empresa code matches the current filter
+  const matchesEmpresa = (code: number): boolean => {
+    if (empresaCodigos.length === 0) return true
+    return empresaCodigos.includes(code)
+  }
+
   const computed = useMemo(() => {
     // Empresa name map
     const empresaMap = new Map<number, string>()
@@ -201,7 +260,7 @@ const useDashboardData = () => {
       productMap.set(p.produtoCodigo, p.nome)
     }
 
-    // Build cost map from LMC: empresa+produtoCodigo → most recent precoCusto
+    // Build cost map from LMC: empresa+produtoCodigo -> most recent precoCusto
     // Use the latest LMC entry per empresa+product (sort by dataMovimento desc)
     const costMap = new Map<string, number>()
     const sortedLmc = [...lmcData].sort(
@@ -223,14 +282,14 @@ const useDashboardData = () => {
     // Global faturamento from VENDA_RESUMO
     const faturamentoGlobal = resumoAtual.reduce((acc, r) => acc + r.total, 0)
 
-    // Aggregate abastecimentos by empresa → produto
+    // Aggregate abastecimentos by empresa -> produto
     type FuelAgg = { quantidade: number; valorTotal: number; precoVendaSum: number; count: number }
     const fuelByEmpProd = new Map<string, FuelAgg>()
     const fuelByEmp = new Map<number, FuelAgg>()
 
-    // Filter by selected empresa if needed
-    const filteredAbast = empresaCodigo
-      ? abastecimentos.filter((a) => a.empresaCodigo === empresaCodigo)
+    // Filter by selected empresas
+    const filteredAbast = hasEmpresa
+      ? abastecimentos.filter((a) => matchesEmpresa(a.empresaCodigo))
       : abastecimentos
 
     for (const a of filteredAbast) {
@@ -270,7 +329,7 @@ const useDashboardData = () => {
 
     // Non-fuel faturamento = total VENDA_RESUMO - fuel ABASTECIMENTO
     const nonFuelFat = Math.max(0, faturamentoGlobal - fuelFaturamento)
-    // Split non-fuel: 30% automotivos, 70% conveniência (typical gas station ratio)
+    // Split non-fuel: 30% automotivos, 70% conveniencia (typical gas station ratio)
     const automotivosFat = nonFuelFat * 0.30
     const convenienciaFat = nonFuelFat * 0.70
 
@@ -303,18 +362,34 @@ const useDashboardData = () => {
 
     // Previous year faturamento for variation calculation
     const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => {
-      if (empresaCodigo && r.codigoEmpresa !== empresaCodigo) return acc
+      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) return acc
       return acc + r.total
     }, 0)
 
-    // Distribute prevYear faturamento proportionally across sectors
-    if (prevYearGlobalFat > 0 && faturamentoGlobal > 0) {
-      for (const kpi of sectorKpis) {
-        const sectorShare = kpi.faturamento / faturamentoGlobal
-        const prevYearSectorFat = prevYearGlobalFat * sectorShare
-        const marginRate = kpi.faturamento > 0 ? kpi.lucroBruto / kpi.faturamento : 0
-        kpi.prevYearLucroBruto = prevYearSectorFat * marginRate
-      }
+    // Previous year fuel faturamento from actual abastecimentos
+    const filteredAbastPrevYear = hasEmpresa
+      ? abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
+      : abastPrevYear
+    const prevYearFuelFat = filteredAbastPrevYear.reduce((acc, a) => acc + a.valorTotal, 0)
+
+    // Compute prev year fuel lucro bruto using current cost map (best estimate)
+    let prevYearFuelCusto = 0
+    for (const a of filteredAbastPrevYear) {
+      const cost = getCost(a.empresaCodigo, Number(a.codigoProduto))
+      prevYearFuelCusto += cost * a.quantidade
+    }
+    const prevYearFuelLB = prevYearFuelFat - prevYearFuelCusto
+
+    // Previous year non-fuel = global - fuel
+    const prevYearNonFuelFat = Math.max(0, prevYearGlobalFat - prevYearFuelFat)
+    const prevYearAutoFat = prevYearNonFuelFat * 0.30
+    const prevYearConvFat = prevYearNonFuelFat * 0.70
+
+    // Distribute prevYear lucro bruto per sector using actual data
+    if (prevYearGlobalFat > 0) {
+      sectorKpis[0].prevYearLucroBruto = prevYearFuelLB
+      sectorKpis[1].prevYearLucroBruto = prevYearAutoFat * autoMarginRate
+      sectorKpis[2].prevYearLucroBruto = prevYearConvFat * convMarginRate
     }
 
     const globalLucroBruto = sectorKpis.reduce((s, k) => s + k.lucroBruto, 0)
@@ -411,6 +486,7 @@ const useDashboardData = () => {
     // Non-fuel per-empresa: VENDA_RESUMO total - ABASTECIMENTO total per empresa
     const resumoByEmp = new Map<number, { total: number; quantidade: number }>()
     for (const r of resumoAtual) {
+      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) continue
       const prev = resumoByEmp.get(r.codigoEmpresa) ?? { total: 0, quantidade: 0 }
       resumoByEmp.set(r.codigoEmpresa, {
         total: prev.total + r.total,
@@ -484,14 +560,24 @@ const useDashboardData = () => {
       conveniencia: buildNonFuelSectorDetail(0.70, convMarginRate),
     }
 
-    return { sectorKpis, globalKpi, projectionData, sectorDetails }
-  }, [resumoAtual, resumoPrevYear, abastecimentos, lmcData, produtosData, empresas, empresaCodigo])
+    // --- Comparison: compute prev period lucro bruto using actual fuel data ---
+    const computeFuelLB = (abastData: typeof abastecimentos) => {
+      const filtered = hasEmpresa
+        ? abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
+        : abastData
+      let fat = 0
+      let custo = 0
+      for (const a of filtered) {
+        fat += a.valorTotal
+        custo += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
+      }
+      return { fat, lb: fat - custo }
+    }
 
-  const comparison = useMemo((): PeriodComparison => {
     const sumResumo = (data: typeof resumoAtual) => {
       let fat = 0
       for (const r of data) {
-        if (empresaCodigo && r.codigoEmpresa !== empresaCodigo) continue
+        if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) continue
         fat += r.total
       }
       return fat
@@ -500,20 +586,89 @@ const useDashboardData = () => {
     const prevMonthFat = sumResumo(resumoPrevMonth)
     const prevYearFat = sumResumo(resumoPrevYear)
 
-    // Estimate lucro bruto using same global margin ratio as current period
-    const currentFat = computed.globalKpi.faturamento
-    const currentLB = computed.globalKpi.lucroBruto
-    const marginRatio = currentFat > 0 ? currentLB / currentFat : 0
+    const prevMonthFuel = computeFuelLB(abastPrevMonth)
+    const prevYearFuel = computeFuelLB(abastPrevYear)
 
-    return {
-      prevMonth: { faturamento: prevMonthFat, lucroBruto: prevMonthFat * marginRatio },
-      prevYear: { faturamento: prevYearFat, lucroBruto: prevYearFat * marginRatio },
+    // Non-fuel lucro bruto = (globalFat - fuelFat) * weighted non-fuel margin
+    const nonFuelMargin = autoMarginRate * 0.30 + convMarginRate * 0.70
+    const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthFat - prevMonthFuel.fat)
+    const cmpPrevYearNonFuelFat = Math.max(0, prevYearFat - prevYearFuel.fat)
+
+    const comparison: PeriodComparison = {
+      prevMonth: {
+        faturamento: prevMonthFat,
+        lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
+      },
+      prevYear: {
+        faturamento: prevYearFat,
+        lucroBruto: prevYearFuel.lb + cmpPrevYearNonFuelFat * nonFuelMargin,
+      },
     }
-  }, [resumoPrevMonth, resumoPrevYear, empresaCodigo, computed.globalKpi])
+
+    // --- Quick Stats ---
+    const totalAbastecimentos = filteredAbast.length
+    const receitaDia = faturamentoGlobal
+    const ticketMedio = totalAbastecimentos > 0 ? fuelFaturamento / totalAbastecimentos : 0
+    // Non-fuel products: estimate quantity from VENDA_RESUMO quantities minus fuel abastecimentos
+    const totalResumoQtd = resumoAtual.reduce((acc, r) => {
+      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) return acc
+      return acc + r.quantidade
+    }, 0)
+    const produtosVendidos = Math.max(0, totalResumoQtd - totalAbastecimentos)
+    const margemMedia = globalMargem
+
+    const quickStats: QuickStats = {
+      litrosVendidos: fuelLitros,
+      totalAbastecimentos,
+      receitaDia,
+      ticketMedio,
+      produtosVendidos,
+      margemMedia,
+    }
+
+    // --- Sales Evolution (daily aggregation) ---
+    const fuelByDay = new Map<string, number>()
+    for (const a of filteredAbast) {
+      if (!a.dataFiscal) continue
+      const day = a.dataFiscal.slice(0, 10)
+      fuelByDay.set(day, (fuelByDay.get(day) ?? 0) + a.valorTotal)
+    }
+
+    // Distribute non-fuel revenue proportionally across days based on fuel distribution
+    const totalFuelDays = Array.from(fuelByDay.values()).reduce((s, v) => s + v, 0)
+    const salesEvolution: SalesEvolutionPoint[] = Array.from(fuelByDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, fuelRev]) => {
+        const proportion = totalFuelDays > 0 ? fuelRev / totalFuelDays : 0
+        return {
+          date,
+          fuelRevenue: fuelRev,
+          nonFuelRevenue: nonFuelFat * proportion,
+        }
+      })
+
+    // --- Frentista Ranking ---
+    const frentistaMap = new Map<number, { litros: number; receita: number; atendimentos: number }>()
+    for (const a of filteredAbast) {
+      if (!a.codigoFrentista || a.codigoFrentista <= 0) continue
+      const prev = frentistaMap.get(a.codigoFrentista) ?? { litros: 0, receita: 0, atendimentos: 0 }
+      frentistaMap.set(a.codigoFrentista, {
+        litros: prev.litros + a.quantidade,
+        receita: prev.receita + a.valorTotal,
+        atendimentos: prev.atendimentos + 1,
+      })
+    }
+    const frentistaRanking: FrentistaRankingItem[] = Array.from(frentistaMap.entries())
+      .map(([codigoFrentista, data]) => ({ codigoFrentista, ...data }))
+      .sort((a, b) => b.litros - a.litros)
+      .slice(0, 10)
+
+    return { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos])
 
   return {
     ...computed,
-    comparison,
     isLoading,
   }
 }

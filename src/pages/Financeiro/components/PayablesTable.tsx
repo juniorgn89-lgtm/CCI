@@ -1,16 +1,43 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
+import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import type { TituloPagar } from '@/api/types/financeiro'
-
-interface PayableRow extends TituloPagar {
-  situacaoLabel: string
-  [key: string]: unknown
-}
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import { cn } from '@/lib/utils'
+import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
 interface PayablesTableProps {
   data: PayableRow[]
+}
+
+const statusBadge = (row: PayableRow) => {
+  if (row.statusTag === 'vencido') {
+    return (
+      <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
+        Vencido {row.diasAtraso > 0 && `(${row.diasAtraso}d)`}
+      </Badge>
+    )
+  }
+  if (row.statusTag === 'a-vencer') {
+    return (
+      <Badge className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+        A Vencer
+      </Badge>
+    )
+  }
+  if (row.statusTag === 'cancelado') {
+    return (
+      <Badge className="border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+        Cancelado
+      </Badge>
+    )
+  }
+  return (
+    <Badge className="border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
+      Pago
+    </Badge>
+  )
 }
 
 const columns: Column<PayableRow>[] = [
@@ -18,67 +45,146 @@ const columns: Column<PayableRow>[] = [
     key: 'nomeFornecedor',
     label: 'Fornecedor',
     sortable: true,
-    render: (row) => row.nomeFornecedor || `Fornecedor ${row.fornecedorCodigo}`,
+    render: (row) => (
+      <div>
+        <p className="font-medium text-gray-900 dark:text-gray-100">
+          {row.nomeFornecedor || `Fornecedor ${row.fornecedorCodigo}`}
+        </p>
+        {row.descricao && (
+          <p className="max-w-[250px] truncate text-xs text-gray-400 dark:text-gray-500">{row.descricao}</p>
+        )}
+      </div>
+    ),
   },
   {
     key: 'vencimento',
     label: 'Vencimento',
     sortable: true,
-    render: (row) => formatDate(row.vencimento),
+    render: (row) => (
+      <span className={cn(
+        row.statusTag === 'vencido' && 'font-medium text-red-600 dark:text-red-400'
+      )}>
+        {formatDate(row.vencimento)}
+      </span>
+    ),
   },
   {
     key: 'valor',
     label: 'Valor',
     align: 'right',
     sortable: true,
-    render: (row) => formatCurrency(row.valor),
+    render: (row) => (
+      <span className="font-medium tabular-nums">{formatCurrency(row.valor)}</span>
+    ),
+  },
+  {
+    key: 'saldoRestante',
+    label: 'Saldo',
+    align: 'right',
+    sortable: true,
+    render: (row) => (
+      <span className={cn(
+        'tabular-nums',
+        row.saldoRestante > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'
+      )}>
+        {formatCurrency(row.saldoRestante)}
+      </span>
+    ),
+  },
+  {
+    key: 'parcela',
+    label: 'Parcela',
+    sortable: false,
+    render: (row) =>
+      row.quantidadeParcelas > 1 ? (
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {row.parcela}/{row.quantidadeParcelas}
+        </span>
+      ) : (
+        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+      ),
   },
   {
     key: 'situacaoLabel',
     label: 'Situação',
     sortable: true,
-    render: (row) => (
-      <HeatmapCell
-        value={row.situacao === 'PAGO' ? 1 : -1}
-        min={-1}
-        max={1}
-        formatted={row.situacaoLabel}
-      />
-    ),
+    render: (row) => statusBadge(row),
   },
 ]
 
-type FilterSituacao = 'todos' | 'aberto' | 'pago'
+type FilterSituacao = 'todos' | 'aberto' | 'vencido' | 'pago'
+
+const csvExportColumns: ExportColumn<PayableRow>[] = [
+  { header: 'Fornecedor', accessor: (r) => r.nomeFornecedor || `Fornecedor ${r.fornecedorCodigo}` },
+  { header: 'Descrição', accessor: (r) => r.descricao },
+  { header: 'Vencimento', accessor: (r) => r.vencimento },
+  { header: 'Valor', accessor: (r) => r.valor },
+  { header: 'Valor Pago', accessor: (r) => r.valorPago },
+  { header: 'Saldo Restante', accessor: (r) => r.saldoRestante },
+  { header: 'Parcela', accessor: (r) => r.quantidadeParcelas > 1 ? `${r.parcela}/${r.quantidadeParcelas}` : '' },
+  { header: 'Situação', accessor: (r) => r.situacaoLabel },
+  { header: 'Dias Atraso', accessor: (r) => r.diasAtraso },
+]
+
+const filterOptions: { value: FilterSituacao; label: string }[] = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'aberto', label: 'A Vencer' },
+  { value: 'vencido', label: 'Vencidos' },
+  { value: 'pago', label: 'Pagos' },
+]
 
 const PayablesTable = ({ data }: PayablesTableProps) => {
   const [filter, setFilter] = useState<FilterSituacao>('todos')
 
   const filtered = data.filter((row) => {
-    if (filter === 'aberto') return row.situacao !== 'PAGO' && row.situacao !== 'CANCELADO'
-    if (filter === 'pago') return row.situacao === 'PAGO'
+    if (filter === 'aberto') return row.statusTag === 'a-vencer'
+    if (filter === 'vencido') return row.statusTag === 'vencido'
+    if (filter === 'pago') return row.statusTag === 'pago'
     return true
   })
 
+  const handleExport = useCallback(() => {
+    exportToCsv('financeiro-pagar', filtered, csvExportColumns)
+  }, [filtered])
+
+  const overdueCount = data.filter((r) => r.statusTag === 'vencido').length
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-gray-200 px-6 py-4">
-        <span className="text-sm font-medium text-gray-600">Situação:</span>
-        {(['todos', 'aberto', 'pago'] as const).map((opt) => (
-          <button
-            key={opt}
-            onClick={() => setFilter(opt)}
-            aria-pressed={filter === opt}
-            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-              filter === opt
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            {opt === 'todos' ? 'Todos' : opt === 'aberto' ? 'Aberto' : 'Pago'}
-          </button>
-        ))}
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Situação:</span>
+          {filterOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setFilter(opt.value)}
+              aria-pressed={filter === opt.value}
+              className={cn(
+                'relative rounded-md px-3 py-1 text-sm font-medium transition-colors',
+                filter === opt.value
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                  : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+              )}
+            >
+              {opt.label}
+              {opt.value === 'vencido' && overdueCount > 0 && filter !== 'vencido' && (
+                <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-100 px-1 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400">
+                  {overdueCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+          </span>
+          <ExportButton onExport={handleExport} />
+        </div>
       </div>
-      <DataTable columns={columns} data={filtered} keyExtractor={(row) => row.codigo} />
+      <div className="overflow-x-auto">
+        <DataTable columns={columns} data={filtered} keyExtractor={(row) => row.codigo} />
+      </div>
     </div>
   )
 }

@@ -19,13 +19,13 @@ const usePrefetch = () => {
 
     queryClient.prefetchQuery({
       queryKey: ['produtos'],
-      queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
+      queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
       ...opts,
     })
 
     queryClient.prefetchQuery({
       queryKey: ['grupos'],
-      queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
+      queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
       ...opts,
     })
 

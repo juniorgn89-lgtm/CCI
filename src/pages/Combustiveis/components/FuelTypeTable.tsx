@@ -1,8 +1,11 @@
+import { useCallback } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
-import type { FuelTypeRow } from '@/pages/Combustiveis/hooks/useFuelData'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
+import type { FuelTypeRow } from '@/pages/Combustiveis/hooks/useFuelData'
 
 interface FuelTypeTableProps {
   data: FuelTypeRow[]
@@ -36,14 +39,36 @@ const columns: Column<FuelTypeRow>[] = [
   },
 ]
 
-const FuelTypeTable = ({ data }: FuelTypeTableProps) => (
-  <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Por tipo de combustível</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400">Detalhamento por produto com participação e margens</p>
+const csvColumns: ExportColumn<FuelTypeRow>[] = [
+  { header: 'Combustível', accessor: (r) => r.nome },
+  { header: 'Litros', accessor: (r) => r.litros },
+  { header: 'Participação %', accessor: (r) => r.participacao },
+  { header: 'Faturamento', accessor: (r) => r.faturamento },
+  { header: 'Custo', accessor: (r) => r.custo },
+  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
+  { header: 'Preço Venda', accessor: (r) => r.precoMedioVenda },
+  { header: 'Preço Custo', accessor: (r) => r.precoCustoMedio },
+  { header: 'L.B./Litro', accessor: (r) => r.lbPorLitro },
+  { header: 'Margem %', accessor: (r) => r.margem },
+]
+
+const FuelTypeTable = ({ data }: FuelTypeTableProps) => {
+  const handleExport = useCallback(() => {
+    exportToCsv('combustiveis-tipo', data, csvColumns)
+  }, [data])
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Por tipo de combustível</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Detalhamento por produto com participação e margens</p>
+        </div>
+        <ExportButton onExport={handleExport} />
+      </div>
+      <DataTable columns={columns} data={data} keyExtractor={(row) => row.produtoCodigo} />
     </div>
-    <DataTable columns={columns} data={data} keyExtractor={(row) => row.produtoCodigo} />
-  </div>
-)
+  )
+}
 
 export default FuelTypeTable

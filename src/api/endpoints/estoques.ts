@@ -7,6 +7,8 @@ interface FetchProdutoEstoqueParams {
   dataHora?: string
   grupoCodigo?: number[]
   produtoCodigo?: number[]
+  ultimoCodigo?: number
+  limite?: number
 }
 
 interface FetchEstoqueParams {

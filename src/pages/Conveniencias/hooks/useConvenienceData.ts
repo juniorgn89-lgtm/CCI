@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchGrupos } from '@/api/endpoints/produtos'
+import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 
 export interface DailyRow {
@@ -32,7 +33,9 @@ export interface RevenueRow {
 }
 
 const useConvenienceData = () => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const hasEmpresa = empresaCodigos.length > 0
 
   const filterParams = {
     empresaCodigo: empresaCodigo ?? undefined,
@@ -47,6 +50,7 @@ const useConvenienceData = () => {
   } = useQuery({
     queryKey: ['vendaItens', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaItens(filterParams),
+    enabled: hasEmpresa,
   })
 
   const {
@@ -54,14 +58,18 @@ const useConvenienceData = () => {
     isLoading: isLoadingGrupos,
   } = useQuery({
     queryKey: ['grupos'],
-    queryFn: () => fetchGrupos(),
+    queryFn: () => fetchAllPages(
+      (p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 100
+    ),
+    staleTime: 30 * 60 * 1000,
   })
 
   const isLoading = isLoadingItens || isLoadingGrupos
 
   const computed = useMemo(() => {
     const vendaItens = vendaItensData?.resultados ?? []
-    const grupos = gruposData?.resultados ?? []
+    const grupos = gruposData ?? []
 
     const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
 
@@ -155,6 +163,7 @@ const useConvenienceData = () => {
   return {
     ...computed,
     isLoading,
+    hasEmpresa,
   }
 }
 

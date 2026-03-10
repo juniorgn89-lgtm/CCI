@@ -24,8 +24,8 @@ const formatMonth = (mes: string) => {
 
 const RevenueChart = ({ data }: RevenueChartProps) => {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">Evolução de Faturamento</h3>
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Evolucao de Faturamento</h3>
       <ResponsiveContainer width="100%" height={350}>
         <AreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

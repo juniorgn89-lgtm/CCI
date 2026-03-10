@@ -61,7 +61,7 @@ const Relatorios = () => {
   }
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6 lg:flex-row">
+    <div className="flex flex-col gap-6 lg:flex-row">
       <div className="w-full shrink-0 lg:w-80">
         {isLoading ? (
           <SelectorSkeleton />

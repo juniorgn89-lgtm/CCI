@@ -7,12 +7,14 @@ import { fetchProdutoEstoque, fetchEstoquePeriodo } from '@/api/endpoints/estoqu
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
 /**
- * Prefetches data for ALL modules when empresaCodigo or period changes.
+ * Prefetches data for ALL modules when empresaCodigos or period changes.
  * This way, when the user navigates to another module, it's already loaded.
  */
 const useModulePrefetch = () => {
   const queryClient = useQueryClient()
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+
+  const empresaCodigo = empresaCodigos[0] ?? null
 
   useEffect(() => {
     if (!empresaCodigo) return
@@ -28,10 +30,10 @@ const useModulePrefetch = () => {
 
     // --- Dashboard: VENDA_RESUMO ---
     queryClient.prefetchQuery({
-      queryKey: ['vendaResumo', empresaCodigo, dataInicial, dataFinal],
+      queryKey: ['vendaResumo', empresaCodigos, dataInicial, dataFinal],
       queryFn: () =>
         fetchVendaResumo({
-          empresaCodigo: [empresaCodigo],
+          empresaCodigo: empresaCodigos,
           dataInicial,
           dataFinal,
         }),
@@ -53,7 +55,7 @@ const useModulePrefetch = () => {
       queryFn: () =>
         fetchAllPages(
           (p) => fetchLmc({
-            empresaCodigo: [empresaCodigo],
+            empresaCodigo: empresaCodigos,
             dataInicial: lmcDataInicial, dataFinal,
             ultimoCodigo: p.ultimoCodigo, limite: p.limite,
           }),
@@ -84,7 +86,7 @@ const useModulePrefetch = () => {
       queryKey: ['estoquePeriodo', empresaCodigo, dataFinal],
       queryFn: () => fetchEstoquePeriodo({ dataFinal, empresaCodigo }),
     })
-  }, [queryClient, empresaCodigo, dataInicial, dataFinal])
+  }, [queryClient, empresaCodigos, empresaCodigo, dataInicial, dataFinal])
 }
 
 export default useModulePrefetch

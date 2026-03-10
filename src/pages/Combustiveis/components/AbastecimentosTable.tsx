@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { AbastecimentoRow } from '@/pages/Combustiveis/hooks/useFuelData'
 
 interface AbastecimentosTableProps {
@@ -55,6 +57,25 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
 
   const activeFilterCount = (filterFrentista ? 1 : 0) + (filterCombustivel ? 1 : 0)
 
+  const exportColumns: ExportColumn<AbastecimentoRow>[] = [
+    { header: 'Data/Hora', accessor: (r) => r.dataHora },
+    { header: 'Empresa', accessor: (r) => r.empresaNome },
+    { header: 'Bomba/Bico', accessor: (r) => r.bombaDescricao },
+    { header: 'Frentista', accessor: (r) => r.frentistaNome },
+    { header: 'Combustível', accessor: (r) => r.combustivelNome },
+    { header: 'Litros', accessor: (r) => r.litros },
+    { header: 'Valor Unitário', accessor: (r) => r.valorUnitario },
+    { header: 'Valor Total', accessor: (r) => r.valorTotal },
+    { header: 'Preço Custo', accessor: (r) => r.precoCusto },
+    { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
+    { header: 'Margem %', accessor: (r) => r.margem },
+    { header: 'Placa', accessor: (r) => r.placa },
+  ]
+
+  const handleExport = useCallback(() => {
+    exportToCsv('combustiveis-abastecimentos', filtered, exportColumns)
+  }, [filtered])
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       {/* Header */}
@@ -78,6 +99,7 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
                 className="h-9 w-64 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
               />
             </div>
+            <ExportButton onExport={handleExport} />
             {/* Filter toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}

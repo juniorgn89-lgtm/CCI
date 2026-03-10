@@ -49,8 +49,8 @@ const FuelProductRow = ({ product }: { product: EmpresaDetail['produtos'][0] }) 
   </tr>
 )
 
-const FuelEmpresaRow = ({ empresa }: { empresa: EmpresaDetail }) => {
-  const [expanded, setExpanded] = useState(false)
+const FuelEmpresaRow = ({ empresa, defaultExpanded = false }: { empresa: EmpresaDetail; defaultExpanded?: boolean }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
   return (
     <Fragment>
       <tr
@@ -75,33 +75,49 @@ const FuelEmpresaRow = ({ empresa }: { empresa: EmpresaDetail }) => {
   )
 }
 
-const FuelTable = ({ empresas, total }: { empresas: EmpresaDetail[]; total: TotalRow }) => (
-  <table className="w-full min-w-[900px]">
-    <thead>
-      <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-        <th className="px-4 py-3 text-left">Empresa</th>
-        <th className="px-4 py-3 text-right">Litros</th>
-        <th className="px-4 py-3 text-right">Lucro Bruto</th>
-        <th className="px-4 py-3 text-left">Margem</th>
-        <th className="px-4 py-3 text-right">Preço venda</th>
-        <th className="px-4 py-3 text-right">Preço custo</th>
-        <th className="px-6 py-3 text-right">L.B. por litro</th>
-      </tr>
-    </thead>
-    <tbody>
-      {empresas.map((e) => <FuelEmpresaRow key={e.empresaCodigo} empresa={e} />)}
-      <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-        <td className="px-4 py-3">Total</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtLitros(total.litros)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
-        <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoVenda)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoCusto)}</td>
-        <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.lbPorLitro)}</td>
-      </tr>
-    </tbody>
-  </table>
-)
+const FuelTable = ({ empresas, total }: { empresas: EmpresaDetail[]; total: TotalRow }) => {
+  const singleEmpresa = empresas.length === 1
+  return (
+    <table className="w-full min-w-[900px]">
+      <thead>
+        <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <th className="px-4 py-3 text-left">{singleEmpresa ? 'Produto' : 'Empresa'}</th>
+          <th className="px-4 py-3 text-right">Litros</th>
+          <th className="px-4 py-3 text-right">Lucro Bruto</th>
+          <th className="px-4 py-3 text-left">Margem</th>
+          <th className="px-4 py-3 text-right">Preço venda</th>
+          <th className="px-4 py-3 text-right">Preço custo</th>
+          <th className="px-6 py-3 text-right">L.B. por litro</th>
+        </tr>
+      </thead>
+      <tbody>
+        {singleEmpresa
+          ? empresas[0].produtos.map((p) => (
+              <tr key={p.produtoCodigo} className="border-t border-gray-100 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800/50">
+                <td className="px-4 py-2.5">{p.nome}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtLitros(p.litros)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(p.lucroBruto)}</td>
+                <td className="px-4 py-2.5"><MarginBar value={p.margem} /></td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(p.precoVenda)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(p.precoCusto)}</td>
+                <td className="px-6 py-2.5 text-right tabular-nums font-medium">{fmtCur(p.lbPorLitro)}</td>
+              </tr>
+            ))
+          : empresas.map((e) => <FuelEmpresaRow key={e.empresaCodigo} empresa={e} />)
+        }
+        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+          <td className="px-4 py-3">Total</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtLitros(total.litros)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
+          <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoVenda)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoCusto)}</td>
+          <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.lbPorLitro)}</td>
+        </tr>
+      </tbody>
+    </table>
+  )
+}
 
 // ========== AUTOMOTIVOS / CONVENIÊNCIAS TABLE ==========
 
@@ -147,8 +163,8 @@ const NonFuelGrupoRow = ({ grupo }: { grupo: NonFuelGrupo }) => {
   )
 }
 
-const NonFuelEmpresaRow = ({ empresa, setor }: { empresa: EmpresaDetail; setor: Setor }) => {
-  const [expanded, setExpanded] = useState(false)
+const NonFuelEmpresaRow = ({ empresa, setor, defaultExpanded = false }: { empresa: EmpresaDetail; setor: Setor; defaultExpanded?: boolean }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const { grupos, isLoading } = useNonFuelDrilldown(empresa.empresaCodigo, setor, expanded)
 
   return (
@@ -183,6 +199,48 @@ const NonFuelEmpresaRow = ({ empresa, setor }: { empresa: EmpresaDetail; setor: 
         <NonFuelGrupoRow key={g.grupoCodigo} grupo={g} />
       ))}
     </Fragment>
+  )
+}
+
+const NonFuelSingleEmpresaTable = ({ empresa, total, setor }: { empresa: EmpresaDetail; total: TotalRow; setor: Setor }) => {
+  const { grupos, isLoading } = useNonFuelDrilldown(empresa.empresaCodigo, setor, true)
+  return (
+    <table className="w-full min-w-[900px]">
+      <thead>
+        <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <th className="px-4 py-3 text-left">Grupo / Produto</th>
+          <th className="px-4 py-3 text-right">Quantidade</th>
+          <th className="px-4 py-3 text-right">Faturamento</th>
+          <th className="px-4 py-3 text-right">Lucro bruto</th>
+          <th className="px-4 py-3 text-left">Margem</th>
+          <th className="px-4 py-3 text-right">Preço médio</th>
+          <th className="px-4 py-3 text-right">Custo médio</th>
+          <th className="px-6 py-3 text-right">Ticket médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {isLoading ? (
+          <tr>
+            <td colSpan={8} className="px-4 py-4 text-center text-xs text-gray-400">
+              <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+              Carregando itens...
+            </td>
+          </tr>
+        ) : grupos.map((g) => (
+          <NonFuelGrupoRow key={g.grupoCodigo} grupo={g} />
+        ))}
+        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+          <td className="px-4 py-3">Total</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtInt(total.quantidade ?? 0)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.faturamento ?? 0)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
+          <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoMedio ?? 0)}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.custoMedio ?? 0)}</td>
+          <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.ticketMedio ?? 0)}</td>
+        </tr>
+      </tbody>
+    </table>
   )
 }
 
@@ -282,6 +340,8 @@ const SectorDetailSection = ({ sectorDetails }: SectorDetailSectionProps) => {
               </div>
             ) : activeTab === 'combustivel' ? (
               <FuelTable empresas={empresas} total={total} />
+            ) : empresas.length === 1 ? (
+              <NonFuelSingleEmpresaTable empresa={empresas[0]} total={total} setor={activeTab} />
             ) : (
               <NonFuelTable empresas={empresas} total={total} setor={activeTab} />
             )}

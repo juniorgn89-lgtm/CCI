@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import {
   Table,
   TableBody,
@@ -7,8 +7,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import ExportButton from '@/components/tables/ExportButton'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type { DRE } from '@/api/types/financeiro'
 
 interface DreTableProps {
@@ -20,7 +22,14 @@ interface DreRow {
   value: number
   level: number
   isSummary: boolean
+  [key: string]: unknown
 }
+
+const csvExportColumns: ExportColumn<DreRow>[] = [
+  { header: 'Descrição', accessor: (r) => r.label },
+  { header: 'Valor', accessor: (r) => r.value },
+  { header: 'Nível', accessor: (r) => r.level },
+]
 
 const DreTable = ({ data }: DreTableProps) => {
   const rows = useMemo((): DreRow[] => {
@@ -42,12 +51,10 @@ const DreTable = ({ data }: DreTableProps) => {
       result.push({ label: grupo.produtoGrupo, value: grupo.valorVenda, level: 2, isSummary: false })
     }
 
-    // 1.2 Descontos
     if (totalDescontosVendas !== 0) {
       result.push({ label: '(-) Descontos sobre Vendas', value: -totalDescontosVendas, level: 1, isSummary: false })
     }
 
-    // 1.3 Acréscimos
     if (totalAcrescimosVendas !== 0) {
       result.push({ label: '(+) Acréscimos sobre Vendas', value: totalAcrescimosVendas, level: 1, isSummary: false })
     }
@@ -66,7 +73,7 @@ const DreTable = ({ data }: DreTableProps) => {
     const lucroBruto = receitaLiquida - totalCmv
     result.push({ label: 'Lucro Bruto', value: lucroBruto, level: 0, isSummary: true })
 
-    // 6. Apuração de Receitas (outras receitas)
+    // 6. Apuração de Receitas
     const groupedReceitas = new Map<string, { items: { label: string; value: number }[]; total: number }>()
     for (const r of data.apuracaoReceita) {
       const pai = r.planoContaGerencialPAI || 'Outras Receitas'
@@ -89,7 +96,7 @@ const DreTable = ({ data }: DreTableProps) => {
       result[result.length - groupedReceitas.size * 2 - 1].value = totalReceitas
     }
 
-    // 7. Apuração de Pagamentos (despesas)
+    // 7. Apuração de Pagamentos
     const groupedDespesas = new Map<string, { items: { label: string; value: number }[]; total: number }>()
     for (const p of data.apuracaoPagamentos) {
       const pai = p.planoContaGerencialPAI || 'Outras Despesas'
@@ -109,7 +116,6 @@ const DreTable = ({ data }: DreTableProps) => {
         }
         totalDespesas += group.total
       }
-      // Update the "Despesas Operacionais" header value
       const despesasHeaderIdx = result.findIndex((r) => r.label === '(-) Despesas Operacionais')
       if (despesasHeaderIdx >= 0) {
         result[despesasHeaderIdx].value = -totalDespesas
@@ -123,51 +129,56 @@ const DreTable = ({ data }: DreTableProps) => {
     return result
   }, [data])
 
+  const handleExport = useCallback(() => {
+    exportToCsv('financeiro-dre', rows, csvExportColumns)
+  }, [rows])
+
   if (!data) {
     return (
-      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white py-16">
-        <p className="text-sm text-gray-500">Nenhum dado de DRE disponível para o período selecionado.</p>
+      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white py-16 dark:border-gray-700 dark:bg-gray-900">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado de DRE disponível para o período selecionado.</p>
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 px-6 py-4">
-        <h3 className="text-lg font-semibold text-gray-900">Demonstrativo de Resultado do Exercício</h3>
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Demonstrativo de Resultado do Exercício</h3>
+        <ExportButton onExport={handleExport} />
       </div>
       <Table>
         <TableHeader>
-          <TableRow className="bg-gray-100 hover:bg-gray-100">
-            <TableHead className="text-xs font-medium uppercase text-gray-600">Descrição</TableHead>
-            <TableHead className="text-right text-xs font-medium uppercase text-gray-600">Valor</TableHead>
+          <TableRow className="bg-gray-100 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800">
+            <TableHead className="text-xs font-medium uppercase text-gray-600 dark:text-gray-400">Descrição</TableHead>
+            <TableHead className="text-right text-xs font-medium uppercase text-gray-600 dark:text-gray-400">Valor</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody className="divide-y divide-gray-200">
+        <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
           {rows.map((row, index) => (
             <TableRow
               key={index}
               className={cn(
-                'hover:bg-blue-50',
-                row.isSummary && 'bg-gray-50 font-semibold',
+                'hover:bg-blue-50/50 dark:hover:bg-gray-800/50',
+                row.isSummary && 'bg-gray-50 font-semibold dark:bg-gray-800/40',
               )}
             >
               <TableCell
                 className={cn(
                   'text-sm',
                   row.level === 1 && 'pl-8',
-                  row.level === 2 && 'pl-14 text-gray-500',
-                  row.isSummary && 'font-semibold text-gray-900',
+                  row.level === 2 && 'pl-14 text-gray-500 dark:text-gray-400',
+                  row.isSummary && 'font-semibold text-gray-900 dark:text-gray-100',
                 )}
               >
                 {row.label}
               </TableCell>
               <TableCell
                 className={cn(
-                  'text-right text-sm',
+                  'text-right text-sm tabular-nums',
                   row.isSummary && 'font-semibold',
-                  row.value > 0 && 'text-green-600',
-                  row.value < 0 && 'text-red-600',
+                  row.value > 0 && 'text-green-600 dark:text-green-400',
+                  row.value < 0 && 'text-red-600 dark:text-red-400',
                 )}
               >
                 {formatCurrency(row.value)}

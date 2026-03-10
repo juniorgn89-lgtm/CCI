@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Search } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { AbcRow } from '@/pages/Produtos/hooks/useProductData'
 
 interface AbcCurveProps {
@@ -42,6 +44,19 @@ const AbcCurve = ({ data }: AbcCurveProps) => {
     }
     return result
   }, [data, filterClass, search])
+
+  const csvColumns: ExportColumn<AbcRow>[] = [
+    { header: 'Classe', accessor: (r) => r.classificacao },
+    { header: 'Produto', accessor: (r) => r.nome },
+    { header: 'Grupo', accessor: (r) => r.grupo },
+    { header: 'Quantidade', accessor: (r) => r.quantidade },
+    { header: 'Faturamento', accessor: (r) => r.faturamento },
+    { header: '% Acumulado', accessor: (r) => r.acumuladoPct },
+  ]
+
+  const handleExport = useCallback(() => {
+    exportToCsv('produtos-curva-abc', filtered, csvColumns)
+  }, [filtered])
 
   return (
     <div className="space-y-4">
@@ -84,6 +99,7 @@ const AbcCurve = ({ data }: AbcCurveProps) => {
                 className="h-9 w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
               />
             </div>
+            <ExportButton onExport={handleExport} />
             <span className="text-xs text-gray-400 dark:text-gray-500">{filtered.length} produtos</span>
           </div>
         </div>

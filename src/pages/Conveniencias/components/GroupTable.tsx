@@ -1,6 +1,9 @@
+import { useCallback } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type { GroupRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 interface GroupTableProps {
@@ -50,9 +53,25 @@ const columns: Column<GroupRow>[] = [
   },
 ]
 
+const csvColumns: ExportColumn<GroupRow>[] = [
+  { header: 'Grupo', accessor: (r) => r.nome },
+  { header: 'Qtd Vendida', accessor: (r) => r.quantidade },
+  { header: 'Faturamento', accessor: (r) => r.faturamento },
+  { header: 'Margem R$', accessor: (r) => r.margemTotal },
+  { header: 'Margem %', accessor: (r) => r.margemPct },
+]
+
 const GroupTable = ({ data }: GroupTableProps) => {
+  const handleExport = useCallback(() => {
+    exportToCsv('conveniencias-grupo', data, csvColumns)
+  }, [data])
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Por grupo</span>
+        <ExportButton onExport={handleExport} />
+      </div>
       <DataTable columns={columns} data={data} keyExtractor={(row) => row.grupoCodigo} />
     </div>
   )

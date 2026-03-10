@@ -1,22 +1,24 @@
 import { useState } from 'react'
-import { Warehouse, LayoutList, BarChart3, AlertTriangle, Clock } from 'lucide-react'
+import { Warehouse, LayoutList, BarChart3, AlertTriangle, Clock, TrendingUp } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import StockKpis from '@/pages/Estoques/components/StockKpis'
 import StockTable from '@/pages/Estoques/components/StockTable'
 import StockMovementChart from '@/pages/Estoques/components/StockMovementChart'
-import StockAlerts from '@/pages/Estoques/components/StockAlerts'
+import StockAlerts, { type SeverityFilter } from '@/pages/Estoques/components/StockAlerts'
 import StockHistory from '@/pages/Estoques/components/StockHistory'
+import StockAnalysis from '@/pages/Estoques/components/StockAnalysis'
 import useStockData from '@/pages/Estoques/hooks/useStockData'
 
-type TabKey = 'posicao' | 'movimentacao' | 'alertas' | 'historico'
+type TabKey = 'posicao' | 'movimentacao' | 'alertas' | 'historico' | 'analise'
 
 const tabs: { key: TabKey; label: string; icon: typeof Warehouse }[] = [
   { key: 'posicao', label: 'Posição', icon: LayoutList },
   { key: 'movimentacao', label: 'Movimentação', icon: BarChart3 },
   { key: 'alertas', label: 'Alertas', icon: AlertTriangle },
   { key: 'historico', label: 'Histórico', icon: Clock },
+  { key: 'analise', label: 'Análise', icon: TrendingUp },
 ]
 
 const KpiSkeleton = () => (
@@ -40,19 +42,26 @@ const TableSkeleton = () => (
 
 const Estoques = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('posicao')
+  const [alertFilter, setAlertFilter] = useState<SeverityFilter>('all')
+
+  const handleNavigate = (tab: TabKey, filter?: SeverityFilter) => {
+    setActiveTab(tab)
+    setAlertFilter(filter ?? 'all')
+  }
   const {
     kpis,
     stockTable,
-    movementChart,
     movementHistory,
     alerts,
     categorias,
+    categoryStock,
+    statusBreakdown,
     isLoading,
     hasEmpresa,
   } = useStockData()
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="space-y-6">
       {/* Page header */}
       <div>
         <div className="flex items-center gap-3">
@@ -80,7 +89,7 @@ const Estoques = () => {
               {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
           ) : kpis ? (
-            <StockKpis kpis={kpis} />
+            <StockKpis kpis={kpis} onNavigate={handleNavigate} />
           ) : null}
 
           {/* Tabs */}
@@ -120,14 +129,15 @@ const Estoques = () => {
                 <StockTable data={stockTable} categorias={categorias} />
               )}
               {activeTab === 'movimentacao' && (
-                <StockMovementChart data={movementChart} />
+                <StockMovementChart categoryStock={categoryStock} statusBreakdown={statusBreakdown} />
               )}
               {activeTab === 'alertas' && (
-                <StockAlerts alerts={alerts} />
+                <StockAlerts alerts={alerts} initialFilter={alertFilter} />
               )}
               {activeTab === 'historico' && (
                 <StockHistory data={movementHistory} />
               )}
+              {activeTab === 'analise' && <StockAnalysis />}
             </>
           )}
         </>

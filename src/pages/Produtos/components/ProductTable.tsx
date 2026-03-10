@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { ProductRow } from '@/pages/Produtos/hooks/useProductData'
 
 interface ProductTableProps {
@@ -58,6 +60,23 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
     }
   }
 
+  const csvColumns: ExportColumn<ProductRow>[] = [
+    { header: 'Produto', accessor: (r) => r.nome },
+    { header: 'Grupo', accessor: (r) => r.grupo },
+    { header: 'Código', accessor: (r) => r.produtoCodigo },
+    { header: 'Quantidade', accessor: (r) => r.quantidade },
+    { header: 'Faturamento', accessor: (r) => r.faturamento },
+    { header: 'Custo', accessor: (r) => r.custo },
+    { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
+    { header: 'Margem %', accessor: (r) => r.margemPct },
+    { header: 'Preço Médio Venda', accessor: (r) => r.precoMedioVenda },
+    { header: 'Preço Custo Médio', accessor: (r) => r.precoCustoMedio },
+  ]
+
+  const handleExport = useCallback(() => {
+    exportToCsv('produtos-vendidos', filtered, csvColumns)
+  }, [filtered])
+
   const SortHeader = ({ label, field }: { label: string; field: keyof ProductRow }) => (
     <th
       className="cursor-pointer px-4 py-3 select-none"
@@ -94,6 +113,7 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
                 className="h-9 w-64 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
               />
             </div>
+            <ExportButton onExport={handleExport} />
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={cn(

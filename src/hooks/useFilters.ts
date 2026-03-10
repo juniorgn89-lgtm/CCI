@@ -3,8 +3,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 
 export const useFilters = () => {
-  const { empresaCodigo, dataInicial, dataFinal, setEmpresa, setPeriodo } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, setEmpresas, setPeriodo } = useFilterStore()
   const queryClient = useQueryClient()
+
+  const empresaCodigo = empresaCodigos[0] ?? null
 
   const queryParams = {
     empresaCodigo: empresaCodigo ?? undefined,
@@ -18,10 +20,10 @@ export const useFilters = () => {
     return `${ini[2]}/${ini[1]}/${ini[0]} — ${fim[2]}/${fim[1]}/${fim[0]}`
   })()
 
-  const handleSetEmpresa = useCallback((codigo: number | null) => {
-    setEmpresa(codigo)
+  const handleSetEmpresas = useCallback((codigos: number[]) => {
+    setEmpresas(codigos)
     queryClient.invalidateQueries()
-  }, [setEmpresa, queryClient])
+  }, [setEmpresas, queryClient])
 
   const handleSetPeriodo = useCallback((dataInicial: string, dataFinal: string) => {
     setPeriodo(dataInicial, dataFinal)
@@ -29,12 +31,13 @@ export const useFilters = () => {
   }, [setPeriodo, queryClient])
 
   return {
+    empresaCodigos,
     empresaCodigo,
     dataInicial,
     dataFinal,
     queryParams,
     periodoFormatado,
-    setEmpresa: handleSetEmpresa,
+    setEmpresas: handleSetEmpresas,
     setPeriodo: handleSetPeriodo,
   }
 }

@@ -1,6 +1,9 @@
+import { useCallback } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency, formatDate, formatLiters } from '@/lib/formatters'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type { DailyRow } from '@/pages/Combustiveis/hooks/useFuelData'
 
 interface DailyTableProps {
@@ -21,14 +24,34 @@ const columns: Column<DailyRow>[] = [
   { key: 'ticketMedio', label: 'Ticket médio', align: 'right', sortable: true, render: (row) => formatCurrency(row.ticketMedio) },
 ]
 
-const DailyTable = ({ data }: DailyTableProps) => (
-  <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Resumo diário</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400">Agregado por dia no período selecionado</p>
+const csvColumns: ExportColumn<DailyRow>[] = [
+  { header: 'Data', accessor: (r) => r.data },
+  { header: 'Abastecimentos', accessor: (r) => r.abastecimentos },
+  { header: 'Litros', accessor: (r) => r.litros },
+  { header: 'Faturamento', accessor: (r) => r.faturamento },
+  { header: 'Custo', accessor: (r) => r.custo },
+  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
+  { header: 'Margem %', accessor: (r) => r.margemPct },
+  { header: 'Ticket Médio', accessor: (r) => r.ticketMedio },
+]
+
+const DailyTable = ({ data }: DailyTableProps) => {
+  const handleExport = useCallback(() => {
+    exportToCsv('combustiveis-diario', data, csvColumns)
+  }, [data])
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Resumo diário</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Agregado por dia no período selecionado</p>
+        </div>
+        <ExportButton onExport={handleExport} />
+      </div>
+      <DataTable columns={columns} data={data} keyExtractor={(row) => row.data} />
     </div>
-    <DataTable columns={columns} data={data} keyExtractor={(row) => row.data} />
-  </div>
-)
+  )
+}
 
 export default DailyTable

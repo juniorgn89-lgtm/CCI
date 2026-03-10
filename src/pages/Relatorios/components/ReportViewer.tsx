@@ -29,17 +29,18 @@ const getReportLabel = (selected: SelectedReport): string => {
 }
 
 const ReportViewer = ({ selected }: ReportViewerProps) => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
 
   const queryKey = selected.type === 'builtin'
-    ? ['relatorio', selected.id, empresaCodigo, dataInicial, dataFinal]
-    : ['relatorio', 'personalizado', selected.codigo, empresaCodigo, dataInicial, dataFinal]
+    ? ['relatorio', selected.id, empresaCodigos, dataInicial, dataFinal]
+    : ['relatorio', 'personalizado', selected.codigo, empresaCodigos, dataInicial, dataFinal]
 
   const fetchReport = useCallback(async (): Promise<Blob> => {
     if (selected.type === 'builtin') {
       switch (selected.id) {
         case 'mapa-desempenho':
-          return fetchMapaDesempenho({ dataInicial, dataFinal, filial: empresaCodigo ? [empresaCodigo] : undefined })
+          return fetchMapaDesempenho({ dataInicial, dataFinal, filial: empresaCodigos.length > 0 ? empresaCodigos : undefined })
         case 'venda-periodo':
           return fetchVendaPeriodo({
             empresaCodigo: empresaCodigo ?? 0,
@@ -57,9 +58,9 @@ const ReportViewer = ({ selected }: ReportViewerProps) => {
     return fetchRelatorioPersonalizado(selected.codigo, {
       dataInicial,
       dataFinal,
-      filial: empresaCodigo ? [empresaCodigo] : undefined,
+      filial: empresaCodigos.length > 0 ? empresaCodigos : undefined,
     })
-  }, [selected, empresaCodigo, dataInicial, dataFinal])
+  }, [selected, empresaCodigos, empresaCodigo, dataInicial, dataFinal])
 
   const { data: blob, isLoading, isError, refetch } = useQuery({
     queryKey,

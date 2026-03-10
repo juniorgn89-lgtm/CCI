@@ -34,6 +34,19 @@ export interface ChartPoint {
   quantidade: number
 }
 
+export interface CategoryStock {
+  categoria: string
+  saldo: number
+  produtos: number
+}
+
+export interface StatusBreakdown {
+  status: StockRow['status']
+  label: string
+  count: number
+  color: string
+}
+
 export interface AlertItem {
   produtoCodigo: number
   produtoNome: string
@@ -69,14 +82,16 @@ const getSeverity = (saldo: number): AlertItem['severity'] => {
 }
 
 const useStockData = () => {
-  const { empresaCodigo, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const hasEmpresa = empresaCodigos.length > 0
 
   // Reference data — uses same query keys as prefetch so it shares cache
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages(
       (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      1000, 10
+      1000, 100
     ),
     staleTime: 30 * 60 * 1000,
   })
@@ -85,7 +100,7 @@ const useStockData = () => {
     queryKey: ['grupos'],
     queryFn: () => fetchAllPages(
       (p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      1000, 10
+      1000, 100
     ),
     staleTime: 30 * 60 * 1000,
   })
@@ -110,7 +125,7 @@ const useStockData = () => {
     queryFn: () => fetchProdutoEstoque({
       empresaCodigo: empresaCodigo!,
     }),
-    enabled: !!empresaCodigo,
+    enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
 
@@ -123,7 +138,7 @@ const useStockData = () => {
       dataFinal,
       empresaCodigo: empresaCodigo ?? undefined,
     }),
-    enabled: !!empresaCodigo,
+    enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
 
@@ -203,7 +218,6 @@ const useStockData = () => {
       })
 
     // --- Movement chart (group by period) ---
-    // API returns dataMovimento as "MM-yyyy" (e.g. "03-2026")
     const movementByDate = new Map<string, number>()
     for (const ep of periodos) {
       const period = ep.dataMovimento.includes('T') ? ep.dataMovimento.split('T')[0] : ep.dataMovimento
@@ -213,6 +227,34 @@ const useStockData = () => {
     const movementChart: ChartPoint[] = Array.from(movementByDate.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, qty]) => ({ date, quantidade: qty }))
+
+    // --- Distribution by category ---
+    const catMap = new Map<string, { saldo: number; produtos: Set<number> }>()
+    for (const row of stockTable) {
+      const entry = catMap.get(row.categoria)
+      if (entry) {
+        entry.saldo += row.saldo
+        entry.produtos.add(row.produtoCodigo)
+      } else {
+        catMap.set(row.categoria, { saldo: row.saldo, produtos: new Set([row.produtoCodigo]) })
+      }
+    }
+    const categoryStock: CategoryStock[] = Array.from(catMap.entries())
+      .map(([categoria, v]) => ({ categoria, saldo: v.saldo, produtos: v.produtos.size }))
+      .sort((a, b) => b.saldo - a.saldo)
+      .slice(0, 15)
+
+    // --- Status breakdown ---
+    const statusCount = { sem_estoque: 0, critico: 0, baixo: 0, normal: 0 }
+    for (const [, saldo] of byProduct) {
+      statusCount[getStatus(saldo)]++
+    }
+    const statusBreakdown: StatusBreakdown[] = [
+      { status: 'normal', label: 'Normal', count: statusCount.normal, color: '#22c55e' },
+      { status: 'baixo', label: 'Baixo', count: statusCount.baixo, color: '#f59e0b' },
+      { status: 'critico', label: 'Crítico', count: statusCount.critico, color: '#f97316' },
+      { status: 'sem_estoque', label: 'Sem Estoque', count: statusCount.sem_estoque, color: '#ef4444' },
+    ]
 
     // --- Movement detail rows ---
     const movementHistory: MovementRow[] = periodos
@@ -227,13 +269,13 @@ const useStockData = () => {
     // --- Unique categories for filters ---
     const categorias = Array.from(new Set(stockTable.map((r) => r.categoria))).sort()
 
-    return { kpis, stockTable, alerts, movementChart, movementHistory, categorias }
+    return { kpis, stockTable, alerts, movementChart, movementHistory, categorias, categoryStock, statusBreakdown }
   }, [produtoEstoqueData, estoquePeriodoData, produtoMap, grupoMap])
 
   return {
     ...computed,
     isLoading,
-    hasEmpresa: !!empresaCodigo,
+    hasEmpresa,
   }
 }
 

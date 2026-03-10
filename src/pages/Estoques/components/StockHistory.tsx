@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Search, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { formatNumber, formatDate } from '@/lib/formatters'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { MovementRow } from '@/pages/Estoques/hooks/useStockData'
 
 interface StockHistoryProps {
@@ -39,6 +41,17 @@ const StockHistory = ({ data }: StockHistoryProps) => {
     return { date: `${month}/${year}`, time: '' }
   }
 
+  const csvColumns: ExportColumn<MovementRow>[] = [
+    { header: 'Produto', accessor: (r) => r.produtoNome },
+    { header: 'Código Produto', accessor: (r) => r.codigoProduto },
+    { header: 'Quantidade', accessor: (r) => r.quantidade },
+    { header: 'Data Movimento', accessor: (r) => r.dataMovimento },
+  ]
+
+  const handleExport = useCallback(() => {
+    exportToCsv('estoque-historico', filtered, csvColumns)
+  }, [filtered])
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-16 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -61,15 +74,18 @@ const StockHistory = ({ data }: StockHistoryProps) => {
             {filtered.length} registros
           </span>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar produto..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0) }}
-            className="h-8 rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:ring-1 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500 dark:focus:border-blue-600 dark:focus:bg-gray-800"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0) }}
+              className="h-8 rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:ring-1 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500 dark:focus:border-blue-600 dark:focus:bg-gray-800"
+            />
+          </div>
+          <ExportButton onExport={handleExport} />
         </div>
       </div>
 

@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { AlertTriangle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import ExportButton from '@/components/tables/ExportButton'
 import type { AlertItem } from '@/pages/Estoques/hooks/useStockData'
+
+export type SeverityFilter = 'all' | 'danger' | 'warning' | 'caution'
 
 interface StockAlertsProps {
   alerts: AlertItem[]
+  initialFilter?: SeverityFilter
 }
 
 const SEVERITY_CONFIG = {
@@ -17,6 +22,7 @@ const SEVERITY_CONFIG = {
     iconColor: 'text-red-500',
     textColor: 'text-red-700 dark:text-red-400',
     badge: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400',
+    badgeActive: 'bg-red-600 text-white dark:bg-red-500',
   },
   warning: {
     label: 'Estoque crítico',
@@ -26,6 +32,7 @@ const SEVERITY_CONFIG = {
     iconColor: 'text-orange-500',
     textColor: 'text-orange-700 dark:text-orange-400',
     badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400',
+    badgeActive: 'bg-orange-600 text-white dark:bg-orange-500',
   },
   caution: {
     label: 'Estoque baixo',
@@ -35,13 +42,47 @@ const SEVERITY_CONFIG = {
     iconColor: 'text-amber-500',
     textColor: 'text-amber-700 dark:text-amber-400',
     badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400',
+    badgeActive: 'bg-amber-600 text-white dark:bg-amber-500',
   },
 } as const
 
 const MAX_VISIBLE = 8
 
-const StockAlerts = ({ alerts }: StockAlertsProps) => {
+const csvColumns: ExportColumn<AlertItem>[] = [
+  { header: 'Produto', accessor: (r) => r.produtoNome },
+  { header: 'Código', accessor: (r) => r.produtoCodigo },
+  { header: 'Categoria', accessor: (r) => r.categoria },
+  { header: 'Local', accessor: (r) => r.local },
+  { header: 'Saldo', accessor: (r) => r.saldo },
+  { header: 'Severidade', accessor: (r) => r.severity },
+]
+
+const StockAlerts = ({ alerts, initialFilter = 'all' }: StockAlertsProps) => {
   const [expanded, setExpanded] = useState(false)
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>(initialFilter)
+
+  useEffect(() => {
+    setSeverityFilter(initialFilter)
+    setExpanded(false)
+  }, [initialFilter])
+
+  const dangerCount = useMemo(() => alerts.filter((a) => a.severity === 'danger').length, [alerts])
+  const warningCount = useMemo(() => alerts.filter((a) => a.severity === 'warning').length, [alerts])
+  const cautionCount = useMemo(() => alerts.filter((a) => a.severity === 'caution').length, [alerts])
+
+  const filtered = useMemo(() => {
+    if (severityFilter === 'all') return alerts
+    return alerts.filter((a) => a.severity === severityFilter)
+  }, [alerts, severityFilter])
+
+  const handleFilterClick = (filter: SeverityFilter) => {
+    setSeverityFilter((prev) => (prev === filter ? 'all' : filter))
+    setExpanded(false)
+  }
+
+  const handleExport = useCallback(() => {
+    exportToCsv('estoque-alertas', filtered, csvColumns)
+  }, [filtered])
 
   if (alerts.length === 0) {
     return (
@@ -59,37 +100,59 @@ const StockAlerts = ({ alerts }: StockAlertsProps) => {
     )
   }
 
-  // Group by severity
-  const dangerItems = alerts.filter((a) => a.severity === 'danger')
-  const warningItems = alerts.filter((a) => a.severity === 'warning')
-  const cautionItems = alerts.filter((a) => a.severity === 'caution')
-
-  const visible = expanded ? alerts : alerts.slice(0, MAX_VISIBLE)
-  const hasMore = alerts.length > MAX_VISIBLE
+  const visible = expanded ? filtered : filtered.slice(0, MAX_VISIBLE)
+  const hasMore = filtered.length > MAX_VISIBLE
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-100 p-4 dark:border-gray-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 p-4 dark:border-gray-800">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Alertas de Estoque</h3>
+          {severityFilter !== 'all' && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              ({filtered.length} de {alerts.length})
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          {dangerItems.length > 0 && (
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', SEVERITY_CONFIG.danger.badge)}>
-              {dangerItems.length} sem estoque
-            </span>
+          <ExportButton onExport={handleExport} />
+          {dangerCount > 0 && (
+            <button
+              type="button"
+              onClick={() => handleFilterClick('danger')}
+              className={cn(
+                'cursor-pointer rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:scale-105',
+                severityFilter === 'danger' ? SEVERITY_CONFIG.danger.badgeActive : SEVERITY_CONFIG.danger.badge
+              )}
+            >
+              {dangerCount} sem estoque
+            </button>
           )}
-          {warningItems.length > 0 && (
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', SEVERITY_CONFIG.warning.badge)}>
-              {warningItems.length} crítico
-            </span>
+          {warningCount > 0 && (
+            <button
+              type="button"
+              onClick={() => handleFilterClick('warning')}
+              className={cn(
+                'cursor-pointer rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:scale-105',
+                severityFilter === 'warning' ? SEVERITY_CONFIG.warning.badgeActive : SEVERITY_CONFIG.warning.badge
+              )}
+            >
+              {warningCount} crítico
+            </button>
           )}
-          {cautionItems.length > 0 && (
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', SEVERITY_CONFIG.caution.badge)}>
-              {cautionItems.length} baixo
-            </span>
+          {cautionCount > 0 && (
+            <button
+              type="button"
+              onClick={() => handleFilterClick('caution')}
+              className={cn(
+                'cursor-pointer rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:scale-105',
+                severityFilter === 'caution' ? SEVERITY_CONFIG.caution.badgeActive : SEVERITY_CONFIG.caution.badge
+              )}
+            >
+              {cautionCount} baixo
+            </button>
           )}
         </div>
       </div>
@@ -137,7 +200,7 @@ const StockAlerts = ({ alerts }: StockAlertsProps) => {
               </>
             ) : (
               <>
-                Ver mais {alerts.length - MAX_VISIBLE} alertas <ChevronDown className="h-3 w-3" />
+                Ver mais {filtered.length - MAX_VISIBLE} alertas <ChevronDown className="h-3 w-3" />
               </>
             )}
           </button>

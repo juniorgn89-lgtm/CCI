@@ -29,14 +29,17 @@ export interface NonFuelGrupo {
 }
 
 // Classify grupo tipoGrupo to our sector
-const classifyGrupo = (tipoGrupo: string): Setor => {
-  const t = tipoGrupo.toUpperCase().trim()
+const classifyGrupo = (tipoGrupo: string, nome?: string): Setor => {
+  const t = tipoGrupo.toUpperCase().trim().replace(/\.$/, '')
+  const n = (nome ?? '').toUpperCase().trim().replace(/\.$/, '')
   // Loja / Conveniência
-  if (t === 'L' || t === 'LOJA' || t === 'LJ' || t === 'CONVENIENCIA' || t === 'CONVENIÊNCIA') {
+  if (t === 'L' || t === 'LOJA' || t === 'LJ' || t === 'CONVENIENCIA' || t === 'CONVENIÊNCIA'
+    || n.includes('CONVENIENCIA') || n.includes('CONVENIÊNCIA') || n.includes('LOJA')) {
     return 'conveniencia'
   }
-  // Combustível (shouldn't appear due to usaProdutoLmc filter, but just in case)
-  if (t === 'C' || t === 'COMBUSTIVEL' || t === 'COMBUSTÍVEIS' || t === 'COMBUSTÍVEL') {
+  // Combustível
+  if (t === 'C' || t.startsWith('COMBUSTI')
+    || n.startsWith('COMBUSTI')) {
     return 'combustivel'
   }
   // Everything else → automotivos (P, PRODUTO, AUTOMOTIVO, SERVICO, etc.)
@@ -73,7 +76,7 @@ const useNonFuelDrilldown = (empresaCodigo: number, setor: Setor, enabled: boole
       fetchAllPages(
         (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
         1000,
-        10
+        100
       ),
     staleTime: 30 * 60 * 1000,
   })
@@ -84,7 +87,7 @@ const useNonFuelDrilldown = (empresaCodigo: number, setor: Setor, enabled: boole
       fetchAllPages(
         (p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
         1000,
-        10
+        100
       ),
     staleTime: 30 * 60 * 1000,
   })
@@ -104,7 +107,7 @@ const useNonFuelDrilldown = (empresaCodigo: number, setor: Setor, enabled: boole
     const grupoSetorMap = new Map<number, Setor>()
     for (const g of gruposData ?? []) {
       grupoNameMap.set(g.grupoCodigo, g.nome)
-      grupoSetorMap.set(g.grupoCodigo, classifyGrupo(g.tipoGrupo))
+      grupoSetorMap.set(g.grupoCodigo, classifyGrupo(g.tipoGrupo, g.nome))
     }
 
     // Aggregate by product
@@ -122,7 +125,7 @@ const useNonFuelDrilldown = (empresaCodigo: number, setor: Setor, enabled: boole
     const grupoAgg = new Map<number, { produtos: NonFuelProduct[]; qty: number; fat: number; custo: number }>()
 
     for (const [prodCode, data] of prodAgg.entries()) {
-      const grupoCodigo = productGrupoMap.get(prodCode) ?? 0
+      const grupoCodigo = productGrupoMap.get(prodCode) ?? -1
       const grupoSetor = grupoSetorMap.get(grupoCodigo) ?? 'automotivos'
 
       // Only include groups that belong to the requested setor
@@ -155,7 +158,7 @@ const useNonFuelDrilldown = (empresaCodigo: number, setor: Setor, enabled: boole
       const lb = data.fat - data.custo
       result.push({
         grupoCodigo,
-        nome: grupoNameMap.get(grupoCodigo) ?? `Grupo ${grupoCodigo}`,
+        nome: grupoCodigo < 0 ? 'Sem grupo' : (grupoNameMap.get(grupoCodigo) ?? `Grupo ${grupoCodigo}`),
         quantidade: data.qty,
         faturamento: data.fat,
         lucroBruto: lb,

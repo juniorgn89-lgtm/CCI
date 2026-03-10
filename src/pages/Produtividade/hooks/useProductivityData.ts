@@ -14,7 +14,9 @@ export interface RankingRow {
 }
 
 const useProductivityData = () => {
-  const { empresaCodigo, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const hasEmpresa = empresaCodigos.length > 0
 
   const {
     data: placaresData,
@@ -26,6 +28,7 @@ const useProductivityData = () => {
       dataInicial,
       dataFinal,
     }),
+    enabled: hasEmpresa,
   })
 
   const {
@@ -37,10 +40,10 @@ const useProductivityData = () => {
       empresaCodigo: empresaCodigo ?? undefined,
       ativo: true,
     }),
-    enabled: !!empresaCodigo,
+    enabled: hasEmpresa,
   })
 
-  const isLoading = isLoadingPlacares || isLoadingFuncionarios
+  const isLoading = hasEmpresa && (isLoadingPlacares || isLoadingFuncionarios)
 
   const computed = useMemo(() => {
     const placares = placaresData?.resultados ?? []
@@ -63,12 +66,29 @@ const useProductivityData = () => {
 
     const champion = salesRanking.length > 0 ? salesRanking[0] : null
 
-    return { champion, salesRanking, conversionRanking, ticketRanking }
+    // Compute summary KPIs
+    const totalVendas = ranking.reduce((sum, r) => sum + r.totalVendas, 0)
+    const totalQuantidade = ranking.reduce((sum, r) => sum + r.quantidadeVendas, 0)
+    const avgTicket = totalQuantidade > 0 ? totalVendas / totalQuantidade : 0
+    const avgConversao = ranking.length > 0
+      ? ranking.reduce((sum, r) => sum + r.taxaConversao, 0) / ranking.length
+      : 0
+
+    const kpis = {
+      totalVendedores: ranking.length,
+      totalVendas,
+      totalQuantidade,
+      avgTicket,
+      avgConversao,
+    }
+
+    return { champion, salesRanking, conversionRanking, ticketRanking, kpis }
   }, [placaresData, funcionariosData])
 
   return {
     ...computed,
     isLoading,
+    hasEmpresa,
   }
 }
 
