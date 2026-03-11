@@ -66,7 +66,7 @@ const FuelTypeTable = ({ data }: FuelTypeTableProps) => {
         </div>
         <ExportButton onExport={handleExport} />
       </div>
-      <DataTable columns={columns} data={data} keyExtractor={(row) => row.produtoCodigo} />
+      <DataTable columns={columns} data={data} keyExtractor={(row) => row.nome} />
     </div>
   )
 }

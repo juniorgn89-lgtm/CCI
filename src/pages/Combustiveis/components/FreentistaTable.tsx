@@ -124,7 +124,7 @@ const FreentistaTable = ({ data }: FreentistaTableProps) => {
       {data.length >= 3 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {data.slice(0, 3).map((f, i) => {
-            const medals = ['bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-700', 'bg-gray-50 border-gray-300 dark:bg-gray-800/50 dark:border-gray-600', 'bg-orange-50 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700']
+            const medals = ['border-amber-400 bg-white dark:bg-gray-900', 'border-gray-400 bg-white dark:bg-gray-900', 'border-orange-400 bg-white dark:bg-gray-900']
             const positions = ['1o Lugar', '2o Lugar', '3o Lugar']
             return (
               <div key={f.frentistaCodigo} className={cn('rounded-xl border-2 p-5 shadow-sm', medals[i])}>

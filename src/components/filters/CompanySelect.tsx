@@ -58,7 +58,7 @@ const CompanySelect = () => {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-[200px] justify-between text-sm font-normal"
+          className="h-9 w-[280px] justify-between text-sm font-normal"
           disabled={isLoading}
         >
           <span className="flex items-center gap-2 truncate">
@@ -68,7 +68,7 @@ const CompanySelect = () => {
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[220px]">
+      <DropdownMenuContent align="start" className="w-[280px]">
         <DropdownMenuLabel className="flex items-center justify-between py-1">
           <span className="text-xs text-gray-500">Empresas</span>
           <span className="flex gap-2">

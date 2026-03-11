@@ -50,7 +50,7 @@ const ContentSkeleton = () => (
 )
 
 const Operacao = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('produtividade')
+  const [activeTab, setActiveTab] = useState<TabKey>('bombas')
   const {
     kpis,
     frentistaRows,

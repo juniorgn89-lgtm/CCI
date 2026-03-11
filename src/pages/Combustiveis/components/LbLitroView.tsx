@@ -1,0 +1,367 @@
+import { useCallback, useMemo } from 'react'
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+} from 'recharts'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { CHART_COLORS } from '@/lib/constants'
+import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
+import DataTable, { type Column } from '@/components/tables/DataTable'
+import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import type { LbLitroData, LbLitroProduct, LbLitroDaily } from '@/pages/Combustiveis/hooks/useFuelData'
+
+interface LbLitroViewProps {
+  data: LbLitroData
+}
+
+/* ── Helpers ──────────────────────────────────────────── */
+
+const formatDay = (date: string) => {
+  const [, m, d] = date.split('-')
+  return `${d}/${m}`
+}
+
+const formatMonth = (mes: string) => {
+  const [y, m] = mes.split('-')
+  const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  return `${names[Number(m) - 1]}/${y.slice(2)}`
+}
+
+const fmtBrl = (v: number) => formatCurrency(v)
+
+/* ── Variation badge ──────────────────────────────────── */
+
+const VariationBadge = ({ current, previous }: { current: number; previous: number }) => {
+  if (previous === 0) return null
+  const pct = ((current - previous) / previous) * 100
+  const isPositive = pct > 0
+  const isNeutral = Math.abs(pct) < 0.5
+  const Icon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown
+
+  return (
+    <div className={cn(
+      'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
+      isNeutral ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+        : isPositive ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+        : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+    )}>
+      <Icon className="h-3 w-3" />
+      {isNeutral ? '0,0%' : `${isPositive ? '+' : ''}${pct.toFixed(1)}%`}
+      <span className="font-normal text-gray-500 dark:text-gray-400">vs mes anterior</span>
+    </div>
+  )
+}
+
+/* ── Product table columns ────────────────────────────── */
+
+const tableColumns: Column<LbLitroProduct>[] = [
+  {
+    key: 'nome',
+    label: 'Combustivel',
+    sortable: true,
+    render: (row) => <span className="font-medium text-gray-900 dark:text-gray-100">{row.nome}</span>,
+  },
+  {
+    key: 'lbPorLitro',
+    label: 'L.B./Litro',
+    align: 'right',
+    sortable: true,
+    render: (row) => (
+      <span className={cn(
+        'font-bold tabular-nums',
+        row.lbPorLitro >= 0.5 ? 'text-green-600 dark:text-green-400'
+          : row.lbPorLitro >= 0 ? 'text-yellow-600 dark:text-yellow-400'
+          : 'text-red-600 dark:text-red-400'
+      )}>
+        {fmtBrl(row.lbPorLitro)}
+      </span>
+    ),
+  },
+  {
+    key: 'lucroBruto',
+    label: 'Lucro bruto',
+    align: 'right',
+    sortable: true,
+    render: (row) => (
+      <span className={cn('font-medium tabular-nums', row.lucroBruto >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+        {fmtBrl(row.lucroBruto)}
+      </span>
+    ),
+  },
+  {
+    key: 'litros',
+    label: 'Litros',
+    align: 'right',
+    sortable: true,
+    render: (row) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(row.litros),
+  },
+  {
+    key: 'participacaoLb',
+    label: 'Particip. L.B.',
+    align: 'right',
+    sortable: true,
+    render: (row) => <HeatmapCell value={row.participacaoLb} min={0} max={60} formatted={`${row.participacaoLb.toFixed(1)}%`} />,
+  },
+]
+
+const csvColumns: ExportColumn<LbLitroProduct>[] = [
+  { header: 'Combustivel', accessor: (r) => r.nome },
+  { header: 'L.B./Litro', accessor: (r) => r.lbPorLitro },
+  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
+  { header: 'Litros', accessor: (r) => r.litros },
+  { header: 'Participacao L.B. %', accessor: (r) => r.participacaoLb },
+]
+
+/* ── Main component ──────────────────────────────────── */
+
+const LbLitroView = ({ data }: LbLitroViewProps) => {
+  const handleExport = useCallback(() => {
+    exportToCsv('combustiveis-lb-litro', data.byProduct, csvColumns)
+  }, [data.byProduct])
+
+  const best = data.byProduct.length > 0 ? data.byProduct[0] : null
+  const worst = data.byProduct.length > 1 ? data.byProduct[data.byProduct.length - 1] : null
+
+  const dailyChartData = useMemo(() =>
+    data.daily.map((d) => ({
+      ...d,
+      lbPorLitroChart: Number(d.lbPorLitro.toFixed(4)),
+    }))
+  , [data.daily])
+
+  const monthlyChartData = useMemo(() =>
+    data.monthly.map((m) => ({
+      ...m,
+      mesLabel: formatMonth(m.mes),
+      lbPorLitroChart: Number(m.lbPorLitro.toFixed(4)),
+    }))
+  , [data.monthly])
+
+  return (
+    <div className="space-y-5">
+      {/* Summary header */}
+      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">L.B. por litro no periodo</p>
+            <p className={cn(
+              'mt-1 text-3xl font-bold tabular-nums',
+              data.global >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600 dark:text-red-400'
+            )}>
+              {fmtBrl(data.global)}
+            </p>
+            <div className="mt-2">
+              <VariationBadge current={data.global} previous={data.prevMonthGlobal} />
+            </div>
+          </div>
+
+          <div className="flex gap-6">
+            {best && (
+              <div className="text-right">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Melhor produto</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{best.nome}</p>
+                <p className="text-lg font-bold tabular-nums text-green-600 dark:text-green-400">{fmtBrl(best.lbPorLitro)}</p>
+              </div>
+            )}
+            {worst && worst.nome !== best?.nome && (
+              <div className="text-right">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Menor L.B./L</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{worst.nome}</p>
+                <p className={cn(
+                  'text-lg font-bold tabular-nums',
+                  worst.lbPorLitro >= 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
+                )}>
+                  {fmtBrl(worst.lbPorLitro)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Daily chart */}
+      {dailyChartData.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro dia a dia</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Lucro bruto por litro e volume diario</p>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={dailyChartData}>
+              <defs>
+                <linearGradient id="gradLb" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+              <XAxis
+                dataKey="data"
+                tickFormatter={formatDay}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                interval={dailyChartData.length > 15 ? Math.floor(dailyChartData.length / 10) : 0}
+              />
+              <YAxis
+                yAxisId="litros"
+                orientation="right"
+                tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="lb"
+                orientation="left"
+                tickFormatter={(v: number) => `R$${v.toFixed(2)}`}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                formatter={((value: number, name: string) =>
+                  name === 'Litros'
+                    ? [value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L', name]
+                    : [formatCurrencyTooltip(value), name]
+                ) as never}
+                labelFormatter={((label: string) => {
+                  const [y, m, d] = label.split('-')
+                  return `${d}/${m}/${y}`
+                }) as never}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <ReferenceLine
+                yAxisId="lb"
+                y={data.global}
+                stroke="#6b7280"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                label={{ value: `Media: ${fmtBrl(data.global)}`, position: 'insideTopLeft', fontSize: 10, fill: '#6b7280' }}
+              />
+              <Bar
+                yAxisId="litros"
+                dataKey="litros"
+                name="Litros"
+                fill={CHART_COLORS[3]}
+                fillOpacity={0.4}
+                radius={[3, 3, 0, 0]}
+              />
+              <Area
+                yAxisId="lb"
+                type="monotone"
+                dataKey="lbPorLitroChart"
+                name="L.B./Litro"
+                stroke="#10b981"
+                fill="url(#gradLb)"
+                strokeWidth={2.5}
+                dot={dailyChartData.length <= 15 ? { r: 3, fill: '#10b981' } : false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Monthly evolution chart */}
+      {monthlyChartData.length > 1 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Evolucao mensal do L.B./Litro</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ultimos 12 meses de lucro bruto por litro</p>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={monthlyChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+              <XAxis
+                dataKey="mesLabel"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="lb"
+                tickFormatter={(v: number) => `R$${v.toFixed(2)}`}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="litros"
+                orientation="right"
+                tickFormatter={formatCurrencyShort}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                formatter={((value: number, name: string) =>
+                  name === 'Lucro bruto'
+                    ? [formatCurrencyTooltip(value), name]
+                    : [formatCurrencyTooltip(value), name]
+                ) as never}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar
+                yAxisId="litros"
+                dataKey="lucroBruto"
+                name="Lucro bruto"
+                fill={CHART_COLORS[0]}
+                fillOpacity={0.6}
+                radius={[4, 4, 0, 0]}
+              />
+              <Line
+                yAxisId="lb"
+                type="monotone"
+                dataKey="lbPorLitroChart"
+                name="L.B./Litro"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Product breakdown table */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro por combustivel</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {data.byProduct.length} combustiveis — ordenados por L.B./Litro
+            </p>
+          </div>
+          <ExportButton onExport={handleExport} />
+        </div>
+        {data.byProduct.length === 0 ? (
+          <div className="flex h-48 items-center justify-center">
+            <p className="text-sm text-gray-400">Nenhum dado encontrado no periodo.</p>
+          </div>
+        ) : (
+          <DataTable
+            columns={tableColumns}
+            data={data.byProduct}
+            keyExtractor={(row) => row.nome}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default LbLitroView

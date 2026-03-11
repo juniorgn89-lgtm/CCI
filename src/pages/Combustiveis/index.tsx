@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Fuel, CalendarDays, BarChart3, Calendar, List, GaugeCircle, Users } from 'lucide-react'
+import { Fuel, CalendarDays, BarChart3, Calendar, List, GaugeCircle, Users, DollarSign } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
@@ -12,14 +12,16 @@ import MonthlyChart from '@/pages/Combustiveis/components/MonthlyChart'
 import WeeklyAnalysis from '@/pages/Combustiveis/components/WeeklyAnalysis'
 import BombaView from '@/pages/Combustiveis/components/BombaView'
 import FreentistaTable from '@/pages/Combustiveis/components/FreentistaTable'
+import LbLitroView from '@/pages/Combustiveis/components/LbLitroView'
 import useFuelData from '@/pages/Combustiveis/hooks/useFuelData'
 
-type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas'
+type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas' | 'lblitro'
 
 const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
   { key: 'abastecimentos', label: 'Abastecimentos', icon: List },
   { key: 'diario', label: 'Dia a dia', icon: CalendarDays },
   { key: 'tipo', label: 'Por combustivel', icon: Fuel },
+  { key: 'lblitro', label: 'L.B./Litro', icon: DollarSign },
   { key: 'bombas', label: 'Por bomba', icon: GaugeCircle },
   { key: 'frentistas', label: 'Frentistas', icon: Users },
   { key: 'evolucao', label: 'Evolucao', icon: BarChart3 },
@@ -40,7 +42,7 @@ const KpiSkeleton = () => (
 const Combustiveis = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')
   const { empresaCodigos } = useFilterStore()
-  const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, bombaData, frentistaData, frentistas, combustiveis, isLoading } = useFuelData()
+  const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, bombaData, frentistaData, lbLitroData, frentistas, combustiveis, isLoading } = useFuelData()
 
   const handleNavigateTab = (tab: TabKey) => {
     setActiveTab(tab)
@@ -105,9 +107,10 @@ const Combustiveis = () => {
           {activeTab === 'abastecimentos' && (
             <AbastecimentosTable data={rows} frentistas={frentistas} combustiveis={combustiveis} />
           )}
-          {activeTab === 'diario' && <DailyTable data={dailyData} />}
+          {activeTab === 'diario' && <DailyTable data={dailyData} rows={rows} combustiveis={combustiveis} />}
           {activeTab === 'tipo' && <FuelTypeTable data={fuelTypeData} />}
           {activeTab === 'bombas' && <BombaView data={bombaData} />}
+          {activeTab === 'lblitro' && <LbLitroView data={lbLitroData} />}
           {activeTab === 'frentistas' && <FreentistaTable data={frentistaData} />}
           {activeTab === 'evolucao' && <MonthlyChart data={dailyData} />}
           {activeTab === 'semanal' && <WeeklyAnalysis data={weeklyAnalysis} />}

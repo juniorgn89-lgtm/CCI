@@ -306,6 +306,7 @@ const useDashboardData = () => {
 
     for (const a of filteredAbast) {
       const prodCode = Number(a.codigoProduto)
+      if (prodCode <= 0) continue // skip invalid/test records
       const key = `${a.empresaCodigo}-${prodCode}`
 
       const prev = fuelByEmpProd.get(key) ?? { quantidade: 0, valorTotal: 0, precoVendaSum: 0, count: 0 }
