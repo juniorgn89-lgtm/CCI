@@ -5,10 +5,10 @@ import {
   Package,
   Store,
   Warehouse,
-  Users,
   DollarSign,
   FileBarChart,
   Brain,
+  Gauge,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
@@ -17,10 +17,10 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Combustíveis', path: '/combustiveis', icon: Fuel },
+  { label: 'Operação', path: '/operacao', icon: Gauge },
   { label: 'Produtos', path: '/produtos', icon: Package },
   { label: 'Conveniências', path: '/conveniencias', icon: Store },
   { label: 'Estoques', path: '/estoques', icon: Warehouse },
-  { label: 'Produtividade', path: '/produtividade', icon: Users },
   { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
   { label: 'Inteligência', path: '/inteligencia', icon: Brain },
   { label: 'Relatórios', path: '/relatorios', icon: FileBarChart },
