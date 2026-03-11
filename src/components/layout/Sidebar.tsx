@@ -8,6 +8,7 @@ import {
   Users,
   DollarSign,
   FileBarChart,
+  Brain,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ const navItems = [
   { label: 'Estoques', path: '/estoques', icon: Warehouse },
   { label: 'Produtividade', path: '/produtividade', icon: Users },
   { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
+  { label: 'Inteligência', path: '/inteligencia', icon: Brain },
   { label: 'Relatórios', path: '/relatorios', icon: FileBarChart },
 ]
 

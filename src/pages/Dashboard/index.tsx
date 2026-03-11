@@ -1,10 +1,9 @@
-import { Settings } from 'lucide-react'
+import { Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import QuickStats from '@/pages/Dashboard/components/QuickStats'
 import SalesEvolutionChart from '@/pages/Dashboard/components/SalesEvolutionChart'
 import FrentistaRanking from '@/pages/Dashboard/components/FrentistaRanking'
-import DashboardSummary from '@/pages/Dashboard/components/DashboardSummary'
 import SectorKpiCards from '@/pages/Dashboard/components/SectorKpiCards'
 import SectorDetailSection from '@/pages/Dashboard/components/SectorDetailSection'
 import DashboardSettings from '@/pages/Dashboard/components/DashboardSettings'
@@ -22,7 +21,7 @@ const KpiCardSkeleton = () => (
 
 const Dashboard = () => {
   const { empresaCodigos } = useFilterStore()
-  const { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking, isLoading } = useDashboardData()
+  const { sectorKpis, globalKpi, projectionData, sectorDetails, quickStats, salesEvolution, frentistaRanking, isLoading } = useDashboardData()
   const { sections } = useDashboardLayoutStore()
   const visibleSections = sections.filter((s) => s.visible)
 
@@ -36,15 +35,6 @@ const Dashboard = () => {
 
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
-      case 'summary':
-        return (
-          <DashboardSummary
-            key="summary"
-            sectorKpis={sectorKpis}
-            globalKpi={globalKpi}
-            comparison={comparison}
-          />
-        )
       case 'sectorKpis':
         return (
           <SectorKpiCards
@@ -63,7 +53,17 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+            <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Visão geral do desempenho da rede</p>
+          </div>
+        </div>
         <DashboardSettings />
       </div>
 

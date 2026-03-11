@@ -73,7 +73,7 @@ const FrentistaRanking = ({ frentistaRanking }: FrentistaRankingProps) => {
                   </td>
                   <td className="px-2 py-2.5">
                     <span className={cn('text-sm', isTop3 ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300')}>
-                      Frentista {item.codigoFrentista}
+                      {item.nome}
                     </span>
                     <span className="ml-1.5 text-[10px] text-gray-400 dark:text-gray-500">
                       {item.atendimentos} atend.

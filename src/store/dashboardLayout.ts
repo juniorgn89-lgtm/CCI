@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-type SectionId = 'summary' | 'sectorKpis' | 'sectorDetails'
+type SectionId = 'sectorKpis' | 'sectorDetails'
 
 interface DashboardSection {
   id: SectionId
@@ -10,7 +10,6 @@ interface DashboardSection {
 }
 
 const DEFAULT_SECTIONS: DashboardSection[] = [
-  { id: 'summary', label: 'Resumo do Período', visible: true },
   { id: 'sectorKpis', label: 'KPIs por Setor', visible: true },
   { id: 'sectorDetails', label: 'Detalhamento por Setor', visible: true },
 ]

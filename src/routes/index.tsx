@@ -10,6 +10,7 @@ import Estoques from '@/pages/Estoques'
 import Produtividade from '@/pages/Produtividade'
 import Financeiro from '@/pages/Financeiro'
 import Relatorios from '@/pages/Relatorios'
+import Inteligencia from '@/pages/Inteligencia'
 
 const AppRoutes = () => {
   return (
@@ -27,6 +28,7 @@ const AppRoutes = () => {
           <Route path="/produtividade" element={<Produtividade />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/relatorios" element={<Relatorios />} />
+          <Route path="/inteligencia" element={<Inteligencia />} />
         </Route>
       </Route>
     </Routes>

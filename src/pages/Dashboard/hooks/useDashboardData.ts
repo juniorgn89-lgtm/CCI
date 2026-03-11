@@ -5,6 +5,7 @@ import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
@@ -91,6 +92,7 @@ export interface SalesEvolutionPoint {
 
 export interface FrentistaRankingItem {
   codigoFrentista: number
+  nome: string
   litros: number
   receita: number
   atendimentos: number
@@ -236,6 +238,16 @@ const useDashboardData = () => {
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas(),
     staleTime: 10 * 60 * 1000,
+  })
+
+  // Funcionarios (cached) for frentista names
+  const { data: funcionariosData } = useQuery({
+    queryKey: ['funcionarios'],
+    queryFn: () => fetchAllPages(
+      (p) => fetchFuncionarios({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 10
+    ),
+    staleTime: 30 * 60 * 1000,
   })
 
   const empresas = empresasData?.resultados ?? []
@@ -648,24 +660,33 @@ const useDashboardData = () => {
       })
 
     // --- Frentista Ranking ---
-    const frentistaMap = new Map<number, { litros: number; receita: number; atendimentos: number }>()
+    const funcNameMap = new Map<number, string>()
+    for (const f of funcionariosData ?? []) {
+      funcNameMap.set(f.funcionarioCodigo, f.nome)
+    }
+
+    const frentistaAgg = new Map<number, { litros: number; receita: number; atendimentos: number }>()
     for (const a of filteredAbast) {
       if (!a.codigoFrentista || a.codigoFrentista <= 0) continue
-      const prev = frentistaMap.get(a.codigoFrentista) ?? { litros: 0, receita: 0, atendimentos: 0 }
-      frentistaMap.set(a.codigoFrentista, {
+      const prev = frentistaAgg.get(a.codigoFrentista) ?? { litros: 0, receita: 0, atendimentos: 0 }
+      frentistaAgg.set(a.codigoFrentista, {
         litros: prev.litros + a.quantidade,
         receita: prev.receita + a.valorTotal,
         atendimentos: prev.atendimentos + 1,
       })
     }
-    const frentistaRanking: FrentistaRankingItem[] = Array.from(frentistaMap.entries())
-      .map(([codigoFrentista, data]) => ({ codigoFrentista, ...data }))
+    const frentistaRanking: FrentistaRankingItem[] = Array.from(frentistaAgg.entries())
+      .map(([codigoFrentista, data]) => ({
+        codigoFrentista,
+        nome: funcNameMap.get(codigoFrentista) ?? `Frentista ${codigoFrentista}`,
+        ...data,
+      }))
       .sort((a, b) => b.litros - a.litros)
       .slice(0, 10)
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos])
+  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData])
 
   return {
     ...computed,
