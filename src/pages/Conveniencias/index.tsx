@@ -1,20 +1,24 @@
 import { useState } from 'react'
-import { Store, CalendarDays, Layers, TrendingUp } from 'lucide-react'
+import { Store, ShoppingCart, Package, Warehouse, Trophy, BarChart3 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import ConvenienceKpis from '@/pages/Conveniencias/components/ConvenienceKpis'
-import DailyTable from '@/pages/Conveniencias/components/DailyTable'
-import GroupTable from '@/pages/Conveniencias/components/GroupTable'
-import RevenueChart from '@/pages/Conveniencias/components/RevenueChart'
+import SalesOverview from '@/pages/Conveniencias/components/SalesOverview'
+import ProductCatalog from '@/pages/Conveniencias/components/ProductCatalog'
+import StockView from '@/pages/Conveniencias/components/StockView'
+import TopSellers from '@/pages/Conveniencias/components/TopSellers'
+import PerformanceAnalysis from '@/pages/Conveniencias/components/PerformanceAnalysis'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 
-type TabKey = 'diario' | 'grupo' | 'evolucao'
+type TabKey = 'vendas' | 'catalogo' | 'estoque' | 'topVendidos' | 'performance'
 
 const tabs: { key: TabKey; label: string; icon: typeof Store }[] = [
-  { key: 'diario', label: 'Dia a Dia', icon: CalendarDays },
-  { key: 'grupo', label: 'Por Grupo', icon: Layers },
-  { key: 'evolucao', label: 'Evolucao', icon: TrendingUp },
+  { key: 'vendas', label: 'Vendas', icon: ShoppingCart },
+  { key: 'catalogo', label: 'Catálogo', icon: Package },
+  { key: 'estoque', label: 'Estoque', icon: Warehouse },
+  { key: 'topVendidos', label: 'Mais Vendidos', icon: Trophy },
+  { key: 'performance', label: 'Performance', icon: BarChart3 },
 ]
 
 const KpiSkeleton = () => (
@@ -28,24 +32,43 @@ const KpiSkeleton = () => (
   </div>
 )
 
-const TableSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="space-y-3">
-      <Skeleton className="h-8 w-full" />
-      {Array.from({ length: 8 }).map((_, i) => (
-        <Skeleton key={i} className="h-12 w-full" />
-      ))}
+const ContentSkeleton = () => (
+  <div className="space-y-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <Skeleton className="mb-4 h-5 w-40" />
+      <Skeleton className="h-[280px] w-full rounded-lg" />
+    </div>
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-full" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
+      </div>
     </div>
   </div>
 )
 
 const Conveniencias = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('diario')
-  const { kpis, dailyData, groupTable, revenueData, isLoading, hasEmpresa } = useConvenienceData()
-
-  const handleNavigateTab = (tab: TabKey) => {
-    setActiveTab(tab)
-  }
+  const [activeTab, setActiveTab] = useState<TabKey>('vendas')
+  const {
+    kpis,
+    dailyData,
+    groupTable,
+    revenueData,
+    catalogProducts,
+    stockItems,
+    stockSummary,
+    topSellers,
+    treemapData,
+    highMargin,
+    highVolume,
+    lowSales,
+    insights,
+    gruposList,
+    isLoading,
+    hasEmpresa,
+  } = useConvenienceData()
 
   return (
     <div className="space-y-6">
@@ -56,18 +79,18 @@ const Conveniencias = () => {
             <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Conveniencias</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Conveniência</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Vendas de loja, grupos e evolucao de receita
+              Vendas, catálogo, estoque e análise de performance da loja
             </p>
           </div>
         </div>
       </div>
 
-      {/* Empty state: no empresa selected */}
+      {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}
 
-      {/* Main content — only when empresa is selected */}
+      {/* Main content */}
       {hasEmpresa && (
         <>
           {/* KPIs */}
@@ -76,7 +99,7 @@ const Conveniencias = () => {
               {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
           ) : kpis ? (
-            <ConvenienceKpis kpis={kpis} onNavigateTab={handleNavigateTab} />
+            <ConvenienceKpis kpis={kpis} onNavigateTab={setActiveTab} />
           ) : null}
 
           {/* Tabs */}
@@ -103,12 +126,42 @@ const Conveniencias = () => {
 
           {/* Content */}
           {isLoading ? (
-            <TableSkeleton />
+            <ContentSkeleton />
           ) : (
             <>
-              {activeTab === 'diario' && <DailyTable data={dailyData} />}
-              {activeTab === 'grupo' && <GroupTable data={groupTable} />}
-              {activeTab === 'evolucao' && <RevenueChart data={revenueData} />}
+              {activeTab === 'vendas' && (
+                <SalesOverview
+                  dailyData={dailyData}
+                  groupTable={groupTable}
+                  revenueData={revenueData}
+                />
+              )}
+              {activeTab === 'catalogo' && (
+                <ProductCatalog
+                  products={catalogProducts}
+                  gruposList={gruposList}
+                />
+              )}
+              {activeTab === 'estoque' && (
+                <StockView
+                  stockItems={stockItems}
+                  stockSummary={stockSummary}
+                />
+              )}
+              {activeTab === 'topVendidos' && (
+                <TopSellers
+                  topSellers={topSellers}
+                  treemapData={treemapData}
+                />
+              )}
+              {activeTab === 'performance' && (
+                <PerformanceAnalysis
+                  highMargin={highMargin}
+                  highVolume={highVolume}
+                  lowSales={lowSales}
+                  insights={insights}
+                />
+              )}
             </>
           )}
         </>

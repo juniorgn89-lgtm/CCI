@@ -1,0 +1,176 @@
+import { useState, useCallback, useMemo } from 'react'
+import { Search, Filter } from 'lucide-react'
+import DataTable, { type Column } from '@/components/tables/DataTable'
+import HeatmapCell from '@/components/tables/HeatmapCell'
+import ExportButton from '@/components/tables/ExportButton'
+import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
+import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
+import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
+
+interface ProductCatalogProps {
+  products: CatalogProduct[]
+  gruposList: string[]
+}
+
+const columns: Column<CatalogProduct>[] = [
+  { key: 'nome', label: 'Produto', sortable: true },
+  { key: 'grupo', label: 'Grupo', sortable: true },
+  {
+    key: 'precoMedioVenda', label: 'Preço Médio', align: 'right', sortable: true,
+    render: (r) => formatCurrency(r.precoMedioVenda),
+  },
+  {
+    key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true,
+    render: (r) => formatCurrency(r.custoMedio),
+  },
+  {
+    key: 'qtdVendida', label: 'Qtd Vendida', align: 'right', sortable: true,
+    render: (r) => formatNumber(r.qtdVendida),
+  },
+  {
+    key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
+    render: (r) => formatCurrency(r.faturamento),
+  },
+  {
+    key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
+    render: (r) => (
+      <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(1)}%`} />
+    ),
+  },
+  {
+    key: 'ativo', label: 'Status', align: 'center', sortable: true,
+    render: (r) => (
+      <span className={cn(
+        'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold',
+        r.ativo
+          ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+          : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+      )}>
+        {r.ativo ? 'Ativo' : 'Inativo'}
+      </span>
+    ),
+  },
+]
+
+const csvColumns: ExportColumn<CatalogProduct>[] = [
+  { header: 'Código', accessor: (r) => r.produtoCodigo },
+  { header: 'Produto', accessor: (r) => r.nome },
+  { header: 'Grupo', accessor: (r) => r.grupo },
+  { header: 'Preço Médio', accessor: (r) => r.precoMedioVenda },
+  { header: 'Custo Médio', accessor: (r) => r.custoMedio },
+  { header: 'Qtd Vendida', accessor: (r) => r.qtdVendida },
+  { header: 'Faturamento', accessor: (r) => r.faturamento },
+  { header: 'Margem %', accessor: (r) => r.margemPct },
+  { header: 'Status', accessor: (r) => (r.ativo ? 'Ativo' : 'Inativo') },
+]
+
+const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
+  const [search, setSearch] = useState('')
+  const [grupoFilter, setGrupoFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'faturamento' | 'qtdVendida' | 'margemPct'>('faturamento')
+
+  const filtered = useMemo(() => {
+    let result = products
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter((p) => p.nome.toLowerCase().includes(q) || p.grupo.toLowerCase().includes(q))
+    }
+    if (grupoFilter) {
+      result = result.filter((p) => p.grupo === grupoFilter)
+    }
+    return [...result].sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number))
+  }, [products, search, grupoFilter, sortBy])
+
+  const handleExport = useCallback(() => {
+    exportToCsv('conveniencia-catalogo', filtered, csvColumns)
+  }, [filtered])
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Total de Produtos</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(products.length)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Grupos</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{gruposList.length}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Ativos</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-green-600 dark:text-green-400">
+            {products.filter((p) => p.ativo).length}
+          </p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Margem Média</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {products.length > 0
+              ? `${(products.reduce((s, p) => s + p.margemPct, 0) / products.length).toFixed(1)}%`
+              : '0%'}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar produto ou grupo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select
+              value={grupoFilter}
+              onChange={(e) => setGrupoFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+            >
+              <option value="">Todos os grupos</option>
+              {gruposList.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">Ordenar:</span>
+            {(['faturamento', 'qtdVendida', 'margemPct'] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortBy(key)}
+                className={cn(
+                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  sortBy === key
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                )}
+              >
+                {key === 'faturamento' ? 'Vendas' : key === 'qtdVendida' ? 'Quantidade' : 'Margem'}
+              </button>
+            ))}
+          </div>
+
+          <ExportButton onExport={handleExport} />
+        </div>
+
+        <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} />
+
+        <div className="border-t border-gray-200 px-6 py-3 text-xs text-gray-400 dark:border-gray-700 dark:text-gray-500">
+          Exibindo {filtered.length} de {products.length} produtos
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ProductCatalog
