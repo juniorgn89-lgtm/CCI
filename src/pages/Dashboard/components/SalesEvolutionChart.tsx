@@ -25,7 +25,7 @@ const tooltipFormatter = (value: number, name: string): [string, string] => {
   return [formatCurrencyTooltip(value), label]
 }
 
-const tooltipLabelFormatter = (label: string): string => {
+const tooltipLabelFormatter = (label: unknown): string => {
   const parts = String(label).split('-')
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
   return String(label)

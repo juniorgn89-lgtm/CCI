@@ -111,7 +111,7 @@ const SalesForecast = ({ forecastData }: Props) => {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={v => fmt(v)} tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v: number | string, name: string) => [fmt(Number(v)), name]}
+                formatter={((v: number, name: string) => [fmt(v), name]) as never}
                 contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
               />
               <Legend />

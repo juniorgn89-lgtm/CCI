@@ -13,7 +13,7 @@ import {
 } from 'recharts'
 import { Activity, Gauge, Fuel, Award } from 'lucide-react'
 import { CHART_COLORS } from '@/lib/constants'
-import { formatNumber, formatLiters, formatCurrency, formatCurrencyTooltip } from '@/lib/formatters'
+import { formatNumber, formatCurrencyTooltip } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { MergedFrentista } from '@/pages/Operacao/components/ProdutividadeTab'
 

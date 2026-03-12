@@ -11,7 +11,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
-import { useFilterStore } from '@/store/filters'
 import useNetworkData from './hooks/useNetworkData'
 import PostoComparison from './components/PostoComparison'
 import NetworkMap from './components/NetworkMap'
@@ -44,7 +43,6 @@ const KpiSkeleton = () => (
 
 const Inteligencia = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('controle')
-  const { empresaCodigos } = useFilterStore()
   const {
     postos,
     networkAvg,

@@ -151,7 +151,6 @@ export interface LbLitroData {
 
 const useFuelData = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
 
   const prevMonthInicial = offsetPeriod(dataInicial, 1)

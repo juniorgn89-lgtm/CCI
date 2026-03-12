@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort, formatLiters, formatLitersShort, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatLitersShort, formatNumber } from '@/lib/formatters'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import ExportButton from '@/components/tables/ExportButton'
@@ -12,7 +12,6 @@ interface BombaViewProps {
 }
 
 const csvColumns: ExportColumn<BombaRow>[] = [
-  { header: '#', accessor: (_, i) => (i ?? 0) + 1 },
   { header: 'Score', accessor: (r) => r.score.toFixed(1) },
   { header: 'Bico', accessor: (r) => r.bicoDescricao },
   { header: 'Combustivel', accessor: (r) => r.combustivelNome },

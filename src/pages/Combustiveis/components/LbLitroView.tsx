@@ -20,7 +20,7 @@ import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import ExportButton from '@/components/tables/ExportButton'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
-import type { LbLitroData, LbLitroProduct, LbLitroDaily } from '@/pages/Combustiveis/hooks/useFuelData'
+import type { LbLitroData, LbLitroProduct } from '@/pages/Combustiveis/hooks/useFuelData'
 
 interface LbLitroViewProps {
   data: LbLitroData

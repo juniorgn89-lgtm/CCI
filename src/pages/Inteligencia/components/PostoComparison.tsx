@@ -201,7 +201,7 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(v: number | string) => [`${v} pts`, 'Score']}
+                  formatter={((v: number) => [`${v} pts`, 'Score']) as never}
                   contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
                 />
                 <Bar dataKey="conversao" name="Conversão %" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} />
@@ -212,7 +212,7 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={v => chartView === 'receita' ? fmt(v) : fmtNum(v)} />
                 <Tooltip
-                  formatter={(v: number | string) => [chartView === 'receita' ? fmt(Number(v)) : `${fmtNum(Number(v))}L`, chartView === 'receita' ? 'Receita' : 'Litros']}
+                  formatter={((v: number) => [chartView === 'receita' ? fmt(v) : `${fmtNum(v)}L`, chartView === 'receita' ? 'Receita' : 'Litros']) as never}
                   contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
                 />
                 <Bar dataKey={chartView} fill={chartView === 'receita' ? '#2563eb' : '#10b981'} radius={[4, 4, 0, 0]} />
