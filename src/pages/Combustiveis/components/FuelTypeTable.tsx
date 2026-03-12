@@ -21,6 +21,9 @@ const ParticipationBar = ({ value }: { value: number }) => (
 )
 
 const columns: Column<FuelTypeRow>[] = [
+  { key: 'produtoCodigo', label: 'Código', sortable: true, render: (row) => (
+    <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">{row.produtoCodigo}</span>
+  )},
   { key: 'nome', label: 'Combustível', sortable: true },
   { key: 'litros', label: 'Litros', align: 'right', sortable: true, render: (row) => formatLiters(row.litros) },
   { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (row) => <ParticipationBar value={row.participacao} /> },
@@ -40,6 +43,7 @@ const columns: Column<FuelTypeRow>[] = [
 ]
 
 const csvColumns: ExportColumn<FuelTypeRow>[] = [
+  { header: 'Código', accessor: (r) => r.produtoCodigo },
   { header: 'Combustível', accessor: (r) => r.nome },
   { header: 'Litros', accessor: (r) => r.litros },
   { header: 'Participação %', accessor: (r) => r.participacao },
