@@ -48,7 +48,10 @@ const SalesForecast = ({ forecastData }: Props) => {
   }))
 
   // Find the split point between real and forecast
-  const lastRealIndex = forecastData.findLastIndex(d => d.real > 0)
+  let lastRealIndex = -1
+  for (let i = forecastData.length - 1; i >= 0; i--) {
+    if (forecastData[i].real > 0) { lastRealIndex = i; break }
+  }
   const splitDate = lastRealIndex >= 0 ? fmtDate(forecastData[lastRealIndex].date) : null
 
   return (
@@ -108,7 +111,7 @@ const SalesForecast = ({ forecastData }: Props) => {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={v => fmt(v)} tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v: number, name: string) => [fmt(v), name]}
+                formatter={(v: number | string, name: string) => [fmt(Number(v)), name]}
                 contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
               />
               <Legend />
