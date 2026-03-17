@@ -73,7 +73,7 @@ const Login = () => {
                 placeholder="Digite seu usuário"
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
-                className="h-12 rounded-lg border-gray-300 bg-gray-50 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
+                className="h-12 rounded-lg border-gray-300 bg-gray-50 pl-10 pr-10 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
                 required
               />
             </div>
@@ -85,7 +85,7 @@ const Login = () => {
                 placeholder="Digite sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-12 rounded-lg border-gray-300 bg-gray-50 pr-10 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
+                className="h-12 rounded-lg border-gray-300 bg-gray-50 pl-10 pr-10 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
                 required
               />
               <button
