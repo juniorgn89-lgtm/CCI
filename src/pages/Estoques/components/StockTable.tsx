@@ -19,6 +19,7 @@ const STATUS_CONFIG = {
   baixo: { label: 'Baixo', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
   critico: { label: 'Crítico', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500' },
   sem_estoque: { label: 'Sem estoque', bg: 'bg-red-50 dark:bg-red-950/30', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
+  negativo: { label: 'Negativo', bg: 'bg-red-100 dark:bg-red-950/50', text: 'text-red-900 dark:text-red-300', dot: 'bg-red-800 dark:bg-red-600' },
 } as const
 
 const PAGE_SIZE = 20
@@ -72,7 +73,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
     }
 
     // Sort
-    const statusOrder = { sem_estoque: 0, critico: 1, baixo: 2, normal: 3 }
+    const statusOrder = { negativo: 0, sem_estoque: 1, critico: 2, baixo: 3, normal: 4 }
     result = [...result].sort((a, b) => {
       let cmp = 0
       if (sortKey === 'saldo') {
@@ -178,6 +179,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
             <option value="baixo">Baixo</option>
             <option value="critico">Crítico</option>
             <option value="sem_estoque">Sem estoque</option>
+            <option value="negativo">Negativo</option>
           </select>
         </div>
       </div>
@@ -211,6 +213,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
                 key={`${row.produtoCodigo}-${row.estoqueCodigo}-${i}`}
                 className={cn(
                   'transition-colors hover:bg-blue-50/30 dark:hover:bg-gray-800/50',
+                  row.status === 'negativo' && 'bg-red-100/30 dark:bg-red-950/20',
                   row.status === 'sem_estoque' && 'bg-red-50/20 dark:bg-red-950/10',
                   row.status === 'critico' && 'bg-orange-50/20 dark:bg-orange-950/10'
                 )}

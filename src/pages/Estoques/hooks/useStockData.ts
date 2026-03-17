@@ -19,7 +19,7 @@ export interface StockRow {
   local: string
   estoqueCodigo: number
   saldo: number
-  status: 'sem_estoque' | 'critico' | 'baixo' | 'normal'
+  status: 'negativo' | 'sem_estoque' | 'critico' | 'baixo' | 'normal'
 }
 
 export interface MovementRow {
@@ -53,7 +53,7 @@ export interface AlertItem {
   categoria: string
   saldo: number
   local: string
-  severity: 'danger' | 'warning' | 'caution'
+  severity: 'negative' | 'danger' | 'warning' | 'caution'
 }
 
 export interface StockKpiData {
@@ -69,14 +69,16 @@ const THRESHOLD_CRITICAL = 5
 const THRESHOLD_LOW = 20
 
 const getStatus = (saldo: number): StockRow['status'] => {
-  if (saldo <= THRESHOLD_ZERO) return 'sem_estoque'
+  if (saldo < THRESHOLD_ZERO) return 'negativo'
+  if (saldo === THRESHOLD_ZERO) return 'sem_estoque'
   if (saldo <= THRESHOLD_CRITICAL) return 'critico'
   if (saldo <= THRESHOLD_LOW) return 'baixo'
   return 'normal'
 }
 
 const getSeverity = (saldo: number): AlertItem['severity'] => {
-  if (saldo <= THRESHOLD_ZERO) return 'danger'
+  if (saldo < THRESHOLD_ZERO) return 'negative'
+  if (saldo === THRESHOLD_ZERO) return 'danger'
   if (saldo <= THRESHOLD_CRITICAL) return 'warning'
   return 'caution'
 }
@@ -213,7 +215,7 @@ const useStockData = () => {
         severity: getSeverity(r.saldo),
       }))
       .sort((a, b) => {
-        const order = { danger: 0, warning: 1, caution: 2 }
+        const order = { negative: 0, danger: 1, warning: 2, caution: 3 }
         return order[a.severity] - order[b.severity] || a.saldo - b.saldo
       })
 
@@ -245,7 +247,7 @@ const useStockData = () => {
       .slice(0, 15)
 
     // --- Status breakdown ---
-    const statusCount = { sem_estoque: 0, critico: 0, baixo: 0, normal: 0 }
+    const statusCount = { negativo: 0, sem_estoque: 0, critico: 0, baixo: 0, normal: 0 }
     for (const [, saldo] of byProduct) {
       statusCount[getStatus(saldo)]++
     }
@@ -254,6 +256,7 @@ const useStockData = () => {
       { status: 'baixo', label: 'Baixo', count: statusCount.baixo, color: '#f59e0b' },
       { status: 'critico', label: 'Crítico', count: statusCount.critico, color: '#f97316' },
       { status: 'sem_estoque', label: 'Sem Estoque', count: statusCount.sem_estoque, color: '#ef4444' },
+      { status: 'negativo', label: 'Negativo', count: statusCount.negativo, color: '#991b1b' },
     ]
 
     // --- Movement detail rows ---

@@ -6,7 +6,7 @@ import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import ExportButton from '@/components/tables/ExportButton'
 import type { AlertItem } from '@/pages/Estoques/hooks/useStockData'
 
-export type SeverityFilter = 'all' | 'danger' | 'warning' | 'caution'
+export type SeverityFilter = 'all' | 'negative' | 'danger' | 'warning' | 'caution'
 
 interface StockAlertsProps {
   alerts: AlertItem[]
@@ -14,6 +14,16 @@ interface StockAlertsProps {
 }
 
 const SEVERITY_CONFIG = {
+  negative: {
+    label: 'Negativo',
+    icon: XCircle,
+    bg: 'bg-red-100 dark:bg-red-950/30',
+    border: 'border-red-300 dark:border-red-700',
+    iconColor: 'text-red-700 dark:text-red-400',
+    textColor: 'text-red-900 dark:text-red-300',
+    badge: 'bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-300',
+    badgeActive: 'bg-red-800 text-white dark:bg-red-700',
+  },
   danger: {
     label: 'Sem estoque',
     icon: XCircle,
@@ -66,6 +76,7 @@ const StockAlerts = ({ alerts, initialFilter = 'all' }: StockAlertsProps) => {
     setExpanded(false)
   }, [initialFilter])
 
+  const negativeCount = useMemo(() => alerts.filter((a) => a.severity === 'negative').length, [alerts])
   const dangerCount = useMemo(() => alerts.filter((a) => a.severity === 'danger').length, [alerts])
   const warningCount = useMemo(() => alerts.filter((a) => a.severity === 'warning').length, [alerts])
   const cautionCount = useMemo(() => alerts.filter((a) => a.severity === 'caution').length, [alerts])
@@ -118,6 +129,18 @@ const StockAlerts = ({ alerts, initialFilter = 'all' }: StockAlertsProps) => {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton onExport={handleExport} />
+          {negativeCount > 0 && (
+            <button
+              type="button"
+              onClick={() => handleFilterClick('negative')}
+              className={cn(
+                'cursor-pointer rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:scale-105',
+                severityFilter === 'negative' ? SEVERITY_CONFIG.negative.badgeActive : SEVERITY_CONFIG.negative.badge
+              )}
+            >
+              {negativeCount} negativo
+            </button>
+          )}
           {dangerCount > 0 && (
             <button
               type="button"
