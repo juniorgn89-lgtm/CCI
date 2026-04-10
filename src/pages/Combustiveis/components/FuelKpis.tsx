@@ -4,7 +4,7 @@ import type { FuelKpiData } from '@/pages/Combustiveis/hooks/useFuelData'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas'
+type TabKey = 'indicadores' | 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas' | 'lblitro'
 
 interface FuelKpisProps {
   kpis: FuelKpiData

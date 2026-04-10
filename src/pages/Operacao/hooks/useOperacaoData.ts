@@ -61,6 +61,20 @@ export interface AbastecimentoRow {
   placa: string
 }
 
+export interface TurnoFrentista {
+  nome: string
+  litros: number
+  atendimentos: number
+  faturamento: number
+}
+
+export interface TurnoPagamento {
+  tipo: string
+  nome: string
+  valor: number
+  quantidade: number
+}
+
 export interface TurnoRow {
   caixaCodigo: number
   turno: string
@@ -73,6 +87,9 @@ export interface TurnoRow {
   fechado: boolean
   apurado: number
   diferenca: number
+  totalVendas: number
+  frentistas: TurnoFrentista[]
+  pagamentos: TurnoPagamento[]
 }
 
 export interface CaixaResumo {
@@ -282,21 +299,91 @@ const useOperacaoData = () => {
       }))
       .sort((a, b) => b.dataHora.localeCompare(a.dataHora))
 
-    // ── Turnos (from Caixas) ──
+    // ── Helper: extract HH:mm from time or datetime string ──
+    const extractTime = (raw: string | null | undefined): string => {
+      if (!raw) return ''
+      // If it contains a space, it's "YYYY-MM-DD HH:mm:ss" → take the time part
+      if (raw.includes(' ')) {
+        const timePart = raw.split(' ')[1]
+        return timePart ? timePart.substring(0, 5) : ''
+      }
+      // If it contains 'T', it's ISO format
+      if (raw.includes('T')) {
+        const timePart = raw.split('T')[1]
+        return timePart ? timePart.substring(0, 5) : ''
+      }
+      // Otherwise assume it's already HH:mm:ss
+      return raw.substring(0, 5)
+    }
+
+    // ── Turnos (from Caixas) with frentistas cross-reference ──
     const turnoRows: TurnoRow[] = caixas
-      .map((c) => ({
-        caixaCodigo: c.caixaCodigo,
-        turno: c.turno || `Turno ${c.turnoCodigo}`,
-        turnoCodigo: c.turnoCodigo,
-        funcionarioNome: funcMap.get(c.funcionarioCodigo)?.nome ?? `Funcionário ${c.funcionarioCodigo}`,
-        funcionarioCodigo: c.funcionarioCodigo,
-        dataMovimento: c.dataMovimento,
-        abertura: c.abertura,
-        fechamento: c.fechamento,
-        fechado: c.fechado,
-        apurado: c.apurado,
-        diferenca: c.diferenca,
-      }))
+      .map((c) => {
+        // Cross-reference abastecimentos for this shift date
+        const shiftAbast = abastecimentos.filter((a) => {
+          const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+          return abastDate === c.dataMovimento
+        })
+
+        // Aggregate frentistas who worked during this shift
+        const frentistaAgg = new Map<number, { litros: number; count: number; valor: number }>()
+        for (const a of shiftAbast) {
+          // Skip the shift opener — they're already shown as the responsible
+          if (a.codigoFrentista === c.funcionarioCodigo) continue
+          const prev = frentistaAgg.get(a.codigoFrentista) ?? { litros: 0, count: 0, valor: 0 }
+          frentistaAgg.set(a.codigoFrentista, {
+            litros: prev.litros + a.quantidade,
+            count: prev.count + 1,
+            valor: prev.valor + a.valorTotal,
+          })
+        }
+
+        const frentistas: TurnoFrentista[] = Array.from(frentistaAgg.entries())
+          .map(([cod, agg]) => ({
+            nome: funcMap.get(cod)?.nome ?? `Frentista ${cod}`,
+            litros: agg.litros,
+            atendimentos: agg.count,
+            faturamento: agg.valor,
+          }))
+          .sort((a, b) => b.litros - a.litros)
+
+        // Cross-reference formas de pagamento for this shift
+        const shiftPgto = formasPgto.filter((fp) => {
+          return fp.dataMovimento === c.dataMovimento && fp.turnoCodigo === c.turnoCodigo
+        })
+
+        const pgtoAggShift = new Map<string, { nome: string; valor: number; count: number }>()
+        for (const fp of shiftPgto) {
+          const tipo = fp.tipoFormaPagamento || 'OUTROS'
+          const prev = pgtoAggShift.get(tipo) ?? { nome: fp.nomeFormaPagamento || tipo, valor: 0, count: 0 }
+          prev.valor += fp.valorPagamento
+          prev.count += 1
+          pgtoAggShift.set(tipo, prev)
+        }
+
+        const pagamentos: TurnoPagamento[] = Array.from(pgtoAggShift.entries())
+          .map(([tipo, agg]) => ({ tipo, nome: agg.nome, valor: agg.valor, quantidade: agg.count }))
+          .sort((a, b) => b.valor - a.valor)
+
+        const totalVendas = pagamentos.reduce((s, p) => s + p.valor, 0)
+
+        return {
+          caixaCodigo: c.caixaCodigo,
+          turno: c.turno || `Turno ${c.turnoCodigo}`,
+          turnoCodigo: c.turnoCodigo,
+          funcionarioNome: funcMap.get(c.funcionarioCodigo)?.nome ?? `Funcionário ${c.funcionarioCodigo}`,
+          funcionarioCodigo: c.funcionarioCodigo,
+          dataMovimento: c.dataMovimento,
+          abertura: extractTime(c.abertura),
+          fechamento: extractTime(c.fechamento),
+          fechado: c.fechado,
+          apurado: c.apurado,
+          diferenca: c.diferenca,
+          totalVendas,
+          frentistas,
+          pagamentos,
+        }
+      })
       .sort((a, b) => {
         if (a.fechado !== b.fechado) return a.fechado ? 1 : -1
         return b.dataMovimento.localeCompare(a.dataMovimento)

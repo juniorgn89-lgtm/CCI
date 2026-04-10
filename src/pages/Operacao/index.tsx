@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Fuel, Gauge, Clock, Wallet, BarChart3 } from 'lucide-react'
+import { Fuel, Gauge, Wallet, BarChart3 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -7,20 +7,18 @@ import { cn } from '@/lib/utils'
 import OperacaoKpis from '@/pages/Operacao/components/OperacaoKpis'
 import ControleBombas from '@/pages/Operacao/components/ControleBombas'
 import RegistroAbastecimentos from '@/pages/Operacao/components/RegistroAbastecimentos'
-import TurnosTrabalho from '@/pages/Operacao/components/TurnosTrabalho'
 import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
 import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useProductivityData from '@/pages/Operacao/hooks/useProductivityData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
-type TabKey = 'bombas' | 'abastecimentos' | 'turnos' | 'caixa' | 'produtividade'
+type TabKey = 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
 
 const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
   { key: 'bombas', label: 'Bombas', icon: Gauge },
   { key: 'abastecimentos', label: 'Abastecimentos', icon: Fuel },
-  { key: 'turnos', label: 'Turnos', icon: Clock },
-  { key: 'caixa', label: 'Caixa', icon: Wallet },
+  { key: 'caixa', label: 'Caixa & Turnos', icon: Wallet },
   { key: 'produtividade', label: 'Produtividade', icon: BarChart3 },
 ]
 
@@ -132,9 +130,6 @@ const Operacao = () => {
                   frentistasList={frentistasList}
                   combustiveisList={combustiveisList}
                 />
-              )}
-              {activeTab === 'turnos' && (
-                <TurnosTrabalho turnoRows={turnoRows} />
               )}
               {activeTab === 'caixa' && (
                 <CaixaPosto

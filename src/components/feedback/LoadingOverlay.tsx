@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { Check, Fuel, Loader2, RefreshCw, X } from 'lucide-react'
+import type { PaginatedResponse } from '@/api/types/common'
+import type { Empresa } from '@/api/types/empresa'
 
 /* ─── Timeline steps ─── */
 
@@ -64,6 +66,12 @@ const LoadingOverlay = () => {
   const isFetching = useIsFetching()
   const queryClient = useQueryClient()
   const { empresaCodigos } = useFilterStore()
+
+  // Get company name from React Query cache
+  const empresasCache = queryClient.getQueryData<PaginatedResponse<Empresa>>(['empresas'])
+  const empresaNome = empresasCache?.resultados?.find(
+    (e) => e.codigo === empresaCodigos[0] || e.empresaCodigo === empresaCodigos[0]
+  )?.fantasia
 
   const [showOverlay, setShowOverlay] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
@@ -182,7 +190,9 @@ const LoadingOverlay = () => {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-wider text-white">CCISGA</h1>
-                <p className="text-[10px] text-white/40">Carregando dados do posto</p>
+                <p className="text-[10px] text-white/40">
+                  {empresaNome ? `Carregando ${empresaNome}` : 'Carregando dados do posto'}
+                </p>
               </div>
             </div>
 

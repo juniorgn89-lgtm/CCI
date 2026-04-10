@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Fuel, CalendarDays, BarChart3, Calendar, List, GaugeCircle, Users, DollarSign } from 'lucide-react'
+import { Fuel, CalendarDays, List, GaugeCircle, Users, DollarSign, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -17,23 +17,20 @@ import LbLitroView from '@/pages/Combustiveis/components/LbLitroView'
 import useFuelData from '@/pages/Combustiveis/hooks/useFuelData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
-type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas' | 'lblitro'
+type TabKey = 'indicadores' | 'abastecimentos' | 'diario' | 'tipo' | 'bombas' | 'frentistas' | 'lblitro'
 
 const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
+  { key: 'indicadores', label: 'Indicadores', icon: Activity },
   { key: 'abastecimentos', label: 'Abastecimentos', icon: List },
   { key: 'diario', label: 'Dia a dia', icon: CalendarDays },
-  { key: 'tipo', label: 'Por combustivel', icon: Fuel },
+  { key: 'tipo', label: 'Por combustível', icon: Fuel },
   { key: 'lblitro', label: 'L.B./Litro', icon: DollarSign },
   { key: 'bombas', label: 'Por bomba', icon: GaugeCircle },
   { key: 'frentistas', label: 'Frentistas', icon: Users },
-  { key: 'evolucao', label: 'Evolucao', icon: BarChart3 },
-  { key: 'semanal', label: 'Semanal', icon: Calendar },
 ]
 
-
-
 const Combustiveis = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')
+  const [activeTab, setActiveTab] = useState<TabKey>('indicadores')
   const { empresaCodigos } = useFilterStore()
   const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, bombaData, frentistaData, lbLitroData, frentistas, combustiveis, isLoading } = useFuelData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
@@ -51,22 +48,13 @@ const Combustiveis = () => {
             <Fuel className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Combustiveis</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Combustíveis</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhamento de abastecimentos e performance</p>
           </div>
         </div>
       </div>
 
       {empresaCodigos.length === 0 ? <SelectCompanyState /> : (<>
-      {/* KPIs */}
-      {showSkeleton ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
-        </div>
-      ) : kpis ? (
-        <FuelKpis kpis={kpis} onNavigateTab={handleNavigateTab} />
-      ) : null}
-
       {/* Tabs */}
       <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
         {tabs.map((tab) => {
@@ -91,13 +79,20 @@ const Combustiveis = () => {
 
       {/* Content */}
       {showSkeleton ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="space-y-3">
-            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
           </div>
         </div>
       ) : (
         <>
+          {activeTab === 'indicadores' && kpis && (
+            <div className="space-y-6">
+              <FuelKpis kpis={kpis} onNavigateTab={handleNavigateTab} />
+              <MonthlyChart data={dailyData} />
+              <WeeklyAnalysis data={weeklyAnalysis} />
+            </div>
+          )}
           {activeTab === 'abastecimentos' && (
             <AbastecimentosTable data={rows} frentistas={frentistas} combustiveis={combustiveis} />
           )}
@@ -106,8 +101,6 @@ const Combustiveis = () => {
           {activeTab === 'bombas' && <BombaView data={bombaData} />}
           {activeTab === 'lblitro' && <LbLitroView data={lbLitroData} />}
           {activeTab === 'frentistas' && <FreentistaTable data={frentistaData} />}
-          {activeTab === 'evolucao' && <MonthlyChart data={dailyData} />}
-          {activeTab === 'semanal' && <WeeklyAnalysis data={weeklyAnalysis} />}
         </>
       )}
       </>)}
