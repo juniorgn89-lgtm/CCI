@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Fuel, CalendarDays, BarChart3, Calendar, List, GaugeCircle, Users, DollarSign } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
@@ -29,16 +30,7 @@ const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
   { key: 'semanal', label: 'Semanal', icon: Calendar },
 ]
 
-const KpiSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-center justify-between">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-8 w-8 rounded-lg" />
-    </div>
-    <Skeleton className="mt-4 h-7 w-32" />
-    <Skeleton className="mt-2 h-4 w-20" />
-  </div>
-)
+
 
 const Combustiveis = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')

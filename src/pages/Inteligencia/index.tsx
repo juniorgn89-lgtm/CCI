@@ -9,6 +9,7 @@ import {
   Activity,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { cn } from '@/lib/utils'
 import useNetworkData from './hooks/useNetworkData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -31,16 +32,6 @@ const tabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'previsao', label: 'Previsão', icon: TrendingUp },
 ]
 
-const KpiSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-center justify-between">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-8 w-8 rounded-lg" />
-    </div>
-    <Skeleton className="mt-4 h-7 w-32" />
-    <Skeleton className="mt-2 h-4 w-20" />
-  </div>
-)
 
 const Inteligencia = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('controle')

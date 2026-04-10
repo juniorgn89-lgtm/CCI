@@ -98,7 +98,7 @@ const useOperacaoData = () => {
 
   // Abastecimentos (paginated)
   const { data: abastecimentosData, isLoading: l1 } = useQuery({
-    queryKey: ['abastecimentosAll', dataInicial, dataFinal],
+    queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 50
@@ -132,7 +132,7 @@ const useOperacaoData = () => {
 
   // Produtos (cached, shared across modules)
   const { data: produtosData, isLoading: l5 } = useQuery({
-    queryKey: ['produtos-all'],
+    queryKey: ['produtos'],
     queryFn: () => fetchAllPages(
       (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 100

@@ -105,7 +105,7 @@ const useProductData = () => {
 
   // Products (for name mapping)
   const { data: produtosData, isLoading: l3 } = useQuery({
-    queryKey: ['produtos-all'],
+    queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
   })

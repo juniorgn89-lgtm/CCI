@@ -7,7 +7,6 @@ import Sidebar, { navItems } from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
-import usePrefetch from '@/hooks/usePrefetch'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 
@@ -17,7 +16,6 @@ const getInitialCollapsed = () => {
 }
 
 const AppLayout = () => {
-  usePrefetch()
   useModulePrefetch()
   useAlertGenerator()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)

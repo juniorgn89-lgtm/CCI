@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Warehouse, LayoutList, BarChart3, AlertTriangle, Clock, TrendingUp } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import StockKpis from '@/pages/Estoques/components/StockKpis'
@@ -22,13 +23,6 @@ const tabs: { key: TabKey; label: string; icon: typeof Warehouse }[] = [
   { key: 'analise', label: 'Análise', icon: TrendingUp },
 ]
 
-const KpiSkeleton = () => (
-  <div className="rounded-xl border-l-4 border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <Skeleton className="h-4 w-24" />
-    <Skeleton className="mt-3 h-8 w-32" />
-    <Skeleton className="mt-2 h-3 w-20" />
-  </div>
-)
 
 const TableSkeleton = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">

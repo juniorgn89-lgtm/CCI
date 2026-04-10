@@ -1,5 +1,6 @@
 import { Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import QuickStats from '@/pages/Dashboard/components/QuickStats'
 import SalesEvolutionChart from '@/pages/Dashboard/components/SalesEvolutionChart'
@@ -12,13 +13,6 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import { useFilterStore } from '@/store/filters'
 import { useDashboardLayoutStore } from '@/store/dashboardLayout'
 
-const KpiCardSkeleton = () => (
-  <div className="rounded-xl border-l-4 border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <Skeleton className="h-4 w-24" />
-    <Skeleton className="mt-3 h-7 w-32" />
-    <Skeleton className="mt-2 h-4 w-40" />
-  </div>
-)
 
 const Dashboard = () => {
   const { empresaCodigos } = useFilterStore()
@@ -98,7 +92,7 @@ const Dashboard = () => {
           {/* Existing KPI skeleton */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <KpiCardSkeleton key={i} />
+              <KpiSkeleton key={i} />
             ))}
           </div>
         </div>

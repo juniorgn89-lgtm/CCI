@@ -1,16 +1,17 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
-import Dashboard from '@/pages/Dashboard'
-import Combustiveis from '@/pages/Combustiveis'
-import Produtos from '@/pages/Produtos'
-import Conveniencias from '@/pages/Conveniencias'
-import Estoques from '@/pages/Estoques'
-import Financeiro from '@/pages/Financeiro'
 
-import Inteligencia from '@/pages/Inteligencia'
-import Operacao from '@/pages/Operacao'
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Combustiveis = lazy(() => import('@/pages/Combustiveis'))
+const Produtos = lazy(() => import('@/pages/Produtos'))
+const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
+const Estoques = lazy(() => import('@/pages/Estoques'))
+const Financeiro = lazy(() => import('@/pages/Financeiro'))
+const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
+const Operacao = lazy(() => import('@/pages/Operacao'))
 
 const AppRoutes = () => {
   return (
@@ -20,16 +21,15 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/combustiveis" element={<Combustiveis />} />
-          <Route path="/produtos" element={<Produtos />} />
-          <Route path="/conveniencias" element={<Conveniencias />} />
-          <Route path="/estoques" element={<Estoques />} />
+          <Route path="/dashboard" element={<Suspense fallback={null}><Dashboard /></Suspense>} />
+          <Route path="/combustiveis" element={<Suspense fallback={null}><Combustiveis /></Suspense>} />
+          <Route path="/produtos" element={<Suspense fallback={null}><Produtos /></Suspense>} />
+          <Route path="/conveniencias" element={<Suspense fallback={null}><Conveniencias /></Suspense>} />
+          <Route path="/estoques" element={<Suspense fallback={null}><Estoques /></Suspense>} />
           <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />
-          <Route path="/financeiro" element={<Financeiro />} />
-
-          <Route path="/inteligencia" element={<Inteligencia />} />
-          <Route path="/operacao" element={<Operacao />} />
+          <Route path="/financeiro" element={<Suspense fallback={null}><Financeiro /></Suspense>} />
+          <Route path="/inteligencia" element={<Suspense fallback={null}><Inteligencia /></Suspense>} />
+          <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />
         </Route>
       </Route>
     </Routes>

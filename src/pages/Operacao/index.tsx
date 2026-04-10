@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Fuel, Gauge, Clock, Wallet, BarChart3 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import OperacaoKpis from '@/pages/Operacao/components/OperacaoKpis'
@@ -23,15 +24,6 @@ const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
   { key: 'produtividade', label: 'Produtividade', icon: BarChart3 },
 ]
 
-const KpiSkeleton = () => (
-  <div className="rounded-xl border-l-4 border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-center justify-between">
-      <Skeleton className="h-3 w-20" />
-      <Skeleton className="h-7 w-7 rounded-lg" />
-    </div>
-    <Skeleton className="mt-3 h-6 w-28" />
-  </div>
-)
 
 const ContentSkeleton = () => (
   <div className="space-y-4">

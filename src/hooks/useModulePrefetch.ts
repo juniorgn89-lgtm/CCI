@@ -4,14 +4,16 @@ import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo, fetchVendaItens, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchAbastecimentos, fetchLmc, fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchProdutoEstoque, fetchEstoquePeriodo } from '@/api/endpoints/estoques'
-import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios, fetchPlacares } from '@/api/endpoints/funcionarios'
 import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchDre, fetchCaixas } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
 /**
- * Prefetches data for ALL modules when empresaCodigos or period changes.
- * This way, when the user navigates to another module, it's already loaded.
+ * Prefetches reference data on mount and module data when empresa/period changes.
+ * Reference data (empresas, grupos) are slow-changing catalogs fetched once.
+ * Module data is prefetched per empresa/period so navigation is instant.
  */
 const useModulePrefetch = () => {
   const queryClient = useQueryClient()
@@ -19,6 +21,22 @@ const useModulePrefetch = () => {
 
   const empresaCodigo = empresaCodigos[0] ?? null
 
+  // ─── Reference data prefetch (runs on mount, no empresa dependency) ───
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['grupos'],
+      queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
+      staleTime: 30 * 60 * 1000,
+    })
+
+    queryClient.prefetchQuery({
+      queryKey: ['empresas'],
+      queryFn: () => fetchEmpresas(),
+      staleTime: 10 * 60 * 1000,
+    })
+  }, [queryClient])
+
+  // ─── Module data prefetch (runs when empresa/period changes) ───
   useEffect(() => {
     if (!empresaCodigo) return
 
@@ -101,12 +119,6 @@ const useModulePrefetch = () => {
       queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial: evolution12m, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
     })
 
-    // ─── Operação: abastecimentosAll (same data, different key) ───
-    queryClient.prefetchQuery({
-      queryKey: ['abastecimentosAll', dataInicial, dataFinal],
-      queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
-    })
-
     // ─── LMC ───
     queryClient.prefetchQuery({
       queryKey: ['lmc', lmcDataInicial, dataFinal],
@@ -139,9 +151,9 @@ const useModulePrefetch = () => {
       queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo, usaProdutoLmc: false, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
     })
 
-    // ─── produtos-all (used by Operação, Conveniências, Produtos) ───
+    // ─── Produtos (shared across Operação, Conveniências, Produtos) ───
     queryClient.prefetchQuery({
-      queryKey: ['produtos-all'],
+      queryKey: ['produtos'],
       queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     })
 
