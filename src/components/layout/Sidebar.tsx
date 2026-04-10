@@ -6,7 +6,6 @@ import {
   Store,
   Warehouse,
   DollarSign,
-  FileBarChart,
   Brain,
   Gauge,
   PanelLeftClose,
@@ -52,7 +51,6 @@ const navGroups: NavGroup[] = [
     title: 'Análise',
     items: [
       { label: 'Inteligência', path: '/inteligencia', icon: Brain },
-      { label: 'Relatórios', path: '/relatorios', icon: FileBarChart },
     ],
   },
 ]
