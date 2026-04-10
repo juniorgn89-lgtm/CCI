@@ -60,8 +60,12 @@ export interface NetworkAlert {
 
 /* ── Hook ────────────────────────────────────────────────── */
 
-const useNetworkData = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+interface UseNetworkDataParams {
+  empresaCodigos: number[]
+}
+
+const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
+  const { dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
 
   // Fetch all empresas (for names, coordinates)

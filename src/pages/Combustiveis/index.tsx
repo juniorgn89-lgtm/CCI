@@ -14,6 +14,7 @@ import BombaView from '@/pages/Combustiveis/components/BombaView'
 import FreentistaTable from '@/pages/Combustiveis/components/FreentistaTable'
 import LbLitroView from '@/pages/Combustiveis/components/LbLitroView'
 import useFuelData from '@/pages/Combustiveis/hooks/useFuelData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'abastecimentos' | 'diario' | 'tipo' | 'evolucao' | 'semanal' | 'bombas' | 'frentistas' | 'lblitro'
 
@@ -43,6 +44,7 @@ const Combustiveis = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('abastecimentos')
   const { empresaCodigos } = useFilterStore()
   const { kpis, rows, dailyData, fuelTypeData, weeklyAnalysis, bombaData, frentistaData, lbLitroData, frentistas, combustiveis, isLoading } = useFuelData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   const handleNavigateTab = (tab: TabKey) => {
     setActiveTab(tab)
@@ -65,7 +67,7 @@ const Combustiveis = () => {
 
       {empresaCodigos.length === 0 ? <SelectCompanyState /> : (<>
       {/* KPIs */}
-      {isLoading ? (
+      {showSkeleton ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
         </div>
@@ -96,7 +98,7 @@ const Combustiveis = () => {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {showSkeleton ? (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-3">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}

@@ -9,6 +9,7 @@ import TopSellersChart from '@/pages/Produtos/components/TopSellersChart'
 import ParetoChart from '@/pages/Produtos/components/ParetoChart'
 import AbcCurve from '@/pages/Produtos/components/AbcCurve'
 import useProductData from '@/pages/Produtos/hooks/useProductData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'produtos' | 'top' | 'pareto' | 'abc'
 
@@ -44,6 +45,7 @@ const TableSkeleton = () => (
 const Produtos = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('produtos')
   const { kpis, productTable, topSellers, abcData, gruposList, isLoading, hasEmpresa } = useProductData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   const handleNavigate = (tab: TabKey) => {
     setActiveTab(tab)
@@ -73,7 +75,7 @@ const Produtos = () => {
       {hasEmpresa && (
         <>
           {/* KPIs */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
@@ -104,7 +106,7 @@ const Produtos = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <TableSkeleton />
           ) : (
             <>

@@ -10,6 +10,7 @@ import StockView from '@/pages/Conveniencias/components/StockView'
 import TopSellers from '@/pages/Conveniencias/components/TopSellers'
 import PerformanceAnalysis from '@/pages/Conveniencias/components/PerformanceAnalysis'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'vendas' | 'catalogo' | 'estoque' | 'topVendidos' | 'performance'
 
@@ -69,6 +70,7 @@ const Conveniencias = () => {
     isLoading,
     hasEmpresa,
   } = useConvenienceData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
     <div className="space-y-6">
@@ -94,7 +96,7 @@ const Conveniencias = () => {
       {hasEmpresa && (
         <>
           {/* KPIs */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
@@ -125,7 +127,7 @@ const Conveniencias = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <ContentSkeleton />
           ) : (
             <>

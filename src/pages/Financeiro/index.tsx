@@ -9,6 +9,7 @@ import PayablesTable from '@/pages/Financeiro/components/PayablesTable'
 import CashFlowChart from '@/pages/Financeiro/components/CashFlowChart'
 import DreTable from '@/pages/Financeiro/components/DreTable'
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'receber' | 'pagar' | 'fluxo' | 'dre'
 
@@ -54,6 +55,7 @@ const Financeiro = () => {
     isLoading,
     hasEmpresa,
   } = useFinanceData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
     <div className="space-y-6">
@@ -79,7 +81,7 @@ const Financeiro = () => {
       {hasEmpresa && (
         <>
           {/* KPIs */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
@@ -120,7 +122,7 @@ const Financeiro = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <TableSkeleton />
           ) : (
             <>

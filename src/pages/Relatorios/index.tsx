@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { fetchRelatoriosDisponiveis } from '@/api/endpoints/relatorios'
 import ReportSelector, { type SelectedReport } from '@/pages/Relatorios/components/ReportSelector'
 import ReportViewer from '@/pages/Relatorios/components/ReportViewer'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const SelectorSkeleton = () => (
   <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -39,6 +40,7 @@ const Relatorios = () => {
   })
 
   const relatoriosPersonalizados = relatoriosResponse?.resultados ?? []
+  const showSkeleton = useShowSkeleton(isLoading, relatoriosPersonalizados.length > 0)
 
   if (isError) {
     return (
@@ -63,7 +65,7 @@ const Relatorios = () => {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <div className="w-full shrink-0 lg:w-80">
-        {isLoading ? (
+        {showSkeleton ? (
           <SelectorSkeleton />
         ) : (
           <ReportSelector

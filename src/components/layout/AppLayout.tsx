@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Outlet } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import Sidebar, { navItems } from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
+import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import usePrefetch from '@/hooks/usePrefetch'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
@@ -22,6 +23,15 @@ const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+
+  // Always redirect to dashboard on page refresh (initial mount)
+  useEffect(() => {
+    if (pathname !== '/dashboard') {
+      navigate('/dashboard', { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 1280px)')
@@ -78,6 +88,7 @@ const AppLayout = () => {
           className="flex-1 overflow-y-auto p-4 md:p-6"
           onClick={() => { if (!collapsed) setCollapsed(true) }}
         >
+          <LoadingOverlay />
           <ErrorBoundary key={pathname}>
             <Outlet />
           </ErrorBoundary>

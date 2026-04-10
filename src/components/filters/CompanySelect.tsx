@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, ChevronDown } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -13,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 
 const CompanySelect = () => {
+  const [open, setOpen] = useState(false)
   const { empresaCodigos, setEmpresas } = useFilters()
 
   const { data: empresasData, isLoading } = useQuery({
@@ -23,42 +25,27 @@ const CompanySelect = () => {
 
   const empresas = empresasData?.resultados ?? []
 
-  const handleToggle = (codigo: number) => {
-    const isSelected = empresaCodigos.includes(codigo)
-    if (isSelected) {
-      setEmpresas(empresaCodigos.filter((c) => c !== codigo))
-    } else {
-      setEmpresas([...empresaCodigos, codigo])
-    }
-  }
-
-  const handleSelectAll = () => {
-    setEmpresas(empresas.map((e) => e.codigo))
-  }
-
-  const handleClear = () => {
-    setEmpresas([])
+  const handleSelect = (codigo: number) => {
+    setEmpresas([codigo])
+    setOpen(false)
   }
 
   const getLabel = (): string => {
-    if (empresaCodigos.length === 0) return 'Todas as empresas'
+    if (empresaCodigos.length === 0) return 'Selecione o posto'
     if (empresaCodigos.length === 1) {
       const empresa = empresas.find((e) => e.codigo === empresaCodigos[0])
       return empresa?.fantasia ?? 'Empresa'
-    }
-    if (empresaCodigos.length === empresas.length && empresas.length > 0) {
-      return 'Todas as empresas'
     }
     return `${empresaCodigos.length} empresas`
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-[280px] justify-between text-sm font-normal"
+          className="h-8 w-[220px] justify-between text-xs font-normal xl:w-[280px] xl:text-sm"
           disabled={isLoading}
         >
           <span className="flex items-center gap-2 truncate">
@@ -69,30 +56,15 @@ const CompanySelect = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[280px]">
-        <DropdownMenuLabel className="flex items-center justify-between py-1">
-          <span className="text-xs text-gray-500">Empresas</span>
-          <span className="flex gap-2">
-            <button
-              onClick={handleSelectAll}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Todas
-            </button>
-            <button
-              onClick={handleClear}
-              className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              Limpar
-            </button>
-          </span>
+        <DropdownMenuLabel className="py-1">
+          <span className="text-xs text-gray-500">Selecione o posto</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {empresas.map((empresa) => (
           <DropdownMenuCheckboxItem
             key={empresa.codigo}
             checked={empresaCodigos.includes(empresa.codigo)}
-            onCheckedChange={() => handleToggle(empresa.codigo)}
-            onSelect={(e) => e.preventDefault()}
+            onCheckedChange={() => handleSelect(empresa.codigo)}
           >
             {empresa.fantasia}
           </DropdownMenuCheckboxItem>

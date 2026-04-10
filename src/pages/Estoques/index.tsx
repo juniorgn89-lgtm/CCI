@@ -10,6 +10,7 @@ import StockAlerts, { type SeverityFilter } from '@/pages/Estoques/components/St
 import StockHistory from '@/pages/Estoques/components/StockHistory'
 import StockAnalysis from '@/pages/Estoques/components/StockAnalysis'
 import useStockData from '@/pages/Estoques/hooks/useStockData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'posicao' | 'movimentacao' | 'alertas' | 'historico' | 'analise'
 
@@ -59,6 +60,7 @@ const Estoques = () => {
     isLoading,
     hasEmpresa,
   } = useStockData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
     <div className="space-y-6">
@@ -84,7 +86,7 @@ const Estoques = () => {
       {hasEmpresa && (
         <>
           {/* KPIs */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
@@ -121,7 +123,7 @@ const Estoques = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <TableSkeleton />
           ) : (
             <>

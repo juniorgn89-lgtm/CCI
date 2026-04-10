@@ -11,6 +11,7 @@ import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
 import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useProductivityData from '@/pages/Operacao/hooks/useProductivityData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 type TabKey = 'bombas' | 'abastecimentos' | 'turnos' | 'caixa' | 'produtividade'
 
@@ -69,6 +70,7 @@ const Operacao = () => {
     conversionRanking,
     isLoading: prodLoading,
   } = useProductivityData()
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
     <div className="space-y-6">
@@ -94,7 +96,7 @@ const Operacao = () => {
       {hasEmpresa && (
         <>
           {/* KPIs */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
               {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
@@ -125,7 +127,7 @@ const Operacao = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <ContentSkeleton />
           ) : (
             <>

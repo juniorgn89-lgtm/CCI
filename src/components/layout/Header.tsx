@@ -35,19 +35,17 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const isFetching = useIsFetching()
 
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
+  const [manualRefreshing, setManualRefreshing] = useState(false)
   const lastRefreshTime = useRef(new Date())
-  const wasFetching = useRef(false)
 
-  // Track when fetching transitions from true -> false to update the timestamp
+  // Track when manual refresh completes
   useEffect(() => {
-    if (isFetching > 0) {
-      wasFetching.current = true
-    } else if (wasFetching.current) {
-      wasFetching.current = false
+    if (manualRefreshing && isFetching === 0) {
+      setManualRefreshing(false)
       lastRefreshTime.current = new Date()
       setLastRefreshLabel('Atualizado agora')
     }
-  }, [isFetching])
+  }, [manualRefreshing, isFetching])
 
   // Update the relative time label every 30 seconds
   useEffect(() => {
@@ -58,6 +56,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   }, [])
 
   const handleRefresh = () => {
+    setManualRefreshing(true)
     queryClient.invalidateQueries()
   }
 
@@ -66,7 +65,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
   return (
     <header className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex h-16 items-center justify-between px-4 md:px-6">
+      <div className="flex h-14 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuOpen}
@@ -75,44 +74,47 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
+          <h1 className="hidden text-base font-semibold text-gray-900 dark:text-gray-100 xl:block">{title}</h1>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden lg:block">
-            <GlobalFilterBar />
-          </div>
+        <div className="flex items-center gap-2">
+          {pathname !== '/inteligencia' && (
+            <div className="hidden xl:block">
+              <GlobalFilterBar />
+            </div>
+          )}
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
             aria-label="Atualizar dados"
           >
             <RefreshCw
-              className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`}
+              className={`h-4 w-4${manualRefreshing ? ' animate-spin' : ''}`}
             />
           </button>
           <NotificationBell />
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={toggle}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             aria-label={dark ? 'Modo claro' : 'Modo escuro'}
           >
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Sair">
             <LogOut className="h-4 w-4" />
-            <span className="ml-1.5 hidden sm:inline">Sair</span>
           </Button>
         </div>
       </div>
 
-      {/* Filters on separate row for medium screens */}
-      <div className="border-t border-gray-100 px-4 py-2 dark:border-gray-700 lg:hidden">
-        <GlobalFilterBar />
-      </div>
+      {/* Filters row — always visible below xl, inline above (hidden on Inteligência) */}
+      {pathname !== '/inteligencia' && (
+        <div className="border-t border-gray-100 px-4 py-1.5 dark:border-gray-700 xl:hidden">
+          <GlobalFilterBar />
+        </div>
+      )}
     </header>
   )
 }

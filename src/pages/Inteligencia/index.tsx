@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   Brain,
   GitCompareArrows,
@@ -9,9 +9,10 @@ import {
   Activity,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
 import useNetworkData from './hooks/useNetworkData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
+import CompanyPicker from './components/CompanyPicker'
 import PostoComparison from './components/PostoComparison'
 import NetworkMap from './components/NetworkMap'
 import SmartAnalysis from './components/SmartAnalysis'
@@ -43,6 +44,12 @@ const KpiSkeleton = () => (
 
 const Inteligencia = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('controle')
+  const [selectedEmpresas, setSelectedEmpresas] = useState<number[]>([])
+
+  const handleCompare = useCallback((codigos: number[]) => {
+    setSelectedEmpresas(codigos)
+  }, [])
+
   const {
     postos,
     networkAvg,
@@ -52,8 +59,9 @@ const Inteligencia = () => {
     forecastData,
     alerts,
     isLoading,
-    hasEmpresa,
-  } = useNetworkData()
+  } = useNetworkData({ empresaCodigos: selectedEmpresas })
+  const hasEmpresa = selectedEmpresas.length > 0
+  const showSkeleton = useShowSkeleton(isLoading, !!postos)
 
   return (
     <div className="space-y-6">
@@ -74,8 +82,19 @@ const Inteligencia = () => {
         </div>
       </div>
 
+      {/* Multi-company picker */}
+      <CompanyPicker selected={selectedEmpresas} onCompare={handleCompare} />
+
       {!hasEmpresa ? (
-        <SelectCompanyState />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+          <GitCompareArrows className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Selecione os postos acima para iniciar a comparação
+          </p>
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            Escolha 2 ou mais postos para comparar o desempenho entre eles
+          </p>
+        </div>
       ) : (
         <>
           {/* Tabs */}
@@ -102,7 +121,7 @@ const Inteligencia = () => {
           </div>
 
           {/* Content */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 {Array.from({ length: 5 }).map((_, i) => (

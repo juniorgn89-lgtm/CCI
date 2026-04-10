@@ -8,6 +8,7 @@ import SectorKpiCards from '@/pages/Dashboard/components/SectorKpiCards'
 import SectorDetailSection from '@/pages/Dashboard/components/SectorDetailSection'
 import DashboardSettings from '@/pages/Dashboard/components/DashboardSettings'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
+import useShowSkeleton from '@/hooks/useShowSkeleton'
 import { useFilterStore } from '@/store/filters'
 import { useDashboardLayoutStore } from '@/store/dashboardLayout'
 
@@ -22,6 +23,7 @@ const KpiCardSkeleton = () => (
 const Dashboard = () => {
   const { empresaCodigos } = useFilterStore()
   const { sectorKpis, globalKpi, projectionData, sectorDetails, quickStats, salesEvolution, frentistaRanking, isLoading } = useDashboardData()
+  const showSkeleton = useShowSkeleton(isLoading, !!quickStats)
   const { sections } = useDashboardLayoutStore()
   const visibleSections = sections.filter((s) => s.visible)
 
@@ -67,7 +69,7 @@ const Dashboard = () => {
         <DashboardSettings />
       </div>
 
-      {isLoading ? (
+      {showSkeleton ? (
         <div className="space-y-6">
           {/* Quick stats skeleton */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

@@ -67,7 +67,7 @@ const PeriodSelect = () => {
   return (
     <div className="flex items-center gap-2">
       <Select value={selectedYear} onValueChange={handleYearChange}>
-        <SelectTrigger className="h-9 w-[90px] text-sm">
+        <SelectTrigger className="h-8 w-[80px] text-xs xl:w-[90px] xl:text-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -80,7 +80,7 @@ const PeriodSelect = () => {
       </Select>
 
       <Select value={selectedMonth} onValueChange={handleMonthChange}>
-        <SelectTrigger className="h-9 w-[130px] text-sm">
+        <SelectTrigger className="h-8 w-[110px] text-xs xl:w-[130px] xl:text-sm">
           <SelectValue>
             {selectedMonth === 'custom' ? customLabel : months[startMonth - 1]}
           </SelectValue>

@@ -10,7 +10,7 @@ const DateRangePicker = () => {
         type="date"
         value={dataInicial}
         onChange={(e) => setPeriodo(e.target.value, dataFinal)}
-        className="h-9 w-[140px] text-sm"
+        className="h-9 w-[150px] border-gray-300 bg-white text-sm dark:border-gray-600 dark:bg-gray-900"
         aria-label="Data inicial"
       />
       <span className="text-sm text-gray-400">—</span>
@@ -18,7 +18,7 @@ const DateRangePicker = () => {
         type="date"
         value={dataFinal}
         onChange={(e) => setPeriodo(dataInicial, e.target.value)}
-        className="h-9 w-[140px] text-sm"
+        className="h-9 w-[150px] border-gray-300 bg-white text-sm dark:border-gray-600 dark:bg-gray-900"
         aria-label="Data final"
       />
     </div>
