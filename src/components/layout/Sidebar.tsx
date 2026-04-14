@@ -1,6 +1,6 @@
 import { useLocation, Link } from 'react-router-dom'
 import {
-  LayoutDashboard,
+  BarChart3,
   Fuel,
   Package,
   Store,
@@ -8,15 +8,15 @@ import {
   DollarSign,
   Brain,
   Gauge,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
   label: string
   path: string
-  icon: typeof LayoutDashboard
+  icon: typeof BarChart3
 }
 
 interface NavGroup {
@@ -28,7 +28,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Geral',
     items: [
-      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Dashboard', path: '/dashboard', icon: BarChart3 },
     ],
   },
   {
@@ -82,9 +82,9 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           aria-label={collapsed ? 'Expandir menu' : 'Colapsar menu'}
         >
           {collapsed ? (
-            <PanelLeftOpen className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5" />
           ) : (
-            <PanelLeftClose className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5" />
           )}
         </button>
       </div>

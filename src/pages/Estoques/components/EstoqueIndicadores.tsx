@@ -282,6 +282,33 @@ const EstoqueIndicadores = ({
               </div>
             </div>
           )}
+
+          {/* Mini KPIs below donut */}
+          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+            <div className="text-center">
+              <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatNumber(kpis.totalProdutos)}
+              </p>
+              <p className="text-[10px] text-gray-400">Total Produtos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatNumber(kpis.saldoTotal)}
+              </p>
+              <p className="text-[10px] text-gray-400">Saldo Total (un.)</p>
+            </div>
+            <div className="text-center">
+              <p className={cn(
+                'text-lg font-bold tabular-nums',
+                totalDonut > 0 && ((totalDonut - (kpis.produtosSemEstoque + computed.negativoCount)) / totalDonut) * 100 >= 50
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
+              )}>
+                {totalDonut > 0 ? (((totalDonut - (kpis.produtosSemEstoque + computed.negativoCount)) / totalDonut) * 100).toFixed(1) : '0'}%
+              </p>
+              <p className="text-[10px] text-gray-400">Cobertura</p>
+            </div>
+          </div>
         </div>
 
         {/* Top categories by stock */}
