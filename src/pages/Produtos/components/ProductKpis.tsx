@@ -114,11 +114,11 @@ const ProductKpis = ({ kpis, onNavigate }: ProductKpisProps) => {
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{item.label}</p>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800 ${item.iconColor}`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800 ${item.iconColor}`}>
                 <Icon className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
               {item.value}
             </p>
             <div className="mt-1">

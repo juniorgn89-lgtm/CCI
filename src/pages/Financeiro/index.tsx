@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, FileSpreadsheet, Settings } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, BarChart3, FileSpreadsheet, Settings, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { cn } from '@/lib/utils'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
-import FinanceKpis from '@/pages/Financeiro/components/FinanceKpis'
+import FinanceiroIndicadores from '@/pages/Financeiro/components/FinanceiroIndicadores'
 import ReceivablesTable from '@/pages/Financeiro/components/ReceivablesTable'
 import PayablesTable from '@/pages/Financeiro/components/PayablesTable'
 import CashFlowChart from '@/pages/Financeiro/components/CashFlowChart'
@@ -15,6 +14,7 @@ import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
+  indicadores: Activity,
   receber: Receipt,
   pagar: CreditCard,
   fluxo: BarChart3,
@@ -35,7 +35,7 @@ const TableSkeleton = () => (
 const Financeiro = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useFinanceiroLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'receber')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab)
@@ -53,7 +53,7 @@ const Financeiro = () => {
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'receber')
+    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
   }, [visibleTabs, activeTab])
 
   return (
@@ -80,15 +80,6 @@ const Financeiro = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          {showSkeleton ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
-            </div>
-          ) : kpis ? (
-            <FinanceKpis kpis={kpis} onNavigate={handleNavigate} />
-          ) : null}
-
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -133,6 +124,15 @@ const Financeiro = () => {
                 <TableSkeleton />
               ) : (
                 <>
+                  {activeTab === 'indicadores' && kpis && (
+                    <FinanceiroIndicadores
+                      kpis={kpis}
+                      receivablesData={receivablesData}
+                      payablesData={payablesData}
+                      cashFlowData={cashFlowData}
+                      onNavigateTab={handleNavigate}
+                    />
+                  )}
                   {activeTab === 'receber' && (
                     <ReceivablesTable data={receivablesData} />
                   )}

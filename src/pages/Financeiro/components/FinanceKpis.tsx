@@ -80,11 +80,11 @@ const FinanceKpis = ({ kpis, onNavigate }: FinanceKpisProps) => {
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{item.label}</p>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${item.iconBg} ${item.iconColor}`}>
-                <Icon className="h-4.5 w-4.5" />
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${item.iconBg} ${item.iconColor}`}>
+                <Icon className="h-4 w-4" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
               {item.value}
             </p>
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">

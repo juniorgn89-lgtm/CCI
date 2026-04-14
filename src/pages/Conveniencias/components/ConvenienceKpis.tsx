@@ -112,7 +112,7 @@ const ConvenienceKpis = ({ kpis, onNavigateTab }: ConvenienceKpisProps) => {
               </div>
             </div>
 
-            <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
               {item.value}
             </p>
 

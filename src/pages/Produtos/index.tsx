@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Package, List, BarChart3, Trophy, PieChart, Settings } from 'lucide-react'
+import { Package, List, BarChart3, Trophy, PieChart, Settings, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { cn } from '@/lib/utils'
 import { useProdutosLayout } from '@/store/moduleLayout'
-import ProductKpis from '@/pages/Produtos/components/ProductKpis'
 import ProductTable from '@/pages/Produtos/components/ProductTable'
+import ProdutoIndicadores from '@/pages/Produtos/components/ProdutoIndicadores'
 import TopSellersChart from '@/pages/Produtos/components/TopSellersChart'
 import ParetoChart from '@/pages/Produtos/components/ParetoChart'
 import AbcCurve from '@/pages/Produtos/components/AbcCurve'
@@ -15,6 +15,7 @@ import useProductData from '@/pages/Produtos/hooks/useProductData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Package> = {
+  indicadores: Activity,
   produtos: List,
   top: Trophy,
   pareto: BarChart3,
@@ -35,7 +36,7 @@ const TableSkeleton = () => (
 const Produtos = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useProdutosLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'produtos')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
   const { kpis, productTable, topSellers, abcData, gruposList, isLoading, hasEmpresa } = useProductData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
@@ -71,15 +72,6 @@ const Produtos = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          {showSkeleton ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)}
-            </div>
-          ) : kpis ? (
-            <ProductKpis kpis={kpis} onNavigate={handleNavigate} />
-          ) : null}
-
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -111,9 +103,27 @@ const Produtos = () => {
 
               {/* Content */}
               {showSkeleton ? (
-                <TableSkeleton />
+                activeTab === 'indicadores' ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)}
+                    </div>
+                    <Skeleton className="h-48 w-full rounded-xl" />
+                  </div>
+                ) : (
+                  <TableSkeleton />
+                )
               ) : (
                 <>
+                  {activeTab === 'indicadores' && kpis && (
+                    <ProdutoIndicadores
+                      kpis={kpis}
+                      productTable={productTable}
+                      topSellers={topSellers}
+                      abcData={abcData}
+                      onNavigateTab={handleNavigate}
+                    />
+                  )}
                   {activeTab === 'produtos' && <ProductTable data={productTable} grupos={gruposList} />}
                   {activeTab === 'top' && <TopSellersChart data={topSellers} />}
                   {activeTab === 'pareto' && <ParetoChart data={productTable} />}

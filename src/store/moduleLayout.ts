@@ -54,9 +54,9 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 3,
+        version: 4,
         migrate: (persisted, version) => {
-          if (version < 3 || !persisted) return { tabs: defaultTabs }
+          if (version < 4 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
           const knownIds = defaultTabs.map((t) => t.id)
           const existingIds = new Set(state.tabs.map((t) => t.id))
@@ -91,6 +91,7 @@ export const useConvenienciasLayout = createModuleLayoutStore('ccisga-convenienc
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout', [
+  { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'posicao', label: 'Posição', visible: true },
   { id: 'movimentacao', label: 'Movimentação', visible: true },
   { id: 'alertas', label: 'Alertas', visible: true },
@@ -99,6 +100,7 @@ export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout
 ])
 
 export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-layout', [
+  { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
@@ -106,6 +108,7 @@ export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-la
 ])
 
 export const useProdutosLayout = createModuleLayoutStore('ccisga-produtos-layout', [
+  { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'produtos', label: 'Produtos', visible: true },
   { id: 'top', label: 'Mais vendidos', visible: true },
   { id: 'pareto', label: 'Pareto', visible: true },

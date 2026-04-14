@@ -105,15 +105,15 @@ const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, in
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-xl border-l-4 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.border)}
+              className={cn('rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.border)}
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', card.bg)}>
+                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.bg)}>
                   <Icon className={cn('h-4 w-4', card.color)} />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
               <div className="mt-1 flex items-center gap-2">
                 {'subtitle' in card && card.subtitle && (
                   <p className="text-xs text-gray-400">{card.subtitle}</p>

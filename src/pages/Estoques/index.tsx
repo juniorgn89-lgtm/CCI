@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Warehouse, LayoutList, BarChart3, AlertTriangle, Clock, TrendingUp, Settings } from 'lucide-react'
+import { Warehouse, LayoutList, BarChart3, AlertTriangle, Clock, TrendingUp, Activity, Settings } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { cn } from '@/lib/utils'
 import { useEstoquesLayout } from '@/store/moduleLayout'
-import StockKpis from '@/pages/Estoques/components/StockKpis'
+import EstoqueIndicadores from '@/pages/Estoques/components/EstoqueIndicadores'
 import StockTable from '@/pages/Estoques/components/StockTable'
 import StockMovementChart from '@/pages/Estoques/components/StockMovementChart'
 import StockAlerts, { type SeverityFilter } from '@/pages/Estoques/components/StockAlerts'
@@ -16,6 +15,7 @@ import useStockData from '@/pages/Estoques/hooks/useStockData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Warehouse> = {
+  indicadores: Activity,
   posicao: LayoutList,
   movimentacao: BarChart3,
   alertas: AlertTriangle,
@@ -37,7 +37,7 @@ const TableSkeleton = () => (
 const Estoques = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useEstoquesLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'posicao')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
   const [alertFilter, setAlertFilter] = useState<SeverityFilter>('all')
 
   const handleNavigate = (tab: string, filter?: SeverityFilter) => {
@@ -58,7 +58,7 @@ const Estoques = () => {
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'posicao')
+    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
   }, [visibleTabs, activeTab])
 
   return (
@@ -85,15 +85,6 @@ const Estoques = () => {
       {/* Main content — only when empresa is selected */}
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          {showSkeleton ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
-            </div>
-          ) : kpis ? (
-            <StockKpis kpis={kpis} onNavigate={handleNavigate} />
-          ) : null}
-
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -134,6 +125,16 @@ const Estoques = () => {
                 <TableSkeleton />
               ) : (
                 <>
+                  {activeTab === 'indicadores' && kpis && (
+                    <EstoqueIndicadores
+                      kpis={kpis}
+                      stockTable={stockTable}
+                      alerts={alerts}
+                      categoryStock={categoryStock}
+                      statusBreakdown={statusBreakdown}
+                      onNavigateTab={handleNavigate}
+                    />
+                  )}
                   {activeTab === 'posicao' && (
                     <StockTable data={stockTable} categorias={categorias} />
                   )}
