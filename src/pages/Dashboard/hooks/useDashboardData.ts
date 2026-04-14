@@ -71,7 +71,7 @@ export interface TotalRow {
 }
 
 export interface PeriodComparison {
-  prevMonth: { faturamento: number; lucroBruto: number }
+  prevMonth: { faturamento: number; lucroBruto: number; abastecimentos: number }
   prevYear: { faturamento: number; lucroBruto: number }
 }
 
@@ -611,6 +611,7 @@ const useDashboardData = () => {
       prevMonth: {
         faturamento: prevMonthFat,
         lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
+        abastecimentos: abastPrevMonth.filter((a) => !empresaCodigos.length || empresaCodigos.includes(a.empresaCodigo)).length,
       },
       prevYear: {
         faturamento: prevYearFat,
