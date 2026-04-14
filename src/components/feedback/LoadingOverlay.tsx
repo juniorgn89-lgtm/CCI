@@ -14,7 +14,7 @@ const timelineSteps = [
   'Analisando estoque e produtos',
   'Calculando margens e volumes',
   'Organizando dados financeiros',
-  'Finalizando',
+  'Preparando painel...',
 ]
 
 const getActiveStep = (progress: number): number => {
@@ -27,7 +27,7 @@ const getActiveStep = (progress: number): number => {
   return 6
 }
 
-const STALE_TIMEOUT = 2 * 60 * 1000 // TODO: voltar para 30 * 60 * 1000
+const STALE_TIMEOUT = 30 * 60 * 1000
 
 /* ─── Timeline Step ─── */
 

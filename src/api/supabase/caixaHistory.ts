@@ -32,7 +32,7 @@ export interface CaixaAlteracao {
 /* ─── Detect and save changes ─── */
 
 export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
-  if (snapshots.length === 0) return
+  if (!supabase || snapshots.length === 0) return
 
   for (const snap of snapshots) {
     // Check if snapshot exists
@@ -127,6 +127,7 @@ export const fetchCaixaAlteracoes = async (
   dataInicial?: string,
   dataFinal?: string
 ): Promise<CaixaAlteracao[]> => {
+  if (!supabase) return []
   let query = supabase
     .from('caixa_alteracoes')
     .select('*')
@@ -147,6 +148,7 @@ export const fetchCaixaAlteracoesByCaixa = async (
   turnoCodigo: number,
   dataMovimento: string
 ): Promise<CaixaAlteracao[]> => {
+  if (!supabase) return []
   const { data, error } = await supabase
     .from('caixa_alteracoes')
     .select('*')
