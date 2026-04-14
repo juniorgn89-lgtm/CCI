@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import type { OperacaoKpiData } from '@/pages/Operacao/hooks/useOperacaoData'
 
-type TabKey = 'bombas' | 'abastecimentos' | 'turnos' | 'caixa' | 'produtividade'
+type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
 
 interface OperacaoKpisProps {
   kpis: OperacaoKpiData

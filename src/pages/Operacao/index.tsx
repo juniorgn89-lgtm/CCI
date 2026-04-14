@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Fuel, Gauge, Wallet, BarChart3 } from 'lucide-react'
+import { Fuel, Gauge, Wallet, BarChart3, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { cn } from '@/lib/utils'
-import OperacaoKpis from '@/pages/Operacao/components/OperacaoKpis'
+import OperacaoIndicadores from '@/pages/Operacao/components/OperacaoIndicadores'
 import ControleBombas from '@/pages/Operacao/components/ControleBombas'
 import RegistroAbastecimentos from '@/pages/Operacao/components/RegistroAbastecimentos'
 import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
@@ -13,35 +13,18 @@ import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useProductivityData from '@/pages/Operacao/hooks/useProductivityData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
-type TabKey = 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
+type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
 
 const tabs: { key: TabKey; label: string; icon: typeof Fuel }[] = [
+  { key: 'indicadores', label: 'Indicadores', icon: Activity },
   { key: 'bombas', label: 'Bombas', icon: Gauge },
   { key: 'abastecimentos', label: 'Abastecimentos', icon: Fuel },
   { key: 'caixa', label: 'Caixa & Turnos', icon: Wallet },
   { key: 'produtividade', label: 'Produtividade', icon: BarChart3 },
 ]
 
-
-const ContentSkeleton = () => (
-  <div className="space-y-4">
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <Skeleton className="mb-4 h-5 w-40" />
-      <Skeleton className="h-[280px] w-full rounded-lg" />
-    </div>
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="space-y-3">
-        <Skeleton className="h-8 w-full" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    </div>
-  </div>
-)
-
 const Operacao = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('bombas')
+  const [activeTab, setActiveTab] = useState<TabKey>('indicadores')
   const {
     kpis,
     frentistaRows,
@@ -85,15 +68,6 @@ const Operacao = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          {showSkeleton ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-              {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
-            </div>
-          ) : kpis ? (
-            <OperacaoKpis kpis={kpis} onNavigateTab={setActiveTab} />
-          ) : null}
-
           {/* Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
             {tabs.map((tab) => {
@@ -118,9 +92,24 @@ const Operacao = () => {
 
           {/* Content */}
           {showSkeleton ? (
-            <ContentSkeleton />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+                {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
+              </div>
+            </div>
           ) : (
             <>
+              {activeTab === 'indicadores' && kpis && (
+                <OperacaoIndicadores
+                  kpis={kpis}
+                  frentistaRows={frentistaRows}
+                  bombaRows={bombaRows}
+                  abastecimentoRows={abastecimentoRows}
+                  turnoRows={turnoRows}
+                  caixaResumo={caixaResumo}
+                  onNavigateTab={setActiveTab}
+                />
+              )}
               {activeTab === 'bombas' && (
                 <ControleBombas bombaRows={bombaRows} />
               )}

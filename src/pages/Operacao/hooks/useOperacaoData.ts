@@ -164,7 +164,7 @@ const useOperacaoData = () => {
     enabled: hasEmpresa && empresaCodigo !== null,
   })
 
-  // Formas de pagamento (direct call)
+  // Formas de pagamento
   const { data: formasPgtoRaw, isLoading: l7 } = useQuery({
     queryKey: ['vendaFormasPgto', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaFormasPagamento({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, limite: 1000 }),
@@ -325,11 +325,9 @@ const useOperacaoData = () => {
           return abastDate === c.dataMovimento
         })
 
-        // Aggregate frentistas who worked during this shift
+        // Aggregate all frentistas who worked during this shift (including opener)
         const frentistaAgg = new Map<number, { litros: number; count: number; valor: number }>()
         for (const a of shiftAbast) {
-          // Skip the shift opener — they're already shown as the responsible
-          if (a.codigoFrentista === c.funcionarioCodigo) continue
           const prev = frentistaAgg.get(a.codigoFrentista) ?? { litros: 0, count: 0, valor: 0 }
           frentistaAgg.set(a.codigoFrentista, {
             litros: prev.litros + a.quantidade,
@@ -348,8 +346,10 @@ const useOperacaoData = () => {
           .sort((a, b) => b.litros - a.litros)
 
         // Cross-reference formas de pagamento for this shift
+        const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
         const shiftPgto = formasPgto.filter((fp) => {
-          return fp.dataMovimento === c.dataMovimento && fp.turnoCodigo === c.turnoCodigo
+          const fpDate = fp.dataMovimento?.substring(0, 10) ?? ''
+          return fpDate === caixaDate
         })
 
         const pgtoAggShift = new Map<string, { nome: string; valor: number; count: number }>()
