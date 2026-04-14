@@ -371,11 +371,14 @@ const useConvenienceData = () => {
     addToMonth(convItens, false)  // current period (already filtered)
     const revenueData: RevenueRow[] = Array.from(byMonth.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, v]) => ({
-        mes,
-        faturamento: v.faturamento,
-        margem: v.faturamento - v.custo,
-      }))
+      .map(([key, v]) => {
+        const [y, m] = key.split('-')
+        return {
+          mes: `${m}/${y}`,
+          faturamento: v.faturamento,
+          margem: v.faturamento - v.custo,
+        }
+      })
 
     // ── Product catalog ──
     const catalogProducts: CatalogProduct[] = Array.from(byProduct.entries())

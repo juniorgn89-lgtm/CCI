@@ -1,26 +1,26 @@
 import { useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Warehouse, Trophy, BarChart3, Settings } from 'lucide-react'
+import { Store, ShoppingCart, Package, Warehouse, Trophy, Settings, Activity } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
-import ConvenienceKpis from '@/pages/Conveniencias/components/ConvenienceKpis'
+import ConvenienciaIndicadores from '@/pages/Conveniencias/components/ConvenienciaIndicadores'
 import SalesOverview from '@/pages/Conveniencias/components/SalesOverview'
 import ProductCatalog from '@/pages/Conveniencias/components/ProductCatalog'
 import StockView from '@/pages/Conveniencias/components/StockView'
 import TopSellers from '@/pages/Conveniencias/components/TopSellers'
-import PerformanceAnalysis from '@/pages/Conveniencias/components/PerformanceAnalysis'
+
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Store> = {
+  indicadores: Activity,
   vendas: ShoppingCart,
   catalogo: Package,
   estoque: Warehouse,
   topVendidos: Trophy,
-  performance: BarChart3,
 }
 
 const ContentSkeleton = () => (
@@ -43,7 +43,7 @@ const ContentSkeleton = () => (
 const Conveniencias = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useConvenienciasLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'vendas')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
   const {
     kpis,
     dailyData,
@@ -54,9 +54,6 @@ const Conveniencias = () => {
     stockSummary,
     topSellers,
     treemapData,
-    highMargin,
-    highVolume,
-    lowSales,
     insights,
     gruposList,
     isLoading,
@@ -65,7 +62,7 @@ const Conveniencias = () => {
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'vendas')
+    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
   }, [visibleTabs, activeTab])
 
   return (
@@ -92,15 +89,6 @@ const Conveniencias = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          {showSkeleton ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
-            </div>
-          ) : kpis ? (
-            <ConvenienceKpis kpis={kpis} onNavigateTab={setActiveTab} />
-          ) : null}
-
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -132,9 +120,24 @@ const Conveniencias = () => {
 
               {/* Content */}
               {showSkeleton ? (
-                <ContentSkeleton />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)}
+                  </div>
+                  <ContentSkeleton />
+                </div>
               ) : (
                 <>
+                  {activeTab === 'indicadores' && kpis && (
+                    <ConvenienciaIndicadores
+                      kpis={kpis}
+                      groupTable={groupTable}
+                      topSellers={topSellers}
+                      revenueData={revenueData}
+                      insights={insights}
+                      onNavigateTab={setActiveTab}
+                    />
+                  )}
                   {activeTab === 'vendas' && (
                     <SalesOverview
                       dailyData={dailyData}
@@ -160,14 +163,7 @@ const Conveniencias = () => {
                       treemapData={treemapData}
                     />
                   )}
-                  {activeTab === 'performance' && (
-                    <PerformanceAnalysis
-                      highMargin={highMargin}
-                      highVolume={highVolume}
-                      lowSales={lowSales}
-                      insights={insights}
-                    />
-                  )}
+
                 </>
               )}
             </>

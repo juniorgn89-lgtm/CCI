@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import type { ConvKpiData } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
-type TabKey = 'vendas' | 'catalogo' | 'estoque' | 'topVendidos' | 'performance'
+type TabKey = 'indicadores' | 'vendas' | 'catalogo' | 'estoque' | 'topVendidos' | 'performance'
 
 interface ConvenienceKpisProps {
   kpis: ConvKpiData

@@ -54,9 +54,9 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 1,
+        version: 3,
         migrate: (persisted, version) => {
-          if (version === 0 || !persisted) return { tabs: defaultTabs }
+          if (version < 3 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
           const knownIds = defaultTabs.map((t) => t.id)
           const existingIds = new Set(state.tabs.map((t) => t.id))
@@ -83,11 +83,11 @@ export const useCombustiveisLayout = createModuleLayoutStore('ccisga-combustivei
 ])
 
 export const useConvenienciasLayout = createModuleLayoutStore('ccisga-conveniencias-layout', [
+  { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'vendas', label: 'Vendas', visible: true },
   { id: 'catalogo', label: 'Catálogo', visible: true },
   { id: 'estoque', label: 'Estoque', visible: true },
   { id: 'topVendidos', label: 'Mais Vendidos', visible: true },
-  { id: 'performance', label: 'Performance', visible: true },
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout', [
