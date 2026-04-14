@@ -7,23 +7,26 @@ import {
   Target,
   TrendingUp,
   Activity,
+  CalendarDays,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { cn } from '@/lib/utils'
 import useNetworkData from './hooks/useNetworkData'
+import usePostoComparativo from './hooks/usePostoComparativo'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import CompanyPicker from './components/CompanyPicker'
 import PostoComparison from './components/PostoComparison'
+import PostoComparativo from './components/PostoComparativo'
 import NetworkMap from './components/NetworkMap'
 import SmartAnalysis from './components/SmartAnalysis'
 import PostoGoals from './components/PostoGoals'
 import SalesForecast from './components/SalesForecast'
 import ControlCenter from './components/ControlCenter'
 
-type TabKey = 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle'
+type TabKey = 'comparativo' | 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle'
 
-const tabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
+const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
   { key: 'comparacao', label: 'Comparação', icon: GitCompareArrows },
   { key: 'mapa', label: 'Mapa da Rede', icon: Map },
@@ -32,14 +35,30 @@ const tabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'previsao', label: 'Previsão', icon: TrendingUp },
 ]
 
+const singleTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
+  { key: 'comparativo', label: 'Comparativo', icon: CalendarDays },
+  { key: 'controle', label: 'Centro de Controle', icon: Activity },
+  { key: 'analise', label: 'Análise Inteligente', icon: Lightbulb },
+  { key: 'metas', label: 'Metas', icon: Target },
+  { key: 'previsao', label: 'Previsão', icon: TrendingUp },
+]
 
 const Inteligencia = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('controle')
+  const [activeTab, setActiveTab] = useState<TabKey>('comparativo')
   const [selectedEmpresas, setSelectedEmpresas] = useState<number[]>([])
 
   const handleCompare = useCallback((codigos: number[]) => {
     setSelectedEmpresas(codigos)
+    // Auto-select appropriate tab
+    if (codigos.length === 1) {
+      setActiveTab('comparativo')
+    } else if (codigos.length > 1) {
+      setActiveTab('controle')
+    }
   }, [])
+
+  const isSingle = selectedEmpresas.length === 1
+  const tabs = isSingle ? singleTabs : multiTabs
 
   const {
     postos,
@@ -51,6 +70,9 @@ const Inteligencia = () => {
     alerts,
     isLoading,
   } = useNetworkData({ empresaCodigos: selectedEmpresas })
+
+  const { comparativo } = usePostoComparativo(isSingle ? selectedEmpresas[0] : null)
+
   const hasEmpresa = selectedEmpresas.length > 0
   const showSkeleton = useShowSkeleton(isLoading, !!postos)
 
@@ -67,7 +89,9 @@ const Inteligencia = () => {
               Inteligência da Rede
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Análise estratégica e comparação de desempenho entre postos
+              {isSingle
+                ? 'Análise temporal e comparativo de desempenho'
+                : 'Análise estratégica e comparação de desempenho entre postos'}
             </p>
           </div>
         </div>
@@ -80,10 +104,10 @@ const Inteligencia = () => {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
           <GitCompareArrows className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Selecione os postos acima para iniciar a comparação
+            Selecione os postos acima para iniciar a análise
           </p>
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            Escolha 2 ou mais postos para comparar o desempenho entre eles
+            1 posto = comparativo temporal &middot; 2+ postos = comparação entre postos
           </p>
         </div>
       ) : (
@@ -129,13 +153,19 @@ const Inteligencia = () => {
             </div>
           ) : (
             <>
+              {/* Single posto: temporal comparison */}
+              {activeTab === 'comparativo' && isSingle && comparativo && (
+                <PostoComparativo data={comparativo} />
+              )}
+
+              {/* Multi posto tabs */}
               {activeTab === 'controle' && (
                 <ControlCenter postos={postos} networkTotals={networkTotals} alerts={alerts} />
               )}
-              {activeTab === 'comparacao' && (
+              {activeTab === 'comparacao' && !isSingle && (
                 <PostoComparison postos={postos} networkAvg={networkAvg} />
               )}
-              {activeTab === 'mapa' && <NetworkMap postos={postos} />}
+              {activeTab === 'mapa' && !isSingle && <NetworkMap postos={postos} />}
               {activeTab === 'analise' && <SmartAnalysis insights={insights} />}
               {activeTab === 'metas' && <PostoGoals goals={goals} />}
               {activeTab === 'previsao' && <SalesForecast forecastData={forecastData} />}
