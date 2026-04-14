@@ -165,7 +165,7 @@ const ProdutividadeTab = ({ frentistaRows, abastecimentoRows, conversionRanking,
       {/* Sub-tab content */}
       {activeSubTab === 'ranking' && <RankingFrentistas data={mergedData} />}
       {activeSubTab === 'indicadores' && <IndicadoresProdutividade data={mergedData} />}
-      {activeSubTab === 'conversao' && <ConversaoProdutos conversionRanking={conversionRanking} />}
+      {activeSubTab === 'conversao' && <ConversaoProdutos conversionRanking={conversionRanking} mergedData={mergedData} />}
       {activeSubTab === 'performance' && <PerformanceAtendimento data={mergedData} />}
       {activeSubTab === 'tendencia' && <AnaliseTendencia trends={dailyTrends} />}
     </div>
