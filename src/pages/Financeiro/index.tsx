@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, FileSpreadsheet } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Landmark, Receipt, CreditCard, BarChart3, FileSpreadsheet, Settings } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import ModuleSettings from '@/components/layout/ModuleSettings'
 import { cn } from '@/lib/utils'
+import { useFinanceiroLayout } from '@/store/moduleLayout'
 import FinanceKpis from '@/pages/Financeiro/components/FinanceKpis'
 import ReceivablesTable from '@/pages/Financeiro/components/ReceivablesTable'
 import PayablesTable from '@/pages/Financeiro/components/PayablesTable'
@@ -12,15 +14,12 @@ import DreTable from '@/pages/Financeiro/components/DreTable'
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
-type TabKey = 'receber' | 'pagar' | 'fluxo' | 'dre'
-
-const tabs: { key: TabKey; label: string; icon: typeof Receipt }[] = [
-  { key: 'receber', label: 'Receber', icon: Receipt },
-  { key: 'pagar', label: 'Pagar', icon: CreditCard },
-  { key: 'fluxo', label: 'Fluxo de Caixa', icon: BarChart3 },
-  { key: 'dre', label: 'DRE', icon: FileSpreadsheet },
-]
-
+const TAB_ICONS: Record<string, typeof Receipt> = {
+  receber: Receipt,
+  pagar: CreditCard,
+  fluxo: BarChart3,
+  dre: FileSpreadsheet,
+}
 
 const TableSkeleton = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -34,9 +33,11 @@ const TableSkeleton = () => (
 )
 
 const Financeiro = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('receber')
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useFinanceiroLayout()
+  const visibleTabs = layoutTabs.filter((t) => t.visible)
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'receber')
 
-  const handleNavigate = (tab: TabKey) => {
+  const handleNavigate = (tab: string) => {
     setActiveTab(tab)
   }
 
@@ -51,10 +52,14 @@ const Financeiro = () => {
   } = useFinanceData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'receber')
+  }, [visibleTabs, activeTab])
+
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <Landmark className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -66,6 +71,7 @@ const Financeiro = () => {
             </p>
           </div>
         </div>
+        <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </div>
 
       {/* Empty state: no empresa selected */}
@@ -83,54 +89,63 @@ const Financeiro = () => {
             <FinanceKpis kpis={kpis} onNavigate={handleNavigate} />
           ) : null}
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              const overdueCount = tab.key === 'receber'
-                ? (kpis?.countVencidosReceber ?? 0)
-                : tab.key === 'pagar'
-                  ? (kpis?.countVencidosPagar ?? 0)
-                  : 0
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={cn(
-                    'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                    activeTab === tab.key
-                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                  {overdueCount > 0 && activeTab !== tab.key && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400">
-                      {overdueCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Content */}
-          {showSkeleton ? (
-            <TableSkeleton />
+          {visibleTabs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+              <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma aba visível. Use o botão ⚙️ para personalizar.</p>
+            </div>
           ) : (
             <>
-              {activeTab === 'receber' && (
-                <ReceivablesTable data={receivablesData} />
-              )}
-              {activeTab === 'pagar' && (
-                <PayablesTable data={payablesData} />
-              )}
-              {activeTab === 'fluxo' && (
-                <CashFlowChart data={cashFlowData} />
-              )}
-              {activeTab === 'dre' && (
-                <DreTable data={dreData} />
+              {/* Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+                {visibleTabs.map((tab) => {
+                  const Icon = TAB_ICONS[tab.id] ?? Receipt
+                  const overdueCount = tab.id === 'receber'
+                    ? (kpis?.countVencidosReceber ?? 0)
+                    : tab.id === 'pagar'
+                      ? (kpis?.countVencidosPagar ?? 0)
+                      : 0
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
+                        activeTab === tab.id
+                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                      {overdueCount > 0 && activeTab !== tab.id && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400">
+                          {overdueCount}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Content */}
+              {showSkeleton ? (
+                <TableSkeleton />
+              ) : (
+                <>
+                  {activeTab === 'receber' && (
+                    <ReceivablesTable data={receivablesData} />
+                  )}
+                  {activeTab === 'pagar' && (
+                    <PayablesTable data={payablesData} />
+                  )}
+                  {activeTab === 'fluxo' && (
+                    <CashFlowChart data={cashFlowData} />
+                  )}
+                  {activeTab === 'dre' && (
+                    <DreTable data={dreData} />
+                  )}
+                </>
               )}
             </>
           )}

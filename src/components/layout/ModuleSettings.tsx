@@ -8,25 +8,37 @@ import {
 } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { Settings, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react'
-import { useOperacaoLayoutStore } from '@/store/operacaoLayout'
 
-const OperacaoSettings = () => {
-  const { tabs, toggleVisibility, moveUp, moveDown, reset } = useOperacaoLayoutStore()
+interface Tab {
+  id: string
+  label: string
+  visible: boolean
+}
 
+interface ModuleSettingsProps {
+  title: string
+  tabs: Tab[]
+  toggleVisibility: (id: string) => void
+  moveUp: (id: string) => void
+  moveDown: (id: string) => void
+  reset: () => void
+}
+
+const ModuleSettings = ({ title, tabs, toggleVisibility, moveUp, moveDown, reset }: ModuleSettingsProps) => {
   return (
     <Sheet>
       <SheetTrigger
         className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        aria-label="Personalizar módulo de operação"
+        aria-label={`Personalizar ${title}`}
       >
         <Settings className="h-4 w-4" />
       </SheetTrigger>
 
       <SheetContent side="right" className="flex flex-col">
         <SheetHeader>
-          <SheetTitle>Personalizar Operação</SheetTitle>
+          <SheetTitle>Personalizar {title}</SheetTitle>
           <SheetDescription>
-            Reorganize e oculte abas do módulo de operação
+            Reorganize e oculte abas do módulo
           </SheetDescription>
         </SheetHeader>
 
@@ -79,9 +91,6 @@ const OperacaoSettings = () => {
 
         <div className="mt-auto pt-4">
           <Separator className="mb-4" />
-          <p className="mb-3 text-[10px] text-gray-400 dark:text-gray-500">
-            As preferências são salvas localmente no navegador. Com o Supabase configurado, serão sincronizadas por usuário.
-          </p>
           <button
             onClick={reset}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -95,4 +104,4 @@ const OperacaoSettings = () => {
   )
 }
 
-export default OperacaoSettings
+export default ModuleSettings

@@ -2,19 +2,19 @@ import { useEffect, useState } from 'react'
 import { Fuel, Gauge, Wallet, BarChart3, Activity, Settings } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import ModuleSettings from '@/components/layout/ModuleSettings'
 import { cn } from '@/lib/utils'
+import { useOperacaoLayout } from '@/store/moduleLayout'
 import OperacaoIndicadores from '@/pages/Operacao/components/OperacaoIndicadores'
 import ControleBombas from '@/pages/Operacao/components/ControleBombas'
 import RegistroAbastecimentos from '@/pages/Operacao/components/RegistroAbastecimentos'
 import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
 import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
-import OperacaoSettings from '@/pages/Operacao/components/OperacaoSettings'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useProductivityData from '@/pages/Operacao/hooks/useProductivityData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
-import { useOperacaoLayoutStore, type TabId } from '@/store/operacaoLayout'
 
-const TAB_ICONS: Record<TabId, typeof Fuel> = {
+const TAB_ICONS: Record<string, typeof Fuel> = {
   indicadores: Activity,
   bombas: Gauge,
   abastecimentos: Fuel,
@@ -23,10 +23,10 @@ const TAB_ICONS: Record<TabId, typeof Fuel> = {
 }
 
 const Operacao = () => {
-  const { tabs: layoutTabs } = useOperacaoLayoutStore()
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useOperacaoLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
 
-  const [activeTab, setActiveTab] = useState<TabId>(visibleTabs[0]?.id ?? 'indicadores')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
 
   // If activeTab becomes hidden, switch to first visible
   useEffect(() => {
@@ -70,7 +70,7 @@ const Operacao = () => {
             </p>
           </div>
         </div>
-        <OperacaoSettings />
+        <ModuleSettings title="Operação" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </div>
 
       {/* Empty state */}
@@ -91,7 +91,7 @@ const Operacao = () => {
             <>
               <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
                 {visibleTabs.map((tab) => {
-                  const Icon = TAB_ICONS[tab.id]
+                  const Icon = TAB_ICONS[tab.id] ?? Activity
                   return (
                     <button
                       key={tab.id}
