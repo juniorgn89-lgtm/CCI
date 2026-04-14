@@ -1,16 +1,39 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsFetching } from '@tanstack/react-query'
+import { useFilterStore } from '@/store/filters'
 import { RefreshCw } from 'lucide-react'
 
 const TopLoader = () => {
   const isFetching = useIsFetching()
+  const { empresaCodigos } = useFilterStore()
   const loading = isFetching > 0
   const [progress, setProgress] = useState(0)
   const [visible, setVisible] = useState(false)
   const [showRefreshBanner, setShowRefreshBanner] = useState(false)
   const hasLoadedOnce = useRef(false)
+  const lastCompanyKey = useRef(empresaCodigos.slice().sort().join(','))
+  const suppressUntilDone = useRef(false)
+
+  // Detect company change — suppress TopLoader while LoadingOverlay handles it
+  useEffect(() => {
+    const key = empresaCodigos.slice().sort().join(',')
+    if (key !== lastCompanyKey.current) {
+      lastCompanyKey.current = key
+      suppressUntilDone.current = true
+    }
+  }, [empresaCodigos])
+
+  // Clear suppress flag when fetching completes after company change
+  useEffect(() => {
+    if (suppressUntilDone.current && !loading) {
+      suppressUntilDone.current = false
+    }
+  }, [loading])
 
   useEffect(() => {
+    // Don't show TopLoader during company change (LoadingOverlay handles it)
+    if (suppressUntilDone.current) return
+
     if (loading) {
       setVisible(true)
       setProgress(10)
@@ -18,7 +41,6 @@ const TopLoader = () => {
       const t2 = setTimeout(() => setProgress(60), 500)
       const t3 = setTimeout(() => setProgress(80), 1500)
 
-      // Show refresh banner only on subsequent fetches (not initial load)
       if (hasLoadedOnce.current) {
         setShowRefreshBanner(true)
       }
@@ -36,7 +58,7 @@ const TopLoader = () => {
     }
   }, [loading])
 
-  if (!visible) return null
+  if (!visible || suppressUntilDone.current) return null
 
   return (
     <>

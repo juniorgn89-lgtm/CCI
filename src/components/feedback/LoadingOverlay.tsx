@@ -142,10 +142,14 @@ const LoadingOverlay = () => {
 
   useEffect(() => {
     if (isRefreshing && isFetching === 0) {
-      setShowBanner(false)
-      setIsRefreshing(false)
-      if (staleTimer.current) clearTimeout(staleTimer.current)
-      staleTimer.current = setTimeout(() => setShowBanner(true), STALE_TIMEOUT)
+      // Keep banner visible briefly to show completion
+      const t = setTimeout(() => {
+        setShowBanner(false)
+        setIsRefreshing(false)
+        if (staleTimer.current) clearTimeout(staleTimer.current)
+        staleTimer.current = setTimeout(() => setShowBanner(true), STALE_TIMEOUT)
+      }, 1500)
+      return () => clearTimeout(t)
     }
   }, [isRefreshing, isFetching])
 
@@ -229,8 +233,12 @@ const LoadingOverlay = () => {
               <RefreshCw className={`h-5 w-5 text-blue-400 ${isRefreshing ? 'animate-spin' : ''}`} />
             </div>
             <div className="mr-2">
-              <p className="text-sm font-medium text-white">Novos dados disponíveis</p>
-              <p className="text-xs text-gray-400">Já se passaram 30 minutos desde a última atualização</p>
+              <p className="text-sm font-medium text-white">
+                {isRefreshing ? 'Atualizando dados...' : 'Novos dados disponíveis'}
+              </p>
+              <p className="text-xs text-gray-400">
+                {isRefreshing ? 'Aguarde enquanto os dados são atualizados' : 'Já se passaram 30 minutos desde a última atualização'}
+              </p>
             </div>
             <button
               onClick={handleRefresh}
@@ -239,13 +247,15 @@ const LoadingOverlay = () => {
             >
               {isRefreshing ? 'Atualizando...' : 'Atualizar agora'}
             </button>
-            <button
-              onClick={handleDismissBanner}
-              className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:text-gray-300"
-              aria-label="Dispensar"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {!isRefreshing && (
+              <button
+                onClick={handleDismissBanner}
+                className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:text-gray-300"
+                aria-label="Dispensar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       )}

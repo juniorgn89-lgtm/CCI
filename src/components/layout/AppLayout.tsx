@@ -7,6 +7,7 @@ import Sidebar, { navItems } from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
+import TopLoader from '@/components/feedback/TopLoader'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 
@@ -85,6 +86,7 @@ const AppLayout = () => {
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        <TopLoader />
         <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
         <main

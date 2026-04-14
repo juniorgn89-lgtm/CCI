@@ -90,7 +90,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             aria-label="Atualizar dados"
           >
             <RefreshCw
-              className={`h-4 w-4${manualRefreshing ? ' animate-spin' : ''}`}
+              className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`}
             />
           </button>
           <NotificationBell />
