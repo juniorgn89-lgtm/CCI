@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Outlet } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -22,6 +22,7 @@ const AppLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const mainRef = useRef<HTMLElement>(null)
 
   // Always redirect to dashboard on page refresh (initial mount)
   useEffect(() => {
@@ -37,6 +38,11 @@ const AppLayout = () => {
     mql.addEventListener('change', handler)
     return () => mql.removeEventListener('change', handler)
   }, [])
+
+  // Scroll to top on route change
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [pathname])
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
@@ -82,6 +88,7 @@ const AppLayout = () => {
         <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
         <main
+          ref={mainRef}
           role="main"
           className="flex-1 overflow-y-auto p-4 md:p-6"
           onClick={() => { if (!collapsed) setCollapsed(true) }}
