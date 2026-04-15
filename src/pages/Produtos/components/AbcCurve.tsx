@@ -61,17 +61,18 @@ const AbcCurve = ({ data }: AbcCurveProps) => {
   return (
     <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         {([
-          { cls: 'A' as const, count: countA, fat: fatA, label: '≤ 80% do faturamento', border: 'border-green-400', bg: 'bg-green-50 dark:bg-green-950/30' },
-          { cls: 'B' as const, count: countB, fat: fatB, label: '80% — 95%', border: 'border-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-950/30' },
-          { cls: 'C' as const, count: countC, fat: fatC, label: '95% — 100%', border: 'border-red-400', bg: 'bg-red-50 dark:bg-red-950/30' },
+          { cls: 'A' as const, count: countA, fat: fatA, label: '≤ 80% do faturamento', cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/20 dark:to-gray-900', iconBg: 'bg-green-100 dark:bg-green-900/30' },
+          { cls: 'B' as const, count: countB, fat: fatB, label: '80% — 95%', cardBg: 'bg-gradient-to-br from-yellow-50/60 to-white dark:from-yellow-950/20 dark:to-gray-900', iconBg: 'bg-yellow-100 dark:bg-yellow-900/30' },
+          { cls: 'C' as const, count: countC, fat: fatC, label: '95% — 100%', cardBg: 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900', iconBg: 'bg-red-100 dark:bg-red-900/30' },
         ]).map((item) => (
           <button
             key={item.cls}
             onClick={() => setFilterClass(filterClass === item.cls ? '' : item.cls)}
             className={cn(
-              `rounded-xl border-l-4 p-4 text-left transition-all ${item.border} ${item.bg}`,
+              'rounded-lg border border-gray-200/60 px-3 py-2.5 text-left transition-all dark:border-gray-700/60',
+              item.cardBg,
               filterClass === item.cls && 'ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-gray-950'
             )}
           >

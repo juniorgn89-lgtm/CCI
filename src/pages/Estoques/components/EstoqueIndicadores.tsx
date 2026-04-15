@@ -114,8 +114,8 @@ const EstoqueIndicadores = ({
       value: formatNumber(kpis.totalProdutos),
       icon: Package,
       color: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-500',
-      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
+      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
       tab: 'posicao' as TabKey,
     },
     {
@@ -123,8 +123,8 @@ const EstoqueIndicadores = ({
       value: formatNumber(kpis.saldoTotal),
       icon: Layers,
       color: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-500',
-      bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+      cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
       tab: 'movimentacao' as TabKey,
     },
     {
@@ -132,8 +132,8 @@ const EstoqueIndicadores = ({
       value: formatNumber(kpis.produtosBaixoEstoque),
       icon: AlertTriangle,
       color: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-500',
-      bg: 'bg-amber-50 dark:bg-amber-900/30',
+      cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/30',
       tab: 'alertas' as TabKey,
       alertFilter: 'caution' as SeverityFilter,
     },
@@ -142,8 +142,8 @@ const EstoqueIndicadores = ({
       value: formatNumber(kpis.produtosSemEstoque),
       icon: XCircle,
       color: 'text-red-600 dark:text-red-400',
-      border: 'border-red-500',
-      bg: 'bg-red-50 dark:bg-red-900/30',
+      cardBg: 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
+      iconBg: 'bg-red-100 dark:bg-red-900/30',
       tab: 'alertas' as TabKey,
       alertFilter: 'danger' as SeverityFilter,
     },
@@ -160,7 +160,7 @@ const EstoqueIndicadores = ({
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => {
           const Icon = card.icon
           return (
@@ -168,17 +168,17 @@ const EstoqueIndicadores = ({
               key={card.label}
               onClick={() => onNavigateTab(card.tab, card.alertFilter)}
               className={cn(
-                'rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900',
-                card.border,
+                'rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60',
+                card.cardBg,
               )}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.bg)}>
-                  <Icon className={cn('h-4 w-4', card.color)} />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {card.value}
               </p>
             </button>

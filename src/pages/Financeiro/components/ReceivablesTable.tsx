@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { TrendingUp } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
@@ -121,7 +123,31 @@ const ReceivablesTable = ({ data }: ReceivablesTableProps) => {
 
   const overdueCount = data.filter((r) => r.statusTag === 'vencido').length
 
+  const totals = useMemo(() => {
+    const totalValor = filtered.reduce((s, r) => s + r.valor, 0)
+    const totalVencido = filtered.filter((r) => r.statusTag === 'vencido').reduce((s, r) => s + r.valor, 0)
+    const totalAVencer = filtered.filter((r) => r.statusTag === 'a-vencer').reduce((s, r) => s + r.valor, 0)
+    const totalPago = filtered.filter((r) => r.statusTag === 'pago').reduce((s, r) => s + r.valor, 0)
+    return { totalValor, totalVencido, totalAVencer, totalPago }
+  }, [filtered])
+
   return (
+    <div className="space-y-4">
+      <TableSummaryStrip
+        icon={TrendingUp}
+        iconColor="text-emerald-600"
+        iconBg="bg-emerald-100 dark:bg-emerald-900/40"
+        title="Contas a Receber"
+        subtitle={`${filtered.length} títulos`}
+        accentGradient="bg-gradient-to-r from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-gray-900"
+        metrics={[
+          { label: 'Total', value: formatCurrency(totals.totalValor) },
+          { label: 'A Vencer', value: formatCurrency(totals.totalAVencer), color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Vencido', value: formatCurrency(totals.totalVencido), color: 'text-red-600 dark:text-red-400' },
+          { label: 'Pago', value: formatCurrency(totals.totalPago), color: 'text-green-600 dark:text-green-400' },
+        ]}
+      />
+
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
@@ -157,6 +183,7 @@ const ReceivablesTable = ({ data }: ReceivablesTableProps) => {
       <div className="overflow-x-auto">
         <DataTable columns={columns} data={filtered} keyExtractor={(row) => row.codigo} />
       </div>
+    </div>
     </div>
   )
 }

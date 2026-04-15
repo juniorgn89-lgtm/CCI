@@ -36,10 +36,10 @@ const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, in
     : undefined
 
   const kpiCards = [
-    { label: 'Faturamento', value: formatCurrency(kpis.faturamento), change: fatChange, icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/30', tab: 'vendas' },
-    { label: 'Margem Bruta', value: formatCurrency(kpis.margem), change: margemChange, subtitle: `${kpis.margemPct.toFixed(1)}%`, icon: TrendingUp, color: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30', tab: 'performance' },
-    { label: 'Itens Vendidos', value: formatNumber(kpis.qtdItens), change: qtdChange, subtitle: `${kpis.totalProdutos} produtos`, icon: Package, color: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/30', tab: 'topVendidos' },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30', tab: 'vendas' },
+    { label: 'Faturamento', value: formatCurrency(kpis.faturamento), change: fatChange, icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', tab: 'vendas' },
+    { label: 'Margem Bruta', value: formatCurrency(kpis.margem), change: margemChange, subtitle: `${kpis.margemPct.toFixed(1)}%`, icon: TrendingUp, color: 'text-blue-600 dark:text-blue-400', cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'performance' },
+    { label: 'Itens Vendidos', value: formatNumber(kpis.qtdItens), change: qtdChange, subtitle: `${kpis.totalProdutos} produtos`, icon: Package, color: 'text-violet-600 dark:text-violet-400', cardBg: 'bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900', iconBg: 'bg-violet-100 dark:bg-violet-900/30', tab: 'topVendidos' },
+    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-amber-600 dark:text-amber-400', cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'vendas' },
   ]
 
   const computed = useMemo(() => {
@@ -97,7 +97,7 @@ const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, in
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((card) => {
           const Icon = card.icon
           const isPositive = card.change !== undefined && card.change >= 0
@@ -105,15 +105,15 @@ const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, in
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.border)}
+              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.bg)}>
-                  <Icon className={cn('h-4 w-4', card.color)} />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
               <div className="mt-1 flex items-center gap-2">
                 {'subtitle' in card && card.subtitle && (
                   <p className="text-xs text-gray-400">{card.subtitle}</p>

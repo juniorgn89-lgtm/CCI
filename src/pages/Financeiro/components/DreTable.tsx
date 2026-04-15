@@ -201,8 +201,8 @@ const DreTable = ({ data }: DreTableProps) => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Conta</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Valor</th>
+              <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Conta</th>
+              <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Valor</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -223,10 +223,10 @@ const DreTable = ({ data }: DreTableProps) => {
                 >
                   <td
                     className={cn(
-                      'px-6 py-2.5 text-sm',
+                      'px-4 py-2.5 text-sm',
                       row.level === 1 && 'pl-10',
                       row.level === 2 && 'pl-16 text-gray-500 dark:text-gray-400',
-                      row.isSummary && 'font-semibold text-gray-900 dark:text-gray-100',
+                      row.isSummary && 'font-medium text-gray-900 dark:text-gray-100',
                     )}
                   >
                     <div className="flex items-center gap-2">
@@ -240,8 +240,8 @@ const DreTable = ({ data }: DreTableProps) => {
                   </td>
                   <td
                     className={cn(
-                      'px-6 py-2.5 text-right text-sm tabular-nums',
-                      row.isSummary && 'font-semibold',
+                      'px-4 py-2.5 text-right text-sm tabular-nums',
+                      row.isSummary && 'font-medium',
                       row.value > 0 && 'text-blue-600 dark:text-blue-400',
                       row.value < 0 && 'text-red-600 dark:text-red-400',
                       row.value === 0 && 'text-gray-400',

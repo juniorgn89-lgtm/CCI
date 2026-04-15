@@ -84,27 +84,27 @@ const PostoComparativo = ({ data }: Props) => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Métrica</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Métrica</th>
+                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
                   <div className="flex items-center justify-end gap-1">
                     <CalendarDays className="h-3 w-3" />
                     {data.anoAnterior.label}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
                   <div className="flex items-center justify-end gap-1">
                     <CalendarDays className="h-3 w-3" />
                     {data.mesAnterior.label}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
                   <div className="flex items-center justify-end gap-1">
                     <Calendar className="h-3 w-3" />
                     {data.atual.label}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">vs Mês</th>
-                <th className="px-6 py-3 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">vs Ano</th>
+                <th className="px-4 py-2 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">vs Mês</th>
+                <th className="px-4 py-2 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">vs Ano</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -112,7 +112,7 @@ const PostoComparativo = ({ data }: Props) => {
                 const Icon = m.icon
                 return (
                   <tr key={m.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                    <td className="px-6 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', m.bg)}>
                           <Icon className={cn('h-4 w-4', m.color)} />
@@ -120,19 +120,19 @@ const PostoComparativo = ({ data }: Props) => {
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{m.label}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-3 text-right text-sm tabular-nums text-gray-400 dark:text-gray-500">
+                    <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-400 dark:text-gray-500">
                       {m.format(data.anoAnterior[m.key])}
                     </td>
-                    <td className="px-6 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">
+                    <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">
                       {m.format(data.mesAnterior[m.key])}
                     </td>
-                    <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                    <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                       {m.format(data.atual[m.key])}
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <VariacaoBadge value={data.variacaoMes[m.key]} />
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <VariacaoBadge value={data.variacaoAno[m.key]} />
                     </td>
                   </tr>

@@ -45,7 +45,7 @@ const FuelProductRow = ({ product }: { product: EmpresaDetail['produtos'][0] }) 
     <td className="px-4 py-2"><MarginBar value={product.margem} /></td>
     <td className="px-4 py-2 text-right tabular-nums">{fmtCur(product.precoVenda)}</td>
     <td className="px-4 py-2 text-right tabular-nums">{fmtCur(product.precoCusto)}</td>
-    <td className="px-6 py-2 text-right tabular-nums font-medium">{fmtCur(product.lbPorLitro)}</td>
+    <td className="px-4 py-2 text-right tabular-nums font-medium">{fmtCur(product.lbPorLitro)}</td>
   </tr>
 )
 
@@ -68,7 +68,7 @@ const FuelEmpresaRow = ({ empresa, defaultExpanded = false }: { empresa: Empresa
         <td className="px-4 py-2.5"><MarginBar value={empresa.margem} /></td>
         <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(empresa.precoVenda)}</td>
         <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(empresa.precoCusto)}</td>
-        <td className="px-6 py-2.5 text-right tabular-nums font-semibold">{fmtCur(empresa.lbPorLitro)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(empresa.lbPorLitro)}</td>
       </tr>
       {expanded && empresa.produtos.map((p) => <FuelProductRow key={p.produtoCodigo} product={p} />)}
     </Fragment>
@@ -81,13 +81,13 @@ const FuelTable = ({ empresas, total }: { empresas: EmpresaDetail[]; total: Tota
     <table className="w-full min-w-[900px]">
       <thead>
         <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-          <th className="px-4 py-3 text-left">{singleEmpresa ? 'Produto' : 'Empresa'}</th>
-          <th className="px-4 py-3 text-right">Litros</th>
-          <th className="px-4 py-3 text-right">Lucro Bruto</th>
-          <th className="px-4 py-3 text-left">Margem</th>
-          <th className="px-4 py-3 text-right">Preço venda</th>
-          <th className="px-4 py-3 text-right">Preço custo</th>
-          <th className="px-6 py-3 text-right">L.B. por litro</th>
+          <th className="px-4 py-2 text-left">{singleEmpresa ? 'Produto' : 'Empresa'}</th>
+          <th className="px-4 py-2 text-right">Litros</th>
+          <th className="px-4 py-2 text-right">Lucro Bruto</th>
+          <th className="px-4 py-2 text-left">Margem</th>
+          <th className="px-4 py-2 text-right">Preço venda</th>
+          <th className="px-4 py-2 text-right">Preço custo</th>
+          <th className="px-4 py-2 text-right">L.B. por litro</th>
         </tr>
       </thead>
       <tbody>
@@ -100,19 +100,19 @@ const FuelTable = ({ empresas, total }: { empresas: EmpresaDetail[]; total: Tota
                 <td className="px-4 py-2.5"><MarginBar value={p.margem} /></td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(p.precoVenda)}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(p.precoCusto)}</td>
-                <td className="px-6 py-2.5 text-right tabular-nums font-medium">{fmtCur(p.lbPorLitro)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(p.lbPorLitro)}</td>
               </tr>
             ))
           : empresas.map((e) => <FuelEmpresaRow key={e.empresaCodigo} empresa={e} />)
         }
-        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-          <td className="px-4 py-3">Total</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtLitros(total.litros)}</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
-          <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoVenda)}</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoCusto)}</td>
-          <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.lbPorLitro)}</td>
+        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+          <td className="px-4 py-2.5">Total</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtLitros(total.litros)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
+          <td className="px-4 py-2.5"><MarginBar value={total.margem} /></td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.precoVenda)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.precoCusto)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(total.lbPorLitro)}</td>
         </tr>
       </tbody>
     </table>
@@ -130,7 +130,7 @@ const NonFuelProductRow = ({ product }: { product: NonFuelProduct }) => (
     <td className="px-4 py-1.5"><MarginBar value={product.margem} /></td>
     <td className="px-4 py-1.5 text-right tabular-nums">{fmtCur(product.precoMedio)}</td>
     <td className="px-4 py-1.5 text-right tabular-nums">{fmtCur(product.custoMedio)}</td>
-    <td className="px-6 py-1.5 text-right tabular-nums">{fmtCur(product.ticketMedio)}</td>
+    <td className="px-4 py-1.5 text-right tabular-nums">{fmtCur(product.ticketMedio)}</td>
   </tr>
 )
 
@@ -154,7 +154,7 @@ const NonFuelGrupoRow = ({ grupo }: { grupo: NonFuelGrupo }) => {
         <td className="px-4 py-2"><MarginBar value={grupo.margem} /></td>
         <td className="px-4 py-2" />
         <td className="px-4 py-2" />
-        <td className="px-6 py-2" />
+        <td className="px-4 py-2" />
       </tr>
       {expanded && grupo.produtos.map((p) => (
         <NonFuelProductRow key={p.produtoCodigo} product={p} />
@@ -185,7 +185,7 @@ const NonFuelEmpresaRow = ({ empresa, setor, defaultExpanded = false }: { empres
         <td className="px-4 py-2.5" />
         <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(empresa.precoMedio ?? 0)}</td>
         <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(empresa.custoMedio ?? 0)}</td>
-        <td className="px-6 py-2.5 text-right tabular-nums font-semibold">{fmtCur(empresa.ticketMedio ?? 0)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(empresa.ticketMedio ?? 0)}</td>
       </tr>
       {expanded && isLoading && (
         <tr className="border-t border-gray-100 dark:border-gray-800">
@@ -208,14 +208,14 @@ const NonFuelSingleEmpresaTable = ({ empresa, total, setor }: { empresa: Empresa
     <table className="w-full min-w-[900px]">
       <thead>
         <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-          <th className="px-4 py-3 text-left">Grupo / Produto</th>
-          <th className="px-4 py-3 text-right">Quantidade</th>
-          <th className="px-4 py-3 text-right">Faturamento</th>
-          <th className="px-4 py-3 text-right">Lucro bruto</th>
-          <th className="px-4 py-3 text-left">Margem</th>
-          <th className="px-4 py-3 text-right">Preço médio</th>
-          <th className="px-4 py-3 text-right">Custo médio</th>
-          <th className="px-6 py-3 text-right">Ticket médio</th>
+          <th className="px-4 py-2 text-left">Grupo / Produto</th>
+          <th className="px-4 py-2 text-right">Quantidade</th>
+          <th className="px-4 py-2 text-right">Faturamento</th>
+          <th className="px-4 py-2 text-right">Lucro bruto</th>
+          <th className="px-4 py-2 text-left">Margem</th>
+          <th className="px-4 py-2 text-right">Preço médio</th>
+          <th className="px-4 py-2 text-right">Custo médio</th>
+          <th className="px-4 py-2 text-right">Ticket médio</th>
         </tr>
       </thead>
       <tbody>
@@ -229,15 +229,15 @@ const NonFuelSingleEmpresaTable = ({ empresa, total, setor }: { empresa: Empresa
         ) : grupos.map((g) => (
           <NonFuelGrupoRow key={g.grupoCodigo} grupo={g} />
         ))}
-        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-          <td className="px-4 py-3">Total</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtInt(total.quantidade ?? 0)}</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.faturamento ?? 0)}</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
-          <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoMedio ?? 0)}</td>
-          <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.custoMedio ?? 0)}</td>
-          <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.ticketMedio ?? 0)}</td>
+        <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+          <td className="px-4 py-2.5">Total</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtInt(total.quantidade ?? 0)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.faturamento ?? 0)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
+          <td className="px-4 py-2.5"><MarginBar value={total.margem} /></td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.precoMedio ?? 0)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.custoMedio ?? 0)}</td>
+          <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(total.ticketMedio ?? 0)}</td>
         </tr>
       </tbody>
     </table>
@@ -248,27 +248,27 @@ const NonFuelTable = ({ empresas, total, setor }: { empresas: EmpresaDetail[]; t
   <table className="w-full min-w-[900px]">
     <thead>
       <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-        <th className="px-4 py-3 text-left">Empresa</th>
-        <th className="px-4 py-3 text-right">Quantidade</th>
-        <th className="px-4 py-3 text-right">Faturamento</th>
-        <th className="px-4 py-3 text-right">Lucro bruto</th>
-        <th className="px-4 py-3 text-left">Margem</th>
-        <th className="px-4 py-3 text-right">Preço médio</th>
-        <th className="px-4 py-3 text-right">Custo médio</th>
-        <th className="px-6 py-3 text-right">Ticket médio</th>
+        <th className="px-4 py-2 text-left">Empresa</th>
+        <th className="px-4 py-2 text-right">Quantidade</th>
+        <th className="px-4 py-2 text-right">Faturamento</th>
+        <th className="px-4 py-2 text-right">Lucro bruto</th>
+        <th className="px-4 py-2 text-left">Margem</th>
+        <th className="px-4 py-2 text-right">Preço médio</th>
+        <th className="px-4 py-2 text-right">Custo médio</th>
+        <th className="px-4 py-2 text-right">Ticket médio</th>
       </tr>
     </thead>
     <tbody>
       {empresas.map((e) => <NonFuelEmpresaRow key={e.empresaCodigo} empresa={e} setor={setor} />)}
-      <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-semibold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-        <td className="px-4 py-3">Total</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtInt(total.quantidade ?? 0)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.faturamento ?? 0)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
-        <td className="px-4 py-3"><MarginBar value={total.margem} /></td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.precoMedio ?? 0)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{fmtCur(total.custoMedio ?? 0)}</td>
-        <td className="px-6 py-3 text-right tabular-nums font-bold">{fmtCur(total.ticketMedio ?? 0)}</td>
+      <tr className="border-t-2 border-gray-300 bg-gray-50 text-sm font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+        <td className="px-4 py-2.5">Total</td>
+        <td className="px-4 py-2.5 text-right tabular-nums">{fmtInt(total.quantidade ?? 0)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.faturamento ?? 0)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.lucroBruto)}</td>
+        <td className="px-4 py-2.5"><MarginBar value={total.margem} /></td>
+        <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.precoMedio ?? 0)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums">{fmtCur(total.custoMedio ?? 0)}</td>
+        <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtCur(total.ticketMedio ?? 0)}</td>
       </tr>
     </tbody>
   </table>

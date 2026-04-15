@@ -131,12 +131,12 @@ const ProdutoIndicadores = ({ kpis, productTable, topSellers, abcData, onNavigat
   }, [kpis, productTable, topSellers, abcData])
 
   const kpiCards = [
-    { label: 'Produtos Vendidos', value: formatNumber(kpis.totalProdutosVendidos), icon: Package, color: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30', tab: 'produtos' as TabKey },
-    { label: 'Faturamento', value: formatCurrency(kpis.faturamento), icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/30', tab: 'pareto' as TabKey },
-    { label: 'Lucro Bruto', value: formatCurrency(kpis.lucroBruto), icon: TrendingUp, color: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/30', tab: 'produtos' as TabKey },
-    { label: 'Margem', value: `${kpis.margemPct.toFixed(1)}%`, icon: BarChart3, color: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30', tab: 'abc' as TabKey },
-    { label: 'Qtd Vendida', value: formatNumber(kpis.quantidade), icon: ShoppingCart, color: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/30', tab: 'top' as TabKey },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: DollarSign, color: 'text-teal-600 dark:text-teal-400', border: 'border-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/30', tab: 'produtos' as TabKey },
+    { label: 'Produtos Vendidos', value: formatNumber(kpis.totalProdutosVendidos), icon: Package, color: 'text-blue-600 dark:text-blue-400', cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'produtos' as TabKey },
+    { label: 'Faturamento', value: formatCurrency(kpis.faturamento), icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', tab: 'pareto' as TabKey },
+    { label: 'Lucro Bruto', value: formatCurrency(kpis.lucroBruto), icon: TrendingUp, color: 'text-violet-600 dark:text-violet-400', cardBg: 'bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900', iconBg: 'bg-violet-100 dark:bg-violet-900/30', tab: 'produtos' as TabKey },
+    { label: 'Margem', value: `${kpis.margemPct.toFixed(1)}%`, icon: BarChart3, color: 'text-amber-600 dark:text-amber-400', cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'abc' as TabKey },
+    { label: 'Qtd Vendida', value: formatNumber(kpis.quantidade), icon: ShoppingCart, color: 'text-cyan-600 dark:text-cyan-400', cardBg: 'bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900', iconBg: 'bg-cyan-100 dark:bg-cyan-900/30', tab: 'top' as TabKey },
+    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: DollarSign, color: 'text-teal-600 dark:text-teal-400', cardBg: 'bg-gradient-to-br from-teal-50/60 to-white dark:from-teal-950/20 dark:to-gray-900', iconBg: 'bg-teal-100 dark:bg-teal-900/30', tab: 'produtos' as TabKey },
   ]
 
   const top5 = topSellers.slice(0, 5)
@@ -144,22 +144,22 @@ const ProdutoIndicadores = ({ kpis, productTable, topSellers, abcData, onNavigat
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
         {kpiCards.map((card) => {
           const Icon = card.icon
           return (
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.border)}
+              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.bg)}>
-                  <Icon className={cn('h-4 w-4', card.color)} />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
             </button>
           )
         })}

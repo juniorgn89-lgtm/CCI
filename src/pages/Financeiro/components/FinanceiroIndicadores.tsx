@@ -147,9 +147,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(kpis.totalReceber),
       subtitle: `${formatNumber(kpis.countReceber)} títulos pendentes${kpis.countVencidosReceber > 0 ? ` · ${kpis.countVencidosReceber} vencidos` : ''}`,
       icon: DollarSign,
-      borderColor: 'border-emerald-500',
+      cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
-      iconBg: 'bg-emerald-50 dark:bg-emerald-900/30',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
       tab: 'receber' as TabKey,
     },
     {
@@ -157,9 +157,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(kpis.totalPagar),
       subtitle: `${formatNumber(kpis.countPagar)} títulos pendentes${kpis.countVencidosPagar > 0 ? ` · ${kpis.countVencidosPagar} vencidos` : ''}`,
       icon: CreditCard,
-      borderColor: 'border-red-500',
+      cardBg: 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
       iconColor: 'text-red-600 dark:text-red-400',
-      iconBg: 'bg-red-50 dark:bg-red-900/30',
+      iconBg: 'bg-red-100 dark:bg-red-900/30',
       tab: 'pagar' as TabKey,
     },
     {
@@ -167,9 +167,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(kpis.saldoLiquido),
       subtitle: kpis.saldoLiquido >= 0 ? 'Posição favorável' : 'Posição desfavorável',
       icon: TrendingUp,
-      borderColor: kpis.saldoLiquido >= 0 ? 'border-blue-500' : 'border-amber-500',
+      cardBg: kpis.saldoLiquido >= 0 ? 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900',
       iconColor: kpis.saldoLiquido >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400',
-      iconBg: kpis.saldoLiquido >= 0 ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-amber-50 dark:bg-amber-900/30',
+      iconBg: kpis.saldoLiquido >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-amber-100 dark:bg-amber-900/30',
       tab: 'fluxo' as TabKey,
     },
     {
@@ -179,9 +179,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
         ? `${kpis.inadimplenciaPercent.toFixed(1)}% do total a receber`
         : 'Nenhum título vencido',
       icon: AlertTriangle,
-      borderColor: kpis.inadimplencia > 0 ? 'border-amber-500' : 'border-gray-300 dark:border-gray-600',
+      cardBg: kpis.inadimplencia > 0 ? 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
       iconColor: kpis.inadimplencia > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: kpis.inadimplencia > 0 ? 'bg-amber-50 dark:bg-amber-900/30' : 'bg-gray-50 dark:bg-gray-800',
+      iconBg: kpis.inadimplencia > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-800',
       tab: 'receber' as TabKey,
     },
     {
@@ -189,9 +189,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(computed.totalEntradas),
       subtitle: `${cashFlowData.length} dia${cashFlowData.length !== 1 ? 's' : ''} com movimentação`,
       icon: ArrowUpRight,
-      borderColor: 'border-green-500',
+      cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/20 dark:to-gray-900',
       iconColor: 'text-green-600 dark:text-green-400',
-      iconBg: 'bg-green-50 dark:bg-green-900/30',
+      iconBg: 'bg-green-100 dark:bg-green-900/30',
       tab: 'fluxo' as TabKey,
     },
     {
@@ -199,9 +199,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(computed.totalSaidas),
       subtitle: computed.saldoFluxo >= 0 ? 'Cobertas pelas entradas' : 'Acima das entradas',
       icon: ArrowDownRight,
-      borderColor: 'border-orange-500',
+      cardBg: 'bg-gradient-to-br from-orange-50/60 to-white dark:from-orange-950/20 dark:to-gray-900',
       iconColor: 'text-orange-600 dark:text-orange-400',
-      iconBg: 'bg-orange-50 dark:bg-orange-900/30',
+      iconBg: 'bg-orange-100 dark:bg-orange-900/30',
       tab: 'fluxo' as TabKey,
     },
     {
@@ -209,9 +209,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(computed.totalOverdueReceivables),
       subtitle: `${computed.overdueReceivablesCount} título${computed.overdueReceivablesCount !== 1 ? 's' : ''} em atraso`,
       icon: Receipt,
-      borderColor: computed.overdueReceivablesCount > 0 ? 'border-red-500' : 'border-gray-300 dark:border-gray-600',
+      cardBg: computed.overdueReceivablesCount > 0 ? 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
       iconColor: computed.overdueReceivablesCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: computed.overdueReceivablesCount > 0 ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800',
+      iconBg: computed.overdueReceivablesCount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800',
       tab: 'receber' as TabKey,
     },
     {
@@ -219,9 +219,9 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       value: formatCurrency(computed.totalOverduePayables),
       subtitle: `${computed.overduePayablesCount} título${computed.overduePayablesCount !== 1 ? 's' : ''} em atraso`,
       icon: Wallet,
-      borderColor: computed.overduePayablesCount > 0 ? 'border-red-500' : 'border-gray-300 dark:border-gray-600',
+      cardBg: computed.overduePayablesCount > 0 ? 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
       iconColor: computed.overduePayablesCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: computed.overduePayablesCount > 0 ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800',
+      iconBg: computed.overduePayablesCount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800',
       tab: 'pagar' as TabKey,
     },
   ]
@@ -229,22 +229,22 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => {
           const Icon = card.icon
           return (
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.borderColor)}
+              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.iconBg)}>
-                  <Icon className={cn('h-4 w-4', card.iconColor)} />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', card.iconColor)} />
                 </div>
               </div>
-              <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{card.subtitle}</p>
             </button>
           )

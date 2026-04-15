@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Search } from 'lucide-react'
+import { Search, ShoppingCart } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -42,7 +43,7 @@ const columns: Column<CatalogProduct>[] = [
     key: 'ativo', label: 'Status', align: 'center', sortable: true,
     render: (r) => (
       <span className={cn(
-        'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold',
+        'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
         r.ativo
           ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
           : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
@@ -86,33 +87,30 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     exportToCsv('conveniencia-catalogo', filtered, csvColumns)
   }, [filtered])
 
+  const catalogTotals = useMemo(() => {
+    const faturamento = filtered.reduce((s, p) => s + p.faturamento, 0)
+    const lucroBruto = filtered.reduce((s, p) => s + (p.faturamento - (p.custoMedio * p.qtdVendida)), 0)
+    const margemMedia = filtered.length > 0
+      ? filtered.reduce((s, p) => s + p.margemPct, 0) / filtered.length
+      : 0
+    return { faturamento, lucroBruto, margemMedia }
+  }, [filtered])
+
   return (
     <div className="space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total de Produtos</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(products.length)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Grupos</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{gruposList.length}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Ativos</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-green-600 dark:text-green-400">
-            {products.filter((p) => p.ativo).length}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Margem Média</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {products.length > 0
-              ? `${(products.reduce((s, p) => s + p.margemPct, 0) / products.length).toFixed(1)}%`
-              : '0%'}
-          </p>
-        </div>
-      </div>
+      <TableSummaryStrip
+        icon={ShoppingCart}
+        iconColor="text-orange-600"
+        iconBg="bg-orange-100 dark:bg-orange-900/40"
+        title="Catálogo de Produtos"
+        subtitle={`${filtered.length} de ${products.length} produtos`}
+        accentGradient="bg-gradient-to-r from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
+        metrics={[
+          { label: 'Faturamento', value: formatCurrency(catalogTotals.faturamento) },
+          { label: 'Lucro Bruto', value: formatCurrency(catalogTotals.lucroBruto), color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Margem Média', value: `${catalogTotals.margemMedia.toFixed(1)}%` },
+        ]}
+      />
 
       {/* Filters */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

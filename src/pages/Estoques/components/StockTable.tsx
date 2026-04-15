@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Warehouse } from 'lucide-react'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import type { StockRow } from '@/pages/Estoques/hooks/useStockData'
 
 interface StockTableProps {
@@ -115,7 +116,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
 
   const SortHeader = ({ label, colKey }: { label: string; colKey: SortKey }) => (
     <th
-      className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+      className="cursor-pointer select-none px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
       onClick={() => handleSort(colKey)}
     >
       <div className="flex items-center gap-1">
@@ -127,68 +128,72 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
     </th>
   )
 
+  // Totals from filtered data
+  const totalItens = filtered.length
+  const negativos = filtered.filter((r) => r.status === 'negativo').length
+  const criticos = filtered.filter((r) => r.status === 'critico' || r.status === 'sem_estoque').length
+  const normais = filtered.filter((r) => r.status === 'normal').length
+
   return (
+    <div className="space-y-4">
+      <TableSummaryStrip
+        icon={Warehouse}
+        iconColor="text-emerald-600"
+        iconBg="bg-emerald-100 dark:bg-emerald-900/40"
+        title="Posição de Estoque"
+        subtitle={`${filtered.length} itens`}
+        accentGradient="bg-gradient-to-r from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-gray-900"
+        metrics={[
+          { label: 'Normal', value: formatNumber(normais), color: 'text-green-600 dark:text-green-400' },
+          { label: 'Crítico / Zerado', value: formatNumber(criticos), color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Negativo', value: formatNumber(negativos), color: 'text-red-600 dark:text-red-400' },
+        ]}
+      />
+
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Posição de Estoque</h3>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            {filtered.length} itens
-          </span>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar produto, SKU, código..."
+            value={search}
+            onChange={(e) => handleFilterChange(setSearch)(e.target.value)}
+            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500 dark:focus:border-blue-600 dark:focus:bg-gray-800"
+          />
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar produto..."
-              value={search}
-              onChange={(e) => handleFilterChange(setSearch)(e.target.value)}
-              className="h-8 rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:ring-1 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500 dark:focus:border-blue-600 dark:focus:bg-gray-800"
-            />
-          </div>
-
-          {/* Category filter */}
-          <div className="relative">
-            <Filter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            <select
-              value={categoriaFilter}
-              onChange={(e) => handleFilterChange(setCategoriaFilter)(e.target.value)}
-              className="h-8 appearance-none rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-6 text-xs text-gray-700 outline-none transition-colors focus:border-blue-300 focus:bg-white focus:ring-1 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-600"
-            >
-              <option value="">Todas categorias</option>
-              {categorias.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => handleFilterChange(setStatusFilter)(e.target.value)}
-            className="h-8 appearance-none rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs text-gray-700 outline-none transition-colors focus:border-blue-300 focus:bg-white focus:ring-1 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-600"
+        <select
+          value={categoriaFilter}
+          onChange={(e) => handleFilterChange(setCategoriaFilter)(e.target.value)}
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+        >
+          <option value="">Todas categorias</option>
+          {categorias.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => handleFilterChange(setStatusFilter)(e.target.value)}
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+        >
+          <option value="">Todos os status</option>
+          <option value="normal">Normal</option>
+          <option value="baixo">Baixo</option>
+          <option value="critico">Crítico</option>
+          <option value="sem_estoque">Sem estoque</option>
+          <option value="negativo">Negativo</option>
+        </select>
+        {(search || categoriaFilter || statusFilter) && (
+          <button
+            onClick={() => { setSearch(''); setCategoriaFilter(''); setStatusFilter(''); setPage(0) }}
+            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            <option value="">Todos os status</option>
-            <option value="normal">Normal</option>
-            <option value="baixo">Baixo</option>
-            <option value="critico">Crítico</option>
-            <option value="sem_estoque">Sem estoque</option>
-            <option value="negativo">Negativo</option>
-          </select>
-          {(search || categoriaFilter || statusFilter) && (
-            <button
-              onClick={() => { setSearch(''); setCategoriaFilter(''); setStatusFilter(''); setPage(0) }}
-              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-            >
-              Limpar
-            </button>
-          )}
-          <ExportButton onExport={handleExport} />
-        </div>
+            Limpar
+          </button>
+        )}
+        <ExportButton onExport={handleExport} />
       </div>
 
       {/* Table */}
@@ -201,7 +206,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
               <SortHeader label="SKU" colKey="codigoSku" />
               <SortHeader label="Local" colKey="local" />
               <th
-                className="cursor-pointer select-none px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="cursor-pointer select-none px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={() => handleSort('saldo')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -220,29 +225,30 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
                 key={`${row.produtoCodigo}-${row.estoqueCodigo}-${i}`}
                 className={cn(
                   'transition-colors hover:bg-blue-50/30 dark:hover:bg-gray-800/50',
-                  row.status === 'negativo' && 'bg-red-100/30 dark:bg-red-950/20',
-                  row.status === 'sem_estoque' && 'bg-red-50/20 dark:bg-red-950/10',
-                  row.status === 'critico' && 'bg-orange-50/20 dark:bg-orange-950/10'
+                  row.status === 'negativo' ? 'bg-red-100/30 dark:bg-red-950/20'
+                    : row.status === 'sem_estoque' ? 'bg-red-50/20 dark:bg-red-950/10'
+                    : row.status === 'critico' ? 'bg-orange-50/20 dark:bg-orange-950/10'
+                    : i % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
                 )}
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-2.5">
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{row.produtoNome}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">#{row.produtoCodigo}</p>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{row.categoria}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{row.codigoSku}</td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{row.local}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{row.categoria}</td>
+                <td className="px-4 py-2.5 font-mono text-xs text-gray-500 dark:text-gray-400">{row.codigoSku}</td>
+                <td className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{row.local}</td>
+                <td className="px-4 py-2.5 text-right">
                   <span className={cn(
-                    'text-sm font-semibold tabular-nums',
+                    'text-sm font-medium tabular-nums',
                     row.saldo <= 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
                   )}>
                     {formatNumber(row.saldo)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-2.5">
                   <StatusBadge status={row.status} />
                 </td>
               </tr>
@@ -286,6 +292,7 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

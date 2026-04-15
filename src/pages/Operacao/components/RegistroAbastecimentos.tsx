@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Fuel } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -36,7 +37,7 @@ const columns: Column<AbastecimentoRow>[] = [
   },
   {
     key: 'valorTotal', label: 'Valor Total', align: 'right', sortable: true,
-    render: (r) => <span className="font-semibold tabular-nums">{formatCurrency(r.valorTotal)}</span>,
+    render: (r) => <span className="font-medium tabular-nums">{formatCurrency(r.valorTotal)}</span>,
   },
   {
     key: 'placa', label: 'Placa', sortable: true,
@@ -87,21 +88,18 @@ const RegistroAbastecimentos = ({ abastecimentoRows, frentistasList, combustivei
 
   return (
     <div className="space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total Registros</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(filtered.length)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total Litros</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(totalLitros)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total Valor</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(totalValor)}</p>
-        </div>
-      </div>
+      <TableSummaryStrip
+        icon={Fuel}
+        iconColor="text-indigo-600"
+        iconBg="bg-indigo-100 dark:bg-indigo-900/40"
+        title="Abastecimentos"
+        subtitle={`${filtered.length} de ${abastecimentoRows.length} registros`}
+        accentGradient="bg-gradient-to-r from-indigo-50/80 to-white dark:from-indigo-950/30 dark:to-gray-900"
+        metrics={[
+          { label: 'Litros', value: formatLiters(totalLitros) },
+          { label: 'Valor Total', value: formatCurrency(totalValor) },
+        ]}
+      />
 
       {/* Table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

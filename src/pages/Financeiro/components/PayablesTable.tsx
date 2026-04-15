@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { TrendingDown } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
@@ -149,7 +151,31 @@ const PayablesTable = ({ data }: PayablesTableProps) => {
 
   const overdueCount = data.filter((r) => r.statusTag === 'vencido').length
 
+  const totals = useMemo(() => {
+    const totalValor = filtered.reduce((s, r) => s + r.valor, 0)
+    const totalVencido = filtered.filter((r) => r.statusTag === 'vencido').reduce((s, r) => s + r.valor, 0)
+    const totalAVencer = filtered.filter((r) => r.statusTag === 'a-vencer').reduce((s, r) => s + r.valor, 0)
+    const totalPago = filtered.filter((r) => r.statusTag === 'pago').reduce((s, r) => s + r.valor, 0)
+    return { totalValor, totalVencido, totalAVencer, totalPago }
+  }, [filtered])
+
   return (
+    <div className="space-y-4">
+      <TableSummaryStrip
+        icon={TrendingDown}
+        iconColor="text-red-600"
+        iconBg="bg-red-100 dark:bg-red-900/40"
+        title="Contas a Pagar"
+        subtitle={`${filtered.length} títulos`}
+        accentGradient="bg-gradient-to-r from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900"
+        metrics={[
+          { label: 'Total', value: formatCurrency(totals.totalValor) },
+          { label: 'A Vencer', value: formatCurrency(totals.totalAVencer), color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Vencido', value: formatCurrency(totals.totalVencido), color: 'text-red-600 dark:text-red-400' },
+          { label: 'Pago', value: formatCurrency(totals.totalPago), color: 'text-green-600 dark:text-green-400' },
+        ]}
+      />
+
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
@@ -185,6 +211,7 @@ const PayablesTable = ({ data }: PayablesTableProps) => {
       <div className="overflow-x-auto">
         <DataTable columns={columns} data={filtered} keyExtractor={(row) => row.codigo} />
       </div>
+    </div>
     </div>
   )
 }

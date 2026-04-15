@@ -116,46 +116,46 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                  <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Posto</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Score</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Receita</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Litros</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Abastecimentos</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Ticket Médio</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Conversão</th>
+                <tr className="border-b border-gray-100 bg-gray-50 text-xs dark:border-gray-700 dark:bg-gray-800">
+                  <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Posto</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Score</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Receita</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Litros</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Abastecimentos</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Ticket Médio</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Conversão</th>
                 </tr>
               </thead>
               <tbody>
                 {postos.map((p, i) => (
-                  <tr key={p.empresaCodigo} className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
-                    <td className="px-4 py-3">
+                  <tr key={p.empresaCodigo} className="border-b border-gray-50 text-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
+                    <td className="px-4 py-2.5">
                       {i < 3 ? (
                         <Medal className={cn('h-5 w-5', medalColors[i])} />
                       ) : (
                         <span className="text-gray-400">{i + 1}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-gray-100">{p.fantasia}</p>
                         <p className="text-xs text-gray-400">{p.cidade}/{p.estado}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-2.5 text-right">
                       <span className={cn(
-                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white',
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white',
                         `bg-gradient-to-r ${scoreGradient(p.score)}`
                       )}>
                         {p.score}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(p.receita)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.litros)}L</td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.abastecimentos)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{fmt(p.ticketMedio)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.conversao.toFixed(1)}%</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(p.receita)}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.litros)}L</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.abastecimentos)}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmt(p.ticketMedio)}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{p.conversao.toFixed(1)}%</td>
                   </tr>
                 ))}
               </tbody>

@@ -11,11 +11,23 @@ interface SectorKpiCardsProps {
 }
 
 const sectorIcons = [Fuel, Package, Store, Globe]
-const sectorColors = [
-  'border-red-500',
-  'border-blue-500',
-  'border-amber-500',
-  'border-emerald-500',
+const sectorBgs = [
+  'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
+  'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
+  'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900',
+  'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
+]
+const sectorIconBgs = [
+  'bg-red-100 dark:bg-red-900/30',
+  'bg-blue-100 dark:bg-blue-900/30',
+  'bg-amber-100 dark:bg-amber-900/30',
+  'bg-emerald-100 dark:bg-emerald-900/30',
+]
+const sectorIconColors = [
+  'text-red-600 dark:text-red-400',
+  'text-blue-600 dark:text-blue-400',
+  'text-amber-600 dark:text-amber-400',
+  'text-emerald-600 dark:text-emerald-400',
 ]
 
 const SectorKpiCards = ({ sectorKpis, globalKpi, projectionData }: SectorKpiCardsProps) => {
@@ -25,25 +37,29 @@ const SectorKpiCards = ({ sectorKpis, globalKpi, projectionData }: SectorKpiCard
   return (
     <div className="space-y-4">
       {/* KPI cards row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {allKpis.map((kpi, index) => {
           const Icon = sectorIcons[index] ?? Globe
-          const colorClass = sectorColors[index] ?? sectorColors[3]
+          const bgClass = sectorBgs[index] ?? sectorBgs[3]
+          const iconBgClass = sectorIconBgs[index] ?? sectorIconBgs[3]
+          const iconColorClass = sectorIconColors[index] ?? sectorIconColors[3]
 
           return (
             <div
               key={kpi.label}
-              className={`rounded-xl border-l-4 bg-white p-5 shadow-sm dark:bg-gray-900 ${colorClass}`}
+              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 shadow-sm dark:border-gray-700/60', bgClass)}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{kpi.label}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Lucro bruto</p>
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{kpi.label}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Lucro bruto</p>
                 </div>
-                <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', iconBgClass)}>
+                  <Icon className={cn('h-3.5 w-3.5', iconColorClass)} />
+                </div>
               </div>
 
-              <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="mt-1 text-lg font-bold text-gray-900 dark:text-gray-100">
                 {formatCurrency(kpi.lucroBruto)}
               </p>
 
@@ -68,7 +84,7 @@ const SectorKpiCards = ({ sectorKpis, globalKpi, projectionData }: SectorKpiCard
                 )
               })()}
 
-              <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
                 <div>
                   <span className="font-medium">{formatPercent(kpi.margem)}</span>
                   <span className="ml-1">Margem</span>

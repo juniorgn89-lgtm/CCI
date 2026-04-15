@@ -50,7 +50,7 @@ const columns: Column<StockItem>[] = [
     render: (r) => {
       const s = statusLabel[r.status]
       return (
-        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', s.classes)}>
+        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium', s.classes)}>
           {r.status !== 'normal' && <AlertTriangle className="h-3 w-3" />}
           {s.label}
         </span>
@@ -101,13 +101,13 @@ const StockView = ({ stockItems, stockSummary }: StockViewProps) => {
             <p className="text-xs text-gray-500 dark:text-gray-400">Itens em Estoque</p>
           </div>
           <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatNumber(stockSummary.totalItens)}
+            {formatNumber(filtered.length)}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
           <p className="text-xs text-gray-500 dark:text-gray-400">Valor Total</p>
           <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatCurrency(stockSummary.valorTotal)}
+            {formatCurrency(filtered.reduce((s, i) => s + i.valorEstoque, 0))}
           </p>
         </div>
         <button

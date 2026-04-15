@@ -6,6 +6,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InsightBanner from '@/pages/Frentista/components/InsightBanner'
 
 const extractTime = (raw: string | null | undefined): string => {
   if (!raw) return ''
@@ -74,27 +75,40 @@ const MeuCaixa = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border-l-4 border-blue-500 bg-white p-4 shadow-sm dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-blue-500" />
-            <p className="text-xs text-gray-400">Apurado Total</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Apurado Total</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Wallet className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(computed?.totalApurado ?? 0)}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(computed?.totalApurado ?? 0)}</p>
         </div>
-        <div className="rounded-xl border-l-4 border-amber-500 bg-white p-4 shadow-sm dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-amber-500" />
-            <p className="text-xs text-gray-400">Diferença Total</p>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Diferença Total</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+              <ArrowUpDown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
           </div>
           <p className={cn(
-            'mt-1 text-xl font-bold tabular-nums',
+            'mt-1 text-lg font-bold tabular-nums',
             (computed?.totalDiferenca ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
           )}>
             {(computed?.totalDiferenca ?? 0) >= 0 ? '+' : ''}{formatCurrency(computed?.totalDiferenca ?? 0)}
           </p>
         </div>
       </div>
+
+      {/* Insight banner */}
+      {computed && (() => {
+        const dif = computed.totalDiferenca
+        if (computed.turnos.length === 0) return <InsightBanner type="tip" message="Nenhuma sessão de caixa encontrada no período. Verifique o filtro de data." />
+        if (Math.abs(dif) < 1) return <InsightBanner type="success" message="Caixa zerado! Excelente controle financeiro. Continue assim!" />
+        if (dif > 0) return <InsightBanner type="success" message={`Diferença positiva de ${formatCurrency(dif)}. Seu caixa está com sobra.`} />
+        return <InsightBanner type="warning" message={`Atenção: diferença negativa de ${formatCurrency(Math.abs(dif))} no caixa. Verifique os lançamentos.`} />
+      })()}
 
       {/* Active shift */}
       {(computed?.abertos ?? []).length > 0 && (
@@ -131,8 +145,8 @@ const MeuCaixa = () => {
           </h3>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {(computed?.turnos ?? []).map((t) => (
-            <div key={`${t.caixaCodigo}-${t.dataMovimento}`} className="flex items-center gap-3 px-4 py-3">
+          {(computed?.turnos ?? []).map((t, idx) => (
+            <div key={`${t.caixaCodigo}-${t.dataMovimento}`} className={cn('flex items-center gap-3 px-4 py-3', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
               <div className={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                 t.fechado ? 'bg-gray-100 dark:bg-gray-800' : 'bg-green-100 dark:bg-green-900/30'

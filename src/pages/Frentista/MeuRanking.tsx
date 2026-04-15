@@ -8,6 +8,7 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InsightBanner from '@/pages/Frentista/components/InsightBanner'
 
 const MeuRanking = () => {
   const { session } = useFreentistaStore()
@@ -79,44 +80,55 @@ const MeuRanking = () => {
         )}
       </div>
 
-      {/* My position highlight */}
+      {/* My position highlight — strip style */}
       {myPosition && (
         <div className={cn(
-          'rounded-xl border-2 p-5 shadow-sm',
+          'flex flex-col gap-3 rounded-lg border border-gray-200/60 px-4 py-2.5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-gray-700/60',
           myPosition.posicao <= 3
-            ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20'
-            : 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
+            ? 'bg-gradient-to-r from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900'
+            : 'bg-gradient-to-r from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900'
         )}>
-          <div className="flex items-center gap-3">
+          {/* Left: position + name */}
+          <div className="flex items-center gap-2.5">
             <div className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold',
-              myPosition.posicao === 1 ? 'bg-amber-200 text-amber-800' :
-              myPosition.posicao === 2 ? 'bg-gray-200 text-gray-700' :
-              myPosition.posicao === 3 ? 'bg-orange-200 text-orange-800' :
-              'bg-blue-200 text-blue-800'
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
+              myPosition.posicao === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+              myPosition.posicao === 2 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
+              myPosition.posicao === 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+              'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
             )}>
               {myPosition.posicao}º
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900 dark:text-gray-100">{myPosition.nome}</p>
-              <p className="text-xs text-gray-500">{myPosition.posicao}º lugar de {ranking.length} frentistas</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{myPosition.nome}</h3>
+                {myPosition.posicao <= 3 && <Trophy className="h-4 w-4 text-amber-500" />}
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">{myPosition.posicao}º lugar de {ranking.length} frentistas</p>
             </div>
-            {myPosition.posicao <= 3 && (
-              <Trophy className="ml-auto h-6 w-6 text-amber-500" />
-            )}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(myPosition.litros)}</p>
-              <p className="text-[10px] text-gray-400">Litros</p>
+          {/* Right: metric mini-cards */}
+          <div className="flex gap-2">
+            <div className="min-w-[90px] rounded-md border border-gray-200/80 bg-white px-3 py-1.5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Litros</p>
+              <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(myPosition.litros)}</p>
             </div>
-            <div className="text-center">
-              <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(myPosition.count)}</p>
-              <p className="text-[10px] text-gray-400">Atendimentos</p>
+            <div className="min-w-[90px] rounded-md border border-gray-200/80 bg-white px-3 py-1.5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Atendimentos</p>
+              <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(myPosition.count)}</p>
             </div>
           </div>
         </div>
       )}
+
+      {/* Insight banner */}
+      {myPosition && (() => {
+        if (myPosition.posicao === 1) return <InsightBanner type="champion" message="Parabéns, campeão! Você está na liderança do ranking. Mantenha o ritmo!" />
+        if (myPosition.posicao <= 3) return <InsightBanner type="success" message={`Você está no top 3! Faltam ${formatLiters(ranking[myPosition.posicao - 2].litros - myPosition.litros)} litros para subir para o ${myPosition.posicao - 1}º lugar.`} />
+        const nextUp = ranking[myPosition.posicao - 2]
+        if (nextUp) return <InsightBanner type="motivate" message={`Você está em ${myPosition.posicao}º lugar. Faltam ${formatLiters(nextUp.litros - myPosition.litros)} litros para ultrapassar ${nextUp.nome.split(' ')[0]} e subir para ${myPosition.posicao - 1}º!`} />
+        return null
+      })()}
 
       {/* Full ranking */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -124,12 +136,12 @@ const MeuRanking = () => {
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ranking Completo</h3>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {ranking.map((r) => (
+          {ranking.map((r, idx) => (
             <div
               key={r.codigo}
               className={cn(
                 'flex items-center gap-3 px-4 py-3',
-                r.isMe && 'bg-green-50/50 dark:bg-green-900/10'
+                r.isMe ? 'bg-green-50/50 dark:bg-green-900/10' : idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
               )}
             >
               <span className={cn(

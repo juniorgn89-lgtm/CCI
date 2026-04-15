@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import type { ProductRow } from '@/pages/Produtos/hooks/useProductData'
 
 interface ProductTableProps {
@@ -78,7 +79,7 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
 
   const SortHeader = ({ label, field }: { label: string; field: keyof ProductRow }) => (
     <th
-      className="cursor-pointer px-4 py-3 select-none"
+      className="cursor-pointer px-4 py-2 select-none"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center gap-1">
@@ -90,47 +91,58 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
     </th>
   )
 
+  // Totals from filtered data
+  const totalQtd = filtered.reduce((s, r) => s + r.quantidade, 0)
+  const totalFat = filtered.reduce((s, r) => s + r.faturamento, 0)
+  const totalLucro = filtered.reduce((s, r) => s + r.lucroBruto, 0)
+  const margemMedia = totalFat > 0 ? (totalLucro / totalFat) * 100 : 0
+
   return (
+    <div className="space-y-4">
+      <TableSummaryStrip
+        icon={Package}
+        iconColor="text-purple-600"
+        iconBg="bg-purple-100 dark:bg-purple-900/40"
+        title="Produtos Vendidos"
+        subtitle={`${filtered.length} de ${data.length} produtos`}
+        accentGradient="bg-gradient-to-r from-purple-50/80 to-white dark:from-purple-950/30 dark:to-gray-900"
+        metrics={[
+          { label: 'Faturamento', value: formatCurrency(totalFat) },
+          { label: 'Lucro Bruto', value: formatCurrency(totalLucro), color: totalLucro >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' },
+          { label: 'Margem Média', value: `${margemMedia.toFixed(1)}%`, color: margemMedia >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' },
+        ]}
+      />
+
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Produtos vendidos</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {filtered.length.toLocaleString('pt-BR')} produtos encontrados
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar produto, grupo, código..."
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="h-9 w-48 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
-              />
-            </div>
-            <select
-              value={filterGrupo}
-              onChange={(e) => handleGrupo(e.target.value)}
-              className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-            >
-              <option value="">Todos os grupos</option>
-              {grupos.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-            {(search || filterGrupo) && (
-              <button
-                onClick={() => { setSearch(''); setFilterGrupo(''); setPage(0) }}
-                className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-              >
-                Limpar
-              </button>
-            )}
-            <ExportButton onExport={handleExport} />
-          </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar produto, grupo, código..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
+          />
         </div>
+        <select
+          value={filterGrupo}
+          onChange={(e) => handleGrupo(e.target.value)}
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+        >
+          <option value="">Todos os grupos</option>
+          {grupos.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+        {(search || filterGrupo) && (
+          <button
+            onClick={() => { setSearch(''); setFilterGrupo(''); setPage(0) }}
+            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Limpar
+          </button>
+        )}
+        <ExportButton onExport={handleExport} />
       </div>
 
       {/* Table */}
@@ -140,7 +152,7 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
             <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               <SortHeader label="Produto" field="nome" />
               <SortHeader label="Grupo" field="grupo" />
-              <th className="px-4 py-3 text-right">Código</th>
+              <th className="px-4 py-2 text-right">Código</th>
               <SortHeader label="Qtd" field="quantidade" />
               <SortHeader label="Faturamento" field="faturamento" />
               <SortHeader label="Lucro bruto" field="lucroBruto" />
@@ -149,8 +161,8 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {paged.map((row) => (
-              <tr key={row.produtoCodigo} className="text-sm text-gray-700 transition-colors hover:bg-blue-50/50 dark:text-gray-300 dark:hover:bg-gray-800/50">
+            {paged.map((row, idx) => (
+              <tr key={row.produtoCodigo} className={cn('text-sm text-gray-700 transition-colors hover:bg-blue-50/50 dark:text-gray-300 dark:hover:bg-gray-800/50', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
                 <td className="px-4 py-2.5 font-medium">{row.nome}</td>
                 <td className="px-4 py-2.5">
                   <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
@@ -213,6 +225,7 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

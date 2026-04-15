@@ -142,35 +142,35 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
   }, [abastecimentoRows, frentistaRows, bombaRows, turnoRows, caixaResumo, kpis])
 
   const kpiCards = [
-    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Litros Vendidos', value: formatLiters(kpis.totalLitros), icon: Droplets, color: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Faturamento', value: formatCurrency(kpis.faturamentoCombustivel), icon: DollarSign, color: 'text-green-600 dark:text-green-400', border: 'border-green-500', bg: 'bg-green-50 dark:bg-green-900/30', tab: 'caixa' as TabKey },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30', tab: 'produtividade' as TabKey },
-    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/30', tab: 'bombas' as TabKey },
-    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/30', tab: 'caixa' as TabKey },
-    { label: 'Total Apurado', value: formatCurrency(kpis.totalApurado), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/30', tab: 'caixa' as TabKey },
+    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
+    { label: 'Litros Vendidos', value: formatLiters(kpis.totalLitros), icon: Droplets, color: 'text-cyan-600 dark:text-cyan-400', cardBg: 'bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900', iconBg: 'bg-cyan-100 dark:bg-cyan-900/30', tab: 'abastecimentos' as TabKey },
+    { label: 'Faturamento', value: formatCurrency(kpis.faturamentoCombustivel), icon: DollarSign, color: 'text-green-600 dark:text-green-400', cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/20 dark:to-gray-900', iconBg: 'bg-green-100 dark:bg-green-900/30', tab: 'caixa' as TabKey },
+    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', cardBg: 'bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900', iconBg: 'bg-purple-100 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
+    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'produtividade' as TabKey },
+    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', cardBg: 'bg-gradient-to-br from-indigo-50/60 to-white dark:from-indigo-950/20 dark:to-gray-900', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', tab: 'bombas' as TabKey },
+    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', cardBg: 'bg-gradient-to-br from-orange-50/60 to-white dark:from-orange-950/20 dark:to-gray-900', iconBg: 'bg-orange-100 dark:bg-orange-900/30', tab: 'caixa' as TabKey },
+    { label: 'Total Apurado', value: formatCurrency(kpis.totalApurado), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', tab: 'caixa' as TabKey },
   ]
 
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => {
           const Icon = card.icon
           return (
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-xl border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-gray-900', card.border)}
+              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', card.bg)}>
-                  <Icon className={cn('h-4 w-4', card.color)} />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
             </button>
           )
         })}

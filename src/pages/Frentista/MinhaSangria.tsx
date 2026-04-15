@@ -2,6 +2,7 @@ import { Banknote, Clock, CheckCircle2, AlertTriangle, Search } from 'lucide-rea
 import { useFreentistaStore } from '@/store/frentista'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InsightBanner from '@/pages/Frentista/components/InsightBanner'
 
 interface Sangria {
   id: string
@@ -43,22 +44,32 @@ const MinhaSangria = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border-l-4 border-blue-500 bg-white p-4 shadow-sm dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Banknote className="h-4 w-4 text-blue-500" />
-            <p className="text-xs text-gray-400">Total Retirado</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Retirado</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Banknote className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(totalSangrias)}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(totalSangrias)}</p>
         </div>
-        <div className="rounded-xl border-l-4 border-amber-500 bg-white p-4 shadow-sm dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-500" />
-            <p className="text-xs text-gray-400">Pendente</p>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Pendente</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+              <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(totalPendente)}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(totalPendente)}</p>
         </div>
       </div>
+
+      {/* Insight banner */}
+      {totalPendente === 0
+        ? <InsightBanner type="success" message="Nenhuma sangria pendente. Tudo em ordem com suas retiradas!" />
+        : <InsightBanner type="warning" message={`Você tem ${formatCurrency(totalPendente)} em sangrias pendentes de confirmação no retaguarda.`} />
+      }
 
       {/* Warning — no API yet */}
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2.5 dark:border-amber-800/30 dark:bg-amber-900/10">
@@ -77,8 +88,8 @@ const MinhaSangria = () => {
           </h3>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {sangrias.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+          {sangrias.map((s, idx) => (
+            <div key={s.id} className={cn('flex items-center gap-3 px-4 py-3', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
               <div className={cn(
                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
                 s.status === 'aprovada' ? 'bg-green-50 dark:bg-green-900/20' : 'bg-amber-50 dark:bg-amber-900/20'

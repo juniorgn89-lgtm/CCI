@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Wallet, Banknote, CreditCard, Smartphone, ArrowUpDown, ChevronDown, Users, Clock, User, CheckCircle2, AlertCircle, Search, Filter, Fuel } from 'lucide-react'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
   ResponsiveContainer,
   PieChart,
@@ -94,46 +95,29 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
 
   const abertos = turnoRows.filter((t) => !t.fechado)
 
+  const caixaSummary = useMemo(() => {
+    const apurado = filteredRows.reduce((s, t) => s + t.apurado, 0)
+    const diferenca = filteredRows.reduce((s, t) => s + t.diferenca, 0)
+    const fechados = filteredRows.filter((t) => t.fechado).length
+    const abertosCount = filteredRows.filter((t) => !t.fechado).length
+    return { apurado, diferenca, fechados, abertos: abertosCount }
+  }, [filteredRows])
+
   return (
     <div className="space-y-4">
-      {/* Summary KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-blue-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total Apurado</p>
-          </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatCurrency(caixaResumo.totalApurado)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-amber-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Diferença Total</p>
-          </div>
-          <p className={cn(
-            'mt-1 text-xl font-bold tabular-nums',
-            caixaResumo.totalDiferenca >= 0
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
-          )}>
-            {caixaResumo.totalDiferenca >= 0 ? '+' : ''}{formatCurrency(caixaResumo.totalDiferenca)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Caixas Fechados</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatNumber(caixaResumo.caixasFechados)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Caixas Abertos</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-orange-600 dark:text-orange-400">
-            {formatNumber(caixaResumo.caixasAbertos)}
-          </p>
-        </div>
-      </div>
+      <TableSummaryStrip
+        icon={Wallet}
+        iconColor="text-blue-600"
+        iconBg="bg-blue-100 dark:bg-blue-900/40"
+        title="Resumo do Caixa"
+        subtitle={`${filteredRows.length} sessões`}
+        metrics={[
+          { label: 'Apurado', value: formatCurrency(caixaSummary.apurado) },
+          { label: 'Diferença', value: `${caixaSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(caixaSummary.diferenca)}`, color: caixaSummary.diferenca >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' },
+          { label: 'Fechados', value: formatNumber(caixaSummary.fechados) },
+          { label: 'Abertos', value: formatNumber(caixaSummary.abertos), color: 'text-orange-600 dark:text-orange-400' },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Formas de pagamento / Diferença por responsável */}
@@ -445,17 +429,17 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Funcionário</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Turno</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Data</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Horário</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Diferença</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Funcionário</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Turno</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Data</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Horário</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Diferença</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredRows.map((t) => {
+                {filteredRows.map((t, idx) => {
                   const rowKey = `${t.caixaCodigo}-${t.turnoCodigo}-${t.dataMovimento}`
                   const isExpanded = expanded.has(rowKey)
                   const hasDetails = true
@@ -467,10 +451,11 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                         onClick={() => hasDetails && toggleExpand(rowKey)}
                         className={cn(
                           'hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                          hasDetails && 'cursor-pointer'
+                          hasDetails && 'cursor-pointer',
+                          idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
                         )}
                       >
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">
                           <div className="flex items-center gap-2">
                             {hasDetails && (
                               <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
@@ -485,25 +470,25 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-500 dark:text-gray-400">{t.turno}</td>
-                        <td className="px-6 py-3 text-sm tabular-nums text-gray-500 dark:text-gray-400">
+                        <td className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">{t.turno}</td>
+                        <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                           {t.dataMovimento ? t.dataMovimento.split('-').reverse().join('/') : '-'}
                         </td>
-                        <td className="px-6 py-3 text-sm tabular-nums text-gray-500 dark:text-gray-400">
+                        <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                           {t.abertura || '-'} - {t.fechado ? t.fechamento || '-' : 'Aberto'}
                         </td>
-                        <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                           {formatCurrency(t.apurado)}
                         </td>
                         <td className={cn(
-                          'px-6 py-3 text-right text-sm tabular-nums',
+                          'px-4 py-2.5 text-right text-sm tabular-nums',
                           !t.fechado ? 'text-gray-400' : t.diferenca > 0 ? 'text-green-600 dark:text-green-400' : t.diferenca < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
                         )}>
                           {!t.fechado ? '-' : t.diferenca !== 0 ? `${t.diferenca > 0 ? '+' : ''}${formatCurrency(t.diferenca)}` : '-'}
                         </td>
-                        <td className="px-6 py-3 text-center">
+                        <td className="px-4 py-2.5 text-center">
                           <span className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
                             t.fechado
                               ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                               : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
@@ -519,34 +504,34 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                           {/* Frentistas — sub-header com colunas */}
                           {t.frentistas.length > 0 && (
                             <tr key={`${rowKey}-frent-header`} className="bg-blue-50/50 dark:bg-blue-900/10">
-                              <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">
                                 <Users className="mr-1 inline h-3 w-3" />Abastecimentos do responsável
                               </td>
-                              <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Abast.</td>
-                              <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Litros</td>
-                              <td className="px-6 py-1.5" />
-                              <td className="px-6 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Combustível</td>
-                              <td className="px-6 py-1.5" />
-                              <td className="px-6 py-1.5" />
+                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Abast.</td>
+                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Litros</td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5 text-right text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Combustível</td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5" />
                             </tr>
                           )}
                           {t.frentistas.map((f) => (
                             <tr key={`${rowKey}-${f.nome}`} className="bg-blue-50/30 dark:bg-blue-900/10">
-                              <td className="py-2 pl-10 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                              <td className="py-2 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                 {f.nome}
                               </td>
-                              <td className="px-6 py-2 text-xs tabular-nums text-gray-400">
+                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
                                 {formatNumber(f.atendimentos)}
                               </td>
-                              <td className="px-6 py-2 text-xs tabular-nums text-gray-400">
+                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
                                 {formatLiters(f.litros)}
                               </td>
-                              <td className="px-6 py-2" />
-                              <td className="px-6 py-2 text-right text-xs tabular-nums text-gray-700 dark:text-gray-300">
+                              <td className="px-4 py-2" />
+                              <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-700 dark:text-gray-300">
                                 {formatCurrency(f.faturamento)}
                               </td>
-                              <td className="px-6 py-2" />
-                              <td className="px-6 py-2" />
+                              <td className="px-4 py-2" />
+                              <td className="px-4 py-2" />
                             </tr>
                           ))}
                           {/* Resumo: Combustível + Conveniência + Apurado + Diferença */}
@@ -558,82 +543,82 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                             return (
                               <>
                                 <tr key={`${rowKey}-sum-header`} className="bg-gray-100/80 dark:bg-gray-800/50">
-                                  <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400" colSpan={7}>
+                                  <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" colSpan={7}>
                                     Resumo do Caixa
                                   </td>
                                 </tr>
                                 <tr key={`${rowKey}-sum-comb`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                  <td className="py-1.5 pl-10 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                                  <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                     <Fuel className="mr-1.5 inline h-3 w-3 text-blue-500" />Combustível
                                   </td>
-                                  <td className="px-6 py-1.5 text-xs tabular-nums text-gray-400">{formatNumber(totalAbast)} abast.</td>
-                                  <td className="px-6 py-1.5 text-xs tabular-nums text-gray-400">{formatLiters(totalLitros)}</td>
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
+                                  <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatNumber(totalAbast)} abast.</td>
+                                  <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatLiters(totalLitros)}</td>
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
                                     {formatCurrency(totalCombustivel)}
                                   </td>
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5" />
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5" />
                                 </tr>
                                 {conveniencia > 0 && (
                                   <tr key={`${rowKey}-sum-conv`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                    <td className="py-1.5 pl-10 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                                    <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                       <Wallet className="mr-1.5 inline h-3 w-3 text-green-500" />Conveniência / Outros
                                     </td>
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
                                       {formatCurrency(conveniencia)}
                                     </td>
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
                                   </tr>
                                 )}
                                 <tr key={`${rowKey}-sum-apurado`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                  <td className="py-1.5 pl-10 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                                  <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                     Apurado no Caixa (contagem física)
                                   </td>
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5 text-right text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
                                     {formatCurrency(t.apurado)}
                                   </td>
-                                  <td className="px-6 py-1.5" />
-                                  <td className="px-6 py-1.5" />
+                                  <td className="px-4 py-1.5" />
+                                  <td className="px-4 py-1.5" />
                                 </tr>
                                 {t.fechado && (
                                   <tr key={`${rowKey}-sum-esperado`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                    <td className="py-1.5 pl-10 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                                    <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                       Esperado (sistema)
                                     </td>
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5 text-right text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
                                       {formatCurrency(t.apurado - t.diferenca)}
                                     </td>
-                                    <td className="px-6 py-1.5" />
-                                    <td className="px-6 py-1.5" />
+                                    <td className="px-4 py-1.5" />
+                                    <td className="px-4 py-1.5" />
                                   </tr>
                                 )}
                                 {t.fechado && t.diferenca !== 0 && (
                                   <tr key={`${rowKey}-sum-diff`} className="bg-gray-100/80 dark:bg-gray-800/50">
-                                    <td className="py-2 pl-10 pr-6 text-xs font-bold text-gray-800 dark:text-gray-200">
+                                    <td className="py-2 pl-10 pr-4 text-xs font-medium text-gray-800 dark:text-gray-200">
                                       Diferença
                                     </td>
-                                    <td className="px-6 py-2" />
-                                    <td className="px-6 py-2" />
-                                    <td className="px-6 py-2" />
+                                    <td className="px-4 py-2" />
+                                    <td className="px-4 py-2" />
+                                    <td className="px-4 py-2" />
                                     <td className={cn(
-                                      'px-6 py-2 text-right text-xs font-bold tabular-nums',
+                                      'px-4 py-2 text-right text-xs font-medium tabular-nums',
                                       t.diferenca > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                     )}>
                                       {t.diferenca > 0 ? '+' : ''}{formatCurrency(t.diferenca)}
                                     </td>
-                                    <td className="px-6 py-2" />
-                                    <td className="px-6 py-2" />
+                                    <td className="px-4 py-2" />
+                                    <td className="px-4 py-2" />
                                   </tr>
                                 )}
                               </>
@@ -644,47 +629,47 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                           {t.pagamentos.length > 0 && (
                             <>
                               <tr key={`${rowKey}-pgto-header`} className="bg-amber-50/50 dark:bg-amber-900/10">
-                                <td colSpan={7} className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                <td colSpan={7} className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
                                   <Wallet className="mr-1 inline h-3 w-3" />Formas de Pagamento
                                 </td>
                               </tr>
                               {t.pagamentos.map((p) => (
                                 <tr key={`${rowKey}-pgto-${p.tipo}`} className="bg-amber-50/30 dark:bg-amber-900/10">
-                                  <td className="py-2 pl-16 pr-6 text-xs text-gray-600 dark:text-gray-400">
+                                  <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400">
                                     {p.nome}
                                   </td>
-                                  <td className="px-6 py-2 text-xs text-gray-400" />
-                                  <td className="px-6 py-2 text-xs text-gray-400" />
-                                  <td className="px-6 py-2 text-xs tabular-nums text-gray-400">
+                                  <td className="px-4 py-2 text-xs text-gray-400" />
+                                  <td className="px-4 py-2 text-xs text-gray-400" />
+                                  <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
                                     {formatNumber(p.quantidade)} transações
                                   </td>
-                                  <td className="px-6 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-400">
+                                  <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-400">
                                     {formatCurrency(p.valor)}
                                   </td>
-                                  <td className="px-6 py-2 text-xs text-gray-400" />
-                                  <td className="px-6 py-2" />
+                                  <td className="px-4 py-2 text-xs text-gray-400" />
+                                  <td className="px-4 py-2" />
                                 </tr>
                               ))}
                               {/* Totals row */}
                               <tr key={`${rowKey}-pgto-total`} className="bg-amber-50/50 dark:bg-amber-900/10">
-                                <td className="py-2 pl-16 pr-6 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                <td className="py-2 pl-16 pr-4 text-xs font-medium text-gray-700 dark:text-gray-300">
                                   Total Vendas
                                 </td>
-                                <td className="px-6 py-2" />
-                                <td className="px-6 py-2" />
-                                <td className="px-6 py-2 text-xs text-gray-500">
+                                <td className="px-4 py-2" />
+                                <td className="px-4 py-2" />
+                                <td className="px-4 py-2 text-xs text-gray-500">
                                   Apurado: {formatCurrency(t.apurado)}
                                 </td>
-                                <td className="px-6 py-2 text-right text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                                <td className="px-4 py-2 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
                                   {formatCurrency(t.totalVendas)}
                                 </td>
                                 <td className={cn(
-                                  'px-6 py-2 text-right text-xs font-semibold tabular-nums',
+                                  'px-4 py-2 text-right text-xs font-medium tabular-nums',
                                   t.diferenca > 0 ? 'text-green-600' : t.diferenca < 0 ? 'text-red-600' : 'text-gray-500'
                                 )}>
                                   {t.diferenca !== 0 ? `${t.diferenca > 0 ? '+' : ''}${formatCurrency(t.diferenca)}` : '-'}
                                 </td>
-                                <td className="px-6 py-2" />
+                                <td className="px-4 py-2" />
                               </tr>
                             </>
                           )}

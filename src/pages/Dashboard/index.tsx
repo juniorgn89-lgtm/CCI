@@ -170,55 +170,55 @@ const Dashboard = () => {
 
       {/* Quick KPIs */}
       {showSkeleton ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => <KpiSkeleton key={i} />)}
         </div>
       ) : quickStats && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <div className="rounded-xl border-l-4 border-l-blue-500 border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
+          <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Litros Vendidos</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                <Droplets className="h-4 w-4 text-blue-500" />
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Litros Vendidos</p>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+                <Droplets className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(quickStats.litrosVendidos)}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(quickStats.litrosVendidos)}</p>
           </div>
-          <div className="rounded-xl border-l-4 border-l-emerald-500 border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-emerald-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-emerald-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Receita</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
-                <DollarSign className="h-4 w-4 text-emerald-500" />
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Receita</p>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(quickStats.receitaDia)}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(quickStats.receitaDia)}</p>
           </div>
-          <div className="rounded-xl border-l-4 border-l-amber-500 border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Ticket Médio</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
-                <Receipt className="h-4 w-4 text-amber-500" />
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Ticket Médio</p>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                <Receipt className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(quickStats.ticketMedio)}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(quickStats.ticketMedio)}</p>
           </div>
-          <div className="rounded-xl border-l-4 border-l-indigo-500 border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-indigo-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-indigo-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Abastecimentos</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-900/30">
-                <Fuel className="h-4 w-4 text-indigo-500" />
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Abastecimentos</p>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-900/30">
+                <Fuel className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               </div>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(quickStats.totalAbastecimentos)}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(quickStats.totalAbastecimentos)}</p>
           </div>
-          <div className="rounded-xl border-l-4 border-l-rose-500 border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-rose-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-rose-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Margem</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-900/30">
-                <TrendingUp className="h-4 w-4 text-rose-500" />
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Margem</p>
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-100 dark:bg-rose-900/30">
+                <TrendingUp className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{quickStats.margemMedia.toFixed(1)}%</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{quickStats.margemMedia.toFixed(1)}%</p>
           </div>
         </div>
       )}
