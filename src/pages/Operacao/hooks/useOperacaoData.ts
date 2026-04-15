@@ -317,12 +317,13 @@ const useOperacaoData = () => {
     }
 
     // ── Turnos (from Caixas) with frentistas cross-reference ──
+    // Show only the caixa responsible's own abastecimentos (accurate data)
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
-        // Cross-reference abastecimentos for this shift date
+        // Only get abastecimentos from the person who opened this caixa
         const shiftAbast = abastecimentos.filter((a) => {
           const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-          return abastDate === c.dataMovimento
+          return abastDate === c.dataMovimento && a.codigoFrentista === c.funcionarioCodigo
         })
 
         // Aggregate all frentistas who worked during this shift (including opener)

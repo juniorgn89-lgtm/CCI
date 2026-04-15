@@ -458,7 +458,7 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                 {filteredRows.map((t) => {
                   const rowKey = `${t.caixaCodigo}-${t.turnoCodigo}-${t.dataMovimento}`
                   const isExpanded = expanded.has(rowKey)
-                  const hasDetails = t.frentistas.length > 0 || t.pagamentos.length > 0
+                  const hasDetails = true
 
                   return (
                     <>
@@ -520,7 +520,7 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                           {t.frentistas.length > 0 && (
                             <tr key={`${rowKey}-frent-header`} className="bg-blue-50/50 dark:bg-blue-900/10">
                               <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                                <Users className="mr-1 inline h-3 w-3" />Frentista
+                                <Users className="mr-1 inline h-3 w-3" />Abastecimentos do responsável
                               </td>
                               <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Abast.</td>
                               <td className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Litros</td>
@@ -550,7 +550,7 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
                             </tr>
                           ))}
                           {/* Resumo: Combustível + Conveniência + Apurado + Diferença */}
-                          {t.frentistas.length > 0 && (() => {
+                          {(() => {
                             const totalAbast = t.frentistas.reduce((s, f) => s + f.atendimentos, 0)
                             const totalLitros = t.frentistas.reduce((s, f) => s + f.litros, 0)
                             const totalCombustivel = t.frentistas.reduce((s, f) => s + f.faturamento, 0)
