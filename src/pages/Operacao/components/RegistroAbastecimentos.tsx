@@ -69,10 +69,10 @@ const RegistroAbastecimentos = ({ abastecimentoRows, frentistasList, combustivei
       )
     }
     if (frentista !== null) {
-      result = result.filter((r) => r.frentistaCodigo === frentista)
+      result = result.filter((r) => Number(r.frentistaCodigo) === frentista)
     }
     if (combustivel !== null) {
-      result = result.filter((r) => r.produtoCodigo === combustivel)
+      result = result.filter((r) => Number(r.produtoCodigo) === combustivel)
     }
     return result
   }, [abastecimentoRows, search, frentista, combustivel])
@@ -148,6 +148,14 @@ const RegistroAbastecimentos = ({ abastecimentoRows, frentistasList, combustivei
             ))}
           </select>
 
+          {(search || frentista !== null || combustivel !== null) && (
+            <button
+              onClick={() => { setSearch(''); setFrentista(null); setCombustivel(null) }}
+              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Limpar
+            </button>
+          )}
           <ExportButton onExport={handleExport} />
         </div>
 

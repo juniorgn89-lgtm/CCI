@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
@@ -27,7 +27,6 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
   const [filterFrentista, setFilterFrentista] = useState('')
   const [filterCombustivel, setFilterCombustivel] = useState('')
   const [page, setPage] = useState(0)
-  const [showFilters, setShowFilters] = useState(false)
 
   const filtered = useMemo(() => {
     let result = data
@@ -54,8 +53,6 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
   const handleSearch = (v: string) => { setSearch(v); setPage(0) }
   const handleFrentista = (v: string) => { setFilterFrentista(v); setPage(0) }
   const handleCombustivel = (v: string) => { setFilterCombustivel(v); setPage(0) }
-
-  const activeFilterCount = (filterFrentista ? 1 : 0) + (filterCombustivel ? 1 : 0)
 
   const exportColumns: ExportColumn<AbastecimentoRow>[] = [
     { header: 'Data/Hora', accessor: (r) => r.dataHora },
@@ -87,7 +84,7 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
               {filtered.length.toLocaleString('pt-BR')} registros encontrados
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -96,38 +93,13 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
                 placeholder="Buscar placa, frentista..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="h-9 w-64 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
+                className="h-9 w-48 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:bg-gray-800"
               />
             </div>
-            <ExportButton onExport={handleExport} />
-            {/* Filter toggle */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                'relative flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors',
-                showFilters || activeFilterCount > 0
-                  ? 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-              )}
-            >
-              <Filter className="h-4 w-4" />
-              Filtros
-              {activeFilterCount > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Filter dropdowns */}
-        {showFilters && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
             <select
               value={filterFrentista}
               onChange={(e) => handleFrentista(e.target.value)}
-              className="h-8 rounded-md border border-gray-200 bg-white px-3 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
             >
               <option value="">Todos os frentistas</option>
               {frentistas.map((f) => <option key={f} value={f}>{f}</option>)}
@@ -135,21 +107,22 @@ const AbastecimentosTable = ({ data, frentistas, combustiveis }: AbastecimentosT
             <select
               value={filterCombustivel}
               onChange={(e) => handleCombustivel(e.target.value)}
-              className="h-8 rounded-md border border-gray-200 bg-white px-3 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
             >
               <option value="">Todos os combustíveis</option>
               {combustiveis.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            {activeFilterCount > 0 && (
+            {(search || filterFrentista || filterCombustivel) && (
               <button
-                onClick={() => { setFilterFrentista(''); setFilterCombustivel(''); setPage(0) }}
+                onClick={() => { setSearch(''); setFilterFrentista(''); setFilterCombustivel(''); setPage(0) }}
                 className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
               >
-                Limpar filtros
+                Limpar
               </button>
             )}
+            <ExportButton onExport={handleExport} />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Table */}

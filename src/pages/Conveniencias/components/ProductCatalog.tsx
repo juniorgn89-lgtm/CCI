@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Search, Filter } from 'lucide-react'
+import { Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import ExportButton from '@/components/tables/ExportButton'
@@ -129,7 +129,6 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
             <select
               value={grupoFilter}
               onChange={(e) => setGrupoFilter(e.target.value)}
@@ -159,6 +158,15 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
               </button>
             ))}
           </div>
+
+          {(search || grupoFilter) && (
+            <button
+              onClick={() => { setSearch(''); setGrupoFilter('') }}
+              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Limpar
+            </button>
+          )}
 
           <ExportButton onExport={handleExport} />
         </div>

@@ -177,6 +177,15 @@ const StockView = ({ stockItems, stockSummary }: StockViewProps) => {
             ))}
           </div>
 
+          {(search || statusFilter !== 'todos') && (
+            <button
+              onClick={() => { setSearch(''); setStatusFilter('todos') }}
+              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Limpar
+            </button>
+          )}
+
           <ExportButton onExport={handleExport} />
         </div>
 

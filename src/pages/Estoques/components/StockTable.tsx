@@ -166,8 +166,6 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
             </select>
           </div>
 
-          <ExportButton onExport={handleExport} />
-
           {/* Status filter */}
           <select
             value={statusFilter}
@@ -181,6 +179,15 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
             <option value="sem_estoque">Sem estoque</option>
             <option value="negativo">Negativo</option>
           </select>
+          {(search || categoriaFilter || statusFilter) && (
+            <button
+              onClick={() => { setSearch(''); setCategoriaFilter(''); setStatusFilter(''); setPage(0) }}
+              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Limpar
+            </button>
+          )}
+          <ExportButton onExport={handleExport} />
         </div>
       </div>
 

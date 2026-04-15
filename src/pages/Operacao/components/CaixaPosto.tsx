@@ -64,12 +64,12 @@ const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoPr
     })
   }, [turnoRows, filterNome, filterTurno, filterStatus, filterDiferenca])
 
-  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'todos' || filterDiferenca !== 'todas'
+  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
 
   const clearFilters = () => {
     setFilterNome('')
     setFilterTurno('')
-    setFilterStatus('todos')
+    setFilterStatus('aberto')
     setFilterDiferenca('todas')
   }
 
