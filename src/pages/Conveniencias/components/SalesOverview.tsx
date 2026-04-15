@@ -1,22 +1,21 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { ShoppingCart } from 'lucide-react'
 import {
   ResponsiveContainer,
-  ComposedChart,
-  Bar,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
-  AreaChart,
-  Area,
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatDate, formatNumber } from '@/lib/formatters'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import ExportButton from '@/components/tables/ExportButton'
+import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { DailyRow, GroupRow, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
@@ -61,11 +60,6 @@ const dailyCsvCols: ExportColumn<DailyRow>[] = [
   { header: 'Margem %', accessor: (r) => r.margemPct },
 ]
 
-const fmtDay = (d: string) => {
-  const parts = d.split('-')
-  return `${parts[2]}/${parts[1]}`
-}
-
 const formatMonth = (mes: string) => {
   const [year, month] = mes.split('-')
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -79,6 +73,15 @@ const SalesOverview = ({ dailyData, groupTable, revenueData }: SalesOverviewProp
     exportToCsv('conveniencia-vendas-diario', dailyData, dailyCsvCols)
   }, [dailyData])
 
+  const totals = useMemo(() => {
+    const faturamento = dailyData.reduce((s, d) => s + d.faturamento, 0)
+    const custo = dailyData.reduce((s, d) => s + d.custo, 0)
+    const margem = faturamento - custo
+    const margemPct = faturamento > 0 ? (margem / faturamento) * 100 : 0
+    const itens = dailyData.reduce((s, d) => s + d.qtdItens, 0)
+    return { faturamento, margem, margemPct, itens }
+  }, [dailyData])
+
   const subTabs: { key: SubView; label: string }[] = [
     { key: 'diario', label: 'Dia a Dia' },
     { key: 'grupo', label: 'Por Grupo' },
@@ -87,29 +90,21 @@ const SalesOverview = ({ dailyData, groupTable, revenueData }: SalesOverviewProp
 
   return (
     <div className="space-y-4">
-      {/* Daily sales chart */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">Vendas Diárias</h3>
-        {dailyData.length === 0 ? (
-          <div className="flex h-[250px] items-center justify-center text-sm text-gray-400">Sem dados no período.</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={dailyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-              <XAxis dataKey="data" tickFormatter={fmtDay} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-              <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-              <Tooltip
-                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name]) as never}
-                labelFormatter={fmtDay as never}
-              />
-              <Legend />
-              <Bar dataKey="faturamento" name="Faturamento" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="margemRs" name="Margem" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      {/* Summary strip */}
+      <TableSummaryStrip
+        icon={ShoppingCart}
+        iconColor="text-emerald-600"
+        iconBg="bg-emerald-100 dark:bg-emerald-900/40"
+        title="Vendas do Período"
+        subtitle={`${dailyData.length} dias`}
+        accentGradient="bg-gradient-to-r from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-gray-900"
+        metrics={[
+          { label: 'Faturamento', value: formatCurrency(totals.faturamento) },
+          { label: 'Margem', value: formatCurrency(totals.margem), color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Margem %', value: `${totals.margemPct.toFixed(1)}%` },
+          { label: 'Itens', value: formatNumber(totals.itens) },
+        ]}
+      />
 
       {/* Sub-tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">

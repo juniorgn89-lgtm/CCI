@@ -69,20 +69,36 @@ const AnaliseTendencia = ({ trends }: AnaliseTendenciaProps) => {
   return (
     <div className="space-y-5">
       {/* Summary with trend */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{card.label}</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
-            <div className="mt-2 flex items-center gap-1.5">
-              {TrendIcon(card.variation)}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        {summaryCards.map((card, idx) => {
+          const gradients = [
+            'from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900',
+            'from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
+            'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
+          ]
+          const iconBgs = [
+            'bg-cyan-100 dark:bg-cyan-900/30',
+            'bg-blue-100 dark:bg-blue-900/30',
+            'bg-emerald-100 dark:bg-emerald-900/30',
+          ]
+          return (
+          <div key={card.label} className={cn('rounded-lg border border-gray-200/60 bg-gradient-to-br px-3 py-2.5 shadow-sm dark:border-gray-700/60', gradients[idx])}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{card.label}</p>
+              <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', iconBgs[idx])}>
+                {TrendIcon(card.variation)}
+              </div>
+            </div>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+            <div className="mt-1 flex items-center gap-1.5">
               <span className={cn('text-sm font-semibold tabular-nums', trendColor(card.variation))}>
                 {card.variation > 0 ? '+' : ''}{card.variation.toFixed(1)}%
               </span>
               <span className="text-xs text-gray-400">vs primeira metade</span>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Litros trend */}

@@ -131,6 +131,7 @@ const Conveniencias = () => {
                   {activeTab === 'indicadores' && kpis && (
                     <ConvenienciaIndicadores
                       kpis={kpis}
+                      dailyData={dailyData}
                       groupTable={groupTable}
                       topSellers={topSellers}
                       revenueData={revenueData}

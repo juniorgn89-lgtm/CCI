@@ -60,24 +60,24 @@ const ControlCenter = ({ postos, networkTotals, alerts }: Props) => {
   return (
     <div className="space-y-6">
       {/* Main KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
         {[
-          { label: 'Litros da Rede', value: `${fmtNum(networkTotals.litros)}L`, icon: Fuel, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30' },
-          { label: 'Faturamento Total', value: fmt(networkTotals.receita), icon: Receipt, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-          { label: 'Abastecimentos', value: fmtNum(networkTotals.abastecimentos), icon: Target, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/30' },
-          { label: 'Ticket Médio', value: fmt(networkTotals.ticketMedio), icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30' },
-          { label: 'Conversão Média', value: `${networkTotals.conversao.toFixed(1)}%`, icon: Activity, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30' },
+          { label: 'Litros da Rede', value: `${fmtNum(networkTotals.litros)}L`, icon: Fuel, color: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', gradient: 'from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900' },
+          { label: 'Faturamento Total', value: fmt(networkTotals.receita), icon: Receipt, color: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', gradient: 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900' },
+          { label: 'Abastecimentos', value: fmtNum(networkTotals.abastecimentos), icon: Target, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', gradient: 'from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900' },
+          { label: 'Ticket Médio', value: fmt(networkTotals.ticketMedio), icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-100 dark:bg-amber-900/30', gradient: 'from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900' },
+          { label: 'Conversão Média', value: `${networkTotals.conversao.toFixed(1)}%`, icon: Activity, color: 'text-rose-600 dark:text-rose-400', iconBg: 'bg-rose-100 dark:bg-rose-900/30', gradient: 'from-rose-50/60 to-white dark:from-rose-950/20 dark:to-gray-900' },
         ].map(item => {
           const Icon = item.icon
           return (
-            <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div key={item.label} className={cn('rounded-lg border border-gray-200/60 bg-gradient-to-br px-3 py-2.5 shadow-sm dark:border-gray-700/60', item.gradient)}>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{item.label}</p>
-                <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', item.bg)}>
-                  <Icon className={cn('h-4 w-4', item.color)} />
+                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', item.iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', item.color)} />
                 </div>
               </div>
-              <p className="mt-3 text-xl font-bold text-gray-900 dark:text-gray-100">{item.value}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{item.value}</p>
             </div>
           )
         })}

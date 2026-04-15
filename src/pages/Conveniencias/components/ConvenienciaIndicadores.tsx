@@ -4,17 +4,19 @@ import {
   Lightbulb, Trophy, AlertTriangle, ShoppingCart, Clock,
 } from 'lucide-react'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
-import type { ConvKpiData, GroupRow, TopSellerItem, InsightItem, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
+import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem, InsightItem, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
 interface Props {
   kpis: ConvKpiData
+  dailyData: DailyRow[]
   groupTable: GroupRow[]
   topSellers: TopSellerItem[]
   revenueData: RevenueRow[]
@@ -22,7 +24,12 @@ interface Props {
   onNavigateTab: (tab: string) => void
 }
 
-const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, insights, onNavigateTab }: Props) => {
+const fmtDay = (d: string) => {
+  const parts = d.split('-')
+  return `${parts[2]}/${parts[1]}`
+}
+
+const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, revenueData, insights, onNavigateTab }: Props) => {
   const fatChange = kpis.prev.faturamento > 0
     ? ((kpis.faturamento - kpis.prev.faturamento) / kpis.prev.faturamento) * 100
     : undefined
@@ -158,6 +165,28 @@ const ConvenienciaIndicadores = ({ kpis, groupTable, topSellers, revenueData, in
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Daily sales chart — moved from Vendas tab */}
+      {dailyData.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">Vendas Diárias</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <ComposedChart data={dailyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+              <XAxis dataKey="data" tickFormatter={fmtDay} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+              <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+              <Tooltip
+                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name]) as never}
+                labelFormatter={fmtDay as never}
+              />
+              <Legend />
+              <Bar dataKey="faturamento" name="Faturamento" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
+              <Line type="monotone" dataKey="margemRs" name="Margem" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       )}
 

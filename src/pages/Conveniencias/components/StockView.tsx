@@ -94,53 +94,64 @@ const StockView = ({ stockItems, stockSummary }: StockViewProps) => {
   return (
     <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-blue-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Itens em Estoque</p>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Itens em Estoque</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Package className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {formatNumber(filtered.length)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Valor Total</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-emerald-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-emerald-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Valor Total</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
+              <Package className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </div>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {formatCurrency(filtered.reduce((s, i) => s + i.valorEstoque, 0))}
           </p>
         </div>
         <button
           onClick={() => setStatusFilter(statusFilter === 'baixo' ? 'todos' : 'baixo')}
           className={cn(
-            'rounded-lg border p-4 text-left transition-all',
+            'rounded-lg border px-3 py-2.5 text-left shadow-sm transition-all',
             statusFilter === 'baixo'
-              ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
-              : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+              ? 'border-amber-300/60 bg-gradient-to-br from-amber-100/80 to-amber-50/40 dark:border-amber-700/60 dark:from-amber-950/40 dark:to-gray-900'
+              : 'border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900'
           )}
         >
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Estoque Baixo</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Estoque Baixo</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-amber-600 dark:text-amber-400">
             {stockSummary.baixoEstoque}
           </p>
         </button>
         <button
           onClick={() => setStatusFilter(statusFilter === 'zerado' ? 'todos' : 'zerado')}
           className={cn(
-            'rounded-lg border p-4 text-left transition-all',
+            'rounded-lg border px-3 py-2.5 text-left shadow-sm transition-all',
             statusFilter === 'zerado'
-              ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20'
-              : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+              ? 'border-red-300/60 bg-gradient-to-br from-red-100/80 to-red-50/40 dark:border-red-700/60 dark:from-red-950/40 dark:to-gray-900'
+              : 'border-gray-200/60 bg-gradient-to-br from-red-50/60 to-white dark:border-gray-700/60 dark:from-red-950/20 dark:to-gray-900'
           )}
         >
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Estoque Zerado</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Estoque Zerado</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-100 dark:bg-red-900/30">
+              <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+            </div>
           </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-red-600 dark:text-red-400">
             {stockSummary.zerado}
           </p>
         </button>

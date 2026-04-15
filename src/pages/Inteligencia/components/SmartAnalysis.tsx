@@ -52,29 +52,35 @@ const SmartAnalysis = ({ insights }: Props) => {
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-semibold text-emerald-700 dark:text-emerald-300">Destaques</span>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-emerald-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-emerald-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Destaques</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
           </div>
-          <p className="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-100">{positive.length}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{positive.length}</p>
           <p className="text-xs text-emerald-600 dark:text-emerald-400">postos acima da média</p>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            <span className="font-semibold text-amber-700 dark:text-amber-300">Atenção</span>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Atenção</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
           </div>
-          <p className="mt-1 text-2xl font-bold text-amber-900 dark:text-amber-100">{warnings.length}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{warnings.length}</p>
           <p className="text-xs text-amber-600 dark:text-amber-400">pontos de atenção</p>
         </div>
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-          <div className="flex items-center gap-2">
-            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <span className="font-semibold text-blue-700 dark:text-blue-300">Informações</span>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Informações</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Info className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <p className="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100">{infos.length}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{infos.length}</p>
           <p className="text-xs text-blue-600 dark:text-blue-400">insights identificados</p>
         </div>
       </div>

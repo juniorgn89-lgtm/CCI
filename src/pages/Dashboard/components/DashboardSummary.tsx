@@ -80,26 +80,26 @@ const DashboardSummary = ({ globalKpi, comparison }: DashboardSummaryProps) => {
       </div>
 
       {/* Números globais */}
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Faturamento</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(globalKpi.faturamento)}</p>
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Faturamento</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(globalKpi.faturamento)}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <ChangeTag value={fatVsPrevMonth} label={`vs ${prevMonthLabel(dataInicial)}`} />
             <ChangeTag value={fatVsPrevYear} label={`vs ${prevYearLabel(dataInicial)}`} />
           </div>
         </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Lucro bruto</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(globalKpi.lucroBruto)}</p>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-emerald-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-emerald-950/20 dark:to-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Lucro bruto</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(globalKpi.lucroBruto)}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <ChangeTag value={lbVsPrevMonth} label={`vs ${prevMonthLabel(dataInicial)}`} />
             <ChangeTag value={lbVsPrevYear} label={`vs ${prevYearLabel(dataInicial)}`} />
           </div>
         </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Margem geral</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatPercent(globalKpi.margem)}</p>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-purple-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-purple-950/20 dark:to-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Margem geral</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatPercent(globalKpi.margem)}</p>
           {comparison.prevMonth.faturamento > 0 && (
             <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
               Mês ant.: {formatCurrency(comparison.prevMonth.faturamento)}

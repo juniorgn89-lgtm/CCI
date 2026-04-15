@@ -1,5 +1,6 @@
 import { TrendingUp, Calendar, ArrowUpRight } from 'lucide-react'
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
+import { cn } from '@/lib/utils'
 import type { ForecastPoint } from '../hooks/useNetworkData'
 
 interface Props {
@@ -57,29 +58,43 @@ const SalesForecast = ({ forecastData }: Props) => {
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Média Diária Real</p>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Média Diária Real</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{fmt(avgReal)}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(avgReal)}</p>
           <p className="text-xs text-gray-400">{realPoints.length} dias de dados</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-blue-500" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Previsão Média</p>
+        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-purple-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-purple-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Previsão Média</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-purple-100 dark:bg-purple-900/30">
+              <TrendingUp className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+            </div>
           </div>
-          <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{fmt(avgForecast)}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(avgForecast)}</p>
           <p className="text-xs text-gray-400">próximos 7 dias</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center gap-2">
-            <ArrowUpRight className={`h-4 w-4 ${trendPct >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-            <p className="text-xs text-gray-500 dark:text-gray-400">Tendência</p>
+        <div className={cn(
+          'rounded-lg border border-gray-200/60 bg-gradient-to-br px-3 py-2.5 shadow-sm dark:border-gray-700/60',
+          trendPct >= 0
+            ? 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900'
+            : 'from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900'
+        )}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Tendência</p>
+            <div className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-md',
+              trendPct >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
+            )}>
+              <ArrowUpRight className={cn('h-3.5 w-3.5', trendPct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')} />
+            </div>
           </div>
-          <p className={`mt-2 text-xl font-bold ${trendPct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+          <p className={cn('mt-1 text-lg font-bold tabular-nums', trendPct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
             {trendPct >= 0 ? '+' : ''}{trendPct.toFixed(1)}%
           </p>
           <p className="text-xs text-gray-400">{trendPct >= 0 ? 'crescimento' : 'queda'} projetado</p>
