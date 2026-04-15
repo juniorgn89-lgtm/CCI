@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Fuel, Gauge, Store, Package, Warehouse, DollarSign, Brain,
-  Droplets, Receipt, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight,
+  Droplets, Receipt, TrendingUp, ArrowUpRight, ArrowRight,
   Lightbulb, AlertTriangle, Clock,
 } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'

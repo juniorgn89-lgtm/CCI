@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
   Package, DollarSign, TrendingUp, BarChart3, ShoppingCart,
-  Trophy, AlertTriangle, Lightbulb, ArrowUpRight, ArrowDownRight,
+  Trophy, AlertTriangle, Lightbulb, ArrowUpRight,
 } from 'lucide-react'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { cn } from '@/lib/utils'

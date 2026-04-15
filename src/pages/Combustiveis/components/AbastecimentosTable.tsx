@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Search, ChevronLeft, ChevronRight, Fuel } from 'lucide-react'
-import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
+import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import ExportButton from '@/components/tables/ExportButton'

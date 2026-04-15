@@ -4,7 +4,7 @@ import { Wallet, Clock, ArrowUpDown, CheckCircle2, AlertCircle, RefreshCw } from
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/pages/Frentista/components/InsightBanner'
 

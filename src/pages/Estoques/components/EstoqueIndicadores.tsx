@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import {
   Package, Layers, AlertTriangle, XCircle, Lightbulb,
-  ArrowUpRight, ArrowDownRight, Clock, TrendingDown, FolderOpen,
+  ArrowUpRight, Clock, TrendingDown, FolderOpen,
 } from 'lucide-react'
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { formatNumber, formatCurrency } from '@/lib/formatters'
+import { formatNumber } from '@/lib/formatters'
 import type {
   StockKpiData, StockRow, AlertItem, CategoryStock, StatusBreakdown,
 } from '@/pages/Estoques/hooks/useStockData'
@@ -24,12 +24,9 @@ interface EstoqueIndicadoresProps {
   onNavigateTab: (tab: TabKey, alertFilter?: SeverityFilter) => void
 }
 
-const DONUT_COLORS = ['#22c55e', '#f59e0b', '#f97316', '#ef4444', '#991b1b']
-
 const EstoqueIndicadores = ({
   kpis,
   stockTable,
-  alerts,
   categoryStock,
   statusBreakdown,
   onNavigateTab,

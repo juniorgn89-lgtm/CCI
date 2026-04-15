@@ -82,7 +82,7 @@ const LoadingOverlay = () => {
 
   const [showBanner, setShowBanner] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const staleTimer = useRef<ReturnType<typeof setTimeout>>()
+  const staleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Show overlay when company changes
   useEffect(() => {

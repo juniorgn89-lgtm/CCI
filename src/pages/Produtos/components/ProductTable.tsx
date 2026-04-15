@@ -92,7 +92,6 @@ const ProductTable = ({ data, grupos }: ProductTableProps) => {
   )
 
   // Totals from filtered data
-  const totalQtd = filtered.reduce((s, r) => s + r.quantidade, 0)
   const totalFat = filtered.reduce((s, r) => s + r.faturamento, 0)
   const totalLucro = filtered.reduce((s, r) => s + r.lucroBruto, 0)
   const margemMedia = totalFat > 0 ? (totalLucro / totalFat) * 100 : 0

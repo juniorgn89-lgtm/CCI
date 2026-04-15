@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import {
   Fuel, Droplets, DollarSign, Receipt, Users, Gauge, Wallet, TrendingUp,
-  Trophy, AlertTriangle, Lightbulb, Clock, ArrowUpRight, ArrowDownRight,
+  Trophy, AlertTriangle, Lightbulb, Clock, ArrowUpRight,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell,
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters } from '@/lib/formatters'
+import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import type { OperacaoKpiData, FrentistaRow, BombaRow, AbastecimentoRow, TurnoRow, CaixaResumo } from '@/pages/Operacao/hooks/useOperacaoData'
 
 type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'

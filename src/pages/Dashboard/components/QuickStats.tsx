@@ -1,4 +1,4 @@
-import { Droplets, Fuel, DollarSign, Receipt, ShoppingBag, Percent } from 'lucide-react'
+import { Droplets, Fuel, DollarSign, Receipt, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters, formatNumber, formatPercent } from '@/lib/formatters'
 import type { QuickStats as QuickStatsData } from '@/pages/Dashboard/hooks/useDashboardData'

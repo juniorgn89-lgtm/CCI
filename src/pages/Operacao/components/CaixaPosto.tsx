@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ArrowUpDown, ChevronDown, Users, Clock, User, CheckCircle2, AlertCircle, Search, Filter, Fuel } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ArrowUpDown, ChevronDown, Users, Clock, User, Search, Fuel } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
   ResponsiveContainer,
@@ -38,7 +38,7 @@ const paymentIcon = (tipo: string) => {
   return Wallet
 }
 
-const CaixaPosto = ({ caixaResumo, pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
+const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows })
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)

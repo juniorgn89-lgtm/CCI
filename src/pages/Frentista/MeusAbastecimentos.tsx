@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Fuel, Droplets, DollarSign, Receipt, RefreshCw, Package } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, Receipt, RefreshCw } from 'lucide-react'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
 import { fetchAbastecimentos, fetchBicos } from '@/api/endpoints/combustiveis'

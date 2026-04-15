@@ -129,7 +129,6 @@ const StockTable = ({ data, categorias }: StockTableProps) => {
   )
 
   // Totals from filtered data
-  const totalItens = filtered.length
   const negativos = filtered.filter((r) => r.status === 'negativo').length
   const criticos = filtered.filter((r) => r.status === 'critico' || r.status === 'sem_estoque').length
   const normais = filtered.filter((r) => r.status === 'normal').length

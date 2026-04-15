@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate PWA Icons</title></head>
+<body>
+<canvas id="c192" width="192" height="192"></canvas>
+<canvas id="c512" width="512" height="512"></canvas>
+<script>
+function draw(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  const r = size * 0.2;
+
+  // Rounded rect background
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(size - r, 0);
+  ctx.quadraticCurveTo(size, 0, size, r);
+  ctx.lineTo(size, size - r);
+  ctx.quadraticCurveTo(size, size, size - r, size);
+  ctx.lineTo(r, size);
+  ctx.quadraticCurveTo(0, size, 0, size - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+
+  // Navy gradient
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#1e3a5f');
+  grad.addColorStop(1, '#0f1f33');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Fuel pump icon (simplified)
+  const cx = size * 0.42;
+  const cy = size * 0.5;
+  const s = size * 0.28;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = size * 0.03;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Pump body
+  ctx.beginPath();
+  ctx.roundRect(cx - s*0.5, cy - s*0.4, s*0.7, s*0.8, size*0.02);
+  ctx.stroke();
+
+  // Nozzle
+  ctx.beginPath();
+  ctx.moveTo(cx + s*0.2, cy - s*0.15);
+  ctx.lineTo(cx + s*0.5, cy - s*0.35);
+  ctx.lineTo(cx + s*0.5, cy + s*0.1);
+  ctx.stroke();
+
+  // Text "CC"
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.font = `bold ${size * 0.22}px Inter, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CC', size * 0.5, size * 0.55);
+
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `${size * 0.06}px Inter, -apple-system, sans-serif`;
+  ctx.fillText('ISGA', size * 0.5, size * 0.72);
+
+  return canvas.toDataURL('image/png');
+}
+
+const d192 = draw(document.getElementById('c192'), 192);
+const d512 = draw(document.getElementById('c512'), 512);
+
+document.body.innerHTML = '<h2>Right-click and save as:</h2>' +
+  '<p>icon-192.png:</p><img src="' + d192 + '" />' +
+  '<p>icon-512.png:</p><img src="' + d512 + '" />' +
+  '<p><a download="icon-192.png" href="' + d192 + '">Download 192</a> | ' +
+  '<a download="icon-512.png" href="' + d512 + '">Download 512</a></p>';
+</script>
+</body>
+</html>
