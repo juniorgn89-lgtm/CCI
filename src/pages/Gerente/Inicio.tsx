@@ -1,4 +1,4 @@
-import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal, Building2, TrendingDown } from 'lucide-react'
+import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal, Building2, TrendingDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyShort, formatLitersShort, formatPercent, formatCurrency } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
@@ -16,7 +16,15 @@ const getFuelColor = (idx: number) => FUEL_COLORS[(idx % 4) + 1]
 
 const MEDAL_COLORS = ['text-amber-500', 'text-gray-400', 'text-orange-400']
 
-const DeltaBadge = ({ value }: { value: number | null }) => {
+const DeltaBadge = ({ value, loading }: { value: number | null; loading: boolean }) => {
+  if (loading) {
+    return (
+      <div className="mt-1 flex items-center gap-1 text-gray-300 dark:text-gray-600">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        <span className="text-[10px]">calculando...</span>
+      </div>
+    )
+  }
   if (value === null) return null
   const positive = value >= 0
   const Icon = positive ? TrendingUp : TrendingDown
@@ -45,6 +53,7 @@ const Inicio = () => {
     porEmpresa,
     deltas,
     isLoading,
+    isLoadingDeltas,
     loadingStatus,
   } = useGerenteMobileData()
   const { empresaCodigos } = useFilterStore()
@@ -147,7 +156,7 @@ const Inicio = () => {
               <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {kpi.value}
               </p>
-              <DeltaBadge value={kpi.delta} />
+              <DeltaBadge value={kpi.delta} loading={isLoadingDeltas && kpi.delta === null} />
             </div>
           )
         })}

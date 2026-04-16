@@ -66,7 +66,7 @@ const useGerenteMobileData = () => {
 
   const { prevIni, prevFin } = prevPeriod(dataInicial, dataFinal)
 
-  const { data: resumoPrev = [] } = useQuery({
+  const { data: resumoPrev = [], isLoading: isLoadingResumoPrev } = useQuery({
     queryKey: ['vendaResumo', empresaCodigos, prevIni, prevFin],
     queryFn: () =>
       fetchVendaResumo({ empresaCodigo: hasEmpresa ? empresaCodigos : undefined, dataInicial: prevIni, dataFinal: prevFin }),
@@ -74,7 +74,7 @@ const useGerenteMobileData = () => {
     retry: false,
   })
 
-  const { data: abastPrev = [] } = useQuery({
+  const { data: abastPrev = [], isLoading: isLoadingAbastPrev } = useQuery({
     queryKey: ['abastecimentos', prevIni, prevFin],
     queryFn: () =>
       fetchAllPages(
@@ -268,7 +268,9 @@ const useGerenteMobileData = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumoAtual, resumoPrev, abastecimentos, abastPrev, lmcData, empresas, empresaCodigos, funcionariosData, produtosData])
 
-  return { ...computed, isLoading, loadingStatus }
+  const isLoadingDeltas = isLoadingResumoPrev || isLoadingAbastPrev
+
+  return { ...computed, isLoading, isLoadingDeltas, loadingStatus }
 }
 
 export default useGerenteMobileData
