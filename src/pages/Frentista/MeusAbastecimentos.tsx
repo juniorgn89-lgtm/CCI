@@ -9,9 +9,8 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import PeriodSelect from '@/components/filters/PeriodSelect'
-import DateRangePicker from '@/components/filters/DateRangePicker'
 import InsightBanner from '@/pages/Frentista/components/InsightBanner'
+import FrentistaPeriodBadges from '@/pages/Frentista/components/FrentistaPeriodBadges'
 
 const PRODUCT_STYLES = [
   { dot: '#93a8c4', bar: '#93a8c4' },       // slate blue
@@ -135,12 +134,7 @@ const MeusAbastecimentos = () => {
         )}
       </div>
 
-      {/* Date filter */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <PeriodSelect />
-        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700" />
-        <DateRangePicker />
-      </div>
+      <FrentistaPeriodBadges />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5">

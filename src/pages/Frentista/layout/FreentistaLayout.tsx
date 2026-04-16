@@ -1,7 +1,7 @@
 import { useLocation, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useIsFetching } from '@tanstack/react-query'
-import { Fuel, Trophy, Wallet, LogOut, User, Radio, Sun, Moon, Banknote } from 'lucide-react'
+import { Fuel, Trophy, Wallet, LogOut, User, Radio, Banknote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFreentistaStore } from '@/store/frentista'
 import { useThemeStore } from '@/store/theme'
@@ -20,9 +20,9 @@ const FreentistaLayout = () => {
   const { dark, toggle } = useThemeStore()
   const isFetching = useIsFetching()
 
-  // Default to light mode for frentista
+  // Default to dark mode for frentista
   useEffect(() => {
-    if (dark) toggle()
+    if (!dark) toggle()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -52,13 +52,6 @@ const FreentistaLayout = () => {
               <Radio className={cn('h-3 w-3 text-green-500', isFetching > 0 && 'animate-pulse')} />
               <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Tempo real</span>
             </div>
-            <button
-              onClick={toggle}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-              aria-label={dark ? 'Modo claro' : 'Modo escuro'}
-            >
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
             <button
               onClick={handleLogout}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
