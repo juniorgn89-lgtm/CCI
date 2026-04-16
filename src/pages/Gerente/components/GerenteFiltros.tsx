@@ -66,7 +66,7 @@ const GerenteFiltros = () => {
       </div>
 
       {/* Period quick-select */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
         {PERIODOS.map((p) => {
           const isActive = activePeriodo?.label === p.label
           return (
@@ -76,10 +76,10 @@ const GerenteFiltros = () => {
                 const range = getRange(p.days)
                 setPeriodo(range.dataInicial, range.dataFinal)
               }}
-              className={`flex-1 rounded-full py-1.5 text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all duration-150 ${
                 isActive
-                  ? 'bg-[#1e3a5f] text-white'
-                  : 'bg-white text-gray-600 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700'
+                  ? 'bg-[#1e3a5f] text-white shadow-md'
+                  : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
             >
               {p.label}
