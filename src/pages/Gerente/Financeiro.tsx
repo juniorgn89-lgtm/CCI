@@ -1,7 +1,8 @@
-import { DollarSign, TrendingUp, Percent, Building2 } from 'lucide-react'
+import { DollarSign, TrendingUp, Percent, Building2, ArrowDownLeft, ArrowUpRight, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrencyShort, formatPercent, formatCurrency } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
+import useGerenteFinanceiroData from '@/pages/Gerente/hooks/useGerenteFinanceiroData'
 import GerenteFiltros from '@/pages/Gerente/components/GerenteFiltros'
 import GerenteLoadingScreen from '@/pages/Gerente/components/GerenteLoadingScreen'
 import { useFilterStore } from '@/store/filters'
@@ -12,6 +13,8 @@ const NON_FUEL_MARGIN = 0.30 * 0.66 + 0.70 * 0.50
 const Financeiro = () => {
   const { faturamentoGlobal, fuelFat, fuelMargem, porEmpresa, isLoading, loadingStatus } = useGerenteMobileData()
   const { empresaCodigos } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0]
+  const { receber, pagar, isLoading: isLoadingFinanceiro } = useGerenteFinanceiroData(empresaCodigo)
 
   if (!empresaCodigos.length) {
     return (
@@ -143,6 +146,114 @@ const Financeiro = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Contas a Receber */}
+      <div className="rounded-lg border border-emerald-200/60 bg-white shadow-sm dark:border-emerald-800/40 dark:bg-gray-900 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-emerald-100 px-4 py-2.5 dark:border-emerald-900/40">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-900/30">
+              <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">A Receber</span>
+          </div>
+          {isLoadingFinanceiro ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-300" />
+          ) : (
+            <div className="text-right">
+              <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrencyShort(receber.total)}</p>
+              <p className="text-[10px] text-gray-400">{receber.count} títulos</p>
+            </div>
+          )}
+        </div>
+
+        {!isLoadingFinanceiro && receber.vencidos > 0 && (
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-2 dark:bg-red-950/20">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+            <p className="text-xs text-red-600 dark:text-red-400">
+              <span className="font-semibold">{receber.vencidos} vencidos</span> · {formatCurrencyShort(receber.totalVencidos)}
+            </p>
+          </div>
+        )}
+
+        {!isLoadingFinanceiro && receber.proximos.length > 0 && (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {receber.proximos.map((t, idx) => {
+              const vencido = t.dataVencimento < new Date().toISOString().slice(0, 10)
+              return (
+                <div key={t.codigo} className={cn('flex items-center justify-between px-4 py-2', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-gray-700 dark:text-gray-300">{t.nomeCliente || 'Cliente'}</p>
+                    <p className={cn('text-[10px]', vencido ? 'text-red-500' : 'text-gray-400')}>
+                      {vencido ? 'Vencido · ' : 'Vence '}{t.dataVencimento.split('-').reverse().join('/')}
+                    </p>
+                  </div>
+                  <p className="ml-3 shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                    {formatCurrency(t.valor)}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {!isLoadingFinanceiro && receber.count === 0 && (
+          <p className="px-4 py-4 text-center text-xs text-gray-400">Nenhum título pendente</p>
+        )}
+      </div>
+
+      {/* Contas a Pagar */}
+      <div className="rounded-lg border border-red-200/60 bg-white shadow-sm dark:border-red-800/40 dark:bg-gray-900 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-red-100 px-4 py-2.5 dark:border-red-900/40">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30">
+              <ArrowUpRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+            </div>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">A Pagar</span>
+          </div>
+          {isLoadingFinanceiro ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-300" />
+          ) : (
+            <div className="text-right">
+              <p className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">{formatCurrencyShort(pagar.total)}</p>
+              <p className="text-[10px] text-gray-400">{pagar.count} títulos</p>
+            </div>
+          )}
+        </div>
+
+        {!isLoadingFinanceiro && pagar.vencidos > 0 && (
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-2 dark:bg-red-950/20">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+            <p className="text-xs text-red-600 dark:text-red-400">
+              <span className="font-semibold">{pagar.vencidos} vencidos</span> · {formatCurrencyShort(pagar.totalVencidos)}
+            </p>
+          </div>
+        )}
+
+        {!isLoadingFinanceiro && pagar.proximos.length > 0 && (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {pagar.proximos.map((t, idx) => {
+              const vencido = t.vencimento < new Date().toISOString().slice(0, 10)
+              return (
+                <div key={t.codigo} className={cn('flex items-center justify-between px-4 py-2', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-gray-700 dark:text-gray-300">{t.nomeFornecedor || t.descricao || 'Fornecedor'}</p>
+                    <p className={cn('text-[10px]', vencido ? 'text-red-500' : 'text-gray-400')}>
+                      {vencido ? 'Vencido · ' : 'Vence '}{t.vencimento.split('-').reverse().join('/')}
+                    </p>
+                  </div>
+                  <p className="ml-3 shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                    {formatCurrency(t.valor)}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {!isLoadingFinanceiro && pagar.count === 0 && (
+          <p className="px-4 py-4 text-center text-xs text-gray-400">Nenhum título pendente</p>
+        )}
       </div>
 
       {/* Por posto */}
