@@ -8,10 +8,25 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
+const fmt = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 const threeMonthsBefore = (dateStr: string): string => {
   const d = new Date(dateStr)
   d.setMonth(d.getMonth() - 3)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return fmt(d)
+}
+
+// Shift a date range back by the same number of days
+const prevPeriod = (ini: string, fin: string): { prevIni: string; prevFin: string } => {
+  const start = new Date(ini)
+  const end = new Date(fin)
+  const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const prevEnd = new Date(start)
+  prevEnd.setDate(prevEnd.getDate() - 1)
+  const prevStart = new Date(prevEnd)
+  prevStart.setDate(prevStart.getDate() - days + 1)
+  return { prevIni: fmt(prevStart), prevFin: fmt(prevEnd) }
 }
 
 const useGerenteMobileData = () => {
@@ -47,6 +62,27 @@ const useGerenteMobileData = () => {
       ),
     enabled: hasEmpresa,
     placeholderData: keepPreviousData,
+  })
+
+  const { prevIni, prevFin } = prevPeriod(dataInicial, dataFinal)
+
+  const { data: resumoPrev = [] } = useQuery({
+    queryKey: ['vendaResumo', empresaCodigos, prevIni, prevFin],
+    queryFn: () =>
+      fetchVendaResumo({ empresaCodigo: hasEmpresa ? empresaCodigos : undefined, dataInicial: prevIni, dataFinal: prevFin }),
+    enabled: hasEmpresa,
+    retry: false,
+  })
+
+  const { data: abastPrev = [] } = useQuery({
+    queryKey: ['abastecimentos', prevIni, prevFin],
+    queryFn: () =>
+      fetchAllPages(
+        (p) => fetchAbastecimentos({ dataInicial: prevIni, dataFinal: prevFin, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        1000, 50
+      ),
+    enabled: hasEmpresa,
+    retry: false,
   })
 
   const { data: empresasData } = useQuery({
@@ -193,6 +229,30 @@ const useGerenteMobileData = () => {
       faturamento: d.total,
     })).sort((a, b) => b.faturamento - a.faturamento)
 
+    // Previous period aggregates
+    const prevFaturamento = resumoPrev.reduce((acc, r) => {
+      if (hasEmpresa && !empresaCodigos.includes(r.codigoEmpresa)) return acc
+      return acc + r.total
+    }, 0)
+    const prevAbast = hasEmpresa
+      ? abastPrev.filter((a) => empresaCodigos.includes(a.empresaCodigo))
+      : abastPrev
+    const prevLitros = prevAbast.reduce((acc, a) => acc + a.quantidade, 0)
+    const prevFuelFat = prevAbast.reduce((acc, a) => acc + a.valorTotal, 0)
+    const prevTicket = prevAbast.length > 0 ? prevFuelFat / prevAbast.length : 0
+
+    const delta = (current: number, previous: number): number | null => {
+      if (previous === 0) return null
+      return ((current - previous) / previous) * 100
+    }
+
+    const deltas = {
+      faturamento: delta(faturamentoGlobal, prevFaturamento),
+      litros: delta(fuelLitros, prevLitros),
+      abastecimentos: delta(filteredAbast.length, prevAbast.length),
+      ticketMedio: delta(ticketMedio, prevTicket),
+    }
+
     return {
       faturamentoGlobal,
       fuelLitros,
@@ -203,9 +263,10 @@ const useGerenteMobileData = () => {
       combustiveis,
       frentistaRanking,
       porEmpresa,
+      deltas,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, abastecimentos, lmcData, empresas, empresaCodigos, funcionariosData, produtosData])
+  }, [resumoAtual, resumoPrev, abastecimentos, abastPrev, lmcData, empresas, empresaCodigos, funcionariosData, produtosData])
 
   return { ...computed, isLoading, loadingStatus }
 }

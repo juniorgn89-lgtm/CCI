@@ -1,4 +1,4 @@
-import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal, Building2 } from 'lucide-react'
+import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal, Building2, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyShort, formatLitersShort, formatPercent, formatCurrency } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
@@ -16,6 +16,23 @@ const getFuelColor = (idx: number) => FUEL_COLORS[(idx % 4) + 1]
 
 const MEDAL_COLORS = ['text-amber-500', 'text-gray-400', 'text-orange-400']
 
+const DeltaBadge = ({ value }: { value: number | null }) => {
+  if (value === null) return null
+  const positive = value >= 0
+  const Icon = positive ? TrendingUp : TrendingDown
+  return (
+    <div className={cn(
+      'mt-1 flex items-center gap-1',
+      positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+    )}>
+      <Icon className="h-3 w-3" />
+      <span className="text-[10px] font-semibold tabular-nums">
+        {positive ? '+' : ''}{value.toFixed(1)}% vs anterior
+      </span>
+    </div>
+  )
+}
+
 const Inicio = () => {
   const {
     faturamentoGlobal,
@@ -26,6 +43,7 @@ const Inicio = () => {
     combustiveis,
     frentistaRanking,
     porEmpresa,
+    deltas,
     isLoading,
     loadingStatus,
   } = useGerenteMobileData()
@@ -59,6 +77,7 @@ const Inicio = () => {
     {
       label: 'Faturamento',
       value: formatCurrencyShort(faturamentoGlobal),
+      delta: deltas.faturamento,
       icon: DollarSign,
       bg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
       iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
@@ -67,6 +86,7 @@ const Inicio = () => {
     {
       label: 'Litros',
       value: formatLitersShort(fuelLitros),
+      delta: deltas.litros,
       icon: Droplets,
       bg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
       iconBg: 'bg-blue-100 dark:bg-blue-900/30',
@@ -75,6 +95,7 @@ const Inicio = () => {
     {
       label: 'Margem',
       value: formatPercent(fuelMargem),
+      delta: null,
       icon: Percent,
       bg: 'bg-gradient-to-br from-rose-50/60 to-white dark:from-rose-950/20 dark:to-gray-900',
       iconBg: 'bg-rose-100 dark:bg-rose-900/30',
@@ -83,6 +104,7 @@ const Inicio = () => {
     {
       label: 'Abast.',
       value: String(totalAbastecimentos.toLocaleString('pt-BR')),
+      delta: deltas.abastecimentos,
       icon: Fuel,
       bg: 'bg-gradient-to-br from-indigo-50/60 to-white dark:from-indigo-950/20 dark:to-gray-900',
       iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',
@@ -91,6 +113,7 @@ const Inicio = () => {
     {
       label: 'Ticket Médio',
       value: formatCurrencyShort(ticketMedio),
+      delta: deltas.ticketMedio,
       icon: Receipt,
       bg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900',
       iconBg: 'bg-amber-100 dark:bg-amber-900/30',
@@ -124,6 +147,7 @@ const Inicio = () => {
               <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {kpi.value}
               </p>
+              <DeltaBadge value={kpi.delta} />
             </div>
           )
         })}
