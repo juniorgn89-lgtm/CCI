@@ -66,6 +66,12 @@ const useGerenteMobileData = () => {
   const empresas = empresasData?.resultados ?? []
   const isLoading = isLoadingResumo || isLoadingAbast || isLoadingLmc
 
+  const loadingStatus = {
+    resumo: isLoadingResumo,
+    abastecimentos: isLoadingAbast,
+    lmc: isLoadingLmc,
+  }
+
   const computed = useMemo(() => {
     const empresaMap = new Map<number, string>()
     for (const e of empresas) empresaMap.set(e.codigo, e.fantasia)
@@ -188,7 +194,7 @@ const useGerenteMobileData = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumoAtual, abastecimentos, lmcData, empresas, empresaCodigos, funcionariosData])
 
-  return { ...computed, isLoading }
+  return { ...computed, isLoading, loadingStatus }
 }
 
 export default useGerenteMobileData

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatLitersShort, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
 import GerenteFiltros from '@/pages/Gerente/components/GerenteFiltros'
+import GerenteLoadingScreen from '@/pages/Gerente/components/GerenteLoadingScreen'
 
 const FUEL_COLORS = [
   { bg: 'bg-amber-50 dark:bg-amber-950/20', iconBg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', bar: 'bg-amber-400', border: 'border-amber-200/60 dark:border-amber-800/40' },
@@ -12,15 +13,13 @@ const FUEL_COLORS = [
 ]
 
 const CombustiveisGerente = () => {
-  const { combustiveis, fuelLitros, fuelFat, fuelMargem, isLoading } = useGerenteMobileData()
+  const { combustiveis, fuelLitros, fuelFat, fuelMargem, isLoading, loadingStatus } = useGerenteMobileData()
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
         <GerenteFiltros />
-        <div className="flex items-center justify-center py-16">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1e3a5f]/20 border-t-[#1e3a5f]" />
-        </div>
+        <GerenteLoadingScreen status={loadingStatus} />
       </div>
     )
   }

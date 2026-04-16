@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatLitersShort, formatCurrencyShort } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
 import GerenteFiltros from '@/pages/Gerente/components/GerenteFiltros'
+import GerenteLoadingScreen from '@/pages/Gerente/components/GerenteLoadingScreen'
 
 const POSITION_STYLES = [
   { bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800' },
@@ -11,15 +12,13 @@ const POSITION_STYLES = [
 ]
 
 const Frentistas = () => {
-  const { frentistaRanking, fuelLitros, isLoading } = useGerenteMobileData()
+  const { frentistaRanking, fuelLitros, isLoading, loadingStatus } = useGerenteMobileData()
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
         <GerenteFiltros />
-        <div className="flex items-center justify-center py-16">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1e3a5f]/20 border-t-[#1e3a5f]" />
-        </div>
+        <GerenteLoadingScreen status={loadingStatus} />
       </div>
     )
   }
