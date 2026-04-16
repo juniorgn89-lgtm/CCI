@@ -23,7 +23,8 @@ export const useAuth = () => {
     if (user === validUser && password === validPassword) {
       sessionStorage.setItem(AUTHENTICATED_KEY, 'true')
       setAuthenticated(true)
-      navigate('/dashboard')
+      const isMobile = window.innerWidth < 768
+      navigate(isMobile ? '/gerente' : '/dashboard')
     } else {
       setError('Credenciais inválidas')
     }

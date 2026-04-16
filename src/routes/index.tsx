@@ -12,6 +12,7 @@ const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
+const Mobile = lazy(() => import('@/pages/Mobile'))
 
 // Frentista pages
 const FreentistaLayout = lazy(() => import('@/pages/Frentista/layout/FreentistaLayout'))
@@ -19,11 +20,19 @@ const MeusAbastecimentos = lazy(() => import('@/pages/Frentista/MeusAbasteciment
 const MeuRanking = lazy(() => import('@/pages/Frentista/MeuRanking'))
 const MeuCaixa = lazy(() => import('@/pages/Frentista/MeuCaixa'))
 const MinhaSangria = lazy(() => import('@/pages/Frentista/MinhaSangria'))
+const FrentistaAutoLogin = lazy(() => import('@/pages/Frentista/AutoLogin'))
+
+// Gerente mobile pages
+const GerenteLayout = lazy(() => import('@/pages/Gerente/layout/GerenteLayout'))
+const GerenteInicio = lazy(() => import('@/pages/Gerente/Inicio'))
+const GerenteFrentistas = lazy(() => import('@/pages/Gerente/Frentistas'))
+const GerenteCombustiveis = lazy(() => import('@/pages/Gerente/CombustiveisGerente'))
 
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/frentista/auto" element={<Suspense fallback={null}><FrentistaAutoLogin /></Suspense>} />
 
       {/* Gerente routes */}
       <Route element={<ProtectedRoute />}>
@@ -38,6 +47,7 @@ const AppRoutes = () => {
           <Route path="/financeiro" element={<Suspense fallback={null}><Financeiro /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={null}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />
+          <Route path="/mobile" element={<Suspense fallback={null}><Mobile /></Suspense>} />
         </Route>
       </Route>
 
@@ -48,6 +58,15 @@ const AppRoutes = () => {
           <Route path="/frentista/ranking" element={<Suspense fallback={null}><MeuRanking /></Suspense>} />
           <Route path="/frentista/caixa" element={<Suspense fallback={null}><MeuCaixa /></Suspense>} />
           <Route path="/frentista/sangria" element={<Suspense fallback={null}><MinhaSangria /></Suspense>} />
+        </Route>
+      </Route>
+
+      {/* Gerente mobile routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Suspense fallback={null}><GerenteLayout /></Suspense>}>
+          <Route path="/gerente" element={<Suspense fallback={null}><GerenteInicio /></Suspense>} />
+          <Route path="/gerente/frentistas" element={<Suspense fallback={null}><GerenteFrentistas /></Suspense>} />
+          <Route path="/gerente/combustiveis" element={<Suspense fallback={null}><GerenteCombustiveis /></Suspense>} />
         </Route>
       </Route>
     </Routes>

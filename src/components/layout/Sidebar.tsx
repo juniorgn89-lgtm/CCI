@@ -8,6 +8,8 @@ import {
   DollarSign,
   Brain,
   Gauge,
+  Smartphone,
+  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -51,6 +53,13 @@ const navGroups: NavGroup[] = [
     title: 'Análise',
     items: [
       { label: 'Inteligência', path: '/inteligencia', icon: Brain },
+    ],
+  },
+  {
+    title: 'Ferramentas',
+    items: [
+      { label: 'Mobile', path: '/mobile', icon: Smartphone },
+      { label: 'App Gerente', path: '/gerente', icon: LayoutDashboard },
     ],
   },
 ]

@@ -7,6 +7,7 @@ import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 
 type LoginMode = 'gerente' | 'frentista'
 
@@ -222,6 +223,8 @@ const Login = () => {
               >
                 Entrar
               </Button>
+
+              <LoginQrCode code={frentistaCodigo} pin={frentistaPin} />
             </form>
           )}
         </div>
