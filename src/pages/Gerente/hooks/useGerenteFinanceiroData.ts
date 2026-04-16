@@ -14,7 +14,7 @@ const useGerenteFinanceiroData = (empresaCodigo: number | undefined) => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchTitulosReceber({
-          empresaCodigo,
+          empresaCodigo: empresaCodigo!,
           apenasPendente: true,
           ultimoCodigo: p.ultimoCodigo,
           limite: p.limite,
@@ -30,7 +30,7 @@ const useGerenteFinanceiroData = (empresaCodigo: number | undefined) => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchTitulosPagar({
-          empresaCodigo,
+          empresaCodigo: empresaCodigo!,
           apenasPendente: true,
           ultimoCodigo: p.ultimoCodigo,
           limite: p.limite,
