@@ -5,7 +5,11 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
 const useGerenteFinanceiroData = (empresaCodigo: number | undefined) => {
   const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const todayStr = fmt(today)
+  const oneYearAgo = fmt(new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()))
+  const sixMonthsAhead = fmt(new Date(today.getFullYear(), today.getMonth() + 6, today.getDate()))
 
   const enabled = !!empresaCodigo
 
@@ -15,6 +19,8 @@ const useGerenteFinanceiroData = (empresaCodigo: number | undefined) => {
       fetchAllPages(
         (p) => fetchTitulosReceber({
           empresaCodigo: empresaCodigo!,
+          dataInicial: oneYearAgo,
+          dataFinal: sixMonthsAhead,
           apenasPendente: true,
           ultimoCodigo: p.ultimoCodigo,
           limite: p.limite,
