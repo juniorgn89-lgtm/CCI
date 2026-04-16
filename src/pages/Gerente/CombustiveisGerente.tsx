@@ -1,9 +1,10 @@
-import { Fuel, Droplets, DollarSign, Percent } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, Percent, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLitersShort, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
 import GerenteFiltros from '@/pages/Gerente/components/GerenteFiltros'
 import GerenteLoadingScreen from '@/pages/Gerente/components/GerenteLoadingScreen'
+import { useFilterStore } from '@/store/filters'
 
 const FUEL_COLORS = [
   { bg: 'bg-amber-50 dark:bg-amber-950/20', iconBg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', bar: 'bg-amber-400', border: 'border-amber-200/60 dark:border-amber-800/40' },
@@ -14,6 +15,22 @@ const FUEL_COLORS = [
 
 const CombustiveisGerente = () => {
   const { combustiveis, fuelLitros, fuelFat, fuelMargem, isLoading, loadingStatus } = useGerenteMobileData()
+  const { empresaCodigos } = useFilterStore()
+
+  if (!empresaCodigos.length) {
+    return (
+      <div className="flex flex-col gap-4">
+        <GerenteFiltros />
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1e3a5f]/10">
+            <Building2 className="h-7 w-7 text-[#1e3a5f]/60 dark:text-blue-400/60" />
+          </div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Selecione uma empresa</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">para visualizar os dados</p>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

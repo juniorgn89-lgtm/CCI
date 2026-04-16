@@ -5,6 +5,7 @@ import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
+import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 
 const threeMonthsBefore = (dateStr: string): string => {
@@ -63,6 +64,15 @@ const useGerenteMobileData = () => {
     staleTime: 30 * 60 * 1000,
   })
 
+  const { data: produtosData } = useQuery({
+    queryKey: ['produtos'],
+    queryFn: () => fetchAllPages(
+      (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 100
+    ),
+    staleTime: 30 * 60 * 1000,
+  })
+
   const empresas = empresasData?.resultados ?? []
   const isLoading = isLoadingResumo || isLoadingAbast || isLoadingLmc
 
@@ -78,6 +88,9 @@ const useGerenteMobileData = () => {
 
     const funcNameMap = new Map<number, string>()
     for (const f of funcionariosData ?? []) funcNameMap.set(f.funcionarioCodigo, f.nome)
+
+    const productNameMap = new Map<number, string>()
+    for (const p of produtosData ?? []) productNameMap.set(p.produtoCodigo, p.nome)
 
     // Cost map
     const costMap = new Map<string, number>()
@@ -121,7 +134,7 @@ const useGerenteMobileData = () => {
       const prodCode = Number(a.codigoProduto)
       if (prodCode <= 0) continue
       const cost = costMap.get(`${a.empresaCodigo}-${prodCode}`) ?? 0
-      const prev = prodMap.get(prodCode) ?? { nome: `Produto ${prodCode}`, litros: 0, fat: 0, custo: 0 }
+      const prev = prodMap.get(prodCode) ?? { nome: productNameMap.get(prodCode) ?? `Produto ${prodCode}`, litros: 0, fat: 0, custo: 0 }
       prodMap.set(prodCode, {
         nome: prev.nome,
         litros: prev.litros + a.quantidade,
@@ -192,7 +205,7 @@ const useGerenteMobileData = () => {
       porEmpresa,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, abastecimentos, lmcData, empresas, empresaCodigos, funcionariosData])
+  }, [resumoAtual, abastecimentos, lmcData, empresas, empresaCodigos, funcionariosData, produtosData])
 
   return { ...computed, isLoading, loadingStatus }
 }

@@ -1,8 +1,9 @@
-import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal } from 'lucide-react'
+import { DollarSign, Droplets, Percent, Fuel, Receipt, TrendingUp, Medal, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyShort, formatLitersShort, formatPercent, formatCurrency } from '@/lib/formatters'
 import useGerenteMobileData from '@/pages/Gerente/hooks/useGerenteMobileData'
 import GerenteFiltros from '@/pages/Gerente/components/GerenteFiltros'
+import { useFilterStore } from '@/store/filters'
 import GerenteLoadingScreen from '@/pages/Gerente/components/GerenteLoadingScreen'
 
 const FUEL_COLORS: Record<number, { bg: string; text: string; bar: string }> = {
@@ -28,6 +29,22 @@ const Inicio = () => {
     isLoading,
     loadingStatus,
   } = useGerenteMobileData()
+  const { empresaCodigos } = useFilterStore()
+
+  if (!empresaCodigos.length) {
+    return (
+      <div className="flex flex-col gap-4">
+        <GerenteFiltros />
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1e3a5f]/10">
+            <Building2 className="h-7 w-7 text-[#1e3a5f]/60 dark:text-blue-400/60" />
+          </div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Selecione uma empresa</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">para visualizar os dados</p>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

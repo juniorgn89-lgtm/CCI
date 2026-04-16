@@ -25,6 +25,7 @@ const FrentistaAutoLogin = lazy(() => import('@/pages/Frentista/AutoLogin'))
 // Gerente mobile pages
 const GerenteLayout = lazy(() => import('@/pages/Gerente/layout/GerenteLayout'))
 const GerenteInicio = lazy(() => import('@/pages/Gerente/Inicio'))
+const GerenteFinanceiro = lazy(() => import('@/pages/Gerente/Financeiro'))
 const GerenteFrentistas = lazy(() => import('@/pages/Gerente/Frentistas'))
 const GerenteCombustiveis = lazy(() => import('@/pages/Gerente/CombustiveisGerente'))
 
@@ -65,6 +66,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<Suspense fallback={null}><GerenteLayout /></Suspense>}>
           <Route path="/gerente" element={<Suspense fallback={null}><GerenteInicio /></Suspense>} />
+          <Route path="/gerente/financeiro" element={<Suspense fallback={null}><GerenteFinanceiro /></Suspense>} />
           <Route path="/gerente/frentistas" element={<Suspense fallback={null}><GerenteFrentistas /></Suspense>} />
           <Route path="/gerente/combustiveis" element={<Suspense fallback={null}><GerenteCombustiveis /></Suspense>} />
         </Route>

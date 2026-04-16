@@ -1,10 +1,11 @@
 import { useLocation, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useIsFetching } from '@tanstack/react-query'
-import { LayoutDashboard, Users, BarChart3, LogOut, Radio, Fuel } from 'lucide-react'
+import { LayoutDashboard, Users, BarChart3, LogOut, Radio, Fuel, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Início', path: '/gerente', icon: LayoutDashboard },
+  { label: 'Financeiro', path: '/gerente/financeiro', icon: DollarSign },
   { label: 'Frentistas', path: '/gerente/frentistas', icon: Users },
   { label: 'Combustíveis', path: '/gerente/combustiveis', icon: Fuel },
 ]
