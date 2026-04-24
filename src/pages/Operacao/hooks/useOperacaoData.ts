@@ -349,7 +349,6 @@ const useOperacaoData = () => {
           .sort((a, b) => b.litros - a.litros)
 
         // Cross-reference formas de pagamento for this shift
-        const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
         const shiftPgto = formasPgto.filter((fp) => {
           const fpDate = fp.dataMovimento?.substring(0, 10) ?? ''
           return fpDate === caixaDate
