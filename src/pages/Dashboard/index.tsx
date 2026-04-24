@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Fuel, Gauge, Store, Package, Warehouse, DollarSign, Brain,
   Droplets, Receipt, TrendingUp, ArrowUpRight, ArrowRight,
-  Lightbulb, AlertTriangle, Clock,
+  Lightbulb, AlertTriangle, Clock, Percent,
 } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import { useFilterStore } from '@/store/filters'
-import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatLiters, formatNumber, formatPercent } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import DeltaBadge, { MarginBadge } from '@/components/kpi/DeltaBadge'
 
 const moduleCards = [
   {
@@ -192,6 +193,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(quickStats.receitaDia)}</p>
+            <DeltaBadge current={quickStats.receitaDia} previous={comparison.prevMonth.faturamento} />
           </div>
           <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
@@ -210,15 +212,22 @@ const Dashboard = () => {
               </div>
             </div>
             <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(quickStats.totalAbastecimentos)}</p>
+            <DeltaBadge
+              current={quickStats.totalAbastecimentos}
+              previous={comparison.prevMonth.abastecimentos}
+              showAbsolute
+              formatter={formatNumber}
+            />
           </div>
           <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-rose-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-rose-950/20 dark:to-gray-900">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Margem</p>
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-100 dark:bg-rose-900/30">
-                <TrendingUp className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                <Percent className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
-            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{quickStats.margemMedia.toFixed(1)}%</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatPercent(quickStats.margemMedia)}</p>
+            <MarginBadge value={quickStats.margemMedia} threshold={5} />
           </div>
         </div>
       )}
@@ -235,10 +244,10 @@ const Dashboard = () => {
               <div
                 key={i}
                 className={cn(
-                  'flex items-start gap-2 rounded-lg border px-3 py-2',
-                  ins.type === 'positive' && 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10',
-                  ins.type === 'warning' && 'border-red-200 bg-red-50/50 dark:border-red-800/30 dark:bg-red-900/10',
-                  ins.type === 'info' && 'border-blue-200 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10',
+                  'flex items-start gap-2 rounded-lg px-3 py-2.5',
+                  ins.type === 'positive' && 'border-l-4 border-green-500 bg-green-50 dark:bg-green-950/30',
+                  ins.type === 'warning' && 'border-l-4 border-red-500 bg-red-50 dark:bg-red-950/30',
+                  ins.type === 'info' && 'border-l-4 border-blue-400 bg-blue-50 dark:bg-blue-950/30',
                 )}
               >
                 {ins.type === 'positive' && <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />}
