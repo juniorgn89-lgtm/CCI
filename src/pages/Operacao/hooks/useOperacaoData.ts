@@ -319,20 +319,13 @@ const useOperacaoData = () => {
     // ── Turnos (from Caixas) with frentistas cross-reference ──
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
-        const aberturaTime = extractTime(c.abertura)
-        const fechamentoTime = extractTime(c.fechamento)
+        const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
 
-        // Match all abastecimentos on the same date within the shift time window
+        // Match all abastecimentos on the same date — horaFiscal is unreliable/null
+        // so we avoid time-window filtering and match by date only
         const shiftAbast = abastecimentos.filter((a) => {
           const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-          if (abastDate !== c.dataMovimento) return false
-          // If we have both times, restrict to the shift window
-          if (aberturaTime && fechamentoTime) {
-            const hora = a.horaFiscal?.substring(0, 5) ?? ''
-            return hora >= aberturaTime && hora <= fechamentoTime
-          }
-          // Open shift or no time info: include all on that date
-          return true
+          return abastDate === caixaDate
         })
 
         // Aggregate all frentistas who worked during this shift (including opener)
