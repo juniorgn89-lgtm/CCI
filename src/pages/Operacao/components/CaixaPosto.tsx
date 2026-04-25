@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
   ResponsiveContainer,
@@ -7,15 +7,15 @@ import {
   Pie,
   Cell,
   Tooltip,
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { CaixaResumo, PagamentoBreakdown, TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
 import useCaixaHistory from '@/pages/Operacao/hooks/useCaixaHistory'
 import CaixaHistorico from '@/pages/Operacao/components/CaixaHistorico'
 
@@ -23,6 +23,7 @@ interface CaixaPostoProps {
   caixaResumo: CaixaResumo
   pagamentoBreakdown: PagamentoBreakdown[]
   turnoGroups: TurnoGroup[]
+  apuradoPorDia: ApuradoPorDia[]
 }
 
 const DONUT_COLORS = [
@@ -45,7 +46,7 @@ const formatIsoTime = (iso: string | null | undefined): string => {
   return iso.substring(0, 5)
 }
 
-const CaixaPosto = ({ pagamentoBreakdown, turnoGroups }: CaixaPostoProps) => {
+const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
 
@@ -87,16 +88,16 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups }: CaixaPostoProps) => {
     })
   }
 
-  // Chart data: apurado by turno name
-  const turnoChartData = useMemo(() => {
-    const agg = new Map<string, number>()
-    for (const g of turnoGroups) {
-      agg.set(g.turno, (agg.get(g.turno) ?? 0) + g.apuradoTotal)
-    }
-    return Array.from(agg.entries())
-      .map(([turno, valor]) => ({ turno, valor }))
-      .sort((a, b) => b.valor - a.valor)
-  }, [turnoGroups])
+  // Chart data: daily evolution of apurado (DD/MM label + raw ISO date for tooltip)
+  const dailyChartData = useMemo(
+    () =>
+      apuradoPorDia.map((d) => ({
+        data: d.data,
+        label: d.data.split('-').slice(1).reverse().join('/'),
+        valor: d.apurado,
+      })),
+    [apuradoPorDia]
+  )
 
   const groupSummary = useMemo(() => {
     const apurado = filteredGroups.reduce((s, g) => s + g.apuradoTotal, 0)
@@ -175,23 +176,57 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups }: CaixaPostoProps) => {
           )}
         </div>
 
-        {/* Apurado por turno chart */}
+        {/* Daily evolution chart */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            <Wallet className="mr-1.5 inline h-4 w-4 text-blue-500" />
-            Apurado por Turno
+            <TrendingUp className="mr-1.5 inline h-4 w-4 text-blue-500" />
+            Evolução Diária do Apurado
           </h3>
-          {turnoChartData.length === 0 ? (
-            <div className="flex h-[180px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
+          {dailyChartData.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={Math.max(180, turnoChartData.length * 60)}>
-              <BarChart data={turnoChartData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                <XAxis type="number" tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="turno" width={80} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }} formatter={((v: number) => [formatCurrencyTooltip(v), 'Apurado']) as never} />
-                <Bar dataKey="valor" name="Apurado" radius={[0, 6, 6, 0]} fill="#2563eb" />
-              </BarChart>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={dailyChartData} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
+                <defs>
+                  <linearGradient id="apuradoFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
+                />
+                <YAxis
+                  tickFormatter={formatCurrencyShort}
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={62}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
+                  labelFormatter={(_: string, items: ReadonlyArray<{ payload?: { data: string } }>) => {
+                    const iso = items?.[0]?.payload?.data
+                    return iso ? formatDate(iso) : ''
+                  }}
+                  formatter={((v: number) => [formatCurrencyTooltip(v), 'Apurado']) as never}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="valor"
+                  name="Apurado"
+                  stroke="#1e3a5f"
+                  strokeWidth={2}
+                  fill="url(#apuradoFill)"
+                  fillOpacity={1}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </div>

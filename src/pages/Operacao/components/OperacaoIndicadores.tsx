@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
   Fuel, Droplets, DollarSign, Receipt, Users, Gauge, Wallet, TrendingUp,
-  Trophy, AlertTriangle, Lightbulb, Clock, ArrowUpRight,
+  Trophy, Lightbulb, Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9,9 +9,12 @@ import {
 } from 'recharts'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
+import DeltaBadge from '@/components/kpi/DeltaBadge'
+import InsightBanner from '@/components/kpi/InsightBanner'
 import type { OperacaoKpiData, FrentistaRow, BombaRow, AbastecimentoRow, TurnoRow, CaixaResumo } from '@/pages/Operacao/hooks/useOperacaoData'
 
 type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
+type InsightVariant = 'success' | 'warning' | 'motivate'
 
 interface Props {
   kpis: OperacaoKpiData
@@ -60,12 +63,12 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
       .map(([nome, d]) => ({ nome, ...d }))
       .sort((a, b) => b.litros - a.litros)
 
-    // Insights
-    const insights: { type: 'positive' | 'warning' | 'info'; text: string }[] = []
+    // Insights mapped to InsightBanner variants (success / warning / motivate)
+    const insights: { variant: InsightVariant; text: string }[] = []
 
     if (horaPico) {
       insights.push({
-        type: 'info',
+        variant: 'motivate',
         text: `Horário de pico: ${horaPico.hora} com ${horaPico.abastecimentos} abastecimentos`,
       })
     }
@@ -73,26 +76,26 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
     if (topFrentistas.length > 0) {
       const best = topFrentistas[0]
       insights.push({
-        type: 'positive',
+        variant: 'success',
         text: `${best.nome} lidera com ${formatLiters(best.litrosVendidos)} e ${best.atendimentos} atendimentos`,
       })
     }
 
     if (caixaResumo.totalDiferenca < -100) {
       insights.push({
-        type: 'warning',
+        variant: 'warning',
         text: `Diferença negativa no caixa: ${formatCurrency(caixaResumo.totalDiferenca)}. Verifique os turnos.`,
       })
     } else if (caixaResumo.totalDiferenca > 0) {
       insights.push({
-        type: 'positive',
+        variant: 'success',
         text: `Caixa com diferença positiva de ${formatCurrency(caixaResumo.totalDiferenca)}`,
       })
     }
 
     if (caixaResumo.caixasAbertos > 0) {
       insights.push({
-        type: 'info',
+        variant: 'motivate',
         text: `${caixaResumo.caixasAbertos} caixa${caixaResumo.caixasAbertos > 1 ? 's' : ''} aberto${caixaResumo.caixasAbertos > 1 ? 's' : ''} no momento`,
       })
     }
@@ -100,7 +103,7 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
     const bombasSemUso = bombaRows.filter((b) => b.abastecimentos === 0)
     if (bombasSemUso.length > 0) {
       insights.push({
-        type: 'warning',
+        variant: 'warning',
         text: `${bombasSemUso.length} bomba${bombasSemUso.length > 1 ? 's' : ''} sem abastecimento no período`,
       })
     }
@@ -109,7 +112,7 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
     if (kpis.totalAbastecimentos > 0 && kpis.frentistasAtivos > 0) {
       const mediaLitrosPorFrentista = kpis.totalLitros / kpis.frentistasAtivos
       insights.push({
-        type: 'info',
+        variant: 'motivate',
         text: `Ticket médio de ${formatCurrency(kpis.ticketMedio)} com média de ${formatLiters(mediaLitrosPorFrentista)} por frentista`,
       })
     }
@@ -121,56 +124,120 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
         const [hA, mA] = t.abertura.split(':').map(Number)
         const [hF, mF] = t.fechamento.split(':').map(Number)
         let horas = (hF * 60 + mF - hA * 60 - mA) / 60
-        if (horas <= 0) horas = 24 + horas // turno que cruza meia-noite
-        return { nome: t.funcionarioNome, turno: t.turno, data: t.dataMovimento, faturamentoPorHora: horas > 0 ? t.apurado / horas : 0, horas }
+        if (horas <= 0) horas = 24 + horas
+        return { nome: t.funcionarioNome, turno: t.turno, faturamentoPorHora: horas > 0 ? t.apurado / horas : 0, horas }
       }).sort((a, b) => b.faturamentoPorHora - a.faturamentoPorHora)
 
       const melhor = turnoEficiencia[0]
       if (melhor && melhor.faturamentoPorHora > 0) {
         insights.push({
-          type: 'positive',
+          variant: 'success',
           text: `Turno mais eficiente: ${melhor.nome} com ${formatCurrency(melhor.faturamentoPorHora)}/hora (${melhor.horas.toFixed(1)}h trabalhadas)`,
         })
       }
     }
 
-    // Sort: positive first, then info, then warning
-    const order = { positive: 0, info: 1, warning: 2 }
-    insights.sort((a, b) => order[a.type] - order[b.type])
+    // Sort: success first, motivate, warning last
+    const order: Record<InsightVariant, number> = { success: 0, motivate: 1, warning: 2 }
+    insights.sort((a, b) => order[a.variant] - order[b.variant])
 
     return { porHora, topFrentistas, topBombas, combustiveis, insights }
   }, [abastecimentoRows, frentistaRows, bombaRows, turnoRows, caixaResumo, kpis])
 
-  const kpiCards = [
-    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Litros Vendidos', value: formatLiters(kpis.totalLitros), icon: Droplets, color: 'text-cyan-600 dark:text-cyan-400', cardBg: 'bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900', iconBg: 'bg-cyan-100 dark:bg-cyan-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Faturamento', value: formatCurrency(kpis.faturamentoCombustivel), icon: DollarSign, color: 'text-green-600 dark:text-green-400', cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/20 dark:to-gray-900', iconBg: 'bg-green-100 dark:bg-green-900/30', tab: 'caixa' as TabKey },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', cardBg: 'bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900', iconBg: 'bg-purple-100 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'produtividade' as TabKey },
-    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', cardBg: 'bg-gradient-to-br from-indigo-50/60 to-white dark:from-indigo-950/20 dark:to-gray-900', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', tab: 'bombas' as TabKey },
-    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', cardBg: 'bg-gradient-to-br from-orange-50/60 to-white dark:from-orange-950/20 dark:to-gray-900', iconBg: 'bg-orange-100 dark:bg-orange-900/30', tab: 'caixa' as TabKey },
-    { label: 'Total Apurado', value: formatCurrency(kpis.totalApurado), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', tab: 'caixa' as TabKey },
+  // Linha 1 — KPIs principais com DeltaBadge (3 cards de destaque)
+  const mainKpiCards = [
+    {
+      label: 'Litros Vendidos',
+      value: formatLiters(kpis.totalLitros),
+      icon: Droplets,
+      color: 'text-blue-600 dark:text-blue-400',
+      cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/30 dark:to-gray-900',
+      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+      tab: 'abastecimentos' as TabKey,
+      current: kpis.totalLitros,
+      previous: kpis.prevTotalLitros,
+      formatter: formatLiters,
+    },
+    {
+      label: 'Faturamento',
+      value: formatCurrency(kpis.faturamentoCombustivel),
+      icon: DollarSign,
+      color: 'text-green-600 dark:text-green-400',
+      cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/30 dark:to-gray-900',
+      iconBg: 'bg-green-100 dark:bg-green-900/30',
+      tab: 'caixa' as TabKey,
+      current: kpis.faturamentoCombustivel,
+      previous: kpis.prevFaturamentoCombustivel,
+      formatter: formatCurrency,
+    },
+    {
+      label: 'Total Apurado',
+      value: formatCurrency(kpis.totalApurado),
+      icon: TrendingUp,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/30 dark:to-gray-900',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+      tab: 'caixa' as TabKey,
+      current: kpis.totalApurado,
+      previous: kpis.prevTotalApurado,
+      formatter: formatCurrency,
+    },
+  ]
+
+  // Linha 2 — KPIs secundários compactos (sem DeltaBadge)
+  const secondaryKpiCards = [
+    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
+    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
+    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'produtividade' as TabKey },
+    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', tab: 'bombas' as TabKey },
+    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-900/30', tab: 'caixa' as TabKey },
   ]
 
   return (
     <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiCards.map((card) => {
+      {/* Linha 1 — KPIs principais (destaque máximo) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {mainKpiCards.map((card) => {
           const Icon = card.icon
           return (
             <button
               key={card.label}
               onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
+              className={cn(
+                'rounded-xl border border-gray-200/60 px-5 py-6 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60',
+                card.cardBg,
+              )}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{card.label}</p>
+                <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', card.iconBg)}>
+                  <Icon className={cn('h-5 w-5', card.color)} />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <DeltaBadge current={card.current} previous={card.previous} />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Linha 2 — KPIs secundários compactos */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        {secondaryKpiCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <button
+              key={card.label}
+              onClick={() => onNavigateTab(card.tab)}
+              className="rounded-lg border border-gray-200/60 bg-gray-50/50 px-3 py-3 text-left shadow-sm transition-all hover:shadow-md hover:bg-white dark:border-gray-700/60 dark:bg-gray-800/40 dark:hover:bg-gray-800"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
                 <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
                   <Icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
+              <p className="mt-1 text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
             </button>
           )
         })}
@@ -185,20 +252,7 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {computed.insights.map((ins, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'flex items-start gap-2 rounded-lg border px-3 py-2',
-                  ins.type === 'positive' && 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10',
-                  ins.type === 'warning' && 'border-red-200 bg-red-50/50 dark:border-red-800/30 dark:bg-red-900/10',
-                  ins.type === 'info' && 'border-blue-200 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10',
-                )}
-              >
-                {ins.type === 'positive' && <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />}
-                {ins.type === 'warning' && <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />}
-                {ins.type === 'info' && <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
-              </div>
+              <InsightBanner key={i} type={ins.variant} message={ins.text} />
             ))}
           </div>
         </div>
@@ -292,12 +346,12 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
           {computed.topFrentistas.length === 0 ? (
             <p className="text-sm text-gray-400">Sem dados.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {computed.topFrentistas.map((f, i) => {
                 const maxLitros = computed.topFrentistas[0]?.litrosVendidos || 1
                 const pct = (f.litrosVendidos / maxLitros) * 100
                 return (
-                  <div key={f.funcionarioCodigo} className="flex items-center gap-3">
+                  <div key={f.funcionarioCodigo} className="flex items-center gap-3 py-2">
                     <span className={cn(
                       'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
                       i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
@@ -338,12 +392,12 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
           {computed.topBombas.length === 0 ? (
             <p className="text-sm text-gray-400">Sem dados.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {computed.topBombas.map((b, i) => {
                 const maxLitros = computed.topBombas[0]?.litrosVendidos || 1
                 const pct = (b.litrosVendidos / maxLitros) * 100
                 return (
-                  <div key={b.bombaCodigo} className="flex items-center gap-3">
+                  <div key={b.bombaCodigo} className="flex items-center gap-3 py-2">
                     <span className={cn(
                       'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
                       i === 0 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :

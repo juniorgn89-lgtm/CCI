@@ -20,6 +20,10 @@ export interface OperacaoKpiData {
   bombasAtivas: number
   caixasAbertos: number
   totalApurado: number
+  // Previous-period totals for DeltaBadge comparison (3 main KPIs only)
+  prevTotalLitros: number
+  prevFaturamentoCombustivel: number
+  prevTotalApurado: number
 }
 
 export interface FrentistaRow {
@@ -124,6 +128,28 @@ export interface PagamentoBreakdown {
   quantidade: number
 }
 
+export interface ApuradoPorDia {
+  data: string  // YYYY-MM-DD
+  apurado: number
+}
+
+/* ── Helpers ─────────────────────────────────────────────── */
+
+const fmtIsoDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// Previous period of equal length, ending the day before the current period starts.
+// e.g. 2025-04-01..2025-04-30  →  2025-03-02..2025-03-31
+const previousPeriod = (inicial: string, final: string): { inicial: string; final: string } => {
+  if (!inicial || !final) return { inicial: '', final: '' }
+  const start = new Date(`${inicial}T00:00:00`)
+  const end = new Date(`${final}T00:00:00`)
+  const lengthMs = end.getTime() - start.getTime()
+  const prevEnd = new Date(start.getTime() - 24 * 3600 * 1000)
+  const prevStart = new Date(prevEnd.getTime() - lengthMs)
+  return { inicial: fmtIsoDate(prevStart), final: fmtIsoDate(prevEnd) }
+}
+
 /* ── Hook ────────────────────────────────────────────────── */
 
 const useOperacaoData = () => {
@@ -131,11 +157,27 @@ const useOperacaoData = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
 
+  const prev = useMemo(() => previousPeriod(dataInicial, dataFinal), [dataInicial, dataFinal])
+
   // Abastecimentos — chunked by week to avoid 50k API limit
   const { data: abastecimentosData, isLoading: l1 } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: hasEmpresa,
+  })
+
+  // Abastecimentos — previous period (for DeltaBadge variation)
+  const { data: abastPrevData } = useQuery({
+    queryKey: ['abastecimentos', prev.inicial, prev.final],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prev.inicial, dataFinal: prev.final }),
+    enabled: hasEmpresa && !!prev.inicial && !!prev.final,
+  })
+
+  // Caixas — previous period (for totalApurado delta)
+  const { data: caixasPrevRaw } = useQuery({
+    queryKey: ['caixas', empresaCodigo, prev.inicial, prev.final],
+    queryFn: () => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial: prev.inicial, dataFinal: prev.final, limite: 1000 }),
+    enabled: hasEmpresa && empresaCodigo !== null && !!prev.inicial && !!prev.final,
   })
 
   // Funcionários (direct call — small dataset)
@@ -542,6 +584,9 @@ const useOperacaoData = () => {
     }
 
     // ── Payment breakdown ──
+    // Cards are aggregated under tipoFormaPagamento ("CARTAO.") because the flat
+    // /VENDA_FORMA_PAGAMENTO endpoint does not expose tipoTransacao (debit/credit).
+    // To split, we'd need /VENDA's nested formaPagamento[].tipoTransacao field.
     const pgtoAgg = new Map<string, { nome: string; valor: number; count: number }>()
     for (const fp of formasPgto) {
       const tipo = fp.tipoFormaPagamento || 'OUTROS'
@@ -560,9 +605,49 @@ const useOperacaoData = () => {
       }))
       .sort((a, b) => b.valor - a.valor)
 
-    // ── KPIs ──
+    // ── Daily evolution of apurado (sum across all caixas per day) ──
+    const dailyAgg = new Map<string, number>()
+    for (const c of caixas) {
+      const dia = c.dataMovimento?.substring(0, 10)
+      if (!dia) continue
+      dailyAgg.set(dia, (dailyAgg.get(dia) ?? 0) + c.apurado)
+    }
+
+    const apuradoPorDia: ApuradoPorDia[] = []
+    if (dataInicial && dataFinal) {
+      const addDays = (yyyymmdd: string, n: number): string => {
+        const [y, m, d] = yyyymmdd.split('-').map(Number)
+        const date = new Date(y, m - 1, d + n)
+        const yy = date.getFullYear()
+        const mm = String(date.getMonth() + 1).padStart(2, '0')
+        const dd = String(date.getDate()).padStart(2, '0')
+        return `${yy}-${mm}-${dd}`
+      }
+      let cursor = dataInicial
+      // Safety cap: max ~3 anos para evitar loop infinito
+      for (let i = 0; i < 1100 && cursor <= dataFinal; i++) {
+        apuradoPorDia.push({ data: cursor, apurado: dailyAgg.get(cursor) ?? 0 })
+        cursor = addDays(cursor, 1)
+      }
+    } else {
+      apuradoPorDia.push(
+        ...Array.from(dailyAgg.entries())
+          .map(([data, apurado]) => ({ data, apurado }))
+          .sort((a, b) => a.data.localeCompare(b.data))
+      )
+    }
+
+    // ── KPIs (current period) ──
     const totalLitros = abastecimentos.reduce((s, a) => s + a.quantidade, 0)
     const totalFat = abastecimentos.reduce((s, a) => s + a.valorTotal, 0)
+
+    // ── Previous-period totals for DeltaBadge ──
+    const abastPrev = (abastPrevData ?? []).filter(
+      (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
+    )
+    const prevTotalLitros = abastPrev.reduce((s, a) => s + a.quantidade, 0)
+    const prevFaturamentoCombustivel = abastPrev.reduce((s, a) => s + a.valorTotal, 0)
+    const prevTotalApurado = (caixasPrevRaw?.resultados ?? []).reduce((s, c) => s + c.apurado, 0)
 
     const kpis: OperacaoKpiData = {
       totalAbastecimentos: abastecimentos.length,
@@ -573,6 +658,9 @@ const useOperacaoData = () => {
       bombasAtivas: bombaRows.filter((b) => b.abastecimentos > 0).length,
       caixasAbertos: caixaResumo.caixasAbertos,
       totalApurado: caixaResumo.totalApurado,
+      prevTotalLitros,
+      prevFaturamentoCombustivel,
+      prevTotalApurado,
     }
 
     // Filter lists for UI
@@ -595,10 +683,11 @@ const useOperacaoData = () => {
       turnoGroups,
       caixaResumo,
       pagamentoBreakdown,
+      apuradoPorDia,
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, formasPgtoRaw, empresaCodigo])
+  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal])
 
   return {
     ...computed,

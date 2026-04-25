@@ -10,7 +10,7 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import InsightBanner from '@/pages/Frentista/components/InsightBanner'
+import InsightBanner from '@/components/kpi/InsightBanner'
 import FrentistaPeriodBadges from '@/pages/Frentista/components/FrentistaPeriodBadges'
 
 const PRODUCT_STYLES = [

@@ -31,7 +31,7 @@ const DeltaBadge = ({
     <div className={cn('mt-1 flex flex-col gap-0.5', className)}>
       <div className={cn(
         'flex items-center gap-1',
-        isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+        isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
       )}>
         <Icon className="h-3 w-3 shrink-0" />
         <span className="text-[10px] font-semibold tabular-nums">

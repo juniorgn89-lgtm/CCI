@@ -44,6 +44,7 @@ const Operacao = () => {
     turnoGroups,
     caixaResumo,
     pagamentoBreakdown,
+    apuradoPorDia,
     frentistasList,
     combustiveisList,
     isLoading,
@@ -146,6 +147,7 @@ const Operacao = () => {
                       caixaResumo={caixaResumo}
                       pagamentoBreakdown={pagamentoBreakdown}
                       turnoGroups={turnoGroups}
+                      apuradoPorDia={apuradoPorDia}
                     />
                   )}
                   {activeTab === 'produtividade' && (

@@ -6,7 +6,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import InsightBanner from '@/pages/Frentista/components/InsightBanner'
+import InsightBanner from '@/components/kpi/InsightBanner'
 
 const extractTime = (raw: string | null | undefined): string => {
   if (!raw) return ''

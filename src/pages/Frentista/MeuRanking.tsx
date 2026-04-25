@@ -7,7 +7,7 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import InsightBanner from '@/pages/Frentista/components/InsightBanner'
+import InsightBanner from '@/components/kpi/InsightBanner'
 
 const MeuRanking = () => {
   const { session } = useFreentistaStore()

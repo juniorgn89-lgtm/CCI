@@ -2,7 +2,7 @@ import { Banknote, Clock, CheckCircle2, AlertTriangle, Search } from 'lucide-rea
 import { useFreentistaStore } from '@/store/frentista'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import InsightBanner from '@/pages/Frentista/components/InsightBanner'
+import InsightBanner from '@/components/kpi/InsightBanner'
 
 interface Sangria {
   id: string
