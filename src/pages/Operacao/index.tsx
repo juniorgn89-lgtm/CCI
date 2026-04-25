@@ -41,6 +41,7 @@ const Operacao = () => {
     bombaRows,
     abastecimentoRows,
     turnoRows,
+    turnoGroups,
     caixaResumo,
     pagamentoBreakdown,
     frentistasList,
@@ -144,7 +145,7 @@ const Operacao = () => {
                     <CaixaPosto
                       caixaResumo={caixaResumo}
                       pagamentoBreakdown={pagamentoBreakdown}
-                      turnoRows={turnoRows}
+                      turnoGroups={turnoGroups}
                     />
                   )}
                   {activeTab === 'produtividade' && (

@@ -93,6 +93,23 @@ export interface TurnoRow {
   pagamentos: TurnoPagamento[]
 }
 
+export interface TurnoGroup {
+  groupKey: string           // `${turnoCodigo}-${dataMovimento}`
+  turnoCodigo: number
+  turno: string
+  dataMovimento: string
+  responsaveis: string[]     // funcionario names in this group
+  abertura: string           // earliest ISO abertura
+  fechamento: string         // latest ISO fechamento (or '')
+  fechado: boolean           // all caixas closed
+  apuradoTotal: number
+  diferencaTotal: number
+  totalVendasTotal: number
+  frentistas: TurnoFrentista[]
+  pagamentos: TurnoPagamento[]
+  caixaCodigos: number[]
+}
+
 export interface CaixaResumo {
   totalApurado: number
   totalDiferenca: number
@@ -315,13 +332,40 @@ const useOperacaoData = () => {
     }
 
     // ── Turnos (from Caixas) with frentistas cross-reference ──
+    // Group caixas by pdvCodigo, then sort each group by abertura ascending.
+    // Upper bound for open shifts uses the next caixa's abertura WITHIN THE SAME PDV,
+    // so different PDVs (e.g. MAILANE and GILVONEY) never constrain each other.
+    const caixasByPdv = new Map<number, typeof caixas>()
+    for (const c of caixas) {
+      const group = caixasByPdv.get(c.pdvCodigo) ?? []
+      group.push(c)
+      caixasByPdv.set(c.pdvCodigo, group)
+    }
+    for (const [pdv, group] of caixasByPdv) {
+      caixasByPdv.set(pdv, group.sort((a, b) => {
+        const ta = a.abertura ? new Date(a.abertura).getTime() : 0
+        const tb = b.abertura ? new Date(b.abertura).getTime() : 0
+        return ta - tb
+      }))
+    }
+
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
         const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
-
-        // Convert caixa open/close to UTC timestamps for comparison
         const aberturaTs = c.abertura ? new Date(c.abertura).getTime() : null
-        const fechamentoTs = c.fechamento ? new Date(c.fechamento).getTime() : null
+
+        // Upper bound: fechamento if closed, else next caixa on the same PDV, else now
+        let fechamentoTs = c.fechamento ? new Date(c.fechamento).getTime() : null
+        if (!fechamentoTs) {
+          const pdvGroup = caixasByPdv.get(c.pdvCodigo) ?? []
+          const myIdx = pdvGroup.findIndex((x) => x.caixaCodigo === c.caixaCodigo)
+          const nextInPdv = pdvGroup.slice(myIdx + 1).find(
+            (nx) => nx.dataMovimento?.substring(0, 10) === caixaDate && nx.abertura
+          )
+          fechamentoTs = nextInPdv
+            ? new Date(nextInPdv.abertura).getTime() - 1
+            : Date.now()
+        }
 
         const shiftAbast = abastecimentos.filter((a) => {
           // Pre-filter by date for performance
@@ -331,7 +375,7 @@ const useOperacaoData = () => {
           if (!a.dataHoraAbastecimento || !aberturaTs) return true
           const abastTs = new Date(a.dataHoraAbastecimento).getTime()
           if (abastTs < aberturaTs) return false
-          if (fechamentoTs && abastTs > fechamentoTs) return false
+          if (abastTs > fechamentoTs!) return false
           return true
         })
 
@@ -398,6 +442,97 @@ const useOperacaoData = () => {
         return b.dataMovimento.localeCompare(a.dataMovimento)
       })
 
+    // ── Turno groups (group caixas by turnoCodigo + dataMovimento) ──
+    const groupMap = new Map<string, typeof caixas>()
+    for (const c of caixas) {
+      const key = `${c.turnoCodigo}-${c.dataMovimento?.substring(0, 10)}`
+      const grp = groupMap.get(key) ?? []
+      grp.push(c)
+      groupMap.set(key, grp)
+    }
+
+    const turnoGroups: TurnoGroup[] = Array.from(groupMap.entries())
+      .map(([groupKey, grpCaixas]) => {
+        const sorted = [...grpCaixas].sort((a, b) => {
+          const ta = a.abertura ? new Date(a.abertura).getTime() : 0
+          const tb = b.abertura ? new Date(b.abertura).getTime() : 0
+          return ta - tb
+        })
+        const first = sorted[0]
+        const caixaDate = first.dataMovimento?.substring(0, 10) ?? ''
+        const fechado = grpCaixas.every((c) => c.fechado)
+
+        // Combined time window
+        const aberturaTs = Math.min(
+          ...grpCaixas.map((c) => c.abertura ? new Date(c.abertura).getTime() : Infinity)
+        )
+        const maxFechamentoTs = fechado
+          ? Math.max(...grpCaixas.map((c) => c.fechamento ? new Date(c.fechamento).getTime() : 0))
+          : Date.now()
+
+        // All abastecimentos in the group's time window
+        const grpAbast = abastecimentos.filter((a) => {
+          const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+          if (abastDate !== caixaDate) return false
+          if (!a.dataHoraAbastecimento || !isFinite(aberturaTs)) return true
+          const ts = new Date(a.dataHoraAbastecimento).getTime()
+          return ts >= aberturaTs && ts <= maxFechamentoTs
+        })
+
+        // Frentistas aggregated for the whole turno
+        const frentAgg = new Map<number, { litros: number; count: number; valor: number }>()
+        for (const a of grpAbast) {
+          const prev = frentAgg.get(a.codigoFrentista) ?? { litros: 0, count: 0, valor: 0 }
+          frentAgg.set(a.codigoFrentista, {
+            litros: prev.litros + a.quantidade,
+            count: prev.count + 1,
+            valor: prev.valor + a.valorTotal,
+          })
+        }
+        const frentistas: TurnoFrentista[] = Array.from(frentAgg.entries())
+          .map(([cod, agg]) => ({
+            nome: funcMap.get(cod)?.nome ?? `Frentista ${cod}`,
+            litros: agg.litros,
+            atendimentos: agg.count,
+            faturamento: agg.valor,
+          }))
+          .sort((a, b) => b.faturamento - a.faturamento)
+
+        // Merged pagamentos
+        const pgtoMerge = new Map<string, TurnoPagamento>()
+        for (const row of turnoRows.filter((r) => grpCaixas.some((c) => c.caixaCodigo === r.caixaCodigo))) {
+          for (const p of row.pagamentos) {
+            const prev = pgtoMerge.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
+            pgtoMerge.set(p.tipo, { ...prev, valor: prev.valor + p.valor, quantidade: prev.quantidade + p.quantidade })
+          }
+        }
+
+        const apuradoTotal = grpCaixas.reduce((s, c) => s + c.apurado, 0)
+        const diferencaTotal = grpCaixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0)
+        const totalVendasTotal = grpAbast.reduce((s, a) => s + a.valorTotal, 0)
+
+        return {
+          groupKey,
+          turnoCodigo: first.turnoCodigo,
+          turno: first.turno || `Turno ${first.turnoCodigo}`,
+          dataMovimento: caixaDate,
+          responsaveis: sorted.map((c) => funcMap.get(c.funcionarioCodigo)?.nome ?? `Func ${c.funcionarioCodigo}`),
+          abertura: first.abertura ?? '',
+          fechamento: sorted[sorted.length - 1].fechamento ?? '',
+          fechado,
+          apuradoTotal,
+          diferencaTotal,
+          totalVendasTotal,
+          frentistas,
+          pagamentos: Array.from(pgtoMerge.values()).sort((a, b) => b.valor - a.valor),
+          caixaCodigos: grpCaixas.map((c) => c.caixaCodigo),
+        }
+      })
+      .sort((a, b) => {
+        if (a.fechado !== b.fechado) return a.fechado ? 1 : -1
+        return b.dataMovimento.localeCompare(a.dataMovimento) || b.abertura.localeCompare(a.abertura)
+      })
+
     // ── Caixa summary ──
     const caixaResumo: CaixaResumo = {
       totalApurado: caixas.reduce((s, c) => s + c.apurado, 0),
@@ -457,6 +592,7 @@ const useOperacaoData = () => {
       bombaRows,
       abastecimentoRows,
       turnoRows,
+      turnoGroups,
       caixaResumo,
       pagamentoBreakdown,
       frentistasList,

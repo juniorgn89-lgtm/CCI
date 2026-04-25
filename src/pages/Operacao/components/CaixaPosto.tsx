@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ArrowUpDown, ChevronDown, Users, Clock, User, Search, Fuel } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
   ResponsiveContainer,
@@ -15,14 +15,14 @@ import {
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { CaixaResumo, PagamentoBreakdown, TurnoRow } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { CaixaResumo, PagamentoBreakdown, TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
 import useCaixaHistory from '@/pages/Operacao/hooks/useCaixaHistory'
 import CaixaHistorico from '@/pages/Operacao/components/CaixaHistorico'
 
 interface CaixaPostoProps {
   caixaResumo: CaixaResumo
   pagamentoBreakdown: PagamentoBreakdown[]
-  turnoRows: TurnoRow[]
+  turnoGroups: TurnoGroup[]
 }
 
 const DONUT_COLORS = [
@@ -38,9 +38,15 @@ const paymentIcon = (tipo: string) => {
   return Wallet
 }
 
-const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
+const formatIsoTime = (iso: string | null | undefined): string => {
+  if (!iso) return '-'
+  if (iso.includes('T')) return iso.split('T')[1]?.substring(0, 5) ?? '-'
+  if (iso.includes(' ')) return iso.split(' ')[1]?.substring(0, 5) ?? '-'
+  return iso.substring(0, 5)
+}
+
+const CaixaPosto = ({ pagamentoBreakdown, turnoGroups }: CaixaPostoProps) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows })
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
 
   // Filters
@@ -49,21 +55,19 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
   const [filterStatus, setFilterStatus] = useState<'todos' | 'aberto' | 'fechado'>('aberto')
   const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'positiva' | 'negativa'>('todas')
 
-  // Unique values for dropdowns
-  const turnosUnicos = useMemo(() => [...new Set(turnoRows.map((t) => t.turno))].sort(), [turnoRows])
+  const turnosUnicos = useMemo(() => [...new Set(turnoGroups.map((g) => g.turno))].sort(), [turnoGroups])
 
-  // Filtered rows
-  const filteredRows = useMemo(() => {
-    return turnoRows.filter((t) => {
-      if (filterNome && !t.funcionarioNome.toLowerCase().includes(filterNome.toLowerCase())) return false
-      if (filterTurno && t.turno !== filterTurno) return false
-      if (filterStatus === 'aberto' && t.fechado) return false
-      if (filterStatus === 'fechado' && !t.fechado) return false
-      if (filterDiferenca === 'positiva' && t.diferenca <= 0) return false
-      if (filterDiferenca === 'negativa' && t.diferenca >= 0) return false
+  const filteredGroups = useMemo(() => {
+    return turnoGroups.filter((g) => {
+      if (filterNome && !g.responsaveis.some((n) => n.toLowerCase().includes(filterNome.toLowerCase()))) return false
+      if (filterTurno && g.turno !== filterTurno) return false
+      if (filterStatus === 'aberto' && g.fechado) return false
+      if (filterStatus === 'fechado' && !g.fechado) return false
+      if (filterDiferenca === 'positiva' && g.diferencaTotal <= 0) return false
+      if (filterDiferenca === 'negativa' && g.diferencaTotal >= 0) return false
       return true
     })
-  }, [turnoRows, filterNome, filterTurno, filterStatus, filterDiferenca])
+  }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca])
 
   const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
 
@@ -83,25 +87,29 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
     })
   }
 
-  // Aggregate apurado by turno for chart
-  const turnoAgg = new Map<string, number>()
-  for (const t of turnoRows) {
-    const prev = turnoAgg.get(t.turno) ?? 0
-    turnoAgg.set(t.turno, prev + t.apurado)
-  }
-  const turnoChartData = Array.from(turnoAgg.entries())
-    .map(([turno, valor]) => ({ turno, valor }))
-    .sort((a, b) => b.valor - a.valor)
+  // Chart data: apurado by turno name
+  const turnoChartData = useMemo(() => {
+    const agg = new Map<string, number>()
+    for (const g of turnoGroups) {
+      agg.set(g.turno, (agg.get(g.turno) ?? 0) + g.apuradoTotal)
+    }
+    return Array.from(agg.entries())
+      .map(([turno, valor]) => ({ turno, valor }))
+      .sort((a, b) => b.valor - a.valor)
+  }, [turnoGroups])
 
-  const abertos = turnoRows.filter((t) => !t.fechado)
+  const groupSummary = useMemo(() => {
+    const apurado = filteredGroups.reduce((s, g) => s + g.apuradoTotal, 0)
+    const diferenca = filteredGroups.reduce((s, g) => s + g.diferencaTotal, 0)
+    const fechados = filteredGroups.filter((g) => g.fechado).length
+    const abertos = filteredGroups.filter((g) => !g.fechado).length
+    return { apurado, diferenca, fechados, abertos }
+  }, [filteredGroups])
 
-  const caixaSummary = useMemo(() => {
-    const apurado = filteredRows.reduce((s, t) => s + t.apurado, 0)
-    const diferenca = filteredRows.reduce((s, t) => s + t.diferenca, 0)
-    const fechados = filteredRows.filter((t) => t.fechado).length
-    const abertosCount = filteredRows.filter((t) => !t.fechado).length
-    return { apurado, diferenca, fechados, abertos: abertosCount }
-  }, [filteredRows])
+  const abertoGroups = turnoGroups.filter((g) => !g.fechado)
+
+  // useCaixaHistory expects turnoRows but we pass empty for now
+  const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows: [] })
 
   return (
     <div className="space-y-4">
@@ -110,17 +118,17 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
         iconColor="text-blue-600"
         iconBg="bg-blue-100 dark:bg-blue-900/40"
         title="Resumo do Caixa"
-        subtitle={`${filteredRows.length} sessões`}
+        subtitle={`${filteredGroups.length} turno${filteredGroups.length !== 1 ? 's' : ''}`}
         metrics={[
-          { label: 'Apurado', value: formatCurrency(caixaSummary.apurado) },
-          { label: 'Diferença', value: `${caixaSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(caixaSummary.diferenca)}`, color: caixaSummary.diferenca >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' },
-          { label: 'Fechados', value: formatNumber(caixaSummary.fechados) },
-          { label: 'Abertos', value: formatNumber(caixaSummary.abertos), color: 'text-orange-600 dark:text-orange-400' },
+          { label: 'Apurado', value: formatCurrency(groupSummary.apurado) },
+          { label: 'Diferença', value: `${groupSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(groupSummary.diferenca)}`, color: groupSummary.diferenca >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' },
+          { label: 'Fechados', value: formatNumber(groupSummary.fechados) },
+          { label: 'Abertos', value: formatNumber(groupSummary.abertos), color: 'text-orange-600 dark:text-orange-400' },
         ]}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Formas de pagamento / Diferença por responsável */}
+        {/* Formas de pagamento */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           {pagamentoBreakdown.length > 0 ? (
             <>
@@ -132,25 +140,10 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
                 <div className="w-[180px] shrink-0">
                   <ResponsiveContainer width="100%" height={180}>
                     <PieChart>
-                      <Pie
-                        data={pagamentoBreakdown}
-                        dataKey="valor"
-                        nameKey="nome"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        strokeWidth={0}
-                      >
-                        {pagamentoBreakdown.map((_, i) => (
-                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                        ))}
+                      <Pie data={pagamentoBreakdown} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} strokeWidth={0}>
+                        {pagamentoBreakdown.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                        formatter={((v: number) => [formatCurrencyTooltip(v), 'Valor']) as never}
-                      />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }} formatter={((v: number) => [formatCurrencyTooltip(v), 'Valor']) as never} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -169,9 +162,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
                             </div>
                             <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(1)}%</span>
                           </div>
-                          <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                            {formatCurrency(p.valor)} &middot; {formatNumber(p.quantidade)} transações
-                          </p>
+                          <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{formatCurrency(p.valor)} · {formatNumber(p.quantidade)} transações</p>
                         </div>
                       </div>
                     )
@@ -180,66 +171,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
               </div>
             </>
           ) : (
-            <>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  <ArrowUpDown className="mr-1.5 inline h-4 w-4 text-amber-500" />
-                  Diferença por Responsável
-                </h3>
-                {filterNome && (
-                  <button onClick={() => setFilterNome('')} className="text-[10px] text-blue-500 underline">limpar filtro</button>
-                )}
-              </div>
-              {(() => {
-                const fechados = turnoRows.filter((t) => t.fechado && t.diferenca !== 0)
-                const diffByFunc = new Map<string, { diff: number; count: number }>()
-                for (const t of fechados) {
-                  const prev = diffByFunc.get(t.funcionarioNome) ?? { diff: 0, count: 0 }
-                  diffByFunc.set(t.funcionarioNome, { diff: prev.diff + t.diferenca, count: prev.count + 1 })
-                }
-                const ranking = Array.from(diffByFunc.entries())
-                  .map(([nome, d]) => ({ nome, ...d }))
-                  .sort((a, b) => a.diff - b.diff)
-
-                if (ranking.length === 0) {
-                  return <div className="flex h-[180px] items-center justify-center text-sm text-gray-400">Sem diferenças no período.</div>
-                }
-
-                return (
-                  <div className="space-y-2.5">
-                    {ranking.map((r) => {
-                      const isActive = filterNome === r.nome
-                      return (
-                        <button
-                          key={r.nome}
-                          onClick={() => {
-                            setFilterNome(isActive ? '' : r.nome)
-                            setFilterStatus('todos')
-                          }}
-                          className={cn(
-                            'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors',
-                            isActive
-                              ? 'bg-blue-50 ring-1 ring-blue-300 dark:bg-blue-900/20 dark:ring-blue-700'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                          )}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-gray-900 dark:text-gray-100">{r.nome}</p>
-                            <p className="text-[10px] text-gray-400">{r.count} turno{r.count > 1 ? 's' : ''}</p>
-                          </div>
-                          <span className={cn(
-                            'shrink-0 text-sm font-bold tabular-nums',
-                            r.diff > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                          )}>
-                            {r.diff > 0 ? '+' : ''}{formatCurrency(r.diff)}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
-            </>
+            <div className="flex h-[180px] items-center justify-center text-sm text-gray-400">Sem dados de pagamento.</div>
           )}
         </div>
 
@@ -252,93 +184,59 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
           {turnoChartData.length === 0 ? (
             <div className="flex h-[180px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
-            <>
-              {filterTurno && (
-                <p className="mb-2 text-[10px] text-blue-500">
-                  Filtrado por: <span className="font-semibold">{filterTurno}</span>
-                  <button onClick={() => setFilterTurno('')} className="ml-2 underline">limpar</button>
-                </p>
-              )}
-              <ResponsiveContainer width="100%" height={Math.max(180, turnoChartData.length * 60)}>
-                <BarChart
-                  data={turnoChartData}
-                  layout="vertical"
-                  margin={{ left: 10, right: 20 }}
-                  onClick={(e) => {
-                    if (e?.activeLabel) {
-                      const turno = e.activeLabel as string
-                      setFilterTurno(filterTurno === turno ? '' : turno)
-                      setFilterStatus('todos')
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                  <XAxis type="number" tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="turno" width={80} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                    formatter={((v: number) => [formatCurrencyTooltip(v), 'Apurado']) as never}
-                  />
-                  <Bar dataKey="valor" name="Apurado" radius={[0, 6, 6, 0]}>
-                    {turnoChartData.map((entry) => (
-                      <Cell
-                        key={entry.turno}
-                        fill={filterTurno === entry.turno ? '#1d4ed8' : '#2563eb'}
-                        opacity={filterTurno && filterTurno !== entry.turno ? 0.3 : 1}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </>
+            <ResponsiveContainer width="100%" height={Math.max(180, turnoChartData.length * 60)}>
+              <BarChart data={turnoChartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                <XAxis type="number" tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="turno" width={80} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }} formatter={((v: number) => [formatCurrencyTooltip(v), 'Apurado']) as never} />
+                <Bar dataKey="valor" name="Apurado" radius={[0, 6, 6, 0]} fill="#2563eb" />
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
       </div>
 
-      {/* Currently open shifts */}
-      {abertos.length > 0 && (
+      {/* Currently open turno groups */}
+      {abertoGroups.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-4 flex items-center gap-2">
-            <div className="relative flex h-2.5 w-2.5 items-center justify-center">
+            <div className="relative flex h-2.5 w-2.5">
               <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative h-2 w-2 rounded-full bg-green-500" />
             </div>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Em Turno Agora</h3>
             <span className="ml-auto rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600 dark:bg-green-900/20 dark:text-green-400">
-              {abertos.length} aberto{abertos.length !== 1 ? 's' : ''}
+              {abertoGroups.length} turno{abertoGroups.length !== 1 ? 's' : ''} aberto{abertoGroups.length !== 1 ? 's' : ''}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {abertos.map((t) => (
-              <div
-                key={`open-${t.caixaCodigo}-${t.turnoCodigo}`}
-                className="rounded-lg border border-green-200 bg-green-50/50 p-4 dark:border-green-800/50 dark:bg-green-900/10"
-              >
+            {abertoGroups.map((g) => (
+              <div key={g.groupKey} className="rounded-lg border border-green-200 bg-green-50/50 p-4 dark:border-green-800/50 dark:bg-green-900/10">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
                     <User className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.funcionarioNome}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.turno}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{g.turno}</p>
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">{g.responsaveis.slice(0, 2).join(' · ')}{g.responsaveis.length > 2 ? ` +${g.responsaveis.length - 2}` : ''}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>Início: {t.abertura || '-'}</span>
+                    <span>{formatIsoTime(g.abertura)}</span>
                   </div>
-                  <span>{formatDate(t.dataMovimento)}</span>
+                  <span>{formatDate(g.dataMovimento)}</span>
                 </div>
-                {t.apurado > 0 && (
+                {g.apuradoTotal > 0 && (
                   <p className="mt-2 text-xs tabular-nums text-gray-500">
-                    Apurado: <span className="font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(t.apurado)}</span>
+                    Apurado: <span className="font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal)}</span>
                   </p>
                 )}
-                {t.frentistas.length > 0 && (
+                {g.frentistas.length > 0 && (
                   <p className="mt-1 text-[10px] text-gray-400">
-                    <Users className="mr-1 inline h-3 w-3" />{t.frentistas.length} frentista{t.frentistas.length !== 1 ? 's' : ''} no turno
+                    <Users className="mr-1 inline h-3 w-3" />{g.frentistas.length} frentista{g.frentistas.length !== 1 ? 's' : ''} no turno
                   </p>
                 )}
               </div>
@@ -347,15 +245,13 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
         </div>
       )}
 
-      {/* Caixa sessions list */}
+      {/* Turno groups table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Sessões de Caixa
-              <span className="ml-2 text-xs font-normal text-gray-400">
-                {filteredRows.length} de {turnoRows.length}
-              </span>
+              Turnos de Caixa
+              <span className="ml-2 text-xs font-normal text-gray-400">{filteredGroups.length} de {turnoGroups.length}</span>
             </h3>
             <div className="flex items-center gap-3">
               {hasActiveFilter && (
@@ -365,13 +261,10 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
               )}
               <button
                 onClick={() => {
-                  if (expanded.size > 0) {
-                    setExpanded(new Set())
-                  } else {
-                    setExpanded(new Set(filteredRows.map((t) => `${t.caixaCodigo}-${t.turnoCodigo}-${t.dataMovimento}`)))
-                  }
+                  if (expanded.size > 0) setExpanded(new Set())
+                  else setExpanded(new Set(filteredGroups.map((g) => g.groupKey)))
                 }}
-                className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400"
               >
                 <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded.size > 0 && 'rotate-180')} />
                 {expanded.size > 0 ? 'Minimizar todos' : 'Expandir todos'}
@@ -379,40 +272,28 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
             </div>
           </div>
 
-          {/* Filter bar */}
+          {/* Filters */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar funcionário..."
+                placeholder="Buscar responsável..."
                 value={filterNome}
                 onChange={(e) => setFilterNome(e.target.value)}
                 className="h-8 w-[180px] rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
               />
             </div>
-            <select
-              value={filterTurno}
-              onChange={(e) => setFilterTurno(e.target.value)}
-              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
+            <select value={filterTurno} onChange={(e) => setFilterTurno(e.target.value)} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
               <option value="">Todos os turnos</option>
               {turnosUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'todos' | 'aberto' | 'fechado')}
-              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as 'todos' | 'aberto' | 'fechado')} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
               <option value="todos">Todos os status</option>
               <option value="aberto">Aberto</option>
               <option value="fechado">Fechado</option>
             </select>
-            <select
-              value={filterDiferenca}
-              onChange={(e) => setFilterDiferenca(e.target.value as 'todas' | 'positiva' | 'negativa')}
-              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
+            <select value={filterDiferenca} onChange={(e) => setFilterDiferenca(e.target.value as 'todas' | 'positiva' | 'negativa')} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
               <option value="todas">Todas as diferenças</option>
               <option value="positiva">Positiva</option>
               <option value="negativa">Negativa</option>
@@ -420,17 +301,17 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
           </div>
         </div>
 
-        {filteredRows.length === 0 ? (
+        {filteredGroups.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-sm text-gray-400">
-            {turnoRows.length === 0 ? 'Nenhuma sessão de caixa no período.' : 'Nenhum resultado para os filtros aplicados.'}
+            {turnoGroups.length === 0 ? 'Nenhum turno no período.' : 'Nenhum resultado para os filtros aplicados.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Funcionário</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Turno</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Responsáveis</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Data</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Horário</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
@@ -439,238 +320,162 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredRows.map((t, idx) => {
-                  const rowKey = `${t.caixaCodigo}-${t.turnoCodigo}-${t.dataMovimento}`
-                  const isExpanded = expanded.has(rowKey)
-                  const hasDetails = true
+                {filteredGroups.map((g, idx) => {
+                  const isExpanded = expanded.has(g.groupKey)
+                  const totalCombustivel = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
+                  const conveniencia = Math.max(0, g.apuradoTotal - totalCombustivel)
+                  const totalLitros = g.frentistas.reduce((s, f) => s + f.litros, 0)
+                  const totalAbast = g.frentistas.reduce((s, f) => s + f.atendimentos, 0)
+                  const responsaveisLabel = g.responsaveis.length <= 2
+                    ? g.responsaveis.join(' · ')
+                    : `${g.responsaveis.slice(0, 2).join(' · ')} (+${g.responsaveis.length - 2})`
 
                   return (
-                    <React.Fragment key={rowKey}>
+                    <React.Fragment key={g.groupKey}>
+                      {/* Group header row */}
                       <tr
-                        onClick={() => hasDetails && toggleExpand(rowKey)}
-                        onClick={() => hasDetails && toggleExpand(rowKey)}
+                        onClick={() => toggleExpand(g.groupKey)}
                         className={cn(
-                          'hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                          hasDetails && 'cursor-pointer',
+                          'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
                           idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
                         )}
                       >
-                        <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100">
                           <div className="flex items-center gap-2">
-                            {hasDetails && (
-                              <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
-                            )}
-                            <div>
-                              {t.funcionarioNome}
-                              {hasDetails && (
-                                <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-gray-400">
-                                  <Users className="h-3 w-3" />+{t.frentistas.length}
-                                </span>
-                              )}
-                            </div>
+                            <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
+                            {g.turno}
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">{t.turno}</td>
+                        <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400">{responsaveisLabel}</td>
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                          {t.dataMovimento ? t.dataMovimento.split('-').reverse().join('/') : '-'}
+                          {g.dataMovimento ? g.dataMovimento.split('-').reverse().join('/') : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                          {t.abertura || '-'} - {t.fechado ? t.fechamento || '-' : 'Aberto'}
+                          {formatIsoTime(g.abertura)} - {g.fechado ? formatIsoTime(g.fechamento) : 'Aberto'}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(t.apurado)}
+                          {formatCurrency(g.apuradoTotal)}
                         </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm tabular-nums',
-                          !t.fechado ? 'text-gray-400' : t.diferenca > 0 ? 'text-green-600 dark:text-green-400' : t.diferenca < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+                          !g.fechado ? 'text-gray-400' : g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400' : g.diferencaTotal < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
                         )}>
-                          {!t.fechado ? '-' : t.diferenca !== 0 ? `${t.diferenca > 0 ? '+' : ''}${formatCurrency(t.diferenca)}` : '-'}
+                          {!g.fechado ? '-' : g.diferencaTotal !== 0 ? `${g.diferencaTotal > 0 ? '+' : ''}${formatCurrency(g.diferencaTotal)}` : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           <span className={cn(
                             'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            t.fechado
-                              ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                              : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+                            g.fechado ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
                           )}>
-                            {t.fechado ? 'Fechado' : 'Aberto'}
+                            {g.fechado ? 'Fechado' : 'Aberto'}
                           </span>
                         </td>
                       </tr>
 
-                      {/* Expanded details */}
+                      {/* Expanded detail */}
                       {isExpanded && (
                         <>
-                          {/* Frentistas — sub-header com colunas */}
-                          {t.frentistas.length > 0 && (
-                            <tr key={`${rowKey}-frent-header`} className="bg-blue-50/50 dark:bg-blue-900/10">
-                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                                <Users className="mr-1 inline h-3 w-3" />Abastecimentos do responsável
+                          {/* Abastecimentos do turno header */}
+                          {g.frentistas.length > 0 && (
+                            <tr className="bg-blue-50/50 dark:bg-blue-900/10">
+                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400" colSpan={2}>
+                                <Users className="mr-1 inline h-3 w-3" />Abastecimentos do Turno
                               </td>
                               <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Abast.</td>
                               <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Litros</td>
-                              <td className="px-4 py-1.5" />
                               <td className="px-4 py-1.5 text-right text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Combustível</td>
                               <td className="px-4 py-1.5" />
                               <td className="px-4 py-1.5" />
                             </tr>
                           )}
-                          {t.frentistas.map((f) => (
-                            <tr key={`${rowKey}-${f.nome}`} className="bg-blue-50/30 dark:bg-blue-900/10">
-                              <td className="py-2 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                {f.nome}
-                              </td>
-                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
-                                {formatNumber(f.atendimentos)}
-                              </td>
-                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
-                                {formatLiters(f.litros)}
-                              </td>
-                              <td className="px-4 py-2" />
-                              <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-700 dark:text-gray-300">
-                                {formatCurrency(f.faturamento)}
-                              </td>
+                          {g.frentistas.map((f, fi) => (
+                            <tr key={`${g.groupKey}-f-${f.nome}`} className={cn('bg-blue-50/30 dark:bg-blue-900/10', fi % 2 === 1 && 'bg-blue-50/50 dark:bg-blue-900/20')}>
+                              <td className="py-2 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{f.nome}</td>
+                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(f.atendimentos)}</td>
+                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatLiters(f.litros)}</td>
+                              <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.faturamento)}</td>
                               <td className="px-4 py-2" />
                               <td className="px-4 py-2" />
                             </tr>
                           ))}
-                          {/* Resumo: Combustível + Conveniência + Apurado + Diferença */}
-                          {(() => {
-                            const totalAbast = t.frentistas.reduce((s, f) => s + f.atendimentos, 0)
-                            const totalLitros = t.frentistas.reduce((s, f) => s + f.litros, 0)
-                            const totalCombustivel = t.frentistas.reduce((s, f) => s + f.faturamento, 0)
-                            const conveniencia = Math.max(0, t.apurado - totalCombustivel)
-                            return (
-                              <>
-                                <tr key={`${rowKey}-sum-header`} className="bg-gray-100/80 dark:bg-gray-800/50">
-                                  <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" colSpan={7}>
-                                    Resumo do Caixa
-                                  </td>
-                                </tr>
-                                <tr key={`${rowKey}-sum-comb`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                  <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                    <Fuel className="mr-1.5 inline h-3 w-3 text-blue-500" />Combustível
-                                  </td>
-                                  <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatNumber(totalAbast)} abast.</td>
-                                  <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatLiters(totalLitros)}</td>
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                                    {formatCurrency(totalCombustivel)}
-                                  </td>
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5" />
-                                </tr>
-                                {conveniencia > 0 && (
-                                  <tr key={`${rowKey}-sum-conv`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                    <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                      <Wallet className="mr-1.5 inline h-3 w-3 text-green-500" />Conveniência / Outros
-                                    </td>
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                                      {formatCurrency(conveniencia)}
-                                    </td>
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                  </tr>
-                                )}
-                                <tr key={`${rowKey}-sum-apurado`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                  <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                    Apurado no Caixa (contagem física)
-                                  </td>
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                                    {formatCurrency(t.apurado)}
-                                  </td>
-                                  <td className="px-4 py-1.5" />
-                                  <td className="px-4 py-1.5" />
-                                </tr>
-                                {t.fechado && (
-                                  <tr key={`${rowKey}-sum-esperado`} className="bg-gray-50/80 dark:bg-gray-800/30">
-                                    <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                      Esperado (sistema)
-                                    </td>
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                                      {formatCurrency(t.apurado - t.diferenca)}
-                                    </td>
-                                    <td className="px-4 py-1.5" />
-                                    <td className="px-4 py-1.5" />
-                                  </tr>
-                                )}
-                                {t.fechado && t.diferenca !== 0 && (
-                                  <tr key={`${rowKey}-sum-diff`} className="bg-gray-100/80 dark:bg-gray-800/50">
-                                    <td className="py-2 pl-10 pr-4 text-xs font-medium text-gray-800 dark:text-gray-200">
-                                      Diferença
-                                    </td>
-                                    <td className="px-4 py-2" />
-                                    <td className="px-4 py-2" />
-                                    <td className="px-4 py-2" />
-                                    <td className={cn(
-                                      'px-4 py-2 text-right text-xs font-medium tabular-nums',
-                                      t.diferenca > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                                    )}>
-                                      {t.diferenca > 0 ? '+' : ''}{formatCurrency(t.diferenca)}
-                                    </td>
-                                    <td className="px-4 py-2" />
-                                    <td className="px-4 py-2" />
-                                  </tr>
-                                )}
-                              </>
-                            )
-                          })()}
 
-                          {/* Detalhamento por forma de pagamento */}
-                          {t.pagamentos.length > 0 && (
+                          {/* Resumo do turno */}
+                          <tr className="bg-gray-100/80 dark:bg-gray-800/50">
+                            <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" colSpan={7}>
+                              Resumo do Turno
+                            </td>
+                          </tr>
+                          <tr className="bg-gray-50/80 dark:bg-gray-800/30">
+                            <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>
+                              <Fuel className="mr-1.5 inline h-3 w-3 text-blue-500" />Combustível
+                            </td>
+                            <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatNumber(totalAbast)} abast.</td>
+                            <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatLiters(totalLitros)}</td>
+                            <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(totalCombustivel)}</td>
+                            <td className="px-4 py-1.5" />
+                            <td className="px-4 py-1.5" />
+                          </tr>
+                          {conveniencia > 0 && (
+                            <tr className="bg-gray-50/80 dark:bg-gray-800/30">
+                              <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>
+                                <Wallet className="mr-1.5 inline h-3 w-3 text-green-500" />Conveniência / Outros
+                              </td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(conveniencia)}</td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5" />
+                            </tr>
+                          )}
+                          <tr className="bg-gray-50/80 dark:bg-gray-800/30">
+                            <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>Apurado no Caixa (físico)</td>
+                            <td className="px-4 py-1.5" />
+                            <td className="px-4 py-1.5" />
+                            <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal)}</td>
+                            <td className="px-4 py-1.5" />
+                            <td className="px-4 py-1.5" />
+                          </tr>
+                          {g.fechado && (
+                            <tr className="bg-gray-50/80 dark:bg-gray-800/30">
+                              <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>Esperado (sistema)</td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal - g.diferencaTotal)}</td>
+                              <td className="px-4 py-1.5" />
+                              <td className="px-4 py-1.5" />
+                            </tr>
+                          )}
+                          {g.fechado && g.diferencaTotal !== 0 && (
+                            <tr className="bg-gray-100/80 dark:bg-gray-800/50">
+                              <td className="py-2 pl-10 pr-4 text-xs font-medium text-gray-800 dark:text-gray-200" colSpan={2}>Diferença</td>
+                              <td className="px-4 py-2" />
+                              <td className="px-4 py-2" />
+                              <td className={cn('px-4 py-2 text-right text-xs font-medium tabular-nums', g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                                {g.diferencaTotal > 0 ? '+' : ''}{formatCurrency(g.diferencaTotal)}
+                              </td>
+                              <td className="px-4 py-2" />
+                              <td className="px-4 py-2" />
+                            </tr>
+                          )}
+
+                          {/* Formas de pagamento do turno */}
+                          {g.pagamentos.length > 0 && (
                             <>
-                              <tr key={`${rowKey}-pgto-header`} className="bg-amber-50/50 dark:bg-amber-900/10">
+                              <tr className="bg-amber-50/50 dark:bg-amber-900/10">
                                 <td colSpan={7} className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
                                   <Wallet className="mr-1 inline h-3 w-3" />Formas de Pagamento
                                 </td>
                               </tr>
-                              {t.pagamentos.map((p) => (
-                                <tr key={`${rowKey}-pgto-${p.tipo}`} className="bg-amber-50/30 dark:bg-amber-900/10">
-                                  <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400">
-                                    {p.nome}
-                                  </td>
-                                  <td className="px-4 py-2 text-xs text-gray-400" />
-                                  <td className="px-4 py-2 text-xs text-gray-400" />
-                                  <td className="px-4 py-2 text-xs tabular-nums text-gray-400">
-                                    {formatNumber(p.quantidade)} transações
-                                  </td>
-                                  <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-400">
-                                    {formatCurrency(p.valor)}
-                                  </td>
-                                  <td className="px-4 py-2 text-xs text-gray-400" />
+                              {g.pagamentos.map((p) => (
+                                <tr key={`${g.groupKey}-pgto-${p.tipo}`} className="bg-amber-50/30 dark:bg-amber-900/10">
+                                  <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{p.nome}</td>
+                                  <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(p.quantidade)} transações</td>
+                                  <td className="px-4 py-2" />
+                                  <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</td>
+                                  <td className="px-4 py-2" />
                                   <td className="px-4 py-2" />
                                 </tr>
                               ))}
-                              {/* Totals row */}
-                              <tr key={`${rowKey}-pgto-total`} className="bg-amber-50/50 dark:bg-amber-900/10">
-                                <td className="py-2 pl-16 pr-4 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                  Total Vendas
-                                </td>
-                                <td className="px-4 py-2" />
-                                <td className="px-4 py-2" />
-                                <td className="px-4 py-2 text-xs text-gray-500">
-                                  Apurado: {formatCurrency(t.apurado)}
-                                </td>
-                                <td className="px-4 py-2 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                                  {formatCurrency(t.totalVendas)}
-                                </td>
-                                <td className={cn(
-                                  'px-4 py-2 text-right text-xs font-medium tabular-nums',
-                                  t.diferenca > 0 ? 'text-green-600' : t.diferenca < 0 ? 'text-red-600' : 'text-gray-500'
-                                )}>
-                                  {t.diferenca !== 0 ? `${t.diferenca > 0 ? '+' : ''}${formatCurrency(t.diferenca)}` : '-'}
-                                </td>
-                                <td className="px-4 py-2" />
-                              </tr>
                             </>
                           )}
                         </>
@@ -684,7 +489,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
         )}
       </div>
 
-      {/* Histórico de alterações (Supabase) */}
       <CaixaHistorico alteracoes={alteracoes} isLoading={histLoading} configured={configured} />
     </div>
   )
