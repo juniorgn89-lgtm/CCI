@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
-import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
@@ -44,11 +45,7 @@ const useGerenteMobileData = () => {
 
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
@@ -76,11 +73,7 @@ const useGerenteMobileData = () => {
 
   const { data: abastPrev = [], isLoading: isLoadingAbastPrev } = useQuery({
     queryKey: ['abastecimentos', prevIni, prevFin],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: prevIni, dataFinal: prevFin, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevIni, dataFinal: prevFin }),
     enabled: hasEmpresa,
     retry: false,
   })

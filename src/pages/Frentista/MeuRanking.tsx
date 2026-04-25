@@ -3,9 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Trophy, RefreshCw } from 'lucide-react'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
-import { fetchAbastecimentos } from '@/api/endpoints/combustiveis'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
-import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/pages/Frentista/components/InsightBanner'
@@ -16,7 +15,7 @@ const MeuRanking = () => {
 
   const { data: abastData, isFetching: fetchingAbast } = useQuery({
     queryKey: ['abastecimentos-frentista', dataInicial, dataFinal],
-    queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: !!session,
     refetchInterval: 2 * 60 * 1000,
     staleTime: 60 * 1000,

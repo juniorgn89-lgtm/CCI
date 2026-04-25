@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchAbastecimentos, fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
+import { fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
@@ -113,13 +114,10 @@ const useOperacaoData = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
 
-  // Abastecimentos (paginated)
+  // Abastecimentos — chunked by week to avoid 50k API limit
   const { data: abastecimentosData, isLoading: l1 } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAllPages(
-      (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      1000, 50
-    ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: hasEmpresa,
   })
 
@@ -321,14 +319,23 @@ const useOperacaoData = () => {
       .map((c) => {
         const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
 
-        // Match all abastecimentos on the same date — horaFiscal is unreliable/null
-        // so we avoid time-window filtering and match by date only
+        // Convert caixa open/close to UTC timestamps for comparison
+        const aberturaTs = c.abertura ? new Date(c.abertura).getTime() : null
+        const fechamentoTs = c.fechamento ? new Date(c.fechamento).getTime() : null
+
         const shiftAbast = abastecimentos.filter((a) => {
+          // Pre-filter by date for performance
           const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-          return abastDate === caixaDate
+          if (abastDate !== caixaDate) return false
+          // Time window via UTC timestamps
+          if (!a.dataHoraAbastecimento || !aberturaTs) return true
+          const abastTs = new Date(a.dataHoraAbastecimento).getTime()
+          if (abastTs < aberturaTs) return false
+          if (fechamentoTs && abastTs > fechamentoTs) return false
+          return true
         })
 
-        // Aggregate all frentistas who worked during this shift (including opener)
+        // Aggregate frentistas who worked this shift
         const frentistaAgg = new Map<number, { litros: number; count: number; valor: number }>()
         for (const a of shiftAbast) {
           const prev = frentistaAgg.get(a.codigoFrentista) ?? { litros: 0, count: 0, valor: 0 }

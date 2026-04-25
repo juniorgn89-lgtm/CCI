@@ -2,11 +2,12 @@ import { useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
-import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
 
@@ -170,38 +171,24 @@ const useDashboardData = () => {
     retry: false,
   })
 
-  // ABASTECIMENTO for fuel detail (shared key with Combustíveis page)
+  // ABASTECIMENTO — chunked by week to avoid 50k API limit
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: hasEmpresa,
     placeholderData: keepPreviousData,
   })
 
-  // ABASTECIMENTO for previous month (fuel prev month comparison)
   const { data: abastPrevMonth = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
     enabled: hasEmpresa,
     retry: false,
   })
 
-  // ABASTECIMENTO for same period last year (fuel prev year comparison)
   const { data: abastPrevYear = [] } = useQuery({
     queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: prevYearInicial, dataFinal: prevYearFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
     enabled: hasEmpresa,
     retry: false,
   })

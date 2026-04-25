@@ -2,8 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
-import { fetchAbastecimentos } from '@/api/endpoints/combustiveis'
-import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 
 export interface PeriodMetrics {
@@ -67,7 +66,7 @@ const usePostoComparativo = (empresaCodigo: number | null) => {
 
   const { data: abastAtual } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled,
   })
 
@@ -80,7 +79,7 @@ const usePostoComparativo = (empresaCodigo: number | null) => {
 
   const { data: abastPrevMonth } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
-    queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
     enabled,
   })
 
@@ -93,7 +92,7 @@ const usePostoComparativo = (empresaCodigo: number | null) => {
 
   const { data: abastPrevYear } = useQuery({
     queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
-    queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial: prevYearInicial, dataFinal: prevYearFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
     enabled,
   })
 

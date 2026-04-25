@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Wallet, Banknote, CreditCard, Smartphone, ArrowUpDown, ChevronDown, Users, Clock, User, Search, Fuel } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
@@ -445,9 +445,9 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
                   const hasDetails = true
 
                   return (
-                    <>
+                    <React.Fragment key={rowKey}>
                       <tr
-                        key={rowKey}
+                        onClick={() => hasDetails && toggleExpand(rowKey)}
                         onClick={() => hasDetails && toggleExpand(rowKey)}
                         className={cn(
                           'hover:bg-gray-50 dark:hover:bg-gray-800/50',
@@ -675,7 +675,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows }: CaixaPostoProps) => {
                           )}
                         </>
                       )}
-                    </>
+                    </React.Fragment>
                   )
                 })}
               </tbody>

@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchAbastecimentos, fetchBombas, fetchBicos, fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchBombas, fetchBicos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 
 const WEEKDAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -161,47 +162,29 @@ const useFuelData = () => {
   const evolution12mInicial = offsetPeriod(dataFinal, 11) // 12 months back from end date
   const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01' // start of that month
 
-  // Current period
+  // Current period — chunked by week to avoid 50k API limit
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     placeholderData: keepPreviousData,
   })
 
-  // Previous month
   const { data: prevMonthAbast = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
     retry: false,
   })
 
-  // Previous year
   const { data: prevYearAbast = [] } = useQuery({
     queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: prevYearInicial, dataFinal: prevYearFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
     retry: false,
   })
 
-  // 12-month evolution data
+  // 12-month evolution — 30-day chunks to limit parallel requests
   const { data: evolutionAbast = [] } = useQuery({
     queryKey: ['abastecimentos', evolution12mInicialFirst, dataFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchAbastecimentos({ dataInicial: evolution12mInicialFirst, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-        1000, 50
-      ),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: evolution12mInicialFirst, dataFinal, chunkDays: 30 }),
     staleTime: 10 * 60 * 1000,
   })
 

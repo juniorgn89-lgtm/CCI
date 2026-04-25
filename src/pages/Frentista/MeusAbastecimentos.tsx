@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Fuel, Droplets, DollarSign, Receipt, RefreshCw } from 'lucide-react'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
-import { fetchAbastecimentos, fetchBicos } from '@/api/endpoints/combustiveis'
+import { fetchBicos } from '@/api/endpoints/combustiveis'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -28,7 +29,7 @@ const MeusAbastecimentos = () => {
 
   const { data: abastData, isFetching } = useQuery({
     queryKey: ['abastecimentos-frentista', dataInicial, dataFinal],
-    queryFn: () => fetchAllPages((p) => fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: !!session,
     refetchInterval: 2 * 60 * 1000,
     staleTime: 60 * 1000,
