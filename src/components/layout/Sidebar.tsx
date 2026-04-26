@@ -9,8 +9,6 @@ import {
   DollarSign,
   Brain,
   Gauge,
-  Smartphone,
-  LayoutDashboard,
   ChevronRight as ArrowRight,
   PanelLeft,
   Settings,
@@ -59,13 +57,6 @@ const navGroups: NavGroup[] = [
     title: 'Análise',
     items: [
       { label: 'Inteligência', path: '/inteligencia', icon: Brain },
-    ],
-  },
-  {
-    title: 'Ferramentas',
-    items: [
-      { label: 'Mobile', path: '/mobile', icon: Smartphone },
-      { label: 'App Gerente', path: '/gerente', icon: LayoutDashboard },
     ],
   },
 ]

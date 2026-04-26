@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
   Fuel, Droplets, DollarSign, Receipt, Users, Gauge, Wallet, TrendingUp,
-  Trophy, Lightbulb, Clock,
+  Lightbulb, Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import InsightBanner from '@/components/kpi/InsightBanner'
-import type { OperacaoKpiData, FrentistaRow, BombaRow, AbastecimentoRow, TurnoRow, CaixaResumo } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { OperacaoKpiData, FrentistaRow, AbastecimentoRow, CaixaResumo } from '@/pages/Operacao/hooks/useOperacaoData'
 
 type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
 type InsightVariant = 'success' | 'warning' | 'motivate'
@@ -19,16 +19,14 @@ type InsightVariant = 'success' | 'warning' | 'motivate'
 interface Props {
   kpis: OperacaoKpiData
   frentistaRows: FrentistaRow[]
-  bombaRows: BombaRow[]
   abastecimentoRows: AbastecimentoRow[]
-  turnoRows: TurnoRow[]
   caixaResumo: CaixaResumo
   onNavigateTab: (tab: TabKey) => void
 }
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
-const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows, turnoRows, caixaResumo, onNavigateTab }: Props) => {
+const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResumo, onNavigateTab }: Props) => {
   const computed = useMemo(() => {
     // Abastecimentos por hora
     const horaMap = new Map<number, { count: number; litros: number }>()
@@ -46,12 +44,6 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
 
     const horaPico = porHora.reduce((max, h) => h.abastecimentos > max.abastecimentos ? h : max, porHora[0])
 
-    // Top 5 frentistas
-    const topFrentistas = frentistaRows.slice(0, 5)
-
-    // Top 5 bombas
-    const topBombas = bombaRows.slice(0, 5)
-
     // Combustíveis breakdown
     const combMap = new Map<string, { litros: number; valor: number; count: number }>()
     for (const a of abastecimentoRows) {
@@ -63,24 +55,19 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
       .map(([nome, d]) => ({ nome, ...d }))
       .sort((a, b) => b.litros - a.litros)
 
-    // Insights mapped to InsightBanner variants (success / warning / motivate)
+    // Insights — apenas os 3 mais relevantes
     const insights: { variant: InsightVariant; text: string }[] = []
 
-    if (horaPico) {
-      insights.push({
-        variant: 'motivate',
-        text: `Horário de pico: ${horaPico.hora} com ${horaPico.abastecimentos} abastecimentos`,
-      })
-    }
-
-    if (topFrentistas.length > 0) {
-      const best = topFrentistas[0]
+    // 1) Líder de vendas (frentista)
+    const leader = frentistaRows[0]
+    if (leader) {
       insights.push({
         variant: 'success',
-        text: `${best.nome} lidera com ${formatLiters(best.litrosVendidos)} e ${best.atendimentos} atendimentos`,
+        text: `${leader.nome} lidera com ${formatLiters(leader.litrosVendidos)} e ${leader.atendimentos} atendimentos`,
       })
     }
 
+    // 2) Diferença de caixa
     if (caixaResumo.totalDiferenca < -100) {
       insights.push({
         variant: 'warning',
@@ -93,56 +80,16 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
       })
     }
 
-    if (caixaResumo.caixasAbertos > 0) {
+    // 3) Horário de pico
+    if (horaPico) {
       insights.push({
         variant: 'motivate',
-        text: `${caixaResumo.caixasAbertos} caixa${caixaResumo.caixasAbertos > 1 ? 's' : ''} aberto${caixaResumo.caixasAbertos > 1 ? 's' : ''} no momento`,
+        text: `Horário de pico: ${horaPico.hora} com ${horaPico.abastecimentos} abastecimentos`,
       })
     }
 
-    const bombasSemUso = bombaRows.filter((b) => b.abastecimentos === 0)
-    if (bombasSemUso.length > 0) {
-      insights.push({
-        variant: 'warning',
-        text: `${bombasSemUso.length} bomba${bombasSemUso.length > 1 ? 's' : ''} sem abastecimento no período`,
-      })
-    }
-
-    // Ticket médio vs média geral
-    if (kpis.totalAbastecimentos > 0 && kpis.frentistasAtivos > 0) {
-      const mediaLitrosPorFrentista = kpis.totalLitros / kpis.frentistasAtivos
-      insights.push({
-        variant: 'motivate',
-        text: `Ticket médio de ${formatCurrency(kpis.ticketMedio)} com média de ${formatLiters(mediaLitrosPorFrentista)} por frentista`,
-      })
-    }
-
-    // Eficiência do turno — turno com maior faturamento por hora
-    const turnosFechados = turnoRows.filter((t) => t.fechado && t.abertura && t.fechamento)
-    if (turnosFechados.length > 0) {
-      const turnoEficiencia = turnosFechados.map((t) => {
-        const [hA, mA] = t.abertura.split(':').map(Number)
-        const [hF, mF] = t.fechamento.split(':').map(Number)
-        let horas = (hF * 60 + mF - hA * 60 - mA) / 60
-        if (horas <= 0) horas = 24 + horas
-        return { nome: t.funcionarioNome, turno: t.turno, faturamentoPorHora: horas > 0 ? t.apurado / horas : 0, horas }
-      }).sort((a, b) => b.faturamentoPorHora - a.faturamentoPorHora)
-
-      const melhor = turnoEficiencia[0]
-      if (melhor && melhor.faturamentoPorHora > 0) {
-        insights.push({
-          variant: 'success',
-          text: `Turno mais eficiente: ${melhor.nome} com ${formatCurrency(melhor.faturamentoPorHora)}/hora (${melhor.horas.toFixed(1)}h trabalhadas)`,
-        })
-      }
-    }
-
-    // Sort: success first, motivate, warning last
-    const order: Record<InsightVariant, number> = { success: 0, motivate: 1, warning: 2 }
-    insights.sort((a, b) => order[a.variant] - order[b.variant])
-
-    return { porHora, topFrentistas, topBombas, combustiveis, insights }
-  }, [abastecimentoRows, frentistaRows, bombaRows, turnoRows, caixaResumo, kpis])
+    return { porHora, combustiveis, insights }
+  }, [abastecimentoRows, frentistaRows, caixaResumo])
 
   // Linha 1 — KPIs principais com DeltaBadge (3 cards de destaque)
   const mainKpiCards = [
@@ -243,14 +190,14 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
         })}
       </div>
 
-      {/* Insights */}
+      {/* Insights — 3 mais relevantes em uma linha */}
       {computed.insights.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-3 flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-amber-500" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Insights da Operação</h3>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
             {computed.insights.map((ins, i) => (
               <InsightBanner key={i} type={ins.variant} message={ins.text} />
             ))}
@@ -258,6 +205,7 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
         </div>
       )}
 
+      {/* Gráficos lado a lado, mais altos */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Abastecimentos por hora */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -266,9 +214,9 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
             Abastecimentos por Hora
           </h3>
           {computed.porHora.length === 0 ? (
-            <div className="flex h-[200px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
+            <div className="flex h-80 items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={320}>
               <BarChart data={computed.porHora} margin={{ left: -10, right: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
                 <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
@@ -290,13 +238,13 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
             Mix de Combustíveis
           </h3>
           {computed.combustiveis.length === 0 ? (
-            <div className="flex h-[200px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
+            <div className="flex h-80 items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
-            <div className="flex items-center gap-4">
-              <div className="w-[160px] shrink-0">
-                <ResponsiveContainer width="100%" height={180}>
+            <div className="flex h-80 items-center gap-4">
+              <div className="w-[220px] shrink-0">
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie data={computed.combustiveis} dataKey="litros" nameKey="nome" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2} strokeWidth={0}>
+                    <Pie data={computed.combustiveis} dataKey="litros" nameKey="nome" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} strokeWidth={0}>
                       {computed.combustiveis.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
@@ -326,101 +274,6 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, bombaRows, abastecimentoRows
                   )
                 })}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Top Frentistas */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              <Trophy className="mr-1.5 inline h-4 w-4 text-amber-500" />
-              Top Frentistas
-            </h3>
-            <button onClick={() => onNavigateTab('produtividade')} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
-              Ver todos
-            </button>
-          </div>
-          {computed.topFrentistas.length === 0 ? (
-            <p className="text-sm text-gray-400">Sem dados.</p>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {computed.topFrentistas.map((f, i) => {
-                const maxLitros = computed.topFrentistas[0]?.litrosVendidos || 1
-                const pct = (f.litrosVendidos / maxLitros) * 100
-                return (
-                  <div key={f.funcionarioCodigo} className="flex items-center gap-3 py-2">
-                    <span className={cn(
-                      'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
-                      i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      i === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
-                      i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                      'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                    )}>
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="truncate text-sm text-gray-900 dark:text-gray-100">{f.nome}</span>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(f.litrosVendidos)}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-                        <div className="h-1.5 rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{f.atendimentos} atend. &middot; {formatCurrency(f.faturamento)}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Top Bombas */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              <Gauge className="mr-1.5 inline h-4 w-4 text-indigo-500" />
-              Top Bombas
-            </h3>
-            <button onClick={() => onNavigateTab('bombas')} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
-              Ver todas
-            </button>
-          </div>
-          {computed.topBombas.length === 0 ? (
-            <p className="text-sm text-gray-400">Sem dados.</p>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {computed.topBombas.map((b, i) => {
-                const maxLitros = computed.topBombas[0]?.litrosVendidos || 1
-                const pct = (b.litrosVendidos / maxLitros) * 100
-                return (
-                  <div key={b.bombaCodigo} className="flex items-center gap-3 py-2">
-                    <span className={cn(
-                      'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
-                      i === 0 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
-                      'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                    )}>
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="truncate text-sm text-gray-900 dark:text-gray-100">{b.descricao}</span>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(b.litrosVendidos)}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-                        <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                        {b.abastecimentos} abast. &middot; {formatCurrency(b.faturamento)}
-                        {b.combustiveis.length > 0 && ` · ${b.combustiveis.join(', ')}`}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           )}
         </div>

@@ -125,9 +125,7 @@ const Operacao = () => {
                     <OperacaoIndicadores
                       kpis={kpis}
                       frentistaRows={frentistaRows}
-                      bombaRows={bombaRows}
                       abastecimentoRows={abastecimentoRows}
-                      turnoRows={turnoRows}
                       caixaResumo={caixaResumo}
                       onNavigateTab={setActiveTab}
                     />

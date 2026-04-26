@@ -1,4 +1,5 @@
-import { Settings, Sun, Moon, Monitor, User, Mail, Info, LifeBuoy } from 'lucide-react'
+import { Settings, Sun, Moon, Monitor, User, Mail, Info, LifeBuoy, Smartphone, LayoutDashboard, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
 
@@ -98,6 +99,60 @@ const Configuracoes = () => {
             </div>
             <span className="text-[10px] font-medium uppercase text-gray-400">Somente leitura</span>
           </div>
+        </div>
+      </section>
+
+      {/* Ferramentas */}
+      <section className="space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          Ferramentas
+        </h2>
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+          <Link
+            to="/gerente"
+            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+              <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Mobile (Gerente)</p>
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                Visão mobile para gestores acompanharem o posto em tempo real
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </Link>
+          <Link
+            to="/frentista"
+            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30">
+              <Smartphone className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Mobile (Frentista)</p>
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                Visão mobile para frentistas verem suas vendas e ranking
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </Link>
+          <Link
+            to="/mobile"
+            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/30">
+              <LayoutDashboard className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">App Gerente</p>
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                Gestão de acessos e QR codes do app dos frentistas
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </Link>
         </div>
       </section>
 
