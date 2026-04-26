@@ -40,7 +40,6 @@ const Operacao = () => {
     frentistaRows,
     bombaRows,
     abastecimentoRows,
-    turnoRows,
     turnoGroups,
     caixaResumo,
     pagamentoBreakdown,

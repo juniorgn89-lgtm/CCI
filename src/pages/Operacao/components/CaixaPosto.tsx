@@ -211,7 +211,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                 />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
-                  labelFormatter={(_: string, items: ReadonlyArray<{ payload?: { data: string } }>) => {
+                  labelFormatter={(_: unknown, items: ReadonlyArray<{ payload?: { data: string } }>) => {
                     const iso = items?.[0]?.payload?.data
                     return iso ? formatDate(iso) : ''
                   }}
