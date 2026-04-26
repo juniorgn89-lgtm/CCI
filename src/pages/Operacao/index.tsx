@@ -44,7 +44,6 @@ const Operacao = () => {
     caixaResumo,
     pagamentoBreakdown,
     apuradoPorDia,
-    frentistasList,
     combustiveisList,
     isLoading,
     hasEmpresa,
@@ -131,7 +130,6 @@ const Operacao = () => {
                   {activeTab === 'abastecimentos' && (
                     <RegistroAbastecimentos
                       abastecimentoRows={abastecimentoRows}
-                      frentistasList={frentistasList}
                       combustiveisList={combustiveisList}
                     />
                   )}
