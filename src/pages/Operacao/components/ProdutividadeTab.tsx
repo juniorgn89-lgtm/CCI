@@ -1,156 +1,189 @@
-import { useState, useMemo } from 'react'
-import { Trophy, BarChart3, TrendingUp, Activity, LineChart } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { LayoutDashboard, TrendingUp, Target } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import RankingFrentistas from '@/pages/Operacao/components/produtividade/RankingFrentistas'
-import IndicadoresProdutividade from '@/pages/Operacao/components/produtividade/IndicadoresProdutividade'
-import ConversaoProdutos from '@/pages/Operacao/components/produtividade/ConversaoProdutos'
-import PerformanceAtendimento from '@/pages/Operacao/components/produtividade/PerformanceAtendimento'
-import AnaliseTendencia from '@/pages/Operacao/components/produtividade/AnaliseTendencia'
+import { useFilterStore } from '@/store/filters'
+import VisaoGeral from '@/pages/Operacao/components/produtividade/VisaoGeral'
+import Projecoes from '@/pages/Operacao/components/produtividade/Projecoes'
+import Metas from '@/pages/Operacao/components/produtividade/Metas'
 import type { FrentistaRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
-import type { RankingRow } from '@/pages/Operacao/hooks/useProductivityData'
 
-/* ── Exported types ─────────────────────────────────────── */
+/* ── Types compartilhados ───────────────────────────────── */
 
-export interface MergedFrentista {
-  [key: string]: unknown
-  posicao: number
+export interface FrentistaProdRow {
   funcionarioCodigo: number
   nome: string
-  litrosVendidos: number
-  atendimentos: number
-  faturamento: number
-  ticketMedio: number
-  mediaLitrosPorAtendimento: number
-  totalVendasPlacar: number
-  quantidadeVendasPlacar: number
-  taxaConversao: number
-}
-
-export interface DailyTrend {
-  data: string
-  dataFormatada: string
+  // Current period
   litros: number
   atendimentos: number
   faturamento: number
+  ticketMedio: number
+  // Fuel breakdown current period
+  litrosGasolina: number
+  litrosEtanol: number
+  litrosDiesel: number
+  // Previous period
+  prevLitros: number
+  prevFaturamento: number
+  // Variation % (positive/negative)
+  varLitrosPct: number
+  hasPrev: boolean
+  // Daily series for projections chart
+  dailyLitros: { data: string; litros: number }[]
 }
 
-/* ── Sub-tab config ─────────────────────────────────────── */
+export interface PeriodInfo {
+  dataInicial: string
+  dataFinal: string
+  todayStr: string
+  daysRemaining: number
+}
 
-type SubTab = 'ranking' | 'indicadores' | 'conversao' | 'performance' | 'tendencia'
+const ymd = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-const subTabs: { key: SubTab; label: string; icon: typeof Trophy }[] = [
-  { key: 'ranking', label: 'Ranking', icon: Trophy },
-  { key: 'indicadores', label: 'Indicadores', icon: BarChart3 },
-  { key: 'conversao', label: 'Conversão', icon: TrendingUp },
-  { key: 'performance', label: 'Performance', icon: Activity },
-  { key: 'tendencia', label: 'Tendência', icon: LineChart },
+const parseLocal = (s: string): Date => {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+const categorizeFuel = (nome: string): 'gasolina' | 'etanol' | 'diesel' | 'outros' => {
+  const u = nome.toUpperCase()
+  if (u.includes('GASOLINA')) return 'gasolina'
+  if (u.includes('ETANOL') || u.includes('ALCOOL') || u.includes('ÁLCOOL')) return 'etanol'
+  if (u.includes('DIESEL') || u.includes('S-10') || u.includes('S10') || u.includes('S500')) return 'diesel'
+  return 'outros'
+}
+
+/* ── Sub-tabs ───────────────────────────────────────────── */
+
+type SubTab = 'visao' | 'projecoes' | 'metas'
+
+const subTabs: { key: SubTab; label: string; icon: typeof LayoutDashboard }[] = [
+  { key: 'visao', label: 'Visão Geral', icon: LayoutDashboard },
+  { key: 'projecoes', label: 'Projeções', icon: TrendingUp },
+  { key: 'metas', label: 'Metas', icon: Target },
 ]
-
-/* ── Props ──────────────────────────────────────────────── */
-
-interface ProdutividadeTabProps {
-  frentistaRows: FrentistaRow[]
-  abastecimentoRows: AbastecimentoRow[]
-  conversionRanking: RankingRow[]
-  isLoading: boolean
-}
 
 /* ── Skeleton ───────────────────────────────────────────── */
 
 const ProdSkeleton = () => (
   <div className="space-y-4">
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <Skeleton className="mb-4 h-5 w-40" />
-      <Skeleton className="h-[280px] w-full rounded-lg" />
-    </div>
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="mt-3 h-6 w-24" />
-        </div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-xl" />
       ))}
     </div>
+    <Skeleton className="h-72 rounded-xl" />
   </div>
 )
 
+/* ── Props ──────────────────────────────────────────────── */
+
+interface ProdutividadeTabProps {
+  frentistaRows: FrentistaRow[]
+  frentistaRowsPrev: FrentistaRow[]
+  abastecimentoRows: AbastecimentoRow[]
+  isLoading: boolean
+}
+
 /* ── Component ──────────────────────────────────────────── */
 
-const ProdutividadeTab = ({ frentistaRows, abastecimentoRows, conversionRanking, isLoading }: ProdutividadeTabProps) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('ranking')
+const ProdutividadeTab = ({
+  frentistaRows,
+  frentistaRowsPrev,
+  abastecimentoRows,
+  isLoading,
+}: ProdutividadeTabProps) => {
+  const [active, setActive] = useState<SubTab>('visao')
+  const { dataInicial, dataFinal } = useFilterStore()
 
-  // Merge frentistaRows (from abastecimentos) with conversion data (from PLACARES)
-  const mergedData = useMemo((): MergedFrentista[] => {
-    const convMap = new Map<number, RankingRow>()
-    for (const r of conversionRanking) {
-      convMap.set(r.funcionarioCodigo, r)
+  const periodInfo: PeriodInfo = useMemo(() => {
+    const todayStr = ymd(new Date())
+    let daysRemaining = 0
+    if (dataInicial && dataFinal && todayStr < dataFinal) {
+      const cursorStart = todayStr < dataInicial ? dataInicial : todayStr
+      const start = parseLocal(cursorStart)
+      const end = parseLocal(dataFinal)
+      daysRemaining = Math.max(
+        0,
+        Math.round((end.getTime() - start.getTime()) / (24 * 3600 * 1000))
+      )
     }
+    return { dataInicial, dataFinal, todayStr, daysRemaining }
+  }, [dataInicial, dataFinal])
 
-    return frentistaRows.map((f, i) => {
-      const placar = convMap.get(f.funcionarioCodigo)
-      return {
-        posicao: i + 1,
-        funcionarioCodigo: f.funcionarioCodigo,
-        nome: f.nome,
-        litrosVendidos: f.litrosVendidos,
-        atendimentos: f.atendimentos,
-        faturamento: f.faturamento,
-        ticketMedio: f.ticketMedio,
-        mediaLitrosPorAtendimento: f.atendimentos > 0 ? f.litrosVendidos / f.atendimentos : 0,
-        totalVendasPlacar: placar?.totalVendas ?? 0,
-        quantidadeVendasPlacar: placar?.quantidadeVendas ?? 0,
-        taxaConversao: placar?.taxaConversao ?? 0,
-      }
-    })
-  }, [frentistaRows, conversionRanking])
+  const frentistas: FrentistaProdRow[] = useMemo(() => {
+    const prevMap = new Map<number, FrentistaRow>()
+    for (const f of frentistaRowsPrev) prevMap.set(f.funcionarioCodigo, f)
 
-  // Compute daily trends from abastecimento rows
-  const dailyTrends = useMemo((): DailyTrend[] => {
-    const dayMap = new Map<string, { litros: number; count: number; valor: number }>()
+    const fuelMap = new Map<number, { gasolina: number; etanol: number; diesel: number }>()
+    const dailyMap = new Map<number, Map<string, number>>()
 
     for (const a of abastecimentoRows) {
-      // Extract date from dataHora (format: "yyyy-MM-dd HH:mm:ss" or "yyyy-MM-dd")
-      const dateStr = a.dataHora?.substring(0, 10)
-      if (!dateStr || dateStr.length < 10) continue
+      const fuel = categorizeFuel(a.produtoNome)
+      const fb = fuelMap.get(a.frentistaCodigo) ?? { gasolina: 0, etanol: 0, diesel: 0 }
+      if (fuel === 'gasolina') fb.gasolina += a.litros
+      else if (fuel === 'etanol') fb.etanol += a.litros
+      else if (fuel === 'diesel') fb.diesel += a.litros
+      fuelMap.set(a.frentistaCodigo, fb)
 
-      const prev = dayMap.get(dateStr) ?? { litros: 0, count: 0, valor: 0 }
-      dayMap.set(dateStr, {
-        litros: prev.litros + a.litros,
-        count: prev.count + 1,
-        valor: prev.valor + a.valorTotal,
-      })
+      const dayStr = a.dataHora.substring(0, 10)
+      if (dayStr.length === 10) {
+        const dm = dailyMap.get(a.frentistaCodigo) ?? new Map<string, number>()
+        dm.set(dayStr, (dm.get(dayStr) ?? 0) + a.litros)
+        dailyMap.set(a.frentistaCodigo, dm)
+      }
     }
 
-    return Array.from(dayMap.entries())
-      .map(([date, agg]) => {
-        const [, month, day] = date.split('-')
+    return frentistaRows
+      .map((f) => {
+        const prev = prevMap.get(f.funcionarioCodigo)
+        const fb = fuelMap.get(f.funcionarioCodigo) ?? { gasolina: 0, etanol: 0, diesel: 0 }
+        const dm = dailyMap.get(f.funcionarioCodigo) ?? new Map<string, number>()
+        const dailyLitros = Array.from(dm.entries())
+          .map(([data, litros]) => ({ data, litros }))
+          .sort((a, b) => a.data.localeCompare(b.data))
+
+        const prevLitros = prev?.litrosVendidos ?? 0
+        const hasPrev = prevLitros > 0
+        const varLitrosPct = hasPrev ? ((f.litrosVendidos - prevLitros) / prevLitros) * 100 : 0
+
         return {
-          data: date,
-          dataFormatada: `${day}/${month}`,
-          litros: agg.litros,
-          atendimentos: agg.count,
-          faturamento: agg.valor,
+          funcionarioCodigo: f.funcionarioCodigo,
+          nome: f.nome,
+          litros: f.litrosVendidos,
+          atendimentos: f.atendimentos,
+          faturamento: f.faturamento,
+          ticketMedio: f.ticketMedio,
+          litrosGasolina: fb.gasolina,
+          litrosEtanol: fb.etanol,
+          litrosDiesel: fb.diesel,
+          prevLitros,
+          prevFaturamento: prev?.faturamento ?? 0,
+          varLitrosPct,
+          hasPrev,
+          dailyLitros,
         }
       })
-      .sort((a, b) => a.data.localeCompare(b.data))
-  }, [abastecimentoRows])
+      .sort((a, b) => b.litros - a.litros)
+  }, [frentistaRows, frentistaRowsPrev, abastecimentoRows])
 
   if (isLoading) return <ProdSkeleton />
 
   return (
     <div className="space-y-5">
-      {/* Sub-tab navigation */}
       <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
         {subTabs.map((tab) => {
           const Icon = tab.icon
+          const isActive = active === tab.key
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveSubTab(tab.key)}
+              onClick={() => setActive(tab.key)}
               className={cn(
                 'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                activeSubTab === tab.key
+                isActive
                   ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               )}
@@ -162,12 +195,9 @@ const ProdutividadeTab = ({ frentistaRows, abastecimentoRows, conversionRanking,
         })}
       </div>
 
-      {/* Sub-tab content */}
-      {activeSubTab === 'ranking' && <RankingFrentistas data={mergedData} />}
-      {activeSubTab === 'indicadores' && <IndicadoresProdutividade data={mergedData} />}
-      {activeSubTab === 'conversao' && <ConversaoProdutos conversionRanking={conversionRanking} mergedData={mergedData} />}
-      {activeSubTab === 'performance' && <PerformanceAtendimento data={mergedData} />}
-      {activeSubTab === 'tendencia' && <AnaliseTendencia trends={dailyTrends} />}
+      {active === 'visao' && <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} />}
+      {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}
+      {active === 'metas' && <Metas frentistas={frentistas} />}
     </div>
   )
 }

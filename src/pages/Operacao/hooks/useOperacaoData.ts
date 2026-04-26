@@ -649,6 +649,27 @@ const useOperacaoData = () => {
     const prevFaturamentoCombustivel = abastPrev.reduce((s, a) => s + a.valorTotal, 0)
     const prevTotalApurado = (caixasPrevRaw?.resultados ?? []).reduce((s, c) => s + c.apurado, 0)
 
+    // Per-frentista previous-period totals (para comparativos do módulo Produtividade)
+    const frentistaPrevAgg = new Map<number, { litros: number; count: number; valor: number }>()
+    for (const a of abastPrev) {
+      const prev = frentistaPrevAgg.get(a.codigoFrentista) ?? { litros: 0, count: 0, valor: 0 }
+      frentistaPrevAgg.set(a.codigoFrentista, {
+        litros: prev.litros + a.quantidade,
+        count: prev.count + 1,
+        valor: prev.valor + a.valorTotal,
+      })
+    }
+    const frentistaRowsPrev: FrentistaRow[] = Array.from(frentistaPrevAgg.entries())
+      .map(([cod, agg]) => ({
+        funcionarioCodigo: cod,
+        nome: funcMap.get(cod)?.nome ?? `Frentista ${cod}`,
+        ativo: funcMap.get(cod)?.ativo ?? true,
+        litrosVendidos: agg.litros,
+        atendimentos: agg.count,
+        faturamento: agg.valor,
+        ticketMedio: agg.count > 0 ? agg.valor / agg.count : 0,
+      }))
+
     const kpis: OperacaoKpiData = {
       totalAbastecimentos: abastecimentos.length,
       totalLitros,
@@ -677,6 +698,7 @@ const useOperacaoData = () => {
     return {
       kpis,
       frentistaRows,
+      frentistaRowsPrev,
       bombaRows,
       abastecimentoRows,
       turnoRows,

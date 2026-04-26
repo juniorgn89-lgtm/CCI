@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp, HelpCircle } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import {
   ResponsiveContainer,
@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ReferenceLine,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,35 @@ const formatIsoTime = (iso: string | null | undefined): string => {
   if (iso.includes('T')) return iso.split('T')[1]?.substring(0, 5) ?? '-'
   if (iso.includes(' ')) return iso.split(' ')[1]?.substring(0, 5) ?? '-'
   return iso.substring(0, 5)
+}
+
+interface DailyChartItem {
+  data: string
+  label: string
+  real: number | null
+  projected: number | null
+  isProjected: boolean
+}
+
+interface DailyTooltipProps {
+  active?: boolean
+  payload?: Array<{ payload: DailyChartItem }>
+}
+
+const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
+  if (!active || !payload || payload.length === 0) return null
+  const item = payload[0].payload
+  const value = item.isProjected ? item.projected : item.real
+  if (value == null) return null
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-2.5 text-xs shadow-md dark:border-gray-700 dark:bg-gray-900">
+      <p className="font-semibold text-gray-700 dark:text-gray-200">{formatDate(item.data)}</p>
+      <p className={cn('mt-1', item.isProjected ? 'text-blue-500 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100')}>
+        {item.isProjected ? 'Projetado' : 'Apurado'}: {formatCurrencyTooltip(value)}
+        {item.isProjected && <span className="ml-1 text-gray-400">(estimativa)</span>}
+      </p>
+    </div>
+  )
 }
 
 const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
@@ -88,16 +118,61 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
     })
   }
 
-  // Chart data: daily evolution of apurado (DD/MM label + raw ISO date for tooltip)
-  const dailyChartData = useMemo(
-    () =>
-      apuradoPorDia.map((d) => ({
+  // Chart data + projection (real até hoje, projetado nos dias futuros do período)
+  const { dailyChartData, todayLabel, monthProjection, showProjection } = useMemo(() => {
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    const realPast = apuradoPorDia.filter((d) => d.data <= todayStr)
+    const last7 = realPast.slice(-7)
+    const last7Avg = last7.length > 0 ? last7.reduce((s, d) => s + d.apurado, 0) / last7.length : 0
+    const futureCount = apuradoPorDia.filter((d) => d.data > todayStr).length
+
+    const data: DailyChartItem[] = apuradoPorDia.map((d) => {
+      const isFuture = d.data > todayStr
+      const isToday = d.data === todayStr
+      return {
         data: d.data,
         label: d.data.split('-').slice(1).reverse().join('/'),
-        valor: d.apurado,
-      })),
-    [apuradoPorDia]
-  )
+        // Real: passado e dia atual
+        real: !isFuture ? d.apurado : null,
+        // Projetado: dia atual (faz a transição visual ligar) + futuros
+        projected: isFuture ? last7Avg : isToday ? d.apurado : null,
+        isProjected: isFuture,
+      }
+    })
+
+    const todayItem = data.find((d) => d.data === todayStr)
+    const realSum = realPast.reduce((s, d) => s + d.apurado, 0)
+    const monthProj = realSum + last7Avg * futureCount
+
+    return {
+      dailyChartData: data,
+      todayLabel: todayItem?.label ?? null,
+      monthProjection: monthProj,
+      showProjection: futureCount > 0 && last7Avg > 0,
+    }
+  }, [apuradoPorDia])
+
+  // Popover de explicação da projeção
+  const [helpOpen, setHelpOpen] = useState(false)
+  const helpRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!helpOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHelpOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [helpOpen])
 
   const groupSummary = useMemo(() => {
     const apurado = filteredGroups.reduce((s, g) => s + g.apuradoTotal, 0)
@@ -176,12 +251,38 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
           )}
         </div>
 
-        {/* Daily evolution chart */}
+        {/* Daily evolution chart com projeção */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            <TrendingUp className="mr-1.5 inline h-4 w-4 text-blue-500" />
-            Evolução Diária do Apurado
-          </h3>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <TrendingUp className="mr-1.5 inline h-4 w-4 text-blue-500" />
+              Evolução Diária do Apurado
+            </h3>
+            {showProjection && (
+              <div className="relative flex items-center gap-1.5" ref={helpRef}>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
+                  Projeção do mês: {formatCurrency(monthProjection)}
+                </span>
+                <button
+                  onClick={() => setHelpOpen((v) => !v)}
+                  aria-label="Sobre a projeção"
+                  aria-expanded={helpOpen}
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+                {helpOpen && (
+                  <div
+                    role="tooltip"
+                    className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                  >
+                    A projeção é calculada com base na média dos últimos 7 dias de operação, multiplicada pelos dias restantes do mês. Não considera sazonalidade ou eventos futuros.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {dailyChartData.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
@@ -191,6 +292,10 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                   <linearGradient id="apuradoFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.3} />
                     <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="projectedFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.10} />
+                    <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
@@ -209,23 +314,41 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                   tickLine={false}
                   width={62}
                 />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
-                  labelFormatter={(_: unknown, items: ReadonlyArray<{ payload?: { data: string } }>) => {
-                    const iso = items?.[0]?.payload?.data
-                    return iso ? formatDate(iso) : ''
-                  }}
-                  formatter={((v: number) => [formatCurrencyTooltip(v), 'Apurado']) as never}
-                />
+                <Tooltip content={<DailyTooltip />} />
+                {/* Área real */}
                 <Area
                   type="monotone"
-                  dataKey="valor"
+                  dataKey="real"
                   name="Apurado"
                   stroke="#1e3a5f"
                   strokeWidth={2}
                   fill="url(#apuradoFill)"
                   fillOpacity={1}
+                  connectNulls={false}
+                  isAnimationActive={false}
                 />
+                {/* Área projetada */}
+                <Area
+                  type="monotone"
+                  dataKey="projected"
+                  name="Projetado"
+                  stroke="#1e3a5f"
+                  strokeOpacity={0.6}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  fill="url(#projectedFill)"
+                  fillOpacity={1}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                {todayLabel && (
+                  <ReferenceLine
+                    x={todayLabel}
+                    stroke="#9ca3af"
+                    strokeDasharray="2 2"
+                    label={{ value: 'Hoje', position: 'top', fontSize: 10, fill: '#6b7280' }}
+                  />
+                )}
               </AreaChart>
             </ResponsiveContainer>
           )}

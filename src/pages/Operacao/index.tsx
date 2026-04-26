@@ -11,7 +11,6 @@ import RegistroAbastecimentos from '@/pages/Operacao/components/RegistroAbasteci
 import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
 import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
-import useProductivityData from '@/pages/Operacao/hooks/useProductivityData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Fuel> = {
@@ -38,6 +37,7 @@ const Operacao = () => {
   const {
     kpis,
     frentistaRows,
+    frentistaRowsPrev,
     bombaRows,
     abastecimentoRows,
     turnoGroups,
@@ -50,10 +50,6 @@ const Operacao = () => {
     hasEmpresa,
   } = useOperacaoData()
 
-  const {
-    conversionRanking,
-    isLoading: prodLoading,
-  } = useProductivityData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
@@ -150,9 +146,9 @@ const Operacao = () => {
                   {activeTab === 'produtividade' && (
                     <ProdutividadeTab
                       frentistaRows={frentistaRows}
+                      frentistaRowsPrev={frentistaRowsPrev}
                       abastecimentoRows={abastecimentoRows}
-                      conversionRanking={conversionRanking}
-                      isLoading={prodLoading}
+                      isLoading={isLoading}
                     />
                   )}
                 </>
