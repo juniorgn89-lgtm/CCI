@@ -13,18 +13,20 @@ interface Props {
 type SortKey = 'nome' | 'litros' | 'faturamento' | 'gasolina' | 'etanol' | 'diesel' | 'combustivelTotal' | 'variacao' | 'meta' | 'progresso'
 type SortDir = 'asc' | 'desc'
 
-type PrimarySort = 'litros' | 'faturamento' | 'combustivel'
+type PrimarySort = 'litros' | 'faturamento' | 'combustivel' | 'progresso'
 
 const PRIMARY_OPTIONS: { key: PrimarySort; label: string }[] = [
   { key: 'litros', label: 'Litros' },
   { key: 'faturamento', label: 'Faturamento' },
   { key: 'combustivel', label: 'Combustível' },
+  { key: 'progresso', label: 'Progresso' },
 ]
 
 const PRIMARY_TO_SORT_KEY: Record<PrimarySort, SortKey> = {
   litros: 'litros',
   faturamento: 'faturamento',
   combustivel: 'combustivelTotal',
+  progresso: 'progresso',
 }
 
 const computeMeta = (
@@ -65,6 +67,14 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
   const sorted = useMemo(() => {
     const arr = [...enriched]
     arr.sort((a, b) => {
+      // Ao ordenar por progresso, frentistas sem meta (Novo) sempre ficam no fim
+      // independente de asc/desc — o "0%" deles não compete com a % real dos demais.
+      if (sortKey === 'progresso') {
+        const aNoMeta = a.meta === 0
+        const bNoMeta = b.meta === 0
+        if (aNoMeta && !bNoMeta) return 1
+        if (!aNoMeta && bNoMeta) return -1
+      }
       let av: number | string = 0
       let bv: number | string = 0
       switch (sortKey) {
@@ -267,9 +277,14 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
       {/* Tabela comparativa */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            Comparativo de Frentistas
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Comparativo de Frentistas
+            </h3>
+            <p className="mt-0.5 text-xs italic text-gray-400">
+              Meta: superar o volume do mês anterior por frentista
+            </p>
+          </div>
           <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
             {PRIMARY_OPTIONS.map((opt) => (
               <button
@@ -331,20 +346,37 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
                           ? 'text-green-600 dark:text-green-400'
                           : 'text-red-600 dark:text-red-400'
                       )}>
-                        {!f.hasPrev
-                          ? '—'
-                          : isOutlierVariation(f.varLitrosPct)
-                          ? 'Novo'
-                          : `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(1)}%`}
+                        {!f.hasPrev || isOutlierVariation(f.varLitrosPct) ? (
+                          <span
+                            className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-normal text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400"
+                            style={{ fontSize: '11px' }}
+                            title="Sem histórico no mês anterior"
+                          >
+                            Novo frentista
+                          </span>
+                        ) : (
+                          `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(1)}%`
+                        )}
                       </td>
                       <td className="w-[140px] whitespace-nowrap px-4 py-2.5 text-center">
-                        <span className={cn(
-                          'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                          metaStatus === 'atingida' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                          metaStatus === 'parcial' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-                          metaStatus === 'abaixo' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-                          metaStatus === 'na' && 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-                        )}>
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                            metaStatus === 'atingida' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                            metaStatus === 'parcial' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                            metaStatus === 'abaixo' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                            metaStatus === 'na' && 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+                          )}
+                          title={
+                            metaStatus === 'atingida'
+                              ? 'Meta atingida — acima do mês anterior'
+                              : metaStatus === 'parcial'
+                              ? `Abaixo do mês anterior — ${((1 - f.progresso) * 100).toFixed(0)}% restante para atingir`
+                              : metaStatus === 'abaixo'
+                              ? 'Significativamente abaixo do mês anterior'
+                              : undefined
+                          }
+                        >
                           {metaStatus === 'atingida' && 'Atingida'}
                           {metaStatus === 'parcial' && 'Parcial'}
                           {metaStatus === 'abaixo' && 'Abaixo'}
