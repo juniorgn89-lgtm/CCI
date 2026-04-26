@@ -28,9 +28,6 @@ const GlobalFilterBar = () => {
         'flex flex-col gap-0.5 transition-opacity',
         !isPeriodMode && 'opacity-50'
       )}>
-        {isPeriodMode && (
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-blue-500">Mês ativo</span>
-        )}
         <PeriodSelect />
       </div>
 

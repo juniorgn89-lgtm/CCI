@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { LogOut, Menu, Moon, RefreshCw, Sun } from 'lucide-react'
+import { Menu, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
-import { useAuth } from '@/hooks/useAuth'
-import { useThemeStore } from '@/store/theme'
 import { navItems } from '@/components/layout/Sidebar'
 import GlobalFilterBar from '@/components/filters/GlobalFilterBar'
 import NotificationBell from '@/components/layout/NotificationBell'
@@ -29,8 +26,6 @@ const formatRelativeTime = (date: Date): string => {
 
 const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const { pathname } = useLocation()
-  const { logout } = useAuth()
-  const { dark, toggle } = useThemeStore()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
@@ -94,18 +89,6 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             />
           </button>
           <NotificationBell />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggle}
-            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            aria-label={dark ? 'Modo claro' : 'Modo escuro'}
-          >
-            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Sair">
-            <LogOut className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 

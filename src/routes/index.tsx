@@ -13,6 +13,7 @@ const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
+const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 
 // Frentista pages
 const FreentistaLayout = lazy(() => import('@/pages/Frentista/layout/FreentistaLayout'))
@@ -49,6 +50,7 @@ const AppRoutes = () => {
           <Route path="/inteligencia" element={<Suspense fallback={null}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />
           <Route path="/mobile" element={<Suspense fallback={null}><Mobile /></Suspense>} />
+          <Route path="/configuracoes" element={<Suspense fallback={null}><Configuracoes /></Suspense>} />
         </Route>
       </Route>
 
