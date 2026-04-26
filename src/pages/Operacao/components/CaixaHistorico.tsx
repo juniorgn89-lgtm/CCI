@@ -1,4 +1,4 @@
-import { History, ArrowRight, AlertTriangle } from 'lucide-react'
+import { History, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CaixaAlteracao } from '@/api/supabase/caixaHistory'
 
@@ -34,19 +34,9 @@ const campoLabel = (campo: string) => {
 }
 
 const CaixaHistorico = ({ alteracoes, isLoading, configured }: CaixaHistoricoProps) => {
-  if (!configured) {
-    return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-900">
-        <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          Supabase não configurado
-        </p>
-        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-          Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para habilitar o histórico de alterações
-        </p>
-      </div>
-    )
-  }
+  // Sem Supabase configurado, oculta a seção inteira.
+  // O aviso visual será reativado junto com a integração futura.
+  if (!configured) return null
 
   if (isLoading) {
     return (

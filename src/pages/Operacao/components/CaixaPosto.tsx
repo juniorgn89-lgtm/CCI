@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp, HelpCircle, Filter } from 'lucide-react'
-import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -86,8 +85,8 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   // Filters
   const [filterNome, setFilterNome] = useState('')
   const [filterTurno, setFilterTurno] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'todos' | 'aberto' | 'fechado'>('aberto')
-  const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'positiva' | 'negativa'>('todas')
+  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo'>('ao-vivo')
+  const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'com' | 'sem'>('todas')
 
   // Filtros vindos dos gráficos (mutuamente exclusivos)
   const [selectedPgto, setSelectedPgto] = useState<string | null>(null)
@@ -105,11 +104,12 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
       // Filtro de status é desabilitado quando há filtro vindo dos gráficos
       // (do contrário, o default "aberto" esconde caixas fechados que combinam com o filtro)
       if (!hasChartFilter) {
-        if (filterStatus === 'aberto' && g.fechado) return false
-        if (filterStatus === 'fechado' && !g.fechado) return false
+        if (filterStatus === 'ao-vivo' && g.fechado) return false
       }
-      if (filterDiferenca === 'positiva' && g.diferencaTotal <= 0) return false
-      if (filterDiferenca === 'negativa' && g.diferencaTotal >= 0) return false
+      // "Com/Sem diferença" só faz sentido em caixas conferidos — exclui abertos.
+      // Threshold em cents para tolerar arredondamento de float.
+      if (filterDiferenca === 'com' && (!g.fechado || Math.abs(g.diferencaTotal) <= 0.005)) return false
+      if (filterDiferenca === 'sem' && (!g.fechado || Math.abs(g.diferencaTotal) > 0.005)) return false
       // Filtro por forma de pagamento (donut)
       if (selectedPgto && !g.pagamentos.some((p) => p.tipo === selectedPgto)) return false
       // Filtro por dia (gráfico de evolução)
@@ -118,13 +118,47 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
     })
   }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca, selectedPgto, selectedDay, hasChartFilter])
 
-  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
+  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'ao-vivo' || filterDiferenca !== 'todas'
 
   const clearFilters = () => {
     setFilterNome('')
     setFilterTurno('')
-    setFilterStatus('aberto')
+    setFilterStatus('ao-vivo')
     setFilterDiferenca('todas')
+  }
+
+  // Filtro unificado em 4 pills: Todos / Ao vivo / Com diferença / Sem diferença.
+  // Cada pill seta uma combinação específica de filterStatus + filterDiferenca.
+  type FilterPill = 'todos' | 'aovivo' | 'com' | 'sem'
+
+  const activePill: FilterPill =
+    filterDiferenca === 'com'
+      ? 'com'
+      : filterDiferenca === 'sem'
+      ? 'sem'
+      : filterStatus === 'ao-vivo'
+      ? 'aovivo'
+      : 'todos'
+
+  const handleFilterPill = (pill: FilterPill) => {
+    switch (pill) {
+      case 'todos':
+        setFilterStatus('todos')
+        setFilterDiferenca('todas')
+        break
+      case 'aovivo':
+        setFilterStatus('ao-vivo')
+        setFilterDiferenca('todas')
+        break
+      case 'com':
+        setFilterStatus('todos')
+        setFilterDiferenca('com')
+        break
+      case 'sem':
+        setFilterStatus('todos')
+        setFilterDiferenca('sem')
+        break
+    }
   }
 
   const toggleExpand = (key: string) => {
@@ -137,7 +171,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   }
 
   // Chart data + projection (real até hoje, projetado nos dias futuros do período)
-  const { dailyChartData, todayLabel, monthProjection, showProjection } = useMemo(() => {
+  const { dailyChartData, todayLabel, monthProjection, realSum, showProjection } = useMemo(() => {
     const now = new Date()
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
@@ -168,6 +202,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
       dailyChartData: data,
       todayLabel: todayItem?.label ?? null,
       monthProjection: monthProj,
+      realSum,
       showProjection: futureCount > 0 && last7Avg > 0,
     }
   }, [apuradoPorDia])
@@ -229,74 +264,67 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   const getPgtoValor = (g: TurnoGroup, tipo: string): number =>
     g.pagamentos.find((p) => p.tipo === tipo)?.valor ?? 0
 
-  const groupSummary = useMemo(() => {
-    // Quando filtro por forma de pagamento ativo: somar apenas o valor
-    // daquela forma; a diferença não faz sentido nesse contexto.
-    if (selectedPgto) {
-      const apurado = filteredGroups.reduce((s, g) => s + getPgtoValor(g, selectedPgto), 0)
-      const fechados = filteredGroups.filter((g) => g.fechado).length
-      const abertos = filteredGroups.length - fechados
-      return { apurado, diferenca: 0, fechados, abertos, isPgtoFilter: true }
-    }
-    // Caso geral: apurado total (fechados + abertos parciais), diferença só fechados.
-    const apurado = filteredGroups.reduce((s, g) => s + g.apuradoTotal, 0)
-    const diferenca = filteredGroups.reduce((s, g) => s + g.diferencaTotal, 0)
-    const fechados = filteredGroups.filter((g) => g.fechado).length
-    const abertos = filteredGroups.length - fechados
-    return { apurado, diferenca, fechados, abertos, isPgtoFilter: false }
-  }, [filteredGroups, selectedPgto])
+  // Apurado efetivo de um turno:
+  //  - fechado: usa g.apuradoTotal (definitivo, batido fisicamente)
+  //  - aberto: API ainda não preencheu apurado, então usa o combustível
+  //    bombeado em tempo real (soma do faturamento dos abastecimentos do turno).
+  //    Conveniência só fica disponível depois que o caixa fecha.
+  const getApuradoEfetivo = (g: TurnoGroup): { value: number; isPartial: boolean } => {
+    if (g.fechado) return { value: g.apuradoTotal, isPartial: false }
+    const combustivelParcial = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
+    return { value: combustivelParcial, isPartial: true }
+  }
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
   // useCaixaHistory expects turnoRows but we pass empty for now
   const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows: [] })
 
+  // Resumo de diferenças (apenas turnos fechados — caixa aberto não tem
+  // diferença definitiva). Tolerância de cents para tratar arredondamento.
+  const diferencaSummary = useMemo(() => {
+    let sobras = 0
+    let faltas = 0
+    let apuradoFechados = 0
+    let countSobra = 0
+    let countFalta = 0
+    let countFechados = 0
+    for (const g of filteredGroups) {
+      if (!g.fechado) continue
+      countFechados++
+      apuradoFechados += g.apuradoTotal
+      if (g.diferencaTotal > 0.005) {
+        sobras += g.diferencaTotal
+        countSobra++
+      } else if (g.diferencaTotal < -0.005) {
+        faltas += g.diferencaTotal
+        countFalta++
+      }
+    }
+    return {
+      sobras,
+      faltas,
+      saldo: sobras + faltas,
+      apuradoFechados,
+      countSobra,
+      countFalta,
+      hasData: countSobra > 0 || countFalta > 0,
+      hasFechados: countFechados > 0,
+    }
+  }, [filteredGroups])
+
   return (
     <div className="space-y-4">
-      <TableSummaryStrip
-        icon={Wallet}
-        iconColor="text-blue-600"
-        iconBg="bg-blue-100 dark:bg-blue-900/40"
-        title="Resumo do Caixa"
-        subtitle={`${filteredGroups.length} turno${filteredGroups.length !== 1 ? 's' : ''}`}
-        metrics={[
-          groupSummary.isPgtoFilter
-            ? {
-                label: `Total ${selectedPgtoNome ?? ''}`.trim(),
-                value: formatCurrency(groupSummary.apurado),
-                color: 'text-blue-600 dark:text-blue-400',
-              }
-            : {
-                label: 'Apurado',
-                value: formatCurrency(groupSummary.apurado),
-                hint: groupSummary.abertos > 0
-                  ? `inclui ${groupSummary.abertos} aberto${groupSummary.abertos > 1 ? 's' : ''}`
-                  : undefined,
-              },
-          groupSummary.isPgtoFilter
-            ? { label: 'Diferença', value: '—', color: 'text-gray-400' }
-            : {
-                label: 'Diferença',
-                value: `${groupSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(groupSummary.diferenca)}`,
-                color: groupSummary.diferenca >= 0
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-red-600 dark:text-red-400',
-                hint: groupSummary.abertos > 0 ? 'parcial' : undefined,
-              },
-          { label: 'Fechados', value: formatNumber(groupSummary.fechados) },
-          { label: 'Abertos', value: formatNumber(groupSummary.abertos), color: 'text-orange-600 dark:text-orange-400' },
-        ]}
-      />
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Formas de pagamento */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           {pagamentoBreakdown.length > 0 ? (
             <>
-              <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
                 <CreditCard className="mr-1.5 inline h-4 w-4 text-blue-500" />
                 Formas de Pagamento
               </h3>
+
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <div className="w-[180px] shrink-0">
                   <ResponsiveContainer width="100%" height={180}>
@@ -391,29 +419,36 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
               <TrendingUp className="mr-1.5 inline h-4 w-4 text-blue-500" />
               Evolução Diária do Apurado
             </h3>
-            {showProjection && (
-              <div className="relative flex items-center gap-1.5" ref={helpRef}>
+            <div className="relative flex items-center gap-1.5" ref={helpRef}>
+              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                Apurado até hoje: {formatCurrency(realSum)}
+              </span>
+              {showProjection && (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
-                  Projeção do mês: {formatCurrency(monthProjection)}
+                  Projeção: {formatCurrency(monthProjection)}
                 </span>
-                <button
-                  onClick={() => setHelpOpen((v) => !v)}
-                  aria-label="Sobre a projeção"
-                  aria-expanded={helpOpen}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <HelpCircle className="h-4 w-4" />
-                </button>
-                {helpOpen && (
-                  <div
-                    role="tooltip"
-                    className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              )}
+              {showProjection && (
+                <>
+                  <button
+                    onClick={() => setHelpOpen((v) => !v)}
+                    aria-label="Sobre a projeção"
+                    aria-expanded={helpOpen}
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    A projeção é calculada com base na média dos últimos 7 dias de operação, multiplicada pelos dias restantes do mês. Não considera sazonalidade ou eventos futuros.
-                  </div>
-                )}
-              </div>
-            )}
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                  {helpOpen && (
+                    <div
+                      role="tooltip"
+                      className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                      A projeção é calculada com base na média dos últimos 7 dias de operação, multiplicada pelos dias restantes do mês. Não considera sazonalidade ou eventos futuros.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {selectedDay && selectedDayInfo && selectedDayInfo.value !== null && (
@@ -540,54 +575,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
         </div>
       </div>
 
-      {/* Currently open turno groups */}
-      {abertoGroups.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-4 flex items-center gap-2">
-            <div className="relative flex h-2.5 w-2.5">
-              <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-green-400 opacity-75" />
-              <span className="relative h-2 w-2 rounded-full bg-green-500" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Em Turno Agora</h3>
-            <span className="ml-auto rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600 dark:bg-green-900/20 dark:text-green-400">
-              {abertoGroups.length} turno{abertoGroups.length !== 1 ? 's' : ''} aberto{abertoGroups.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {abertoGroups.map((g) => (
-              <div key={g.groupKey} className="rounded-lg border border-green-200 bg-green-50/50 p-4 dark:border-green-800/50 dark:bg-green-900/10">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                    <User className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{g.turno}</p>
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">{g.responsaveis.slice(0, 2).join(' · ')}{g.responsaveis.length > 2 ? ` +${g.responsaveis.length - 2}` : ''}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatIsoTime(g.abertura)}</span>
-                  </div>
-                  <span>{formatDate(g.dataMovimento)}</span>
-                </div>
-                {g.apuradoTotal > 0 && (
-                  <p className="mt-2 text-xs tabular-nums text-gray-500">
-                    Apurado: <span className="font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal)}</span>
-                  </p>
-                )}
-                {g.frentistas.length > 0 && (
-                  <p className="mt-1 text-[10px] text-gray-400">
-                    <Users className="mr-1 inline h-3 w-3" />{g.frentistas.length} frentista{g.frentistas.length !== 1 ? 's' : ''} no turno
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Banner do filtro vindo dos gráficos */}
       {(selectedPgto || selectedDay) && (
         <div className="flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
@@ -614,11 +601,20 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
 
       {/* Turno groups table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div className="px-6 pb-3 pt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               Turnos de Caixa
               <span className="ml-2 text-xs font-normal text-gray-400">{filteredGroups.length} de {turnoGroups.length}</span>
+              {abertoGroups.length > 0 && (
+                <span className="ml-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  {abertoGroups.length} ao vivo
+                </span>
+              )}
             </h3>
             <div className="flex items-center gap-3">
               {hasActiveFilter && (
@@ -638,9 +634,49 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
               </button>
             </div>
           </div>
+        </div>
 
+        {/* Resumo de diferenças — faixa compacta entre o título e os filtros.
+            Aparece quando o filtro de status inclui fechados (Fechado ou Todos)
+            e há ao menos um turno fechado na visão filtrada. */}
+        {filterStatus === 'todos' && diferencaSummary.hasFechados && (
+          <div
+            className="flex flex-wrap items-center justify-end gap-2 border-y border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800/50"
+          >
+            <span style={{ color: '#374151', fontSize: '13px' }}>
+              Apurado fechados:{' '}
+              <span style={{ fontWeight: 500 }}>{formatCurrency(diferencaSummary.apuradoFechados)}</span>
+            </span>
+            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
+            <span style={{ color: '#166534', fontSize: '13px', fontWeight: 500 }}>
+              Sobras +{formatCurrency(diferencaSummary.sobras)}
+              <span style={{ color: '#9ca3af', fontSize: '13px', fontWeight: 400, marginLeft: '4px' }}>
+                ({diferencaSummary.countSobra})
+              </span>
+            </span>
+            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
+            <span style={{ color: '#991b1b', fontSize: '13px', fontWeight: 500 }}>
+              Faltas {formatCurrency(diferencaSummary.faltas)}
+              <span style={{ color: '#9ca3af', fontSize: '13px', fontWeight: 400, marginLeft: '4px' }}>
+                ({diferencaSummary.countFalta})
+              </span>
+            </span>
+            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
+            <span
+              style={{
+                color: diferencaSummary.saldo >= 0 ? '#166534' : '#991b1b',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              Saldo {`${diferencaSummary.saldo >= 0 ? '+' : ''}${formatCurrency(diferencaSummary.saldo)}`}
+            </span>
+          </div>
+        )}
+
+        <div className="border-b border-gray-200 px-6 pb-4 pt-3 dark:border-gray-700">
           {/* Filters */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
               <input
@@ -651,20 +687,42 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                 className="h-8 w-[180px] rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
               />
             </div>
-            <select value={filterTurno} onChange={(e) => setFilterTurno(e.target.value)} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            <select
+              value={filterTurno}
+              onChange={(e) => setFilterTurno(e.target.value)}
+              className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            >
               <option value="">Todos os turnos</option>
               {turnosUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as 'todos' | 'aberto' | 'fechado')} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-              <option value="todos">Todos os status</option>
-              <option value="aberto">Aberto</option>
-              <option value="fechado">Fechado</option>
-            </select>
-            <select value={filterDiferenca} onChange={(e) => setFilterDiferenca(e.target.value as 'todas' | 'positiva' | 'negativa')} className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-              <option value="todas">Todas as diferenças</option>
-              <option value="positiva">Positiva</option>
-              <option value="negativa">Negativa</option>
-            </select>
+
+            {/* Filtro unificado: Todos / Ao vivo / Com diferença / Sem diferença */}
+            <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+              {(
+                [
+                  { v: 'todos', l: 'Todos' },
+                  { v: 'aovivo', l: 'Ao vivo', live: true },
+                  { v: 'com', l: 'Com diferença' },
+                  { v: 'sem', l: 'Sem diferença' },
+                ] as { v: FilterPill; l: string; live?: boolean }[]
+              ).map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => handleFilterPill(opt.v)}
+                  className={cn(
+                    'inline-flex items-center rounded-lg px-3 py-1 text-xs font-medium transition-colors',
+                    activePill === opt.v
+                      ? 'bg-[#1e3a5f] text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  )}
+                >
+                  {opt.live && (
+                    <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                  )}
+                  {opt.l}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -701,13 +759,28 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                     <React.Fragment key={g.groupKey}>
                       {/* Group header row */}
                       <tr
-                        onClick={() => toggleExpand(g.groupKey)}
+                        onClick={() => {
+                          // Clicar num caixa aberto leva o filtro para "Ao vivo"
+                          // (em vez de manter a visão "Todos" com os fechados misturados)
+                          if (!g.fechado && filterStatus !== 'ao-vivo') {
+                            setFilterStatus('ao-vivo')
+                            setFilterDiferenca('todas')
+                          }
+                          toggleExpand(g.groupKey)
+                        }}
                         className={cn(
                           'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                          idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
+                          !g.fechado
+                            ? 'bg-green-50/30 dark:bg-green-900/10'
+                            : idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'
                         )}
                       >
-                        <td className="px-4 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <td
+                          className={cn(
+                            'px-4 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100',
+                            !g.fechado && 'border-l-4 border-green-500'
+                          )}
+                        >
                           <div className="flex items-center gap-2">
                             <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
                             {g.turno}
@@ -726,33 +799,48 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                               {formatCurrency(getPgtoValor(g, selectedPgto))}
                               <span className="ml-1 text-[10px] font-normal text-blue-600 dark:text-blue-400">({selectedPgtoNome})</span>
                             </>
-                          ) : (
-                            formatCurrency(g.apuradoTotal)
-                          )}
+                          ) : (() => {
+                            const eff = getApuradoEfetivo(g)
+                            return (
+                              <>
+                                {formatCurrency(eff.value)}
+                                {eff.isPartial && (
+                                  <span className="ml-1 text-[10px] font-normal text-amber-600 dark:text-amber-400">parcial</span>
+                                )}
+                              </>
+                            )
+                          })()}
                         </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm tabular-nums',
                           selectedPgto ? 'text-gray-400'
                             : !g.fechado ? 'text-gray-400'
-                            : g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400'
-                            : g.diferencaTotal < 0 ? 'text-red-600 dark:text-red-400'
+                            : g.diferencaTotal > 0.005 ? 'text-green-600 dark:text-green-400'
+                            : g.diferencaTotal < -0.005 ? 'text-red-600 dark:text-red-400'
                             : 'text-gray-500'
                         )}>
                           {selectedPgto
                             ? '—'
                             : !g.fechado
                             ? '-'
-                            : g.diferencaTotal !== 0
+                            : Math.abs(g.diferencaTotal) > 0.005
                             ? `${g.diferencaTotal > 0 ? '+' : ''}${formatCurrency(g.diferencaTotal)}`
                             : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-center">
-                          <span className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            g.fechado ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-                          )}>
-                            {g.fechado ? 'Fechado' : 'Aberto'}
-                          </span>
+                          {g.fechado ? (
+                            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              Fechado
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75" />
+                                <span className="relative h-2 w-2 rounded-full bg-green-500" />
+                              </span>
+                              Ao vivo
+                            </span>
+                          )}
                         </td>
                       </tr>
 

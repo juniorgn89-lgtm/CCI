@@ -649,9 +649,11 @@ const useOperacaoData = () => {
       }))
       .sort((a, b) => b.valor - a.valor)
 
-    // ── Daily evolution of apurado (sum across all caixas per day) ──
+    // ── Daily evolution of apurado (only fechados — open caixas don't have
+    // definitive value until closure) ──
     const dailyAgg = new Map<string, number>()
     for (const c of caixas) {
+      if (!c.fechado) continue
       const dia = c.dataMovimento?.substring(0, 10)
       if (!dia) continue
       dailyAgg.set(dia, (dailyAgg.get(dia) ?? 0) + c.apurado)
