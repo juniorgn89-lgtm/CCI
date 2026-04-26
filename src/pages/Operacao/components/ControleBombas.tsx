@@ -1,133 +1,505 @@
-import { Fuel, Gauge } from 'lucide-react'
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts'
-import { CHART_COLORS } from '@/lib/constants'
-import { formatCurrency, formatCurrencyTooltip, formatNumber, formatLiters } from '@/lib/formatters'
+import { useMemo, useState } from 'react'
+import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown } from 'lucide-react'
+import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InsightBanner from '@/components/kpi/InsightBanner'
+import { useFilterStore } from '@/store/filters'
+import {
+  useManutencaoStore,
+  type ManutencaoMode,
+  type BombaManutencaoRecord,
+  getConfigOrDefault,
+  getManutencao,
+} from '@/store/manutencao'
 import type { BombaRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
 interface ControleBombasProps {
   bombaRows: BombaRow[]
+  bombaRowsPrev: BombaRow[]
 }
 
-const activityLevel = (count: number, max: number) => {
-  if (count === 0) return { label: 'Sem atividade', dot: 'bg-gray-400', bg: 'bg-gray-50 dark:bg-gray-800' }
-  const pct = max > 0 ? count / max : 0
-  if (pct >= 0.6) return { label: 'Alta atividade', dot: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-900/10' }
-  if (pct >= 0.3) return { label: 'Atividade média', dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10' }
-  return { label: 'Baixa atividade', dot: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/10' }
+type WearStatus = 'ok' | 'warn' | 'critical' | 'sem-registro'
+
+interface BombaStats {
+  bomba: BombaRow
+  litrosMes: number
+  abastecimentos: number
+  mediaPorAbastecimento: number
+  prevMedia: number
+  mediaQueda: number  // pct (-100 to ∞)
+  mediaCaiu15: boolean
+  // Wear
+  litrosDesdeManutencao: number
+  desgastePct: number  // 0-100+
+  wearStatus: WearStatus
+  manutencao: BombaManutencaoRecord | null
+  proximaEstimadaLitros: number  // litros restantes até intervalo
 }
 
-const ControleBombas = ({ bombaRows }: ControleBombasProps) => {
-  const maxAbast = Math.max(...bombaRows.map((b) => b.abastecimentos), 1)
+const wearStatusMeta = {
+  ok: { label: 'Regular', color: 'green', dot: 'bg-green-500', text: 'text-green-700 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-gray-200 dark:border-gray-700', barFill: 'bg-green-500' },
+  warn: { label: 'Manutenção próxima', color: 'amber', dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-300 dark:border-amber-700', barFill: 'bg-amber-500' },
+  critical: { label: 'Verificar agora', color: 'red', dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-500 border-2', barFill: 'bg-red-500' },
+  'sem-registro': { label: 'Sem registro', color: 'gray', dot: 'bg-gray-400', text: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', barFill: 'bg-gray-300' },
+} as const
+
+interface ManutBufferEntry { dataUltima: string; litrosUltima: string }
+
+const rankStyle = (pos: number): string => {
+  if (pos === 1) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+  if (pos === 2) return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+  if (pos === 3) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+  return 'bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400'
+}
+
+const formatBrDate = (yyyymmdd: string): string => {
+  if (!yyyymmdd || yyyymmdd.length < 10) return '-'
+  const [y, m, d] = yyyymmdd.split('-')
+  return `${d}/${m}/${y}`
+}
+
+const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
+  const { empresaCodigos } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+
+  const { mode, manutencoes, configs, setMode, setManutencao, clearManutencao } = useManutencaoStore()
+  const config = getConfigOrDefault(configs, empresaCodigo)
+
+  // Manual edit buffer per pump.
+  // Strings (não numbers) — assim o input fica totalmente controlado pelo
+  // que o usuário digita e backspace funciona sem o saved value voltar a aparecer.
+  // Conversão para number só acontece em handleSaveManutencao.
+  const [manutBuffer, setManutBuffer] = useState<Record<number, ManutBufferEntry>>({})
+
+  // Stats por bomba
+  const stats = useMemo<BombaStats[]>(() => {
+    const prevMap = new Map<number, BombaRow>()
+    for (const b of bombaRowsPrev) prevMap.set(b.bombaCodigo, b)
+
+    return bombaRows.map((bomba) => {
+      const prev = prevMap.get(bomba.bombaCodigo)
+      const litrosMes = bomba.litrosVendidos
+      const abastecimentos = bomba.abastecimentos
+      const mediaPorAbastecimento = abastecimentos > 0 ? litrosMes / abastecimentos : 0
+      const prevMedia = prev && prev.abastecimentos > 0 ? prev.litrosVendidos / prev.abastecimentos : 0
+      const mediaQueda = prevMedia > 0 ? ((mediaPorAbastecimento - prevMedia) / prevMedia) * 100 : 0
+      const mediaCaiu15 = prevMedia > 0 && mediaQueda <= -15
+
+      // Manutenção e desgaste
+      const manutencao = getManutencao(manutencoes, empresaCodigo, bomba.bombaCodigo)
+      let litrosDesdeManutencao = 0
+      let wearStatus: WearStatus = 'sem-registro'
+      let desgastePct = 0
+      if (manutencao) {
+        litrosDesdeManutencao = bomba.dailyLitros
+          .filter((d) => d.data >= manutencao.dataUltima)
+          .reduce((s, d) => s + d.litros, 0)
+        desgastePct = config.intervaloLitros > 0
+          ? (litrosDesdeManutencao / config.intervaloLitros) * 100
+          : 0
+        wearStatus = desgastePct > 90 ? 'critical' : desgastePct >= 70 ? 'warn' : 'ok'
+      }
+
+      const proximaEstimadaLitros = Math.max(0, config.intervaloLitros - litrosDesdeManutencao)
+
+      return {
+        bomba,
+        litrosMes,
+        abastecimentos,
+        mediaPorAbastecimento,
+        prevMedia,
+        mediaQueda,
+        mediaCaiu15,
+        litrosDesdeManutencao,
+        desgastePct,
+        wearStatus,
+        manutencao,
+        proximaEstimadaLitros,
+      }
+    })
+  }, [bombaRows, bombaRowsPrev, manutencoes, configs, empresaCodigo, config.intervaloLitros])
+
+  const handleSaveManutencao = (bombaCodigo: number) => {
+    if (empresaCodigo === null) return
+    const buf = manutBuffer[bombaCodigo]
+    if (!buf || !buf.dataUltima) return
+    setManutencao(empresaCodigo, bombaCodigo, {
+      dataUltima: buf.dataUltima,
+      litrosUltima: Number(buf.litrosUltima) || 0,
+    })
+    setManutBuffer((prev) => {
+      const n = { ...prev }
+      delete n[bombaCodigo]
+      return n
+    })
+  }
+
+  const handleClearManutencao = (bombaCodigo: number) => {
+    if (empresaCodigo !== null) clearManutencao(empresaCodigo, bombaCodigo)
+    setManutBuffer((prev) => {
+      const n = { ...prev }
+      delete n[bombaCodigo]
+      return n
+    })
+  }
+
+  const updateBuffer = (bombaCodigo: number, patch: Partial<ManutBufferEntry>) => {
+    setManutBuffer((prev) => {
+      let current = prev[bombaCodigo]
+      if (!current) {
+        // Primeira edição: seed do valor salvo (caso exista) para que tocar
+        // um campo não apague visualmente o outro.
+        const saved = empresaCodigo !== null ? getManutencao(manutencoes, empresaCodigo, bombaCodigo) : null
+        current = {
+          dataUltima: saved?.dataUltima ?? '',
+          litrosUltima: saved?.litrosUltima ? String(saved.litrosUltima) : '',
+        }
+      }
+      return { ...prev, [bombaCodigo]: { ...current, ...patch } }
+    })
+  }
+
+  if (bombaRows.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <Gauge className="mx-auto h-8 w-8 text-gray-300" />
+        <p className="mt-2 text-sm text-gray-400">Nenhuma bomba encontrada.</p>
+      </div>
+    )
+  }
+
+  // Banners de manutenção (apenas quando há config + bombas em alerta)
+  const hasConfigForEmpresa = empresaCodigo !== null && !!configs[empresaCodigo]
+  const bombasCriticas = hasConfigForEmpresa
+    ? stats.filter((s) => s.wearStatus === 'critical')
+    : []
+  const bombasProximas = hasConfigForEmpresa
+    ? stats.filter((s) => s.wearStatus === 'warn')
+    : []
 
   return (
-    <div className="space-y-4">
-      {/* Pump cards grid */}
-      {bombaRows.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <Gauge className="mx-auto h-8 w-8 text-gray-300" />
-          <p className="mt-2 text-sm text-gray-400">Nenhuma bomba encontrada.</p>
+    <div className="space-y-5">
+      {/* Banners de alerta — só quando empresa tem config */}
+      {(bombasCriticas.length > 0 || bombasProximas.length > 0) && (
+        <div className="space-y-2">
+          {bombasCriticas.map((s) => (
+            <InsightBanner
+              key={`critical-${s.bomba.bombaCodigo}`}
+              type="warning"
+              message={`${s.bomba.descricao} requer atenção imediata — ${Math.min(100, s.desgastePct).toFixed(0)}% do intervalo atingido`}
+            />
+          ))}
+          {bombasProximas.map((s) => (
+            <InsightBanner
+              key={`warn-${s.bomba.bombaCodigo}`}
+              type="motivate"
+              message={`${s.bomba.descricao} com manutenção próxima — ${Math.min(100, s.desgastePct).toFixed(0)}% do intervalo`}
+            />
+          ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {bombaRows.map((bomba) => {
-            const activity = activityLevel(bomba.abastecimentos, maxAbast)
-            return (
-              <div
-                key={bomba.bombaCodigo}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                      <Fuel className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{bomba.descricao}</p>
-                      {bomba.referencia && (
-                        <p className="text-[10px] text-gray-400">Ref: {bomba.referencia}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className={cn('flex items-center gap-1.5 rounded-full px-2 py-1', activity.bg)}>
-                    <span className={cn('h-2 w-2 rounded-full', activity.dot)} />
-                    <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{activity.label}</span>
-                  </div>
-                </div>
+      )}
 
-                {/* Combustíveis tags */}
-                {bomba.combustiveis.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {bomba.combustiveis.map((c) => (
-                      <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                        {c}
+      {/* Toggle Auto/Manual */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Controle de manutenção</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {mode === 'auto'
+              ? 'Desgaste calculado por litros bombeados desde a última manutenção'
+              : 'Informe manualmente data e litros da última manutenção por bomba'}
+          </p>
+        </div>
+        <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+          {(['auto', 'manual'] as ManutencaoMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                mode === m
+                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700'
+              )}
+            >
+              {m === 'auto' ? 'Automático' : 'Manual'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards das bombas */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {stats.map((s, idx) => {
+          const meta = wearStatusMeta[s.wearStatus]
+          const buf = manutBuffer[s.bomba.bombaCodigo]
+          const rank = idx + 1
+          return (
+            <div
+              key={s.bomba.bombaCodigo}
+              className={cn(
+                'flex flex-col rounded-xl border bg-white p-5 shadow-sm transition-all hover:shadow-md dark:bg-gray-900',
+                meta.border,
+              )}
+            >
+              {/* Header */}
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                    <Fuel className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{s.bomba.descricao}</p>
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+                          rankStyle(rank),
+                        )}
+                        title={`${rank}º em litros bombeados no período`}
+                      >
+                        {rank}º
                       </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Litros</p>
-                    <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(bomba.litrosVendidos)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Abastec.</p>
-                    <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(bomba.abastecimentos)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Faturamento</p>
-                    <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(bomba.faturamento)}</p>
+                    </div>
+                    {s.bomba.referencia && (
+                      <p className="text-[10px] text-gray-400">Ref: {s.bomba.referencia}</p>
+                    )}
                   </div>
                 </div>
+                <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', meta.bg, meta.text)}>
+                  <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
+                  {meta.label}
+                </span>
+              </div>
 
-                {/* Activity bar */}
-                <div className="mt-3">
-                  <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-                    <div
-                      className={cn('h-1.5 rounded-full transition-all', activity.dot.replace('bg-', 'bg-'))}
-                      style={{ width: `${maxAbast > 0 ? (bomba.abastecimentos / maxAbast) * 100 : 0}%` }}
-                    />
-                  </div>
+              {/* Combustíveis tags */}
+              {s.bomba.combustiveis.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {s.bomba.combustiveis.map((c) => (
+                    <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                      {c}
+                    </span>
+                  ))}
                 </div>
+              )}
 
-                {/* Info */}
-                <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400">
-                  <span>{bomba.quantidadeBicos} bico{bomba.quantidadeBicos !== 1 ? 's' : ''}</span>
-                  {bomba.ilha > 0 && <span>Ilha {bomba.ilha}</span>}
+              {/* Stats */}
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Litros/mês</p>
+                  <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(s.litrosMes)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Abastec.</p>
+                  <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(s.abastecimentos)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Média/abast.</p>
+                  <p className={cn(
+                    'flex items-center gap-1 text-sm font-semibold tabular-nums',
+                    s.mediaCaiu15 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
+                  )}>
+                    {s.mediaCaiu15 && <ArrowDown className="h-3 w-3" />}
+                    {formatLiters(s.mediaPorAbastecimento)}
+                  </p>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* Chart */}
-      {bombaRows.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">Litros por Bomba</h3>
-          <ResponsiveContainer width="100%" height={Math.max(250, bombaRows.length * 40)}>
-            <BarChart data={bombaRows} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-              <XAxis type="number" tickFormatter={(v: number) => formatLiters(v)} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="descricao" width={110} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((v: number, name: string) => [name === 'Faturamento' ? formatCurrencyTooltip(v) : formatLiters(v), name]) as never}
-              />
-              <Bar dataKey="litrosVendidos" name="Litros" fill={CHART_COLORS[1]} radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+              {/* Wear bar */}
+              <div className="mb-3">
+                <div className="mb-1 flex items-center justify-between text-[10px]">
+                  <span className="text-gray-500 dark:text-gray-400">Desgaste</span>
+                  <span className={cn('font-semibold tabular-nums', meta.text)}>
+                    {s.wearStatus === 'sem-registro' ? '—' : `${Math.min(100, s.desgastePct).toFixed(0)}%`}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                  <div
+                    className={cn('h-1.5 rounded-full transition-all', meta.barFill)}
+                    style={{ width: `${Math.min(100, s.desgastePct)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Última manutenção + próxima estimada */}
+              <div className="mb-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-2 text-[10px] dark:border-gray-800">
+                <div>
+                  <p className="text-gray-400">Última manutenção</p>
+                  <p className="font-medium tabular-nums text-gray-700 dark:text-gray-300">
+                    {s.manutencao ? formatBrDate(s.manutencao.dataUltima) : 'Sem registro'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Próxima estimada</p>
+                  <p className="font-medium tabular-nums text-gray-700 dark:text-gray-300">
+                    {s.manutencao ? `+${formatLiters(s.proximaEstimadaLitros)}` : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Modo manual: formulário de registro de manutenção
+                  Aparece logo abaixo de "Última manutenção / Próxima estimada" */}
+              {mode === 'manual' && (
+                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    <Wrench className="h-3 w-3" />
+                    Registrar manutenção
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <label className="block">
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">Data da última manutenção</span>
+                      <input
+                        type="date"
+                        value={
+                          buf
+                            ? buf.dataUltima
+                            : s.manutencao?.dataUltima ?? ''
+                        }
+                        onChange={(e) => updateBuffer(s.bomba.bombaCodigo, { dataUltima: e.target.value })}
+                        className="mt-0.5 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">Litros no momento da manutenção</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 500.000"
+                        value={
+                          buf
+                            ? buf.litrosUltima
+                            : s.manutencao?.litrosUltima ? String(s.manutencao.litrosUltima) : ''
+                        }
+                        onChange={(e) => updateBuffer(s.bomba.bombaCodigo, { litrosUltima: e.target.value })}
+                        className="mt-0.5 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-xs tabular-nums text-gray-700 placeholder:text-gray-300 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-600"
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleSaveManutencao(s.bomba.bombaCodigo)}
+                      disabled={!buf?.dataUltima}
+                      className={cn(
+                        'flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                        buf?.dataUltima
+                          ? 'bg-[#1e3a5f] text-white hover:bg-[#172d4a]'
+                          : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700'
+                      )}
+                    >
+                      <Save className="h-3 w-3" />
+                      Salvar
+                    </button>
+                    {(buf || s.manutencao) && (
+                      <button
+                        onClick={() => handleClearManutencao(s.bomba.bombaCodigo)}
+                        title="Limpar dados de manutenção"
+                        className="flex items-center justify-center gap-1 rounded-md border border-gray-200 px-2 py-1.5 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer info */}
+              <div className="mt-auto flex items-center justify-between pt-2 text-[10px] text-gray-400">
+                <span>{s.bomba.quantidadeBicos} bico{s.bomba.quantidadeBicos !== 1 ? 's' : ''}</span>
+                {s.bomba.ilha > 0 && <span>Ilha {s.bomba.ilha}</span>}
+                <span>{formatCurrency(s.bomba.faturamento)}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Comparativo de eficiência */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="border-b border-gray-200 px-5 py-3 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comparativo de eficiência</h3>
         </div>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Bomba</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Litros/mês</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Média/abast.</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">vs. Mês Anterior</th>
+                <th className="w-[140px] px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Desgaste</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Próx. Manutenção</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {stats.map((s, idx) => {
+                const meta = wearStatusMeta[s.wearStatus]
+                const showVar = s.prevMedia > 0 && Math.abs(s.mediaQueda) <= 200
+                return (
+                  <tr key={s.bomba.bombaCodigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                    <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{s.bomba.descricao}</td>
+                    <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
+                      {formatLiters(s.litrosMes)}
+                    </td>
+                    <td className={cn(
+                      'px-4 py-2.5 text-right text-sm tabular-nums',
+                      s.mediaCaiu15 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'
+                    )}>
+                      {formatLiters(s.mediaPorAbastecimento)}
+                    </td>
+                    <td className={cn(
+                      'px-4 py-2.5 text-right text-sm font-medium tabular-nums',
+                      !showVar ? 'text-gray-400'
+                        : s.mediaQueda >= 0 ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    )}>
+                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(1)}%`}
+                    </td>
+                    <td className="w-[140px] px-4 py-2.5">
+                      {s.wearStatus === 'sem-registro' ? (
+                        <span className="text-xs text-gray-400">Sem registro</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                            <div
+                              className={cn('h-1.5 rounded-full', meta.barFill)}
+                              style={{ width: `${Math.min(100, s.desgastePct)}%` }}
+                            />
+                          </div>
+                          <span className={cn('shrink-0 text-[10px] font-semibold tabular-nums', meta.text)}>
+                            {Math.min(100, s.desgastePct).toFixed(0)}%
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                      {s.manutencao ? `+${formatLiters(s.proximaEstimadaLitros)}` : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Sumário visual de status (rodapé contextual) */}
+      <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+          {stats.filter((s) => s.wearStatus === 'ok').length} regular
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5 text-amber-500" />
+          {stats.filter((s) => s.wearStatus === 'warn').length} próximas
+        </span>
+        <span className="flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+          {stats.filter((s) => s.wearStatus === 'critical').length} críticas
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Wrench className="h-3.5 w-3.5 text-gray-400" />
+          {stats.filter((s) => s.wearStatus === 'sem-registro').length} sem registro
+        </span>
+      </div>
     </div>
   )
 }

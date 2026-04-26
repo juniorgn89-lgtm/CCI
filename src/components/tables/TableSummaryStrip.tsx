@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils'
 interface MetricItem {
   label: string
   value: string
+  /** Small note below the value (e.g. "+1 aberto", "parcial") */
+  hint?: string
   color?: string
 }
 
@@ -73,6 +75,11 @@ const TableSummaryStrip = ({
             >
               {metric.value}
             </p>
+            {metric.hint && (
+              <p className="mt-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                {metric.hint}
+              </p>
+            )}
           </div>
         ))}
       </div>

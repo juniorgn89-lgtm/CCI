@@ -2,10 +2,11 @@ import { useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { useNotificationStore, type AppAlert } from '@/store/notifications'
+import { useManutencaoStore } from '@/store/manutencao'
 import type { PaginatedResponse } from '@/api/types/common'
 import type { ProdutoEstoque } from '@/api/types/estoque'
 import type { TituloReceber, TituloPagar } from '@/api/types/financeiro'
-import type { Abastecimento } from '@/api/types/combustivel'
+import type { Abastecimento, Bomba, Bico } from '@/api/types/combustivel'
 import type { Produto } from '@/api/types/produto'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -165,6 +166,72 @@ const useAlertGenerator = () => {
             timestamp: now,
             read: false,
           })
+        }
+      }
+    }
+
+    // --- Bomba alerts (manutenção) ---
+    // Disparam apenas quando a empresa tem config + a bomba tem registro de manutenção
+    const manutState = useManutencaoStore.getState()
+    const empresaConfig = empresaCodigo !== null ? manutState.configs[empresaCodigo] : undefined
+
+    if (empresaCodigo !== null && empresaConfig && abastecimentosCache && abastecimentosCache.length > 0) {
+      const bombasCache = queryClient.getQueryData<PaginatedResponse<Bomba>>(['bombas', empresaCodigo])
+      const bicosCache = queryClient.getQueryData<PaginatedResponse<Bico>>(['bicos', empresaCodigo])
+
+      const bombas = bombasCache?.resultados ?? []
+      const bicos = bicosCache?.resultados ?? []
+
+      if (bombas.length > 0) {
+        const bicoToBomba = new Map<number, number>()
+        for (const bi of bicos) bicoToBomba.set(bi.bicoCodigo, bi.bombaCodigo)
+
+        // Litros bombeados por bomba (filtrando pela empresa)
+        const litrosPorBomba = new Map<number, number>()
+        for (const a of abastecimentosCache) {
+          if (a.empresaCodigo !== empresaCodigo) continue
+          const bombaCod = bicoToBomba.get(a.codigoBico)
+          if (!bombaCod) continue
+          // Considera apenas abastecimentos a partir da data de manutenção
+          const manut = manutState.manutencoes[`manutencao_${empresaCodigo}_${bombaCod}`]
+          if (!manut?.dataUltima) continue
+          const abastDate = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
+          if (abastDate < manut.dataUltima) continue
+          litrosPorBomba.set(bombaCod, (litrosPorBomba.get(bombaCod) ?? 0) + a.quantidade)
+        }
+
+        const intervaloLitros = empresaConfig.intervaloLitros
+        const limiteAviso = empresaConfig.avisarAoAtingirPct
+
+        for (const bomba of bombas) {
+          const manut = manutState.manutencoes[`manutencao_${empresaCodigo}_${bomba.bombaCodigo}`]
+          if (!manut?.dataUltima) continue  // sem registro → sem alerta
+
+          const litros = litrosPorBomba.get(bomba.bombaCodigo) ?? 0
+          const desgastePct = intervaloLitros > 0 ? (litros / intervaloLitros) * 100 : 0
+          const nome = bomba.descricao || `Bomba ${bomba.bombaCodigo}`
+
+          if (desgastePct > 90) {
+            alerts.push({
+              id: `bomba-danger-${bomba.bombaCodigo}`,
+              category: 'bombas',
+              severity: 'danger',
+              title: `${nome} — verificar agora (${desgastePct.toFixed(0)}%)`,
+              description: 'Bomba ultrapassou 90% do intervalo configurado. Manutenção urgente.',
+              timestamp: now,
+              read: false,
+            })
+          } else if (desgastePct >= limiteAviso) {
+            alerts.push({
+              id: `bomba-warning-${bomba.bombaCodigo}`,
+              category: 'bombas',
+              severity: 'warning',
+              title: `${nome} — manutenção próxima (${desgastePct.toFixed(0)}%)`,
+              description: `Atingiu o limite de aviso configurado (${limiteAviso}%).`,
+              timestamp: now,
+              read: false,
+            })
+          }
         }
       }
     }

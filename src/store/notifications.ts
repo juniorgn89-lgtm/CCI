@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type AlertSeverity = 'danger' | 'warning' | 'info'
-export type AlertCategory = 'estoque' | 'financeiro' | 'combustivel'
+export type AlertCategory = 'estoque' | 'financeiro' | 'combustivel' | 'bombas'
 
 export interface AppAlert {
   id: string

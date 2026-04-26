@@ -49,6 +49,8 @@ export interface BombaRow {
   abastecimentos: number
   faturamento: number
   combustiveis: string[]
+  /** Litros bombeados por dia no período atual (para filtrar desde dataUltima manutenção) */
+  dailyLitros: { data: string; litros: number }[]
 }
 
 export interface AbastecimentoRow {
@@ -232,6 +234,9 @@ const useOperacaoData = () => {
 
   const computed = useMemo(() => {
     // Filter abastecimentos by empresa client-side (endpoint has no empresaCodigo param)
+    const abastPrev = (abastPrevData ?? []).filter(
+      (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
+    )
     const abastecimentos = (abastecimentosData ?? []).filter(
       (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
     )
@@ -304,6 +309,7 @@ const useOperacaoData = () => {
 
     // ── Bombas ──
     const bombaAgg = new Map<number, { litros: number; count: number; valor: number; combustiveis: Set<string> }>()
+    const bombaDaily = new Map<number, Map<string, number>>()
     for (const a of abastecimentos) {
       const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
       const prev = bombaAgg.get(bombaCod) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
@@ -313,31 +319,69 @@ const useOperacaoData = () => {
       const prodNome = resolveProdutoNome(a.codigoProduto, a.codigoBico)
       if (!prodNome.startsWith('Produto ')) prev.combustiveis.add(prodNome)
       bombaAgg.set(bombaCod, prev)
+
+      const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
+      if (dayStr.length === 10) {
+        const dm = bombaDaily.get(bombaCod) ?? new Map<string, number>()
+        dm.set(dayStr, (dm.get(dayStr) ?? 0) + a.quantidade)
+        bombaDaily.set(bombaCod, dm)
+      }
     }
 
-    const bombaRows: BombaRow[] = bombas
-      .map((b) => {
-        const agg = bombaAgg.get(b.bombaCodigo) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
-        const bombaBicos = bicos.filter((bi) => bi.bombaCodigo === b.bombaCodigo)
-        const combustiveis =
-          agg.combustiveis.size > 0
-            ? Array.from(agg.combustiveis)
-            : bombaBicos.map((bi) => produtoMap.get(bi.produtoCodigo) ?? '').filter(Boolean)
-        return {
-          bombaCodigo: b.bombaCodigo,
-          descricao: b.descricao || `Bomba ${b.bombaCodigo}`,
-          referencia: b.bombaReferencia,
-          quantidadeBicos: b.quantidadeBicos,
-          ilha: b.ilha,
-          fabricante: b.fabricante,
-          modelo: b.modelo,
-          litrosVendidos: agg.litros,
-          abastecimentos: agg.count,
-          faturamento: agg.valor,
-          combustiveis: [...new Set(combustiveis)],
-        }
-      })
-      .sort((a, b) => b.litrosVendidos - a.litrosVendidos)
+    const buildBombaRows = (
+      agg: typeof bombaAgg,
+      daily: typeof bombaDaily,
+    ): BombaRow[] =>
+      bombas
+        .map((b) => {
+          const a = agg.get(b.bombaCodigo) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
+          const bombaBicos = bicos.filter((bi) => bi.bombaCodigo === b.bombaCodigo)
+          const combustiveis =
+            a.combustiveis.size > 0
+              ? Array.from(a.combustiveis)
+              : bombaBicos.map((bi) => produtoMap.get(bi.produtoCodigo) ?? '').filter(Boolean)
+          const dm = daily.get(b.bombaCodigo) ?? new Map<string, number>()
+          const dailyLitros = Array.from(dm.entries())
+            .map(([data, litros]) => ({ data, litros }))
+            .sort((x, y) => x.data.localeCompare(y.data))
+          return {
+            bombaCodigo: b.bombaCodigo,
+            descricao: b.descricao || `Bomba ${b.bombaCodigo}`,
+            referencia: b.bombaReferencia,
+            quantidadeBicos: b.quantidadeBicos,
+            ilha: b.ilha,
+            fabricante: b.fabricante,
+            modelo: b.modelo,
+            litrosVendidos: a.litros,
+            abastecimentos: a.count,
+            faturamento: a.valor,
+            combustiveis: [...new Set(combustiveis)],
+            dailyLitros,
+          }
+        })
+        .sort((x, y) => y.litrosVendidos - x.litrosVendidos)
+
+    const bombaRows = buildBombaRows(bombaAgg, bombaDaily)
+
+    // Previous-period bombas (mesmo cálculo, agregado em abastPrev)
+    const bombaAggPrev = new Map<number, { litros: number; count: number; valor: number; combustiveis: Set<string> }>()
+    const bombaDailyPrev = new Map<number, Map<string, number>>()
+    for (const a of abastPrev) {
+      const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
+      const prev = bombaAggPrev.get(bombaCod) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
+      prev.litros += a.quantidade
+      prev.count += 1
+      prev.valor += a.valorTotal
+      bombaAggPrev.set(bombaCod, prev)
+
+      const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
+      if (dayStr.length === 10) {
+        const dm = bombaDailyPrev.get(bombaCod) ?? new Map<string, number>()
+        dm.set(dayStr, (dm.get(dayStr) ?? 0) + a.quantidade)
+        bombaDailyPrev.set(bombaCod, dm)
+      }
+    }
+    const bombaRowsPrev = buildBombaRows(bombaAggPrev, bombaDailyPrev)
 
     // ── Abastecimentos table ──
     const abastecimentoRows: AbastecimentoRow[] = abastecimentos
@@ -642,9 +686,6 @@ const useOperacaoData = () => {
     const totalFat = abastecimentos.reduce((s, a) => s + a.valorTotal, 0)
 
     // ── Previous-period totals for DeltaBadge ──
-    const abastPrev = (abastPrevData ?? []).filter(
-      (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
-    )
     const prevTotalLitros = abastPrev.reduce((s, a) => s + a.quantidade, 0)
     const prevFaturamentoCombustivel = abastPrev.reduce((s, a) => s + a.valorTotal, 0)
     const prevTotalApurado = (caixasPrevRaw?.resultados ?? []).reduce((s, c) => s + c.apurado, 0)
@@ -700,6 +741,7 @@ const useOperacaoData = () => {
       frentistaRows,
       frentistaRowsPrev,
       bombaRows,
+      bombaRowsPrev,
       abastecimentoRows,
       turnoRows,
       turnoGroups,

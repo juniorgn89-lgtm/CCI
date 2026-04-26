@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp, HelpCircle } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, User, Search, Fuel, Clock, TrendingUp, HelpCircle, Filter } from 'lucide-react'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
+import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
   PieChart,
@@ -13,6 +14,7 @@ import {
   YAxis,
   CartesianGrid,
   ReferenceLine,
+  ReferenceDot,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -77,6 +79,7 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
 }
 
 const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
+  const { dataInicial, dataFinal } = useFilterStore()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
 
@@ -86,19 +89,34 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   const [filterStatus, setFilterStatus] = useState<'todos' | 'aberto' | 'fechado'>('aberto')
   const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'positiva' | 'negativa'>('todas')
 
+  // Filtros vindos dos gráficos (mutuamente exclusivos)
+  const [selectedPgto, setSelectedPgto] = useState<string | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
   const turnosUnicos = useMemo(() => [...new Set(turnoGroups.map((g) => g.turno))].sort(), [turnoGroups])
 
+  const hasChartFilter = selectedPgto !== null || selectedDay !== null
+
+  // Aplica filtros manuais + filtros vindos dos gráficos (donut, evolução diária)
   const filteredGroups = useMemo(() => {
     return turnoGroups.filter((g) => {
       if (filterNome && !g.responsaveis.some((n) => n.toLowerCase().includes(filterNome.toLowerCase()))) return false
       if (filterTurno && g.turno !== filterTurno) return false
-      if (filterStatus === 'aberto' && g.fechado) return false
-      if (filterStatus === 'fechado' && !g.fechado) return false
+      // Filtro de status é desabilitado quando há filtro vindo dos gráficos
+      // (do contrário, o default "aberto" esconde caixas fechados que combinam com o filtro)
+      if (!hasChartFilter) {
+        if (filterStatus === 'aberto' && g.fechado) return false
+        if (filterStatus === 'fechado' && !g.fechado) return false
+      }
       if (filterDiferenca === 'positiva' && g.diferencaTotal <= 0) return false
       if (filterDiferenca === 'negativa' && g.diferencaTotal >= 0) return false
+      // Filtro por forma de pagamento (donut)
+      if (selectedPgto && !g.pagamentos.some((p) => p.tipo === selectedPgto)) return false
+      // Filtro por dia (gráfico de evolução)
+      if (selectedDay && g.dataMovimento !== selectedDay) return false
       return true
     })
-  }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca])
+  }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca, selectedPgto, selectedDay, hasChartFilter])
 
   const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
 
@@ -154,6 +172,34 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
     }
   }, [apuradoPorDia])
 
+  // Reseta seleções dos gráficos só quando o período muda (string estável,
+  // diferente das refs de array que mudavam em re-renders do parent e
+  // estavam apagando a seleção logo após o clique)
+  useEffect(() => {
+    setSelectedPgto(null)
+    setSelectedDay(null)
+  }, [dataInicial, dataFinal])
+
+  // Indexação para cálculo da janela ±3 dias
+  const dailyByLabel = useMemo(() => {
+    const map = new Map<string, { idx: number; value: number | null }>()
+    dailyChartData.forEach((d, idx) => {
+      map.set(d.data, { idx, value: d.real ?? d.projected ?? null })
+    })
+    return map
+  }, [dailyChartData])
+
+  const selectedDayInfo = selectedDay ? dailyByLabel.get(selectedDay) : null
+
+  // Adiciona campo "realNear" para a área da janela ±3 dias
+  const dailyChartDataWithWindow = useMemo(() => {
+    if (!selectedDay || !selectedDayInfo) return dailyChartData
+    return dailyChartData.map((d, idx) => {
+      const inWindow = Math.abs(idx - selectedDayInfo.idx) <= 3
+      return { ...d, realNear: inWindow ? d.real : null }
+    })
+  }, [dailyChartData, selectedDay, selectedDayInfo])
+
   // Popover de explicação da projeção
   const [helpOpen, setHelpOpen] = useState(false)
   const helpRef = useRef<HTMLDivElement>(null)
@@ -174,13 +220,31 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
     }
   }, [helpOpen])
 
+  // Nome legível da forma de pagamento selecionada (para labels)
+  const selectedPgtoNome = selectedPgto
+    ? pagamentoBreakdown.find((p) => p.tipo === selectedPgto)?.nome ?? selectedPgto
+    : null
+
+  // Valor de uma forma de pagamento específica num turno (0 se ausente)
+  const getPgtoValor = (g: TurnoGroup, tipo: string): number =>
+    g.pagamentos.find((p) => p.tipo === tipo)?.valor ?? 0
+
   const groupSummary = useMemo(() => {
+    // Quando filtro por forma de pagamento ativo: somar apenas o valor
+    // daquela forma; a diferença não faz sentido nesse contexto.
+    if (selectedPgto) {
+      const apurado = filteredGroups.reduce((s, g) => s + getPgtoValor(g, selectedPgto), 0)
+      const fechados = filteredGroups.filter((g) => g.fechado).length
+      const abertos = filteredGroups.length - fechados
+      return { apurado, diferenca: 0, fechados, abertos, isPgtoFilter: true }
+    }
+    // Caso geral: apurado total (fechados + abertos parciais), diferença só fechados.
     const apurado = filteredGroups.reduce((s, g) => s + g.apuradoTotal, 0)
     const diferenca = filteredGroups.reduce((s, g) => s + g.diferencaTotal, 0)
     const fechados = filteredGroups.filter((g) => g.fechado).length
-    const abertos = filteredGroups.filter((g) => !g.fechado).length
-    return { apurado, diferenca, fechados, abertos }
-  }, [filteredGroups])
+    const abertos = filteredGroups.length - fechados
+    return { apurado, diferenca, fechados, abertos, isPgtoFilter: false }
+  }, [filteredGroups, selectedPgto])
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
@@ -196,8 +260,29 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
         title="Resumo do Caixa"
         subtitle={`${filteredGroups.length} turno${filteredGroups.length !== 1 ? 's' : ''}`}
         metrics={[
-          { label: 'Apurado', value: formatCurrency(groupSummary.apurado) },
-          { label: 'Diferença', value: `${groupSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(groupSummary.diferenca)}`, color: groupSummary.diferenca >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' },
+          groupSummary.isPgtoFilter
+            ? {
+                label: `Total ${selectedPgtoNome ?? ''}`.trim(),
+                value: formatCurrency(groupSummary.apurado),
+                color: 'text-blue-600 dark:text-blue-400',
+              }
+            : {
+                label: 'Apurado',
+                value: formatCurrency(groupSummary.apurado),
+                hint: groupSummary.abertos > 0
+                  ? `inclui ${groupSummary.abertos} aberto${groupSummary.abertos > 1 ? 's' : ''}`
+                  : undefined,
+              },
+          groupSummary.isPgtoFilter
+            ? { label: 'Diferença', value: '—', color: 'text-gray-400' }
+            : {
+                label: 'Diferença',
+                value: `${groupSummary.diferenca >= 0 ? '+' : ''}${formatCurrency(groupSummary.diferenca)}`,
+                color: groupSummary.diferenca >= 0
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400',
+                hint: groupSummary.abertos > 0 ? 'parcial' : undefined,
+              },
           { label: 'Fechados', value: formatNumber(groupSummary.fechados) },
           { label: 'Abertos', value: formatNumber(groupSummary.abertos), color: 'text-orange-600 dark:text-orange-400' },
         ]}
@@ -216,19 +301,67 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                 <div className="w-[180px] shrink-0">
                   <ResponsiveContainer width="100%" height={180}>
                     <PieChart>
-                      <Pie data={pagamentoBreakdown} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} strokeWidth={0}>
-                        {pagamentoBreakdown.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                      <Pie
+                        data={pagamentoBreakdown}
+                        dataKey="valor"
+                        nameKey="nome"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        strokeWidth={0}
+                        onClick={(_, idx) => {
+                          const item = pagamentoBreakdown[idx]
+                          if (!item) return
+                          setSelectedDay(null)
+                          setSelectedPgto((prev) => (prev === item.tipo ? null : item.tipo))
+                        }}
+                      >
+                        {pagamentoBreakdown.map((p, i) => {
+                          const isSelected = selectedPgto === p.tipo
+                          const dimmed = selectedPgto !== null && !isSelected
+                          return (
+                            <Cell
+                              key={i}
+                              fill={DONUT_COLORS[i % DONUT_COLORS.length]}
+                              fillOpacity={dimmed ? 0.3 : 1}
+                              stroke={isSelected ? '#fff' : 'transparent'}
+                              strokeWidth={isSelected ? 2 : 0}
+                              cursor="pointer"
+                            />
+                          )
+                        })}
                       </Pie>
-                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }} formatter={((v: number) => [formatCurrencyTooltip(v), 'Valor']) as never} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
+                        formatter={((v: number, _name: string, item: { payload?: PagamentoBreakdown }) => {
+                          const pct = totalPagamentos > 0 ? (v / totalPagamentos) * 100 : 0
+                          return [`${formatCurrencyTooltip(v)} · ${pct.toFixed(1)}%`, item?.payload?.nome ?? 'Valor']
+                        }) as never}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex-1 space-y-2 overflow-y-auto pr-3" style={{ maxHeight: 200 }}>
+                <div className="flex-1 space-y-2">
                   {pagamentoBreakdown.map((p, i) => {
                     const pct = totalPagamentos > 0 ? (p.valor / totalPagamentos) * 100 : 0
                     const Icon = paymentIcon(p.tipo)
+                    const isSelected = selectedPgto === p.tipo
+                    const dimmed = selectedPgto !== null && !isSelected
                     return (
-                      <div key={p.tipo} className="flex items-center gap-3">
+                      <button
+                        key={p.tipo}
+                        onClick={() => {
+                          setSelectedDay(null)
+                          setSelectedPgto((prev) => (prev === p.tipo ? null : p.tipo))
+                        }}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-left transition-opacity hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                          dimmed && 'opacity-40',
+                          isSelected && 'font-medium'
+                        )}
+                      >
                         <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
@@ -240,7 +373,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                           </div>
                           <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{formatCurrency(p.valor)} · {formatNumber(p.quantidade)} transações</p>
                         </div>
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -283,74 +416,126 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
             )}
           </div>
 
+          {selectedDay && selectedDayInfo && selectedDayInfo.value !== null && (
+            <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
+              <span className="font-semibold">{formatDate(selectedDay)}</span>
+              <span>·</span>
+              <span className="tabular-nums">{formatCurrencyTooltip(selectedDayInfo.value)}</span>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="ml-1 text-blue-500 hover:text-blue-700"
+                aria-label="Limpar seleção"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {dailyChartData.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">Sem dados.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={dailyChartData} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
-                <defs>
-                  <linearGradient id="apuradoFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.05} />
-                  </linearGradient>
-                  <linearGradient id="projectedFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.10} />
-                    <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                  minTickGap={20}
-                />
-                <YAxis
-                  tickFormatter={formatCurrencyShort}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={62}
-                />
-                <Tooltip content={<DailyTooltip />} />
-                {/* Área real */}
-                <Area
-                  type="monotone"
-                  dataKey="real"
-                  name="Apurado"
-                  stroke="#1e3a5f"
-                  strokeWidth={2}
-                  fill="url(#apuradoFill)"
-                  fillOpacity={1}
-                  connectNulls={false}
-                  isAnimationActive={false}
-                />
-                {/* Área projetada */}
-                <Area
-                  type="monotone"
-                  dataKey="projected"
-                  name="Projetado"
-                  stroke="#1e3a5f"
-                  strokeOpacity={0.6}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  fill="url(#projectedFill)"
-                  fillOpacity={1}
-                  connectNulls={false}
-                  isAnimationActive={false}
-                />
-                {todayLabel && (
-                  <ReferenceLine
-                    x={todayLabel}
-                    stroke="#9ca3af"
-                    strokeDasharray="2 2"
-                    label={{ value: 'Hoje', position: 'top', fontSize: 10, fill: '#6b7280' }}
+            <div>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart
+                  data={dailyChartDataWithWindow}
+                  margin={{ top: 10, right: 16, bottom: 0, left: -8 }}
+                  onClick={((e: unknown) => {
+                    const evt = e as { activePayload?: Array<{ payload?: DailyChartItem }> } | undefined
+                    const payload = evt?.activePayload?.[0]?.payload
+                    if (payload?.data) {
+                      setSelectedPgto(null)
+                      setSelectedDay((prev) => (prev === payload.data ? null : payload.data))
+                    }
+                  }) as never}
+                >
+                  <defs>
+                    <linearGradient id="apuradoFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="projectedFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1e3a5f" stopOpacity={0.10} />
+                      <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                    minTickGap={20}
                   />
-                )}
-              </AreaChart>
-            </ResponsiveContainer>
+                  <YAxis
+                    tickFormatter={formatCurrencyShort}
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={62}
+                  />
+                  <Tooltip content={<DailyTooltip />} />
+                  {/* Área real (atenuada quando há seleção) */}
+                  <Area
+                    type="monotone"
+                    dataKey="real"
+                    name="Apurado"
+                    stroke="#1e3a5f"
+                    strokeWidth={2}
+                    fill="url(#apuradoFill)"
+                    fillOpacity={selectedDay ? 0.1 : 1}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  {/* Janela ±3 dias destacada */}
+                  {selectedDay && (
+                    <Area
+                      type="monotone"
+                      dataKey="realNear"
+                      name="Apurado (próximo)"
+                      stroke="transparent"
+                      fill="url(#apuradoFill)"
+                      fillOpacity={0.4}
+                      connectNulls={false}
+                      isAnimationActive={false}
+                      legendType="none"
+                    />
+                  )}
+                  {/* Área projetada */}
+                  <Area
+                    type="monotone"
+                    dataKey="projected"
+                    name="Projetado"
+                    stroke="#1e3a5f"
+                    strokeOpacity={0.6}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    fill="url(#projectedFill)"
+                    fillOpacity={selectedDay ? 0.05 : 1}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  {todayLabel && (
+                    <ReferenceLine
+                      x={todayLabel}
+                      stroke="#9ca3af"
+                      strokeDasharray="2 2"
+                      label={{ value: 'Hoje', position: 'top', fontSize: 10, fill: '#6b7280' }}
+                    />
+                  )}
+                  {selectedDay && selectedDayInfo?.value !== null && selectedDayInfo?.value !== undefined && (
+                    <ReferenceDot
+                      x={dailyChartData[selectedDayInfo.idx]?.label}
+                      y={selectedDayInfo.value}
+                      r={6}
+                      fill="#1e3a5f"
+                      stroke="#fff"
+                      strokeWidth={2}
+                    />
+                  )}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>
@@ -400,6 +585,30 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Banner do filtro vindo dos gráficos */}
+      {(selectedPgto || selectedDay) && (
+        <div className="flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5" />
+            <span>Filtrando por:</span>
+            <span className="font-semibold">
+              {selectedPgto
+                ? (pagamentoBreakdown.find((p) => p.tipo === selectedPgto)?.nome ?? selectedPgto)
+                : formatDate(selectedDay!)}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedPgto(null)
+              setSelectedDay(null)
+            }}
+            className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            × limpar
+          </button>
         </div>
       )}
 
@@ -512,13 +721,30 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                           {formatIsoTime(g.abertura)} - {g.fechado ? formatIsoTime(g.fechamento) : 'Aberto'}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(g.apuradoTotal)}
+                          {selectedPgto ? (
+                            <>
+                              {formatCurrency(getPgtoValor(g, selectedPgto))}
+                              <span className="ml-1 text-[10px] font-normal text-blue-600 dark:text-blue-400">({selectedPgtoNome})</span>
+                            </>
+                          ) : (
+                            formatCurrency(g.apuradoTotal)
+                          )}
                         </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm tabular-nums',
-                          !g.fechado ? 'text-gray-400' : g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400' : g.diferencaTotal < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+                          selectedPgto ? 'text-gray-400'
+                            : !g.fechado ? 'text-gray-400'
+                            : g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400'
+                            : g.diferencaTotal < 0 ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-500'
                         )}>
-                          {!g.fechado ? '-' : g.diferencaTotal !== 0 ? `${g.diferencaTotal > 0 ? '+' : ''}${formatCurrency(g.diferencaTotal)}` : '-'}
+                          {selectedPgto
+                            ? '—'
+                            : !g.fechado
+                            ? '-'
+                            : g.diferencaTotal !== 0
+                            ? `${g.diferencaTotal > 0 ? '+' : ''}${formatCurrency(g.diferencaTotal)}`
+                            : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           <span className={cn(
@@ -619,21 +845,35 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                           {/* Formas de pagamento do turno */}
                           {g.pagamentos.length > 0 && (
                             <>
-                              <tr className="bg-amber-50/50 dark:bg-amber-900/10">
-                                <td colSpan={7} className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                              <tr className="bg-gray-100/80 dark:bg-gray-800/50">
+                                <td colSpan={7} className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                   <Wallet className="mr-1 inline h-3 w-3" />Formas de Pagamento
                                 </td>
                               </tr>
-                              {g.pagamentos.map((p) => (
-                                <tr key={`${g.groupKey}-pgto-${p.tipo}`} className="bg-amber-50/30 dark:bg-amber-900/10">
-                                  <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{p.nome}</td>
-                                  <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(p.quantidade)} transações</td>
-                                  <td className="px-4 py-2" />
-                                  <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</td>
-                                  <td className="px-4 py-2" />
-                                  <td className="px-4 py-2" />
-                                </tr>
-                              ))}
+                              {g.pagamentos.map((p) => {
+                                const isSelected = selectedPgto === p.tipo
+                                const dimmed = selectedPgto !== null && !isSelected
+                                return (
+                                  <tr
+                                    key={`${g.groupKey}-pgto-${p.tipo}`}
+                                    className={cn(
+                                      isSelected
+                                        ? 'bg-blue-50 font-medium dark:bg-blue-900/30'
+                                        : 'bg-gray-50/80 dark:bg-gray-800/30',
+                                      dimmed && 'opacity-40',
+                                    )}
+                                  >
+                                    <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{p.nome}</td>
+                                    <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(p.quantidade)} transações</td>
+                                    <td className="px-4 py-2" />
+                                    <td className={cn('px-4 py-2 text-right text-xs tabular-nums', isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400')}>
+                                      {formatCurrency(p.valor)}
+                                    </td>
+                                    <td className="px-4 py-2" />
+                                    <td className="px-4 py-2" />
+                                  </tr>
+                                )
+                              })}
                             </>
                           )}
                         </>

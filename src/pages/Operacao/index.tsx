@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Fuel, Gauge, Wallet, BarChart3, Activity, Settings } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -24,21 +25,47 @@ const TAB_ICONS: Record<string, typeof Fuel> = {
 const Operacao = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useOperacaoLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
+  // Aba inicial respeita ?tab=... (vindo de notificações ou deep links)
+  const queryTab = searchParams.get('tab')
+  const initialTab = queryTab && visibleTabs.some((t) => t.id === queryTab)
+    ? queryTab
+    : visibleTabs[0]?.id ?? 'indicadores'
 
-  // If activeTab becomes hidden, switch to first visible
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  // Quando o ?tab muda (chegada via notificação enquanto na página), aplica
+  useEffect(() => {
+    if (queryTab && visibleTabs.some((t) => t.id === queryTab) && queryTab !== activeTab) {
+      setActiveTab(queryTab)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryTab])
+
+  // Se aba ativa fica oculta, troca para a primeira visível
   useEffect(() => {
     if (!visibleTabs.some((t) => t.id === activeTab)) {
       setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
     }
   }, [visibleTabs, activeTab])
 
+  // Limpa o ?tab da URL após aplicar (evita navegar pra mesma aba ao recarregar)
+  useEffect(() => {
+    if (queryTab) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('tab')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const {
     kpis,
     frentistaRows,
     frentistaRowsPrev,
     bombaRows,
+    bombaRowsPrev,
     abastecimentoRows,
     turnoGroups,
     caixaResumo,
@@ -125,7 +152,7 @@ const Operacao = () => {
                     />
                   )}
                   {activeTab === 'bombas' && (
-                    <ControleBombas bombaRows={bombaRows} />
+                    <ControleBombas bombaRows={bombaRows} bombaRowsPrev={bombaRowsPrev} />
                   )}
                   {activeTab === 'abastecimentos' && (
                     <RegistroAbastecimentos
