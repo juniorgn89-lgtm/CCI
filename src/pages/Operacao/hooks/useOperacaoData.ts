@@ -384,20 +384,25 @@ const useOperacaoData = () => {
     const bombaRowsPrev = buildBombaRows(bombaAggPrev, bombaDailyPrev)
 
     // ── Abastecimentos table ──
+    const toAbastecimentoRow = (a: typeof abastecimentos[number]): AbastecimentoRow => ({
+      codigo: a.codigo,
+      dataHora: a.dataHoraAbastecimento || `${a.dataFiscal} ${a.horaFiscal}`,
+      frentistaNome: funcMap.get(a.codigoFrentista)?.nome ?? `Frentista ${a.codigoFrentista}`,
+      frentistaCodigo: a.codigoFrentista,
+      produtoNome: resolveProdutoNome(a.codigoProduto, a.codigoBico),
+      produtoCodigo: a.codigoProduto,
+      bicoCodigo: a.codigoBico,
+      litros: a.quantidade,
+      valorUnitario: a.valorUnitario,
+      valorTotal: a.valorTotal,
+      placa: a.placa,
+    })
     const abastecimentoRows: AbastecimentoRow[] = abastecimentos
-      .map((a) => ({
-        codigo: a.codigo,
-        dataHora: a.dataHoraAbastecimento || `${a.dataFiscal} ${a.horaFiscal}`,
-        frentistaNome: funcMap.get(a.codigoFrentista)?.nome ?? `Frentista ${a.codigoFrentista}`,
-        frentistaCodigo: a.codigoFrentista,
-        produtoNome: resolveProdutoNome(a.codigoProduto, a.codigoBico),
-        produtoCodigo: a.codigoProduto,
-        bicoCodigo: a.codigoBico,
-        litros: a.quantidade,
-        valorUnitario: a.valorUnitario,
-        valorTotal: a.valorTotal,
-        placa: a.placa,
-      }))
+      .map(toAbastecimentoRow)
+      .sort((a, b) => b.dataHora.localeCompare(a.dataHora))
+    // Mesma transformação para o período anterior (para módulo de Destaques semanais)
+    const abastecimentoRowsPrev: AbastecimentoRow[] = abastPrev
+      .map(toAbastecimentoRow)
       .sort((a, b) => b.dataHora.localeCompare(a.dataHora))
 
     // ── Helper: extract HH:mm from time or datetime string ──
@@ -745,6 +750,7 @@ const useOperacaoData = () => {
       bombaRows,
       bombaRowsPrev,
       abastecimentoRows,
+      abastecimentoRowsPrev,
       turnoRows,
       turnoGroups,
       caixaResumo,

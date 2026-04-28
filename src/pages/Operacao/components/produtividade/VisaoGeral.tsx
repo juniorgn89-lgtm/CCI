@@ -360,13 +360,7 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
                       </td>
                       <td className="w-[140px] whitespace-nowrap px-4 py-2.5 text-center">
                         <span
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                            metaStatus === 'atingida' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                            metaStatus === 'parcial' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-                            metaStatus === 'abaixo' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-                            metaStatus === 'na' && 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-                          )}
+                          className="inline-flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300"
                           title={
                             metaStatus === 'atingida'
                               ? 'Meta atingida — acima do mês anterior'
@@ -377,11 +371,20 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
                               : undefined
                           }
                         >
+                          <span
+                            className={cn(
+                              'inline-block h-2 w-2 shrink-0 rounded-full',
+                              metaStatus === 'atingida' && 'bg-green-500',
+                              metaStatus === 'parcial' && 'bg-amber-500',
+                              metaStatus === 'abaixo' && 'bg-red-500',
+                              metaStatus === 'na' && 'bg-gray-300 dark:bg-gray-600',
+                            )}
+                          />
                           {metaStatus === 'atingida' && 'Atingida'}
                           {metaStatus === 'parcial' && 'Parcial'}
                           {metaStatus === 'abaixo' && 'Abaixo'}
                           {metaStatus === 'na' && 'Sem ref.'}
-                          {f.meta > 0 && <span className="ml-1 tabular-nums opacity-75">{formatNumber(Math.round(f.meta))}L</span>}
+                          {f.meta > 0 && <span className="tabular-nums text-gray-500 dark:text-gray-400">{formatNumber(Math.round(f.meta))}L</span>}
                         </span>
                       </td>
                       <td className="w-[120px] whitespace-nowrap px-4 py-2.5">

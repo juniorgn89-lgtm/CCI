@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { LayoutDashboard, TrendingUp, Target } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, Target, Award } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import VisaoGeral from '@/pages/Operacao/components/produtividade/VisaoGeral'
 import Projecoes from '@/pages/Operacao/components/produtividade/Projecoes'
 import Metas from '@/pages/Operacao/components/produtividade/Metas'
+import Destaques from '@/pages/Operacao/components/produtividade/Destaques'
 import type { FrentistaRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
 /* ── Types compartilhados ───────────────────────────────── */
@@ -57,12 +58,13 @@ const categorizeFuel = (nome: string): 'gasolina' | 'etanol' | 'diesel' | 'outro
 
 /* ── Sub-tabs ───────────────────────────────────────────── */
 
-type SubTab = 'visao' | 'projecoes' | 'metas'
+type SubTab = 'visao' | 'projecoes' | 'metas' | 'destaques'
 
 const subTabs: { key: SubTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'visao', label: 'Visão Geral', icon: LayoutDashboard },
   { key: 'projecoes', label: 'Projeções', icon: TrendingUp },
   { key: 'metas', label: 'Metas', icon: Target },
+  { key: 'destaques', label: 'Destaques', icon: Award },
 ]
 
 /* ── Skeleton ───────────────────────────────────────────── */
@@ -84,6 +86,7 @@ interface ProdutividadeTabProps {
   frentistaRows: FrentistaRow[]
   frentistaRowsPrev: FrentistaRow[]
   abastecimentoRows: AbastecimentoRow[]
+  abastecimentoRowsPrev: AbastecimentoRow[]
   isLoading: boolean
 }
 
@@ -93,6 +96,7 @@ const ProdutividadeTab = ({
   frentistaRows,
   frentistaRowsPrev,
   abastecimentoRows,
+  abastecimentoRowsPrev,
   isLoading,
 }: ProdutividadeTabProps) => {
   const [active, setActive] = useState<SubTab>('visao')
@@ -198,6 +202,13 @@ const ProdutividadeTab = ({
       {active === 'visao' && <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} />}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}
       {active === 'metas' && <Metas frentistas={frentistas} />}
+      {active === 'destaques' && (
+        <Destaques
+          frentistas={frentistas}
+          periodInfo={periodInfo}
+          abastecimentoRowsPrev={abastecimentoRowsPrev}
+        />
+      )}
     </div>
   )
 }

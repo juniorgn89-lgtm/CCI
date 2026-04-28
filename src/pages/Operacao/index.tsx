@@ -67,6 +67,7 @@ const Operacao = () => {
     bombaRows,
     bombaRowsPrev,
     abastecimentoRows,
+    abastecimentoRowsPrev,
     turnoGroups,
     caixaResumo,
     pagamentoBreakdown,
@@ -173,6 +174,7 @@ const Operacao = () => {
                       frentistaRows={frentistaRows}
                       frentistaRowsPrev={frentistaRowsPrev}
                       abastecimentoRows={abastecimentoRows}
+                      abastecimentoRowsPrev={abastecimentoRowsPrev}
                       isLoading={isLoading}
                     />
                   )}

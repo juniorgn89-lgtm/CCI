@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { Settings, Sun, Moon, Monitor, User, Mail, Info, LifeBuoy, Smartphone, LayoutDashboard, ChevronRight, ChevronDown, Wrench, Save } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Settings, Sun, Moon, Monitor, User, Mail, Info, LifeBuoy, Smartphone, LayoutDashboard, ChevronRight, ChevronDown, Wrench, Save, HelpCircle } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
@@ -17,9 +17,59 @@ const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'suport
 
 const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Claro', icon: Sun },
-  { value: 'dark', label: 'Escuro', icon: Moon },
   { value: 'system', label: 'Sistema', icon: Monitor },
+  { value: 'dark', label: 'Escuro', icon: Moon },
 ]
+
+/* ─── Mini preview de cada modo de tema ────────────────── */
+/* Cores via style inline para escapar das overrides do dark mode no index.css */
+
+const PreviewLight = () => (
+  <div className="flex h-full w-full flex-col p-2" style={{ backgroundColor: '#ffffff' }}>
+    <div className="ml-auto mb-1.5 h-3 w-1/3 rounded-sm" style={{ backgroundColor: '#e5e7eb' }} />
+    <div className="space-y-1">
+      <div className="h-1 w-2/3 rounded-full" style={{ backgroundColor: '#d1d5db' }} />
+      <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: '#d1d5db' }} />
+      <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: '#d1d5db' }} />
+    </div>
+    <div className="mt-auto flex items-center gap-1">
+      <div className="h-3 flex-1 rounded-sm" style={{ backgroundColor: '#f3f4f6' }} />
+      <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: '#f97316' }} />
+    </div>
+  </div>
+)
+
+const PreviewDark = () => (
+  <div className="flex h-full w-full flex-col p-2" style={{ backgroundColor: '#1f1f1f' }}>
+    <div className="ml-auto mb-1.5 h-3 w-1/3 rounded-sm" style={{ backgroundColor: '#4b5563' }} />
+    <div className="space-y-1">
+      <div className="h-1 w-2/3 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+      <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+      <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+    </div>
+    <div className="mt-auto flex items-center gap-1">
+      <div className="h-3 flex-1 rounded-sm" style={{ backgroundColor: '#374151' }} />
+      <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: '#f97316' }} />
+    </div>
+  </div>
+)
+
+const PreviewSystem = () => (
+  <div className="relative h-full w-full">
+    <div className="absolute inset-y-0 left-0 w-1/2 overflow-hidden">
+      <PreviewLight />
+    </div>
+    <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
+      <PreviewDark />
+    </div>
+  </div>
+)
+
+const renderPreview = (mode: ThemeMode) => {
+  if (mode === 'light') return <PreviewLight />
+  if (mode === 'dark') return <PreviewDark />
+  return <PreviewSystem />
+}
 
 const ManutencaoBombasSection = () => {
   const { data: empresasData, isLoading } = useQuery({
@@ -31,6 +81,7 @@ const ManutencaoBombasSection = () => {
   const { configs, setConfig, clearConfig } = useManutencaoStore()
   const [openCodigo, setOpenCodigo] = useState<number | null>(null)
   const [buffer, setBuffer] = useState<ManutencaoConfig>(DEFAULT_CONFIG)
+  const [showHelp, setShowHelp] = useState(false)
 
   const empresas = empresasData?.resultados ?? []
 
@@ -53,10 +104,71 @@ const ManutencaoBombasSection = () => {
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-        Manutenção de Bombas
-      </h2>
+    <section id="manutencao-bombas" className="scroll-mt-6 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          Manutenção de Bombas
+        </h2>
+        <button
+          type="button"
+          onClick={() => setShowHelp((v) => !v)}
+          aria-expanded={showHelp}
+          aria-label="Como funciona a manutenção de bombas"
+          className={cn(
+            'flex h-4 w-4 items-center justify-center rounded-full transition-colors',
+            showHelp
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+          )}
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-sm dark:border-blue-800/40 dark:bg-blue-900/20">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Como configurar
+          </p>
+          <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Intervalo (litros):</span>{' '}
+              volume total que cada bomba pode bombear antes da manutenção preventiva.
+              Ex: <span className="tabular-nums">100.000 L</span>.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Avisar ao atingir (%):</span>{' '}
+              percentual do intervalo a partir do qual o sistema sinaliza manutenção próxima.
+              Ex: <span className="tabular-nums">80%</span> avisa quando a bomba bombeou{' '}
+              <span className="tabular-nums">80.000 L</span>.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Responsável:</span>{' '}
+              pessoa que cuida da execução/acompanhamento da manutenção (apenas referência).
+            </li>
+          </ul>
+          <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Após configurar
+          </p>
+          <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <li>
+              A aba <span className="font-semibold text-gray-900 dark:text-gray-100">Operação → Bombas</span> exibe barras de desgaste e badges:
+              <span className="ml-1 inline-flex items-center gap-1">
+                <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">Regular</span>
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Próxima</span>
+                <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Verificar agora</span>
+              </span>
+            </li>
+            <li>
+              Notificações automáticas são geradas no sino do topo quando o limite de aviso é atingido.
+            </li>
+            <li>
+              Cada posto pode ter intervalo e responsável próprios — a configuração não afeta os outros postos.
+            </li>
+          </ul>
+        </div>
+      )}
+
       <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
         {isLoading ? (
           <div className="p-5 text-sm text-gray-400">Carregando postos…</div>
@@ -173,9 +285,21 @@ const ManutencaoBombasSection = () => {
 
 const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
+  const location = useLocation()
 
   const userName = (import.meta.env.VITE_APP_USER as string) || 'Usuário'
   const userEmail = (import.meta.env.VITE_APP_EMAIL as string) || `${userName}@ccisga.local`
+
+  // Scroll suave para a seção quando vier com hash (ex: /configuracoes#manutencao-bombas)
+  useEffect(() => {
+    if (!location.hash) return
+    const id = location.hash.slice(1)
+    // Pequeno delay para garantir que a seção já está montada
+    const timer = setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [location])
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -195,39 +319,42 @@ const Configuracoes = () => {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Aparência
         </h2>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Tema</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Escolha como o sistema deve ser exibido</p>
-            </div>
-            <div
-              role="radiogroup"
-              aria-label="Modo de tema"
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800"
-            >
-              {themeOptions.map((opt) => {
-                const Icon = opt.icon
-                const active = mode === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setMode(opt.value)}
+        <div>
+          <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Modo de cor</p>
+          <div role="radiogroup" aria-label="Modo de tema" className="flex flex-wrap gap-3">
+            {themeOptions.map((opt) => {
+              const active = mode === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setMode(opt.value)}
+                  className="group flex w-[150px] flex-col items-center gap-2"
+                >
+                  <div
                     className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                      'relative h-20 w-full overflow-hidden rounded-xl border-2 transition-all',
                       active
-                        ? 'bg-[#1e3a5f] text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                        ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5" />
+                    {renderPreview(opt.value)}
+                  </div>
+                  <span
+                    className={cn(
+                      'text-sm transition-colors',
+                      active
+                        ? 'font-semibold text-gray-900 dark:text-gray-100'
+                        : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  >
                     {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </section>

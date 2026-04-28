@@ -81,6 +81,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   const { dataInicial, dataFinal } = useFilterStore()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
+  const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
   // Filters
   const [filterNome, setFilterNome] = useState('')
@@ -320,10 +321,17 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           {pagamentoBreakdown.length > 0 ? (
             <>
-              <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <CreditCard className="mr-1.5 inline h-4 w-4 text-blue-500" />
-                Formas de Pagamento
-              </h3>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  <CreditCard className="mr-1.5 inline h-4 w-4 text-blue-500" />
+                  Formas de Pagamento
+                </h3>
+                {dataInicial && dataFinal && (
+                  <span className="text-[11px] tabular-nums text-gray-400">
+                    {formatDate(dataInicial)} a {formatDate(dataFinal)}
+                  </span>
+                )}
+              </div>
 
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <div className="w-[180px] shrink-0">
@@ -404,6 +412,19 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                       </button>
                     )
                   })}
+                  <div className="!mt-3 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                      Total
+                    </span>
+                    <div className="text-right">
+                      <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                        {formatCurrency(totalPagamentos)}
+                      </p>
+                      <p className="text-[10px] tabular-nums text-gray-400">
+                        {formatNumber(totalTransacoes)} {totalTransacoes === 1 ? 'transação' : 'transações'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>

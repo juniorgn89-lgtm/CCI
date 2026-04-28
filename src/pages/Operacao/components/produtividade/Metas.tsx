@@ -9,11 +9,31 @@ interface Props {
   frentistas: FrentistaProdRow[]
 }
 
+type StatusFilter = 'todos' | 'atingida' | 'parcial' | 'abaixo' | 'novo'
+
+const STATUS_OPTIONS: { v: StatusFilter; l: string }[] = [
+  { v: 'todos', l: 'Todos' },
+  { v: 'atingida', l: 'Atingida' },
+  { v: 'parcial', l: 'Parcial' },
+  { v: 'abaixo', l: 'Abaixo' },
+  { v: 'novo', l: 'Novo' },
+]
+
+const getStatus = (metaAtual: number, pct: number): StatusFilter => {
+  if (metaAtual === 0 || pct > 200) return 'novo'
+  if (pct >= 100) return 'atingida'
+  if (pct >= 70) return 'parcial'
+  return 'abaixo'
+}
+
 const Metas = ({ frentistas }: Props) => {
   const { manualMode, metas, setManualMode, setMeta, resetMetas } = useMetasStore()
 
   // Buffer local: edita aqui, salva via "Salvar metas"
   const [buffer, setBuffer] = useState<Record<number, string>>({})
+
+  // Filtro por status da meta
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos')
 
   useEffect(() => {
     // Quando muda o modo ou a lista de frentistas, sincroniza o buffer com o store.
@@ -78,9 +98,34 @@ const Metas = ({ frentistas }: Props) => {
       {/* Tabela */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {manualMode ? 'Metas manuais' : 'Metas baseadas no mês anterior'}
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {manualMode ? 'Metas manuais' : 'Metas baseadas no mês anterior'}
+            </h3>
+            {!manualMode && (
+              <p className="mt-0.5 italic text-gray-400" style={{ fontSize: '12px' }}>
+                Meta: superar o volume do mês anterior por frentista
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+              {STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setStatusFilter(opt.v)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 font-medium transition-colors',
+                    statusFilter === opt.v
+                      ? 'bg-[#1e3a5f] text-white shadow-sm'
+                      : 'bg-transparent text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100'
+                  )}
+                  style={{ fontSize: '13px' }}
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
           {manualMode && (
             <div className="flex items-center gap-2">
               <button
@@ -108,6 +153,7 @@ const Metas = ({ frentistas }: Props) => {
               </button>
             </div>
           )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -123,14 +169,33 @@ const Metas = ({ frentistas }: Props) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {frentistas.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-sm text-gray-400">
-                    Sem frentistas no período.
-                  </td>
-                </tr>
-              ) : (
-                frentistas.map((f, idx) => {
+              {(() => {
+                const filtered = frentistas.filter((f) => {
+                  if (statusFilter === 'todos') return true
+                  const metaAuto = f.prevLitros
+                  const metaAtual = manualMode ? Number(buffer[f.funcionarioCodigo] ?? 0) : metaAuto
+                  const pct = metaAtual > 0 ? (f.litros / metaAtual) * 100 : 0
+                  return getStatus(metaAtual, pct) === statusFilter
+                })
+                if (frentistas.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-sm text-gray-400">
+                        Sem frentistas no período.
+                      </td>
+                    </tr>
+                  )
+                }
+                if (filtered.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-sm text-gray-400">
+                        Nenhum frentista com status "{STATUS_OPTIONS.find((o) => o.v === statusFilter)?.l}".
+                      </td>
+                    </tr>
+                  )
+                }
+                return filtered.map((f, idx) => {
                   const metaAuto = f.prevLitros
                   const metaAtual = manualMode ? Number(buffer[f.funcionarioCodigo] ?? 0) : metaAuto
                   const pct = metaAtual > 0 ? (f.litros / metaAtual) * 100 : 0
@@ -175,7 +240,7 @@ const Metas = ({ frentistas }: Props) => {
                     </tr>
                   )
                 })
-              )}
+              })()}
             </tbody>
           </table>
         </div>

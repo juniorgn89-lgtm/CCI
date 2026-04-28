@@ -6,7 +6,7 @@ import {
   Lightbulb, AlertTriangle, Clock, Percent,
 } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import { useFilterStore } from '@/store/filters'
@@ -149,7 +149,16 @@ const Dashboard = () => {
   if (empresaCodigos.length === 0) {
     return (
       <div className="space-y-6">
-        <SelectCompanyState />
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+            <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Visão geral da rede</p>
+          </div>
+        </div>
+        <TurnosAoVivo />
       </div>
     )
   }

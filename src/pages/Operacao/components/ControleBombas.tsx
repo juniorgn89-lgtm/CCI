@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown, HelpCircle, Settings, ExternalLink } from 'lucide-react'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/components/kpi/InsightBanner'
@@ -70,6 +71,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
   // que o usuário digita e backspace funciona sem o saved value voltar a aparecer.
   // Conversão para number só acontece em handleSaveManutencao.
   const [manutBuffer, setManutBuffer] = useState<Record<number, ManutBufferEntry>>({})
+  const [showHelp, setShowHelp] = useState(false)
 
   // Stats por bomba
   const stats = useMemo<BombaStats[]>(() => {
@@ -202,7 +204,23 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
       {/* Toggle Auto/Manual */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Controle de manutenção</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Controle de manutenção</h3>
+            <button
+              type="button"
+              onClick={() => setShowHelp((v) => !v)}
+              aria-expanded={showHelp}
+              aria-label="Como funciona o controle de manutenção"
+              className={cn(
+                'flex h-4 w-4 items-center justify-center rounded-full transition-colors',
+                showHelp
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+              )}
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {mode === 'auto'
               ? 'Desgaste calculado por litros bombeados desde a última manutenção'
@@ -226,6 +244,95 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           ))}
         </div>
       </div>
+
+      {/* Painel de ajuda */}
+      {showHelp && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-sm dark:border-blue-800/40 dark:bg-blue-900/20">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Como funciona
+          </p>
+          <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Desgaste</span> = litros bombeados desde a última manutenção ÷ intervalo configurado. Recalcula a cada novo abastecimento.
+            </li>
+            <li>
+              O <span className="font-semibold text-gray-900 dark:text-gray-100">intervalo de litros</span> e o <span className="font-semibold text-gray-900 dark:text-gray-100">% de aviso</span> são definidos por posto em Configurações.
+            </li>
+          </ul>
+          <Link
+            to="/configuracoes#manutencao-bombas"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 hover:border-blue-400 dark:border-blue-700/60 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Ir para configuração das bombas
+            <ExternalLink className="h-3 w-3 opacity-70" />
+          </Link>
+
+          <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Status visuais
+          </p>
+          <ul className="ml-4 list-disc space-y-1 text-xs text-gray-700 dark:text-gray-300">
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Regular</span>
+              </span>
+              <span>desgaste abaixo de 70%</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Manutenção próxima</span>
+              </span>
+              <span>entre 70% e 90% — gera banner âmbar no topo</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Verificar agora</span>
+              </span>
+              <span>acima de 90% — banner vermelho + borda destacada</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-gray-400" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Sem registro</span>
+              </span>
+              <span>nenhuma manutenção registrada para a bomba</span>
+            </li>
+          </ul>
+
+          <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Após registrar a manutenção
+          </p>
+          <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Última manutenção</span> exibe a data informada (DD/MM/AAAA).
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Próxima estimada</span> mostra quantos litros faltam até a bomba atingir o intervalo configurado.
+            </li>
+            <li>
+              A barra de desgaste reinicia a partir da data de manutenção e cresce conforme novos abastecimentos.
+            </li>
+            <li>
+              O botão <span className="font-semibold text-gray-900 dark:text-gray-100">Limpar</span> remove o registro e devolve a bomba para “Sem registro”.
+            </li>
+          </ul>
+
+          <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            Modo Automático × Manual
+          </p>
+          <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Automático:</span> usa apenas o que vem da API — desgaste é calculado, mas não há campo de registro manual.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Manual:</span> habilita o formulário “Registrar manutenção” em cada bomba, permitindo informar data e litros do momento da última troca.
+            </li>
+          </ul>
+        </div>
+      )}
 
       {/* Cards das bombas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
