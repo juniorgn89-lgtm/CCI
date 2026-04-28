@@ -34,7 +34,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Geral',
     items: [
-      { label: 'Dashboard', path: '/dashboard', icon: BarChart3 },
+      { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
     ],
   },
   {
