@@ -165,8 +165,15 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
     data.daily.map((d) => ({
       ...d,
       lbPorLitroChart: Number(d.lbPorLitro.toFixed(4)),
+      lbPorLitroRealChart: d.lbPorLitroReal !== null ? Number(d.lbPorLitroReal.toFixed(4)) : null,
+      lbPorLitroProjetadoChart: d.lbPorLitroProjetado !== null ? Number(d.lbPorLitroProjetado.toFixed(4)) : null,
     }))
   , [data.daily])
+
+  const hasProjection = useMemo(
+    () => data.daily.some((d) => d.isProjected),
+    [data.daily],
+  )
 
   const productTotals = useMemo(() => {
     const t = data.byProduct.reduce(
@@ -187,6 +194,11 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
       lbPorLitroChart: Number(m.lbPorLitro.toFixed(4)),
     }))
   , [data.monthly])
+
+  const hasMonthlyProjection = useMemo(
+    () => data.monthly.some((m) => m.isCurrentMonth && m.lucroBrutoProjetadoExtra > 0),
+    [data.monthly],
+  )
 
   return (
     <div className="space-y-5">
@@ -233,13 +245,24 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-6">
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro dia a dia</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Lucro bruto por litro e volume diário</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Lucro bruto por litro e volume diário
+              {hasProjection && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                  · projeção dos dias futuros baseada na média dos últimos 7 dias
+                </span>
+              )}
+            </p>
           </div>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={dailyChartData}>
               <defs>
                 <linearGradient id="gradLb" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradLbProj" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.06} />
                   <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -270,11 +293,13 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
               />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((value: number, name: string) =>
-                  name === 'Litros'
-                    ? [value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L', name]
-                    : [formatCurrencyTooltip(value), name]
-                ) as never}
+                formatter={((value: number, name: string) => {
+                  if (value === null || value === undefined) return ['—', name]
+                  if (name.startsWith('Litros')) {
+                    return [value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L', name]
+                  }
+                  return [formatCurrencyTooltip(value), name]
+                }) as never}
                 labelFormatter={((label: string) => {
                   const [y, m, d] = label.split('-')
                   return `${d}/${m}/${y}`
@@ -291,22 +316,51 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
               />
               <Bar
                 yAxisId="litros"
-                dataKey="litros"
+                dataKey="litrosReal"
                 name="Litros"
                 fill={CHART_COLORS[3]}
                 fillOpacity={0.4}
                 radius={[3, 3, 0, 0]}
               />
+              {hasProjection && (
+                <Bar
+                  yAxisId="litros"
+                  dataKey="litrosProjetado"
+                  name="Litros (projeção)"
+                  fill={CHART_COLORS[3]}
+                  fillOpacity={0.15}
+                  stroke={CHART_COLORS[3]}
+                  strokeOpacity={0.4}
+                  strokeDasharray="3 3"
+                  radius={[3, 3, 0, 0]}
+                />
+              )}
               <Area
                 yAxisId="lb"
                 type="monotone"
-                dataKey="lbPorLitroChart"
+                dataKey="lbPorLitroRealChart"
                 name="L.B./Litro"
                 stroke="#10b981"
                 fill="url(#gradLb)"
                 strokeWidth={2.5}
+                connectNulls={false}
                 dot={dailyChartData.length <= 15 ? { r: 3, fill: '#10b981' } : false}
               />
+              {hasProjection && (
+                <Area
+                  yAxisId="lb"
+                  type="monotone"
+                  dataKey="lbPorLitroProjetadoChart"
+                  name="L.B./Litro (projeção)"
+                  stroke="#10b981"
+                  strokeOpacity={0.6}
+                  strokeDasharray="5 5"
+                  fill="url(#gradLbProj)"
+                  strokeWidth={2}
+                  connectNulls={false}
+                  dot={false}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -316,7 +370,14 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-6">
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Evolução mensal do L.B./Litro</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Últimos 12 meses de lucro bruto por litro</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Últimos 12 meses de lucro bruto por litro
+              {hasMonthlyProjection && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                  · mês corrente com projeção do total no fim do período
+                </span>
+              )}
+            </p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={monthlyChartData}>
@@ -344,21 +405,32 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
               />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((value: number, name: string) =>
-                  name === 'Lucro bruto'
-                    ? [formatCurrencyTooltip(value), name]
-                    : [formatCurrencyTooltip(value), name]
-                ) as never}
+                formatter={((value: number, name: string) => [formatCurrencyTooltip(value), name]) as never}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar
                 yAxisId="litros"
-                dataKey="lucroBruto"
+                dataKey="lucroBrutoReal"
                 name="Lucro bruto"
+                stackId="lb"
                 fill={CHART_COLORS[0]}
                 fillOpacity={0.6}
-                radius={[4, 4, 0, 0]}
+                radius={[0, 0, 0, 0]}
               />
+              {hasMonthlyProjection && (
+                <Bar
+                  yAxisId="litros"
+                  dataKey="lucroBrutoProjetadoExtra"
+                  name="Projeção (até fim do mês)"
+                  stackId="lb"
+                  fill={CHART_COLORS[0]}
+                  fillOpacity={0.2}
+                  stroke={CHART_COLORS[0]}
+                  strokeOpacity={0.4}
+                  strokeDasharray="3 3"
+                  radius={[4, 4, 0, 0]}
+                />
+              )}
               <Line
                 yAxisId="lb"
                 type="monotone"

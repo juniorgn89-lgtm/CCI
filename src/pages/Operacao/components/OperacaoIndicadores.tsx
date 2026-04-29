@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import {
-  Fuel, Droplets, DollarSign, Receipt, Users, Gauge, Wallet, TrendingUp,
-  Lightbulb, Clock,
+  Fuel, Receipt, Users, Gauge, Wallet, Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9,24 +8,19 @@ import {
 } from 'recharts'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
-import DeltaBadge from '@/components/kpi/DeltaBadge'
-import InsightBanner from '@/components/kpi/InsightBanner'
-import type { OperacaoKpiData, FrentistaRow, AbastecimentoRow, CaixaResumo } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { OperacaoKpiData, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
 type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
-type InsightVariant = 'success' | 'warning' | 'motivate'
 
 interface Props {
   kpis: OperacaoKpiData
-  frentistaRows: FrentistaRow[]
   abastecimentoRows: AbastecimentoRow[]
-  caixaResumo: CaixaResumo
   onNavigateTab: (tab: TabKey) => void
 }
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
-const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResumo, onNavigateTab }: Props) => {
+const OperacaoIndicadores = ({ kpis, abastecimentoRows, onNavigateTab }: Props) => {
   const computed = useMemo(() => {
     // Abastecimentos por hora
     const horaMap = new Map<number, { count: number; litros: number }>()
@@ -42,8 +36,6 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResu
       litros: horaMap.get(h)?.litros ?? 0,
     })).filter((h) => h.abastecimentos > 0)
 
-    const horaPico = porHora.reduce((max, h) => h.abastecimentos > max.abastecimentos ? h : max, porHora[0])
-
     // Combustíveis breakdown
     const combMap = new Map<string, { litros: number; valor: number; count: number }>()
     for (const a of abastecimentoRows) {
@@ -55,83 +47,10 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResu
       .map(([nome, d]) => ({ nome, ...d }))
       .sort((a, b) => b.litros - a.litros)
 
-    // Insights — apenas os 3 mais relevantes
-    const insights: { variant: InsightVariant; text: string }[] = []
+    return { porHora, combustiveis }
+  }, [abastecimentoRows])
 
-    // 1) Líder de vendas (frentista)
-    const leader = frentistaRows[0]
-    if (leader) {
-      insights.push({
-        variant: 'success',
-        text: `${leader.nome} lidera com ${formatLiters(leader.litrosVendidos)} e ${leader.atendimentos} atendimentos`,
-      })
-    }
-
-    // 2) Diferença de caixa
-    if (caixaResumo.totalDiferenca < -100) {
-      insights.push({
-        variant: 'warning',
-        text: `Diferença negativa no caixa: ${formatCurrency(caixaResumo.totalDiferenca)}. Verifique os turnos.`,
-      })
-    } else if (caixaResumo.totalDiferenca > 0) {
-      insights.push({
-        variant: 'success',
-        text: `Caixa com diferença positiva de ${formatCurrency(caixaResumo.totalDiferenca)}`,
-      })
-    }
-
-    // 3) Horário de pico
-    if (horaPico) {
-      insights.push({
-        variant: 'motivate',
-        text: `Horário de pico: ${horaPico.hora} com ${horaPico.abastecimentos} abastecimentos`,
-      })
-    }
-
-    return { porHora, combustiveis, insights }
-  }, [abastecimentoRows, frentistaRows, caixaResumo])
-
-  // Linha 1 — KPIs principais com DeltaBadge (3 cards de destaque)
-  const mainKpiCards = [
-    {
-      label: 'Litros Vendidos',
-      value: formatLiters(kpis.totalLitros),
-      icon: Droplets,
-      color: 'text-blue-600 dark:text-blue-400',
-      cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/30 dark:to-gray-900',
-      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
-      tab: 'abastecimentos' as TabKey,
-      current: kpis.totalLitros,
-      previous: kpis.prevTotalLitros,
-      formatter: formatLiters,
-    },
-    {
-      label: 'Faturamento',
-      value: formatCurrency(kpis.faturamentoCombustivel),
-      icon: DollarSign,
-      color: 'text-green-600 dark:text-green-400',
-      cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/30 dark:to-gray-900',
-      iconBg: 'bg-green-100 dark:bg-green-900/30',
-      tab: 'caixa' as TabKey,
-      current: kpis.faturamentoCombustivel,
-      previous: kpis.prevFaturamentoCombustivel,
-      formatter: formatCurrency,
-    },
-    {
-      label: 'Total Apurado',
-      value: formatCurrency(kpis.totalApurado),
-      icon: TrendingUp,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/30 dark:to-gray-900',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
-      tab: 'caixa' as TabKey,
-      current: kpis.totalApurado,
-      previous: kpis.prevTotalApurado,
-      formatter: formatCurrency,
-    },
-  ]
-
-  // Linha 2 — KPIs secundários compactos (sem DeltaBadge)
+  // KPIs secundários compactos (sem DeltaBadge) — os principais ficam globais acima das abas
   const secondaryKpiCards = [
     { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
     { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
@@ -142,33 +61,7 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResu
 
   return (
     <div className="space-y-6">
-      {/* Linha 1 — KPIs principais (destaque máximo) */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {mainKpiCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <button
-              key={card.label}
-              onClick={() => onNavigateTab(card.tab)}
-              className={cn(
-                'rounded-xl border border-gray-200/60 px-5 py-6 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60',
-                card.cardBg,
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', card.iconBg)}>
-                  <Icon className={cn('h-5 w-5', card.color)} />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
-              <DeltaBadge current={card.current} previous={card.previous} />
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Linha 2 — KPIs secundários compactos */}
+      {/* KPIs secundários compactos */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {secondaryKpiCards.map((card) => {
           const Icon = card.icon
@@ -189,21 +82,6 @@ const OperacaoIndicadores = ({ kpis, frentistaRows, abastecimentoRows, caixaResu
           )
         })}
       </div>
-
-      {/* Insights — 3 mais relevantes em uma linha */}
-      {computed.insights.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Insights da Operação</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
-            {computed.insights.map((ins, i) => (
-              <InsightBanner key={i} type={ins.variant} message={ins.text} />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Gráficos lado a lado, mais altos */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

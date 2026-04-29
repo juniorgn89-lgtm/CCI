@@ -66,6 +66,14 @@ export interface LbLitroDaily {
   lbPorLitro: number
   litros: number
   lucroBruto: number
+  /** Indica se o ponto é projeção (dia futuro). Quando true, os valores são estimativas. */
+  isProjected: boolean
+  /** Valor real (null em dias futuros) — usado para renderizar série sólida */
+  litrosReal: number | null
+  lbPorLitroReal: number | null
+  /** Valor projetado (null em dias passados; preenchido em hoje pra conectar série) */
+  litrosProjetado: number | null
+  lbPorLitroProjetado: number | null
   [key: string]: unknown
 }
 
@@ -83,6 +91,12 @@ export interface LbLitroMonthly {
   lbPorLitro: number
   litros: number
   lucroBruto: number
+  /** True quando este é o mês corrente (tem projeção no end-of-month) */
+  isCurrentMonth: boolean
+  /** Lucro bruto realizado até o momento do mês corrente; igual a lucroBruto pra meses fechados */
+  lucroBrutoReal: number
+  /** Lucro bruto adicional que falta pra completar o mês (estimativa). Sempre 0 em meses fechados. */
+  lucroBrutoProjetadoExtra: number
 }
 
 export interface LbLitroData {
@@ -313,13 +327,99 @@ const useAbastecimentosAnalytics = () => {
       })
       .sort((a, b) => b.faturamento - a.faturamento)
 
-    // L.B./Litro daily
-    const lbLitroDaily: LbLitroDaily[] = dailyData.map((d) => ({
-      data: d.data,
-      lbPorLitro: d.litros > 0 ? d.lucroBruto / d.litros : 0,
-      litros: d.litros,
-      lucroBruto: d.lucroBruto,
-    }))
+    // L.B./Litro daily — gera todos os dias do período, projeta a partir do último dia com dado
+    const todayDate = new Date()
+    todayDate.setHours(0, 0, 0, 0)
+
+    // Map de dados reais por dia (apenas dias com abastecimento)
+    const realByDay = new Map<string, { litros: number; lucroBruto: number; lbPorLitro: number }>()
+    for (const d of dailyData) {
+      if (d.litros <= 0) continue
+      const lbpl = d.lucroBruto / d.litros
+      realByDay.set(d.data, { litros: d.litros, lucroBruto: d.lucroBruto, lbPorLitro: lbpl })
+    }
+
+    // Último dia com dado real — referência pra começar a projeção (cobre tanto
+    // gap entre fim dos dados e hoje quanto dias futuros do período)
+    const sortedReal = [...realByDay.keys()].sort((a, b) => b.localeCompare(a))
+    const lastRealDay = sortedReal[0] ?? ''
+
+    // Médias para projeção: últimos 7 dias com dados (responsivo à tendência recente)
+    const last7Days = sortedReal.slice(0, 7).map((day) => realByDay.get(day)!)
+    const last7Litros = last7Days.reduce((s, d) => s + d.litros, 0)
+    const last7Lucro = last7Days.reduce((s, d) => s + d.lucroBruto, 0)
+    const avgLitrosDaily = last7Days.length > 0 ? last7Litros / last7Days.length : 0
+    const avgLbPorLitro = last7Litros > 0 ? last7Lucro / last7Litros : 0
+
+    const lbLitroDaily: LbLitroDaily[] = []
+    if (dataInicial && dataFinal) {
+      const startD = new Date(`${dataInicial}T00:00:00`)
+      const endD = new Date(`${dataFinal}T00:00:00`)
+      for (const cursor = new Date(startD); cursor <= endD; cursor.setDate(cursor.getDate() + 1)) {
+        const ds = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+        const real = realByDay.get(ds)
+        const afterLastReal = lastRealDay !== '' && ds > lastRealDay
+        const isLastRealDay = ds === lastRealDay
+
+        if (real) {
+          // Dia com dado real
+          lbLitroDaily.push({
+            data: ds,
+            litros: real.litros,
+            lbPorLitro: real.lbPorLitro,
+            lucroBruto: real.lucroBruto,
+            isProjected: false,
+            litrosReal: real.litros,
+            lbPorLitroReal: real.lbPorLitro,
+            // Último dia com dado real aparece em ambas as séries pra ligar real → projetado sem gap
+            litrosProjetado: isLastRealDay ? real.litros : null,
+            lbPorLitroProjetado: isLastRealDay ? real.lbPorLitro : null,
+          })
+        } else if (afterLastReal && avgLitrosDaily > 0) {
+          // Após o último dia real (gap até hoje + futuro até dataFinal) → projeção
+          lbLitroDaily.push({
+            data: ds,
+            litros: avgLitrosDaily,
+            lbPorLitro: avgLbPorLitro,
+            lucroBruto: avgLitrosDaily * avgLbPorLitro,
+            isProjected: true,
+            litrosReal: null,
+            lbPorLitroReal: null,
+            litrosProjetado: avgLitrosDaily,
+            lbPorLitroProjetado: avgLbPorLitro,
+          })
+        } else {
+          // Dia passado sem dado E antes do último dia real → 0 real
+          lbLitroDaily.push({
+            data: ds,
+            litros: 0,
+            lbPorLitro: 0,
+            lucroBruto: 0,
+            isProjected: false,
+            litrosReal: 0,
+            lbPorLitroReal: 0,
+            litrosProjetado: null,
+            lbPorLitroProjetado: null,
+          })
+        }
+      }
+    } else {
+      // Fallback: se não há período, usa apenas os dados reais
+      for (const d of dailyData) {
+        const lbpl = d.litros > 0 ? d.lucroBruto / d.litros : 0
+        lbLitroDaily.push({
+          data: d.data,
+          litros: d.litros,
+          lbPorLitro: lbpl,
+          lucroBruto: d.lucroBruto,
+          isProjected: false,
+          litrosReal: d.litros,
+          lbPorLitroReal: lbpl,
+          litrosProjetado: null,
+          lbPorLitroProjetado: null,
+        })
+      }
+    }
 
     const lbLitroByProduct: LbLitroProduct[] = fuelTypeData
       .map((f) => ({
@@ -340,15 +440,41 @@ const useAbastecimentosAnalytics = () => {
       const cost = getCost(a.empresaCodigo, a.codigoProduto)
       byMonth.set(month, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade })
     }
+    // Mês corrente (YYYY-MM) — usado pra projetar o end-of-month
+    const currentMonthStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}`
+    const daysInCurrentMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0).getDate()
+    // Se o último dado real está no mês corrente, usa o dia DELE como "dias decorridos"
+    // (cobre o caso de API com sincronização atrasada). Caso contrário cai no calendário.
+    const lastRealDayInCurrentMonth = lastRealDay && lastRealDay.startsWith(currentMonthStr)
+      ? parseInt(lastRealDay.split('-')[2], 10)
+      : 0
+    const daysElapsedInMonth = lastRealDayInCurrentMonth > 0 ? lastRealDayInCurrentMonth : todayDate.getDate()
+
     const lbLitroMonthly: LbLitroMonthly[] = Array.from(byMonth.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([mes, v]) => {
         const lb = v.fat - v.custo
+        const isCurrentMonth = mes === currentMonthStr
+        let lucroBrutoProjetadoExtra = 0
+        let litrosProjetados = v.litros
+        let lbPorLitroProjetado = v.litros > 0 ? lb / v.litros : 0
+        if (isCurrentMonth && daysElapsedInMonth > 0 && daysElapsedInMonth < daysInCurrentMonth) {
+          // Extrapolação linear: pace atual × dias restantes
+          const scale = daysInCurrentMonth / daysElapsedInMonth
+          litrosProjetados = v.litros * scale
+          const lucroProjetadoTotal = lb * scale
+          lucroBrutoProjetadoExtra = Math.max(0, lucroProjetadoTotal - lb)
+          // L.B./Litro projetado mantém a taxa atual (rate não cresce)
+          lbPorLitroProjetado = v.litros > 0 ? lb / v.litros : 0
+        }
         return {
           mes,
-          lbPorLitro: v.litros > 0 ? lb / v.litros : 0,
-          litros: v.litros,
+          lbPorLitro: lbPorLitroProjetado,
+          litros: litrosProjetados,
           lucroBruto: lb,
+          isCurrentMonth,
+          lucroBrutoReal: lb,
+          lucroBrutoProjetadoExtra,
         }
       })
 
