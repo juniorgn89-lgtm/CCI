@@ -5,8 +5,6 @@ import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
-const Combustiveis = lazy(() => import('@/pages/Combustiveis'))
-const Produtos = lazy(() => import('@/pages/Produtos'))
 const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
@@ -41,8 +39,8 @@ const AppRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={null}><Dashboard /></Suspense>} />
-          <Route path="/combustiveis" element={<Suspense fallback={null}><Combustiveis /></Suspense>} />
-          <Route path="/produtos" element={<Suspense fallback={null}><Produtos /></Suspense>} />
+          <Route path="/combustiveis" element={<Navigate to="/operacao?tab=abastecimentos" replace />} />
+          <Route path="/produtos" element={<Navigate to="/conveniencias" replace />} />
           <Route path="/conveniencias" element={<Suspense fallback={null}><Conveniencias /></Suspense>} />
           <Route path="/estoques" element={<Suspense fallback={null}><Estoques /></Suspense>} />
           <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />

@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
-  Fuel,
-  Package,
   Store,
   Warehouse,
   DollarSign,
@@ -40,7 +38,6 @@ const navGroups: NavGroup[] = [
   {
     title: 'Operacional',
     items: [
-      { label: 'Combustíveis', path: '/combustiveis', icon: Fuel },
       { label: 'Operação', path: '/operacao', icon: Gauge },
       { label: 'Conveniências', path: '/conveniencias', icon: Store },
     ],
@@ -48,7 +45,6 @@ const navGroups: NavGroup[] = [
   {
     title: 'Gestão',
     items: [
-      { label: 'Produtos', path: '/produtos', icon: Package },
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
     ],

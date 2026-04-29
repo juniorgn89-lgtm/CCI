@@ -54,9 +54,9 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 4,
+        version: 5,
         migrate: (persisted, version) => {
-          if (version < 4 || !persisted) return { tabs: defaultTabs }
+          if (version < 5 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
           const knownIds = defaultTabs.map((t) => t.id)
           const existingIds = new Set(state.tabs.map((t) => t.id))
@@ -72,16 +72,6 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 
 /* ─── Module stores ─── */
 
-export const useCombustiveisLayout = createModuleLayoutStore('ccisga-combustiveis-layout', [
-  { id: 'indicadores', label: 'Indicadores', visible: true },
-  { id: 'abastecimentos', label: 'Abastecimentos', visible: true },
-  { id: 'diario', label: 'Dia a dia', visible: true },
-  { id: 'tipo', label: 'Por combustível', visible: true },
-  { id: 'lblitro', label: 'L.B./Litro', visible: true },
-  { id: 'bombas', label: 'Por bomba', visible: true },
-  { id: 'frentistas', label: 'Frentistas', visible: true },
-])
-
 export const useConvenienciasLayout = createModuleLayoutStore('ccisga-conveniencias-layout', [
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'vendas', label: 'Vendas', visible: true },
@@ -91,12 +81,11 @@ export const useConvenienciasLayout = createModuleLayoutStore('ccisga-convenienc
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout', [
-  { id: 'indicadores', label: 'Indicadores', visible: true },
-  { id: 'posicao', label: 'Posição', visible: true },
-  { id: 'movimentacao', label: 'Movimentação', visible: true },
-  { id: 'alertas', label: 'Alertas', visible: true },
-  { id: 'historico', label: 'Histórico', visible: true },
-  { id: 'analise', label: 'Análise', visible: true },
+  { id: 'geral', label: 'Estoque geral', visible: true },
+  { id: 'giro', label: 'Giro', visible: true },
+  { id: 'estoqueMedio', label: 'Estoque médio', visible: true },
+  { id: 'mediaVendas', label: 'Média de venda (6m)', visible: true },
+  { id: 'necessidade', label: 'Necessidade', visible: true },
 ])
 
 export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-layout', [
@@ -105,14 +94,6 @@ export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-la
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
   { id: 'dre', label: 'DRE', visible: true },
-])
-
-export const useProdutosLayout = createModuleLayoutStore('ccisga-produtos-layout', [
-  { id: 'indicadores', label: 'Indicadores', visible: true },
-  { id: 'produtos', label: 'Produtos', visible: true },
-  { id: 'top', label: 'Mais vendidos', visible: true },
-  { id: 'pareto', label: 'Pareto', visible: true },
-  { id: 'abc', label: 'Curva ABC', visible: true },
 ])
 
 export const useOperacaoLayout = createModuleLayoutStore('ccisga-operacao-layout', [

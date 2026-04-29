@@ -8,26 +8,10 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 
-const WEEKDAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-
 const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   const d = new Date(dateStr)
   d.setMonth(d.getMonth() - monthsBack)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-export interface FuelKpiData {
-  litros: number
-  faturamento: number
-  lucroBruto: number
-  margemPercent: number
-  precoMedioVenda: number
-  precoCustoMedio: number
-  lbPorLitro: number
-  totalAbastecimentos: number
-  ticketMedio: number
-  prevMonth: { litros: number; faturamento: number; lucroBruto: number }
-  prevYear: { litros: number; faturamento: number; lucroBruto: number }
 }
 
 export interface AbastecimentoRow {
@@ -77,47 +61,6 @@ export interface FuelTypeRow {
   [key: string]: unknown
 }
 
-export interface MonthlyRow {
-  mes: string
-  litros: number
-  faturamento: number
-  lucroBruto: number
-}
-
-export interface WeeklyRow {
-  dia: string
-  litros: number
-  faturamento: number
-  mediaLitros: number
-  mediaFaturamento: number
-}
-
-export interface BombaRow {
-  [key: string]: unknown
-  bicoCodigo: number
-  bicoDescricao: string
-  combustivelNome: string
-  litros: number
-  receita: number
-  lucroBruto: number
-  margem: number
-  totalAbastecimentos: number
-  ticketMedio: number
-  score: number
-}
-
-export interface FreentistaRow {
-  frentistaCodigo: number
-  frentistaNome: string
-  litros: number
-  receita: number
-  lucroBruto: number
-  margem: number
-  totalAbastecimentos: number
-  ticketMedio: number
-  litrosPorAbastecimento: number
-}
-
 export interface LbLitroDaily {
   data: string
   lbPorLitro: number
@@ -150,19 +93,29 @@ export interface LbLitroData {
   prevMonthGlobal: number
 }
 
-const useFuelData = () => {
+export interface ProjectionMeta {
+  /** Total de dias do período */
+  daysTotal: number
+  /** Dias decorridos do período (incluindo hoje, no máximo até dataFinal) */
+  daysElapsed: number
+  /** Dias restantes do período (a partir de hoje, exclusive) */
+  daysRemaining: number
+  /** True quando o período é projetável: tem dias decorridos e dias restantes */
+  isProjectable: boolean
+  /** Fator de extrapolação (daysTotal / daysElapsed). 1 quando não projetável. */
+  scaleFactor: number
+}
+
+const useAbastecimentosAnalytics = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
 
   const prevMonthInicial = offsetPeriod(dataInicial, 1)
   const prevMonthFinal = offsetPeriod(dataFinal, 1)
-  const prevYearInicial = offsetPeriod(dataInicial, 12)
-  const prevYearFinal = offsetPeriod(dataFinal, 12)
   const lmcDataInicial = offsetPeriod(dataInicial, 3)
-  const evolution12mInicial = offsetPeriod(dataFinal, 11) // 12 months back from end date
-  const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01' // start of that month
+  const evolution12mInicial = offsetPeriod(dataFinal, 11)
+  const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01'
 
-  // Current period — chunked by week to avoid 50k API limit
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
@@ -175,20 +128,12 @@ const useFuelData = () => {
     retry: false,
   })
 
-  const { data: prevYearAbast = [] } = useQuery({
-    queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
-    retry: false,
-  })
-
-  // 12-month evolution — 30-day chunks to limit parallel requests
   const { data: evolutionAbast = [] } = useQuery({
     queryKey: ['abastecimentos', evolution12mInicialFirst, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: evolution12mInicialFirst, dataFinal, chunkDays: 30 }),
     staleTime: 10 * 60 * 1000,
   })
 
-  // LMC for costs
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal],
     queryFn: () =>
@@ -203,7 +148,6 @@ const useFuelData = () => {
     placeholderData: keepPreviousData,
   })
 
-  // Cached reference data
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
@@ -237,7 +181,6 @@ const useFuelData = () => {
   const isLoading = isLoadingAbast || isLoadingLmc
 
   const computed = useMemo(() => {
-    // Product name map — index by all possible keys
     const productMap = new Map<number, string>()
     for (const p of produtosData ?? []) {
       productMap.set(p.produtoCodigo, p.nome)
@@ -245,21 +188,17 @@ const useFuelData = () => {
       productMap.set(p.codigo, p.nome)
     }
 
-    // Bico → produtoCodigo map (to resolve abastecimento product via bico chain)
     const bicoProdutoMap = new Map<number, number>()
     const bicoDescMap = new Map<number, string>()
     for (const bico of bicosData ?? []) {
       bicoProdutoMap.set(bico.bicoCodigo, bico.produtoCodigo)
-      // Build a bico description: "Bomba X - Bico Y"
       const bomba = bombasData?.resultados?.find((b) => b.bombaCodigo === bico.bombaCodigo)
       bicoDescMap.set(bico.bicoCodigo, bomba ? `${bomba.descricao || bomba.bombaReferencia} - Bico ${bico.bicoNumero}` : `Bico ${bico.bicoNumero}`)
     }
 
-    // Resolve product name: try direct codigoProduto, then via bico chain
     const getProductName = (codigoProduto: number, codigoBico: number): string => {
       const direct = productMap.get(codigoProduto)
       if (direct) return direct
-      // Resolve via bico → produtoCodigo → product name
       const prodCode = bicoProdutoMap.get(codigoBico)
       if (prodCode) {
         const name = productMap.get(prodCode)
@@ -271,13 +210,9 @@ const useFuelData = () => {
     const funcionarioMap = new Map<number, string>()
     for (const f of funcionariosData ?? []) funcionarioMap.set(f.funcionarioCodigo, f.nome)
 
-    const bombaMap = new Map<number, string>()
-    for (const b of bombasData?.resultados ?? []) bombaMap.set(b.bombaCodigo, b.descricao || `Bomba ${b.bombaReferencia}`)
-
     const empresaMap = new Map<number, string>()
     for (const e of empresasData?.resultados ?? []) empresaMap.set(e.codigo, e.fantasia)
 
-    // Cost map from LMC (most recent per empresa+product)
     const costMap = new Map<string, number>()
     const sortedLmc = [...lmcData].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
     for (const lmc of sortedLmc) {
@@ -288,14 +223,11 @@ const useFuelData = () => {
     }
     const getCost = (emp: number, prod: number) => costMap.get(`${emp}-${prod}`) ?? 0
 
-    // Filter by empresa(s) and skip invalid product codes
     const matchEmpresa = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
     const validProduct = (a: { codigoProduto: number }) => Number(a.codigoProduto) > 0
     const filtered = (hasEmpresa ? abastecimentos.filter((a) => matchEmpresa(a.empresaCodigo)) : abastecimentos).filter(validProduct)
     const filteredPrevMonth = (hasEmpresa ? prevMonthAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : prevMonthAbast).filter(validProduct)
-    const filteredPrevYear = (hasEmpresa ? prevYearAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : prevYearAbast).filter(validProduct)
 
-    // Abastecimento detail rows
     const rows: AbastecimentoRow[] = filtered.map((a) => {
       const cost = getCost(a.empresaCodigo, a.codigoProduto)
       const custoTotal = cost * a.quantidade
@@ -321,7 +253,6 @@ const useFuelData = () => {
       }
     })
 
-    // Sum helper
     const sumAbast = (list: typeof abastecimentos) => {
       let litros = 0, fat = 0, custo = 0
       for (const a of list) {
@@ -333,22 +264,6 @@ const useFuelData = () => {
     }
 
     const current = sumAbast(filtered)
-    const prevMonth = sumAbast(filteredPrevMonth)
-    const prevYear = sumAbast(filteredPrevYear)
-
-    const kpis: FuelKpiData = {
-      litros: current.litros,
-      faturamento: current.faturamento,
-      lucroBruto: current.lucroBruto,
-      margemPercent: current.faturamento > 0 ? (current.lucroBruto / current.faturamento) * 100 : 0,
-      precoMedioVenda: current.litros > 0 ? current.faturamento / current.litros : 0,
-      precoCustoMedio: current.litros > 0 ? (current.faturamento - current.lucroBruto) / current.litros : 0,
-      lbPorLitro: current.litros > 0 ? current.lucroBruto / current.litros : 0,
-      totalAbastecimentos: filtered.length,
-      ticketMedio: filtered.length > 0 ? current.faturamento / filtered.length : 0,
-      prevMonth,
-      prevYear,
-    }
 
     // Daily
     const byDay = new Map<string, { litros: number; fat: number; custo: number; count: number }>()
@@ -362,10 +277,19 @@ const useFuelData = () => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([data, v]) => {
         const lb = v.fat - v.custo
-        return { data, litros: v.litros, faturamento: v.fat, custo: v.custo, lucroBruto: lb, margemPct: v.fat > 0 ? (lb / v.fat) * 100 : 0, abastecimentos: v.count, ticketMedio: v.count > 0 ? v.fat / v.count : 0 }
+        return {
+          data,
+          litros: v.litros,
+          faturamento: v.fat,
+          custo: v.custo,
+          lucroBruto: lb,
+          margemPct: v.fat > 0 ? (lb / v.fat) * 100 : 0,
+          abastecimentos: v.count,
+          ticketMedio: v.count > 0 ? v.fat / v.count : 0,
+        }
       })
 
-    // Fuel type — group by product name to merge codes that share the same name
+    // Fuel type
     const byFuelName = new Map<string, { litros: number; fat: number; custo: number; produtoCodigo: number }>()
     for (const a of filtered) {
       const nome = getProductName(a.codigoProduto, a.codigoBico)
@@ -389,106 +313,7 @@ const useFuelData = () => {
       })
       .sort((a, b) => b.faturamento - a.faturamento)
 
-    // Monthly evolution — uses 12-month data, not just filtered period
-    const filteredEvolution = hasEmpresa ? evolutionAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : evolutionAbast
-    const byMonth = new Map<string, { litros: number; fat: number; custo: number }>()
-    for (const a of filteredEvolution) {
-      const month = a.dataHoraAbastecimento.substring(0, 7)
-      const prev = byMonth.get(month) ?? { litros: 0, fat: 0, custo: 0 }
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
-      byMonth.set(month, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade })
-    }
-    const monthlyEvolution: MonthlyRow[] = Array.from(byMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, v]) => ({ mes, litros: v.litros, faturamento: v.fat, lucroBruto: v.fat - v.custo }))
-
-    // Weekly
-    const byWeekday = Array.from({ length: 7 }, () => ({ litros: 0, fat: 0, count: 0 }))
-    for (const a of filtered) {
-      const dow = new Date(a.dataHoraAbastecimento).getDay()
-      byWeekday[dow].litros += a.quantidade
-      byWeekday[dow].fat += a.valorTotal
-      byWeekday[dow].count += 1
-    }
-    const weeklyAnalysis: WeeklyRow[] = byWeekday.map((v, i) => ({
-      dia: WEEKDAY_LABELS[i],
-      litros: v.litros, faturamento: v.fat,
-      mediaLitros: v.count > 0 ? v.litros / v.count : 0,
-      mediaFaturamento: v.count > 0 ? v.fat / v.count : 0,
-    }))
-
-    // Bomba/Bico data
-    const byBico = new Map<number, { litros: number; fat: number; custo: number; count: number; sampleProd: number; sampleBico: number }>()
-    for (const a of filtered) {
-      const prev = byBico.get(a.codigoBico) ?? { litros: 0, fat: 0, custo: 0, count: 0, sampleProd: 0, sampleBico: a.codigoBico }
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
-      byBico.set(a.codigoBico, {
-        litros: prev.litros + a.quantidade,
-        fat: prev.fat + a.valorTotal,
-        custo: prev.custo + cost * a.quantidade,
-        count: prev.count + 1,
-        sampleProd: a.codigoProduto,
-        sampleBico: a.codigoBico,
-      })
-    }
-    const bombaRaw = Array.from(byBico.entries())
-      .map(([bicoCode, v]) => {
-        const lb = v.fat - v.custo
-        return {
-          bicoCodigo: bicoCode,
-          bicoDescricao: bicoDescMap.get(bicoCode) ?? `Bico ${bicoCode}`,
-          combustivelNome: getProductName(v.sampleProd, v.sampleBico),
-          litros: v.litros,
-          receita: v.fat,
-          lucroBruto: lb,
-          margem: v.fat > 0 ? (lb / v.fat) * 100 : 0,
-          totalAbastecimentos: v.count,
-          ticketMedio: v.count > 0 ? v.fat / v.count : 0,
-        }
-      })
-
-    // Compute composite score: litros (40%) + receita (35%) + margem (25%), normalized 0-100
-    const maxL = Math.max(...bombaRaw.map((b) => b.litros), 1)
-    const maxR = Math.max(...bombaRaw.map((b) => b.receita), 1)
-    const maxM = Math.max(...bombaRaw.map((b) => b.margem), 1)
-    const bombaData: BombaRow[] = bombaRaw
-      .map((b) => ({
-        ...b,
-        score: (b.litros / maxL) * 40 + (b.receita / maxR) * 35 + (b.margem / maxM) * 25,
-      }))
-      .sort((a, b) => b.score - a.score)
-
-    // Frentista data
-    const byFrentista = new Map<number, { nome: string; litros: number; fat: number; custo: number; count: number }>()
-    for (const r of rows) {
-      if (r.frentistaCodigo === 0) continue
-      const prev = byFrentista.get(r.frentistaCodigo) ?? { nome: r.frentistaNome, litros: 0, fat: 0, custo: 0, count: 0 }
-      byFrentista.set(r.frentistaCodigo, {
-        nome: r.frentistaNome,
-        litros: prev.litros + r.litros,
-        fat: prev.fat + r.valorTotal,
-        custo: prev.custo + r.precoCusto * r.litros,
-        count: prev.count + 1,
-      })
-    }
-    const frentistaData: FreentistaRow[] = Array.from(byFrentista.entries())
-      .map(([code, v]) => {
-        const lb = v.fat - v.custo
-        return {
-          frentistaCodigo: code,
-          frentistaNome: v.nome,
-          litros: v.litros,
-          receita: v.fat,
-          lucroBruto: lb,
-          margem: v.fat > 0 ? (lb / v.fat) * 100 : 0,
-          totalAbastecimentos: v.count,
-          ticketMedio: v.count > 0 ? v.fat / v.count : 0,
-          litrosPorAbastecimento: v.count > 0 ? v.litros / v.count : 0,
-        }
-      })
-      .sort((a, b) => b.litros - a.litros)
-
-    // L.B./Litro analysis
+    // L.B./Litro daily
     const lbLitroDaily: LbLitroDaily[] = dailyData.map((d) => ({
       data: d.data,
       lbPorLitro: d.litros > 0 ? d.lucroBruto / d.litros : 0,
@@ -506,30 +331,66 @@ const useFuelData = () => {
       }))
       .sort((a, b) => b.lbPorLitro - a.lbPorLitro)
 
-    const lbLitroMonthly: LbLitroMonthly[] = monthlyEvolution.map((m) => ({
-      mes: m.mes,
-      lbPorLitro: m.litros > 0 ? m.lucroBruto / m.litros : 0,
-      litros: m.litros,
-      lucroBruto: m.lucroBruto,
-    }))
+    // Monthly evolution (12 meses) — apenas litros/lucroBruto agregados por mês
+    const filteredEvolution = hasEmpresa ? evolutionAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : evolutionAbast
+    const byMonth = new Map<string, { litros: number; fat: number; custo: number }>()
+    for (const a of filteredEvolution) {
+      const month = a.dataHoraAbastecimento.substring(0, 7)
+      const prev = byMonth.get(month) ?? { litros: 0, fat: 0, custo: 0 }
+      const cost = getCost(a.empresaCodigo, a.codigoProduto)
+      byMonth.set(month, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade })
+    }
+    const lbLitroMonthly: LbLitroMonthly[] = Array.from(byMonth.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mes, v]) => {
+        const lb = v.fat - v.custo
+        return {
+          mes,
+          lbPorLitro: v.litros > 0 ? lb / v.litros : 0,
+          litros: v.litros,
+          lucroBruto: lb,
+        }
+      })
 
     const prevMonthSum = sumAbast(filteredPrevMonth)
     const lbLitroData: LbLitroData = {
-      global: kpis.lbPorLitro,
+      global: current.litros > 0 ? current.lucroBruto / current.litros : 0,
       daily: lbLitroDaily,
       byProduct: lbLitroByProduct,
       monthly: lbLitroMonthly,
       prevMonthGlobal: prevMonthSum.litros > 0 ? prevMonthSum.lucroBruto / prevMonthSum.litros : 0,
     }
 
-    // Filter options
-    const frentistas = [...new Set(rows.map((r) => r.frentistaNome))].filter((n) => n !== '—').sort()
     const combustiveis = [...new Set(rows.map((r) => r.combustivelNome))].sort()
 
-    return { kpis, rows, dailyData, fuelTypeData, monthlyEvolution, weeklyAnalysis, bombaData, frentistaData, lbLitroData, frentistas, combustiveis }
-  }, [abastecimentos, prevMonthAbast, prevYearAbast, evolutionAbast, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
+    return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis }
+  }, [abastecimentos, prevMonthAbast, evolutionAbast, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
 
-  return { ...computed, isLoading }
+  const projectionMeta = useMemo<ProjectionMeta>(() => {
+    if (!dataInicial || !dataFinal) {
+      return { daysTotal: 0, daysElapsed: 0, daysRemaining: 0, isProjectable: false, scaleFactor: 1 }
+    }
+    const dayMs = 24 * 3600 * 1000
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const startDate = new Date(`${dataInicial}T00:00:00`)
+    const endDate = new Date(`${dataFinal}T00:00:00`)
+    const daysTotal = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / dayMs) + 1)
+
+    if (today < startDate) {
+      return { daysTotal, daysElapsed: 0, daysRemaining: daysTotal, isProjectable: false, scaleFactor: 1 }
+    }
+    if (today > endDate) {
+      return { daysTotal, daysElapsed: daysTotal, daysRemaining: 0, isProjectable: false, scaleFactor: 1 }
+    }
+    const daysElapsed = Math.max(1, Math.round((today.getTime() - startDate.getTime()) / dayMs) + 1)
+    const daysRemaining = Math.max(0, Math.round((endDate.getTime() - today.getTime()) / dayMs))
+    const isProjectable = daysRemaining > 0 && daysElapsed > 0
+    const scaleFactor = isProjectable ? daysTotal / daysElapsed : 1
+    return { daysTotal, daysElapsed, daysRemaining, isProjectable, scaleFactor }
+  }, [dataInicial, dataFinal])
+
+  return { ...computed, projectionMeta, isLoading }
 }
 
-export default useFuelData
+export default useAbastecimentosAnalytics

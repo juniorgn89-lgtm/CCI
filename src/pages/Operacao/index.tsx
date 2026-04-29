@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { useOperacaoLayout } from '@/store/moduleLayout'
 import OperacaoIndicadores from '@/pages/Operacao/components/OperacaoIndicadores'
 import ControleBombas from '@/pages/Operacao/components/ControleBombas'
-import RegistroAbastecimentos from '@/pages/Operacao/components/RegistroAbastecimentos'
+import AbastecimentosTab from '@/pages/Operacao/components/AbastecimentosTab'
 import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
 import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
@@ -72,7 +72,6 @@ const Operacao = () => {
     caixaResumo,
     pagamentoBreakdown,
     apuradoPorDia,
-    combustiveisList,
     isLoading,
     hasEmpresa,
   } = useOperacaoData()
@@ -155,12 +154,7 @@ const Operacao = () => {
                   {activeTab === 'bombas' && (
                     <ControleBombas bombaRows={bombaRows} bombaRowsPrev={bombaRowsPrev} />
                   )}
-                  {activeTab === 'abastecimentos' && (
-                    <RegistroAbastecimentos
-                      abastecimentoRows={abastecimentoRows}
-                      combustiveisList={combustiveisList}
-                    />
-                  )}
+                  {activeTab === 'abastecimentos' && <AbastecimentosTab />}
                   {activeTab === 'caixa' && (
                     <CaixaPosto
                       caixaResumo={caixaResumo}

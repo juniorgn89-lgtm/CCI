@@ -20,13 +20,21 @@ import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import ExportButton from '@/components/tables/ExportButton'
 import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
-import type { LbLitroData, LbLitroProduct } from '@/pages/Combustiveis/hooks/useFuelData'
+import type {
+  LbLitroData,
+  LbLitroProduct,
+  ProjectionMeta,
+} from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
-interface LbLitroViewProps {
-  data: LbLitroData
+interface ProjectedLbLitroProduct extends LbLitroProduct {
+  projecaoLucroBruto: number
+  projecaoLitros: number
 }
 
-/* ── Helpers ──────────────────────────────────────────── */
+interface LbLitroProps {
+  data: LbLitroData
+  projection: ProjectionMeta
+}
 
 const formatDay = (date: string) => {
   const [, m, d] = date.split('-')
@@ -40,8 +48,6 @@ const formatMonth = (mes: string) => {
 }
 
 const fmtBrl = (v: number) => formatCurrency(v)
-
-/* ── Variation badge ──────────────────────────────────── */
 
 const VariationBadge = ({ current, previous }: { current: number; previous: number }) => {
   if (previous === 0) return null
@@ -59,17 +65,15 @@ const VariationBadge = ({ current, previous }: { current: number; previous: numb
     )}>
       <Icon className="h-3 w-3" />
       {isNeutral ? '0,0%' : `${isPositive ? '+' : ''}${pct.toFixed(1)}%`}
-      <span className="font-normal text-gray-500 dark:text-gray-400">vs mes anterior</span>
+      <span className="font-normal text-gray-500 dark:text-gray-400">vs mês anterior</span>
     </div>
   )
 }
 
-/* ── Product table columns ────────────────────────────── */
-
-const tableColumns: Column<LbLitroProduct>[] = [
+const tableColumns: Column<ProjectedLbLitroProduct>[] = [
   {
     key: 'nome',
-    label: 'Combustivel',
+    label: 'Combustível',
     sortable: true,
     render: (row) => <span className="font-medium text-gray-900 dark:text-gray-100">{row.nome}</span>,
   },
@@ -114,22 +118,45 @@ const tableColumns: Column<LbLitroProduct>[] = [
     sortable: true,
     render: (row) => <HeatmapCell value={row.participacaoLb} min={0} max={60} formatted={`${row.participacaoLb.toFixed(1)}%`} />,
   },
+  {
+    key: 'projecaoLucroBruto',
+    label: 'Projeção L.B.',
+    align: 'right',
+    sortable: true,
+    render: (row) => (
+      <div className="text-blue-700 dark:text-blue-400" title="Projeção do lucro bruto no fim do período mantendo o ritmo atual">
+        <p className="tabular-nums font-medium">{fmtBrl(row.projecaoLucroBruto)}</p>
+        <p className="tabular-nums text-[10px] opacity-80">
+          {new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(row.projecaoLitros)} L
+        </p>
+      </div>
+    ),
+  },
 ]
 
-const csvColumns: ExportColumn<LbLitroProduct>[] = [
-  { header: 'Combustivel', accessor: (r) => r.nome },
+const csvColumns: ExportColumn<ProjectedLbLitroProduct>[] = [
+  { header: 'Combustível', accessor: (r) => r.nome },
   { header: 'L.B./Litro', accessor: (r) => r.lbPorLitro },
   { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
   { header: 'Litros', accessor: (r) => r.litros },
-  { header: 'Participacao L.B. %', accessor: (r) => r.participacaoLb },
+  { header: 'Participação L.B. %', accessor: (r) => r.participacaoLb },
+  { header: 'Projeção Lucro Bruto', accessor: (r) => r.projecaoLucroBruto },
+  { header: 'Projeção Litros', accessor: (r) => r.projecaoLitros },
 ]
 
-/* ── Main component ──────────────────────────────────── */
+const LbLitro = ({ data, projection }: LbLitroProps) => {
+  const projectedByProduct = useMemo<ProjectedLbLitroProduct[]>(
+    () => data.byProduct.map((r) => ({
+      ...r,
+      projecaoLucroBruto: r.lucroBruto * projection.scaleFactor,
+      projecaoLitros: r.litros * projection.scaleFactor,
+    })),
+    [data.byProduct, projection.scaleFactor]
+  )
 
-const LbLitroView = ({ data }: LbLitroViewProps) => {
   const handleExport = useCallback(() => {
-    exportToCsv('combustiveis-lb-litro', data.byProduct, csvColumns)
-  }, [data.byProduct])
+    exportToCsv('abastecimentos-lb-litro', projectedByProduct, csvColumns)
+  }, [projectedByProduct])
 
   const best = data.byProduct.length > 0 ? data.byProduct[0] : null
   const worst = data.byProduct.length > 1 ? data.byProduct[data.byProduct.length - 1] : null
@@ -141,6 +168,18 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
     }))
   , [data.daily])
 
+  const productTotals = useMemo(() => {
+    const t = data.byProduct.reduce(
+      (acc, r) => ({
+        litros: acc.litros + r.litros,
+        lucroBruto: acc.lucroBruto + r.lucroBruto,
+      }),
+      { litros: 0, lucroBruto: 0 }
+    )
+    const lbPorLitro = t.litros > 0 ? t.lucroBruto / t.litros : 0
+    return { ...t, lbPorLitro }
+  }, [data.byProduct])
+
   const monthlyChartData = useMemo(() =>
     data.monthly.map((m) => ({
       ...m,
@@ -151,11 +190,10 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
 
   return (
     <div className="space-y-5">
-      {/* Summary header */}
       <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">L.B. por litro no periodo</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">L.B. por litro no período</p>
             <p className={cn(
               'mt-1 text-3xl font-bold tabular-nums',
               data.global >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600 dark:text-red-400'
@@ -191,12 +229,11 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
         </div>
       </div>
 
-      {/* Daily chart */}
       {dailyChartData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-6">
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro dia a dia</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Lucro bruto por litro e volume diario</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Lucro bruto por litro e volume diário</p>
           </div>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={dailyChartData}>
@@ -250,7 +287,7 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
                 stroke="#6b7280"
                 strokeDasharray="4 4"
                 strokeWidth={1}
-                label={{ value: `Media: ${fmtBrl(data.global)}`, position: 'insideTopLeft', fontSize: 10, fill: '#6b7280' }}
+                label={{ value: `Média: ${fmtBrl(data.global)}`, position: 'insideTopLeft', fontSize: 10, fill: '#6b7280' }}
               />
               <Bar
                 yAxisId="litros"
@@ -275,12 +312,11 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
         </div>
       )}
 
-      {/* Monthly evolution chart */}
       {monthlyChartData.length > 1 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-6">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Evolucao mensal do L.B./Litro</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Ultimos 12 meses de lucro bruto por litro</p>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Evolução mensal do L.B./Litro</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Últimos 12 meses de lucro bruto por litro</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={monthlyChartData}>
@@ -337,31 +373,71 @@ const LbLitroView = ({ data }: LbLitroViewProps) => {
         </div>
       )}
 
-      {/* Product breakdown table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro por combustivel</h3>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro por combustível</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {data.byProduct.length} combustiveis — ordenados por L.B./Litro
+              {data.byProduct.length} combustíveis — ordenados por L.B./Litro
             </p>
           </div>
           <ExportButton onExport={handleExport} />
         </div>
         {data.byProduct.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
-            <p className="text-sm text-gray-400">Nenhum dado encontrado no periodo.</p>
+            <p className="text-sm text-gray-400">Nenhum dado encontrado no período.</p>
           </div>
         ) : (
-          <DataTable
-            columns={tableColumns}
-            data={data.byProduct}
-            keyExtractor={(row) => row.nome}
-          />
+          <>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800/50">
+              <span className="text-[13px] text-gray-700 dark:text-gray-300">
+                Litros:{' '}
+                <span className="font-medium tabular-nums">
+                  {new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(productTotals.litros)}
+                </span>
+              </span>
+              <span className="text-[13px] text-gray-300 dark:text-gray-600">·</span>
+              <span
+                className="text-[13px] font-medium"
+                style={{ color: productTotals.lucroBruto >= 0 ? '#166534' : '#991b1b' }}
+              >
+                Lucro bruto:{' '}
+                <span className="tabular-nums">{fmtBrl(productTotals.lucroBruto)}</span>
+              </span>
+              <span className="text-[13px] text-gray-300 dark:text-gray-600">·</span>
+              <span
+                className="text-[13px] font-medium"
+                style={{
+                  color: productTotals.lbPorLitro >= 0.5 ? '#166534'
+                    : productTotals.lbPorLitro >= 0 ? '#a16207'
+                    : '#991b1b',
+                }}
+              >
+                L.B./Litro global:{' '}
+                <span className="tabular-nums">{fmtBrl(productTotals.lbPorLitro)}</span>
+              </span>
+              {projection.isProjectable && (
+                <>
+                  <span className="text-[13px] text-gray-300 dark:text-gray-600">·</span>
+                  <span className="text-[13px] font-medium text-blue-700 dark:text-blue-400">
+                    Projeção L.B. mês:{' '}
+                    <span className="tabular-nums">
+                      {fmtBrl(productTotals.lucroBruto * projection.scaleFactor)}
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+            <DataTable
+              columns={tableColumns}
+              data={projectedByProduct}
+              keyExtractor={(row) => row.nome}
+            />
+          </>
         )}
       </div>
     </div>
   )
 }
 
-export default LbLitroView
+export default LbLitro

@@ -23,6 +23,11 @@ interface DataTableProps<T> {
   columns: Column<T>[]
   data: T[]
   keyExtractor: (row: T) => string | number
+  /**
+   * Linha de totalizador no rodapé. Mapa indexado por column.key → conteúdo.
+   * Colunas sem entrada renderizam vazio. Não é afetada pela ordenação.
+   */
+  footer?: Partial<Record<string, ReactNode>>
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -31,6 +36,7 @@ const DataTable = <T extends Record<string, unknown>>({
   columns,
   data,
   keyExtractor,
+  footer,
 }: DataTableProps<T>) => {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
@@ -143,6 +149,23 @@ const DataTable = <T extends Record<string, unknown>>({
             ))}
           </TableRow>
         ))}
+        {footer && (
+          <TableRow className="border-t-2 border-gray-300 bg-gray-100 font-semibold hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-800">
+            {columns.map((col) => (
+              <TableCell
+                key={col.key}
+                className={cn(
+                  'text-sm',
+                  col.align === 'right' && 'text-right',
+                  col.align === 'center' && 'text-center',
+                  col.className
+                )}
+              >
+                {footer[col.key] ?? ''}
+              </TableCell>
+            ))}
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   )
