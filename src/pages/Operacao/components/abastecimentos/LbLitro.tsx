@@ -175,6 +175,26 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
     [data.daily],
   )
 
+  const dailyTotals = useMemo(() => {
+    let litrosRealizados = 0
+    let litrosProjetados = 0
+    for (const d of data.daily) {
+      if (d.litrosReal !== null) litrosRealizados += d.litrosReal
+      if (d.isProjected && d.litrosProjetado !== null) litrosProjetados += d.litrosProjetado
+    }
+    return {
+      realizados: litrosRealizados,
+      projetados: litrosProjetados,
+      total: litrosRealizados + litrosProjetados,
+    }
+  }, [data.daily])
+
+  const fmtLitrosShort = (v: number): string => {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M L`
+    if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k L`
+    return `${v.toFixed(0)} L`
+  }
+
   const productTotals = useMemo(() => {
     const t = data.byProduct.reduce(
       (acc, r) => ({
@@ -243,16 +263,28 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
 
       {dailyChartData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-6">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro dia a dia</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Lucro bruto por litro e volume diário
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">L.B./Litro dia a dia</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Lucro bruto por litro e volume diário
+                {hasProjection && (
+                  <span className="ml-2 text-blue-600 dark:text-blue-400">
+                    · projeção dos dias futuros baseada na média dos últimos 7 dias
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                Já vendidos: <span className="tabular-nums">{fmtLitrosShort(dailyTotals.realizados)}</span>
+              </span>
               {hasProjection && (
-                <span className="ml-2 text-blue-600 dark:text-blue-400">
-                  · projeção dos dias futuros baseada na média dos últimos 7 dias
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
+                  Projeção do período: <span className="tabular-nums">{fmtLitrosShort(dailyTotals.total)}</span>
                 </span>
               )}
-            </p>
+            </div>
           </div>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={dailyChartData}>
@@ -292,18 +324,46 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
                 tickLine={false}
               />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((value: number, name: string) => {
-                  if (value === null || value === undefined) return ['—', name]
-                  if (name.startsWith('Litros')) {
-                    return [value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L', name]
-                  }
-                  return [formatCurrencyTooltip(value), name]
-                }) as never}
-                labelFormatter={((label: string) => {
-                  const [y, m, d] = label.split('-')
-                  return `${d}/${m}/${y}`
-                }) as never}
+                content={(props: { active?: boolean; label?: string; payload?: Array<{ name?: string; value?: number | null; color?: string }> }) => {
+                  if (!props.active || !props.payload?.length) return null
+                  const hasRealLb = props.payload.some((p) => p.name === 'L.B./Litro' && p.value != null)
+                  const items = props.payload.filter((p) => {
+                    if (p.value == null) return false
+                    if (p.name === 'L.B./Litro (projeção)' && hasRealLb) return false
+                    return true
+                  })
+                  if (items.length === 0) return null
+                  const [y, m, d] = (props.label ?? '').split('-')
+                  // Hoje (dia em andamento) → marca o valor como parcial
+                  const now = new Date()
+                  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                  const isToday = props.label === todayStr
+                  return (
+                    <div className="rounded-xl border border-gray-200 bg-white p-2.5 text-xs shadow-md dark:border-gray-700 dark:bg-gray-900">
+                      <p className="mb-1 flex items-center gap-1.5 font-semibold text-gray-700 dark:text-gray-200">
+                        {`${d}/${m}/${y}`}
+                        {isToday && (
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            parcial · em andamento
+                          </span>
+                        )}
+                      </p>
+                      {items.map((p, i) => {
+                        const isLitros = p.name?.startsWith('Litros')
+                        const formatted = isLitros
+                          ? `${(p.value as number).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L`
+                          : formatCurrencyTooltip(p.value as number)
+                        return (
+                          <p key={i} className="flex items-center gap-1.5 tabular-nums">
+                            <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: p.color }} />
+                            <span className="text-gray-600 dark:text-gray-300">{p.name}:</span>
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{formatted}</span>
+                          </p>
+                        )
+                      })}
+                    </div>
+                  )
+                }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <ReferenceLine

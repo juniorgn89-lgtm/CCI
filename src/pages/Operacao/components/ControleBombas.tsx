@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown, HelpCircle, Settings, ExternalLink, History, ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import InsightBanner from '@/components/kpi/InsightBanner'
 import { useFilterStore } from '@/store/filters'
 import {
   useManutencaoStore,
@@ -36,6 +35,8 @@ interface BombaStats {
   wearStatus: WearStatus
   manutencao: BombaManutencaoRecord | null
   proximaEstimadaLitros: number  // litros restantes até intervalo
+  /** True quando o modo Automático sem registro manual está usando o total do período como base */
+  usingAutoBasis: boolean
 }
 
 const wearStatusMeta = {
@@ -109,7 +110,10 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
       let litrosDesdeManutencao = 0
       let wearStatus: WearStatus = 'sem-registro'
       let desgastePct = 0
+      let usingAutoBasis = false
+
       if (manutencao) {
+        // Tem registro manual → usa data da última manutenção como ponto de partida
         litrosDesdeManutencao = bomba.dailyLitros
           .filter((d) => d.data >= manutencao.dataUltima)
           .reduce((s, d) => s + d.litros, 0)
@@ -117,6 +121,14 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           ? (litrosDesdeManutencao / config.intervaloLitros) * 100
           : 0
         wearStatus = desgastePct > 90 ? 'critical' : desgastePct >= 70 ? 'warn' : 'ok'
+      } else if (mode === 'auto' && config.intervaloLitros > 0 && bomba.litrosVendidos > 0) {
+        // Modo Automático sem registro manual: usa total bombeado no período como base.
+        // Permite ao gerente ver desgaste/alertas só configurando o intervalo (sem precisar
+        // registrar manutenção prévia). Reflete "% do intervalo consumido neste período".
+        litrosDesdeManutencao = bomba.litrosVendidos
+        desgastePct = (litrosDesdeManutencao / config.intervaloLitros) * 100
+        wearStatus = desgastePct > 90 ? 'critical' : desgastePct >= 70 ? 'warn' : 'ok'
+        usingAutoBasis = true
       }
 
       const proximaEstimadaLitros = Math.max(0, config.intervaloLitros - litrosDesdeManutencao)
@@ -133,10 +145,11 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
         desgastePct,
         wearStatus,
         manutencao,
+        usingAutoBasis,
         proximaEstimadaLitros,
       }
     })
-  }, [bombaRows, bombaRowsPrev, manutencoes, configs, empresaCodigo, config.intervaloLitros])
+  }, [bombaRows, bombaRowsPrev, manutencoes, configs, empresaCodigo, config.intervaloLitros, mode])
 
   const handleSaveManutencao = (bombaCodigo: number) => {
     if (empresaCodigo === null) return
@@ -187,36 +200,8 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
     )
   }
 
-  // Banners de manutenção (apenas quando há config + bombas em alerta)
-  const hasConfigForEmpresa = empresaCodigo !== null && !!configs[empresaCodigo]
-  const bombasCriticas = hasConfigForEmpresa
-    ? stats.filter((s) => s.wearStatus === 'critical')
-    : []
-  const bombasProximas = hasConfigForEmpresa
-    ? stats.filter((s) => s.wearStatus === 'warn')
-    : []
-
   return (
     <div className="space-y-5">
-      {/* Banners de alerta — só quando empresa tem config */}
-      {(bombasCriticas.length > 0 || bombasProximas.length > 0) && (
-        <div className="space-y-2">
-          {bombasCriticas.map((s) => (
-            <InsightBanner
-              key={`critical-${s.bomba.bombaCodigo}`}
-              type="warning"
-              message={`${s.bomba.descricao} requer atenção imediata — ${Math.min(100, s.desgastePct).toFixed(0)}% do intervalo atingido`}
-            />
-          ))}
-          {bombasProximas.map((s) => (
-            <InsightBanner
-              key={`warn-${s.bomba.bombaCodigo}`}
-              type="motivate"
-              message={`${s.bomba.descricao} com manutenção próxima — ${Math.min(100, s.desgastePct).toFixed(0)}% do intervalo`}
-            />
-          ))}
-        </div>
-      )}
 
       {/* Toggle Auto/Manual */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -301,14 +286,14 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 <span className="h-2 w-2 rounded-full bg-amber-500" />
                 <span className="font-semibold text-gray-900 dark:text-gray-100">Manutenção próxima</span>
               </span>
-              <span>entre 70% e 90% — gera banner âmbar no topo</span>
+              <span>entre 70% e 90% — borda âmbar no card</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <span className="font-semibold text-gray-900 dark:text-gray-100">Verificar agora</span>
               </span>
-              <span>acima de 90% — banner vermelho + borda destacada</span>
+              <span>acima de 90% — borda vermelha 2px no card</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5">
@@ -342,10 +327,16 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           </p>
           <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
             <li>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">Automático:</span> usa apenas o que vem da API — desgaste é calculado, mas não há campo de registro manual.
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Automático:</span> não exige registro manual.
+              Basta configurar o <span className="font-medium">intervalo de litros</span> em Configurações que cada bomba começa a mostrar desgaste e gerar alertas automaticamente, usando o
+              <span className="font-medium"> total bombeado no período</span> como base de cálculo.
+              A célula "Última manutenção" do card aparece marcada como <span className="font-medium text-blue-600 dark:text-blue-400">Modo auto</span>.
             </li>
             <li>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">Manual:</span> habilita o formulário “Registrar manutenção” em cada bomba, permitindo informar data e litros do momento da última troca.
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Manual:</span> habilita o formulário "Registrar manutenção" em cada bomba, permitindo informar data e litros do momento da última troca — o desgaste passa a ser calculado a partir dessa data.
+            </li>
+            <li>
+              Se houver <span className="font-medium">registro manual</span> em uma bomba, ele <span className="font-medium">prevalece</span> sobre o modo Automático para aquela bomba específica (mesmo com o toggle em Auto).
             </li>
           </ul>
         </div>
@@ -475,13 +466,17 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 <div>
                   <p className="text-gray-400">Última manutenção</p>
                   <p className="font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                    {s.manutencao ? formatBrDate(s.manutencao.dataUltima) : 'Sem registro'}
+                    {s.manutencao
+                      ? formatBrDate(s.manutencao.dataUltima)
+                      : s.usingAutoBasis
+                      ? <span className="text-blue-600 dark:text-blue-400">Modo auto</span>
+                      : 'Sem registro'}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Próxima estimada</p>
                   <p className="font-medium tabular-nums text-gray-700 dark:text-gray-300">
-                    {s.manutencao ? `+${formatLiters(s.proximaEstimadaLitros)}` : '—'}
+                    {s.manutencao || s.usingAutoBasis ? `+${formatLiters(s.proximaEstimadaLitros)}` : '—'}
                   </p>
                 </div>
               </div>

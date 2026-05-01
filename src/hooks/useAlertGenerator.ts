@@ -186,18 +186,23 @@ const useAlertGenerator = () => {
         const bicoToBomba = new Map<number, number>()
         for (const bi of bicos) bicoToBomba.set(bi.bicoCodigo, bi.bombaCodigo)
 
-        // Litros bombeados por bomba (filtrando pela empresa)
+        const isAutoMode = manutState.mode === 'auto'
+
+        // Litros bombeados por bomba (filtrando pela empresa).
+        // - Manual: só conta abastecimentos a partir da data da última manutenção
+        // - Auto sem registro: conta todos os abastecimentos (período inteiro como base)
         const litrosPorBomba = new Map<number, number>()
         for (const a of abastecimentosCache) {
           if (a.empresaCodigo !== empresaCodigo) continue
           const bombaCod = bicoToBomba.get(a.codigoBico)
           if (!bombaCod) continue
-          // Considera apenas abastecimentos a partir da data da última manutenção
           const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bombaCod}`]
           const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
-          if (!manut?.dataUltima) continue
-          const abastDate = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
-          if (abastDate < manut.dataUltima) continue
+          if (!manut?.dataUltima && !isAutoMode) continue  // manual sem registro → ignora
+          if (manut?.dataUltima) {
+            const abastDate = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
+            if (abastDate < manut.dataUltima) continue
+          }
           litrosPorBomba.set(bombaCod, (litrosPorBomba.get(bombaCod) ?? 0) + a.quantidade)
         }
 
@@ -207,9 +212,11 @@ const useAlertGenerator = () => {
         for (const bomba of bombas) {
           const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bomba.bombaCodigo}`]
           const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
-          if (!manut?.dataUltima) continue  // sem registro → sem alerta
+          // Sem registro manual e fora do modo auto → sem alerta
+          if (!manut?.dataUltima && !isAutoMode) continue
 
           const litros = litrosPorBomba.get(bomba.bombaCodigo) ?? 0
+          if (litros <= 0) continue  // sem litros bombeados → nada a alertar
           const desgastePct = intervaloLitros > 0 ? (litros / intervaloLitros) * 100 : 0
           const nome = bomba.descricao || `Bomba ${bomba.bombaCodigo}`
 

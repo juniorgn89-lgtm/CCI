@@ -362,7 +362,9 @@ const useAbastecimentosAnalytics = () => {
         const isLastRealDay = ds === lastRealDay
 
         if (real) {
-          // Dia com dado real
+          // Dia com dado real. A "ponte" para conectar visualmente as séries
+          // (real → projetado) só é aplicada na LINHA do L.B./Litro — para o BAR
+          // de litros não, evitando duas barras sobrepostas no último dia real.
           lbLitroDaily.push({
             data: ds,
             litros: real.litros,
@@ -371,8 +373,7 @@ const useAbastecimentosAnalytics = () => {
             isProjected: false,
             litrosReal: real.litros,
             lbPorLitroReal: real.lbPorLitro,
-            // Último dia com dado real aparece em ambas as séries pra ligar real → projetado sem gap
-            litrosProjetado: isLastRealDay ? real.litros : null,
+            litrosProjetado: null,
             lbPorLitroProjetado: isLastRealDay ? real.lbPorLitro : null,
           })
         } else if (afterLastReal && avgLitrosDaily > 0) {
