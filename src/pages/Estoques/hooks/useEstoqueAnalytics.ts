@@ -44,6 +44,8 @@ export interface ProductAnalyticsRow {
   necessidadeStatus: 'negativo' | 'critico' | 'baixo' | 'ok' | 'sem_movimento'
   /** Vendas mensais (até 6 entradas), do mais antigo para o mais recente */
   vendasMensais: { mes: string; quantidade: number }[]
+  // Index signature exigido pelo DataTable<T extends Record<string, unknown>>
+  [key: string]: unknown
 }
 
 export interface EstoqueKpis {
