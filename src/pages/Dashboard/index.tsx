@@ -1,7 +1,34 @@
 import { LayoutDashboard } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
 import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
+import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 
 const Dashboard = () => {
+  const { empresaCodigos } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+
+  // Lookup do nome da empresa selecionada (cache compartilhado com outros queries)
+  const { data: empresasData } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas({ limite: 200 }),
+    staleTime: 30 * 60 * 1000,
+    enabled: empresaCodigo !== null,
+  })
+  const empresa = empresaCodigo
+    ? empresasData?.resultados.find((e) => e.empresaCodigo === empresaCodigo)
+    : null
+  const empresaNome = empresa?.fantasia || empresa?.razao || (empresaCodigo ? `Posto ${empresaCodigo}` : '')
+
+  if (empresaCodigo !== null) {
+    return (
+      <div className="space-y-6">
+        <ResumoOperacao empresaNome={empresaNome} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
