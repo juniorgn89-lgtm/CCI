@@ -324,7 +324,7 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
                 tickLine={false}
               />
               <Tooltip
-                content={(props: { active?: boolean; label?: string; payload?: Array<{ name?: string; value?: number | null; color?: string }> }) => {
+                content={(props: { active?: boolean; label?: string | number; payload?: ReadonlyArray<{ name?: string; value?: number | null; color?: string }> }) => {
                   if (!props.active || !props.payload?.length) return null
                   const hasRealLb = props.payload.some((p) => p.name === 'L.B./Litro' && p.value != null)
                   const items = props.payload.filter((p) => {
@@ -333,11 +333,12 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
                     return true
                   })
                   if (items.length === 0) return null
-                  const [y, m, d] = (props.label ?? '').split('-')
+                  const labelStr = String(props.label ?? '')
+                  const [y, m, d] = labelStr.split('-')
                   // Hoje (dia em andamento) → marca o valor como parcial
                   const now = new Date()
                   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-                  const isToday = props.label === todayStr
+                  const isToday = labelStr === todayStr
                   return (
                     <div className="rounded-xl border border-gray-200 bg-white p-2.5 text-xs shadow-md dark:border-gray-700 dark:bg-gray-900">
                       <p className="mb-1 flex items-center gap-1.5 font-semibold text-gray-700 dark:text-gray-200">

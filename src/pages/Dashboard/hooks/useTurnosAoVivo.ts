@@ -36,7 +36,7 @@ const useTurnosAoVivo = () => {
   })
   const empresas = empresasData?.resultados ?? []
 
-  // Caixas por empresa — refresh frequente para o "ao vivo"
+  // Caixas por empresa — query primária (leve), refresh frequente para o "ao vivo"
   const caixasQueries = useQueries({
     queries: empresas.map((emp) => ({
       queryKey: ['caixas-aovivo', emp.empresaCodigo, dataInicial, dataFinal],
@@ -52,20 +52,32 @@ const useTurnosAoVivo = () => {
     })),
   })
 
-  // Funcionários por empresa — cache longo (dados mudam pouco)
+  // Detecta quais empresas têm caixas abertos (após caixas resolverem).
+  // Funcionários e abastecimentos só carregam pra essas — se nenhuma tem
+  // caixa aberto, esses fetches pesados não disparam (load instantâneo).
+  const empresasComAbertos = empresas.map((_, idx) => {
+    const cQuery = caixasQueries[idx]
+    return cQuery?.data?.resultados?.some((c) => !c.fechado) ?? false
+  })
+  const anyAbertos = empresasComAbertos.some(Boolean)
+
+  // Funcionários por empresa — só carrega quando aquela empresa tem caixa aberto
   const funcionariosQueries = useQueries({
-    queries: empresas.map((emp) => ({
+    queries: empresas.map((emp, idx) => ({
       queryKey: ['funcionarios-aovivo', emp.empresaCodigo],
       queryFn: () => fetchFuncionarios({ empresaCodigo: emp.empresaCodigo, limite: 1000 }),
       staleTime: 30 * 60 * 1000,
+      enabled: empresasComAbertos[idx],
     })),
   })
 
-  // Abastecimentos do período (call global — endpoint não filtra por empresa)
+  // Abastecimentos do período (call global, chunked) — só dispara se há ao
+  // menos uma empresa com caixa aberto. Caso contrário, apurado parcial = 0
+  // sem precisar baixar dezenas de milhares de abastecimentos.
   const { data: abastecimentos } = useQuery({
     queryKey: ['abastecimentos-aovivo', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: !!dataInicial && !!dataFinal,
+    enabled: !!dataInicial && !!dataFinal && anyAbertos,
     staleTime: 60 * 1000,
   })
 

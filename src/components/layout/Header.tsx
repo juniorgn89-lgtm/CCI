@@ -81,12 +81,14 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
+              isFetching > 0
+                ? 'text-blue-500 dark:text-blue-400'
+                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            }`}
             aria-label="Atualizar dados"
           >
-            <RefreshCw
-              className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`}
-            />
+            <RefreshCw className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`} />
           </button>
           <NotificationBell />
         </div>
