@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import {
-  DollarSign, TrendingUp, Package, Receipt, ArrowUpRight, ArrowDownRight,
-  Lightbulb, Trophy, AlertTriangle, ShoppingCart, Clock,
+  Package, Receipt, Trophy, Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -10,7 +9,7 @@ import {
 import { cn } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
-import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem, InsightItem, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
+import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
@@ -20,7 +19,6 @@ interface Props {
   groupTable: GroupRow[]
   topSellers: TopSellerItem[]
   revenueData: RevenueRow[]
-  insights: InsightItem[]
   onNavigateTab: (tab: string) => void
 }
 
@@ -29,144 +27,33 @@ const fmtDay = (d: string) => {
   return `${parts[2]}/${parts[1]}`
 }
 
-const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, revenueData, insights, onNavigateTab }: Props) => {
-  const fatChange = kpis.prev.faturamento > 0
-    ? ((kpis.faturamento - kpis.prev.faturamento) / kpis.prev.faturamento) * 100
-    : undefined
-
-  const margemChange = kpis.prev.margem > 0
-    ? ((kpis.margem - kpis.prev.margem) / kpis.prev.margem) * 100
-    : undefined
-
-  const qtdChange = kpis.prev.qtdItens > 0
-    ? ((kpis.qtdItens - kpis.prev.qtdItens) / kpis.prev.qtdItens) * 100
-    : undefined
-
-  const kpiCards = [
-    { label: 'Faturamento', value: formatCurrency(kpis.faturamento), change: fatChange, icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', tab: 'vendas' },
-    { label: 'Margem Bruta', value: formatCurrency(kpis.margem), change: margemChange, subtitle: `${kpis.margemPct.toFixed(1)}%`, icon: TrendingUp, color: 'text-blue-600 dark:text-blue-400', cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'performance' },
-    { label: 'Itens Vendidos', value: formatNumber(kpis.qtdItens), change: qtdChange, subtitle: `${kpis.totalProdutos} produtos`, icon: Package, color: 'text-violet-600 dark:text-violet-400', cardBg: 'bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900', iconBg: 'bg-violet-100 dark:bg-violet-900/30', tab: 'topVendidos' },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-amber-600 dark:text-amber-400', cardBg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'vendas' },
-  ]
-
+const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, revenueData, onNavigateTab }: Props) => {
   const computed = useMemo(() => {
-    // Auto insights
-    const autoInsights: { type: 'positive' | 'warning' | 'info'; text: string }[] = []
-
-    if (fatChange !== undefined) {
-      autoInsights.push({
-        type: fatChange >= 0 ? 'positive' : 'warning',
-        text: `Faturamento ${fatChange >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(fatChange).toFixed(1)}% vs mês anterior`,
-      })
-    }
-
-    if (kpis.margemPct >= 30) {
-      autoInsights.push({ type: 'positive', text: `Margem saudável de ${kpis.margemPct.toFixed(1)}%` })
-    } else if (kpis.margemPct < 20 && kpis.margemPct > 0) {
-      autoInsights.push({ type: 'warning', text: `Margem baixa: ${kpis.margemPct.toFixed(1)}%. Revise precificação.` })
-    }
-
-    if (topSellers.length > 0) {
-      autoInsights.push({
-        type: 'info',
-        text: `${topSellers[0].nome} lidera com ${formatNumber(topSellers[0].quantidade)} unidades vendidas`,
-      })
-    }
-
-    const topGrupo = groupTable[0]
-    if (topGrupo) {
-      autoInsights.push({
-        type: 'info',
-        text: `Grupo "${topGrupo.nome}" concentra ${formatCurrency(topGrupo.faturamento)} em vendas`,
-      })
-    }
-
-    // Add existing insights from hook
-    for (const ins of insights.slice(0, 2)) {
-      autoInsights.push({
-        type: ins.type,
-        text: `${ins.title}: ${ins.description}`,
-      })
-    }
-
-    const order = { positive: 0, info: 1, warning: 2 }
-    autoInsights.sort((a, b) => order[a.type] - order[b.type])
-
     // Top 5 groups for donut
     const topGroups = groupTable.slice(0, 6)
-
     // Top 5 sellers
     const top5 = topSellers.slice(0, 5)
-
-    return { autoInsights, topGroups, top5 }
-  }, [kpis, fatChange, topSellers, groupTable, insights])
+    return { topGroups, top5 }
+  }, [topSellers, groupTable])
 
   return (
     <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        {kpiCards.map((card) => {
-          const Icon = card.icon
-          const isPositive = card.change !== undefined && card.change >= 0
-          return (
-            <button
-              key={card.label}
-              onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
-                  <Icon className={cn('h-3.5 w-3.5', card.color)} />
-                </div>
-              </div>
-              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
-              <div className="mt-1 flex items-center gap-2">
-                {'subtitle' in card && card.subtitle && (
-                  <p className="text-xs text-gray-400">{card.subtitle}</p>
-                )}
-                {card.change !== undefined && (
-                  <span className={cn(
-                    'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                    isPositive ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                  )}>
-                    {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                    {Math.abs(card.change).toFixed(1)}% vs mês anterior
-                  </span>
-                )}
-              </div>
-            </button>
-          )
-        })}
+      {/* KPI secundário — Ticket Médio (os principais ficam globais acima das abas) */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => onNavigateTab('vendas')}
+          className="rounded-lg border border-gray-200/60 bg-gray-50/50 px-3 py-3 text-left shadow-sm transition-all hover:bg-white hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800/40 dark:hover:bg-gray-800"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Ticket Médio</p>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+              <Receipt className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+          <p className="mt-1 text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(kpis.ticketMedio)}</p>
+        </button>
       </div>
-
-      {/* Insights */}
-      {computed.autoInsights.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Insights da Conveniência</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {computed.autoInsights.map((ins, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'flex items-start gap-2 rounded-lg border px-3 py-2',
-                  ins.type === 'positive' && 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10',
-                  ins.type === 'warning' && 'border-red-200 bg-red-50/50 dark:border-red-800/30 dark:bg-red-900/10',
-                  ins.type === 'info' && 'border-blue-200 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10',
-                )}
-              >
-                {ins.type === 'positive' && <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />}
-                {ins.type === 'warning' && <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />}
-                {ins.type === 'info' && <ShoppingCart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Daily sales chart — moved from Vendas tab */}
       {dailyData.length > 0 && (

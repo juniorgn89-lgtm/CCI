@@ -41,25 +41,30 @@
     --radius: 0.5rem;
   }
 
+  /* Dark mode — paleta neutra calibrada com VSCode Dark Modern.
+       sideBar.background = #181818 (9%)
+       editor.background  = #1F1F1F (12%)
+       input.background   = #313131 (19%)
+     Hue 0, sat 0% (cinzas puros). */
   .dark {
-    --background: 220 20% 7%;
-    --foreground: 210 20% 95%;
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 95%;
-    --popover: 220 18% 12%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 210 20% 95%;
-    --primary-foreground: 220 20% 7%;
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 210 20% 90%;
-    --muted: 220 15% 16%;
-    --muted-foreground: 215 15% 55%;
-    --accent: 220 15% 18%;
-    --accent-foreground: 210 20% 90%;
+    --background: 0 0% 11%;          /* page bg — #1c1c1c (entre sideBar e editor) */
+    --foreground: 0 0% 88%;          /* texto principal — #e0e0e0 */
+    --card: 0 0% 14%;                /* cards — #242424 */
+    --card-foreground: 0 0% 88%;
+    --popover: 0 0% 18%;             /* popovers/menus — #2e2e2e */
+    --popover-foreground: 0 0% 88%;
+    --primary: 0 0% 88%;
+    --primary-foreground: 0 0% 11%;
+    --secondary: 0 0% 22%;           /* chips, secondary buttons — #383838 */
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 62%;
+    --accent: 0 0% 22%;
+    --accent-foreground: 0 0% 90%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 22%;
-    --input: 220 15% 22%;
+    --border: 0 0% 24%;              /* borders — #3d3d3d */
+    --input: 0 0% 24%;
     --ring: 213 94% 68%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -69,45 +74,69 @@
   }
 
   /* =============================================
-     Global dark mode overrides for hardcoded
-     Tailwind gray colors used across all pages.
-     These remap light-mode utility classes to
-     dark-appropriate colors automatically.
-     Explicit dark: utilities on components will
-     override these (higher specificity).
+     Global dark mode overrides — match VSCode dark.
+     Hierarquia: page bg < card < sub-accent < chip
      ============================================= */
 
-  /* Backgrounds */
-  .dark .bg-white { background-color: hsl(220 18% 10%); }
-  .dark .bg-gray-50 { background-color: hsl(220 18% 8%); }
-  .dark .bg-gray-100 { background-color: hsl(220 15% 14%); }
-  .dark .bg-gray-200 { background-color: hsl(220 15% 18%); }
+  /* Backgrounds (light grays remapeados pra dark) */
+  .dark .bg-white { background-color: hsl(0 0% 14%); }       /* cards */
+  .dark .bg-gray-50 { background-color: hsl(0 0% 11%); }     /* page bg interno */
+  .dark .bg-gray-100 { background-color: hsl(0 0% 18%); }    /* sub-accents */
+  .dark .bg-gray-200 { background-color: hsl(0 0% 22%); }    /* chips, badges */
 
-  /* Backgrounds with opacity — common patterns */
-  .dark .bg-gray-50\/50 { background-color: hsl(220 18% 12% / 0.5); }
-  .dark .bg-blue-50\/50 { background-color: hsl(220 40% 18% / 0.3); }
+  /* Backgrounds (dark grays explícitos) */
+  .dark .bg-gray-700 { background-color: hsl(0 0% 22%); }
+  .dark .bg-gray-800 { background-color: hsl(0 0% 18%); }
+  .dark .bg-gray-900 { background-color: hsl(0 0% 14%); }
+  .dark .bg-gray-950 { background-color: hsl(0 0% 9%); }     /* outer frame — #171717 (igual sideBar VSCode) */
 
-  /* Text */
-  .dark .text-gray-900 { color: hsl(210 20% 93%); }
-  .dark .text-gray-800 { color: hsl(210 18% 85%); }
-  .dark .text-gray-700 { color: hsl(215 15% 72%); }
-  .dark .text-gray-600 { color: hsl(215 15% 62%); }
-  .dark .text-gray-500 { color: hsl(215 12% 52%); }
-  .dark .text-gray-400 { color: hsl(215 10% 42%); }
-  .dark .text-gray-300 { color: hsl(215 10% 55%); }
+  /* Backgrounds com opacity */
+  .dark .bg-gray-50\/50 { background-color: hsl(0 0% 13% / 0.5); }
+  .dark .bg-gray-50\/70 { background-color: hsl(0 0% 13% / 0.7); }
+  .dark .bg-gray-800\/30 { background-color: hsl(0 0% 18% / 0.3); }
+  .dark .bg-gray-800\/40 { background-color: hsl(0 0% 18% / 0.4); }
+  .dark .bg-gray-800\/50 { background-color: hsl(0 0% 18% / 0.5); }
+  .dark .bg-gray-800\/60 { background-color: hsl(0 0% 18% / 0.6); }
+  .dark .bg-blue-50\/50 { background-color: hsl(220 40% 22% / 0.3); }
+
+  /* Text — escala de cinzas neutra */
+  .dark .text-gray-50 { color: hsl(0 0% 96%); }
+  .dark .text-gray-100 { color: hsl(0 0% 90%); }
+  .dark .text-gray-200 { color: hsl(0 0% 84%); }
+  .dark .text-gray-300 { color: hsl(0 0% 72%); }
+  .dark .text-gray-400 { color: hsl(0 0% 60%); }
+  .dark .text-gray-500 { color: hsl(0 0% 52%); }
+  .dark .text-gray-600 { color: hsl(0 0% 62%); }
+  .dark .text-gray-700 { color: hsl(0 0% 72%); }
+  .dark .text-gray-800 { color: hsl(0 0% 84%); }
+  .dark .text-gray-900 { color: hsl(0 0% 90%); }
 
   /* Borders */
-  .dark .border-gray-100 { border-color: hsl(220 15% 16%); }
-  .dark .border-gray-200 { border-color: hsl(220 15% 20%); }
-  .dark .border-gray-300 { border-color: hsl(220 15% 25%); }
+  .dark .border-gray-100 { border-color: hsl(0 0% 20%); }
+  .dark .border-gray-200 { border-color: hsl(0 0% 24%); }
+  .dark .border-gray-300 { border-color: hsl(0 0% 30%); }
+  .dark .border-gray-700 { border-color: hsl(0 0% 24%); }
+  .dark .border-gray-800 { border-color: hsl(0 0% 20%); }
+
+  /* Divide */
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(0 0% 20%); }
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(0 0% 24%); }
+  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(0 0% 24%); }
+  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(0 0% 20%); }
 
   /* Hover states */
-  .dark .hover\:bg-gray-50:hover { background-color: hsl(220 15% 14%); }
-  .dark .hover\:bg-gray-100:hover { background-color: hsl(220 15% 16%); }
-  .dark .hover\:text-gray-700:hover { color: hsl(210 15% 80%); }
+  .dark .hover\:bg-gray-50:hover { background-color: hsl(0 0% 18%); }
+  .dark .hover\:bg-gray-100:hover { background-color: hsl(0 0% 20%); }
+  .dark .hover\:bg-gray-700:hover { background-color: hsl(0 0% 26%); }
+  .dark .hover\:bg-gray-800:hover { background-color: hsl(0 0% 20%); }
+  .dark .hover\:bg-gray-800\/50:hover { background-color: hsl(0 0% 18% / 0.5); }
+  .dark .hover\:text-gray-200:hover { color: hsl(0 0% 88%); }
+  .dark .hover\:text-gray-300:hover { color: hsl(0 0% 78%); }
+  .dark .hover\:text-gray-700:hover { color: hsl(0 0% 80%); }
 
   /* Specific component patterns */
-  .dark .bg-\[\#1e3a5f\] { background-color: hsl(215 30% 14%); }
-  .dark .shadow-sm { --tw-shadow-color: hsl(220 20% 3% / 0.4); }
-  .dark .shadow-lg { --tw-shadow-color: hsl(220 20% 3% / 0.5); }
+  /* Sidebar (dark:bg-[#1e3a5f]) — mais escuro que o resto pra criar separação clara */
+  .dark .bg-\[\#1e3a5f\] { background-color: hsl(0 0% 6%); }
+  .dark .shadow-sm { --tw-shadow-color: hsl(0 0% 0% / 0.5); }
+  .dark .shadow-lg { --tw-shadow-color: hsl(0 0% 0% / 0.6); }
 }

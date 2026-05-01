@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Warehouse, Trophy, Settings, Activity } from 'lucide-react'
+import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
+import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
 import ConvenienciaIndicadores from '@/pages/Conveniencias/components/ConvenienciaIndicadores'
 import SalesOverview from '@/pages/Conveniencias/components/SalesOverview'
 import ProductCatalog from '@/pages/Conveniencias/components/ProductCatalog'
-import StockView from '@/pages/Conveniencias/components/StockView'
 import TopSellers from '@/pages/Conveniencias/components/TopSellers'
 
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
@@ -19,7 +20,6 @@ const TAB_ICONS: Record<string, typeof Store> = {
   indicadores: Activity,
   vendas: ShoppingCart,
   catalogo: Package,
-  estoque: Warehouse,
   topVendidos: Trophy,
 }
 
@@ -50,11 +50,8 @@ const Conveniencias = () => {
     groupTable,
     revenueData,
     catalogProducts,
-    stockItems,
-    stockSummary,
     topSellers,
     treemapData,
-    insights,
     gruposList,
     isLoading,
     hasEmpresa,
@@ -89,6 +86,70 @@ const Conveniencias = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
+          {/* KPIs principais — sempre visíveis acima das abas */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => setActiveTab('vendas')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Faturamento</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.faturamento)}
+              </p>
+              {kpis && <DeltaBadge current={kpis.faturamento} previous={kpis.prev.faturamento} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('vendas')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Margem Bruta</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.margem)}
+              </p>
+              {kpis && (
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{kpis.margemPct.toFixed(1)}%</span>
+                  <DeltaBadge current={kpis.margem} previous={kpis.prev.margem} />
+                </div>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('topVendidos')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-violet-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-violet-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Itens Vendidos</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                  <Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {showSkeleton || !kpis ? '—' : formatNumber(kpis.qtdItens)}
+              </p>
+              {kpis && (
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{formatNumber(kpis.totalProdutos)} produtos</span>
+                  <DeltaBadge current={kpis.qtdItens} previous={kpis.prev.qtdItens} />
+                </div>
+              )}
+            </button>
+          </div>
+
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -135,7 +196,6 @@ const Conveniencias = () => {
                       groupTable={groupTable}
                       topSellers={topSellers}
                       revenueData={revenueData}
-                      insights={insights}
                       onNavigateTab={setActiveTab}
                     />
                   )}
@@ -150,12 +210,6 @@ const Conveniencias = () => {
                     <ProductCatalog
                       products={catalogProducts}
                       gruposList={gruposList}
-                    />
-                  )}
-                  {activeTab === 'estoque' && (
-                    <StockView
-                      stockItems={stockItems}
-                      stockSummary={stockSummary}
                     />
                   )}
                   {activeTab === 'topVendidos' && (
