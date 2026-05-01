@@ -19,10 +19,13 @@ export interface ManutencaoConfig {
   responsavel: string
 }
 
+/** Quantas manutenções manter por bomba (FIFO — descarta mais antigas) */
+export const MAX_MANUTENCAO_HISTORY = 4
+
 interface ManutencaoState {
   mode: ManutencaoMode
-  /** key: `${empresaCodigo}_${bombaCodigo}` → última manutenção registrada */
-  manutencoes: Record<string, BombaManutencaoRecord>
+  /** key: `${empresaCodigo}_${bombaCodigo}` → histórico (mais recente primeiro, máx 4) */
+  manutencoes: Record<string, BombaManutencaoRecord[]>
   /** key: empresaCodigo → config de alerta da empresa */
   configs: Record<number, ManutencaoConfig>
 
@@ -48,9 +51,15 @@ export const useManutencaoStore = create<ManutencaoState>()(
 
       setMode: (mode) => set({ mode }),
       setManutencao: (empresaCodigo, bombaCodigo, record) =>
-        set((state) => ({
-          manutencoes: { ...state.manutencoes, [key(empresaCodigo, bombaCodigo)]: record },
-        })),
+        set((state) => {
+          const k = key(empresaCodigo, bombaCodigo)
+          const previous = state.manutencoes[k] ?? []
+          // Prepend nova manutenção, descarta mais antigas se passar do limite
+          const next = [record, ...previous].slice(0, MAX_MANUTENCAO_HISTORY)
+          return {
+            manutencoes: { ...state.manutencoes, [k]: next },
+          }
+        }),
       clearManutencao: (empresaCodigo, bombaCodigo) =>
         set((state) => {
           const next = { ...state.manutencoes }
@@ -68,7 +77,7 @@ export const useManutencaoStore = create<ManutencaoState>()(
           return { configs: next }
         }),
     }),
-    { name: 'ccisga-manutencao' }
+    { name: 'ccisga-manutencao', version: 2 }
   )
 )
 
@@ -87,11 +96,23 @@ export const getConfigOrDefault = (
   return DEFAULT_CONFIG
 }
 
+/** Retorna a última manutenção registrada (mais recente do array) ou null. */
 export const getManutencao = (
-  manutencoes: Record<string, BombaManutencaoRecord>,
+  manutencoes: Record<string, BombaManutencaoRecord[]>,
   empresaCodigo: number | null,
   bombaCodigo: number,
 ): BombaManutencaoRecord | null => {
   if (!empresaCodigo) return null
-  return manutencoes[key(empresaCodigo, bombaCodigo)] ?? null
+  const arr = manutencoes[key(empresaCodigo, bombaCodigo)]
+  return arr && arr.length > 0 ? arr[0] : null
+}
+
+/** Retorna o histórico completo (até 4 entradas) ou array vazio. */
+export const getManutencaoHistory = (
+  manutencoes: Record<string, BombaManutencaoRecord[]>,
+  empresaCodigo: number | null,
+  bombaCodigo: number,
+): BombaManutencaoRecord[] => {
+  if (!empresaCodigo) return []
+  return manutencoes[key(empresaCodigo, bombaCodigo)] ?? []
 }

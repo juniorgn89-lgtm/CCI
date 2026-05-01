@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown, HelpCircle, Settings, ExternalLink } from 'lucide-react'
+import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown, HelpCircle, Settings, ExternalLink, History, ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/components/kpi/InsightBanner'
@@ -11,6 +11,7 @@ import {
   type BombaManutencaoRecord,
   getConfigOrDefault,
   getManutencao,
+  getManutencaoHistory,
 } from '@/store/manutencao'
 import type { BombaRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
@@ -72,6 +73,22 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
   // Conversão para number só acontece em handleSaveManutencao.
   const [manutBuffer, setManutBuffer] = useState<Record<number, ManutBufferEntry>>({})
   const [showHelp, setShowHelp] = useState(false)
+  // Bombas com card "virado" mostrando o histórico de manutenções
+  const [flippedPumps, setFlippedPumps] = useState<Set<number>>(new Set())
+
+  // Reseta flip ao trocar de empresa (cards remontam com novos códigos)
+  useEffect(() => {
+    setFlippedPumps(new Set())
+  }, [empresaCodigo])
+
+  const toggleFlip = (bombaCodigo: number) => {
+    setFlippedPumps((prev) => {
+      const next = new Set(prev)
+      if (next.has(bombaCodigo)) next.delete(bombaCodigo)
+      else next.add(bombaCodigo)
+      return next
+    })
+  }
 
   // Stats por bomba
   const stats = useMemo<BombaStats[]>(() => {
@@ -340,14 +357,29 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           const meta = wearStatusMeta[s.wearStatus]
           const buf = manutBuffer[s.bomba.bombaCodigo]
           const rank = idx + 1
+          const isFlipped = flippedPumps.has(s.bomba.bombaCodigo)
+          const history = getManutencaoHistory(manutencoes, empresaCodigo, s.bomba.bombaCodigo)
           return (
             <div
               key={s.bomba.bombaCodigo}
-              className={cn(
-                'flex flex-col rounded-xl border bg-white p-5 shadow-sm transition-all hover:shadow-md dark:bg-gray-900',
-                meta.border,
-              )}
+              className="relative"
+              style={{ perspective: '1200px' }}
             >
+              <div
+                className="relative transition-transform duration-500"
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                {/* ── FRONT FACE ── */}
+                <div
+                  className={cn(
+                    'flex flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-900',
+                    meta.border,
+                  )}
+                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                >
               {/* Header */}
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
@@ -372,10 +404,21 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                     )}
                   </div>
                 </div>
-                <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', meta.bg, meta.text)}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
-                  {meta.label}
-                </span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleFlip(s.bomba.bombaCodigo)}
+                    title="Ver histórico de manutenções"
+                    aria-label="Ver histórico de manutenções"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                  >
+                    <Wrench className="h-3.5 w-3.5" />
+                  </button>
+                  <span className={cn('flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', meta.bg, meta.text)}>
+                    <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
+                    {meta.label}
+                  </span>
+                </div>
               </div>
 
               {/* Combustíveis tags */}
@@ -513,6 +556,104 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 <span>{s.bomba.quantidadeBicos} bico{s.bomba.quantidadeBicos !== 1 ? 's' : ''}</span>
                 {s.bomba.ilha > 0 && <span>Ilha {s.bomba.ilha}</span>}
                 <span>{formatCurrency(s.bomba.faturamento)}</span>
+              </div>
+                </div>
+
+                {/* ── BACK FACE: histórico de manutenções ── */}
+                <div
+                  className="absolute inset-0 flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                  }}
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleFlip(s.bomba.bombaCodigo)}
+                        title="Voltar para os dados da bomba"
+                        aria-label="Voltar"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{s.bomba.descricao}</p>
+                        <p className="text-[10px] text-gray-400">Histórico de manutenções</p>
+                      </div>
+                    </div>
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                      <History className="h-3.5 w-3.5 text-gray-500" />
+                    </div>
+                  </div>
+
+                  {history.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center text-center">
+                      <Wrench className="mb-2 h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Nenhuma manutenção registrada</p>
+                      <p className="mt-1 text-[10px] text-gray-400">Use o modo Manual e o formulário desta bomba para registrar a primeira</p>
+                    </div>
+                  ) : (
+                    <ol className="flex flex-1 flex-col gap-2 overflow-y-auto">
+                      {history.map((rec, hIdx) => {
+                        const next = history[hIdx + 1]
+                        // Δ litros: quanto foi bombeado entre a manutenção atual e a anterior
+                        const deltaLitros = next ? rec.litrosUltima - next.litrosUltima : null
+                        // Δ dias: quantos dias se passaram entre as duas manutenções
+                        let deltaDias: number | null = null
+                        if (next?.dataUltima && rec.dataUltima) {
+                          const diffMs = new Date(rec.dataUltima).getTime() - new Date(next.dataUltima).getTime()
+                          if (diffMs > 0) deltaDias = Math.round(diffMs / (24 * 3600 * 1000))
+                        }
+                        const isLatest = hIdx === 0
+                        return (
+                          <li
+                            key={`${rec.dataUltima}-${rec.litrosUltima}-${hIdx}`}
+                            className={cn(
+                              'rounded-lg border px-3 py-2',
+                              isLatest
+                                ? 'border-blue-200 bg-blue-50/40 dark:border-blue-800/40 dark:bg-blue-900/10'
+                                : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40',
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                                {formatBrDate(rec.dataUltima)}
+                              </span>
+                              <span
+                                className={cn(
+                                  'rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                                  isLatest
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+                                )}
+                              >
+                                {isLatest ? 'Mais recente' : `${hIdx + 1}ª anterior`}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-600 dark:text-gray-400">
+                              <span>
+                                Litros no momento: <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(rec.litrosUltima)}</span>
+                              </span>
+                              {deltaLitros !== null && (
+                                <span className="tabular-nums text-gray-500">
+                                  +{formatLiters(deltaLitros)}
+                                  {deltaDias !== null && ` em ${deltaDias}d`}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
+
+                  <div className="mt-3 border-t border-gray-100 pt-2 text-center text-[10px] text-gray-400 dark:border-gray-800">
+                    Mantém as últimas 4 manutenções
+                  </div>
+                </div>
               </div>
             </div>
           )

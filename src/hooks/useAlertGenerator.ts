@@ -192,8 +192,9 @@ const useAlertGenerator = () => {
           if (a.empresaCodigo !== empresaCodigo) continue
           const bombaCod = bicoToBomba.get(a.codigoBico)
           if (!bombaCod) continue
-          // Considera apenas abastecimentos a partir da data de manutenção
-          const manut = manutState.manutencoes[`manutencao_${empresaCodigo}_${bombaCod}`]
+          // Considera apenas abastecimentos a partir da data da última manutenção
+          const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bombaCod}`]
+          const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
           if (!manut?.dataUltima) continue
           const abastDate = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
           if (abastDate < manut.dataUltima) continue
@@ -204,7 +205,8 @@ const useAlertGenerator = () => {
         const limiteAviso = empresaConfig.avisarAoAtingirPct
 
         for (const bomba of bombas) {
-          const manut = manutState.manutencoes[`manutencao_${empresaCodigo}_${bomba.bombaCodigo}`]
+          const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bomba.bombaCodigo}`]
+          const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
           if (!manut?.dataUltima) continue  // sem registro → sem alerta
 
           const litros = litrosPorBomba.get(bomba.bombaCodigo) ?? 0
