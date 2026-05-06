@@ -1,0 +1,139 @@
+import { useMemo } from 'react'
+import useDashboardData from './useDashboardData'
+
+export interface ProjecaoValues {
+  faturamento: number
+  lucroBruto: number
+  margem: number
+}
+
+export interface ProjecaoVariacao {
+  faturamento: number
+  lucroBruto: number
+}
+
+export interface AlertaMenorMargem {
+  empresaCodigo: number
+  empresa: string
+  margem: number
+  litros: number
+  lucroBruto: number
+}
+
+export interface ProjecaoMesData {
+  realizado: ProjecaoValues
+  projetado: ProjecaoValues
+  variacaoYoY: ProjecaoVariacao
+  diasFechados: number
+  diasNoMes: number
+  alertaMenorMargem: AlertaMenorMargem | null
+  awaitingFirstClose: boolean
+  isLoading: boolean
+}
+
+const formatDate = (d: Date): string => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const useProjecaoMes = (): ProjecaoMesData => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+
+  const firstOfMonth = new Date(year, month, 1)
+  const yesterday = new Date(year, month, today.getDate() - 1)
+  const lastOfMonth = new Date(year, month + 1, 0)
+
+  const diasFechados = today.getDate() - 1
+  const diasNoMes = lastOfMonth.getDate()
+  const awaitingFirstClose = diasFechados <= 0
+
+  const dataInicial = formatDate(firstOfMonth)
+  // Quando aguardando primeiro fechamento, range é inválido (D1 > D-1).
+  // Usa firstOfMonth como dataFinal para manter range válido — o flag awaitingFirstClose ignora os dados retornados.
+  const dataFinal = awaitingFirstClose ? dataInicial : formatDate(yesterday)
+
+  const { globalKpi, sectorDetails, comparison, isLoading } = useDashboardData({
+    period: { dataInicial, dataFinal },
+  })
+
+  return useMemo<ProjecaoMesData>(() => {
+    if (awaitingFirstClose) {
+      return {
+        realizado: { faturamento: 0, lucroBruto: 0, margem: 0 },
+        projetado: { faturamento: 0, lucroBruto: 0, margem: 0 },
+        variacaoYoY: { faturamento: 0, lucroBruto: 0 },
+        diasFechados: 0,
+        diasNoMes,
+        alertaMenorMargem: null,
+        awaitingFirstClose: true,
+        isLoading,
+      }
+    }
+
+    const realizado: ProjecaoValues = {
+      faturamento: globalKpi?.faturamento ?? 0,
+      lucroBruto: globalKpi?.lucroBruto ?? 0,
+      margem: globalKpi?.margem ?? 0,
+    }
+
+    const factor = diasNoMes / diasFechados
+    const projetadoFat = realizado.faturamento * factor
+    const projetadoLB = realizado.lucroBruto * factor
+    const projetado: ProjecaoValues = {
+      faturamento: projetadoFat,
+      lucroBruto: projetadoLB,
+      margem: projetadoFat > 0 ? (projetadoLB / projetadoFat) * 100 : 0,
+    }
+
+    const prevYearFat = comparison?.prevYear.faturamento ?? 0
+    const prevYearLB = comparison?.prevYear.lucroBruto ?? 0
+    const variacaoYoY: ProjecaoVariacao = {
+      faturamento:
+        prevYearFat > 0 ? ((realizado.faturamento - prevYearFat) / prevYearFat) * 100 : 0,
+      lucroBruto:
+        prevYearLB > 0 ? ((realizado.lucroBruto - prevYearLB) / prevYearLB) * 100 : 0,
+    }
+
+    const fuelEmpresas = sectorDetails?.combustivel.empresas ?? []
+    const empresasComVenda = fuelEmpresas.filter((e) => e.litros > 0)
+    const piorMargem =
+      empresasComVenda.length > 0
+        ? empresasComVenda.reduce((min, cur) => (cur.margem < min.margem ? cur : min))
+        : null
+
+    const alertaMenorMargem: AlertaMenorMargem | null = piorMargem
+      ? {
+          empresaCodigo: piorMargem.empresaCodigo,
+          empresa: piorMargem.empresa,
+          margem: piorMargem.margem,
+          litros: piorMargem.litros,
+          lucroBruto: piorMargem.lucroBruto,
+        }
+      : null
+
+    return {
+      realizado,
+      projetado,
+      variacaoYoY,
+      diasFechados,
+      diasNoMes,
+      alertaMenorMargem,
+      awaitingFirstClose: false,
+      isLoading,
+    }
+  }, [
+    globalKpi,
+    sectorDetails,
+    comparison,
+    diasFechados,
+    diasNoMes,
+    awaitingFirstClose,
+    isLoading,
+  ])
+}
+
+export default useProjecaoMes

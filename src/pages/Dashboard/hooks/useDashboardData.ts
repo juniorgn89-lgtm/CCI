@@ -118,8 +118,16 @@ const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   return `${y}-${m}-${day}`
 }
 
-const useDashboardData = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+interface UseDashboardDataOptions {
+  /** Override de período — quando fornecido, ignora dataInicial/dataFinal do filter store */
+  period?: { dataInicial: string; dataFinal: string }
+}
+
+const useDashboardData = (options: UseDashboardDataOptions = {}) => {
+  const filter = useFilterStore()
+  const empresaCodigos = filter.empresaCodigos
+  const dataInicial = options.period?.dataInicial ?? filter.dataInicial
+  const dataFinal = options.period?.dataFinal ?? filter.dataFinal
 
   const hasEmpresa = empresaCodigos.length > 0
 
@@ -141,7 +149,7 @@ const useDashboardData = () => {
         dataInicial,
         dataFinal,
       }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     placeholderData: keepPreviousData,
   })
 
@@ -154,7 +162,7 @@ const useDashboardData = () => {
         dataInicial: prevMonthInicial,
         dataFinal: prevMonthFinal,
       }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     retry: false,
   })
 
@@ -167,7 +175,7 @@ const useDashboardData = () => {
         dataInicial: prevYearInicial,
         dataFinal: prevYearFinal,
       }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     retry: false,
   })
 
@@ -175,37 +183,51 @@ const useDashboardData = () => {
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     placeholderData: keepPreviousData,
   })
 
   const { data: abastPrevMonth = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     retry: false,
   })
 
   const { data: abastPrevYear = [] } = useQuery({
     queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
-    enabled: hasEmpresa,
+    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
     retry: false,
   })
 
-  // LMC for cost prices (shared key with Combustíveis page)
+  // Empresas (cached) — declarado antes da LMC pra fornecer a lista de códigos quando não há filtro
+  const { data: empresasData, isLoading: isLoadingEmpresas } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas(),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Quando não há empresa selecionada (Central da Rede), passamos explicitamente todos os códigos
+  // pra LMC — a API exige empresaCodigo pra retornar custos, e isso evita colisão de cache com
+  // outras páginas que já populam ['lmc', ...] filtrando por uma única empresa.
+  const allEmpresaCodes = (empresasData?.resultados ?? []).map((e) => e.codigo)
+  const lmcEmpresaCodigos = hasEmpresa ? empresaCodigos : allEmpresaCodes
+  const lmcEmpresaKey = lmcEmpresaCodigos.slice().sort((a, b) => a - b).join(',')
+
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
-    queryKey: ['lmc', lmcDataInicial, dataFinal],
+    queryKey: ['lmc', lmcDataInicial, dataFinal, lmcEmpresaKey],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchLmc({
-          empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
+          empresaCodigo: lmcEmpresaCodigos,
           dataInicial: lmcDataInicial, dataFinal,
           ultimoCodigo: p.ultimoCodigo, limite: p.limite,
         }),
         1000, 50
       ),
-    enabled: hasEmpresa,
+    // Aguarda empresas carregarem (necessário pra ter os códigos quando não há filtro)
+    enabled: lmcEmpresaCodigos.length > 0,
     placeholderData: keepPreviousData,
   })
 
@@ -218,13 +240,6 @@ const useDashboardData = () => {
         1000, 100
       ),
     staleTime: 30 * 60 * 1000,
-  })
-
-  // Empresas (cached)
-  const { data: empresasData, isLoading: isLoadingEmpresas } = useQuery({
-    queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
-    staleTime: 10 * 60 * 1000,
   })
 
   // Funcionarios (cached) for frentista names

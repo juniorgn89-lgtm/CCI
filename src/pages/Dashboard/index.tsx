@@ -4,6 +4,8 @@ import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
+import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
+import TabelaPostos from '@/pages/Dashboard/components/TabelaPostos'
 
 const Dashboard = () => {
   const { empresaCodigos } = useFilterStore()
@@ -42,7 +44,16 @@ const Dashboard = () => {
           </p>
         </div>
       </div>
-      <TurnosAoVivo />
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
+        <div className="min-w-0 space-y-6">
+          <TurnosAoVivo />
+          <TabelaPostos />
+        </div>
+        <div className="xl:sticky xl:top-4 xl:self-start">
+          <ProjecoesPainel />
+        </div>
+      </div>
     </div>
   )
 }
