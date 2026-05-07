@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, FileSpreadsheet, Settings, Activity } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -9,7 +9,6 @@ import FinanceiroIndicadores from '@/pages/Financeiro/components/FinanceiroIndic
 import ReceivablesTable from '@/pages/Financeiro/components/ReceivablesTable'
 import PayablesTable from '@/pages/Financeiro/components/PayablesTable'
 import CashFlowChart from '@/pages/Financeiro/components/CashFlowChart'
-import DreTable from '@/pages/Financeiro/components/DreTable'
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
@@ -18,7 +17,6 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   receber: Receipt,
   pagar: CreditCard,
   fluxo: BarChart3,
-  dre: FileSpreadsheet,
 }
 
 const TableSkeleton = () => (
@@ -46,7 +44,8 @@ const Financeiro = () => {
     receivablesData,
     payablesData,
     cashFlowData,
-    dreData,
+    cashFlowTotals,
+    cashFlowPrevTotals,
     isLoading,
     hasEmpresa,
   } = useFinanceData()
@@ -67,7 +66,7 @@ const Financeiro = () => {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Contas a receber, contas a pagar, fluxo de caixa e DRE
+              Contas a receber, contas a pagar e fluxo de caixa
             </p>
           </div>
         </div>
@@ -91,11 +90,16 @@ const Financeiro = () => {
               <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
                 {visibleTabs.map((tab) => {
                   const Icon = TAB_ICONS[tab.id] ?? Receipt
+                  // Badge representa SÓ contas vencidas (não total nem a vencer hoje).
+                  // Cor vermelha + tooltip explícito para o usuário entender de cara.
                   const overdueCount = tab.id === 'receber'
                     ? (kpis?.countVencidosReceber ?? 0)
                     : tab.id === 'pagar'
                       ? (kpis?.countVencidosPagar ?? 0)
                       : 0
+                  const badgeTitle = tab.id === 'receber'
+                    ? `${overdueCount} ${overdueCount === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'}`
+                    : `${overdueCount} ${overdueCount === 1 ? 'conta a pagar vencida' : 'contas a pagar vencidas'}`
                   return (
                     <button
                       key={tab.id}
@@ -110,7 +114,11 @@ const Financeiro = () => {
                       <Icon className="h-4 w-4" />
                       {tab.label}
                       {overdueCount > 0 && activeTab !== tab.id && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400">
+                        <span
+                          title={badgeTitle}
+                          aria-label={badgeTitle}
+                          className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400"
+                        >
                           {overdueCount}
                         </span>
                       )}
@@ -140,10 +148,11 @@ const Financeiro = () => {
                     <PayablesTable data={payablesData} />
                   )}
                   {activeTab === 'fluxo' && (
-                    <CashFlowChart data={cashFlowData} />
-                  )}
-                  {activeTab === 'dre' && (
-                    <DreTable data={dreData} />
+                    <CashFlowChart
+                      data={cashFlowData}
+                      totals={cashFlowTotals}
+                      prevTotals={cashFlowPrevTotals}
+                    />
                   )}
                 </>
               )}

@@ -140,41 +140,6 @@ export interface MovimentoConta {
   tipoPessoa: string
 }
 
-export interface DreVendasGrupo {
-  produtoGrupo: string
-  valorVenda: number
-  acrescimo: number
-  desconto: number
-  cmv: number
-}
-
-export interface DreApuracaoReceita {
-  planoContaGerencialPAI: string
-  planoContaGerencialFILHO: string
-  centroCusto: number[]
-  data: string
-  descricaoDocumento: string
-  valor: number
-}
-
-export interface DreApuracaoPagamentos {
-  planoContaGerencialPAI: string
-  planoContaGerencialFILHO: string
-  centroCusto: number[]
-  data: string
-  descricaoDocumento: string
-  valor: number
-}
-
-export interface DRE {
-  empresaCodigo: number[]
-  receitaBruta: number
-  vendasGrupo: DreVendasGrupo[]
-  deducaoFiscal: number
-  apuracaoReceita: DreApuracaoReceita[]
-  apuracaoPagamentos: DreApuracaoPagamentos[]
-}
-
 export interface Caixa {
   codigo: number
   empresaCodigo: number

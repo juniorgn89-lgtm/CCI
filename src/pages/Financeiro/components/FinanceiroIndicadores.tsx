@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
   DollarSign, CreditCard, TrendingUp, AlertTriangle,
-  Lightbulb, ArrowUpRight, ArrowDownRight, Clock,
+  ArrowUpRight, ArrowDownRight,
   Receipt, Wallet,
 } from 'lucide-react'
 import {
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort, formatNumber } from '@/lib/formatters'
 import type { FinanceKpiData, ReceivableRow, PayableRow, CashFlowRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
-type TabKey = 'indicadores' | 'receber' | 'pagar' | 'fluxo' | 'dre'
+type TabKey = 'indicadores' | 'receber' | 'pagar' | 'fluxo'
 
 interface FinanceiroIndicadoresProps {
   kpis: FinanceKpiData
@@ -53,75 +53,6 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       data: r.data.substring(5), // MM-DD
     }))
 
-    // Insights
-    const insights: { type: 'positive' | 'warning' | 'info'; text: string }[] = []
-
-    if (kpis.saldoLiquido >= 0) {
-      insights.push({
-        type: 'positive',
-        text: `Saldo líquido positivo de ${formatCurrency(kpis.saldoLiquido)} — posição financeira favorável`,
-      })
-    } else {
-      insights.push({
-        type: 'warning',
-        text: `Saldo líquido negativo de ${formatCurrency(kpis.saldoLiquido)} — obrigações superam recebíveis`,
-      })
-    }
-
-    if (overdueReceivables.length > 0) {
-      insights.push({
-        type: 'warning',
-        text: `${overdueReceivables.length} título${overdueReceivables.length > 1 ? 's' : ''} a receber vencido${overdueReceivables.length > 1 ? 's' : ''} totalizando ${formatCurrency(totalOverdueReceivables)}`,
-      })
-    } else {
-      insights.push({
-        type: 'positive',
-        text: 'Nenhum título a receber vencido no período',
-      })
-    }
-
-    if (overduePayables.length > 0) {
-      insights.push({
-        type: 'warning',
-        text: `${overduePayables.length} título${overduePayables.length > 1 ? 's' : ''} a pagar vencido${overduePayables.length > 1 ? 's' : ''} totalizando ${formatCurrency(totalOverduePayables)}`,
-      })
-    } else {
-      insights.push({
-        type: 'positive',
-        text: 'Nenhum título a pagar vencido no período',
-      })
-    }
-
-    if (cashFlowData.length > 0) {
-      if (saldoFluxo >= 0) {
-        insights.push({
-          type: 'positive',
-          text: `Fluxo de caixa positivo: ${formatCurrency(totalEntradas)} em entradas vs ${formatCurrency(totalSaidas)} em saídas`,
-        })
-      } else {
-        insights.push({
-          type: 'warning',
-          text: `Fluxo de caixa negativo: saídas de ${formatCurrency(totalSaidas)} superam entradas de ${formatCurrency(totalEntradas)}`,
-        })
-      }
-    }
-
-    if (kpis.inadimplenciaPercent > 10) {
-      insights.push({
-        type: 'warning',
-        text: `Taxa de inadimplência de ${kpis.inadimplenciaPercent.toFixed(1)}% — acima de 10%, atenção redobrada`,
-      })
-    } else if (kpis.inadimplenciaPercent > 0) {
-      insights.push({
-        type: 'info',
-        text: `Taxa de inadimplência de ${kpis.inadimplenciaPercent.toFixed(1)}% do total a receber`,
-      })
-    }
-
-    // Sort: positive first, then info, then warning
-    const order = { positive: 0, info: 1, warning: 2 }
-    insights.sort((a, b) => order[a.type] - order[b.type])
-
     return {
       totalEntradas,
       totalSaidas,
@@ -137,7 +68,6 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       pendingPayablesCount: pendingPayables.length,
       comparisonData,
       recentCashFlow,
-      insights,
     }
   }, [kpis, receivablesData, payablesData, cashFlowData])
 
@@ -250,34 +180,6 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
           )
         })}
       </div>
-
-      {/* Insights */}
-      {computed.insights.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-3 flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Insights Financeiros</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {computed.insights.map((ins, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'flex items-start gap-2 rounded-lg border px-3 py-2',
-                  ins.type === 'positive' && 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10',
-                  ins.type === 'warning' && 'border-red-200 bg-red-50/50 dark:border-red-800/30 dark:bg-red-900/10',
-                  ins.type === 'info' && 'border-blue-200 bg-blue-50/50 dark:border-blue-800/30 dark:bg-blue-900/10',
-                )}
-              >
-                {ins.type === 'positive' && <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />}
-                {ins.type === 'warning' && <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />}
-                {ins.type === 'info' && <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Receber vs Pagar */}

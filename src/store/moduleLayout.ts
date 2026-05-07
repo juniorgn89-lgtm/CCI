@@ -54,7 +54,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 6,
+        version: 7,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -92,7 +92,6 @@ export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-la
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
-  { id: 'dre', label: 'DRE', visible: true },
 ])
 
 export const useOperacaoLayout = createModuleLayoutStore('ccisga-operacao-layout', [

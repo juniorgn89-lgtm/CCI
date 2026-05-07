@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchDre } from '@/api/endpoints/financeiro'
+import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta } from '@/api/endpoints/financeiro'
+import type { MovimentoConta } from '@/api/types/financeiro'
 
 export interface FinanceKpiData {
   totalReceber: number
@@ -67,6 +68,60 @@ export interface CashFlowRow {
   saldoAcumulado: number
 }
 
+export interface CashFlowTotals {
+  entradas: number
+  saidas: number
+  saldo: number
+}
+
+/**
+ * Classifica um movimento de conta como entrada ou saída.
+ *
+ * A API Quality `/MOVIMENTO_CONTA` retorna o campo `tipo` em formato variável
+ * (CREDITO/DEBITO, C/D, ou ENTRADA/SAIDA, dependendo do cliente). O `valor`
+ * costuma vir sempre positivo, com o sinal lógico embutido em `tipo`.
+ *
+ * Estratégia (mais robusta que a versão anterior, que confiava em `valor > 0`
+ * como fallback e classificava tudo como entrada):
+ *   1. Olha a primeira letra de `tipo` (case-insensitive): C → crédito, D → débito.
+ *   2. Se `tipo` for desconhecido, usa o sinal de `valor` como fallback.
+ */
+const classifyMovimento = (m: MovimentoConta): 'entrada' | 'saida' => {
+  const tipo = (m.tipo ?? '').toUpperCase().trim()
+  if (tipo.startsWith('C') || tipo === 'ENTRADA') return 'entrada'
+  if (tipo.startsWith('D') || tipo === 'SAIDA' || tipo === 'SAÍDA') return 'saida'
+  return m.valor >= 0 ? 'entrada' : 'saida'
+}
+
+/**
+ * Subtrai N dias de uma data yyyy-MM-dd e devolve outra data yyyy-MM-dd.
+ * Usado para calcular o período de comparação dos KPIs do fluxo de caixa.
+ */
+const offsetDateByDays = (dateStr: string, days: number): string => {
+  const d = new Date(`${dateStr}T00:00:00`)
+  d.setDate(d.getDate() - days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const daysBetween = (start: string, end: string): number => {
+  const ms = new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()
+  return Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)) + 1)
+}
+
+const sumMovimentos = (data: MovimentoConta[]): CashFlowTotals => {
+  let entradas = 0
+  let saidas = 0
+  for (const m of data) {
+    const cls = classifyMovimento(m)
+    if (cls === 'entrada') entradas += Math.abs(m.valor)
+    else saidas += Math.abs(m.valor)
+  }
+  return { entradas, saidas, saldo: entradas - saidas }
+}
+
 const useFinanceData = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
@@ -77,6 +132,11 @@ const useFinanceData = () => {
     dataInicial,
     dataFinal,
   }
+
+  // Período de comparação: mesmo número de dias do período atual, deslocado pra trás.
+  const diasNoPeriodo = daysBetween(dataInicial, dataFinal)
+  const prevDataFinal = offsetDateByDays(dataInicial, 1)
+  const prevDataInicial = offsetDateByDays(prevDataFinal, diasNoPeriodo - 1)
 
   const {
     data: receberResponse,
@@ -105,24 +165,24 @@ const useFinanceData = () => {
     enabled: hasEmpresa,
   })
 
-  const {
-    data: dreData,
-    isLoading: isLoadingDre,
-  } = useQuery({
-    queryKey: ['dre', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchDre({
-      dataInicial,
-      dataFinal,
-      filiais: empresaCodigos.length > 0 ? empresaCodigos : undefined,
-    }),
+  // Período anterior — mesmo endpoint, datas deslocadas. Usado nos cards de KPI do fluxo.
+  const { data: movimentosPrevResponse } = useQuery({
+    queryKey: ['movimentosConta', empresaCodigo, prevDataInicial, prevDataFinal],
+    queryFn: () =>
+      fetchMovimentosConta({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: prevDataInicial,
+        dataFinal: prevDataFinal,
+      }),
     enabled: hasEmpresa,
   })
 
   const titulosReceber = receberResponse?.resultados ?? []
   const titulosPagar = pagarResponse?.resultados ?? []
   const movimentos = movimentosResponse?.resultados ?? []
+  const movimentosPrev = movimentosPrevResponse?.resultados ?? []
 
-  const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos || isLoadingDre
+  const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
 
   const computed = useMemo(() => {
     const hoje = new Date().toISOString().split('T')[0]
@@ -206,11 +266,9 @@ const useFinanceData = () => {
     for (const m of movimentos) {
       const day = m.dataMovimento.split('T')[0]
       const prev = byDay.get(day) ?? { entradas: 0, saidas: 0 }
-      if (m.tipo === 'CREDITO' || m.valor > 0) {
-        prev.entradas += Math.abs(m.valor)
-      } else {
-        prev.saidas += Math.abs(m.valor)
-      }
+      const cls = classifyMovimento(m)
+      if (cls === 'entrada') prev.entradas += Math.abs(m.valor)
+      else prev.saidas += Math.abs(m.valor)
       byDay.set(day, prev)
     }
 
@@ -228,8 +286,27 @@ const useFinanceData = () => {
         }
       })
 
-    return { kpis, receivablesData, payablesData, cashFlowData, dreData }
-  }, [titulosReceber, titulosPagar, movimentos, dreData])
+    // --- Comparativo período anterior (totais do fluxo) ---
+    const cashFlowTotals: CashFlowTotals = {
+      entradas: cashFlowData.reduce((acc, r) => acc + r.entradas, 0),
+      saidas: cashFlowData.reduce((acc, r) => acc + r.saidas, 0),
+      saldo: 0,
+    }
+    cashFlowTotals.saldo = cashFlowTotals.entradas - cashFlowTotals.saidas
+
+    const cashFlowPrevTotals = sumMovimentos(movimentosPrev)
+
+    return {
+      kpis,
+      receivablesData,
+      payablesData,
+      cashFlowData,
+      cashFlowTotals,
+      cashFlowPrevTotals,
+      cashFlowPrevPeriod: { dataInicial: prevDataInicial, dataFinal: prevDataFinal },
+      diasNoPeriodo,
+    }
+  }, [titulosReceber, titulosPagar, movimentos, movimentosPrev, prevDataInicial, prevDataFinal, diasNoPeriodo])
 
   return {
     ...computed,

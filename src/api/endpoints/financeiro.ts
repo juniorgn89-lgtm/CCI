@@ -5,7 +5,6 @@ import type {
   TituloPagar,
   Duplicata,
   MovimentoConta,
-  DRE,
   Caixa,
   Conta,
 } from '@/api/types/financeiro'
@@ -72,17 +71,6 @@ interface FetchMovimentosContaParams {
   contaCodigo?: number
 }
 
-interface FetchDreParams {
-  dataInicial: string
-  dataFinal: string
-  apuracaoCaixa?: boolean
-  cfopOutrasSaidas?: boolean
-  apurarJurosDescontos?: boolean
-  filiais?: number[]
-  centroCustoCodigo?: number[]
-  apurarCentroCustoProduto?: boolean
-}
-
 interface FetchCaixasParams {
   dataInicial: string
   dataFinal: string
@@ -110,9 +98,6 @@ export const fetchDuplicatas = (params?: FetchDuplicatasParams) =>
 
 export const fetchMovimentosConta = (params?: FetchMovimentosContaParams) =>
   client.get<PaginatedResponse<MovimentoConta>>('/MOVIMENTO_CONTA', { params }).then((res) => res.data)
-
-export const fetchDre = (params?: FetchDreParams) =>
-  client.get<DRE>('/DRE', { params }).then((res) => res.data)
 
 export const fetchCaixas = (params?: FetchCaixasParams) =>
   client.get<PaginatedResponse<Caixa>>('/CAIXA', { params }).then((res) => res.data)
