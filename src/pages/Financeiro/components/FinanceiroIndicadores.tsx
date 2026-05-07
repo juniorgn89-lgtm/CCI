@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import {
   DollarSign, CreditCard, TrendingUp, AlertTriangle,
-  ArrowUpRight, ArrowDownRight,
-  Receipt, Wallet,
+  ArrowUpRight, ArrowDownRight, Hourglass,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -19,6 +18,134 @@ interface FinanceiroIndicadoresProps {
   payablesData: PayableRow[]
   cashFlowData: CashFlowRow[]
   onNavigateTab: (tab: TabKey) => void
+}
+
+/* ─── Aging buckets ───
+ * Faixas tradicionais de cobrança: < 30d ainda recuperável, > 90d normalmente
+ * tratado como provisão. Usado pra direcionar estratégia (lembrete vs. negativação
+ * vs. write-off) — diferença qualitativa enorme em relação a um único total "vencido".
+ */
+interface AgingBucket {
+  label: string
+  count: number
+  total: number
+  /** Tema de cor: âmbar (recente) → vermelho-escuro (antigo). */
+  tone: 'amber' | 'orange' | 'red' | 'darkRed'
+}
+
+const buildAgingBuckets = (
+  rows: Array<{ diasAtraso: number; valor: number }>
+): AgingBucket[] => {
+  const buckets: AgingBucket[] = [
+    { label: '< 30 dias', count: 0, total: 0, tone: 'amber' },
+    { label: '30-60 dias', count: 0, total: 0, tone: 'orange' },
+    { label: '60-90 dias', count: 0, total: 0, tone: 'red' },
+    { label: '> 90 dias', count: 0, total: 0, tone: 'darkRed' },
+  ]
+  for (const r of rows) {
+    if (r.diasAtraso <= 0) continue
+    const idx = r.diasAtraso < 30 ? 0 : r.diasAtraso < 60 ? 1 : r.diasAtraso < 90 ? 2 : 3
+    buckets[idx].count += 1
+    buckets[idx].total += r.valor
+  }
+  return buckets
+}
+
+const TONE_STYLES: Record<AgingBucket['tone'], { card: string; label: string; value: string; count: string }> = {
+  amber: {
+    card: 'border-amber-200 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-900/10',
+    label: 'text-amber-700 dark:text-amber-400',
+    value: 'text-amber-800 dark:text-amber-300',
+    count: 'text-amber-600/80 dark:text-amber-400/70',
+  },
+  orange: {
+    card: 'border-orange-200 bg-orange-50/70 dark:border-orange-900/40 dark:bg-orange-900/10',
+    label: 'text-orange-700 dark:text-orange-400',
+    value: 'text-orange-800 dark:text-orange-300',
+    count: 'text-orange-600/80 dark:text-orange-400/70',
+  },
+  red: {
+    card: 'border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-900/10',
+    label: 'text-red-700 dark:text-red-400',
+    value: 'text-red-800 dark:text-red-300',
+    count: 'text-red-600/80 dark:text-red-400/70',
+  },
+  darkRed: {
+    card: 'border-red-300 bg-red-100/70 dark:border-red-800/60 dark:bg-red-900/25',
+    label: 'text-red-800 dark:text-red-300',
+    value: 'text-red-900 dark:text-red-200',
+    count: 'text-red-700/80 dark:text-red-300/70',
+  },
+}
+
+const AgingColumn = ({
+  title,
+  buckets,
+  total,
+  onClick,
+}: {
+  title: string
+  buckets: AgingBucket[]
+  total: number
+  onClick: () => void
+}) => {
+  const totalCount = buckets.reduce((acc, b) => acc + b.count, 0)
+  const isEmpty = totalCount === 0
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+          {title}
+        </span>
+        <button
+          onClick={onClick}
+          className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+        >
+          Ver títulos →
+        </button>
+      </div>
+
+      {isEmpty ? (
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-4 py-6 text-center dark:border-gray-700 dark:bg-gray-800/40">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Nenhum título vencido.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {buckets.map((b) => {
+              const t = TONE_STYLES[b.tone]
+              return (
+                <div
+                  key={b.label}
+                  className={cn('rounded-lg border px-3 py-2.5', t.card)}
+                >
+                  <p className={cn('text-[10px] font-semibold uppercase tracking-wide', t.label)}>
+                    {b.label}
+                  </p>
+                  <p className={cn('mt-1 text-sm font-bold tabular-nums', t.value)}>
+                    {formatCurrencyShort(b.total)}
+                  </p>
+                  <p className={cn('mt-0.5 text-[11px] tabular-nums', t.count)}>
+                    {b.count} {b.count === 1 ? 'título' : 'títulos'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Total vencido — {totalCount} {totalCount === 1 ? 'título' : 'títulos'}
+            </span>
+            <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              {formatCurrency(total)}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowData, onNavigateTab }: FinanceiroIndicadoresProps) => {
@@ -41,11 +168,14 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
     const totalOverduePayables = overduePayables.reduce((acc, p) => acc + p.saldoRestante, 0)
     const totalPendingPayables = pendingPayables.reduce((acc, p) => acc + p.saldoRestante, 0)
 
-    // Comparison chart data
-    const comparisonData = [
-      { label: 'A Receber', receber: kpis.totalReceber, pagar: 0 },
-      { label: 'A Pagar', receber: 0, pagar: kpis.totalPagar },
-    ]
+    // Aging — vencidos distribuídos por faixa de atraso (substitui os 2 cards "Vencidos *"
+    // que mostravam só o total, sem indicar se é dor crônica ou recente).
+    const agingReceber = buildAgingBuckets(
+      overdueReceivables.map((r) => ({ diasAtraso: r.diasAtraso, valor: r.valor }))
+    )
+    const agingPagar = buildAgingBuckets(
+      overduePayables.map((p) => ({ diasAtraso: p.diasAtraso, valor: p.saldoRestante }))
+    )
 
     // Cash flow chart — last 10 days for quick view
     const recentCashFlow = cashFlowData.slice(-10).map((r) => ({
@@ -66,7 +196,8 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       totalPendingPayables,
       overduePayablesCount: overduePayables.length,
       pendingPayablesCount: pendingPayables.length,
-      comparisonData,
+      agingReceber,
+      agingPagar,
       recentCashFlow,
     }
   }, [kpis, receivablesData, payablesData, cashFlowData])
@@ -134,32 +265,12 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       iconBg: 'bg-orange-100 dark:bg-orange-900/30',
       tab: 'fluxo' as TabKey,
     },
-    {
-      label: 'Vencidos Receber',
-      value: formatCurrency(computed.totalOverdueReceivables),
-      subtitle: `${computed.overdueReceivablesCount} título${computed.overdueReceivablesCount !== 1 ? 's' : ''} em atraso`,
-      icon: Receipt,
-      cardBg: computed.overdueReceivablesCount > 0 ? 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
-      iconColor: computed.overdueReceivablesCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: computed.overdueReceivablesCount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800',
-      tab: 'receber' as TabKey,
-    },
-    {
-      label: 'Vencidos Pagar',
-      value: formatCurrency(computed.totalOverduePayables),
-      subtitle: `${computed.overduePayablesCount} título${computed.overduePayablesCount !== 1 ? 's' : ''} em atraso`,
-      icon: Wallet,
-      cardBg: computed.overduePayablesCount > 0 ? 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
-      iconColor: computed.overduePayablesCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: computed.overduePayablesCount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800',
-      tab: 'pagar' as TabKey,
-    },
   ]
 
   return (
     <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      {/* KPIs (6 cards — Vencidos Receber/Pagar foram movidos pra seção Aging abaixo) */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
         {kpiCards.map((card) => {
           const Icon = card.icon
           return (
@@ -179,6 +290,34 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
             </button>
           )
         })}
+      </div>
+
+      {/* Aging de Inadimplência — substitui os cards "Vencidos *" com detalhamento por faixa */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Hourglass className="h-4 w-4 text-amber-500" />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Aging de Inadimplência
+          </h3>
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            — vencidos por faixa de atraso
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <AgingColumn
+            title="A Receber"
+            buckets={computed.agingReceber}
+            total={computed.totalOverdueReceivables}
+            onClick={() => onNavigateTab('receber')}
+          />
+          <AgingColumn
+            title="A Pagar"
+            buckets={computed.agingPagar}
+            total={computed.totalOverduePayables}
+            onClick={() => onNavigateTab('pagar')}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
