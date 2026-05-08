@@ -18,6 +18,11 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
  * cada módulo tem ~1-2s de loading (aceitável; a maioria dos usuários
  * visita 2-3 módulos por sessão, não todos).
  */
+// Dados de referência (empresas, grupos, produtos) raramente mudam dentro de uma
+// sessão. `staleTime: Infinity` impede refetch automático mesmo após muito tempo;
+// usuário ainda pode forçar refresh pelo botão do header se cadastrou algo novo.
+const REFERENCE_STALE_TIME = Infinity
+
 const useModulePrefetch = () => {
   const queryClient = useQueryClient()
 
@@ -25,19 +30,19 @@ const useModulePrefetch = () => {
     queryClient.prefetchQuery({
       queryKey: ['empresas'],
       queryFn: () => fetchEmpresas({ limite: 200 }),
-      staleTime: 30 * 60 * 1000,
+      staleTime: REFERENCE_STALE_TIME,
     })
 
     queryClient.prefetchQuery({
       queryKey: ['grupos'],
       queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
-      staleTime: 30 * 60 * 1000,
+      staleTime: REFERENCE_STALE_TIME,
     })
 
     queryClient.prefetchQuery({
       queryKey: ['produtos'],
       queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
-      staleTime: 30 * 60 * 1000,
+      staleTime: REFERENCE_STALE_TIME,
     })
   }, [queryClient])
 }

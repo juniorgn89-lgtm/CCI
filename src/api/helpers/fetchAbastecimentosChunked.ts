@@ -47,6 +47,10 @@ const fetchChunkWithRetry = async (
   }
 }
 
+// Paralelismo: 4 chunks simultâneos balanceia velocidade vs carga no servidor.
+// Subir mais que isso pode disparar rate-limit da Quality em períodos longos.
+const PARALLEL_CHUNKS = 4
+
 export const fetchAbastecimentosChunked = async ({
   dataInicial,
   dataFinal,
@@ -54,10 +58,9 @@ export const fetchAbastecimentosChunked = async ({
 }: Params): Promise<Abastecimento[]> => {
   const chunks = splitDateRange(dataInicial, dataFinal, chunkDays)
 
-  // Process in batches of 2 to reduce server load
   const results: Abastecimento[] = []
-  for (let i = 0; i < chunks.length; i += 2) {
-    const batch = chunks.slice(i, i + 2)
+  for (let i = 0; i < chunks.length; i += PARALLEL_CHUNKS) {
+    const batch = chunks.slice(i, i + PARALLEL_CHUNKS)
     const batchResults = await Promise.all(
       batch.map(({ from, to }) => fetchChunkWithRetry(from, to))
     )
