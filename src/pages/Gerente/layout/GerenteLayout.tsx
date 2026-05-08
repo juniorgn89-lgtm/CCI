@@ -4,7 +4,6 @@ import { useIsFetching } from '@tanstack/react-query'
 import { LayoutDashboard, Users, BarChart3, LogOut, Radio, Fuel, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
-import { useThemeStore } from '@/store/theme'
 
 const navItems = [
   { label: 'Início', path: '/gerente', icon: LayoutDashboard },
@@ -18,7 +17,6 @@ const GerenteLayout = () => {
   const navigate = useNavigate()
   const isFetching = useIsFetching()
   const { setPeriodo } = useFilterStore()
-  const { dark, toggle } = useThemeStore()
 
   useEffect(() => {
     const now = new Date()
@@ -26,7 +24,6 @@ const GerenteLayout = () => {
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const today = fmt(now)
     setPeriodo(today, today)
-    if (!dark) toggle()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -1,10 +1,8 @@
 import { useLocation, Link, Outlet, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
 import { useIsFetching } from '@tanstack/react-query'
 import { Fuel, Trophy, Wallet, LogOut, User, Radio, Banknote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFreentistaStore } from '@/store/frentista'
-import { useThemeStore } from '@/store/theme'
 
 const navItems = [
   { label: 'Abastecimentos', path: '/frentista', icon: Fuel },
@@ -17,14 +15,7 @@ const FreentistaLayout = () => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { session, clearSession } = useFreentistaStore()
-  const { dark, toggle } = useThemeStore()
   const isFetching = useIsFetching()
-
-  // Default to dark mode for frentista
-  useEffect(() => {
-    if (!dark) toggle()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handleLogout = () => {
     sessionStorage.removeItem('app_authenticated')
