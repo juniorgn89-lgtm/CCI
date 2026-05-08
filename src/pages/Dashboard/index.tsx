@@ -32,7 +32,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
           <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -45,14 +46,17 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-6">
+      {/* Side-by-side — `items-stretch` (default) faz o painel direito esticar
+          até a altura total da coluna esquerda (cards + tabela), alinhando topo↔
+          topo e rodapé↔rodapé. */}
+      <div className="flex flex-col gap-6 xl:flex-row">
+        <div className="min-w-0 flex-1 space-y-4">
           <TurnosAoVivo />
           <TabelaPostos />
         </div>
-        <div className="xl:sticky xl:top-4 xl:self-start">
+        <aside className="hidden w-[260px] shrink-0 xl:block">
           <ProjecoesPainel />
-        </div>
+        </aside>
       </div>
     </div>
   )

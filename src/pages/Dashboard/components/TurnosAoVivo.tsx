@@ -1,4 +1,4 @@
-import { Activity, Building2, ArrowRight, Wallet, User, Clock } from 'lucide-react'
+import { Activity, Building2, ArrowRight, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
 import { useFilterStore } from '@/store/filters'
@@ -93,21 +93,21 @@ const TurnosAoVivo = () => {
                 onClick={() => handleClick(emp.empresaCodigo)}
                 className="group flex flex-col rounded-xl border border-l-4 border-gray-200 border-l-green-500 bg-white text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:border-l-green-500 dark:bg-gray-900 dark:hover:border-green-700"
               >
-                {/* Header do posto */}
-                <div className="flex items-start justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                {/* Header do posto — padding reduzido pra caber sem scroll */}
+                <div className="flex items-start justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
                       <Activity className="h-3 w-3" />
                       Ao vivo · {emp.caixas.length} {emp.caixas.length === 1 ? 'caixa' : 'caixas'}
                     </p>
                     <p
-                      className="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-gray-100"
+                      className="mt-0.5 truncate text-sm font-semibold text-gray-900 dark:text-gray-100"
                       title={emp.empresaNome}
                     >
                       {emp.empresaNome}
                     </p>
                     {emp.apuradoParcial > 0 && (
-                      <div className="mt-1.5 flex items-center gap-1.5">
+                      <div className="mt-1 flex items-center gap-1.5">
                         <Wallet className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                         <span
                           className="tabular-nums text-sm font-bold text-gray-900 dark:text-gray-100"
@@ -124,29 +124,23 @@ const TurnosAoVivo = () => {
                   <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600" />
                 </div>
 
-                {/* Lista de caixas do posto */}
+                {/* Lista de caixas — uma linha por caixa: turno + hora + nome inline */}
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {emp.caixas.map((c) => (
                     <li
                       key={`${c.empresaCodigo}-${c.caixaCodigo}`}
-                      className="flex flex-col gap-1 px-4 py-2.5 text-xs"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                      title={`${c.turno} · ${formatDataAbertura(c.abertura)} ${formatHora(c.abertura)} · ${c.responsavelNome}`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                          {c.turno}
-                        </span>
-                        <Clock className="h-3 w-3 shrink-0 text-gray-400" />
-                        <span className="tabular-nums text-gray-500 dark:text-gray-400">
-                          {formatDataAbertura(c.abertura)} {formatHora(c.abertura)}
-                        </span>
-                      </div>
-                      <div
-                        className="flex items-center gap-1.5 truncate text-gray-700 dark:text-gray-300"
-                        title={c.responsavelNome}
-                      >
-                        <User className="h-3 w-3 shrink-0 text-gray-400" />
-                        <span className="truncate">{c.responsavelNome}</span>
-                      </div>
+                      <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        {c.turno}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">
+                        {formatHora(c.abertura)}
+                      </span>
+                      <span className="truncate text-gray-700 dark:text-gray-300">
+                        {c.responsavelNome}
+                      </span>
                     </li>
                   ))}
                 </ul>

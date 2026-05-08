@@ -70,7 +70,7 @@ const ProjecoesPainel = () => {
   } = useProjecaoMes()
 
   return (
-    <aside className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900 lg:p-5">
+    <aside className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900 lg:p-5 xl:h-full">
       {/* Header */}
       <div className="mb-4 flex items-start gap-3 border-b border-gray-100 pb-3 dark:border-gray-800">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
