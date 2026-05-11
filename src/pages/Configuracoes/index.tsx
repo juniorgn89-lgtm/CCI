@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
+import { useAuthStore } from '@/store/auth'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
 import {
@@ -286,9 +287,18 @@ const ManutencaoBombasSection = () => {
 const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
   const location = useLocation()
+  const supabaseUser = useAuthStore((s) => s.user)
 
-  const userName = (import.meta.env.VITE_APP_USER as string) || 'Usuário'
-  const userEmail = (import.meta.env.VITE_APP_EMAIL as string) || `${userName}@ccisga.local`
+  // Pull nome/email da sessão Supabase quando o usuário logou via Auth.
+  // Fallback pras env vars do fluxo legacy (frentista ou config de dev sem Supabase).
+  const userName =
+    (supabaseUser?.user_metadata?.full_name as string | undefined) ||
+    (import.meta.env.VITE_APP_USER as string) ||
+    'Usuário'
+  const userEmail =
+    supabaseUser?.email ||
+    (import.meta.env.VITE_APP_EMAIL as string) ||
+    `${userName}@ccisga.local`
 
   // Scroll suave para a seção quando vier com hash (ex: /configuracoes#manutencao-bombas)
   useEffect(() => {

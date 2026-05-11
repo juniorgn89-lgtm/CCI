@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/store/auth'
 
 interface NavItem {
   label: string
@@ -75,12 +76,19 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const supabaseUser = useAuthStore((s) => s.user)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const userName = (import.meta.env.VITE_APP_USER as string) || 'Usuário'
-  const userEmail = (import.meta.env.VITE_APP_EMAIL as string) || `${userName}@ccisga.local`
+  const userName =
+    (supabaseUser?.user_metadata?.full_name as string | undefined) ||
+    (import.meta.env.VITE_APP_USER as string) ||
+    'Usuário'
+  const userEmail =
+    supabaseUser?.email ||
+    (import.meta.env.VITE_APP_EMAIL as string) ||
+    `${userName}@ccisga.local`
   const initials = getInitials(userName)
 
   // Close on outside click

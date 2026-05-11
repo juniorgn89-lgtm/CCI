@@ -1,17 +1,17 @@
 import { type FormEvent, useState } from 'react'
 import { Eye, EyeOff, Fuel, User, BarChart3 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
-import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 
 type LoginMode = 'gerente' | 'frentista'
 
-// Temporary test access — will be replaced by Supabase auth
+// Temporary test access — fase 2 da migração Supabase Auth vai eliminar isso
 const FRENTISTA_TEST = {
   codigo: '1001',
   pin: '1234',
@@ -22,10 +22,11 @@ const FRENTISTA_TEST = {
 
 const Login = () => {
   const [mode, setMode] = useState<LoginMode>('gerente')
-  const [user, setUser] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { login, isLoading, error } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+  const { login, error } = useAuth()
 
   const [frentistaCodigo, setFrentistaCodigo] = useState('')
   const [frentistaPin, setFreentistaPin] = useState('')
@@ -34,9 +35,14 @@ const Login = () => {
   const { setEmpresas } = useFilterStore()
   const navigate = useNavigate()
 
-  const handleGerenteSubmit = (e: FormEvent) => {
+  const handleGerenteSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    login(user, password)
+    setSubmitting(true)
+    try {
+      await login(email, password)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleFreentistaLogin = (e: FormEvent) => {
@@ -140,10 +146,11 @@ const Login = () => {
           {mode === 'gerente' && (
             <form onSubmit={handleGerenteSubmit} className="space-y-5">
               <Input
-                type="text"
-                placeholder="Digite seu usuário"
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
+                type="email"
+                autoComplete="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 rounded-lg border-gray-300 bg-gray-50 pl-10 pr-10 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
                 required
               />
@@ -151,7 +158,8 @@ const Login = () => {
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Digite sua senha"
+                  autoComplete="current-password"
+                  placeholder="Senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-12 rounded-lg border-gray-300 bg-gray-50 pl-10 pr-10 text-center text-sm placeholder:text-gray-400 focus:border-[#1e3a5f] focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:focus:border-blue-500"
@@ -176,9 +184,9 @@ const Login = () => {
               <Button
                 type="submit"
                 className="h-12 w-full rounded-lg bg-[#1e3a5f] text-sm font-bold tracking-wide hover:bg-[#162d4a] dark:bg-[#1e3a5f] dark:hover:bg-[#162d4a]"
-                disabled={isLoading}
+                disabled={submitting}
               >
-                {isLoading ? (
+                {submitting ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                     Acessando...
@@ -187,6 +195,16 @@ const Login = () => {
                   'Acessar'
                 )}
               </Button>
+
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                Não tem conta?{' '}
+                <Link
+                  to="/signup"
+                  className="font-semibold text-[#1e3a5f] hover:underline dark:text-blue-400"
+                >
+                  Criar conta
+                </Link>
+              </p>
             </form>
           )}
 

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
+import Signup from '@/pages/Signup'
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
@@ -32,6 +33,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/frentista/auto" element={<Suspense fallback={null}><FrentistaAutoLogin /></Suspense>} />
 
       {/* Gerente routes */}
