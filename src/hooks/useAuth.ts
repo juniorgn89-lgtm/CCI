@@ -8,16 +8,14 @@ import { useAuthStore } from '@/store/auth'
  * Hook de auth do gerente — wrapper fino sobre Supabase Auth + auth store.
  *
  * Flow:
- *  - `login(email, password)` → `supabase.auth.signInWithPassword` → store atualiza
- *    via listener no App.tsx → navega pra dashboard/gerente conforme tamanho da tela
- *  - `signup(email, password, fullName)` → `supabase.auth.signUp` (full_name vai
- *    em `user_metadata`). Se "Confirm email" estiver desativado no Supabase, vira
- *    sessão imediata e cai no mesmo flow do login.
- *  - `logout()` → `signOut` + limpa o cache do React Query pra não vazar dados
- *    do usuário anterior na próxima sessão.
+ *  - `login(email, password)` → `signInWithPassword` → checa flag `approved` em
+ *    `public.profiles`. Se não aprovado, faz signOut imediato + setError.
+ *  - `signup(email, password, fullName)` → `signUp` (full_name vai em metadata).
+ *    Pós-signup pode resultar em 3 estados: aguardando email confirm, aguardando
+ *    aprovação do supervisor, ou logado e aprovado (e navega).
+ *  - `logout()` → `signOut` + limpa o cache do React Query.
  *
- * Fluxo do frentista (código + PIN) NÃO usa esse hook — continua no Login direto
- * com sessionStorage legacy até a fase 2 da migração.
+ * Frentista (código + PIN) NÃO usa esse hook — continua no Login direto até fase 2.
  */
 export const useAuth = () => {
   const { session, user, isLoading } = useAuthStore()
@@ -35,6 +33,20 @@ export const useAuth = () => {
     return true
   }
 
+  /**
+   * Lê a flag `approved` do profile do usuário atual. Retorna false se profile
+   * não existe (defensivo — não devia acontecer porque o trigger sempre cria).
+   */
+  const isCurrentUserApproved = async (): Promise<boolean> => {
+    if (!supabase) return false
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('approved')
+      .single()
+    if (error) return false
+    return data?.approved === true
+  }
+
   const login = useCallback(
     async (email: string, password: string) => {
       setError(null)
@@ -43,6 +55,13 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         setError(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message)
+        return
+      }
+
+      const approved = await isCurrentUserApproved()
+      if (!approved) {
+        await supabase.auth.signOut()
+        setError('Sua conta está aguardando aprovação do supervisor.')
         return
       }
 
@@ -64,18 +83,26 @@ export const useAuth = () => {
       })
       if (error) {
         setError(error.message)
-        return { needsEmailConfirmation: false }
+        return { needsEmailConfirmation: false, needsApproval: false }
       }
 
-      // Se "Confirm email" estiver desativado no Supabase, já vem sessão e o usuário
-      // pode entrar direto. Caso contrário, sessão fica null até confirmar pelo email.
-      if (data.session) {
-        const isMobile = window.innerWidth < 768
-        navigate(isMobile ? '/gerente' : '/dashboard')
-        return { needsEmailConfirmation: false }
+      // Sessão null → "Confirm email" tá ativo no Supabase, usuário precisa
+      // confirmar pelo email antes de conseguir logar.
+      if (!data.session) {
+        return { needsEmailConfirmation: true, needsApproval: false }
       }
 
-      return { needsEmailConfirmation: true }
+      // Sessão imediata → checa se o profile já está aprovado.
+      // Supervisor (contato@cci.app.br) é auto-aprovado pelo trigger.
+      const approved = await isCurrentUserApproved()
+      if (!approved) {
+        await supabase.auth.signOut()
+        return { needsEmailConfirmation: false, needsApproval: true }
+      }
+
+      const isMobile = window.innerWidth < 768
+      navigate(isMobile ? '/gerente' : '/dashboard')
+      return { needsEmailConfirmation: false, needsApproval: false }
     },
     [navigate]
   )

@@ -1,9 +1,11 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Fuel, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, Fuel, ArrowLeft, CheckCircle2, Clock } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
+
+type PostSignupState = 'idle' | 'email-confirm' | 'awaiting-approval'
 
 const Signup = () => {
   const [fullName, setFullName] = useState('')
@@ -13,7 +15,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
-  const [emailSent, setEmailSent] = useState(false)
+  const [postState, setPostState] = useState<PostSignupState>('idle')
   const { signup, error } = useAuth()
   const navigate = useNavigate()
 
@@ -33,15 +35,14 @@ const Signup = () => {
     setSubmitting(true)
     try {
       const result = await signup(email, password, fullName)
-      if (result?.needsEmailConfirmation) {
-        setEmailSent(true)
-      }
+      if (result?.needsEmailConfirmation) setPostState('email-confirm')
+      else if (result?.needsApproval) setPostState('awaiting-approval')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (emailSent) {
+  if (postState === 'email-confirm') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-6 dark:bg-gray-950">
         <div className="w-full max-w-md text-center">
@@ -51,7 +52,30 @@ const Signup = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Quase lá!</h1>
           <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
             Enviamos um link de confirmação para <span className="font-semibold">{email}</span>.
-            Confirme seu email e depois faça login.
+            Confirme seu email — depois, o supervisor precisa liberar seu acesso.
+          </p>
+          <Button
+            onClick={() => navigate('/login')}
+            className="mt-8 h-12 w-full rounded-lg bg-[#1e3a5f] text-sm font-bold hover:bg-[#162d4a]"
+          >
+            Voltar para o login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (postState === 'awaiting-approval') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-6 dark:bg-gray-950">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+            <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Cadastro recebido</h1>
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            Sua conta <span className="font-semibold">{email}</span> foi criada e está aguardando
+            aprovação do supervisor. Você será notificado quando o acesso for liberado.
           </p>
           <Button
             onClick={() => navigate('/login')}
