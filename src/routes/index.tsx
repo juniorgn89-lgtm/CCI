@@ -13,6 +13,7 @@ const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
+const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 
 // Frentista pages
 const FreentistaLayout = lazy(() => import('@/pages/Frentista/layout/FreentistaLayout'))
@@ -20,6 +21,7 @@ const MeusAbastecimentos = lazy(() => import('@/pages/Frentista/MeusAbasteciment
 const MeuRanking = lazy(() => import('@/pages/Frentista/MeuRanking'))
 const MeuCaixa = lazy(() => import('@/pages/Frentista/MeuCaixa'))
 const MinhaSangria = lazy(() => import('@/pages/Frentista/MinhaSangria'))
+const MinhaConta = lazy(() => import('@/pages/Frentista/MinhaConta'))
 const FrentistaAutoLogin = lazy(() => import('@/pages/Frentista/AutoLogin'))
 
 // Gerente mobile pages
@@ -51,6 +53,7 @@ const AppRoutes = () => {
           <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />
           <Route path="/mobile" element={<Suspense fallback={null}><Mobile /></Suspense>} />
           <Route path="/configuracoes" element={<Suspense fallback={null}><Configuracoes /></Suspense>} />
+          <Route path="/admin/frentistas" element={<Suspense fallback={null}><AdminFrentistas /></Suspense>} />
         </Route>
       </Route>
 
@@ -61,6 +64,7 @@ const AppRoutes = () => {
           <Route path="/frentista/ranking" element={<Suspense fallback={null}><MeuRanking /></Suspense>} />
           <Route path="/frentista/caixa" element={<Suspense fallback={null}><MeuCaixa /></Suspense>} />
           <Route path="/frentista/sangria" element={<Suspense fallback={null}><MinhaSangria /></Suspense>} />
+          <Route path="/frentista/conta" element={<Suspense fallback={null}><MinhaConta /></Suspense>} />
         </Route>
       </Route>
 

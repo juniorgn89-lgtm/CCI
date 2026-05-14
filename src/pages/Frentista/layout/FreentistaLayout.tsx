@@ -3,6 +3,7 @@ import { useIsFetching } from '@tanstack/react-query'
 import { Fuel, Trophy, Wallet, LogOut, User, Radio, Banknote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFreentistaStore } from '@/store/frentista'
+import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 
 const navItems = [
   { label: 'Abastecimentos', path: '/frentista', icon: Fuel },
@@ -14,13 +15,12 @@ const navItems = [
 const FreentistaLayout = () => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { session, clearSession } = useFreentistaStore()
+  const { session } = useFreentistaStore()
+  const { logout } = useFrentistaAuth()
   const isFetching = useIsFetching()
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('app_authenticated')
-    sessionStorage.removeItem('app_mode')
-    clearSession()
+  const handleLogout = async () => {
+    await logout()
     navigate('/login')
   }
 
@@ -29,7 +29,11 @@ const FreentistaLayout = () => {
       {/* Top header */}
       <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link
+            to="/frentista/conta"
+            className="flex items-center gap-3 rounded-lg p-1 -m-1 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+            aria-label="Minha conta"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
               <User className="h-4 w-4 text-green-600 dark:text-green-400" />
             </div>
@@ -37,7 +41,7 @@ const FreentistaLayout = () => {
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{session?.nome ?? 'Frentista'}</p>
               <p className="text-[10px] text-gray-400">{session?.empresaNome}</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-1 dark:bg-green-900/20">
               <Radio className={cn('h-3 w-3 text-green-500', isFetching > 0 && 'animate-pulse')} />

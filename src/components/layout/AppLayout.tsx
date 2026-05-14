@@ -10,14 +10,11 @@ import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 
-const getUsername = (): string =>
-  (import.meta.env.VITE_APP_USER as string) || 'default'
-
-const sidebarPrefKey = (): string => `sidebar_collapsed_${getUsername()}`
+const SIDEBAR_PREF_KEY = 'sidebar_collapsed'
 
 const readManualPreference = (): boolean | null => {
   if (typeof window === 'undefined') return null
-  const v = localStorage.getItem(sidebarPrefKey())
+  const v = localStorage.getItem(SIDEBAR_PREF_KEY)
   if (v === 'true') return true
   if (v === 'false') return false
   return null
@@ -65,7 +62,7 @@ const AppLayout = () => {
     setCollapsed((v) => {
       const next = !v
       try {
-        localStorage.setItem(sidebarPrefKey(), String(next))
+        localStorage.setItem(SIDEBAR_PREF_KEY, String(next))
       } catch { /* noop */ }
       return next
     })

@@ -13,10 +13,12 @@ import {
   LogOut,
   Globe,
   HelpCircle,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
+import { supabase } from '@/lib/supabase'
 
 interface NavItem {
   label: string
@@ -82,13 +84,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const userName =
-    (supabaseUser?.user_metadata?.full_name as string | undefined) ||
-    (import.meta.env.VITE_APP_USER as string) ||
-    'Usuário'
-  const userEmail =
-    supabaseUser?.email ||
-    (import.meta.env.VITE_APP_EMAIL as string) ||
-    `${userName}@ccisga.local`
+    (supabaseUser?.user_metadata?.full_name as string | undefined) || 'Usuário'
+  const userEmail = supabaseUser?.email || '—'
   const initials = getInitials(userName)
 
   // Close on outside click
@@ -118,10 +115,30 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     navigate('/configuracoes')
   }
 
+  const handleAdminFrentistas = () => {
+    setMenuOpen(false)
+    navigate('/admin/frentistas')
+  }
+
   const handleLogout = () => {
     setMenuOpen(false)
     logout()
   }
+
+  // Role do usuário logado (lê uma vez ao montar). Define se o item "Frentistas"
+  // aparece no menu — só supervisor vê.
+  const [role, setRole] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    const fetchRole = async () => {
+      if (!supabaseUser || !supabase) return
+      const { data } = await supabase.from('profiles').select('role').single()
+      if (!cancelled) setRole(data?.role ?? null)
+    }
+    fetchRole()
+    return () => { cancelled = true }
+  }, [supabaseUser])
+  const isSupervisor = role === 'supervisor'
 
   return (
     <aside
@@ -278,6 +295,18 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 </span>
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
               </button>
+
+              {/* Frentistas (admin) — só supervisor */}
+              {isSupervisor && (
+                <button
+                  role="menuitem"
+                  onClick={handleAdminFrentistas}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <Users className="h-4 w-4 text-gray-500" />
+                  Frentistas
+                </button>
+              )}
 
               {/* Idioma */}
               <button

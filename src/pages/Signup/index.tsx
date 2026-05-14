@@ -52,7 +52,7 @@ const Signup = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Quase lá!</h1>
           <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
             Enviamos um link de confirmação para <span className="font-semibold">{email}</span>.
-            Confirme seu email — depois, o supervisor precisa liberar seu acesso.
+            Confirme seu email — depois, a CCI Consultoria precisa liberar seu acesso.
           </p>
           <Button
             onClick={() => navigate('/login')}
@@ -75,7 +75,7 @@ const Signup = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Cadastro recebido</h1>
           <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
             Sua conta <span className="font-semibold">{email}</span> foi criada e está aguardando
-            aprovação do supervisor. Você será notificado quando o acesso for liberado.
+            aprovação da CCI Consultoria. Você será notificado quando o acesso for liberado.
           </p>
           <Button
             onClick={() => navigate('/login')}

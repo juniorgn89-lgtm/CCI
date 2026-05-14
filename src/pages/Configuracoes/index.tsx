@@ -289,16 +289,11 @@ const Configuracoes = () => {
   const location = useLocation()
   const supabaseUser = useAuthStore((s) => s.user)
 
-  // Pull nome/email da sessão Supabase quando o usuário logou via Auth.
-  // Fallback pras env vars do fluxo legacy (frentista ou config de dev sem Supabase).
+  // Nome/email do usuário Supabase logado. Cai num placeholder genérico quando
+  // não há sessão (caso edge — a tela é protegida, então normalmente sempre há).
   const userName =
-    (supabaseUser?.user_metadata?.full_name as string | undefined) ||
-    (import.meta.env.VITE_APP_USER as string) ||
-    'Usuário'
-  const userEmail =
-    supabaseUser?.email ||
-    (import.meta.env.VITE_APP_EMAIL as string) ||
-    `${userName}@ccisga.local`
+    (supabaseUser?.user_metadata?.full_name as string | undefined) || 'Usuário'
+  const userEmail = supabaseUser?.email || '—'
 
   // Scroll suave para a seção quando vier com hash (ex: /configuracoes#manutencao-bombas)
   useEffect(() => {

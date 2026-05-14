@@ -4,21 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
-import { useFreentistaStore } from '@/store/frentista'
-import { useFilterStore } from '@/store/filters'
+import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 import { cn } from '@/lib/utils'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 
 type LoginMode = 'gerente' | 'frentista'
-
-// Temporary test access — fase 2 da migração Supabase Auth vai eliminar isso
-const FRENTISTA_TEST = {
-  codigo: '1001',
-  pin: '1234',
-  nome: 'DERMEVAL SANTANA',
-  empresaCodigo: 1,
-  empresaNome: 'POSTO ITAPOA',
-}
 
 const Login = () => {
   const [mode, setMode] = useState<LoginMode>('gerente')
@@ -30,9 +20,8 @@ const Login = () => {
 
   const [frentistaCodigo, setFrentistaCodigo] = useState('')
   const [frentistaPin, setFreentistaPin] = useState('')
-  const [frentistaError, setFreentistaError] = useState<string | null>(null)
-  const { setSession } = useFreentistaStore()
-  const { setEmpresas } = useFilterStore()
+  const [frentistaSubmitting, setFrentistaSubmitting] = useState(false)
+  const { login: loginFrentista, error: frentistaError } = useFrentistaAuth()
   const navigate = useNavigate()
 
   const handleGerenteSubmit = async (e: FormEvent) => {
@@ -45,23 +34,14 @@ const Login = () => {
     }
   }
 
-  const handleFreentistaLogin = (e: FormEvent) => {
+  const handleFreentistaLogin = async (e: FormEvent) => {
     e.preventDefault()
-    setFreentistaError(null)
-
-    if (frentistaCodigo === FRENTISTA_TEST.codigo && frentistaPin === FRENTISTA_TEST.pin) {
-      sessionStorage.setItem('app_authenticated', 'true')
-      sessionStorage.setItem('app_mode', 'frentista')
-      setEmpresas([FRENTISTA_TEST.empresaCodigo])
-      setSession({
-        funcionarioCodigo: 0, // Will be resolved by name lookup in the app
-        nome: FRENTISTA_TEST.nome,
-        empresaCodigo: FRENTISTA_TEST.empresaCodigo,
-        empresaNome: FRENTISTA_TEST.empresaNome,
-      })
-      navigate('/frentista')
-    } else {
-      setFreentistaError('Código ou PIN inválido')
+    setFrentistaSubmitting(true)
+    try {
+      const ok = await loginFrentista(frentistaCodigo, frentistaPin)
+      if (ok) navigate('/frentista')
+    } finally {
+      setFrentistaSubmitting(false)
     }
   }
 
@@ -238,8 +218,16 @@ const Login = () => {
               <Button
                 type="submit"
                 className="h-12 w-full rounded-lg bg-green-600 text-sm font-bold tracking-wide hover:bg-green-500"
+                disabled={frentistaSubmitting}
               >
-                Entrar
+                {frentistaSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Entrando...
+                  </span>
+                ) : (
+                  'Entrar'
+                )}
               </Button>
 
               <LoginQrCode code={frentistaCodigo} pin={frentistaPin} />

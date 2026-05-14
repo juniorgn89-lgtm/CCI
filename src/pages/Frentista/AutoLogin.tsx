@@ -1,48 +1,58 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useFreentistaStore } from '@/store/frentista'
-import { useFilterStore } from '@/store/filters'
 import { Loader2 } from 'lucide-react'
+import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 
-const FRENTISTA_TEST = {
-  codigo: '1001',
-  pin: '1234',
-  nome: 'DERMEVAL SANTANA',
-  empresaCodigo: 1,
-  empresaNome: 'POSTO ITAPOA',
-}
-
+/**
+ * AutoLogin via QR code: `/frentista/auto?code=1001&pin=1234`.
+ * Convertemos os params em login Supabase usando o mesmo mapping do useFrentistaAuth.
+ */
 const AutoLogin = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { setSession } = useFreentistaStore()
-  const { setEmpresas } = useFilterStore()
+  const { login } = useFrentistaAuth()
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Evita disparar o login mais de uma vez em strict mode / re-render
+  const triggeredRef = useRef(false)
 
   useEffect(() => {
+    if (triggeredRef.current) return
+    triggeredRef.current = true
+
     const code = searchParams.get('code')
     const pin = searchParams.get('pin')
 
-    if (code === FRENTISTA_TEST.codigo && pin === FRENTISTA_TEST.pin) {
-      sessionStorage.setItem('app_authenticated', 'true')
-      sessionStorage.setItem('app_mode', 'frentista')
-      setEmpresas([FRENTISTA_TEST.empresaCodigo])
-      setSession({
-        funcionarioCodigo: 0,
-        nome: FRENTISTA_TEST.nome,
-        empresaCodigo: FRENTISTA_TEST.empresaCodigo,
-        empresaNome: FRENTISTA_TEST.empresaNome,
-      })
-      navigate('/frentista', { replace: true })
-    } else {
+    if (!code || !pin) {
       navigate('/login', { replace: true })
+      return
     }
-  }, [searchParams, navigate, setSession, setEmpresas])
+
+    login(code, pin).then((ok) => {
+      if (ok) navigate('/frentista', { replace: true })
+      else setErrorMessage('Não foi possível autenticar. Verifique o QR code ou tente pela tela de login.')
+    })
+  }, [searchParams, navigate, login])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1e3a5f]" />
-        <p className="text-sm font-medium text-gray-500">Autenticando...</p>
+      <div className="flex flex-col items-center gap-3 px-6 text-center">
+        {errorMessage ? (
+          <>
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">{errorMessage}</p>
+            <button
+              onClick={() => navigate('/login', { replace: true })}
+              className="rounded-md bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]"
+            >
+              Ir para login
+            </button>
+          </>
+        ) : (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-[#1e3a5f]" />
+            <p className="text-sm font-medium text-gray-500">Autenticando...</p>
+          </>
+        )}
       </div>
     </div>
   )
