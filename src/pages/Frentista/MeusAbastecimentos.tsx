@@ -1,17 +1,34 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Fuel, Droplets, DollarSign, Receipt, RefreshCw } from 'lucide-react'
+import { Fuel, Droplets, Receipt, RefreshCw, Calendar, Target } from 'lucide-react'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFilterStore } from '@/store/filters'
 import { fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchProdutos } from '@/api/endpoints/produtos'
-import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
+import { fetchFuncionarios, fetchFuncionarioMeta } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/components/kpi/InsightBanner'
 import FrentistaPeriodBadges from '@/pages/Frentista/components/FrentistaPeriodBadges'
+
+/** Identifica o tipo da meta pela descrição livre cadastrada no Quality. */
+type MetaTipo = 'litros' | 'faturamento' | 'abastecimentos' | null
+const detectMetaTipo = (desc: string): MetaTipo => {
+  const d = (desc ?? '').toLowerCase()
+  if (d.includes('litro')) return 'litros'
+  if (d.includes('fatur') || d.includes('venda') || d.includes('receita')) return 'faturamento'
+  if (d.includes('abastec') || d.includes('atend')) return 'abastecimentos'
+  return null
+}
+
+/** Inclusivo: 01→05 = 5 dias. */
+const daysBetweenInclusive = (start: string, end: string): number => {
+  const a = new Date(`${start}T00:00:00`).getTime()
+  const b = new Date(`${end}T00:00:00`).getTime()
+  return Math.max(1, Math.round((b - a) / 86_400_000) + 1)
+}
 
 const PRODUCT_STYLES = [
   { dot: '#93a8c4', bar: '#93a8c4' },       // slate blue
@@ -55,6 +72,29 @@ const MeusAbastecimentos = () => {
     staleTime: 30 * 60 * 1000,
   })
 
+  // Resolve funcionarioCodigo real pela busca de nome (FRENTISTA_TEST não tinha o
+  // codigo numérico do Quality). Isolado num memo pra outras queries dependerem dele.
+  const meuCodigo = useMemo(() => {
+    if (!session) return 0
+    const funcionarios = funcData?.resultados ?? []
+    const match = funcionarios.find((f) => f.nome.toUpperCase() === session.nome.toUpperCase())
+    return match?.funcionarioCodigo ?? session.funcionarioCodigo
+  }, [session, funcData])
+
+  // Meta pessoal cadastrada no Quality (`/FUNCIONARIO_META`). Pode ter várias por
+  // funcionário (períodos diferentes / tipos diferentes). Filtramos a ativa no
+  // período atual quando renderizar.
+  const { data: metaData } = useQuery({
+    queryKey: ['funcionarioMeta', session?.empresaCodigo, meuCodigo],
+    queryFn: () => fetchFuncionarioMeta({
+      empresaCodigo: session?.empresaCodigo,
+      funcionarioCodigo: meuCodigo,
+      limite: 100,
+    }),
+    enabled: !!session && meuCodigo > 0,
+    staleTime: 10 * 60 * 1000,
+  })
+
   const computed = useMemo(() => {
     if (!session || !abastData) return null
 
@@ -83,11 +123,6 @@ const MeusAbastecimentos = () => {
       return `Produto ${codigoProduto}`
     }
 
-    // Find real funcionarioCodigo by name
-    const funcionarios = funcData?.resultados ?? []
-    const funcMatch = funcionarios.find((f) => f.nome.toUpperCase() === session.nome.toUpperCase())
-    const meuCodigo = funcMatch?.funcionarioCodigo ?? session.funcionarioCodigo
-
     // Filter abastecimentos — try by funcionarioCodigo, fallback to all from empresa
     const meus = meuCodigo > 0
       ? abastData.filter((a) => a.codigoFrentista === meuCodigo)
@@ -95,6 +130,49 @@ const MeusAbastecimentos = () => {
     const totalLitros = meus.reduce((s, a) => s + a.quantidade, 0)
     const totalValor = meus.reduce((s, a) => s + a.valorTotal, 0)
     const ticketMedio = meus.length > 0 ? totalValor / meus.length : 0
+
+    // Assiduidade: dias únicos com pelo menos 1 abastecimento no período.
+    // É uma APROXIMAÇÃO de assiduidade (não é o ponto oficial do RH) —
+    // folgas/plantões/dias só em sangria contam como falta aqui.
+    const diasComMovimento = new Set<string>()
+    for (const a of meus) {
+      const day = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+      if (day) diasComMovimento.add(day)
+    }
+    const diasTrabalhados = diasComMovimento.size
+    const diasNoPeriodo = daysBetweenInclusive(dataInicial, dataFinal)
+
+    // Meta pessoal ativa: pega a primeira meta cujo período cobre alguma parte
+    // do filtro atual. Calcula progresso conforme o tipo detectado pela descrição.
+    const metas = metaData?.resultados ?? []
+    const metaCobertura = metas.find(
+      (m) => m.dataInicial <= dataFinal && m.dataFinal >= dataInicial
+    )
+    let metaAtiva: {
+      descricao: string
+      tipo: MetaTipo
+      valor: number
+      consumido: number
+      pct: number
+    } | null = null
+    if (metaCobertura) {
+      const tipo = detectMetaTipo(metaCobertura.descricao)
+      const consumido =
+        tipo === 'litros' ? totalLitros
+        : tipo === 'faturamento' ? totalValor
+        : tipo === 'abastecimentos' ? meus.length
+        : 0
+      const pct = metaCobertura.valor > 0
+        ? Math.min(100, (consumido / metaCobertura.valor) * 100)
+        : 0
+      metaAtiva = {
+        descricao: metaCobertura.descricao,
+        tipo,
+        valor: metaCobertura.valor,
+        consumido,
+        pct,
+      }
+    }
 
     // Group by product
     const byProduct = new Map<string, { litros: number; valor: number; count: number }>()
@@ -118,8 +196,18 @@ const MeusAbastecimentos = () => {
       .map(([data, d]) => ({ data, ...d }))
       .sort((a, b) => b.data.localeCompare(a.data))
 
-    return { total: meus.length, totalLitros, totalValor, ticketMedio, productData, dailyData }
-  }, [session, abastData, produtosData, bicosData, funcData])
+    return {
+      total: meus.length,
+      totalLitros,
+      totalValor,
+      ticketMedio,
+      productData,
+      dailyData,
+      diasTrabalhados,
+      diasNoPeriodo,
+      metaAtiva,
+    }
+  }, [session, abastData, produtosData, bicosData, meuCodigo, metaData, dataInicial, dataFinal])
 
   if (!session) return null
 
@@ -157,16 +245,8 @@ const MeusAbastecimentos = () => {
           </div>
           <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(computed?.totalLitros ?? 0)}</p>
         </div>
-        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-emerald-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-emerald-950/20 dark:to-gray-900">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Faturamento</p>
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(computed?.totalValor ?? 0)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
+        {/* Ticket Médio ocupa a largura toda na linha de baixo (após Abastecimentos + Litros) */}
+        <div className="col-span-2 rounded-lg border border-gray-200/60 bg-gradient-to-br from-amber-50/60 to-white px-3 py-2.5 shadow-sm dark:border-gray-700/60 dark:from-amber-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Ticket Médio</p>
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
@@ -176,6 +256,75 @@ const MeusAbastecimentos = () => {
           <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(computed?.ticketMedio ?? 0)}</p>
         </div>
       </div>
+
+      {/* Este mês: assiduidade + meta pessoal */}
+      {computed && (
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          {/* Assiduidade */}
+          <div className="mb-3 flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+              <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Dias trabalhados</p>
+                <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                  {computed.diasTrabalhados} <span className="text-xs font-medium text-gray-400">de {computed.diasNoPeriodo}</span>
+                </p>
+              </div>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div
+                  className="h-1.5 rounded-full bg-blue-500 transition-all"
+                  style={{ width: `${Math.min(100, (computed.diasTrabalhados / Math.max(1, computed.diasNoPeriodo)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Meta pessoal (se houver) */}
+          {computed.metaAtiva && (() => {
+            const meta = computed.metaAtiva
+            const formatTipo = (v: number): string => {
+              if (meta.tipo === 'litros') return formatLiters(v)
+              if (meta.tipo === 'faturamento') return formatCurrency(v)
+              if (meta.tipo === 'abastecimentos') return `${formatNumber(v)} atend.`
+              return formatNumber(v)
+            }
+            const faltam = Math.max(0, meta.valor - meta.consumido)
+            return (
+              <div className="flex items-start gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                  <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400" title={meta.descricao}>
+                      {meta.descricao || 'Meta'}
+                    </p>
+                    <p className="shrink-0 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                      {meta.pct.toFixed(0)}%
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                    <div
+                      className={cn(
+                        'h-1.5 rounded-full transition-all',
+                        meta.pct >= 100 ? 'bg-emerald-500' : meta.pct >= 75 ? 'bg-emerald-400' : meta.pct >= 50 ? 'bg-amber-400' : 'bg-amber-300'
+                      )}
+                      style={{ width: `${meta.pct}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                    {formatTipo(meta.consumido)} / {formatTipo(meta.valor)}
+                    {faltam > 0 && <span> · faltam {formatTipo(faltam)}</span>}
+                    {meta.pct >= 100 && <span className="font-semibold text-emerald-600 dark:text-emerald-400"> · meta batida! 🎉</span>}
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Insight banner */}
       {computed && computed.total > 0 && (() => {

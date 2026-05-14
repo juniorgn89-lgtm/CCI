@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useTenantStore } from '@/store/tenant'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -18,15 +19,20 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-// --- Request interceptor: inject CHAVE query parameter from env ---
+// --- Request interceptor: injeta CHAVE + baseURL da rede atual (tenant) ---
+// Tenant é populado pelo bootstrap no App.tsx após login. Enquanto não houver
+// rede carregada (ex: pré-login, ou migração antes do SQL de redes rodar),
+// cai no fallback do env VITE_API_KEY / VITE_API_BASE_URL.
 client.interceptors.request.use((config) => {
-  const chave = import.meta.env.VITE_API_KEY
+  const rede = useTenantStore.getState().rede
+  const chave = rede?.chave ?? (import.meta.env.VITE_API_KEY as string | undefined)
+  const baseURL = rede?.api_base_url ?? (import.meta.env.VITE_API_BASE_URL as string | undefined)
 
   if (chave) {
-    config.params = {
-      ...config.params,
-      CHAVE: chave,
-    }
+    config.params = { ...config.params, CHAVE: chave }
+  }
+  if (baseURL) {
+    config.baseURL = baseURL
   }
 
   return config

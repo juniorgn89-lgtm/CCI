@@ -1,6 +1,6 @@
 import { useLocation, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useIsFetching } from '@tanstack/react-query'
-import { Fuel, Trophy, Wallet, LogOut, User, Radio, Banknote } from 'lucide-react'
+import { Fuel, Trophy, LogOut, User, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFreentistaStore } from '@/store/frentista'
 import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
@@ -8,8 +8,6 @@ import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 const navItems = [
   { label: 'Abastecimentos', path: '/frentista', icon: Fuel },
   { label: 'Ranking', path: '/frentista/ranking', icon: Trophy },
-  { label: 'Caixa', path: '/frentista/caixa', icon: Wallet },
-  { label: 'Sangria', path: '/frentista/sangria', icon: Banknote },
 ]
 
 const FreentistaLayout = () => {
