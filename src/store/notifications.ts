@@ -11,6 +11,10 @@ export interface AppAlert {
   description: string
   timestamp: number
   read: boolean
+  /** Quando presente, o click no alerta seta esse posto no filtro global antes
+   * de navegar pro módulo — assim o usuário cai direto no posto problemático. */
+  empresaCodigo?: number
+  empresaNome?: string
 }
 
 interface NotificationState {

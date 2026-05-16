@@ -8,6 +8,7 @@ import type { ProdutoEstoque } from '@/api/types/estoque'
 import type { TituloReceber, TituloPagar } from '@/api/types/financeiro'
 import type { Abastecimento, Bomba, Bico } from '@/api/types/combustivel'
 import type { Produto } from '@/api/types/produto'
+import type { Empresa } from '@/api/types/empresa'
 import { formatCurrency } from '@/lib/formatters'
 
 const CHECK_INTERVAL_MS = 60_000
@@ -31,13 +32,23 @@ const useAlertGenerator = () => {
       }
     }
 
+    // Build empresa name map — usado pra rotular alertas por posto
+    const empresasCache = queryClient.getQueryData<PaginatedResponse<Empresa>>(['empresas'])
+    const empresaNomeMap = new Map<number, string>()
+    for (const e of empresasCache?.resultados ?? []) {
+      empresaNomeMap.set(e.codigo, e.fantasia || e.razao || `Posto ${e.codigo}`)
+    }
+    const nomeDoPosto = (cod: number): string =>
+      empresaNomeMap.get(cod) ?? `Posto ${cod}`
+
     // --- Estoque alerts ---
     const estoqueCache = queryClient.getQueryData<PaginatedResponse<ProdutoEstoque>>(
       ['produtoEstoque', empresaCodigo]
     )
 
-    if (estoqueCache?.resultados) {
+    if (estoqueCache?.resultados && empresaCodigo !== null) {
       const items = estoqueCache.resultados
+      const posto = nomeDoPosto(empresaCodigo)
       let zeroCount = 0
       let criticalCount = 0
 
@@ -52,25 +63,29 @@ const useAlertGenerator = () => {
 
       if (zeroCount > 0) {
         alerts.push({
-          id: 'estoque-zero',
+          id: `estoque-zero-${empresaCodigo}`,
           category: 'estoque',
           severity: 'danger',
-          title: `${zeroCount} produto${zeroCount > 1 ? 's' : ''} sem estoque`,
+          title: `${zeroCount} produto${zeroCount > 1 ? 's' : ''} sem estoque em ${posto}`,
           description: 'Verifique os produtos com saldo zerado para evitar rupturas.',
           timestamp: now,
           read: false,
+          empresaCodigo,
+          empresaNome: posto,
         })
       }
 
       if (criticalCount > 0) {
         alerts.push({
-          id: 'estoque-critico',
+          id: `estoque-critico-${empresaCodigo}`,
           category: 'estoque',
           severity: 'warning',
-          title: `${criticalCount} produto${criticalCount > 1 ? 's' : ''} com estoque crítico`,
+          title: `${criticalCount} produto${criticalCount > 1 ? 's' : ''} com estoque crítico em ${posto}`,
           description: 'Produtos com saldo igual ou inferior a 5 unidades.',
           timestamp: now,
           read: false,
+          empresaCodigo,
+          empresaNome: posto,
         })
       }
     }
@@ -80,7 +95,8 @@ const useAlertGenerator = () => {
       ['titulosReceber', empresaCodigo, dataInicial, dataFinal]
     )
 
-    if (receberCache?.resultados) {
+    if (receberCache?.resultados && empresaCodigo !== null) {
+      const posto = nomeDoPosto(empresaCodigo)
       const hoje = new Date().toISOString().split('T')[0]
       const seteDiasMs = 7 * 24 * 60 * 60 * 1000
       const seteDias = new Date(Date.now() + seteDiasMs).toISOString().split('T')[0]
@@ -96,25 +112,29 @@ const useAlertGenerator = () => {
 
       if (vencidos.length > 0) {
         alerts.push({
-          id: 'financeiro-overdue-receber',
+          id: `financeiro-overdue-receber-${empresaCodigo}`,
           category: 'financeiro',
           severity: 'danger',
-          title: `${vencidos.length} título${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} a receber`,
+          title: `${vencidos.length} título${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} a receber em ${posto}`,
           description: `Total vencido: ${formatCurrency(vencidosValor)}`,
           timestamp: now,
           read: false,
+          empresaCodigo,
+          empresaNome: posto,
         })
       }
 
       if (vencemEmBreve.length > 0) {
         alerts.push({
-          id: 'financeiro-soon-receber',
+          id: `financeiro-soon-receber-${empresaCodigo}`,
           category: 'financeiro',
           severity: 'warning',
-          title: `${vencemEmBreve.length} título${vencemEmBreve.length > 1 ? 's' : ''} vencem nos próximos 7 dias`,
+          title: `${vencemEmBreve.length} título${vencemEmBreve.length > 1 ? 's' : ''} vencem nos próximos 7 dias em ${posto}`,
           description: 'Acompanhe os recebíveis com vencimento próximo.',
           timestamp: now,
           read: false,
+          empresaCodigo,
+          empresaNome: posto,
         })
       }
     }
@@ -124,7 +144,8 @@ const useAlertGenerator = () => {
       ['titulosPagar', empresaCodigo, dataInicial, dataFinal]
     )
 
-    if (pagarCache?.resultados) {
+    if (pagarCache?.resultados && empresaCodigo !== null) {
+      const posto = nomeDoPosto(empresaCodigo)
       const hoje = new Date().toISOString().split('T')[0]
 
       const abertos = pagarCache.resultados.filter((t) => t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO')
@@ -133,38 +154,52 @@ const useAlertGenerator = () => {
 
       if (vencidos.length > 0) {
         alerts.push({
-          id: 'financeiro-overdue-pagar',
+          id: `financeiro-overdue-pagar-${empresaCodigo}`,
           category: 'financeiro',
           severity: 'danger',
-          title: `${vencidos.length} título${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} a pagar`,
+          title: `${vencidos.length} título${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} a pagar em ${posto}`,
           description: `Total vencido: ${formatCurrency(vencidosValor)}`,
           timestamp: now,
           read: false,
+          empresaCodigo,
+          empresaNome: posto,
         })
       }
     }
 
     // --- Combustivel alerts (margin) ---
+    // Por empresa: agrupa abastecimentos e gera UM alerta por posto com margem
+    // abaixo de 5%. Antes era um alerta global, sem indicação do posto culpado.
     const abastecimentosCache = queryClient.getQueryData<Abastecimento[]>(
       ['abastecimentos', dataInicial, dataFinal]
     )
 
     if (abastecimentosCache && abastecimentosCache.length > 0) {
-      const totalFaturamento = abastecimentosCache.reduce((acc, a) => acc + a.valorTotal, 0)
-      const totalCusto = abastecimentosCache.reduce((acc, a) => acc + a.precoCadastro * a.quantidade, 0)
+      type Totals = { fat: number; custo: number }
+      const porEmpresa = new Map<number, Totals>()
+      for (const a of abastecimentosCache) {
+        const prev = porEmpresa.get(a.empresaCodigo) ?? { fat: 0, custo: 0 }
+        porEmpresa.set(a.empresaCodigo, {
+          fat: prev.fat + a.valorTotal,
+          custo: prev.custo + a.precoCadastro * a.quantidade,
+        })
+      }
 
-      if (totalFaturamento > 0) {
-        const margemPercent = ((totalFaturamento - totalCusto) / totalFaturamento) * 100
-
-        if (margemPercent < 5 && margemPercent >= 0) {
+      for (const [empCod, totals] of porEmpresa) {
+        if (totals.fat <= 0) continue
+        const margem = ((totals.fat - totals.custo) / totals.fat) * 100
+        if (margem < 5 && margem >= 0) {
+          const posto = nomeDoPosto(empCod)
           alerts.push({
-            id: 'combustivel-margem-baixa',
+            id: `combustivel-margem-baixa-${empCod}`,
             category: 'combustivel',
             severity: 'warning',
-            title: 'Margem de combustível abaixo de 5%',
-            description: `Margem atual: ${margemPercent.toFixed(1)}%. Revise a precificação.`,
+            title: `Margem combustível baixa em ${posto}`,
+            description: `Margem atual: ${margem.toFixed(1)}%. Revise a precificação.`,
             timestamp: now,
             read: false,
+            empresaCodigo: empCod,
+            empresaNome: posto,
           })
         }
       }
@@ -220,25 +255,30 @@ const useAlertGenerator = () => {
           const desgastePct = intervaloLitros > 0 ? (litros / intervaloLitros) * 100 : 0
           const nome = bomba.descricao || `Bomba ${bomba.bombaCodigo}`
 
+          const posto = nomeDoPosto(empresaCodigo)
           if (desgastePct > 90) {
             alerts.push({
-              id: `bomba-danger-${bomba.bombaCodigo}`,
+              id: `bomba-danger-${empresaCodigo}-${bomba.bombaCodigo}`,
               category: 'bombas',
               severity: 'danger',
-              title: `${nome} — verificar agora (${desgastePct.toFixed(0)}%)`,
+              title: `${nome} (${posto}) — verificar agora (${desgastePct.toFixed(0)}%)`,
               description: 'Bomba ultrapassou 90% do intervalo configurado. Manutenção urgente.',
               timestamp: now,
               read: false,
+              empresaCodigo,
+              empresaNome: posto,
             })
           } else if (desgastePct >= limiteAviso) {
             alerts.push({
-              id: `bomba-warning-${bomba.bombaCodigo}`,
+              id: `bomba-warning-${empresaCodigo}-${bomba.bombaCodigo}`,
               category: 'bombas',
               severity: 'warning',
-              title: `${nome} — manutenção próxima (${desgastePct.toFixed(0)}%)`,
+              title: `${nome} (${posto}) — manutenção próxima (${desgastePct.toFixed(0)}%)`,
               description: `Atingiu o limite de aviso configurado (${limiteAviso}%).`,
               timestamp: now,
               read: false,
+              empresaCodigo,
+              empresaNome: posto,
             })
           }
         }

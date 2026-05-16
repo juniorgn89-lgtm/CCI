@@ -11,6 +11,7 @@ import {
   Fuel,
   Wrench,
   ChevronRight,
+  Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useNotificationStore, type AppAlert, type AlertSeverity, type AlertCategory } from '@/store/notifications'
+import { useFilterStore } from '@/store/filters'
 
 /* ── Config maps ─────────────────────────────────────── */
 
@@ -99,17 +101,17 @@ const formatTimeAgo = (timestamp: number): string => {
 interface AlertItemProps {
   alert: AppAlert
   onRead: (id: string) => void
-  onNavigate: (route: string) => void
+  onActivate: (alert: AppAlert) => void
 }
 
-const AlertItem = ({ alert, onRead, onNavigate }: AlertItemProps) => {
+const AlertItem = ({ alert, onRead, onActivate }: AlertItemProps) => {
   const severity = severityConfig[alert.severity]
   const category = categoryConfig[alert.category]
   const Icon = severity.icon
 
   const handleClick = () => {
     onRead(alert.id)
-    onNavigate(category.route)
+    onActivate(alert)
   }
 
   return (
@@ -151,7 +153,7 @@ const AlertItem = ({ alert, onRead, onNavigate }: AlertItemProps) => {
           {alert.description}
         </p>
 
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className={cn(
             'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
             category.color
@@ -159,8 +161,14 @@ const AlertItem = ({ alert, onRead, onNavigate }: AlertItemProps) => {
             <category.icon className="h-2.5 w-2.5" />
             {category.label}
           </span>
+          {alert.empresaNome && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              <Building2 className="h-2.5 w-2.5" />
+              {alert.empresaNome}
+            </span>
+          )}
           <span className="flex items-center gap-0.5 text-[10px] font-medium text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-500">
-            Ver modulo
+            Abrir
             <ChevronRight className="h-2.5 w-2.5" />
           </span>
         </div>
@@ -178,11 +186,18 @@ const AlertItem = ({ alert, onRead, onNavigate }: AlertItemProps) => {
 const NotificationBell = () => {
   const [open, setOpen] = useState(false)
   const { alerts, unreadCount, markAsRead, markAllAsRead } = useNotificationStore()
+  const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const navigate = useNavigate()
 
-  const handleNavigate = (route: string) => {
+  // Click do alerta: seta o posto no filtro global (se o alerta tem empresaCodigo)
+  // antes de navegar pro módulo. Assim o usuário cai direto no posto problemático
+  // em vez do "Selecione uma empresa" genérico.
+  const handleActivate = (alert: AppAlert) => {
     setOpen(false)
-    navigate(route)
+    if (alert.empresaCodigo) {
+      setEmpresas([alert.empresaCodigo])
+    }
+    navigate(categoryConfig[alert.category].route)
   }
 
   const dangerCount = alerts.filter((a) => !a.read && a.severity === 'danger').length
@@ -266,7 +281,7 @@ const NotificationBell = () => {
                   key={alert.id}
                   alert={alert}
                   onRead={markAsRead}
-                  onNavigate={handleNavigate}
+                  onActivate={handleActivate}
                 />
               ))}
             </div>

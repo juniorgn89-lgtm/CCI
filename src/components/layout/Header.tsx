@@ -5,6 +5,7 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { navItems } from '@/components/layout/Sidebar'
 import GlobalFilterBar from '@/components/filters/GlobalFilterBar'
 import NotificationBell from '@/components/layout/NotificationBell'
+import RedeSwitcher from '@/components/layout/RedeSwitcher'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -70,6 +71,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             <Menu className="h-5 w-5" />
           </button>
           <h1 className="hidden text-base font-semibold text-gray-900 dark:text-gray-100 xl:block">{title}</h1>
+          <RedeSwitcher />
         </div>
 
         <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react'
 import { Eye, EyeOff, Fuel, User, BarChart3 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
@@ -175,16 +175,6 @@ const Login = () => {
                   'Acessar'
                 )}
               </Button>
-
-              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-                Não tem conta?{' '}
-                <Link
-                  to="/signup"
-                  className="font-semibold text-[#1e3a5f] hover:underline dark:text-blue-400"
-                >
-                  Criar conta
-                </Link>
-              </p>
             </form>
           )}
 

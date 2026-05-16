@@ -63,20 +63,27 @@ const useAuthBootstrap = () => {
 }
 
 /**
- * Resolve a Rede do usuário logado. Tenta primeiro pela tabela `profiles`
- * (gerente/supervisor). Se não achar, tenta `frentistas` (frentista logado
- * via codigo+PIN). Em qualquer falha, deixa `rede` null e o client interceptor
- * cai no fallback `VITE_API_KEY`.
+ * Resolve a Rede do usuário logado. Filtra por user_id pra garantir 1 row
+ * (master vê todos os profiles via RLS, então select.single() sem filtro
+ * quebra). Tenta primeiro profiles (gerente/supervisor); fallback pra
+ * frentistas (frentista logado via codigo+PIN).
  */
 const loadTenantForUser = async () => {
   if (!supabase) return
   useTenantStore.getState().setLoading(true)
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      useTenantStore.getState().setRede(null)
+      return
+    }
+
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
       .select('rede_id, redes:rede_id ( id, nome, chave, api_base_url )')
-      .single()
+      .eq('user_id', user.id)
+      .maybeSingle()
     if (profile && (profile as Record<string, unknown>).redes) {
       const rede = (profile as { redes: { id: string; nome: string; chave: string; api_base_url: string } }).redes
       useTenantStore.getState().setRede(rede)
@@ -87,7 +94,8 @@ const loadTenantForUser = async () => {
     const { data: frentista } = await supabase
       .from('frentistas')
       .select('rede_id, redes:rede_id ( id, nome, chave, api_base_url )')
-      .single()
+      .eq('user_id', user.id)
+      .maybeSingle()
     if (frentista && (frentista as Record<string, unknown>).redes) {
       const rede = (frentista as { redes: { id: string; nome: string; chave: string; api_base_url: string } }).redes
       useTenantStore.getState().setRede(rede)

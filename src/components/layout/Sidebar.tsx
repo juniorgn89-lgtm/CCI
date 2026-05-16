@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Users,
   UserCog,
+  Network,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -126,22 +127,35 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     navigate('/admin/usuarios')
   }
 
+  const handleAdminRedes = () => {
+    setMenuOpen(false)
+    navigate('/admin/redes')
+  }
+
   const handleLogout = () => {
     setMenuOpen(false)
     logout()
   }
 
-  // Role do usuário logado (lê uma vez ao montar). Define se o item "Frentistas"
-  // aparece no menu — só supervisor vê.
+  // Role + is_master do usuário logado. Filtra por user_id pra evitar
+  // que master receba múltiplas rows (vê todos os profiles via RLS).
   const [role, setRole] = useState<string | null>(null)
+  const [isMaster, setIsMaster] = useState(false)
   useEffect(() => {
     let cancelled = false
-    const fetchRole = async () => {
+    const fetchProfile = async () => {
       if (!supabaseUser || !supabase) return
-      const { data } = await supabase.from('profiles').select('role').single()
-      if (!cancelled) setRole(data?.role ?? null)
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, is_master')
+        .eq('user_id', supabaseUser.id)
+        .maybeSingle()
+      if (!cancelled) {
+        setRole(data?.role ?? null)
+        setIsMaster(!!data?.is_master)
+      }
     }
-    fetchRole()
+    fetchProfile()
     return () => { cancelled = true }
   }, [supabaseUser])
   const isSupervisor = role === 'supervisor'
@@ -302,17 +316,21 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
               </button>
 
-              {/* Admin — só supervisor */}
+              {/* Frentistas — supervisor ou gerente */}
               {isSupervisor && (
+                <button
+                  role="menuitem"
+                  onClick={handleAdminFrentistas}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <Users className="h-4 w-4 text-gray-500" />
+                  Frentistas
+                </button>
+              )}
+
+              {/* Gerente (CCI Consultoria) — só is_master vê estes */}
+              {isMaster && (
                 <>
-                  <button
-                    role="menuitem"
-                    onClick={handleAdminFrentistas}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    <Users className="h-4 w-4 text-gray-500" />
-                    Frentistas
-                  </button>
                   <button
                     role="menuitem"
                     onClick={handleAdminUsuarios}
@@ -320,6 +338,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                   >
                     <UserCog className="h-4 w-4 text-gray-500" />
                     Usuários
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={handleAdminRedes}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <Network className="h-4 w-4 text-gray-500" />
+                    Redes
                   </button>
                 </>
               )}

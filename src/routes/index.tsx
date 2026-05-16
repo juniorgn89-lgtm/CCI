@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
-import Signup from '@/pages/Signup'
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
@@ -15,6 +14,7 @@ const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
+const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
 
 // Frentista pages
 const FreentistaLayout = lazy(() => import('@/pages/Frentista/layout/FreentistaLayout'))
@@ -34,7 +34,6 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
       <Route path="/frentista/auto" element={<Suspense fallback={null}><FrentistaAutoLogin /></Suspense>} />
 
       {/* Gerente routes */}
@@ -54,6 +53,7 @@ const AppRoutes = () => {
           <Route path="/configuracoes" element={<Suspense fallback={null}><Configuracoes /></Suspense>} />
           <Route path="/admin/frentistas" element={<Suspense fallback={null}><AdminFrentistas /></Suspense>} />
           <Route path="/admin/usuarios" element={<Suspense fallback={null}><AdminUsuarios /></Suspense>} />
+          <Route path="/admin/redes" element={<Suspense fallback={null}><AdminRedes /></Suspense>} />
         </Route>
       </Route>
 

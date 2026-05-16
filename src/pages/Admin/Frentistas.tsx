@@ -154,24 +154,35 @@ const Frentistas = () => {
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.nome}</td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.empresa_nome}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleToggleAtivo(f)}
-                      disabled={busyUserId === f.user_id}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                        f.ativo
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-400'
-                      )}
-                    >
-                      {busyUserId === f.user_id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <span className={cn('h-2 w-2 rounded-full', f.ativo ? 'bg-emerald-500' : 'bg-gray-400')} />
-                      )}
-                      {f.ativo ? 'Ativo' : 'Inativo'}
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleToggleAtivo(f)}
+                        disabled={busyUserId === f.user_id}
+                        role="switch"
+                        aria-checked={f.ativo}
+                        aria-label={f.ativo ? 'Desativar frentista' : 'Ativar frentista'}
+                        className={cn(
+                          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                          f.ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
+                          busyUserId === f.user_id && 'opacity-50 cursor-wait'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                            f.ativo ? 'translate-x-[18px]' : 'translate-x-0.5'
+                          )}
+                        />
+                      </button>
+                      <span className={cn(
+                        'text-xs font-medium',
+                        f.ativo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
+                      )}>
+                        {busyUserId === f.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : (f.ativo ? 'Ativo' : 'Inativo')}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
