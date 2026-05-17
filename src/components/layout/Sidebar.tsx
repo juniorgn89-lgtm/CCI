@@ -186,7 +186,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     >
       <div className={cn('flex h-16 items-center px-4', collapsed && 'justify-center')}>
         {!collapsed && (
-          <span className="text-lg font-bold tracking-wide text-gray-900 dark:text-white">CCISGA</span>
+          <Link
+            to="/"
+            aria-label="Página inicial"
+            title="Página inicial"
+            className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
+          >
+            CCISGA
+          </Link>
         )}
         <button
           onClick={onToggle}

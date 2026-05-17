@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { navItems } from '@/components/layout/Sidebar'
@@ -70,7 +70,18 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="hidden text-base font-semibold text-gray-900 dark:text-gray-100 xl:block">{title}</h1>
+          {currentModule ? (
+            <h1 className="hidden text-base font-semibold text-gray-900 dark:text-gray-100 xl:block">{title}</h1>
+          ) : (
+            <Link
+              to="/"
+              aria-label="Página inicial"
+              title="Página inicial"
+              className="hidden text-base font-semibold text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-300 xl:block"
+            >
+              {title}
+            </Link>
+          )}
           <RedeSwitcher />
         </div>
 

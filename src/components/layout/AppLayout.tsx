@@ -133,7 +133,14 @@ const AppLayout = () => {
         <SheetContent side="left" className="w-52 border-r border-gray-100 bg-white p-0 dark:border-gray-800 dark:bg-[#1e3a5f]">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <div className="flex h-16 items-center px-4">
-            <span className="text-lg font-bold tracking-wide text-gray-900 dark:text-white">CCISGA</span>
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Página inicial"
+              className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
+            >
+              CCISGA
+            </Link>
           </div>
           <nav aria-label="Menu principal" className="mt-2 space-y-1 px-2">
             {visibleNavItems.map((item) => {
