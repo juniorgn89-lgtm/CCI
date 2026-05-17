@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Plus, ArrowLeft, X, Loader2 } from 'lucide-react'
+import { Users, Plus, ArrowLeft, X, Loader2, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchFrentistas,
   toggleFrentistaAtivo,
   createFrentista,
+  deleteFrentista,
   type FrentistaRow,
 } from '@/api/supabase/frentistas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { cn } from '@/lib/utils'
 
 const Frentistas = () => {
@@ -56,7 +59,8 @@ const Frentistas = () => {
     staleTime: 30 * 60 * 1000,
     enabled: isSupervisor,
   })
-  const empresas = empresasData?.resultados ?? []
+  // Aplica a restrição do user logado (supervisor restrito vê só seus postos)
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
 
   const [showCreate, setShowCreate] = useState(false)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
@@ -65,6 +69,22 @@ const Frentistas = () => {
     setBusyUserId(row.user_id)
     try {
       await toggleFrentistaAtivo(row.user_id, !row.ativo)
+      queryClient.invalidateQueries({ queryKey: ['frentistas'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleDelete = async (row: FrentistaRow) => {
+    const ok = window.confirm(
+      `Excluir o frentista ${row.nome} (código ${row.codigo})?\n\nEssa ação remove o acesso permanentemente.`
+    )
+    if (!ok) return
+    setBusyUserId(row.user_id)
+    try {
+      await deleteFrentista(row.user_id)
       queryClient.invalidateQueries({ queryKey: ['frentistas'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -143,49 +163,67 @@ const Frentistas = () => {
                 <th className="px-4 py-2.5 text-left font-medium">Código</th>
                 <th className="px-4 py-2.5 text-left font-medium">Nome</th>
                 <th className="px-4 py-2.5 text-left font-medium">Posto</th>
-                <th className="px-4 py-2.5 text-right font-medium">Status</th>
+                <th className="px-4 py-2.5 text-center font-medium">Status</th>
+                <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {frentistas.map((f) => (
-                <tr key={f.user_id}>
-                  <td className="px-4 py-3 tabular-nums font-medium text-gray-900 dark:text-gray-100">
-                    {f.codigo}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.nome}</td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.empresa_nome}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+              {frentistas.map((f) => {
+                const busy = busyUserId === f.user_id
+                return (
+                  <tr key={f.user_id}>
+                    <td className="px-4 py-3 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                      {f.codigo}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.nome}</td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.empresa_nome}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleToggleAtivo(f)}
+                          disabled={busy}
+                          role="switch"
+                          aria-checked={f.ativo}
+                          aria-label={f.ativo ? 'Desativar frentista' : 'Ativar frentista'}
+                          className={cn(
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                            f.ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
+                            busy && 'opacity-50 cursor-wait'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                              f.ativo ? 'translate-x-[18px]' : 'translate-x-0.5'
+                            )}
+                          />
+                        </button>
+                        <span className={cn(
+                          'text-xs font-medium',
+                          f.ativo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
+                        )}>
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : (f.ativo ? 'Ativo' : 'Inativo')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleToggleAtivo(f)}
-                        disabled={busyUserId === f.user_id}
-                        role="switch"
-                        aria-checked={f.ativo}
-                        aria-label={f.ativo ? 'Desativar frentista' : 'Ativar frentista'}
+                        onClick={() => handleDelete(f)}
+                        disabled={busy}
+                        title="Excluir frentista"
+                        aria-label={`Excluir ${f.nome}`}
                         className={cn(
-                          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-                          f.ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
-                          busyUserId === f.user_id && 'opacity-50 cursor-wait'
+                          'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
+                          busy && 'opacity-50 cursor-not-allowed'
                         )}
                       >
-                        <span
-                          className={cn(
-                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                            f.ativo ? 'translate-x-[18px]' : 'translate-x-0.5'
-                          )}
-                        />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                      <span className={cn(
-                        'text-xs font-medium',
-                        f.ativo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
-                      )}>
-                        {busyUserId === f.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : (f.ativo ? 'Ativo' : 'Inativo')}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -194,6 +232,7 @@ const Frentistas = () => {
       {showCreate && (
         <CreateFrentistaModal
           empresas={empresas.map((e) => ({ codigo: e.codigo, nome: e.fantasia || e.razao }))}
+          codigosJaCadastrados={frentistas.map((f) => f.codigo)}
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false)
@@ -207,17 +246,42 @@ const Frentistas = () => {
 
 interface CreateFrentistaModalProps {
   empresas: { codigo: number; nome: string }[]
+  /** Códigos de funcionário já vinculados a um frentista — filtramos do dropdown
+   * pra evitar cadastrar a mesma pessoa duas vezes. */
+  codigosJaCadastrados: number[]
   onClose: () => void
   onCreated: () => void
 }
 
-const CreateFrentistaModal = ({ empresas, onClose, onCreated }: CreateFrentistaModalProps) => {
-  const [codigo, setCodigo] = useState('')
+const CreateFrentistaModal = ({ empresas, codigosJaCadastrados, onClose, onCreated }: CreateFrentistaModalProps) => {
   const [pin, setPin] = useState('')
-  const [nome, setNome] = useState('')
   const [empresaCodigo, setEmpresaCodigo] = useState<string>(empresas[0]?.codigo.toString() ?? '')
+  const [funcionarioCodigo, setFuncionarioCodigo] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  // Funcionários da empresa selecionada (da API Quality).
+  // `enabled` só dispara quando há empresa selecionada.
+  const { data: funcionariosData, isLoading: isLoadingFuncionarios } = useQuery({
+    queryKey: ['funcionarios-empresa', empresaCodigo],
+    queryFn: () => fetchFuncionarios({ empresaCodigo: Number(empresaCodigo), ativo: true, limite: 500 }),
+    enabled: !!empresaCodigo,
+    staleTime: 10 * 60 * 1000,
+  })
+  const funcionarios = (funcionariosData?.resultados ?? [])
+    .filter((f) => f.ativo)
+    .filter((f) => !codigosJaCadastrados.includes(f.funcionarioCodigo))
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+
+  // Reseta a seleção de funcionário ao trocar de empresa
+  const handleEmpresaChange = (codigo: string) => {
+    setEmpresaCodigo(codigo)
+    setFuncionarioCodigo('')
+  }
+
+  const funcionarioSelecionado = funcionarios.find(
+    (f) => f.funcionarioCodigo.toString() === funcionarioCodigo
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -228,8 +292,8 @@ const CreateFrentistaModal = ({ empresas, onClose, onCreated }: CreateFrentistaM
       setErr('Selecione um posto')
       return
     }
-    if (!/^\d+$/.test(codigo)) {
-      setErr('Código deve ser numérico')
+    if (!funcionarioSelecionado) {
+      setErr('Selecione um funcionário')
       return
     }
     if (pin.length < 4) {
@@ -240,11 +304,12 @@ const CreateFrentistaModal = ({ empresas, onClose, onCreated }: CreateFrentistaM
     setSubmitting(true)
     try {
       await createFrentista({
-        codigo: Number(codigo),
+        codigo: funcionarioSelecionado.funcionarioCodigo,
         pin,
-        nome: nome.trim().toUpperCase(),
+        nome: funcionarioSelecionado.nome.trim().toUpperCase(),
         empresa_codigo: empresa.codigo,
         empresa_nome: empresa.nome,
+        funcionario_codigo: funcionarioSelecionado.funcionarioCodigo,
       })
       onCreated()
     } catch (e) {
@@ -268,51 +333,11 @@ const CreateFrentistaModal = ({ empresas, onClose, onCreated }: CreateFrentistaM
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Código</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-                placeholder="Ex: 1001"
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">PIN inicial</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="Ex: 1234"
-                maxLength={8}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                required
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Nome completo</span>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: DERMEVAL SANTANA"
-              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              required
-            />
-          </label>
-
           <label className="block">
             <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Posto</span>
             <select
               value={empresaCodigo}
-              onChange={(e) => setEmpresaCodigo(e.target.value)}
+              onChange={(e) => handleEmpresaChange(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               required
             >
@@ -323,9 +348,51 @@ const CreateFrentistaModal = ({ empresas, onClose, onCreated }: CreateFrentistaM
             </select>
           </label>
 
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            O frentista poderá trocar o PIN no app depois do primeiro login.
-          </p>
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Funcionário
+            </span>
+            <select
+              value={funcionarioCodigo}
+              onChange={(e) => setFuncionarioCodigo(e.target.value)}
+              disabled={!empresaCodigo || isLoadingFuncionarios}
+              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              required
+            >
+              <option value="" disabled>
+                {isLoadingFuncionarios
+                  ? 'Carregando funcionários…'
+                  : funcionarios.length === 0
+                    ? 'Nenhum funcionário disponível'
+                    : 'Selecione um funcionário'}
+              </option>
+              {funcionarios.map((f) => (
+                <option key={f.funcionarioCodigo} value={f.funcionarioCodigo}>
+                  {f.funcionarioCodigo} — {f.nome}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Lista de funcionários ativos do posto (vinda da Quality). Já cadastrados ficam ocultos.
+            </p>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">PIN inicial</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              placeholder="Ex: 1234"
+              maxLength={8}
+              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              required
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              O frentista pode trocar o PIN no app depois do primeiro login.
+            </p>
+          </label>
 
           {err && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">

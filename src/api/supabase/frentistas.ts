@@ -64,3 +64,22 @@ export const createFrentista = async (input: CreateFrentistaInput): Promise<void
   if (error) throw new Error(error.message ?? 'Falha ao criar frentista')
   if (data?.error) throw new Error(data.error)
 }
+
+/**
+ * Deleta um frentista via Edge Function (service_role). Remove o user de
+ * auth.users; a FK ON DELETE CASCADE remove a row em frentistas. Caller precisa
+ * ser supervisor da mesma rede ou master.
+ */
+export const deleteFrentista = async (userId: string): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const { data, error } = await supabase.functions.invoke('delete-frentista', {
+    body: { user_id: userId },
+  })
+
+  if (error) throw new Error(error.message ?? 'Falha ao deletar frentista')
+  if (data?.error) throw new Error(data.error)
+}

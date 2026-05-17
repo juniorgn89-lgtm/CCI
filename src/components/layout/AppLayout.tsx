@@ -9,6 +9,8 @@ import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
+import { useAuthStore } from '@/store/auth'
+import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 
 const SIDEBAR_PREF_KEY = 'sidebar_collapsed'
 
@@ -28,6 +30,8 @@ const getInitialCollapsed = (): boolean => {
   return window.innerWidth < 1280
 }
 
+const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
+
 const AppLayout = () => {
   useModulePrefetch()
   useAlertGenerator()
@@ -40,13 +44,36 @@ const AppLayout = () => {
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
 
-  // Always redirect to dashboard on page refresh (initial mount)
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
+
+  // Redireciona pra primeira rota permitida no mount inicial. Antes era sempre
+  // /dashboard, mas usuário restrito pode não ter acesso a dashboard.
   useEffect(() => {
-    if (pathname !== '/dashboard') {
-      navigate('/dashboard', { replace: true })
+    const target = firstAllowedPath(modulosPermitidos, isMaster)
+    if (pathname !== target) {
+      navigate(target, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Route guard: bloqueia URL direta a módulo não liberado. Rotas fora do
+  // catálogo (Configurações, /admin/*) passam livre.
+  useEffect(() => {
+    if (!isPathAllowed(pathname, modulosPermitidos, isMaster)) {
+      navigate(firstAllowedPath(modulosPermitidos, isMaster), { replace: true })
+    }
+  }, [pathname, modulosPermitidos, isMaster, navigate])
+
+  // Itens visíveis no menu mobile (filtrados por permissão).
+  const visibleNavItems = (() => {
+    if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) return navItems
+    return navItems.filter((item) => {
+      const id = moduloIdByPath.get(item.path)
+      if (!id) return true
+      return modulosPermitidos.includes(id)
+    })
+  })()
 
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 1280px)')
@@ -87,7 +114,7 @@ const AppLayout = () => {
             <span className="text-lg font-bold tracking-wide text-gray-900 dark:text-white">CCISGA</span>
           </div>
           <nav aria-label="Menu principal" className="mt-2 space-y-1 px-2">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = pathname === item.path
               const Icon = item.icon
 

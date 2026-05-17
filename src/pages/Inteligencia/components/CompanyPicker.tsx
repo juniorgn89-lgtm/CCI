@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, GitCompareArrows } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { cn } from '@/lib/utils'
 import PeriodSelect from '@/components/filters/PeriodSelect'
 import DateRangePicker from '@/components/filters/DateRangePicker'
@@ -20,7 +21,8 @@ const CompanyPicker = ({ selected, onCompare }: CompanyPickerProps) => {
     staleTime: 30 * 60 * 1000,
   })
 
-  const empresas = empresasData?.resultados ?? []
+  // Restringe pelas empresas permitidas do user logado
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
 
   useEffect(() => {
     setDraft(selected)

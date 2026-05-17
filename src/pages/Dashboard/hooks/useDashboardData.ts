@@ -8,6 +8,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
 
@@ -252,11 +253,18 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     staleTime: 30 * 60 * 1000,
   })
 
-  const empresas = empresasData?.resultados ?? []
+  // Filtra pela restrição do user logado (profiles.empresa_codigos).
+  // Master/sem restrição → vê todas; supervisor restrito → só as permitidas.
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const allowedCodes = new Set(empresas.map((e) => e.codigo))
   const isLoading = isLoadingResumo || isLoadingAbast || isLoadingLmc || isLoadingProdutos || isLoadingEmpresas
 
-  // Helper: check if an empresa code matches the current filter
+  // Helper: check if an empresa code matches the current filter + restrição.
+  // Quando o user é restrito, códigos fora da whitelist NUNCA passam — mesmo
+  // se o filtro global estiver vazio (Central da Rede). Empresa só é "visível"
+  // se está dentro das permitidas E (filtro vazio OU filtro a contém).
   const matchesEmpresa = (code: number): boolean => {
+    if (allowedCodes.size > 0 && !allowedCodes.has(code)) return false
     if (empresaCodigos.length === 0) return true
     return empresaCodigos.includes(code)
   }

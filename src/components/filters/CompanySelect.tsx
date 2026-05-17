@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Building2, ChevronDown } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useFilters } from '@/hooks/useFilters'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -23,7 +24,9 @@ const CompanySelect = () => {
     staleTime: 10 * 60 * 1000,
   })
 
-  const empresas = empresasData?.resultados ?? []
+  // Aplica a restrição do usuário (profiles.empresa_codigos). Master/sem
+  // restrição vê todas; supervisor/frentista restrito vê só as permitidas.
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
 
   const handleSelect = (codigo: number) => {
     setEmpresas([codigo])

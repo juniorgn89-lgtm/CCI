@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
+import { MODULOS } from '@/lib/modulos'
 
 interface NavItem {
   label: string
@@ -64,6 +65,9 @@ const navGroups: NavGroup[] = [
 
 const navItems = navGroups.flatMap((g) => g.items)
 
+/** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
+const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
+
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -81,6 +85,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const supabaseUser = useAuthStore((s) => s.user)
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -137,28 +143,39 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     logout()
   }
 
-  // Role + is_master do usuário logado. Filtra por user_id pra evitar
-  // que master receba múltiplas rows (vê todos os profiles via RLS).
+  // Role do usuário — só pra decidir o menu "Frentistas" (supervisor).
+  // is_master já vem da store. Filtra por user_id pra evitar múltiplas rows.
   const [role, setRole] = useState<string | null>(null)
-  const [isMaster, setIsMaster] = useState(false)
   useEffect(() => {
     let cancelled = false
     const fetchProfile = async () => {
       if (!supabaseUser || !supabase) return
       const { data } = await supabase
         .from('profiles')
-        .select('role, is_master')
+        .select('role')
         .eq('user_id', supabaseUser.id)
         .maybeSingle()
-      if (!cancelled) {
-        setRole(data?.role ?? null)
-        setIsMaster(!!data?.is_master)
-      }
+      if (!cancelled) setRole(data?.role ?? null)
     }
     fetchProfile()
     return () => { cancelled = true }
   }, [supabaseUser])
   const isSupervisor = role === 'supervisor'
+
+  // Esconde itens cujo módulo não está na lista permitida. Master ou
+  // sem restrição (null/[]) vê tudo. Itens fora do catálogo (ex: rotas
+  // legadas) também sempre aparecem.
+  const visibleNavGroups = navGroups
+    .map((group) => {
+      if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) return group
+      const items = group.items.filter((item) => {
+        const id = moduloIdByPath.get(item.path)
+        if (!id) return true
+        return modulosPermitidos.includes(id)
+      })
+      return { ...group, items }
+    })
+    .filter((g) => g.items.length > 0)
 
   return (
     <aside
@@ -184,8 +201,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         </button>
       </div>
 
-      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4">
-        {navGroups.map((group, gi) => (
+      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4 pt-2">
+        {visibleNavGroups.map((group, gi) => (
           <div key={group.title} className={cn(gi > 0 && 'mt-4')}>
             {!collapsed && (
               <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-white/40">

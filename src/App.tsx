@@ -41,6 +41,9 @@ const useAuthBootstrap = () => {
       useAuthStore.getState().setAuth(session)
       if (!session) {
         useTenantStore.getState().clear()
+        useAuthStore.getState().setEmpresaCodigos(null)
+        useAuthStore.getState().setModulosPermitidos(null)
+        useAuthStore.getState().setIsMaster(false)
         return
       }
       await loadTenantForUser()
@@ -81,30 +84,51 @@ const loadTenantForUser = async () => {
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('rede_id, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
-    if (profile && (profile as Record<string, unknown>).redes) {
-      const rede = (profile as { redes: { id: string; nome: string; chave: string; api_base_url: string } }).redes
-      useTenantStore.getState().setRede(rede)
+    if (profile) {
+      const typed = profile as {
+        empresa_codigos: number[] | null
+        modulos_permitidos: string[] | null
+        is_master: boolean | null
+        redes: { id: string; nome: string; chave: string; api_base_url: string } | null
+      }
+      useTenantStore.getState().setRede(typed.redes ?? null)
+      useAuthStore.getState().setEmpresaCodigos(typed.empresa_codigos)
+      useAuthStore.getState().setModulosPermitidos(typed.modulos_permitidos)
+      useAuthStore.getState().setIsMaster(!!typed.is_master)
       return
     }
 
-    // Frentista: lê da tabela frentistas
+    // Frentista: lê da tabela frentistas (frentista vê só o próprio posto)
     const { data: frentista } = await supabase
       .from('frentistas')
-      .select('rede_id, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, empresa_codigo, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
     if (frentista && (frentista as Record<string, unknown>).redes) {
-      const rede = (frentista as { redes: { id: string; nome: string; chave: string; api_base_url: string } }).redes
-      useTenantStore.getState().setRede(rede)
+      const typed = frentista as {
+        empresa_codigo: number
+        redes: { id: string; nome: string; chave: string; api_base_url: string }
+      }
+      useTenantStore.getState().setRede(typed.redes)
+      // Frentista é sempre restrito ao próprio posto
+      useAuthStore.getState().setEmpresaCodigos([typed.empresa_codigo])
+      useAuthStore.getState().setModulosPermitidos(null)
+      useAuthStore.getState().setIsMaster(false)
       return
     }
 
     useTenantStore.getState().setRede(null)
+    useAuthStore.getState().setEmpresaCodigos(null)
+    useAuthStore.getState().setModulosPermitidos(null)
+    useAuthStore.getState().setIsMaster(false)
   } catch {
     useTenantStore.getState().setRede(null)
+    useAuthStore.getState().setEmpresaCodigos(null)
+    useAuthStore.getState().setModulosPermitidos(null)
+    useAuthStore.getState().setIsMaster(false)
   }
 }
 

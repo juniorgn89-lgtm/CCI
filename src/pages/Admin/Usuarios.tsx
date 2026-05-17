@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
   updateProfileRole,
   updateProfileApproved,
   updateProfileRedeId,
+  updateProfileEmpresas,
+  updateProfileModulos,
   createUser,
+  deleteUser,
   type ProfileRow,
 } from '@/api/supabase/profiles'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useTenantStore } from '@/store/tenant'
 import { cn } from '@/lib/utils'
+import { MODULOS } from '@/lib/modulos'
 
 const Usuarios = () => {
   const navigate = useNavigate()
@@ -56,6 +62,8 @@ const Usuarios = () => {
 
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingEmpresasFor, setEditingEmpresasFor] = useState<ProfileRow | null>(null)
+  const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
 
   const handleToggleRole = async (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
@@ -114,6 +122,59 @@ const Usuarios = () => {
     }
   }
 
+  const handleSaveEmpresas = async (codigos: number[] | null) => {
+    if (!editingEmpresasFor) return
+    setBusyUserId(editingEmpresasFor.user_id)
+    try {
+      await updateProfileEmpresas(editingEmpresasFor.user_id, codigos)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      setEditingEmpresasFor(null)
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleSaveModulos = async (modulos: string[] | null) => {
+    if (!editingModulosFor) return
+    setBusyUserId(editingModulosFor.user_id)
+    try {
+      await updateProfileModulos(editingModulosFor.user_id, modulos)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      setEditingModulosFor(null)
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleDelete = async (row: ProfileRow) => {
+    if (row.user_id === myUser?.id) {
+      alert('Você não pode excluir a própria conta.')
+      return
+    }
+    if (row.is_master) {
+      alert('Gerente não pode ser excluído.')
+      return
+    }
+    const nome = row.full_name || row.email
+    const ok = window.confirm(
+      `Excluir o usuário ${nome}?\n\nEssa ação remove o acesso permanentemente.`
+    )
+    if (!ok) return
+    setBusyUserId(row.user_id)
+    try {
+      await deleteUser(row.user_id)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
   if (isMaster === null) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -141,8 +202,13 @@ const Usuarios = () => {
 
   const redesAtivas = redes.filter((r) => r.ativo)
 
+  // Separa gerentes (is_master) dos demais usuários — gerente aparece em card acima,
+  // não na tabela. A tabela só lista quem realmente pode ser editado/promovido.
+  const gerentes = profiles.filter((p) => p.is_master)
+  const naoMaster = profiles.filter((p) => !p.is_master)
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
@@ -170,14 +236,56 @@ const Usuarios = () => {
         </div>
       )}
 
+      {/* Banner do gerente (CCI Consultoria). Fica fora da tabela porque o
+          próprio gerente não se edita aqui — todos os campos seriam "vê tudo". */}
+      {gerentes.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Gerente{gerentes.length > 1 ? 's' : ''} (CCI Consultoria)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {gerentes.map((g) => {
+              const isSelf = g.user_id === myUser?.id
+              return (
+                <div
+                  key={g.user_id}
+                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-900/20"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {g.full_name || g.email}
+                      </p>
+                      {isSelf && (
+                        <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium uppercase text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                          você
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-gray-600 dark:text-gray-400">
+                      {g.email} · vê todas as redes e postos
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
           </div>
-        ) : profiles.length === 0 ? (
+        ) : naoMaster.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum usuário encontrado.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Nenhum usuário cadastrado ainda. Use <strong>"+ Novo usuário"</strong> para criar.
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -187,11 +295,14 @@ const Usuarios = () => {
                 <th className="px-4 py-2.5 text-left font-medium">Email</th>
                 <th className="px-4 py-2.5 text-center font-medium">Acesso</th>
                 <th className="px-4 py-2.5 text-left font-medium">Rede</th>
+                <th className="px-4 py-2.5 text-center font-medium">Postos</th>
+                <th className="px-4 py-2.5 text-center font-medium">Módulos</th>
                 <th className="px-4 py-2.5 text-center font-medium">Papel</th>
+                <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {profiles.map((p) => (
+              {naoMaster.map((p) => (
                 <UserRow
                   key={p.user_id}
                   profile={p}
@@ -201,6 +312,9 @@ const Usuarios = () => {
                   onToggleApproved={() => handleToggleApproved(p)}
                   onToggleRole={() => handleToggleRole(p)}
                   onChangeRede={(redeId) => handleChangeRede(p, redeId)}
+                  onEditEmpresas={() => setEditingEmpresasFor(p)}
+                  onEditModulos={() => setEditingModulosFor(p)}
+                  onDelete={() => handleDelete(p)}
                 />
               ))}
             </tbody>
@@ -221,6 +335,23 @@ const Usuarios = () => {
             setShowCreate(false)
             queryClient.invalidateQueries({ queryKey: ['profiles'] })
           }}
+        />
+      )}
+
+      {editingEmpresasFor && (
+        <EmpresasModal
+          profile={editingEmpresasFor}
+          redes={redesAtivas}
+          onClose={() => setEditingEmpresasFor(null)}
+          onSave={handleSaveEmpresas}
+        />
+      )}
+
+      {editingModulosFor && (
+        <ModulosModal
+          profile={editingModulosFor}
+          onClose={() => setEditingModulosFor(null)}
+          onSave={handleSaveModulos}
         />
       )}
     </div>
@@ -430,12 +561,21 @@ interface UserRowProps {
   onToggleApproved: () => void
   onToggleRole: () => void
   onChangeRede: (redeId: string) => void
+  onEditEmpresas: () => void
+  onEditModulos: () => void
+  onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onDelete }: UserRowProps) => {
+  const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
+    ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
+    : null
+  const restricaoModulos = p.modulos_permitidos && p.modulos_permitidos.length > 0
+    ? `${p.modulos_permitidos.length} de ${MODULOS.length}`
+    : null
   return (
     <tr>
-      <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+      <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
         {p.full_name || '—'}
         {isSelf && (
           <span className="ml-2 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
@@ -494,6 +634,56 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
         )}
       </td>
 
+      {/* Postos — atalho pra modal de checkboxes. Gerente vê todos por design. */}
+      <td className="px-4 py-3">
+        {p.is_master ? (
+          <span className="block text-center text-xs text-gray-400">— todos —</span>
+        ) : (
+          <div className="flex items-center justify-center">
+            <button
+              onClick={onEditEmpresas}
+              disabled={busy}
+              className={cn(
+                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+                restricao
+                  ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                busy && 'opacity-50 cursor-not-allowed'
+              )}
+              title={restricao ? 'Editar postos permitidos' : 'Vê todos os postos da rede — clique pra restringir'}
+            >
+              <Building2 className="h-3 w-3" />
+              {restricao ?? 'Todos'}
+            </button>
+          </div>
+        )}
+      </td>
+
+      {/* Módulos — mesmo padrão dos postos. Gerente vê todos por design. */}
+      <td className="px-4 py-3">
+        {p.is_master ? (
+          <span className="block text-center text-xs text-gray-400">— todos —</span>
+        ) : (
+          <div className="flex items-center justify-center">
+            <button
+              onClick={onEditModulos}
+              disabled={busy}
+              className={cn(
+                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+                restricaoModulos
+                  ? 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:border-purple-900/50 dark:bg-purple-900/30 dark:text-purple-300'
+                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                busy && 'opacity-50 cursor-not-allowed'
+              )}
+              title={restricaoModulos ? 'Editar módulos liberados' : 'Vê todos os módulos — clique pra restringir'}
+            >
+              <LayoutGrid className="h-3 w-3" />
+              {restricaoModulos ?? 'Todos'}
+            </button>
+          </div>
+        )}
+      </td>
+
       {/* Papel — badge Gerente pra is_master OR segmented control Usuário | Supervisor */}
       <td className="px-4 py-3">
         {p.is_master ? (
@@ -526,7 +716,302 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
           </div>
         )}
       </td>
+
+      {/* Ações — lixeira (desabilitada pra você mesmo e pra master) */}
+      <td className="px-4 py-3 text-right">
+        <button
+          onClick={onDelete}
+          disabled={busy || isSelf || p.is_master}
+          title={
+            isSelf
+              ? 'Você não pode excluir a própria conta'
+              : p.is_master
+                ? 'Gerente não pode ser excluído'
+                : 'Excluir usuário'
+          }
+          aria-label={`Excluir ${p.full_name || p.email}`}
+          className={cn(
+            'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
+            (busy || isSelf || p.is_master) && 'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-gray-400 dark:hover:bg-transparent dark:hover:text-gray-400'
+          )}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
     </tr>
+  )
+}
+
+/* ─── Modal de seleção de postos permitidos ─── */
+
+interface EmpresasModalProps {
+  profile: ProfileRow
+  redes: RedeRow[]
+  onClose: () => void
+  onSave: (codigos: number[] | null) => void
+}
+
+const EmpresasModal = ({ profile, redes, onClose, onSave }: EmpresasModalProps) => {
+  const currentTenant = useTenantStore((s) => s.rede)
+  const profileRede = redes.find((r) => r.id === profile.rede_id)
+  // O modal só consegue listar postos se o tenant atual = a rede do supervisor
+  // (porque usa a CHAVE da rede via interceptor pra chamar /EMPRESAS).
+  const sameAsTenant = !!currentTenant && currentTenant.id === profile.rede_id
+
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(profile.empresa_codigos ?? [])
+  )
+
+  const { data: empresasData, isLoading } = useQuery({
+    queryKey: ['empresas-admin-permissoes', currentTenant?.id],
+    queryFn: () => fetchEmpresas({ limite: 200 }),
+    enabled: sameAsTenant,
+    staleTime: 5 * 60 * 1000,
+  })
+  const empresas = (empresasData?.resultados ?? []).slice().sort(
+    (a, b) => (a.fantasia || a.razao).localeCompare(b.fantasia || b.razao)
+  )
+
+  const toggle = (codigo: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(codigo)) next.delete(codigo)
+      else next.add(codigo)
+      return next
+    })
+  }
+
+  const allChecked = empresas.length > 0 && empresas.every((e) => selected.has(e.codigo))
+  const toggleAll = () => {
+    if (allChecked) setSelected(new Set())
+    else setSelected(new Set(empresas.map((e) => e.codigo)))
+  }
+
+  const handleSave = () => {
+    const arr = Array.from(selected)
+    // Se selecionou todos OU não selecionou nada, passa null (sem restrição)
+    const value = arr.length === 0 || arr.length === empresas.length ? null : arr
+    onSave(value)
+  }
+
+  const userName = profile.full_name || profile.email
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Postos permitidos</h2>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          {!profile.rede_id ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+              Defina uma rede pro usuário antes de restringir postos.
+            </div>
+          ) : !sameAsTenant ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+              <p className="font-medium">Rede diferente da atual</p>
+              <p className="mt-1">
+                Esse usuário pertence à rede <strong>{profileRede?.nome ?? 'desconhecida'}</strong>.
+                Pra listar os postos, mude pra essa rede no seletor do header e abra o modal de novo.
+              </p>
+            </div>
+          ) : isLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            </div>
+          ) : empresas.length === 0 ? (
+            <p className="py-6 text-center text-xs text-gray-500 dark:text-gray-400">
+              Nenhum posto encontrado na rede.
+            </p>
+          ) : (
+            <>
+              <label className="mb-3 flex cursor-pointer items-center gap-2 border-b border-gray-100 pb-2 dark:border-gray-800">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={toggleAll}
+                  className="h-3.5 w-3.5 rounded border-gray-300"
+                />
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Marcar todos
+                </span>
+                <span className="ml-auto text-[10px] text-gray-400">
+                  {selected.size} de {empresas.length}
+                </span>
+              </label>
+
+              <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
+                {empresas.map((e) => (
+                  <label
+                    key={e.codigo}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(e.codigo)}
+                      onChange={() => toggle(e.codigo)}
+                      className="h-3.5 w-3.5 rounded border-gray-300"
+                    />
+                    <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
+                      {e.fantasia || e.razao}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[10px] text-gray-400">
+                      #{e.codigo}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <p className="mt-3 text-[11px] text-gray-400">
+                Marcar todos ou nenhum equivale a "vê todos da rede" (sem restrição).
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!sameAsTenant || !profile.rede_id}
+            className="flex-1 rounded-md bg-[#1e3a5f] px-3 py-2 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-50"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Modal de seleção de módulos liberados ─── */
+
+interface ModulosModalProps {
+  profile: ProfileRow
+  onClose: () => void
+  onSave: (modulos: string[] | null) => void
+}
+
+const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(profile.modulos_permitidos ?? [])
+  )
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allChecked = MODULOS.every((m) => selected.has(m.id))
+  const toggleAll = () => {
+    if (allChecked) setSelected(new Set())
+    else setSelected(new Set(MODULOS.map((m) => m.id)))
+  }
+
+  const handleSave = () => {
+    const arr = Array.from(selected)
+    // Tudo ou nada → null (sem restrição, vê todos)
+    const value = arr.length === 0 || arr.length === MODULOS.length ? null : arr
+    onSave(value)
+  }
+
+  const userName = profile.full_name || profile.email
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Módulos liberados</h2>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          <label className="mb-3 flex cursor-pointer items-center gap-2 border-b border-gray-100 pb-2 dark:border-gray-800">
+            <input
+              type="checkbox"
+              checked={allChecked}
+              onChange={toggleAll}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+            />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Marcar todos
+            </span>
+            <span className="ml-auto text-[10px] text-gray-400">
+              {selected.size} de {MODULOS.length}
+            </span>
+          </label>
+
+          <div className="space-y-1">
+            {MODULOS.map((m) => (
+              <label
+                key={m.id}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(m.id)}
+                  onChange={() => toggle(m.id)}
+                  className="h-3.5 w-3.5 rounded border-gray-300"
+                />
+                <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
+                  {m.label}
+                </span>
+                <span className="shrink-0 font-mono text-[10px] text-gray-400">
+                  {m.path}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <p className="mt-3 text-[11px] text-gray-400">
+            Configurações fica sempre acessível, independente da seleção. Marcar
+            todos ou nenhum equivale a "sem restrição".
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 rounded-md bg-[#1e3a5f] px-3 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -548,7 +1033,7 @@ const RoleOption = ({ active, color, icon, label, disabled, onClick }: RoleOptio
       onClick={onClick}
       disabled={disabled || active}
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors',
         active
           ? activeBg
           : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200',

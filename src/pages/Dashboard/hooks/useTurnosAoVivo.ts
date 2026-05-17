@@ -4,6 +4,7 @@ import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { useFilterStore } from '@/store/filters'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import type { Abastecimento } from '@/api/types/combustivel'
 import type { Caixa } from '@/api/types/financeiro'
 
@@ -34,7 +35,8 @@ const useTurnosAoVivo = () => {
     queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 30 * 60 * 1000,
   })
-  const empresas = empresasData?.resultados ?? []
+  // Filtra pelas empresas permitidas do user logado (profiles.empresa_codigos)
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
 
   // Caixas por empresa — query primária (leve), refresh frequente para o "ao vivo"
   const caixasQueries = useQueries({

@@ -8,6 +8,16 @@ export interface ProfileRow {
   approved: boolean
   is_master: boolean
   rede_id: string | null
+  /**
+   * Lista de empresa_codigos permitidos pro usuário, dentro da rede dele.
+   * null ou vazio = sem restrição (vê todas as empresas da rede).
+   */
+  empresa_codigos: number[] | null
+  /**
+   * Lista de ids de módulos liberados (dashboard, operacao, ...). Veja
+   * src/lib/modulos.ts. null ou vazio = sem restrição (vê todos os módulos).
+   */
+  modulos_permitidos: string[] | null
   created_at: string
 }
 
@@ -48,6 +58,40 @@ export const updateProfileRedeId = async (userId: string, redeId: string) => {
   if (error) throw error
 }
 
+/**
+ * Define os postos permitidos pro usuário (filtro de visualização).
+ * Passa array vazio ou null pra remover a restrição (vê todos da rede).
+ */
+export const updateProfileEmpresas = async (
+  userId: string,
+  empresaCodigos: number[] | null
+) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const value = empresaCodigos && empresaCodigos.length > 0 ? empresaCodigos : null
+  const { error } = await supabase
+    .from('profiles')
+    .update({ empresa_codigos: value })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/**
+ * Define os módulos liberados pro usuário (ids de src/lib/modulos.ts).
+ * Passa array vazio ou null pra remover a restrição (vê todos os módulos).
+ */
+export const updateProfileModulos = async (
+  userId: string,
+  modulos: string[] | null
+) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const value = modulos && modulos.length > 0 ? modulos : null
+  const { error } = await supabase
+    .from('profiles')
+    .update({ modulos_permitidos: value })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
 interface CreateUserInput {
   email: string
   password: string
@@ -69,5 +113,24 @@ export const createUser = async (input: CreateUserInput): Promise<void> => {
 
   const { data, error } = await supabase.functions.invoke('create-user', { body: input })
   if (error) throw new Error(error.message ?? 'Falha ao criar usuário')
+  if (data?.error) throw new Error(data.error)
+}
+
+/**
+ * Deleta um gerente/supervisor via Edge Function (service_role). Remove de
+ * auth.users; cascade remove a row em profiles. Caller precisa ser master,
+ * não pode deletar a si mesmo nem outros masters.
+ */
+export const deleteUser = async (userId: string): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const { data, error } = await supabase.functions.invoke('delete-user', {
+    body: { user_id: userId },
+  })
+
+  if (error) throw new Error(error.message ?? 'Falha ao deletar usuário')
   if (data?.error) throw new Error(data.error)
 }
