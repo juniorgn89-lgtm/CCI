@@ -167,6 +167,22 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     dataFinal,
   })
 
+  // v2.5: cache também pros períodos comparativos (prev month/year). Esses são
+  // sempre passados, então quase sempre cacheáveis. Sem isso, os fetches de
+  // prev abast/resumo eram o gargalo mesmo com cache HIT no main.
+  const cachePrevMonth = useApuracaoCache({
+    empresasPermitidas: empresasPermitidasCodes,
+    empresaCodigosFiltro: empresaCodigos,
+    dataInicial: prevMonthInicial,
+    dataFinal: prevMonthFinal,
+  })
+  const cachePrevYear = useApuracaoCache({
+    empresasPermitidas: empresasPermitidasCodes,
+    empresaCodigosFiltro: empresaCodigos,
+    dataInicial: prevYearInicial,
+    dataFinal: prevYearFinal,
+  })
+
   // Range efetivo do fetch da API Quality pro período corrente:
   //  - cache HIT  + tem hoje → só hoje (1 dia, rápido)
   //  - cache HIT  + sem hoje → não fetcha nada (todos os dias estão no cache)
@@ -191,7 +207,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     placeholderData: keepPreviousData,
   })
 
-  // VENDA_RESUMO for previous month
+  // VENDA_RESUMO for previous month — pulado quando cache HIT do prev month
   const { data: resumoPrevMonth = [] } = useQuery({
     queryKey: ['vendaResumoPrevMonth', empresaCodigos, prevMonthInicial, prevMonthFinal],
     queryFn: () =>
@@ -200,11 +216,11 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         dataInicial: prevMonthInicial,
         dataFinal: prevMonthFinal,
       }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    enabled: !cachePrevMonth.isCacheHit && !cachePrevMonth.isChecking,
     retry: false,
   })
 
-  // VENDA_RESUMO for same period last year
+  // VENDA_RESUMO for same period last year — pulado quando cache HIT
   const { data: resumoPrevYear = [] } = useQuery({
     queryKey: ['vendaResumoPrevYear', empresaCodigos, prevYearInicial, prevYearFinal],
     queryFn: () =>
@@ -213,7 +229,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         dataInicial: prevYearInicial,
         dataFinal: prevYearFinal,
       }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    enabled: !cachePrevYear.isCacheHit && !cachePrevYear.isChecking,
     retry: false,
   })
 
@@ -231,14 +247,14 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const { data: abastPrevMonth = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    enabled: !cachePrevMonth.isCacheHit && !cachePrevMonth.isChecking,
     retry: false,
   })
 
   const { data: abastPrevYear = [] } = useQuery({
     queryKey: ['abastecimentos', prevYearInicial, prevYearFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevYearInicial, dataFinal: prevYearFinal }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    enabled: !cachePrevYear.isCacheHit && !cachePrevYear.isChecking,
     retry: false,
   })
 
@@ -333,6 +349,44 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       return costMap.get(`${empresaCod}-${produtoCod}`) ?? 0
     }
 
+    // ─── Agregados dos períodos comparativos (prev month / prev year) ───
+    // v2.5: usa cache do Supabase quando disponível, fallback pra abast+lmc
+    // live caso contrário. Evita o gargalo de baixar 1-2 meses de raw data
+    // toda vez que o user troca de período pra outro já cacheado.
+    interface PrevAgg { fuelFat: number; fuelLB: number; vendasTotal: number }
+    const aggregateFromCache = (rows: typeof cache.rows): PrevAgg => {
+      let fuelFat = 0, fuelLB = 0, vendasTotal = 0
+      for (const r of rows) {
+        if (!matchesEmpresa(r.empresa_codigo)) continue
+        fuelFat += r.fuel_faturamento
+        fuelLB += r.fuel_lucro_bruto
+        vendasTotal += r.vendas_total
+      }
+      return { fuelFat, fuelLB, vendasTotal }
+    }
+    const aggregateFromLive = (
+      abastData: typeof abastPrevMonth,
+      resumoData: typeof resumoPrevMonth
+    ): PrevAgg => {
+      let fuelFat = 0, fuelCusto = 0, vendasTotal = 0
+      for (const a of abastData) {
+        if (!matchesEmpresa(a.empresaCodigo)) continue
+        fuelFat += a.valorTotal
+        fuelCusto += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
+      }
+      for (const r of resumoData) {
+        if (!matchesEmpresa(r.codigoEmpresa)) continue
+        vendasTotal += r.total
+      }
+      return { fuelFat, fuelLB: fuelFat - fuelCusto, vendasTotal }
+    }
+    const prevMonthAgg: PrevAgg = cachePrevMonth.isCacheHit
+      ? aggregateFromCache(cachePrevMonth.rows)
+      : aggregateFromLive(abastPrevMonth, resumoPrevMonth)
+    const prevYearAgg: PrevAgg = cachePrevYear.isCacheHit
+      ? aggregateFromCache(cachePrevYear.rows)
+      : aggregateFromLive(abastPrevYear, resumoPrevYear)
+
     // ═══════════════════════════════════════════════════════════════════════
     // CACHE HIT branch — combina cache (dias fechados) com apuração de hoje
     // (computada das fetches live do dia). Comparações YoY/MoM seguem live.
@@ -397,15 +451,10 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         { label: 'Conveniência', lucroBruto: convenienciaFat * convMarginRate, faturamento: convenienciaFat, margem: convMarginRate * 100 },
       ]
 
-      // Prev year (live) — usa lmc, abastPrevYear, resumoPrevYear que continuam carregando.
-      const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => matchesEmpresa(r.codigoEmpresa) ? acc + r.total : acc, 0)
-      const filteredAbastPrevYear = abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
-      const prevYearFuelFat = filteredAbastPrevYear.reduce((acc, a) => acc + a.valorTotal, 0)
-      let prevYearFuelCusto = 0
-      for (const a of filteredAbastPrevYear) {
-        prevYearFuelCusto += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
-      }
-      const prevYearFuelLB = prevYearFuelFat - prevYearFuelCusto
+      // Prev year — usa prevYearAgg (cache ou live, definido acima).
+      const prevYearGlobalFat = prevYearAgg.vendasTotal
+      const prevYearFuelFat = prevYearAgg.fuelFat
+      const prevYearFuelLB = prevYearAgg.fuelLB
       const prevYearNonFuelFat = Math.max(0, prevYearGlobalFat - prevYearFuelFat)
       if (prevYearGlobalFat > 0) {
         sectorKpis[0].prevYearLucroBruto = prevYearFuelLB
@@ -500,40 +549,24 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         conveniencia: buildNonFuelFromCache(0.70, convMarginRate),
       }
 
-      // Comparison — usa prev period live (lmc + abast + resumo) inalterado.
-      const computeFuelLB = (abastData: typeof abastPrevMonth) => {
-        const filtered = abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
-        let fat = 0, custo = 0
-        for (const a of filtered) {
-          fat += a.valorTotal
-          custo += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
-        }
-        return { fat, lb: fat - custo }
-      }
-      const sumResumo = (data: typeof resumoPrevMonth) => {
-        let fat = 0
-        for (const r of data) {
-          if (!matchesEmpresa(r.codigoEmpresa)) continue
-          fat += r.total
-        }
-        return fat
-      }
-      const prevMonthFat = sumResumo(resumoPrevMonth)
-      const prevYearFat = sumResumo(resumoPrevYear)
-      const prevMonthFuel = computeFuelLB(abastPrevMonth)
-      const prevYearFuelCmp = computeFuelLB(abastPrevYear)
+      // Comparison — usa prevMonthAgg/prevYearAgg (cache ou live).
       const nonFuelMargin = autoMarginRate * 0.30 + convMarginRate * 0.70
-      const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthFat - prevMonthFuel.fat)
-      const cmpPrevYearNonFuelFat = Math.max(0, prevYearFat - prevYearFuelCmp.fat)
+      const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthAgg.vendasTotal - prevMonthAgg.fuelFat)
+      const cmpPrevYearNonFuelFat = Math.max(0, prevYearAgg.vendasTotal - prevYearAgg.fuelFat)
+      // Quando prev month vem do cache, o count vem do fuel_abast_count somado;
+      // caso contrário (live), conta records do abastPrevMonth filtrado.
+      const prevMonthAbastCount = cachePrevMonth.isCacheHit
+        ? cachePrevMonth.rows.reduce((s, r) => matchesEmpresa(r.empresa_codigo) ? s + r.fuel_abast_count : s, 0)
+        : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length
       const comparison: PeriodComparison = {
         prevMonth: {
-          faturamento: prevMonthFat,
-          lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
-          abastecimentos: abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length,
+          faturamento: prevMonthAgg.vendasTotal,
+          lucroBruto: prevMonthAgg.fuelLB + cmpPrevMonthNonFuelFat * nonFuelMargin,
+          abastecimentos: prevMonthAbastCount,
         },
         prevYear: {
-          faturamento: prevYearFat,
-          lucroBruto: prevYearFuelCmp.lb + cmpPrevYearNonFuelFat * nonFuelMargin,
+          faturamento: prevYearAgg.vendasTotal,
+          lucroBruto: prevYearAgg.fuelLB + cmpPrevYearNonFuelFat * nonFuelMargin,
         },
       }
 
@@ -657,25 +690,10 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       },
     ]
 
-    // Previous year faturamento for variation calculation
-    const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => {
-      if (!matchesEmpresa(r.codigoEmpresa)) return acc
-      return acc + r.total
-    }, 0)
-
-    // Previous year fuel faturamento from actual abastecimentos
-    const filteredAbastPrevYear = abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
-    const prevYearFuelFat = filteredAbastPrevYear.reduce((acc, a) => acc + a.valorTotal, 0)
-
-    // Compute prev year fuel lucro bruto using current cost map (best estimate)
-    let prevYearFuelCusto = 0
-    for (const a of filteredAbastPrevYear) {
-      const cost = getCost(a.empresaCodigo, Number(a.codigoProduto))
-      prevYearFuelCusto += cost * a.quantidade
-    }
-    const prevYearFuelLB = prevYearFuelFat - prevYearFuelCusto
-
-    // Previous year non-fuel = global - fuel
+    // Previous year — usa prevYearAgg pré-computado (cache ou live).
+    const prevYearGlobalFat = prevYearAgg.vendasTotal
+    const prevYearFuelFat = prevYearAgg.fuelFat
+    const prevYearFuelLB = prevYearAgg.fuelLB
     const prevYearNonFuelFat = Math.max(0, prevYearGlobalFat - prevYearFuelFat)
     const prevYearAutoFat = prevYearNonFuelFat * 0.30
     const prevYearConvFat = prevYearNonFuelFat * 0.70
@@ -855,47 +873,23 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       conveniencia: buildNonFuelSectorDetail(0.70, convMarginRate),
     }
 
-    // --- Comparison: compute prev period lucro bruto using actual fuel data ---
-    const computeFuelLB = (abastData: typeof abastecimentos) => {
-      const filtered = abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
-      let fat = 0
-      let custo = 0
-      for (const a of filtered) {
-        fat += a.valorTotal
-        custo += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
-      }
-      return { fat, lb: fat - custo }
-    }
-
-    const sumResumo = (data: typeof resumoAtual) => {
-      let fat = 0
-      for (const r of data) {
-        if (!matchesEmpresa(r.codigoEmpresa)) continue
-        fat += r.total
-      }
-      return fat
-    }
-
-    const prevMonthFat = sumResumo(resumoPrevMonth)
-    const prevYearFat = sumResumo(resumoPrevYear)
-
-    const prevMonthFuel = computeFuelLB(abastPrevMonth)
-    const prevYearFuel = computeFuelLB(abastPrevYear)
-
-    // Non-fuel lucro bruto = (globalFat - fuelFat) * weighted non-fuel margin
+    // --- Comparison: usa prevMonthAgg/prevYearAgg pré-computados (cache ou live) ---
     const nonFuelMargin = autoMarginRate * 0.30 + convMarginRate * 0.70
-    const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthFat - prevMonthFuel.fat)
-    const cmpPrevYearNonFuelFat = Math.max(0, prevYearFat - prevYearFuel.fat)
+    const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthAgg.vendasTotal - prevMonthAgg.fuelFat)
+    const cmpPrevYearNonFuelFat = Math.max(0, prevYearAgg.vendasTotal - prevYearAgg.fuelFat)
+    const prevMonthAbastCount = cachePrevMonth.isCacheHit
+      ? cachePrevMonth.rows.reduce((s, r) => matchesEmpresa(r.empresa_codigo) ? s + r.fuel_abast_count : s, 0)
+      : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length
 
     const comparison: PeriodComparison = {
       prevMonth: {
-        faturamento: prevMonthFat,
-        lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
-        abastecimentos: abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length,
+        faturamento: prevMonthAgg.vendasTotal,
+        lucroBruto: prevMonthAgg.fuelLB + cmpPrevMonthNonFuelFat * nonFuelMargin,
+        abastecimentos: prevMonthAbastCount,
       },
       prevYear: {
-        faturamento: prevYearFat,
-        lucroBruto: prevYearFuel.lb + cmpPrevYearNonFuelFat * nonFuelMargin,
+        faturamento: prevYearAgg.vendasTotal,
+        lucroBruto: prevYearAgg.fuelLB + cmpPrevYearNonFuelFat * nonFuelMargin,
       },
     }
 
@@ -968,7 +962,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData, cache.isCacheHit, cache.rows])
+  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData, cache.isCacheHit, cache.rows, cachePrevMonth.isCacheHit, cachePrevMonth.rows, cachePrevYear.isCacheHit, cachePrevYear.rows])
 
   // Após carregar live com sucesso em mês fechado elegível, popula o cache em
   // background. Próxima visita lê do Supabase instantâneamente. Idempotente
