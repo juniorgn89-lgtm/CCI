@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -10,6 +10,7 @@ import {
   updateProfileRedeId,
   updateProfileEmpresas,
   updateProfileModulos,
+  updateProfilePodeApurar,
   createUser,
   deleteUser,
   type ProfileRow,
@@ -143,6 +144,26 @@ const Usuarios = () => {
       await updateProfileModulos(editingModulosFor.user_id, modulos)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
       setEditingModulosFor(null)
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleTogglePodeApurar = async (row: ProfileRow) => {
+    if (row.user_id === myUser?.id) {
+      alert('Você não pode mudar o próprio poder.')
+      return
+    }
+    if (row.is_master) {
+      alert('Gerente já tem o poder de apurar — não precisa do flag.')
+      return
+    }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeApurar(row.user_id, !row.pode_apurar)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
     } finally {
@@ -297,6 +318,7 @@ const Usuarios = () => {
                 <th className="px-4 py-2.5 text-left font-medium">Rede</th>
                 <th className="px-4 py-2.5 text-center font-medium">Postos</th>
                 <th className="px-4 py-2.5 text-center font-medium">Módulos</th>
+                <th className="px-4 py-2.5 text-center font-medium" title="Pode apurar dados pra alimentar o cache">Apurar</th>
                 <th className="px-4 py-2.5 text-center font-medium">Papel</th>
                 <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
               </tr>
@@ -314,6 +336,7 @@ const Usuarios = () => {
                   onChangeRede={(redeId) => handleChangeRede(p, redeId)}
                   onEditEmpresas={() => setEditingEmpresasFor(p)}
                   onEditModulos={() => setEditingModulosFor(p)}
+                  onTogglePodeApurar={() => handleTogglePodeApurar(p)}
                   onDelete={() => handleDelete(p)}
                 />
               ))}
@@ -563,10 +586,11 @@ interface UserRowProps {
   onChangeRede: (redeId: string) => void
   onEditEmpresas: () => void
   onEditModulos: () => void
+  onTogglePodeApurar: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onDelete }: UserRowProps) => {
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
     : null
@@ -682,6 +706,42 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </button>
           </div>
         )}
+      </td>
+
+      {/* Apurar — toggle pra dar/tirar o poder de pré-carregar meses fechados.
+          Gerente sempre tem (não precisa do flag) → mostra ícone fixo. */}
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center">
+          {p.is_master ? (
+            <span
+              title="Gerente já tem o poder de apurar"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            >
+              <Database className="h-2.5 w-2.5" />
+              Sempre
+            </span>
+          ) : (
+            <button
+              onClick={onTogglePodeApurar}
+              disabled={busy}
+              role="switch"
+              aria-checked={p.pode_apurar}
+              aria-label={p.pode_apurar ? 'Revogar poder de apurar' : 'Conceder poder de apurar'}
+              title={p.pode_apurar ? 'Pode apurar — clique pra revogar' : 'Sem poder — clique pra conceder'}
+              className={cn(
+                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                p.pode_apurar ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
+                busy && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <span className={cn(
+                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                p.pode_apurar ? 'translate-x-[18px]' : 'translate-x-0.5'
+              )} />
+            </button>
+          )}
+        </div>
       </td>
 
       {/* Papel — badge Gerente pra is_master OR segmented control Usuário | Supervisor */}

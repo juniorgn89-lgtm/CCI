@@ -27,10 +27,16 @@ interface AuthState {
   modulosPermitidos: string[] | null
   /** Gerente (CCI Consultoria) — sempre vê tudo, ignora as restrições. */
   isMaster: boolean
+  /**
+   * Permissão pra acessar /admin/apuracao. Master sempre pode; supervisor/user
+   * apenas quando profile.pode_apurar=true (granted pelo master).
+   */
+  canApurar: boolean
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
   setIsMaster: (isMaster: boolean) => void
+  setCanApurar: (canApurar: boolean) => void
   setLoaded: () => void
 }
 
@@ -41,10 +47,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   empresaCodigos: null,
   modulosPermitidos: null,
   isMaster: false,
+  canApurar: false,
   setAuth: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
   setModulosPermitidos: (modulosPermitidos) => set({ modulosPermitidos }),
   setIsMaster: (isMaster) => set({ isMaster }),
+  setCanApurar: (canApurar) => set({ canApurar }),
   setLoaded: () => set({ isLoading: false }),
 }))

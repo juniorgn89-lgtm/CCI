@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -85,30 +85,15 @@ const expectedRowsForMonth = (year: number, month: number, empresasCount: number
 
 const Apuracao = () => {
   const navigate = useNavigate()
-  const myUser = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const rede = useTenantStore((s) => s.rede)
 
-  // Gate master-only
-  const [isMaster, setIsMaster] = useState<boolean | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    const check = async () => {
-      const { supabase } = await import('@/lib/supabase')
-      if (!supabase || !myUser) {
-        setIsMaster(false)
-        return
-      }
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_master')
-        .eq('user_id', myUser.id)
-        .maybeSingle()
-      if (!cancelled) setIsMaster(!!data?.is_master)
-    }
-    check()
-    return () => { cancelled = true }
-  }, [myUser])
+  // Gate: master OU supervisor com pode_apurar=true. Já vem da auth store
+  // (bootstrap consolida is_master + pode_apurar em canApurar).
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const canApurar = useAuthStore((s) => s.canApurar)
+  const authLoading = useAuthStore((s) => s.isLoading)
+  const hasAccess = isMaster || canApurar
 
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(currentYear)
@@ -117,7 +102,7 @@ const Apuracao = () => {
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas({ limite: 200 }),
-    enabled: isMaster === true && !!rede,
+    enabled: hasAccess && !!rede,
     staleTime: 10 * 60 * 1000,
   })
   const empresas = empresasData?.resultados ?? []
@@ -127,7 +112,7 @@ const Apuracao = () => {
   const { data: statusMap, isLoading: loadingStatus, refetch: refetchStatus } = useQuery({
     queryKey: ['apuracao-status', rede?.id, year],
     queryFn: () => rede ? fetchApuracaoStatusByMonth(rede.id, year) : new Map<number, number>(),
-    enabled: isMaster === true && !!rede,
+    enabled: hasAccess && !!rede,
     staleTime: 60 * 1000,
   })
 
@@ -224,7 +209,7 @@ const Apuracao = () => {
     setRunning(false)
   }
 
-  if (isMaster === null) {
+  if (authLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -232,11 +217,11 @@ const Apuracao = () => {
     )
   }
 
-  if (!isMaster) {
+  if (!hasAccess) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Acesso restrito à CCI Consultoria.
+          Você não tem permissão para apurar dados. Peça ao gerente para liberar.
         </p>
         <button
           onClick={() => navigate('/dashboard')}

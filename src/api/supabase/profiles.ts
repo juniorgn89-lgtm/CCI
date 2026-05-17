@@ -18,6 +18,11 @@ export interface ProfileRow {
    * src/lib/modulos.ts. null ou vazio = sem restrição (vê todos os módulos).
    */
   modulos_permitidos: string[] | null
+  /**
+   * Permissão pra acessar /admin/apuracao e pré-carregar meses fechados.
+   * Master sempre pode (independente desse flag). Supervisor/user só com true.
+   */
+  pode_apurar: boolean
   created_at: string
 }
 
@@ -88,6 +93,22 @@ export const updateProfileModulos = async (
   const { error } = await supabase
     .from('profiles')
     .update({ modulos_permitidos: value })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/**
+ * Concede/revoga o poder de apurar dados (acessar /admin/apuracao + cachear
+ * meses fechados). Master sempre pode, mesmo sem esse flag.
+ */
+export const updateProfilePodeApurar = async (
+  userId: string,
+  podeApurar: boolean
+) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase
+    .from('profiles')
+    .update({ pode_apurar: podeApurar })
     .eq('user_id', userId)
   if (error) throw error
 }

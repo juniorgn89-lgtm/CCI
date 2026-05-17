@@ -45,6 +45,7 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setEmpresaCodigos(null)
         useAuthStore.getState().setModulosPermitidos(null)
         useAuthStore.getState().setIsMaster(false)
+        useAuthStore.getState().setCanApurar(false)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
         // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
         useFilterStore.getState().setEmpresas([])
@@ -88,7 +89,7 @@ const loadTenantForUser = async () => {
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, pode_apurar, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile) {
@@ -96,6 +97,7 @@ const loadTenantForUser = async () => {
         empresa_codigos: number[] | null
         modulos_permitidos: string[] | null
         is_master: boolean | null
+        pode_apurar: boolean | null
         redes: { id: string; nome: string; chave: string; api_base_url: string } | null
       }
       const isMaster = !!typed.is_master
@@ -109,6 +111,8 @@ const loadTenantForUser = async () => {
       useAuthStore.getState().setEmpresaCodigos(typed.empresa_codigos)
       useAuthStore.getState().setModulosPermitidos(typed.modulos_permitidos)
       useAuthStore.getState().setIsMaster(isMaster)
+      // Master sempre tem o poder de apurar; pra outros, lê o flag do profile.
+      useAuthStore.getState().setCanApurar(isMaster || !!typed.pode_apurar)
       return
     }
 
@@ -128,6 +132,7 @@ const loadTenantForUser = async () => {
       useAuthStore.getState().setEmpresaCodigos([typed.empresa_codigo])
       useAuthStore.getState().setModulosPermitidos(null)
       useAuthStore.getState().setIsMaster(false)
+      useAuthStore.getState().setCanApurar(false)
       return
     }
 
@@ -135,11 +140,13 @@ const loadTenantForUser = async () => {
     useAuthStore.getState().setEmpresaCodigos(null)
     useAuthStore.getState().setModulosPermitidos(null)
     useAuthStore.getState().setIsMaster(false)
+    useAuthStore.getState().setCanApurar(false)
   } catch {
     useTenantStore.getState().setRede(null)
     useAuthStore.getState().setEmpresaCodigos(null)
     useAuthStore.getState().setModulosPermitidos(null)
     useAuthStore.getState().setIsMaster(false)
+    useAuthStore.getState().setCanApurar(false)
   }
 }
 

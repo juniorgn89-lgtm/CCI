@@ -95,6 +95,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const { logout } = useAuth()
   const supabaseUser = useAuthStore((s) => s.user)
   const isMaster = useAuthStore((s) => s.isMaster)
+  const canApurar = useAuthStore((s) => s.canApurar)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -390,15 +391,19 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                     <Network className="h-4 w-4 text-gray-500" />
                     Redes
                   </button>
-                  <button
-                    role="menuitem"
-                    onClick={handleAdminApuracao}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    <Database className="h-4 w-4 text-gray-500" />
-                    Apuração
-                  </button>
                 </>
+              )}
+
+              {/* Apuração — master sempre vê; supervisor só quando pode_apurar=true */}
+              {canApurar && (
+                <button
+                  role="menuitem"
+                  onClick={handleAdminApuracao}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <Database className="h-4 w-4 text-gray-500" />
+                  Apuração
+                </button>
               )}
 
               {/* Idioma */}
