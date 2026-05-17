@@ -8,12 +8,16 @@ import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import TabelaPostos from '@/pages/Dashboard/components/TabelaPostos'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
-import { cn } from '@/lib/utils'
+import { cn, isPastPeriod } from '@/lib/utils'
 
 const Dashboard = () => {
-  const { empresaCodigos, setEmpresas } = useFilterStore()
+  const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const { isCacheHit } = useDashboardData()
+
+  // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
+  // existe turno aberto em mês passado, só ruído visual.
+  const periodIsPast = isPastPeriod(dataFinal)
 
   // Carrega empresas pra: (a) descobrir nome do posto selecionado;
   // (b) saber quantos postos o user tem permissão pra ver — se for 1 só,
@@ -101,7 +105,7 @@ const Dashboard = () => {
               topo e rodapé↔rodapé. */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <div className="min-w-0 flex-1 space-y-4">
-              <TurnosAoVivo />
+              {!periodIsPast && <TurnosAoVivo />}
               <TabelaPostos />
             </div>
             <aside className="hidden w-[260px] shrink-0 xl:block">

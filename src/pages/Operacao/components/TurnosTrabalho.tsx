@@ -1,6 +1,7 @@
 import { Clock, User, CheckCircle2, AlertCircle } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import { cn } from '@/lib/utils'
+import { cn, isPastPeriod } from '@/lib/utils'
+import { useFilterStore } from '@/store/filters'
 import type { TurnoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
 interface TurnosTrabalhoProps {
@@ -13,11 +14,14 @@ const fmtTime = (t: string) => {
 }
 
 const TurnosTrabalho = ({ turnoRows }: TurnosTrabalhoProps) => {
+  const dataFinal = useFilterStore((s) => s.dataFinal)
+  const periodIsPast = isPastPeriod(dataFinal)
   const abertos = turnoRows.filter((t) => !t.fechado)
 
   return (
     <div className="space-y-4">
-      {/* Currently open shifts */}
+      {/* Em Turno Agora — só faz sentido pro período corrente */}
+      {!periodIsPast && (
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="mb-4 flex items-center gap-2">
           <div className="flex h-2.5 w-2.5 items-center justify-center">
@@ -65,6 +69,7 @@ const TurnosTrabalho = ({ turnoRows }: TurnosTrabalhoProps) => {
           </div>
         )}
       </div>
+      )}
 
       {/* All shifts table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

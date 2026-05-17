@@ -16,7 +16,7 @@ import {
   ReferenceDot,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
-import { cn } from '@/lib/utils'
+import { cn, isPastPeriod } from '@/lib/utils'
 import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
 import useCaixaHistory from '@/pages/Operacao/hooks/useCaixaHistory'
 import CaixaHistorico from '@/pages/Operacao/components/CaixaHistorico'
@@ -79,6 +79,9 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
 
 const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
+  // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
+  // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
+  const periodIsPast = isPastPeriod(dataFinal)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
@@ -86,8 +89,18 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
   // Filters
   const [filterNome, setFilterNome] = useState('')
   const [filterTurno, setFilterTurno] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo'>('ao-vivo')
+  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo'>(
+    periodIsPast ? 'todos' : 'ao-vivo'
+  )
   const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'com' | 'sem'>('todas')
+
+  // Se o user navegar de período corrente pra passado com o filtro "ao-vivo"
+  // ativo, reseta pra 'todos' senão a lista fica vazia sem motivo aparente.
+  useEffect(() => {
+    if (periodIsPast && filterStatus === 'ao-vivo') {
+      setFilterStatus('todos')
+    }
+  }, [periodIsPast, filterStatus])
 
   // Filtros vindos dos gráficos (mutuamente exclusivos)
   const [selectedPgto, setSelectedPgto] = useState<string | null>(null)
@@ -627,7 +640,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               Turnos de Caixa
               <span className="ml-2 text-xs font-normal text-gray-400">{filteredGroups.length} de {turnoGroups.length}</span>
-              {abertoGroups.length > 0 && (
+              {!periodIsPast && abertoGroups.length > 0 && (
                 <span className="ml-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75" />
@@ -717,12 +730,13 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
               {turnosUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
 
-            {/* Filtro unificado: Todos / Ao vivo / Com diferença / Sem diferença */}
+            {/* Filtro unificado: Todos / Ao vivo / Com diferença / Sem diferença.
+                "Ao vivo" some em período passado (não tem caixa aberto a essa altura). */}
             <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
               {(
                 [
                   { v: 'todos', l: 'Todos' },
-                  { v: 'aovivo', l: 'Ao vivo', live: true },
+                  ...(periodIsPast ? [] : [{ v: 'aovivo', l: 'Ao vivo', live: true }]),
                   { v: 'com', l: 'Com diferença' },
                   { v: 'sem', l: 'Sem diferença' },
                 ] as { v: FilterPill; l: string; live?: boolean }[]
@@ -852,6 +866,10 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
                           {g.fechado ? (
                             <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                               Fechado
+                            </span>
+                          ) : periodIsPast ? (
+                            <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                              Não fechado
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
