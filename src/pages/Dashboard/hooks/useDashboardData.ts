@@ -301,18 +301,22 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       return costMap.get(`${empresaCod}-${produtoCod}`) ?? 0
     }
 
-    // Global faturamento from VENDA_RESUMO
-    const faturamentoGlobal = resumoAtual.reduce((acc, r) => acc + r.total, 0)
+    // Global faturamento from VENDA_RESUMO — só de empresas visíveis
+    // (matchesEmpresa cobre tanto filtro global quanto restrição de user).
+    const faturamentoGlobal = resumoAtual.reduce(
+      (acc, r) => (matchesEmpresa(r.codigoEmpresa) ? acc + r.total : acc),
+      0
+    )
 
     // Aggregate abastecimentos by empresa -> produto
     type FuelAgg = { quantidade: number; valorTotal: number; precoVendaSum: number; count: number }
     const fuelByEmpProd = new Map<string, FuelAgg>()
     const fuelByEmp = new Map<number, FuelAgg>()
 
-    // Filter by selected empresas
-    const filteredAbast = hasEmpresa
-      ? abastecimentos.filter((a) => matchesEmpresa(a.empresaCodigo))
-      : abastecimentos
+    // Filtra por filtro global + restrição do user. matchesEmpresa cobre os
+    // dois casos — não pode ter guard de `hasEmpresa` aqui porque mesmo sem
+    // filtro global o user restrito não pode ver outros postos.
+    const filteredAbast = abastecimentos.filter((a) => matchesEmpresa(a.empresaCodigo))
 
     for (const a of filteredAbast) {
       const prodCode = Number(a.codigoProduto)
@@ -385,14 +389,12 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
     // Previous year faturamento for variation calculation
     const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => {
-      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) return acc
+      if (!matchesEmpresa(r.codigoEmpresa)) return acc
       return acc + r.total
     }, 0)
 
     // Previous year fuel faturamento from actual abastecimentos
-    const filteredAbastPrevYear = hasEmpresa
-      ? abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
-      : abastPrevYear
+    const filteredAbastPrevYear = abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
     const prevYearFuelFat = filteredAbastPrevYear.reduce((acc, a) => acc + a.valorTotal, 0)
 
     // Compute prev year fuel lucro bruto using current cost map (best estimate)
@@ -509,7 +511,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     // Non-fuel per-empresa: VENDA_RESUMO total - ABASTECIMENTO total per empresa
     const resumoByEmp = new Map<number, { total: number; quantidade: number }>()
     for (const r of resumoAtual) {
-      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) continue
+      if (!matchesEmpresa(r.codigoEmpresa)) continue
       const prev = resumoByEmp.get(r.codigoEmpresa) ?? { total: 0, quantidade: 0 }
       resumoByEmp.set(r.codigoEmpresa, {
         total: prev.total + r.total,
@@ -585,9 +587,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
     // --- Comparison: compute prev period lucro bruto using actual fuel data ---
     const computeFuelLB = (abastData: typeof abastecimentos) => {
-      const filtered = hasEmpresa
-        ? abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
-        : abastData
+      const filtered = abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
       let fat = 0
       let custo = 0
       for (const a of filtered) {
@@ -600,7 +600,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     const sumResumo = (data: typeof resumoAtual) => {
       let fat = 0
       for (const r of data) {
-        if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) continue
+        if (!matchesEmpresa(r.codigoEmpresa)) continue
         fat += r.total
       }
       return fat
@@ -621,7 +621,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       prevMonth: {
         faturamento: prevMonthFat,
         lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
-        abastecimentos: abastPrevMonth.filter((a) => !empresaCodigos.length || empresaCodigos.includes(a.empresaCodigo)).length,
+        abastecimentos: abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length,
       },
       prevYear: {
         faturamento: prevYearFat,
@@ -635,7 +635,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     const ticketMedio = totalAbastecimentos > 0 ? fuelFaturamento / totalAbastecimentos : 0
     // Non-fuel products: estimate quantity from VENDA_RESUMO quantities minus fuel abastecimentos
     const totalResumoQtd = resumoAtual.reduce((acc, r) => {
-      if (hasEmpresa && !matchesEmpresa(r.codigoEmpresa)) return acc
+      if (!matchesEmpresa(r.codigoEmpresa)) return acc
       return acc + r.quantidade
     }, 0)
     const produtosVendidos = Math.max(0, totalResumoQtd - totalAbastecimentos)

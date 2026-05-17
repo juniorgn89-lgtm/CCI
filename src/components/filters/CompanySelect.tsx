@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, ChevronDown } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -27,6 +27,15 @@ const CompanySelect = () => {
   // Aplica a restrição do usuário (profiles.empresa_codigos). Master/sem
   // restrição vê todas; supervisor/frentista restrito vê só as permitidas.
   const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+
+  // Se o user tem acesso a 1 único posto, seleciona automaticamente — não
+  // faz sentido ele escolher entre uma opção só, e isso deixa o dashboard
+  // já mostrando "o" posto dele em vez do shape "Central da Rede".
+  useEffect(() => {
+    if (empresas.length === 1 && empresaCodigos.length === 0) {
+      setEmpresas([empresas[0].codigo])
+    }
+  }, [empresas, empresaCodigos.length, setEmpresas])
 
   const handleSelect = (codigo: number) => {
     setEmpresas([codigo])
