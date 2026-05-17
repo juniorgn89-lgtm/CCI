@@ -164,27 +164,6 @@ export const computeApuracaoRows = (input: ComputeRowsInput): ApuracaoDiariaUpse
 }
 
 /**
- * Detecta se o período corresponde a um mês inteiro fechado (anterior ao
- * mês corrente). Cache só popula/lê nessa condição na v1.
- */
-export const isFechadoMonth = (dataInicial: string, dataFinal: string): boolean => {
-  const [yi, mi, di] = dataInicial.split('-').map(Number)
-  const [yf, mf, df] = dataFinal.split('-').map(Number)
-  if (!yi || !mi || !di || !yf || !mf || !df) return false
-  if (yi !== yf || mi !== mf) return false
-  if (di !== 1) return false
-  const lastDay = new Date(yi, mi, 0).getDate()
-  if (df !== lastDay) return false
-
-  const today = new Date()
-  const currentY = today.getFullYear()
-  const currentM = today.getMonth() + 1
-  if (yi > currentY) return false
-  if (yi === currentY && mi >= currentM) return false
-  return true
-}
-
-/**
  * Lista os dias do período (yyyy-MM-dd). Útil pra detectar "buracos" entre o
  * que foi requisitado e o que voltou do cache.
  */
@@ -192,6 +171,7 @@ export const enumerateDays = (dataInicial: string, dataFinal: string): string[] 
   const days: string[] = []
   const [yi, mi, di] = dataInicial.split('-').map(Number)
   const [yf, mf, df] = dataFinal.split('-').map(Number)
+  if (!yi || !mi || !di || !yf || !mf || !df) return days
   const start = new Date(yi, mi - 1, di)
   const end = new Date(yf, mf - 1, df)
   const cur = new Date(start)
@@ -203,4 +183,66 @@ export const enumerateDays = (dataInicial: string, dataFinal: string): string[] 
     cur.setDate(cur.getDate() + 1)
   }
   return days
+}
+
+/**
+ * Retorna a data de ontem (yyyy-MM-dd) — usada como fronteira entre cacheável
+ * e volátil. Hoje nunca entra no cache (dados ainda estão sendo gerados).
+ */
+const yesterdayStr = (): string => {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const todayStr = (): string => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export interface PeriodSplit {
+  /** Subrange cacheável (dias < hoje). null se não há dias fechados no período. */
+  closedDays: { dataInicial: string; dataFinal: string } | null
+  /** Sub-range volátil (hoje, se está dentro do período). null se hoje não está no período. */
+  todayPart: { dataInicial: string; dataFinal: string } | null
+  /** Período tem dias futuros (sem dados) — sinaliza pra UI eventualmente. */
+  hasFutureDays: boolean
+}
+
+/**
+ * Divide o período de filtro em duas faixas:
+ *  - closedDays: [dataInicial..min(dataFinal, ontem)] — vai pro cache
+ *  - todayPart:  [hoje..hoje] se hoje estiver no período — sempre live
+ *
+ * Cenários:
+ *  - Mês passado completo → closedDays = [01..30], todayPart = null
+ *  - Mês corrente (hoje=17) → closedDays = [01..16], todayPart = [17..17]
+ *  - Só hoje              → closedDays = null,    todayPart = [hoje..hoje]
+ *  - Só futuro            → ambos null, hasFutureDays = true
+ */
+export const splitPeriodAtToday = (dataInicial: string, dataFinal: string): PeriodSplit => {
+  const today = todayStr()
+  const yest = yesterdayStr()
+
+  // Período inteiro futuro → nada a fazer
+  if (dataInicial > today) {
+    return { closedDays: null, todayPart: null, hasFutureDays: true }
+  }
+
+  const closedEnd = dataFinal < yest ? dataFinal : yest
+  const closedDays = dataInicial <= closedEnd
+    ? { dataInicial, dataFinal: closedEnd }
+    : null
+
+  const includesToday = dataInicial <= today && today <= dataFinal
+  const todayPart = includesToday ? { dataInicial: today, dataFinal: today } : null
+
+  const hasFutureDays = dataFinal > today
+  return { closedDays, todayPart, hasFutureDays }
 }

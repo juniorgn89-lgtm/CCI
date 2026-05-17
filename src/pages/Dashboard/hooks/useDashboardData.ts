@@ -158,8 +158,8 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const empresasPermitidasCodes = useMemo(() => empresas.map((e) => e.codigo), [empresas])
   const allowedCodes = useMemo(() => new Set(empresasPermitidasCodes), [empresasPermitidasCodes])
 
-  // Tenta servir do cache em Supabase pra meses fechados em Central view.
-  // Quando HIT, as queries pesadas (abast, vendaResumo) são desabilitadas.
+  // Tenta servir do cache em Supabase. v2: cobre dias fechados (mês passado
+  // completo OU dias fechados do mês corrente). Hoje continua sempre live.
   const cache = useApuracaoCache({
     empresasPermitidas: empresasPermitidasCodes,
     empresaCodigosFiltro: empresaCodigos,
@@ -167,18 +167,27 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     dataFinal,
   })
 
+  // Range efetivo do fetch da API Quality pro período corrente:
+  //  - cache HIT  + tem hoje → só hoje (1 dia, rápido)
+  //  - cache HIT  + sem hoje → não fetcha nada (todos os dias estão no cache)
+  //  - cache MISS / inelegível → período completo (comportamento v1)
+  const effectiveRange: { dataInicial: string; dataFinal: string } | null = cache.isCacheHit
+    ? cache.split.todayPart
+    : { dataInicial, dataFinal }
+  const effIni = effectiveRange?.dataInicial ?? ''
+  const effEnd = effectiveRange?.dataFinal ?? ''
+  const shouldFetchMain = !!effectiveRange && !cache.isChecking
+
   // VENDA_RESUMO for global faturamento per empresa
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
-    queryKey: ['vendaResumo', empresaCodigos, dataInicial, dataFinal],
+    queryKey: ['vendaResumo', empresaCodigos, effIni, effEnd],
     queryFn: () =>
       fetchVendaResumo({
         empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
-        dataInicial,
-        dataFinal,
+        dataInicial: effIni,
+        dataFinal: effEnd,
       }),
-    // Cache HIT pula essa query — vendas_total já vem do Supabase.
-    // Enquanto cache.isChecking, mantemos hold pra evitar fetch desperdiçado.
-    enabled: !cache.isCacheHit && !cache.isChecking,
+    enabled: shouldFetchMain,
     placeholderData: keepPreviousData,
   })
 
@@ -209,11 +218,13 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   })
 
   // ABASTECIMENTO — chunked by week to avoid 50k API limit.
-  // Esta é a query mais cara (até 50k+ records). Cache HIT pula completamente.
+  // Esta é a query mais cara (até 50k+ records). Em cache HIT no mês corrente
+  // o range cai pra só hoje (1 dia, ~600ms). Em mês fechado completo, skipa
+  // totalmente (effectiveRange=null).
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
-    queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: !cache.isCacheHit && !cache.isChecking,
+    queryKey: ['abastecimentos', effIni, effEnd],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: effIni, dataFinal: effEnd }),
+    enabled: shouldFetchMain,
     placeholderData: keepPreviousData,
   })
 
@@ -323,11 +334,26 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // CACHE HIT branch — bypass abast/resumoAtual e constrói tudo do snapshot
-    // do Supabase. Comparações YoY/MoM continuam live (prev periods).
+    // CACHE HIT branch — combina cache (dias fechados) com apuração de hoje
+    // (computada das fetches live do dia). Comparações YoY/MoM seguem live.
     // ═══════════════════════════════════════════════════════════════════════
     if (cache.isCacheHit) {
-      const visibleRows = cache.rows.filter((r) => matchesEmpresa(r.empresa_codigo))
+      // Apuração de hoje (se aplicável) — calculada da fetch live narrowed
+      // ao range [hoje..hoje]. Se o período é totalmente fechado (mês passado),
+      // todayPart é null e nenhuma row extra é gerada.
+      const todayRows = cache.split.todayPart && rede?.id
+        ? computeApuracaoRows({
+            redeId: rede.id,
+            empresaCodigos: empresasPermitidasCodes,
+            dataInicial: cache.split.todayPart.dataInicial,
+            dataFinal: cache.split.todayPart.dataFinal,
+            abastecimentos,
+            lmc: lmcData,
+            vendaResumo: resumoAtual,
+          })
+        : []
+      const unifiedRows = [...cache.rows, ...todayRows]
+      const visibleRows = unifiedRows.filter((r) => matchesEmpresa(r.empresa_codigo))
       interface CacheFuelAgg { litros: number; fat: number; custo: number; lb: number; count: number }
       const fuelByEmp = new Map<number, CacheFuelAgg>()
       const vendasByEmp = new Map<number, { total: number; qtd: number }>()
@@ -946,32 +972,35 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
   // Após carregar live com sucesso em mês fechado elegível, popula o cache em
   // background. Próxima visita lê do Supabase instantâneamente. Idempotente
-  // via ref — não dispara várias vezes pro mesmo período.
+  // via ref — não dispara várias vezes pro mesmo período. v2 grava SÓ os dias
+  // fechados (hoje é volátil — dados ainda chegando — então fica de fora).
   const populatedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!cache.isEligible || cache.isCacheHit || cache.isChecking) return
     if (!rede?.id) return
+    if (!cache.split.closedDays) return  // só hoje no período, nada pra cachear
     // Espera as queries live terminarem (dados disponíveis)
     if (abastecimentos.length === 0 || resumoAtual.length === 0) return
     if (isLoadingAbast || isLoadingResumo || isLoadingLmc) return
 
-    const key = `${rede.id}|${dataInicial}|${dataFinal}|${empresasPermitidasCodes.slice().sort().join(',')}`
+    const { dataInicial: closedIni, dataFinal: closedEnd } = cache.split.closedDays
+    const key = `${rede.id}|${closedIni}|${closedEnd}|${empresasPermitidasCodes.slice().sort().join(',')}`
     if (populatedRef.current === key) return
     populatedRef.current = key
 
     const rows = computeApuracaoRows({
       redeId: rede.id,
       empresaCodigos: empresasPermitidasCodes,
-      dataInicial,
-      dataFinal,
+      dataInicial: closedIni,
+      dataFinal: closedEnd,
       abastecimentos,
       lmc: lmcData,
       vendaResumo: resumoAtual,
     })
     upsertApuracaoDiaria(rows).catch(() => { /* não bloqueia UX se falhar */ })
   }, [
-    cache.isEligible, cache.isCacheHit, cache.isChecking,
-    rede?.id, dataInicial, dataFinal,
+    cache.isEligible, cache.isCacheHit, cache.isChecking, cache.split.closedDays,
+    rede?.id,
     abastecimentos, resumoAtual, lmcData,
     isLoadingAbast, isLoadingResumo, isLoadingLmc,
     empresasPermitidasCodes,
