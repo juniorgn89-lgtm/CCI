@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Loader2, CheckCircle2, ArrowRight, Power, Settings, UserCog } from 'lucide-react'
+import { Network, Loader2, CheckCircle2, Power, Settings, UserCog, Database } from 'lucide-react'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
@@ -24,17 +23,17 @@ const SelecionarRede = () => {
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const isMaster = useAuthStore((s) => s.isMaster)
 
-  const [connecting, setConnecting] = useState<string | null>(null)
-
   const { data: redes = [], isLoading, error } = useQuery({
     queryKey: ['redes'],
     queryFn: fetchRedes,
     staleTime: 5 * 60 * 1000,
   })
 
+  // "Conectar" só seta o tenant — não carrega dados. O carregamento das
+  // queries Quality acontece quando o master escolhe um módulo no Sidebar
+  // (Central da Rede, Operação, etc.). Isso evita disparar fetches pesados
+  // logo após conectar, quando o gerente talvez só queira ir pra /admin.
   const handleConectar = (rede: RedeRow) => {
-    setConnecting(rede.id)
-    // Limpa cache de queries Quality da rede anterior pra evitar mistura de dados.
     queryClient.clear()
     setEmpresas([])
     setRede({
@@ -43,8 +42,6 @@ const SelecionarRede = () => {
       chave: rede.chave,
       api_base_url: rede.api_base_url,
     })
-    // Pequeno delay pra feedback visual antes de navegar
-    setTimeout(() => navigate('/dashboard'), 150)
   }
 
   // Se não é master, não tem o que escolher aqui — sua rede é fixa pelo profile.
@@ -92,6 +89,15 @@ const SelecionarRede = () => {
           <Settings className="h-3.5 w-3.5" />
           Configurações
         </button>
+        <button
+          onClick={() => navigate('/admin/apuracao')}
+          disabled={!tenantRede}
+          title={!tenantRede ? 'Conecte uma rede primeiro' : 'Pré-carregar meses fechados da rede atual'}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <Database className="h-3.5 w-3.5" />
+          Apuração
+        </button>
       </div>
 
       {error && (
@@ -119,7 +125,6 @@ const SelecionarRede = () => {
         <div className="space-y-2">
           {redes.map((rede) => {
             const isCurrent = tenantRede?.id === rede.id
-            const isBusy = connecting === rede.id
             return (
               <div
                 key={rede.id}
@@ -173,23 +178,21 @@ const SelecionarRede = () => {
 
                 <button
                   onClick={() => handleConectar(rede)}
-                  disabled={isBusy || isCurrent}
+                  disabled={isCurrent}
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
                     isCurrent
-                      ? 'cursor-default bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] disabled:opacity-60'
+                      ? 'cursor-default bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]'
                   )}
                 >
-                  {isBusy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isCurrent ? (
-                    'Conectada'
-                  ) : (
+                  {isCurrent ? (
                     <>
-                      Conectar
-                      <ArrowRight className="h-4 w-4" />
+                      <CheckCircle2 className="h-4 w-4" />
+                      Conectada
                     </>
+                  ) : (
+                    'Conectar'
                   )}
                 </button>
               </div>

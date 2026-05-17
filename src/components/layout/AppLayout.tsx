@@ -89,14 +89,19 @@ const AppLayout = () => {
     }
   }, [pathname, modulosPermitidos, isMaster, navigate])
 
-  // Itens visíveis no menu mobile (filtrados por permissão).
+  // Itens visíveis no menu mobile: master vê tudo (inclusive masterOnly);
+  // não-master perde os masterOnly e os módulos fora da lista permitida.
   const visibleNavItems = (() => {
-    if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) return navItems
-    return navItems.filter((item) => {
-      const id = moduloIdByPath.get(item.path)
-      if (!id) return true
-      return modulosPermitidos.includes(id)
-    })
+    if (isMaster) return navItems
+    let items = navItems.filter((item) => !item.masterOnly)
+    if (modulosPermitidos && modulosPermitidos.length > 0) {
+      items = items.filter((item) => {
+        const id = moduloIdByPath.get(item.path)
+        if (!id) return true
+        return modulosPermitidos.includes(id)
+      })
+    }
+    return items
   })()
 
   useEffect(() => {

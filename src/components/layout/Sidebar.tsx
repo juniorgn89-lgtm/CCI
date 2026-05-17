@@ -16,6 +16,7 @@ import {
   Users,
   UserCog,
   Network,
+  Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -27,6 +28,8 @@ interface NavItem {
   label: string
   path: string
   icon: typeof BarChart3
+  /** Quando true, item só aparece pro gerente (is_master). */
+  masterOnly?: boolean
 }
 
 interface NavGroup {
@@ -35,6 +38,12 @@ interface NavGroup {
 }
 
 const navGroups: NavGroup[] = [
+  {
+    title: 'Sistema',
+    items: [
+      { label: 'Selecionar Rede', path: '/selecionar-rede', icon: Network, masterOnly: true },
+    ],
+  },
   {
     title: 'Geral',
     items: [
@@ -138,6 +147,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     navigate('/admin/redes')
   }
 
+  const handleAdminApuracao = () => {
+    setMenuOpen(false)
+    navigate('/admin/apuracao')
+  }
+
   const handleLogout = () => {
     setMenuOpen(false)
     logout()
@@ -162,17 +176,22 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   }, [supabaseUser])
   const isSupervisor = role === 'supervisor'
 
-  // Esconde itens cujo módulo não está na lista permitida. Master ou
-  // sem restrição (null/[]) vê tudo. Itens fora do catálogo (ex: rotas
-  // legadas) também sempre aparecem.
+  // Filtra (a) itens masterOnly pra não-master e (b) itens cujo módulo está
+  // fora da lista permitida. Master ou sem restrição (null/[]) vê tudo dos
+  // módulos. Itens fora do catálogo MODULOS (ex: rotas internas) passam.
   const visibleNavGroups = navGroups
     .map((group) => {
-      if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) return group
-      const items = group.items.filter((item) => {
-        const id = moduloIdByPath.get(item.path)
-        if (!id) return true
-        return modulosPermitidos.includes(id)
-      })
+      let items = group.items
+      if (!isMaster) {
+        items = items.filter((item) => !item.masterOnly)
+        if (modulosPermitidos && modulosPermitidos.length > 0) {
+          items = items.filter((item) => {
+            const id = moduloIdByPath.get(item.path)
+            if (!id) return true
+            return modulosPermitidos.includes(id)
+          })
+        }
+      }
       return { ...group, items }
     })
     .filter((g) => g.items.length > 0)
@@ -370,6 +389,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                   >
                     <Network className="h-4 w-4 text-gray-500" />
                     Redes
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={handleAdminApuracao}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <Database className="h-4 w-4 text-gray-500" />
+                    Apuração
                   </button>
                 </>
               )}

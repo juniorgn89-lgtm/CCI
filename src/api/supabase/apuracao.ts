@@ -70,6 +70,34 @@ export const upsertApuracaoDiaria = async (rows: ApuracaoDiariaUpsert[]): Promis
   }
 }
 
+/**
+ * Lê todas as rows da rede pra um ano e retorna mapa `mês → contagem`.
+ * Usado pelo painel /admin/apuracao pra mostrar status mensal.
+ */
+export const fetchApuracaoStatusByMonth = async (
+  redeId: string,
+  year: number
+): Promise<Map<number, number>> => {
+  const result = new Map<number, number>()
+  if (!supabase) return result
+  const { data, error } = await supabase
+    .from('apuracao_diaria')
+    .select('data')
+    .eq('rede_id', redeId)
+    .gte('data', `${year}-01-01`)
+    .lte('data', `${year}-12-31`)
+  if (error) {
+    console.warn('[apuracao] status error:', error.message)
+    return result
+  }
+  for (const row of (data ?? []) as Array<{ data: string }>) {
+    const month = parseInt(row.data.slice(5, 7), 10)
+    if (!month) continue
+    result.set(month, (result.get(month) ?? 0) + 1)
+  }
+  return result
+}
+
 interface ComputeRowsInput {
   redeId: string
   /** Todas as empresas da rede pra essa apuração — usado pra gerar 0-rows
