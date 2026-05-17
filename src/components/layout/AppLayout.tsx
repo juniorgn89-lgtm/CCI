@@ -10,7 +10,17 @@ import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 import { useAuthStore } from '@/store/auth'
+import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
+
+/**
+ * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
+ * Tudo fora dessa lista força o redirect pra /selecionar-rede.
+ */
+const isSafeWithoutRede = (path: string): boolean =>
+  path === '/selecionar-rede'
+  || path.startsWith('/admin/')
+  || path === '/configuracoes'
 
 const SIDEBAR_PREF_KEY = 'sidebar_collapsed'
 
@@ -46,16 +56,28 @@ const AppLayout = () => {
 
   const isMaster = useAuthStore((s) => s.isMaster)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
+  const tenantRede = useTenantStore((s) => s.rede)
 
   // Redireciona pra primeira rota permitida no mount inicial. Antes era sempre
   // /dashboard, mas usuário restrito pode não ter acesso a dashboard.
+  // Para master sem rede, o guard reativo abaixo cuida de levar pra /selecionar-rede.
   useEffect(() => {
+    if (isMaster && !tenantRede) return
     const target = firstAllowedPath(modulosPermitidos, isMaster)
     if (pathname !== target) {
       navigate(target, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Guard reativo: master sem rede só pode estar em rotas "safe" (picker, admin,
+  // configurações). Qualquer outra → manda pro picker. Toda vez que pathname
+  // ou tenantRede mudam, o guard reavalia.
+  useEffect(() => {
+    if (!isMaster || tenantRede) return
+    if (isSafeWithoutRede(pathname)) return
+    navigate('/selecionar-rede', { replace: true })
+  }, [isMaster, tenantRede, pathname, navigate])
 
   // Route guard: bloqueia URL direta a módulo não liberado. Rotas fora do
   // catálogo (Configurações, /admin/*) passam livre.

@@ -94,10 +94,17 @@ const loadTenantForUser = async () => {
         is_master: boolean | null
         redes: { id: string; nome: string; chave: string; api_base_url: string } | null
       }
-      useTenantStore.getState().setRede(typed.redes ?? null)
+      const isMaster = !!typed.is_master
+      // Master NUNCA tem rede auto-carregada do profile — a escolha é feita
+      // em /selecionar-rede e persistida no localStorage (zustand persist).
+      // Isso evita disparar queries pra uma rede "default" indesejada quando
+      // ele tem várias e quer só usar /admin.
+      if (!isMaster) {
+        useTenantStore.getState().setRede(typed.redes ?? null)
+      }
       useAuthStore.getState().setEmpresaCodigos(typed.empresa_codigos)
       useAuthStore.getState().setModulosPermitidos(typed.modulos_permitidos)
-      useAuthStore.getState().setIsMaster(!!typed.is_master)
+      useAuthStore.getState().setIsMaster(isMaster)
       return
     }
 
