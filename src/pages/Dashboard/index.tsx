@@ -95,7 +95,9 @@ const Dashboard = () => {
                 )}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Acompanhamento dos postos em tempo real
+                {periodIsPast
+                  ? 'Resumo consolidado do período selecionado'
+                  : 'Acompanhamento dos postos em tempo real'}
               </p>
             </div>
           </div>

@@ -9,6 +9,7 @@ import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
+import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
@@ -45,6 +46,7 @@ const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
 const AppLayout = () => {
   useModulePrefetch()
   useAlertGenerator()
+  useAutoSelectSinglePosto()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
   const [hasManualPref, setHasManualPref] = useState<boolean>(
     () => readManualPreference() !== null

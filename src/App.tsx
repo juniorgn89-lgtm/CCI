@@ -5,6 +5,7 @@ import AppRoutes from '@/routes'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
+import { useFilterStore } from '@/store/filters'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +45,9 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setEmpresaCodigos(null)
         useAuthStore.getState().setModulosPermitidos(null)
         useAuthStore.getState().setIsMaster(false)
+        // Limpa filtro global de empresa pra não vazar contexto entre sessões
+        // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
+        useFilterStore.getState().setEmpresas([])
         return
       }
       await loadTenantForUser()
