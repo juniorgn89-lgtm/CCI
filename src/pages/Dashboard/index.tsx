@@ -1,4 +1,4 @@
-import { LayoutDashboard, Building2, Network } from 'lucide-react'
+import { LayoutDashboard, Building2, Network, Zap } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -7,11 +7,13 @@ import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import TabelaPostos from '@/pages/Dashboard/components/TabelaPostos'
+import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { cn } from '@/lib/utils'
 
 const Dashboard = () => {
   const { empresaCodigos, setEmpresas } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
+  const { isCacheHit } = useDashboardData()
 
   // Carrega empresas pra: (a) descobrir nome do posto selecionado;
   // (b) saber quantos postos o user tem permissão pra ver — se for 1 só,
@@ -76,7 +78,18 @@ const Dashboard = () => {
               <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+                {isCacheHit && (
+                  <span
+                    title="Dados do snapshot mensal — carregamento instantâneo"
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
+                  >
+                    <Zap className="h-2.5 w-2.5" />
+                    instantâneo
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Acompanhamento dos postos em tempo real
               </p>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
@@ -9,6 +9,9 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { useTenantStore } from '@/store/tenant'
+import useApuracaoCache from './useApuracaoCache'
+import { computeApuracaoRows, upsertApuracaoDiaria } from '@/api/supabase/apuracao'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
 
@@ -131,6 +134,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const dataFinal = options.period?.dataFinal ?? filter.dataFinal
 
   const hasEmpresa = empresaCodigos.length > 0
+  const rede = useTenantStore((s) => s.rede)
 
   // LMC lookback: fetch from 3 months before to capture most recent cost data
   const lmcDataInicial = threeMonthsBefore(dataInicial)
@@ -141,6 +145,28 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const prevYearInicial = offsetPeriod(dataInicial, 12)
   const prevYearFinal = offsetPeriod(dataFinal, 12)
 
+  // Empresas declaradas antes do cache check pra fornecer a lista permitida
+  // ao useApuracaoCache (que precisa saber as empresas pra estimar cobertura).
+  const { data: empresasData, isLoading: isLoadingEmpresas } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas(),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Filtra pela restrição do user logado (profiles.empresa_codigos).
+  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const empresasPermitidasCodes = useMemo(() => empresas.map((e) => e.codigo), [empresas])
+  const allowedCodes = useMemo(() => new Set(empresasPermitidasCodes), [empresasPermitidasCodes])
+
+  // Tenta servir do cache em Supabase pra meses fechados em Central view.
+  // Quando HIT, as queries pesadas (abast, vendaResumo) são desabilitadas.
+  const cache = useApuracaoCache({
+    empresasPermitidas: empresasPermitidasCodes,
+    empresaCodigosFiltro: empresaCodigos,
+    dataInicial,
+    dataFinal,
+  })
+
   // VENDA_RESUMO for global faturamento per empresa
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
     queryKey: ['vendaResumo', empresaCodigos, dataInicial, dataFinal],
@@ -150,7 +176,9 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         dataInicial,
         dataFinal,
       }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    // Cache HIT pula essa query — vendas_total já vem do Supabase.
+    // Enquanto cache.isChecking, mantemos hold pra evitar fetch desperdiçado.
+    enabled: !cache.isCacheHit && !cache.isChecking,
     placeholderData: keepPreviousData,
   })
 
@@ -180,11 +208,12 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     retry: false,
   })
 
-  // ABASTECIMENTO — chunked by week to avoid 50k API limit
+  // ABASTECIMENTO — chunked by week to avoid 50k API limit.
+  // Esta é a query mais cara (até 50k+ records). Cache HIT pula completamente.
   const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    // Roda sempre — matchesEmpresa() lida com filtro vazio (retorna todos)
+    enabled: !cache.isCacheHit && !cache.isChecking,
     placeholderData: keepPreviousData,
   })
 
@@ -202,13 +231,6 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     retry: false,
   })
 
-  // Empresas (cached) — declarado antes da LMC pra fornecer a lista de códigos quando não há filtro
-  const { data: empresasData, isLoading: isLoadingEmpresas } = useQuery({
-    queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
-    staleTime: 10 * 60 * 1000,
-  })
-
   // Quando não há empresa selecionada (Central da Rede), passamos explicitamente todos os códigos
   // pra LMC — a API exige empresaCodigo pra retornar custos, e isso evita colisão de cache com
   // outras páginas que já populam ['lmc', ...] filtrando por uma única empresa.
@@ -216,6 +238,8 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const lmcEmpresaCodigos = hasEmpresa ? empresaCodigos : allEmpresaCodes
   const lmcEmpresaKey = lmcEmpresaCodigos.slice().sort((a, b) => a - b).join(',')
 
+  // LMC continua carregando mesmo em cache HIT — precisamos dela pra calcular
+  // o custo do prev month/year nas comparações YoY (que ainda são live).
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal, lmcEmpresaKey],
     queryFn: () =>
@@ -227,7 +251,6 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         }),
         1000, 50
       ),
-    // Aguarda empresas carregarem (necessário pra ter os códigos quando não há filtro)
     enabled: lmcEmpresaCodigos.length > 0,
     placeholderData: keepPreviousData,
   })
@@ -253,10 +276,8 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     staleTime: 30 * 60 * 1000,
   })
 
-  // Filtra pela restrição do user logado (profiles.empresa_codigos).
-  // Master/sem restrição → vê todas; supervisor restrito → só as permitidas.
-  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const allowedCodes = new Set(empresas.map((e) => e.codigo))
+  // `empresas`/`empresasPermitidasCodes`/`allowedCodes` já foram declaradas no
+  // topo (precisaram vir antes do useApuracaoCache).
   const isLoading = isLoadingResumo || isLoadingAbast || isLoadingLmc || isLoadingProdutos || isLoadingEmpresas
 
   // Helper: check if an empresa code matches the current filter + restrição.
@@ -299,6 +320,229 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     }
     const getCost = (empresaCod: number, produtoCod: number): number => {
       return costMap.get(`${empresaCod}-${produtoCod}`) ?? 0
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CACHE HIT branch — bypass abast/resumoAtual e constrói tudo do snapshot
+    // do Supabase. Comparações YoY/MoM continuam live (prev periods).
+    // ═══════════════════════════════════════════════════════════════════════
+    if (cache.isCacheHit) {
+      const visibleRows = cache.rows.filter((r) => matchesEmpresa(r.empresa_codigo))
+      interface CacheFuelAgg { litros: number; fat: number; custo: number; lb: number; count: number }
+      const fuelByEmp = new Map<number, CacheFuelAgg>()
+      const vendasByEmp = new Map<number, { total: number; qtd: number }>()
+      let tFuelLitros = 0, tFuelFat = 0, tFuelCusto = 0, tFuelCount = 0
+      let tVendas = 0, tVendasQtd = 0
+
+      for (const r of visibleRows) {
+        const f = fuelByEmp.get(r.empresa_codigo) ?? { litros: 0, fat: 0, custo: 0, lb: 0, count: 0 }
+        fuelByEmp.set(r.empresa_codigo, {
+          litros: f.litros + r.fuel_litros,
+          fat: f.fat + r.fuel_faturamento,
+          custo: f.custo + r.fuel_custo,
+          lb: f.lb + r.fuel_lucro_bruto,
+          count: f.count + r.fuel_abast_count,
+        })
+        const v = vendasByEmp.get(r.empresa_codigo) ?? { total: 0, qtd: 0 }
+        vendasByEmp.set(r.empresa_codigo, {
+          total: v.total + r.vendas_total,
+          qtd: v.qtd + r.vendas_qtd,
+        })
+        tFuelLitros += r.fuel_litros
+        tFuelFat += r.fuel_faturamento
+        tFuelCusto += r.fuel_custo
+        tFuelCount += r.fuel_abast_count
+        tVendas += r.vendas_total
+        tVendasQtd += r.vendas_qtd
+      }
+
+      const tFuelLB = tFuelFat - tFuelCusto
+      const fuelMargem = tFuelFat > 0 ? (tFuelLB / tFuelFat) * 100 : 0
+      const faturamentoGlobal = tVendas
+      const nonFuelFat = Math.max(0, faturamentoGlobal - tFuelFat)
+      const automotivosFat = nonFuelFat * 0.30
+      const convenienciaFat = nonFuelFat * 0.70
+      const autoMarginRate = 0.66
+      const convMarginRate = 0.50
+
+      const sectorKpis: SectorKpi[] = [
+        { label: 'Combustível', lucroBruto: tFuelLB, faturamento: tFuelFat, margem: fuelMargem, lbPorLitro: tFuelLitros > 0 ? tFuelLB / tFuelLitros : 0 },
+        { label: 'Automotivos', lucroBruto: automotivosFat * autoMarginRate, faturamento: automotivosFat, margem: autoMarginRate * 100 },
+        { label: 'Conveniência', lucroBruto: convenienciaFat * convMarginRate, faturamento: convenienciaFat, margem: convMarginRate * 100 },
+      ]
+
+      // Prev year (live) — usa lmc, abastPrevYear, resumoPrevYear que continuam carregando.
+      const prevYearGlobalFat = resumoPrevYear.reduce((acc, r) => matchesEmpresa(r.codigoEmpresa) ? acc + r.total : acc, 0)
+      const filteredAbastPrevYear = abastPrevYear.filter((a) => matchesEmpresa(a.empresaCodigo))
+      const prevYearFuelFat = filteredAbastPrevYear.reduce((acc, a) => acc + a.valorTotal, 0)
+      let prevYearFuelCusto = 0
+      for (const a of filteredAbastPrevYear) {
+        prevYearFuelCusto += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
+      }
+      const prevYearFuelLB = prevYearFuelFat - prevYearFuelCusto
+      const prevYearNonFuelFat = Math.max(0, prevYearGlobalFat - prevYearFuelFat)
+      if (prevYearGlobalFat > 0) {
+        sectorKpis[0].prevYearLucroBruto = prevYearFuelLB
+        sectorKpis[1].prevYearLucroBruto = prevYearNonFuelFat * 0.30 * autoMarginRate
+        sectorKpis[2].prevYearLucroBruto = prevYearNonFuelFat * 0.70 * convMarginRate
+      }
+
+      const globalLucroBruto = sectorKpis.reduce((s, k) => s + k.lucroBruto, 0)
+      const globalMargem = faturamentoGlobal > 0 ? (globalLucroBruto / faturamentoGlobal) * 100 : 0
+      const prevYearGlobalLB = sectorKpis.reduce((s, k) => s + (k.prevYearLucroBruto ?? 0), 0)
+
+      const globalKpi: SectorKpi = {
+        label: 'Global',
+        lucroBruto: globalLucroBruto,
+        faturamento: faturamentoGlobal,
+        margem: globalMargem,
+        prevYearLucroBruto: prevYearGlobalFat > 0 ? prevYearGlobalLB : undefined,
+      }
+
+      const projectionData: ProjectionRow[] = [
+        ...sectorKpis.map((k) => ({ setor: k.label, faturamento: k.faturamento, lucroBruto: k.lucroBruto, margem: k.margem })),
+        { setor: 'Total', faturamento: faturamentoGlobal, lucroBruto: globalLucroBruto, margem: globalMargem },
+      ]
+
+      // sectorDetails.combustivel.empresas (sem produtos detalhados — cache não tem)
+      const fuelEmpresas: EmpresaDetail[] = []
+      for (const [empCodigo, agg] of fuelByEmp.entries()) {
+        if (agg.litros <= 0) continue
+        fuelEmpresas.push({
+          empresaCodigo: empCodigo,
+          empresa: empresaMap.get(empCodigo) ?? `Empresa ${empCodigo}`,
+          litros: agg.litros,
+          lucroBruto: agg.lb,
+          margem: agg.fat > 0 ? (agg.lb / agg.fat) * 100 : 0,
+          precoVenda: agg.litros > 0 ? agg.fat / agg.litros : 0,
+          precoCusto: agg.litros > 0 ? agg.custo / agg.litros : 0,
+          lbPorLitro: agg.litros > 0 ? agg.lb / agg.litros : 0,
+          produtos: [],
+        })
+      }
+      fuelEmpresas.sort((a, b) => b.lucroBruto - a.lucroBruto)
+
+      const fuelTotal: TotalRow = {
+        litros: tFuelLitros,
+        lucroBruto: tFuelLB,
+        margem: fuelMargem,
+        precoVenda: tFuelLitros > 0 ? tFuelFat / tFuelLitros : 0,
+        precoCusto: tFuelLitros > 0 ? tFuelCusto / tFuelLitros : 0,
+        lbPorLitro: tFuelLitros > 0 ? tFuelLB / tFuelLitros : 0,
+      }
+
+      const buildNonFuelFromCache = (splitRatio: number, marginRate: number) => {
+        const nonFuelEmpresas: EmpresaDetail[] = []
+        let totQtd = 0, totFat = 0, totLB = 0
+        for (const [empCodigo, vendas] of vendasByEmp.entries()) {
+          const fuel = fuelByEmp.get(empCodigo)
+          const fuelFat = fuel?.fat ?? 0
+          const empNonFuelFat = Math.max(0, vendas.total - fuelFat) * splitRatio
+          const empNonFuelQtd = vendas.qtd * splitRatio
+          if (empNonFuelFat <= 0) continue
+          const lb = empNonFuelFat * marginRate
+          const tm = empNonFuelQtd > 0 ? empNonFuelFat / empNonFuelQtd : 0
+          const cm = empNonFuelQtd > 0 ? (empNonFuelFat - lb) / empNonFuelQtd : 0
+          nonFuelEmpresas.push({
+            empresaCodigo: empCodigo,
+            empresa: empresaMap.get(empCodigo) ?? `Empresa ${empCodigo}`,
+            litros: 0, lucroBruto: lb, margem: marginRate * 100,
+            precoVenda: 0, precoCusto: 0, lbPorLitro: 0, produtos: [],
+            quantidade: Math.round(empNonFuelQtd),
+            faturamento: empNonFuelFat,
+            precoMedio: tm, custoMedio: cm, ticketMedio: tm,
+          })
+          totQtd += empNonFuelQtd; totFat += empNonFuelFat; totLB += lb
+        }
+        nonFuelEmpresas.sort((a, b) => (b.faturamento ?? 0) - (a.faturamento ?? 0))
+        return {
+          empresas: nonFuelEmpresas,
+          total: {
+            litros: 0, lucroBruto: totLB, margem: totFat > 0 ? (totLB / totFat) * 100 : 0,
+            precoVenda: 0, precoCusto: 0, lbPorLitro: 0,
+            quantidade: Math.round(totQtd), faturamento: totFat,
+            precoMedio: totQtd > 0 ? totFat / totQtd : 0,
+            custoMedio: totQtd > 0 ? (totFat - totLB) / totQtd : 0,
+            ticketMedio: totQtd > 0 ? totFat / totQtd : 0,
+          },
+        }
+      }
+
+      const sectorDetails: Record<Setor, { empresas: EmpresaDetail[]; total: TotalRow }> = {
+        combustivel: { empresas: fuelEmpresas, total: fuelTotal },
+        automotivos: buildNonFuelFromCache(0.30, autoMarginRate),
+        conveniencia: buildNonFuelFromCache(0.70, convMarginRate),
+      }
+
+      // Comparison — usa prev period live (lmc + abast + resumo) inalterado.
+      const computeFuelLB = (abastData: typeof abastPrevMonth) => {
+        const filtered = abastData.filter((a) => matchesEmpresa(a.empresaCodigo))
+        let fat = 0, custo = 0
+        for (const a of filtered) {
+          fat += a.valorTotal
+          custo += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
+        }
+        return { fat, lb: fat - custo }
+      }
+      const sumResumo = (data: typeof resumoPrevMonth) => {
+        let fat = 0
+        for (const r of data) {
+          if (!matchesEmpresa(r.codigoEmpresa)) continue
+          fat += r.total
+        }
+        return fat
+      }
+      const prevMonthFat = sumResumo(resumoPrevMonth)
+      const prevYearFat = sumResumo(resumoPrevYear)
+      const prevMonthFuel = computeFuelLB(abastPrevMonth)
+      const prevYearFuelCmp = computeFuelLB(abastPrevYear)
+      const nonFuelMargin = autoMarginRate * 0.30 + convMarginRate * 0.70
+      const cmpPrevMonthNonFuelFat = Math.max(0, prevMonthFat - prevMonthFuel.fat)
+      const cmpPrevYearNonFuelFat = Math.max(0, prevYearFat - prevYearFuelCmp.fat)
+      const comparison: PeriodComparison = {
+        prevMonth: {
+          faturamento: prevMonthFat,
+          lucroBruto: prevMonthFuel.lb + cmpPrevMonthNonFuelFat * nonFuelMargin,
+          abastecimentos: abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length,
+        },
+        prevYear: {
+          faturamento: prevYearFat,
+          lucroBruto: prevYearFuelCmp.lb + cmpPrevYearNonFuelFat * nonFuelMargin,
+        },
+      }
+
+      const quickStats: QuickStats = {
+        litrosVendidos: tFuelLitros,
+        totalAbastecimentos: tFuelCount,
+        receitaDia: faturamentoGlobal,
+        ticketMedio: tFuelCount > 0 ? tFuelFat / tFuelCount : 0,
+        produtosVendidos: Math.max(0, tVendasQtd - tFuelCount),
+        margemMedia: globalMargem,
+      }
+
+      const fuelByDay = new Map<string, number>()
+      for (const r of visibleRows) {
+        fuelByDay.set(r.data, (fuelByDay.get(r.data) ?? 0) + r.fuel_faturamento)
+      }
+      const totalFuelDays = Array.from(fuelByDay.values()).reduce((s, v) => s + v, 0)
+      const salesEvolution: SalesEvolutionPoint[] = Array.from(fuelByDay.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, fuelRev]) => ({
+          date,
+          fuelRevenue: fuelRev,
+          nonFuelRevenue: totalFuelDays > 0 ? nonFuelFat * (fuelRev / totalFuelDays) : 0,
+        }))
+
+      return {
+        sectorKpis,
+        globalKpi,
+        projectionData,
+        sectorDetails,
+        comparison,
+        quickStats,
+        salesEvolution,
+        frentistaRanking: [] as FrentistaRankingItem[],
+      }
     }
 
     // Global faturamento from VENDA_RESUMO — só de empresas visíveis
@@ -698,11 +942,46 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData])
+  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData, cache.isCacheHit, cache.rows])
+
+  // Após carregar live com sucesso em mês fechado elegível, popula o cache em
+  // background. Próxima visita lê do Supabase instantâneamente. Idempotente
+  // via ref — não dispara várias vezes pro mesmo período.
+  const populatedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!cache.isEligible || cache.isCacheHit || cache.isChecking) return
+    if (!rede?.id) return
+    // Espera as queries live terminarem (dados disponíveis)
+    if (abastecimentos.length === 0 || resumoAtual.length === 0) return
+    if (isLoadingAbast || isLoadingResumo || isLoadingLmc) return
+
+    const key = `${rede.id}|${dataInicial}|${dataFinal}|${empresasPermitidasCodes.slice().sort().join(',')}`
+    if (populatedRef.current === key) return
+    populatedRef.current = key
+
+    const rows = computeApuracaoRows({
+      redeId: rede.id,
+      empresaCodigos: empresasPermitidasCodes,
+      dataInicial,
+      dataFinal,
+      abastecimentos,
+      lmc: lmcData,
+      vendaResumo: resumoAtual,
+    })
+    upsertApuracaoDiaria(rows).catch(() => { /* não bloqueia UX se falhar */ })
+  }, [
+    cache.isEligible, cache.isCacheHit, cache.isChecking,
+    rede?.id, dataInicial, dataFinal,
+    abastecimentos, resumoAtual, lmcData,
+    isLoadingAbast, isLoadingResumo, isLoadingLmc,
+    empresasPermitidasCodes,
+  ])
 
   return {
     ...computed,
-    isLoading,
+    isLoading: isLoading || cache.isChecking,
+    /** True quando os números vêm do snapshot Supabase (carregamento instantâneo). */
+    isCacheHit: cache.isCacheHit,
   }
 }
 
