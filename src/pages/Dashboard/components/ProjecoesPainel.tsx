@@ -13,10 +13,12 @@ const VariationBadge = ({ value }: { value: number }) => {
   }
   const positive = value > 0
   const Icon = positive ? TrendingUp : TrendingDown
+  // Azul (positivo) + vermelho (negativo) — mesma paleta de "projeção" usada
+  // nos outros módulos (ex: Operação → Projeções por Frentista).
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-medium ${
-        positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+        positive ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
       }`}
     >
       <Icon className="h-3 w-3" />
@@ -37,7 +39,7 @@ const KpiBlock = ({
   projetado: string
   variacao: number
 }) => (
-  <div className="space-y-1.5">
+  <div className="space-y-2">
     <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
       {label}
     </p>
@@ -47,11 +49,17 @@ const KpiBlock = ({
         {realizado}
       </span>
     </div>
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-xs text-gray-500 dark:text-gray-400">Projetado</span>
-      <span className="text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">
-        {projetado}
-      </span>
+    {/* Projetado — card azul (mesma paleta de "Projeção fim do período" em ResumoOperacao). */}
+    <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-800/40 dark:bg-blue-900/20">
+      <TrendingUp className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+          Projetado
+        </p>
+        <p className="text-base font-bold tabular-nums text-blue-700 dark:text-blue-300">
+          {projetado}
+        </p>
+      </div>
     </div>
     <VariationBadge value={variacao} />
   </div>
@@ -129,15 +137,26 @@ const ProjecoesPainel = () => {
               />
             </div>
             <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Margem projetada
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Margem
               </p>
-              <p className="mt-1.5 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {formatPercent(projetado.margem)}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Realizado: {formatPercent(realizado.margem)}
-              </p>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Realizado</span>
+                <span className="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                  {formatPercent(realizado.margem)}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-800/40 dark:bg-blue-900/20">
+                <TrendingUp className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                    Projetada
+                  </p>
+                  <p className="text-base font-bold tabular-nums text-blue-700 dark:text-blue-300">
+                    {formatPercent(projetado.margem)}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

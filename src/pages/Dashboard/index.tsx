@@ -44,7 +44,7 @@ const Dashboard = () => {
             className={cn(
               'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               empresaCodigo === null
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                ? 'bg-[#1e3a5f] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             )}
           >
@@ -56,7 +56,7 @@ const Dashboard = () => {
             className={cn(
               'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               empresaCodigo === singlePosto.codigo
-                ? 'bg-blue-500 text-white'
+                ? 'bg-blue-500 text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             )}
           >
