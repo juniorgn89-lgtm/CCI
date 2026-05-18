@@ -105,18 +105,15 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Side-by-side — `items-stretch` (default) faz o painel direito esticar
-              até a altura total da coluna esquerda (cards + tabela), alinhando topo↔
-              topo e rodapé↔rodapé. */}
-          <div className="flex flex-col gap-6 xl:flex-row">
-            <div className="min-w-0 flex-1 space-y-4">
-              {!periodIsPast && <TurnosAoVivo />}
-              <TabelaPostos />
-              {canVerReabastecimento && <ReabastecimentoCard />}
-            </div>
-            <aside className="hidden w-[260px] shrink-0 xl:block">
-              <ProjecoesPainel />
-            </aside>
+          {/* Projeção do mês — strip horizontal no topo, full width. KPIs
+              (Faturamento, Lucro Bruto, Margem) + alerta menor margem em grid. */}
+          <ProjecoesPainel />
+
+          {/* Conteúdo principal abaixo da projeção */}
+          <div className="space-y-4">
+            {!periodIsPast && <TurnosAoVivo />}
+            <TabelaPostos />
+            {canVerReabastecimento && <ReabastecimentoCard />}
           </div>
         </>
       )}

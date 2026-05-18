@@ -1,5 +1,5 @@
-import { Fuel, AlertTriangle, Loader2 } from 'lucide-react'
-import { formatLiters } from '@/lib/formatters'
+import { Fuel, AlertTriangle, Loader2, ShoppingCart, TrendingDown } from 'lucide-react'
+import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
 
@@ -7,15 +7,24 @@ interface NivelTanquesCardProps {
   empresaCodigo: number
 }
 
+/** Formata data yyyy-MM-dd como dd/MM/yy curto. */
+const fmtDateShort = (iso: string): string => {
+  if (!iso || iso.length < 10) return iso
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return `${d}/${m}/${y.slice(2)}`
+}
+
 /**
- * Lista todos os tanques de um posto específico com nível atual. Diferente
- * do ReabastecimentoCard (Central da Rede), aqui mostramos TODOS — não só
- * os baixos — pra o gerente ter visão completa do estoque do posto.
+ * Lista todos os tanques de um posto específico com nível atual + última
+ * compra registrada (LMC) + projeção de necessidade até fim do mês.
  *
  * Cor da barra: verde (OK), amber (alerta), vermelho (crítico).
  */
 const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
-  const { tanques, criticos, isLoading } = useReabastecimento({ empresaCodigo })
+  const { tanques, criticos, isLoading } = useReabastecimento({
+    empresaCodigo,
+    includeDetalhes: true,
+  })
 
   if (isLoading) {
     return (
@@ -94,6 +103,55 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                   {formatLiters(t.estoqueAtual)} de {formatLiters(t.capacidade)}
                 </p>
+
+                {/* Footer — última compra + necessidade */}
+                {(t.ultimaCompra || t.necessidadeFimDoMes > 0) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-100 pt-1.5 text-[11px] dark:border-gray-800">
+                    {t.ultimaCompra && (
+                      <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                        <ShoppingCart className="h-3 w-3 text-gray-400" />
+                        <span>
+                          Última compra:{' '}
+                          <span className="font-medium text-gray-800 dark:text-gray-200 tabular-nums">
+                            {formatLiters(t.ultimaCompra.volume)}
+                          </span>
+                          {' '}em{' '}
+                          <span className="tabular-nums">{fmtDateShort(t.ultimaCompra.data)}</span>
+                          {t.ultimaCompra.valorEstimado > 0 && (
+                            <>
+                              {' '}·{' '}
+                              <span
+                                className="tabular-nums"
+                                title="Estimado: volume × preço de custo do dia"
+                              >
+                                {formatCurrency(t.ultimaCompra.valorEstimado)}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </span>
+                    )}
+                    {t.necessidadeFimDoMes > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400"
+                        title="Projeção: consumo médio diário × dias restantes do mês − estoque atual"
+                      >
+                        <TrendingDown className="h-3 w-3" />
+                        <span>
+                          Comprar até fim do mês:{' '}
+                          <span className="font-semibold tabular-nums">
+                            {formatLiters(t.necessidadeFimDoMes)}
+                          </span>
+                          {t.diasRestantes != null && (
+                            <span className="ml-1 text-[10px] text-blue-600/70 dark:text-blue-400/70">
+                              (estoque cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <span
