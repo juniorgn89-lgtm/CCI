@@ -82,6 +82,50 @@ export const useAuth = () => {
     navigate('/login')
   }, [navigate, queryClient])
 
+  /**
+   * Troca a senha do usuário logado. Valida primeiro a senha atual via
+   * re-autenticação (Supabase não exige isso na API, mas a UX é mais
+   * segura quando o usuário precisa confirmar quem é antes de alterar).
+   */
+  const changePassword = useCallback(
+    async (senhaAtual: string, senhaNova: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!supabase) return { ok: false, error: 'Supabase não configurado' }
+      const email = user?.email
+      if (!email) return { ok: false, error: 'Sessão expirada. Faça login novamente.' }
+
+      // Re-autentica com a senha atual pra confirmar identidade
+      const { error: signErr } = await supabase.auth.signInWithPassword({
+        email,
+        password: senhaAtual,
+      })
+      if (signErr) {
+        return { ok: false, error: 'Senha atual incorreta' }
+      }
+
+      // Atualiza pra senha nova
+      const { error: updErr } = await supabase.auth.updateUser({ password: senhaNova })
+      if (updErr) return { ok: false, error: updErr.message }
+
+      return { ok: true }
+    },
+    [user]
+  )
+
+  /**
+   * Dispara o e-mail de redefinição de senha do Supabase. O link no email
+   * volta pra /redefinir-senha onde o user define a nova senha.
+   */
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!supabase) return { ok: false, error: 'Supabase não configurado' }
+      const redirectTo = `${window.location.origin}/redefinir-senha`
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+      if (error) return { ok: false, error: error.message }
+      return { ok: true }
+    },
+    []
+  )
+
   return {
     session,
     user,
@@ -90,5 +134,7 @@ export const useAuth = () => {
     error,
     login,
     logout,
+    changePassword,
+    requestPasswordReset,
   }
 }

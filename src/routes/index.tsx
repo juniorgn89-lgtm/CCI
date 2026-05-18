@@ -4,6 +4,8 @@ import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
 
+const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
+
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
@@ -36,6 +38,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/redefinir-senha" element={<Suspense fallback={null}><RedefinirSenha /></Suspense>} />
       <Route path="/frentista/auto" element={<Suspense fallback={null}><FrentistaAutoLogin /></Suspense>} />
 
       {/* Gerente routes */}

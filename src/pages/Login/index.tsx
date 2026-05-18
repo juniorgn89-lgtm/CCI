@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 import { cn } from '@/lib/utils'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
+import EsqueciSenhaModal from '@/pages/Login/components/EsqueciSenhaModal'
 
 type LoginMode = 'gerente' | 'frentista'
 
@@ -23,6 +24,8 @@ const Login = () => {
   const [frentistaSubmitting, setFrentistaSubmitting] = useState(false)
   const { login: loginFrentista, error: frentistaError } = useFrentistaAuth()
   const navigate = useNavigate()
+
+  const [forgotOpen, setForgotOpen] = useState(false)
 
   const handleGerenteSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -175,6 +178,17 @@ const Login = () => {
                   'Acessar'
                 )}
               </Button>
+
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                Esqueceu a senha?{' '}
+                <button
+                  type="button"
+                  onClick={() => setForgotOpen(true)}
+                  className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Clique aqui
+                </button>
+              </p>
             </form>
           )}
 
@@ -229,6 +243,10 @@ const Login = () => {
           &copy; {new Date().getFullYear()} CCISGA
         </p>
       </div>
+
+      {forgotOpen && (
+        <EsqueciSenhaModal initialEmail={email} onClose={() => setForgotOpen(false)} />
+      )}
     </div>
   )
 }

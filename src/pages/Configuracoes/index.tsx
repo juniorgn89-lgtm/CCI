@@ -12,6 +12,7 @@ import {
   type ManutencaoConfig,
   DEFAULT_CONFIG,
 } from '@/store/manutencao'
+import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 
 const APP_VERSION = 'v1.0.0'
 const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'suporte@ccisga.com.br'
@@ -392,6 +393,9 @@ const Configuracoes = () => {
           </div>
         </div>
       </section>
+
+      {/* Segurança — Alterar senha */}
+      <AlterarSenhaCard />
 
       {/* Manutenção de Bombas */}
       <ManutencaoBombasSection />
