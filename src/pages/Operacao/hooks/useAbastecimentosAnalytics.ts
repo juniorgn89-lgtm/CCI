@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchBombas, fetchBicos, fetchLmc } from '@/api/endpoints/combustiveis'
@@ -7,6 +7,8 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 
 const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   const d = new Date(dateStr)
@@ -123,6 +125,7 @@ export interface ProjectionMeta {
 const useAbastecimentosAnalytics = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
+  const empresaCodigoSingle = empresaCodigos.length === 1 ? empresaCodigos[0] : null
 
   const prevMonthInicial = offsetPeriod(dataInicial, 1)
   const prevMonthFinal = offsetPeriod(dataFinal, 1)
@@ -130,35 +133,109 @@ const useAbastecimentosAnalytics = () => {
   const evolution12mInicial = offsetPeriod(dataFinal, 11)
   const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01'
 
-  const { data: abastecimentos = [], isLoading: isLoadingAbast } = useQuery({
+  // Conta de empresas permitidas — usado pra calcular cache HIT quando
+  // o user não filtrou empresa específica (vê todas da rede).
+  const { data: empresasDataForCount } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas(),
+    staleTime: 10 * 60 * 1000,
+  })
+  const empresasPermitidas = useEmpresasPermitidas(empresasDataForCount?.resultados ?? [])
+  const empresasPermitidasCount = empresasPermitidas.length
+
+  // Cache de abast Supabase pra os 3 períodos. Quando HIT, dispensa fetch
+  // live (que pra evolution12m chega a alguns segundos).
+  const abastCacheCurrent = useAbastCache({
+    dataInicial,
+    dataFinal,
+    empresaCodigo: empresaCodigoSingle,
+    empresasPermitidasCount,
+  })
+  const abastCachePrev = useAbastCache({
+    dataInicial: prevMonthInicial,
+    dataFinal: prevMonthFinal,
+    empresaCodigo: empresaCodigoSingle,
+    empresasPermitidasCount,
+  })
+  const abastCacheEvolution = useAbastCache({
+    dataInicial: evolution12mInicialFirst,
+    dataFinal,
+    empresaCodigo: empresaCodigoSingle,
+    empresasPermitidasCount,
+  })
+
+  // Instrumentação temporária — mede tempo do mount até isLoading=false e
+  // duração de cada query individual + status do cache. Pode remover
+  // quando o diagnóstico do delay terminar.
+  const tMount = useRef<number>(performance.now())
+  const logged = useRef(false)
+  const fmtMs = (ms: number) => `${ms.toFixed(0)}ms`
+
+  // Current period — live só quando cache MISS.
+  const { data: abastLive = [], isLoading: isLoadingAbastLive } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
+    queryFn: async () => {
+      const t = performance.now()
+      const res = await fetchAbastecimentosChunked({ dataInicial, dataFinal })
+      // eslint-disable-next-line no-console
+      console.log(`[abast-tab] LIVE current (${dataInicial}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
+      return res
+    },
+    enabled: !abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking,
     placeholderData: keepPreviousData,
   })
 
-  const { data: prevMonthAbast = [] } = useQuery({
+  // Mês anterior — mesmo padrão.
+  const { data: prevMonthLive = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
+    queryFn: async () => {
+      const t = performance.now()
+      const res = await fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal })
+      // eslint-disable-next-line no-console
+      console.log(`[abast-tab] LIVE prevMonth (${prevMonthInicial}→${prevMonthFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
+      return res
+    },
+    enabled: !abastCachePrev.isCacheHit && !abastCachePrev.isChecking,
     retry: false,
   })
 
-  const { data: evolutionAbast = [] } = useQuery({
+  // Evolução 12 meses — historicamente o pior. Cache derruba pra <300ms
+  // quando todos os meses do range estão apurados.
+  const { data: evolutionLive = [] } = useQuery({
     queryKey: ['abastecimentos', evolution12mInicialFirst, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: evolution12mInicialFirst, dataFinal, chunkDays: 30 }),
+    queryFn: async () => {
+      const t = performance.now()
+      const res = await fetchAbastecimentosChunked({ dataInicial: evolution12mInicialFirst, dataFinal, chunkDays: 30 })
+      // eslint-disable-next-line no-console
+      console.log(`[abast-tab] LIVE evolution12m (${evolution12mInicialFirst}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
+      return res
+    },
+    enabled: !abastCacheEvolution.isCacheHit && !abastCacheEvolution.isChecking,
     staleTime: 10 * 60 * 1000,
   })
 
+  // Fontes "efetivas": cache quando HIT, live caso contrário. Padrão idêntico
+  // ao useOperacaoData — mantém comportamento legado em MISS (sem regressão).
+  const abastecimentos = abastCacheCurrent.isCacheHit ? abastCacheCurrent.abastecimentos : abastLive
+  const prevMonthAbast = abastCachePrev.isCacheHit ? abastCachePrev.abastecimentos : prevMonthLive
+  const evolutionAbast = abastCacheEvolution.isCacheHit ? abastCacheEvolution.abastecimentos : evolutionLive
+
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal],
-    queryFn: () =>
-      fetchAllPages(
+    queryFn: async () => {
+      const t = performance.now()
+      const res = await fetchAllPages(
         (p) => fetchLmc({
           empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
           dataInicial: lmcDataInicial, dataFinal,
           ultimoCodigo: p.ultimoCodigo, limite: p.limite,
         }),
         1000, 50
-      ),
+      )
+      // eslint-disable-next-line no-console
+      console.log(`[abast-tab] LIVE lmc (${lmcDataInicial}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
+      return res
+    },
     placeholderData: keepPreviousData,
   })
 
@@ -192,7 +269,28 @@ const useAbastecimentosAnalytics = () => {
     staleTime: 10 * 60 * 1000,
   })
 
-  const isLoading = isLoadingAbast || isLoadingLmc
+  // isLoading: aguarda probes de cache + LMC + live current (quando cache MISS).
+  // Quando cache HIT, isLoadingAbastLive sempre é false (query enabled=false).
+  const isLoading =
+    abastCacheCurrent.isChecking ||
+    abastCachePrev.isChecking ||
+    abastCacheEvolution.isChecking ||
+    (isLoadingAbastLive && !abastCacheCurrent.isCacheHit) ||
+    isLoadingLmc
+
+  // Quando todas as queries primárias terminam, loga o total uma vez por mount
+  // + status do cache pra cada um dos 3 períodos.
+  useEffect(() => {
+    if (!isLoading && !logged.current) {
+      const total = performance.now() - tMount.current
+      const hit = (h: boolean) => (h ? 'HIT' : 'MISS')
+      // eslint-disable-next-line no-console
+      console.log(
+        `[abast-tab] ━━━ TOTAL primeira carga: ${fmtMs(total)} · cache current=${hit(abastCacheCurrent.isCacheHit)}, prev=${hit(abastCachePrev.isCacheHit)}, evolution=${hit(abastCacheEvolution.isCacheHit)} ━━━`,
+      )
+      logged.current = true
+    }
+  }, [isLoading, abastCacheCurrent.isCacheHit, abastCachePrev.isCacheHit, abastCacheEvolution.isCacheHit])
 
   const computed = useMemo(() => {
     const productMap = new Map<number, string>()
