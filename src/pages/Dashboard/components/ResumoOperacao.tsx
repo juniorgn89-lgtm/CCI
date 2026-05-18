@@ -11,13 +11,13 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
-import { DollarSign, Wallet, Droplets, TrendingUp, ArrowRight, Clock } from 'lucide-react'
+import { DollarSign, Wallet, Droplets, TrendingUp, ArrowRight, Clock, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatLiters } from '@/lib/formatters'
-import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
+import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -171,23 +171,19 @@ const MainKpiCard = ({
 const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const navigate = useNavigate()
   const { dataInicial, dataFinal } = useFilterStore()
-  const { kpis, abastecimentoRows, apuradoPorDia, isLoading } = useOperacaoData()
-  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+  const {
+    faturamentoCombustivel,
+    totalLitros,
+    totalApurado,
+    litrosPorDia,
+    apuradoPorDia,
+    isLoading,
+    isCacheHit,
+  } = useResumoOperacaoData()
+  const hasData = faturamentoCombustivel > 0 || totalApurado > 0 || totalLitros > 0
+  const showSkeleton = useShowSkeleton(isLoading, hasData)
 
   const projection = useMemo(() => computeProjection(dataInicial, dataFinal), [dataInicial, dataFinal])
-
-  /* Litros por dia (a partir dos abastecimentos) */
-  const litrosPorDia = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const a of abastecimentoRows) {
-      const day = a.dataHora?.substring(0, 10) ?? ''
-      if (!day) continue
-      map.set(day, (map.get(day) ?? 0) + a.litros)
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([data, litros]) => ({ data, litros }))
-  }, [abastecimentoRows])
 
   /* Séries com projeção pra cada gráfico */
   const apuradoChartData: DailyPoint[] = useMemo(() => {
@@ -234,8 +230,8 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   }, [litrosPorDia, dataInicial, dataFinal])
 
   /* Projetados totais (litros é calculado a partir do scaleFactor) */
-  const projFaturamento = kpis ? kpis.faturamentoCombustivel * projection.scaleFactor : 0
-  const projApurado = kpis ? kpis.totalApurado * projection.scaleFactor : 0
+  const projFaturamento = faturamentoCombustivel * projection.scaleFactor
+  const projApurado = totalApurado * projection.scaleFactor
 
   if (showSkeleton) {
     return (
@@ -250,14 +246,25 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
     )
   }
 
-  if (!kpis) return null
+  if (!hasData) return null
 
   return (
     <div className="space-y-5">
       {/* Header dinâmico */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Resumo · {empresaNome}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Resumo · {empresaNome}</h2>
+            {isCacheHit && (
+              <span
+                title="Combustível do snapshot mensal — carregamento instantâneo"
+                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
+              >
+                <Zap className="h-2.5 w-2.5" />
+                instantâneo
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Visão consolidada do posto com projeção de fim de período
           </p>
@@ -276,7 +283,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MainKpiCard
           label="Faturamento Combustível"
-          realizado={kpis.faturamentoCombustivel}
+          realizado={faturamentoCombustivel}
           projetado={projFaturamento}
           isProjectable={projection.isProjectable}
           daysElapsed={projection.daysElapsed}
@@ -291,7 +298,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
         />
         <MainKpiCard
           label="Total Apurado"
-          realizado={kpis.totalApurado}
+          realizado={totalApurado}
           projetado={projApurado}
           isProjectable={projection.isProjectable}
           daysElapsed={projection.daysElapsed}
@@ -372,7 +379,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           </h3>
           {projection.isProjectable && (
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
-              Projeção: {formatLiters(kpis.totalLitros * projection.scaleFactor)}
+              Projeção: {formatLiters(totalLitros * projection.scaleFactor)}
             </span>
           )}
         </div>

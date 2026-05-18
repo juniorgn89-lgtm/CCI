@@ -265,8 +265,11 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const lmcEmpresaCodigos = hasEmpresa ? empresaCodigos : allEmpresaCodes
   const lmcEmpresaKey = lmcEmpresaCodigos.slice().sort((a, b) => a - b).join(',')
 
-  // LMC continua carregando mesmo em cache HIT — precisamos dela pra calcular
-  // o custo do prev month/year nas comparações YoY (que ainda são live).
+  // LMC só é necessária quando há cálculo de custo ao vivo (algum período
+  // sem cache). Se main + prevMonth + prevYear estão TODOS em cache HIT,
+  // o custo já vem agregado em fuel_custo — LMC vira esforço perdido.
+  const allCachesHit =
+    cache.isCacheHit && cachePrevMonth.isCacheHit && cachePrevYear.isCacheHit
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal, lmcEmpresaKey],
     queryFn: () =>
@@ -278,7 +281,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         }),
         1000, 50
       ),
-    enabled: lmcEmpresaCodigos.length > 0,
+    enabled: lmcEmpresaCodigos.length > 0 && !allCachesHit,
     placeholderData: keepPreviousData,
   })
 

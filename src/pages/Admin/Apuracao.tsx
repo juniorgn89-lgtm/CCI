@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -10,12 +10,21 @@ import {
   fetchApuracaoStatusByMonth,
   upsertApuracaoDiaria,
   computeApuracaoRows,
+  upsertAbastecimentosCache,
+  abastecimentoToCacheRow,
+  upsertCaixasCache,
+  caixaToCacheRow,
+  upsertFormasPagamentoCache,
+  formaPagamentoToCacheRow,
+  fetchUserNamesByIds,
+  type ApuracaoMonthMetadata,
 } from '@/api/supabase/apuracao'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
-import { fetchVendaResumo } from '@/api/endpoints/vendas'
+import { fetchVendaResumo, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
+import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { cn } from '@/lib/utils'
 
 const MESES = [
@@ -30,6 +39,29 @@ interface MonthState {
   expected: number
   actual: number
   error?: string
+  /** Última apuração — quem rodou (nome ou null) + quando (ISO ou null). */
+  lastComputedAt?: string | null
+  lastComputedByName?: string | null
+}
+
+/** Diferença entre data passada e agora em "há X". Curto e direto. */
+const relativeTime = (iso: string): string => {
+  const past = new Date(iso).getTime()
+  if (!isFinite(past)) return ''
+  const diffSec = (Date.now() - past) / 1000
+  if (diffSec < 60) return 'agora'
+  if (diffSec < 3600) return `há ${Math.floor(diffSec / 60)} min`
+  if (diffSec < 86400) return `há ${Math.floor(diffSec / 3600)}h`
+  if (diffSec < 30 * 86400) return `há ${Math.floor(diffSec / 86400)} ${Math.floor(diffSec / 86400) === 1 ? 'dia' : 'dias'}`
+  if (diffSec < 365 * 86400) return `há ${Math.floor(diffSec / (30 * 86400))} m`
+  return `há ${Math.floor(diffSec / (365 * 86400))} a`
+}
+
+const formatAbsoluteTime = (iso: string): string => {
+  const d = new Date(iso)
+  if (!isFinite(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const padMonth = (m: number) => String(m).padStart(2, '0')
@@ -93,6 +125,7 @@ const Apuracao = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const canApurar = useAuthStore((s) => s.canApurar)
   const authLoading = useAuthStore((s) => s.isLoading)
+  const currentUser = useAuthStore((s) => s.user)
   const hasAccess = isMaster || canApurar
 
   const currentYear = new Date().getFullYear()
@@ -108,13 +141,37 @@ const Apuracao = () => {
   const empresas = empresasData?.resultados ?? []
   const empresasCount = empresas.length
 
-  // Status do ano selecionado — mapa mês → count de rows no Supabase.
+  // Status do ano selecionado — mapa mês → metadata (count + last apuração).
   const { data: statusMap, isLoading: loadingStatus, refetch: refetchStatus } = useQuery({
     queryKey: ['apuracao-status', rede?.id, year],
-    queryFn: () => rede ? fetchApuracaoStatusByMonth(rede.id, year) : new Map<number, number>(),
+    queryFn: () => rede ? fetchApuracaoStatusByMonth(rede.id, year) : new Map<number, ApuracaoMonthMetadata>(),
     enabled: hasAccess && !!rede,
     staleTime: 60 * 1000,
   })
+
+  // Resolve user_ids dos lastComputedBy → nomes (via profiles).
+  const lastComputedByIds = useMemo(() => {
+    if (!statusMap) return [] as string[]
+    const ids: string[] = []
+    for (const meta of statusMap.values()) {
+      if (meta.lastComputedBy) ids.push(meta.lastComputedBy)
+    }
+    return ids
+  }, [statusMap])
+
+  const { data: userNames } = useQuery({
+    queryKey: ['apuracao-user-names', lastComputedByIds.slice().sort().join(',')],
+    queryFn: () => fetchUserNamesByIds(lastComputedByIds),
+    enabled: lastComputedByIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const nameFor = (userId: string | null | undefined): string | null => {
+    if (!userId) return null
+    const info = userNames?.get(userId)
+    if (!info) return null
+    return info.full_name || info.email || null
+  }
 
   // Estado por mês durante apuração (em_andamento / erro)
   const [progress, setProgress] = useState<Map<number, MonthState>>(new Map())
@@ -126,11 +183,16 @@ const Apuracao = () => {
       return ongoing
     }
     const expected = expectedRowsForMonth(year, month, empresasCount)
-    const actual = statusMap?.get(month) ?? 0
-    if (expected === 0) return { status: 'futuro', expected: 0, actual }
-    if (actual >= expected) return { status: 'apurado', expected, actual }
-    if (actual === 0) return { status: 'nao_apurado', expected, actual }
-    return { status: 'parcial', expected, actual }
+    const meta = statusMap?.get(month)
+    const actual = meta?.count ?? 0
+    const audit = {
+      lastComputedAt: meta?.lastComputedAt ?? null,
+      lastComputedByName: nameFor(meta?.lastComputedBy),
+    }
+    if (expected === 0) return { status: 'futuro', expected: 0, actual, ...audit }
+    if (actual >= expected) return { status: 'apurado', expected, actual, ...audit }
+    if (actual === 0) return { status: 'nao_apurado', expected, actual, ...audit }
+    return { status: 'parcial', expected, actual, ...audit }
   }
 
   /**
@@ -147,7 +209,26 @@ const Apuracao = () => {
       const empresasCodes = empresas.map((e) => e.codigo)
       const lmcStart = threeMonthsBefore(start)
 
-      const [abast, lmc, resumo] = await Promise.all([
+      // Caixas e formas de pagamento são per-empresa (endpoint exige empresaCodigo).
+      // Iteramos sequencialmente por empresa pra não estourar rate limit.
+      const fetchCaixasAllEmpresas = async () => {
+        const all = [] as Awaited<ReturnType<typeof fetchCaixas>>['resultados']
+        for (const ec of empresasCodes) {
+          const r = await fetchCaixas({ empresaCodigo: ec, dataInicial: start, dataFinal: end, limite: 1000 })
+          all.push(...(r.resultados ?? []))
+        }
+        return all
+      }
+      const fetchFormasAllEmpresas = async () => {
+        const all = [] as Awaited<ReturnType<typeof fetchVendaFormasPagamento>>['resultados']
+        for (const ec of empresasCodes) {
+          const r = await fetchVendaFormasPagamento({ empresaCodigo: ec, dataInicial: start, dataFinal: end, limite: 1000 })
+          all.push(...(r.resultados ?? []))
+        }
+        return all
+      }
+
+      const [abast, lmc, resumo, caixas, formasPgto] = await Promise.all([
         fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
         fetchAllPages(
           (p) => fetchLmc({
@@ -158,6 +239,8 @@ const Apuracao = () => {
           1000, 50
         ),
         fetchVendaResumo({ dataInicial: start, dataFinal: end }),
+        fetchCaixasAllEmpresas(),
+        fetchFormasAllEmpresas(),
       ])
 
       const rows = computeApuracaoRows({
@@ -169,7 +252,19 @@ const Apuracao = () => {
         lmc,
         vendaResumo: resumo,
       })
-      await upsertApuracaoDiaria(rows)
+
+      // Grava em paralelo as 4 tabelas do cache.
+      const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id))
+      const caixaRows = caixas
+        .map((c) => caixaToCacheRow(c, rede.id))
+        .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
+      const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
+      await Promise.all([
+        upsertApuracaoDiaria(rows, currentUser?.id),
+        upsertAbastecimentosCache(abastRows),
+        upsertCaixasCache(caixaRows),
+        upsertFormasPagamentoCache(formaRows),
+      ])
       return { ok: true, rows: rows.length }
     } catch (e) {
       const msg = (e as Error).message || 'Erro desconhecido'
@@ -196,15 +291,19 @@ const Apuracao = () => {
     const today = todayParts()
     const maxMonth = year < today.year ? 12 : today.month
     for (let m = 1; m <= maxMonth; m++) {
-      // Pula meses já apurados
+      // Só pula meses futuros (sem dados). Meses 'apurado' SÃO reapurados
+      // — útil pra preencher colunas/tabelas novas (ex: apuracao_abastecimentos)
+      // ou pegar correções retroativas da API Quality.
       const current = computeStatus(m)
-      if (current.status === 'apurado' || current.status === 'futuro') continue
+      if (current.status === 'futuro') continue
       await apurarMes(m)
       await refetchStatus()
       // Pausa entre meses pra evitar storm na API
       if (m < maxMonth) await sleep(800)
     }
     queryClient.invalidateQueries({ queryKey: ['apuracao-cache'] })
+    queryClient.invalidateQueries({ queryKey: ['apuracao-abast-probe'] })
+    queryClient.invalidateQueries({ queryKey: ['apuracao-diaria-probe'] })
     setProgress(new Map())
     setRunning(false)
   }
@@ -376,7 +475,8 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onAp
   const { Icon, color, statusLabel } = (() => {
     switch (state.status) {
       case 'em_andamento':
-        return { Icon: Loader2, color: 'text-blue-600 dark:text-blue-400 animate-spin', statusLabel: 'Apurando...' }
+        // Pulse (não spin) — o usuário pediu o nome piscando em vez de girando.
+        return { Icon: Loader2, color: 'text-blue-600 dark:text-blue-400 animate-pulse', statusLabel: 'Apurando...' }
       case 'apurado':
         return { Icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', statusLabel: 'Apurado' }
       case 'parcial':
@@ -420,16 +520,33 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onAp
           {statusLabel}
         </span>
       </div>
+
+      {/* Audit info — quem rodou a última apuração + quando.
+          Aparece só pra meses com pelo menos 1 row gravada (apurado ou parcial). */}
+      {state.lastComputedAt && (state.status === 'apurado' || state.status === 'parcial') && (
+        <p
+          className="mt-1 truncate text-[10px] text-gray-500 dark:text-gray-400"
+          title={formatAbsoluteTime(state.lastComputedAt)}
+        >
+          por <span className="font-medium text-gray-700 dark:text-gray-300">{state.lastComputedByName ?? '—'}</span>
+          {' · '}
+          {relativeTime(state.lastComputedAt)}
+        </p>
+      )}
+
       <button
         onClick={onApurar}
         disabled={!canApurar}
         className={cn(
-          'mt-3 w-full rounded-md py-1.5 text-xs font-semibold transition-colors',
+          'mt-2.5 w-full rounded-md py-1.5 text-xs font-semibold transition-colors',
           canApurar
             ? state.status === 'apurado'
               ? 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
               : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]'
-            : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
+            : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
+          // Pisca o botão inteiro enquanto o mês tá rodando — feedback visual
+          // que o trabalho está em andamento sem o ruído do spinner.
+          state.status === 'em_andamento' && 'animate-pulse bg-blue-600 text-white dark:bg-blue-500'
         )}
       >
         {state.status === 'em_andamento' ? 'Apurando...' : state.status === 'apurado' ? 'Reapurar' : 'Apurar'}

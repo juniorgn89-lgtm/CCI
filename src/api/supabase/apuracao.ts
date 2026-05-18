@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Abastecimento, LMC } from '@/api/types/combustivel'
-import type { VendaResumo } from '@/api/types/venda'
+import type { VendaResumo, VendaFormaPagamento } from '@/api/types/venda'
+import type { Caixa } from '@/api/types/financeiro'
 
 /**
  * Row do cache de apuração diária. 1 row por (rede, empresa, dia).
@@ -59,41 +60,110 @@ export const fetchApuracaoDiaria = async (params: FetchParams): Promise<Apuracao
 /**
  * UPSERT em lote (1 round-trip). Se a row já existe, sobrescreve com os novos
  * números — útil pra recalcular após correção retroativa na API Quality.
+ * Quando `computedBy` é fornecido, marca quem rodou a apuração nas rows
+ * gravadas (auditoria pra /admin/apuracao).
  */
-export const upsertApuracaoDiaria = async (rows: ApuracaoDiariaUpsert[]): Promise<void> => {
+export const upsertApuracaoDiaria = async (
+  rows: ApuracaoDiariaUpsert[],
+  computedBy?: string,
+): Promise<void> => {
   if (!supabase || rows.length === 0) return
+  const now = new Date().toISOString()
+  const payload = rows.map((r) => ({
+    ...r,
+    computed_at: now,
+    ...(computedBy ? { computed_by: computedBy } : {}),
+  }))
   const { error } = await supabase
     .from('apuracao_diaria')
-    .upsert(rows, { onConflict: 'rede_id,empresa_codigo,data' })
+    .upsert(payload, { onConflict: 'rede_id,empresa_codigo,data' })
   if (error) {
     console.warn('[apuracao] upsert error:', error.message)
   }
 }
 
+export interface ApuracaoMonthMetadata {
+  /** Quantidade de rows na apuracao_diaria pra esse mês. */
+  count: number
+  /** Timestamp ISO da última apuração que tocou esse mês. */
+  lastComputedAt: string | null
+  /** user_id de quem rodou a última apuração. */
+  lastComputedBy: string | null
+}
+
 /**
- * Lê todas as rows da rede pra um ano e retorna mapa `mês → contagem`.
- * Usado pelo painel /admin/apuracao pra mostrar status mensal.
+ * Lê rows da rede pra um ano e retorna mapa `mês → metadata`. Inclui contagem
+ * (pra detectar status) + última apuração (timestamp + user_id) pra exibir
+ * audit info nos cards do /admin/apuracao.
+ *
+ * IMPORTANTE: Supabase retorna no máximo 1000 rows por SELECT. Pra redes com
+ * 5+ empresas × 365 dias = 1800+ rows/ano, paginamos manualmente. Senão os
+ * meses aparecem "parciais" mesmo quando 100% apurados.
  */
 export const fetchApuracaoStatusByMonth = async (
   redeId: string,
-  year: number
-): Promise<Map<number, number>> => {
-  const result = new Map<number, number>()
+  year: number,
+): Promise<Map<number, ApuracaoMonthMetadata>> => {
+  const result = new Map<number, ApuracaoMonthMetadata>()
   if (!supabase) return result
+  type Row = { data: string; computed_at: string; computed_by: string | null }
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('apuracao_diaria')
+      .select('data, computed_at, computed_by')
+      .eq('rede_id', redeId)
+      .gte('data', `${year}-01-01`)
+      .lte('data', `${year}-12-31`)
+      .range(from, from + pageSize - 1)
+    if (error) {
+      console.warn('[apuracao] status error:', error.message)
+      return result
+    }
+    const rows = (data ?? []) as Row[]
+    for (const row of rows) {
+      const month = parseInt(row.data.slice(5, 7), 10)
+      if (!month) continue
+      const existing = result.get(month) ?? {
+        count: 0,
+        lastComputedAt: null as string | null,
+        lastComputedBy: null as string | null,
+      }
+      existing.count += 1
+      if (!existing.lastComputedAt || row.computed_at > existing.lastComputedAt) {
+        existing.lastComputedAt = row.computed_at
+        existing.lastComputedBy = row.computed_by
+      }
+      result.set(month, existing)
+    }
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return result
+}
+
+/**
+ * Resolve user_ids → nomes/emails via profiles. Respeita RLS — usuários que
+ * o caller não pode ler simplesmente não aparecem no mapa retornado, e a UI
+ * mostra '—' como fallback.
+ */
+export const fetchUserNamesByIds = async (
+  userIds: string[],
+): Promise<Map<string, { full_name: string | null; email: string }>> => {
+  const result = new Map<string, { full_name: string | null; email: string }>()
+  if (!supabase || userIds.length === 0) return result
+  const unique = Array.from(new Set(userIds))
   const { data, error } = await supabase
-    .from('apuracao_diaria')
-    .select('data')
-    .eq('rede_id', redeId)
-    .gte('data', `${year}-01-01`)
-    .lte('data', `${year}-12-31`)
+    .from('profiles')
+    .select('user_id, full_name, email')
+    .in('user_id', unique)
   if (error) {
-    console.warn('[apuracao] status error:', error.message)
+    console.warn('[apuracao] fetchUserNamesByIds error:', error.message)
     return result
   }
-  for (const row of (data ?? []) as Array<{ data: string }>) {
-    const month = parseInt(row.data.slice(5, 7), 10)
-    if (!month) continue
-    result.set(month, (result.get(month) ?? 0) + 1)
+  for (const row of (data ?? []) as Array<{ user_id: string; full_name: string | null; email: string }>) {
+    result.set(row.user_id, { full_name: row.full_name, email: row.email })
   }
   return result
 }
@@ -190,6 +260,362 @@ export const computeApuracaoRows = (input: ComputeRowsInput): ApuracaoDiariaUpse
   }
   return rows
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cache RAW de abastecimentos (apuracao_abastecimentos)
+// Permite que /operacao consuma dados row-level sem refetchar a Quality.
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Row do cache de abastecimentos raw (snake_case do Supabase). */
+export interface AbastecimentoCacheRow {
+  rede_id: string
+  empresa_codigo: number
+  abastecimento_codigo: number
+  data_fiscal: string | null  // yyyy-MM-dd
+  data_hora_abastecimento: string | null  // ISO
+  codigo_produto: number | null
+  codigo_frentista: number | null
+  codigo_bico: number | null
+  quantidade: number
+  valor_unitario: number
+  valor_total: number
+  placa: string | null
+}
+
+export type AbastecimentoCacheUpsert = Omit<AbastecimentoCacheRow, 'computed_at'>
+
+interface FetchAbastCacheParams {
+  empresaCodigos?: number[]  // omitido = todas da rede
+  dataInicial: string
+  dataFinal: string
+}
+
+/** Lê abastecimentos do cache pra um período (com paginação interna). */
+export const fetchAbastecimentosCache = async (
+  params: FetchAbastCacheParams
+): Promise<AbastecimentoCacheRow[]> => {
+  if (!supabase) return []
+  // Supabase limita 1000 rows por SELECT default; pra range maior, paginamos
+  // por chave primária (abastecimento_codigo) ordenado.
+  const all: AbastecimentoCacheRow[] = []
+  const pageSize = 1000
+  let cursor = -1
+  while (true) {
+    let query = supabase
+      .from('apuracao_abastecimentos')
+      .select('*')
+      .gte('data_fiscal', params.dataInicial)
+      .lte('data_fiscal', params.dataFinal)
+      .order('abastecimento_codigo', { ascending: true })
+      .limit(pageSize)
+    if (cursor >= 0) {
+      query = query.gt('abastecimento_codigo', cursor)
+    }
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_abast] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as AbastecimentoCacheRow[]
+    if (rows.length === 0) break
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    cursor = rows[rows.length - 1].abastecimento_codigo
+  }
+  return all
+}
+
+/** Upsert em lote. Idempotente via PK (rede, empresa, abastecimento_codigo). */
+export const upsertAbastecimentosCache = async (
+  rows: AbastecimentoCacheUpsert[]
+): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  // Supabase aceita lotes grandes em upsert; divide em chunks de 500 pra
+  // evitar payload gigante e dar feedback granular se um falhar.
+  const chunkSize = 500
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_abastecimentos')
+      .upsert(chunk, { onConflict: 'rede_id,empresa_codigo,abastecimento_codigo' })
+    if (error) {
+      console.warn('[apuracao_abast] upsert error:', error.message)
+      return
+    }
+  }
+}
+
+/** Mapeia raw da Quality (Abastecimento) → row do cache. */
+export const abastecimentoToCacheRow = (
+  a: Abastecimento,
+  redeId: string
+): AbastecimentoCacheUpsert => ({
+  rede_id: redeId,
+  empresa_codigo: a.empresaCodigo,
+  abastecimento_codigo: a.abastecimentoCodigo || a.codigo,
+  data_fiscal: a.dataFiscal || null,
+  data_hora_abastecimento: a.dataHoraAbastecimento || null,
+  codigo_produto: a.codigoProduto || null,
+  codigo_frentista: a.codigoFrentista || null,
+  codigo_bico: a.codigoBico || null,
+  quantidade: a.quantidade,
+  valor_unitario: a.valorUnitario,
+  valor_total: a.valorTotal,
+  placa: a.placa || null,
+})
+
+/** Mapeia row do cache → Abastecimento (shape da API Quality) pra reuso a jusante. */
+export const cacheRowToAbastecimento = (r: AbastecimentoCacheRow): Abastecimento => ({
+  codigo: r.abastecimento_codigo,
+  dataFiscal: r.data_fiscal ?? '',
+  horaFiscal: '',
+  codigoBico: r.codigo_bico ?? 0,
+  codigoProduto: r.codigo_produto ?? 0,
+  quantidade: r.quantidade,
+  valorUnitario: r.valor_unitario,
+  valorTotal: r.valor_total,
+  codigoFrentista: r.codigo_frentista ?? 0,
+  afericao: false,
+  vendaItemCodigo: 0,
+  precoCadastro: 0,
+  tabelaPrecoA: 0,
+  tabelaPrecoB: 0,
+  tabelaPrecoC: 0,
+  empresaCodigo: r.empresa_codigo,
+  dataHoraAbastecimento: r.data_hora_abastecimento ?? '',
+  stringAll: '',
+  placa: r.placa ?? '',
+  abastecimentoCodigo: r.abastecimento_codigo,
+  encerrante: 0,
+})
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cache de CAIXAS (apuracao_caixas)
+// Alimenta tab "Caixa & Turnos" em /operacao + apuradoPorDia em ResumoOperacao.
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface CaixaCacheRow {
+  rede_id: string
+  empresa_codigo: number
+  caixa_codigo: number
+  turno_codigo: number
+  data_movimento: string
+  turno: string | null
+  pdv_codigo: number | null
+  funcionario_codigo: number | null
+  centro_custo: number | null
+  abertura: string | null
+  fechamento: string | null
+  fechado: boolean
+  consolidado: boolean
+  bloqueado: boolean
+  tipo_bloqueio: string | null
+  tipo_inclusao: string | null
+  apurado: number
+  diferenca: number
+}
+
+export type CaixaCacheUpsert = Omit<CaixaCacheRow, 'computed_at'>
+
+interface FetchCaixasCacheParams {
+  empresaCodigos?: number[]
+  dataInicial: string
+  dataFinal: string
+}
+
+export const fetchCaixasCache = async (params: FetchCaixasCacheParams): Promise<CaixaCacheRow[]> => {
+  if (!supabase) return []
+  const all: CaixaCacheRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_caixas')
+      .select('*')
+      .gte('data_movimento', params.dataInicial)
+      .lte('data_movimento', params.dataFinal)
+      .order('data_movimento', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_caixas] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as CaixaCacheRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
+export const upsertCaixasCache = async (rows: CaixaCacheUpsert[]): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const chunkSize = 500
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_caixas')
+      .upsert(chunk, { onConflict: 'rede_id,empresa_codigo,caixa_codigo,turno_codigo,data_movimento' })
+    if (error) {
+      console.warn('[apuracao_caixas] upsert error:', error.message)
+      return
+    }
+  }
+}
+
+export const caixaToCacheRow = (c: Caixa, redeId: string): CaixaCacheUpsert => ({
+  rede_id: redeId,
+  empresa_codigo: c.empresaCodigo,
+  caixa_codigo: c.caixaCodigo,
+  turno_codigo: c.turnoCodigo,
+  data_movimento: c.dataMovimento?.slice(0, 10) || '',
+  turno: c.turno || null,
+  pdv_codigo: c.pdvCodigo ?? null,
+  funcionario_codigo: c.funcionarioCodigo ?? null,
+  centro_custo: c.centroCusto ?? null,
+  abertura: c.abertura || null,
+  fechamento: c.fechamento || null,
+  fechado: !!c.fechado,
+  consolidado: !!c.consolidado,
+  bloqueado: !!c.bloqueado,
+  tipo_bloqueio: c.tipoBloqueio || null,
+  tipo_inclusao: c.tipoInclusao || null,
+  apurado: c.apurado ?? 0,
+  diferenca: c.diferenca ?? 0,
+})
+
+export const cacheRowToCaixa = (r: CaixaCacheRow): Caixa => ({
+  codigo: r.caixa_codigo,
+  empresaCodigo: r.empresa_codigo,
+  caixaCodigo: r.caixa_codigo,
+  dataMovimento: r.data_movimento,
+  turnoCodigo: r.turno_codigo,
+  turno: r.turno ?? '',
+  pdvCodigo: r.pdv_codigo ?? 0,
+  funcionarioCodigo: r.funcionario_codigo ?? 0,
+  centroCusto: r.centro_custo ?? 0,
+  abertura: r.abertura ?? '',
+  fechamento: r.fechamento ?? '',
+  fechado: r.fechado,
+  consolidado: r.consolidado,
+  tipoInclusao: r.tipo_inclusao ?? '',
+  bloqueado: r.bloqueado,
+  tipoBloqueio: r.tipo_bloqueio ?? '',
+  apurado: r.apurado,
+  diferenca: r.diferenca,
+})
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cache de FORMAS DE PAGAMENTO (apuracao_formas_pagamento)
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface FormaPagamentoCacheRow {
+  rede_id: string
+  empresa_codigo: number
+  venda_codigo: number
+  venda_prazo_codigo: number
+  data_movimento: string | null
+  vencimento: string | null
+  forma_pagamento_codigo: number | null
+  tipo_forma_pagamento: string | null
+  nome_forma_pagamento: string | null
+  administradora_codigo: number | null
+  turno_codigo: number | null
+  valor_pagamento: number
+  taxa_percentual: number
+}
+
+export type FormaPagamentoCacheUpsert = Omit<FormaPagamentoCacheRow, 'computed_at'>
+
+export const fetchFormasPagamentoCache = async (
+  params: FetchCaixasCacheParams,
+): Promise<FormaPagamentoCacheRow[]> => {
+  if (!supabase) return []
+  const all: FormaPagamentoCacheRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_formas_pagamento')
+      .select('*')
+      .gte('data_movimento', params.dataInicial)
+      .lte('data_movimento', params.dataFinal)
+      .order('data_movimento', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_formas] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as FormaPagamentoCacheRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
+export const upsertFormasPagamentoCache = async (rows: FormaPagamentoCacheUpsert[]): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const chunkSize = 500
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_formas_pagamento')
+      .upsert(chunk, {
+        onConflict: 'rede_id,empresa_codigo,venda_codigo,venda_prazo_codigo',
+      })
+    if (error) {
+      console.warn('[apuracao_formas] upsert error:', error.message)
+      return
+    }
+  }
+}
+
+export const formaPagamentoToCacheRow = (
+  f: VendaFormaPagamento,
+  redeId: string,
+): FormaPagamentoCacheUpsert => ({
+  rede_id: redeId,
+  empresa_codigo: f.empresaCodigo,
+  venda_codigo: f.vendaCodigo,
+  venda_prazo_codigo: f.vendaPrazoCodigo ?? 0,
+  data_movimento: f.dataMovimento ? f.dataMovimento.slice(0, 10) : null,
+  vencimento: f.vencimento ? f.vencimento.slice(0, 10) : null,
+  forma_pagamento_codigo: f.formaPagamentoCodigo ?? null,
+  tipo_forma_pagamento: f.tipoFormaPagamento || null,
+  nome_forma_pagamento: f.nomeFormaPagamento || null,
+  administradora_codigo: f.administradoraCodigo ?? null,
+  turno_codigo: f.turnoCodigo ?? null,
+  valor_pagamento: f.valorPagamento ?? 0,
+  taxa_percentual: f.taxaPercentual ?? 0,
+})
+
+export const cacheRowToFormaPagamento = (r: FormaPagamentoCacheRow): VendaFormaPagamento => ({
+  codigo: r.venda_codigo,
+  empresaCodigo: r.empresa_codigo,
+  vendaCodigo: r.venda_codigo,
+  vendaPrazoCodigo: r.venda_prazo_codigo,
+  dataMovimento: r.data_movimento ?? '',
+  vencimento: r.vencimento ?? '',
+  valorPagamento: r.valor_pagamento,
+  taxaPercentual: r.taxa_percentual,
+  formaPagamentoCodigo: r.forma_pagamento_codigo ?? 0,
+  administradoraCodigo: r.administradora_codigo ?? 0,
+  turnoCodigo: r.turno_codigo ?? 0,
+  tipoFormaPagamento: r.tipo_forma_pagamento ?? '',
+  nomeFormaPagamento: r.nome_forma_pagamento ?? '',
+})
 
 /**
  * Lista os dias do período (yyyy-MM-dd). Útil pra detectar "buracos" entre o

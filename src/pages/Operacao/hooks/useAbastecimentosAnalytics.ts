@@ -239,8 +239,28 @@ const useAbastecimentosAnalytics = () => {
 
     const matchEmpresa = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
     const validProduct = (a: { codigoProduto: number }) => Number(a.codigoProduto) > 0
-    const filtered = (hasEmpresa ? abastecimentos.filter((a) => matchEmpresa(a.empresaCodigo)) : abastecimentos).filter(validProduct)
-    const filteredPrevMonth = (hasEmpresa ? prevMonthAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : prevMonthAbast).filter(validProduct)
+    // Abasts com data futura são erros de digitação no Quality — não entram
+    // nos KPIs/agregados mas são reportados separadamente na UI pra que o
+    // consultor identifique e corrija.
+    // Checa BOTH dataFiscal E dataHoraAbastecimento: o erro pode estar só em
+    // um dos campos, e o agrupamento diário usa dataHoraAbastecimento — se
+    // só a hora for futura, a linha aparece sob data futura mesmo com fiscal
+    // correta. OR semantics garante que pegamos o caso.
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const isFuture = (a: { dataFiscal?: string; dataHoraAbastecimento?: string }) => {
+      const dF = (a.dataFiscal ?? '').slice(0, 10)
+      const dH = (a.dataHoraAbastecimento ?? '').slice(0, 10)
+      const fiscalFuturo = dF !== '' && dF > todayISO
+      const horaFutura = dH !== '' && dH > todayISO
+      return fiscalFuturo || horaFutura
+    }
+    const baseFiltered = (hasEmpresa ? abastecimentos.filter((a) => matchEmpresa(a.empresaCodigo)) : abastecimentos)
+      .filter(validProduct)
+    const filtered = baseFiltered.filter((a) => !isFuture(a))
+    const futurosCru = baseFiltered.filter(isFuture)
+    const filteredPrevMonth = (hasEmpresa ? prevMonthAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : prevMonthAbast)
+      .filter(validProduct)
+      .filter((a) => !isFuture(a))
 
     const rows: AbastecimentoRow[] = filtered.map((a) => {
       const cost = getCost(a.empresaCodigo, a.codigoProduto)
@@ -490,7 +510,35 @@ const useAbastecimentosAnalytics = () => {
 
     const combustiveis = [...new Set(rows.map((r) => r.combustivelNome))].sort()
 
-    return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis }
+    // Linhas com data futura — separadas pros consultores enxergarem o
+    // erro de digitação no Quality. Reaproveita o mesmo enriquecimento
+    // (nomes de empresa/frentista/produto/bico) usado em `rows`.
+    const inconsistenciasFuturas: AbastecimentoRow[] = futurosCru.map((a) => {
+      const cost = getCost(a.empresaCodigo, a.codigoProduto)
+      const custoTotal = cost * a.quantidade
+      const lb = a.valorTotal - custoTotal
+      return {
+        codigo: a.codigo,
+        dataHora: a.dataHoraAbastecimento || a.dataFiscal || '',
+        empresaNome: empresaMap.get(a.empresaCodigo) ?? `Empresa ${a.empresaCodigo}`,
+        empresaCodigo: a.empresaCodigo,
+        bombaDescricao: bicoDescMap.get(a.codigoBico) ?? `Bico ${a.codigoBico}`,
+        bicoCodigo: a.codigoBico,
+        frentistaNome: funcionarioMap.get(a.codigoFrentista) ?? (a.codigoFrentista ? `Frentista ${a.codigoFrentista}` : '—'),
+        frentistaCodigo: a.codigoFrentista,
+        combustivelNome: getProductName(a.codigoProduto, a.codigoBico),
+        produtoCodigo: a.codigoProduto,
+        litros: a.quantidade,
+        valorUnitario: a.valorUnitario,
+        valorTotal: a.valorTotal,
+        precoCusto: cost,
+        lucroBruto: lb,
+        margem: a.valorTotal > 0 ? (lb / a.valorTotal) * 100 : 0,
+        placa: a.placa || '—',
+      }
+    })
+
+    return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
   }, [abastecimentos, prevMonthAbast, evolutionAbast, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {

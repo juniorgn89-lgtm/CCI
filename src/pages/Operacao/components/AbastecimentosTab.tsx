@@ -6,6 +6,7 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import Diaria from '@/pages/Operacao/components/abastecimentos/Diaria'
 import Tipo from '@/pages/Operacao/components/abastecimentos/Tipo'
 import LbLitro from '@/pages/Operacao/components/abastecimentos/LbLitro'
+import AlertaDataFutura from '@/pages/Operacao/components/abastecimentos/AlertaDataFutura'
 
 type SubTab = 'diaria' | 'tipo' | 'lblitro'
 
@@ -24,12 +25,14 @@ const AbastSkeleton = () => (
 
 const AbastecimentosTab = () => {
   const [active, setActive] = useState<SubTab>('diaria')
-  const { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, projectionMeta, isLoading } = useAbastecimentosAnalytics()
+  const { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, projectionMeta, inconsistenciasFuturas, isLoading } = useAbastecimentosAnalytics()
 
   if (isLoading) return <AbastSkeleton />
 
   return (
     <div className="space-y-5">
+      <AlertaDataFutura inconsistencias={inconsistenciasFuturas} />
+
       <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
         {subTabs.map((tab) => {
           const Icon = tab.icon

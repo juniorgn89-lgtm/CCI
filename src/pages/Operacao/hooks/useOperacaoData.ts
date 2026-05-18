@@ -8,6 +8,8 @@ import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
+import useCaixasCache from '@/pages/Operacao/hooks/useCaixasCache'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -161,25 +163,56 @@ const useOperacaoData = () => {
 
   const prev = useMemo(() => previousPeriod(dataInicial, dataFinal), [dataInicial, dataFinal])
 
+  // Cache raw de abastecimentos pra current + prev. HIT = pula fetch live;
+  // MISS = fetch live como antes (sem regressão pra meses não apurados).
+  const abastCacheCurrent = useAbastCache({
+    dataInicial,
+    dataFinal,
+    empresaCodigo,
+    empresasPermitidasCount: 1,
+  })
+  const abastCachePrev = useAbastCache({
+    dataInicial: prev.inicial,
+    dataFinal: prev.final,
+    empresaCodigo,
+    empresasPermitidasCount: 1,
+  })
+
+  // Cache de caixas + formas de pagamento. Mesma técnica.
+  const caixasCacheCurrent = useCaixasCache({ dataInicial, dataFinal, empresaCodigo })
+  const caixasCachePrev = useCaixasCache({
+    dataInicial: prev.inicial,
+    dataFinal: prev.final,
+    empresaCodigo,
+  })
+
   // Abastecimentos — chunked by week to avoid 50k API limit
+  // Live só quando o cache MISS (período não apurado ainda OU mês corrente
+  // sem dias fechados suficientes).
   const { data: abastecimentosData, isLoading: l1 } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: hasEmpresa,
+    enabled: hasEmpresa && !abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking,
   })
 
   // Abastecimentos — previous period (for DeltaBadge variation)
   const { data: abastPrevData } = useQuery({
     queryKey: ['abastecimentos', prev.inicial, prev.final],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prev.inicial, dataFinal: prev.final }),
-    enabled: hasEmpresa && !!prev.inicial && !!prev.final,
+    enabled: hasEmpresa && !!prev.inicial && !!prev.final && !abastCachePrev.isCacheHit && !abastCachePrev.isChecking,
   })
 
-  // Caixas — previous period (for totalApurado delta)
+  // Caixas — previous period (for totalApurado delta). Gateado por cache HIT.
   const { data: caixasPrevRaw } = useQuery({
     queryKey: ['caixas', empresaCodigo, prev.inicial, prev.final],
     queryFn: () => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial: prev.inicial, dataFinal: prev.final, limite: 1000 }),
-    enabled: hasEmpresa && empresaCodigo !== null && !!prev.inicial && !!prev.final,
+    enabled:
+      hasEmpresa &&
+      empresaCodigo !== null &&
+      !!prev.inicial &&
+      !!prev.final &&
+      !caixasCachePrev.isCacheHit &&
+      !caixasCachePrev.isChecking,
   })
 
   // Funcionários (direct call — small dataset)
@@ -216,36 +249,80 @@ const useOperacaoData = () => {
     staleTime: 30 * 60 * 1000,
   })
 
-  // Caixas (direct call)
+  // Caixas (direct call). Gateado por cache HIT.
   const { data: caixasRaw, isLoading: l6 } = useQuery({
     queryKey: ['caixas', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, limite: 1000 }),
-    enabled: hasEmpresa && empresaCodigo !== null,
+    enabled:
+      hasEmpresa &&
+      empresaCodigo !== null &&
+      !caixasCacheCurrent.isCacheHit &&
+      !caixasCacheCurrent.isChecking,
   })
 
-  // Formas de pagamento
+  // Formas de pagamento. Gateado por cache HIT (mesmo cache de caixas — gravados juntos).
   const { data: formasPgtoRaw, isLoading: l7 } = useQuery({
     queryKey: ['vendaFormasPgto', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchVendaFormasPagamento({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, limite: 1000 }),
-    enabled: hasEmpresa && empresaCodigo !== null,
+    enabled:
+      hasEmpresa &&
+      empresaCodigo !== null &&
+      !caixasCacheCurrent.isCacheHit &&
+      !caixasCacheCurrent.isChecking,
   })
 
-  const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7
+  // l1 (abast) e l6/l7 (caixas/formas) só são relevantes quando cache MISS.
+  // Aguardar isChecking dos probes evita flicker entre cache e live.
+  const isLoading =
+    (l1 && !abastCacheCurrent.isCacheHit) ||
+    abastCacheCurrent.isChecking ||
+    abastCachePrev.isChecking ||
+    caixasCacheCurrent.isChecking ||
+    caixasCachePrev.isChecking ||
+    l2 || l3 || l4 || l5 ||
+    (l6 && !caixasCacheCurrent.isCacheHit) ||
+    (l7 && !caixasCacheCurrent.isCacheHit)
 
   const computed = useMemo(() => {
-    // Filter abastecimentos by empresa client-side (endpoint has no empresaCodigo param)
-    const abastPrev = (abastPrevData ?? []).filter(
-      (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
-    )
-    const abastecimentos = (abastecimentosData ?? []).filter(
-      (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
-    )
+    // Filtra registros com data futura — provável erro de digitação no Quality
+    // (ex: alguém cria abast com dataFiscal='2026-05-28' enquanto hoje é 17/05).
+    // OR semantics: se qualquer um dos campos (dataFiscal ou dataHoraAbastecimento)
+    // estiver no futuro, considera erro — alguns abasts têm typo só em um campo.
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const notFuture = (a: { dataFiscal?: string; dataHoraAbastecimento?: string }) => {
+      const dF = (a.dataFiscal ?? '').slice(0, 10)
+      const dH = (a.dataHoraAbastecimento ?? '').slice(0, 10)
+      const fiscalFuturo = dF !== '' && dF > todayISO
+      const horaFutura = dH !== '' && dH > todayISO
+      return !fiscalFuturo && !horaFutura
+    }
+
+    // Abastecimentos: prioriza cache (já filtrado por empresa em Supabase),
+    // fallback live (que ainda precisa de filtro client-side porque endpoint
+    // Quality não aceita empresaCodigo).
+    const abastecimentos = (abastCacheCurrent.isCacheHit
+      ? abastCacheCurrent.abastecimentos
+      : (abastecimentosData ?? []).filter(
+          (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
+        )
+    ).filter(notFuture)
+    const abastPrev = (abastCachePrev.isCacheHit
+      ? abastCachePrev.abastecimentos
+      : (abastPrevData ?? []).filter(
+          (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
+        )
+    ).filter(notFuture)
     const funcionarios = funcionariosRaw?.resultados ?? []
     const bombas = bombasRaw?.resultados ?? []
     const bicos = bicosRaw?.resultados ?? []
     const produtos = produtosData ?? []
-    const caixas = caixasRaw?.resultados ?? []
-    const formasPgto = formasPgtoRaw?.resultados ?? []
+    // Caixas e formas vêm do cache Supabase quando HIT; senão, live.
+    const caixas = caixasCacheCurrent.isCacheHit
+      ? caixasCacheCurrent.caixas
+      : (caixasRaw?.resultados ?? [])
+    const formasPgto = caixasCacheCurrent.isCacheHit
+      ? caixasCacheCurrent.formasPagamento
+      : (formasPgtoRaw?.resultados ?? [])
 
     // ── Maps ──
     const funcMap = new Map<number, { nome: string; ativo: boolean }>()
@@ -695,7 +772,10 @@ const useOperacaoData = () => {
     // ── Previous-period totals for DeltaBadge ──
     const prevTotalLitros = abastPrev.reduce((s, a) => s + a.quantidade, 0)
     const prevFaturamentoCombustivel = abastPrev.reduce((s, a) => s + a.valorTotal, 0)
-    const prevTotalApurado = (caixasPrevRaw?.resultados ?? []).reduce((s, c) => s + c.apurado, 0)
+    const prevCaixas = caixasCachePrev.isCacheHit
+      ? caixasCachePrev.caixas
+      : (caixasPrevRaw?.resultados ?? [])
+    const prevTotalApurado = prevCaixas.reduce((s, c) => s + c.apurado, 0)
 
     // Per-frentista previous-period totals (para comparativos do módulo Produtividade)
     const frentistaPrevAgg = new Map<number, { litros: number; count: number; valor: number }>()
@@ -759,7 +839,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal])
+  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas])
 
   return {
     ...computed,
