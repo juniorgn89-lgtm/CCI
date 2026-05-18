@@ -53,7 +53,18 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
   const handleRefresh = () => {
     setManualRefreshing(true)
-    queryClient.invalidateQueries()
+    // Invalida apenas dados live (Quality API + caixas live, etc.). As caches
+    // do Supabase (apuracao-*) ficam preservadas — meses fechados são imutáveis
+    // e re-ler do Supabase só adicionaria latência. Mês corrente continua sendo
+    // refrescado porque o fetch live de hoje (abast-resumo-today, vendaResumo
+    // do período, caixas) é re-invalidado.
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const first = query.queryKey[0]
+        if (typeof first !== 'string') return true
+        return !first.startsWith('apuracao')
+      },
+    })
   }
 
   const currentModule = navItems.find((item) => item.path === pathname)

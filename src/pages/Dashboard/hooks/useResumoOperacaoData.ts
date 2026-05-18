@@ -29,6 +29,8 @@ export interface ResumoOperacaoData {
   totalLitros: number
   totalApurado: number
   litrosPorDia: { data: string; litros: number }[]
+  /** Faturamento de combustível por dia — pra projeção baseada nos primeiros 7 dias. */
+  faturamentoPorDia: { data: string; faturamento: number }[]
   apuradoPorDia: { data: string; apurado: number }[]
   isLoading: boolean
   /** True quando os dados de combustível vieram do cache Supabase. */
@@ -123,12 +125,14 @@ const useResumoOperacaoData = (): ResumoOperacaoData => {
     let totalLitros = 0
     let faturamentoCombustivel = 0
     const litrosByDay = new Map<string, number>()
+    const fatByDay = new Map<string, number>()
 
     if (isCacheHit) {
       for (const r of cacheRows) {
         totalLitros += r.fuel_litros
         faturamentoCombustivel += r.fuel_faturamento
         litrosByDay.set(r.data, (litrosByDay.get(r.data) ?? 0) + r.fuel_litros)
+        fatByDay.set(r.data, (fatByDay.get(r.data) ?? 0) + r.fuel_faturamento)
       }
       // Hoje (se aplicável)
       for (const a of todayAbast) {
@@ -138,6 +142,7 @@ const useResumoOperacaoData = (): ResumoOperacaoData => {
         totalLitros += a.quantidade
         faturamentoCombustivel += a.valorTotal
         litrosByDay.set(day, (litrosByDay.get(day) ?? 0) + a.quantidade)
+        fatByDay.set(day, (fatByDay.get(day) ?? 0) + a.valorTotal)
       }
     } else {
       // Cache MISS — usa live abast do período inteiro
@@ -148,14 +153,18 @@ const useResumoOperacaoData = (): ResumoOperacaoData => {
         totalLitros += a.quantidade
         faturamentoCombustivel += a.valorTotal
         litrosByDay.set(day, (litrosByDay.get(day) ?? 0) + a.quantidade)
+        fatByDay.set(day, (fatByDay.get(day) ?? 0) + a.valorTotal)
       }
     }
 
     const litrosPorDia = Array.from(litrosByDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([data, litros]) => ({ data, litros }))
+    const faturamentoPorDia = Array.from(fatByDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([data, faturamento]) => ({ data, faturamento }))
 
-    return { faturamentoCombustivel, totalLitros, totalApurado, litrosPorDia, apuradoPorDia }
+    return { faturamentoCombustivel, totalLitros, totalApurado, litrosPorDia, faturamentoPorDia, apuradoPorDia }
   }, [isCacheHit, cacheRows, todayAbast, liveAbast, caixasData, empresaCodigo])
 
   // Loading: aguardando cache lookup, ou aguardando live fetches relevantes.

@@ -11,7 +11,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
-import { DollarSign, Wallet, Droplets, TrendingUp, ArrowRight, Clock, Zap } from 'lucide-react'
+import { DollarSign, Wallet, Droplets, TrendingUp, ArrowRight, Clock, Zap, HelpCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -91,7 +91,11 @@ const DailyTooltip = ({ active, payload, unit }: DailyTooltipProps) => {
 interface MainKpiCardProps {
   label: string
   realizado: number
+  /** Projeção fim do período (extrapola realizado-até-agora). Útil em mês corrente. */
   projetado: number
+  /** Projeção baseada nos primeiros 7 dias × diasTotais. Útil em mês fechado pra comparar
+   *  o realizado real com o "se mantivesse o ritmo inicial". */
+  projetadoFirst7?: number
   isProjectable: boolean
   daysElapsed: number
   daysTotal: number
@@ -105,10 +109,17 @@ interface MainKpiCardProps {
 }
 
 const MainKpiCard = ({
-  label, realizado, projetado, isProjectable, daysElapsed, daysTotal, daysRemaining,
+  label, realizado, projetado, projetadoFirst7, isProjectable, daysElapsed, daysTotal, daysRemaining,
   icon: Icon, cardBg, iconBg, iconColor, formatter, onClick,
 }: MainKpiCardProps) => {
   const progressPct = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
+  // Para mês fechado: compara o realizado total com o que era projetado pela
+  // 1ª semana. Mostra se manteve, superou ou ficou abaixo do ritmo inicial.
+  const showFirst7 = !isProjectable && (projetadoFirst7 ?? 0) > 0 && realizado > 0
+  const first7Delta = showFirst7
+    ? ((realizado - (projetadoFirst7 ?? 0)) / (projetadoFirst7 ?? 1)) * 100
+    : 0
+  const first7Above = first7Delta >= 0
   return (
     <button
       type="button"
@@ -162,6 +173,38 @@ const MainKpiCard = ({
           </div>
         </>
       )}
+
+      {showFirst7 && (
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-800/40 dark:bg-blue-900/20">
+          <TrendingUp className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                Projetado pela 1ª semana
+              </p>
+              <span
+                role="img"
+                aria-label="Como é calculado"
+                title="Quanto o período fecharia se mantivesse a média diária dos 7 primeiros dias.&#10;&#10;Fórmula: (soma dos 7 primeiros dias ÷ 7) × dias totais do período.&#10;&#10;Útil pra ver se o ritmo do início se manteve, melhorou ou caiu até o fim."
+                className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center text-blue-500/70 hover:text-blue-700 dark:text-blue-400/70 dark:hover:text-blue-300"
+              >
+                <HelpCircle className="h-3 w-3" />
+              </span>
+            </div>
+            <p className="text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">
+              {formatter(projetadoFirst7 ?? 0)}
+            </p>
+            <p
+              className={cn(
+                'mt-0.5 text-[11px] font-medium tabular-nums',
+                first7Above ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {first7Above ? '↑' : '↓'} {first7Above ? '+' : ''}{first7Delta.toFixed(1)}% {first7Above ? 'acima' : 'abaixo'} do projetado
+            </p>
+          </div>
+        </div>
+      )}
     </button>
   )
 }
@@ -176,6 +219,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
     totalLitros,
     totalApurado,
     litrosPorDia,
+    faturamentoPorDia,
     apuradoPorDia,
     isLoading,
     isCacheHit,
@@ -184,6 +228,31 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const showSkeleton = useShowSkeleton(isLoading, hasData)
 
   const projection = useMemo(() => computeProjection(dataInicial, dataFinal), [dataInicial, dataFinal])
+
+  // Projeção baseada nos 7 primeiros dias do período: extrapola "se mantivesse
+  // o ritmo inicial, fecharíamos em X". Usado pra mês fechado (comparar
+  // realizado total vs projeção feita lá no começo) ou pra contextualizar
+  // o mês corrente.
+  const projFromFirst7 = (
+    series: { data: string; v: number }[],
+    daysTotal: number,
+  ): number => {
+    if (daysTotal <= 0) return 0
+    const sorted = series.slice().sort((a, b) => a.data.localeCompare(b.data))
+    const first7 = sorted.slice(0, 7)
+    if (first7.length === 0) return 0
+    const sum = first7.reduce((s, d) => s + d.v, 0)
+    return (sum / first7.length) * daysTotal
+  }
+
+  const proj7Faturamento = projFromFirst7(
+    faturamentoPorDia.map((d) => ({ data: d.data, v: d.faturamento })),
+    projection.daysTotal,
+  )
+  const proj7Apurado = projFromFirst7(
+    apuradoPorDia.map((d) => ({ data: d.data, v: d.apurado })),
+    projection.daysTotal,
+  )
 
   /* Séries com projeção pra cada gráfico */
   const apuradoChartData: DailyPoint[] = useMemo(() => {
@@ -285,6 +354,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           label="Faturamento Combustível"
           realizado={faturamentoCombustivel}
           projetado={projFaturamento}
+          projetadoFirst7={proj7Faturamento}
           isProjectable={projection.isProjectable}
           daysElapsed={projection.daysElapsed}
           daysTotal={projection.daysTotal}
@@ -300,6 +370,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           label="Total Apurado"
           realizado={totalApurado}
           projetado={projApurado}
+          projetadoFirst7={proj7Apurado}
           isProjectable={projection.isProjectable}
           daysElapsed={projection.daysElapsed}
           daysTotal={projection.daysTotal}
