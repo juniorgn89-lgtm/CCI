@@ -177,9 +177,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   }, [supabaseUser])
   const isSupervisor = role === 'supervisor'
 
-  // Filtra (a) itens masterOnly pra não-master e (b) itens cujo módulo está
-  // fora da lista permitida. Master ou sem restrição (null/[]) vê tudo dos
-  // módulos. Itens fora do catálogo MODULOS (ex: rotas internas) passam.
+  // Filtra (a) itens masterOnly pra não-master, (b) itens cujo módulo está
+  // fora da lista permitida. Master sempre vê tudo (ignora todas as flags).
   const visibleNavGroups = navGroups
     .map((group) => {
       let items = group.items

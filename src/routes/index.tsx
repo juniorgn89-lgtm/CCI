@@ -51,6 +51,7 @@ const AppRoutes = () => {
           <Route path="/conveniencias" element={<Suspense fallback={null}><Conveniencias /></Suspense>} />
           <Route path="/estoques" element={<Suspense fallback={null}><Estoques /></Suspense>} />
           <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />
+          <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={null}><Financeiro /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={null}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />

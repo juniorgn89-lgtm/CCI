@@ -90,7 +90,7 @@ const AppLayout = () => {
   }, [pathname, modulosPermitidos, isMaster, navigate])
 
   // Itens visíveis no menu mobile: master vê tudo (inclusive masterOnly);
-  // não-master perde os masterOnly e os módulos fora da lista permitida.
+  // não-master perde masterOnly e módulos fora da lista permitida.
   const visibleNavItems = (() => {
     if (isMaster) return navItems
     let items = navItems.filter((item) => !item.masterOnly)

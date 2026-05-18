@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
 
 const Dashboard = () => {
-  const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
+  const { empresaCodigos, setEmpresas, dataFinal, lastSingleEmpresaCodigo } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const { isCacheHit } = useDashboardData()
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
@@ -38,15 +38,26 @@ const Dashboard = () => {
     : null
   const empresaNome = empresa?.fantasia || empresa?.razao || (empresaCodigo ? `Posto ${empresaCodigo}` : '')
 
-  // Toggle aparece pra user com exatamente 1 posto permitido — multi-posto
-  // já tem o dropdown no header.
-  const showToggle = empresasPermitidas.length === 1
-  const singlePosto = showToggle ? empresasPermitidas[0] : null
-  const singleNome = singlePosto?.fantasia || singlePosto?.razao || ''
+  // Toggle:
+  // - Sempre aparece pra user com exatamente 1 posto permitido (Keidma).
+  // - Pra multi-posto (master/supervisor com vários), aparece quando há um
+  //   posto em foco — selecionado no header ou lembrado da última seleção
+  //   (lastSingleEmpresaCodigo, persistido em localStorage). Assim o user
+  //   consegue alternar Central ⇄ Posto sem perder a memória ao navegar
+  //   entre módulos ou recarregar a página.
+  const isSinglePermitido = empresasPermitidas.length === 1
+  const togglePostoCodigo = isSinglePermitido
+    ? empresasPermitidas[0].codigo
+    : (empresaCodigo ?? lastSingleEmpresaCodigo)
+  const togglePosto = togglePostoCodigo
+    ? empresasPermitidas.find((e) => e.codigo === togglePostoCodigo) ?? null
+    : null
+  const showToggle = togglePosto !== null
+  const singleNome = togglePosto?.fantasia || togglePosto?.razao || ''
 
   return (
     <div className="space-y-4">
-      {showToggle && singlePosto && (
+      {showToggle && togglePosto && (
         <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
           <button
             onClick={() => setEmpresas([])}
@@ -61,10 +72,10 @@ const Dashboard = () => {
             Central da Rede
           </button>
           <button
-            onClick={() => setEmpresas([singlePosto.codigo])}
+            onClick={() => setEmpresas([togglePosto.codigo])}
             className={cn(
               'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-              empresaCodigo === singlePosto.codigo
+              empresaCodigo === togglePosto.codigo
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             )}
