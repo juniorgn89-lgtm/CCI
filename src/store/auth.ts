@@ -32,11 +32,17 @@ interface AuthState {
    * apenas quando profile.pode_apurar=true (granted pelo master).
    */
   canApurar: boolean
+  /**
+   * Permissão pra ver o painel de Reabastecimento na Central da Rede.
+   * Master sempre pode; supervisor/user só com flag.
+   */
+  canVerReabastecimento: boolean
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
   setIsMaster: (isMaster: boolean) => void
   setCanApurar: (canApurar: boolean) => void
+  setCanVerReabastecimento: (v: boolean) => void
   setLoaded: () => void
 }
 
@@ -48,11 +54,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   modulosPermitidos: null,
   isMaster: false,
   canApurar: false,
+  canVerReabastecimento: false,
   setAuth: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
   setModulosPermitidos: (modulosPermitidos) => set({ modulosPermitidos }),
   setIsMaster: (isMaster) => set({ isMaster }),
   setCanApurar: (canApurar) => set({ canApurar }),
+  setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setLoaded: () => set({ isLoading: false }),
 }))

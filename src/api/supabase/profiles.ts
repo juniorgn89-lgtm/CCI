@@ -23,6 +23,11 @@ export interface ProfileRow {
    * Master sempre pode (independente desse flag). Supervisor/user só com true.
    */
   pode_apurar: boolean
+  /**
+   * Permissão pra ver o painel de Reabastecimento na Central da Rede (estoque
+   * de combustível baixo). Master sempre pode.
+   */
+  pode_ver_reabastecimento: boolean
   created_at: string
 }
 
@@ -109,6 +114,22 @@ export const updateProfilePodeApurar = async (
   const { error } = await supabase
     .from('profiles')
     .update({ pode_apurar: podeApurar })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/**
+ * Concede/revoga acesso ao painel de Reabastecimento na Central da Rede.
+ * Master sempre vê.
+ */
+export const updateProfilePodeVerReabastecimento = async (
+  userId: string,
+  pode: boolean,
+) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase
+    .from('profiles')
+    .update({ pode_ver_reabastecimento: pode })
     .eq('user_id', userId)
   if (error) throw error
 }

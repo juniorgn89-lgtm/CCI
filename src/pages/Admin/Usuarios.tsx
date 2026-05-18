@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -11,6 +11,7 @@ import {
   updateProfileEmpresas,
   updateProfileModulos,
   updateProfilePodeApurar,
+  updateProfilePodeVerReabastecimento,
   createUser,
   deleteUser,
   type ProfileRow,
@@ -171,6 +172,26 @@ const Usuarios = () => {
     }
   }
 
+  const handleTogglePodeReabast = async (row: ProfileRow) => {
+    if (row.user_id === myUser?.id) {
+      alert('Você não pode mudar o próprio poder.')
+      return
+    }
+    if (row.is_master) {
+      alert('Gerente já vê o reabastecimento — não precisa do flag.')
+      return
+    }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeVerReabastecimento(row.user_id, !row.pode_ver_reabastecimento)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
   const handleDelete = async (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
       alert('Você não pode excluir a própria conta.')
@@ -319,6 +340,7 @@ const Usuarios = () => {
                 <th className="px-4 py-2.5 text-center font-medium">Postos</th>
                 <th className="px-4 py-2.5 text-center font-medium">Módulos</th>
                 <th className="px-4 py-2.5 text-center font-medium" title="Pode apurar dados pra alimentar o cache">Apurar</th>
+                <th className="px-4 py-2.5 text-center font-medium" title="Pode ver o painel de Reabastecimento na Central da Rede">Reabast.</th>
                 <th className="px-4 py-2.5 text-center font-medium">Papel</th>
                 <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
               </tr>
@@ -337,6 +359,7 @@ const Usuarios = () => {
                   onEditEmpresas={() => setEditingEmpresasFor(p)}
                   onEditModulos={() => setEditingModulosFor(p)}
                   onTogglePodeApurar={() => handleTogglePodeApurar(p)}
+                  onTogglePodeReabast={() => handleTogglePodeReabast(p)}
                   onDelete={() => handleDelete(p)}
                 />
               ))}
@@ -587,10 +610,11 @@ interface UserRowProps {
   onEditEmpresas: () => void
   onEditModulos: () => void
   onTogglePodeApurar: () => void
+  onTogglePodeReabast: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onDelete }: UserRowProps) => {
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
     : null
@@ -738,6 +762,41 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               <span className={cn(
                 'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
                 p.pode_apurar ? 'translate-x-[18px]' : 'translate-x-0.5'
+              )} />
+            </button>
+          )}
+        </div>
+      </td>
+
+      {/* Reabastecimento — toggle pra dar/tirar a visão do painel de estoque baixo */}
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center">
+          {p.is_master ? (
+            <span
+              title="Gerente sempre vê o reabastecimento"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            >
+              <Fuel className="h-2.5 w-2.5" />
+              Sempre
+            </span>
+          ) : (
+            <button
+              onClick={onTogglePodeReabast}
+              disabled={busy}
+              role="switch"
+              aria-checked={p.pode_ver_reabastecimento}
+              aria-label={p.pode_ver_reabastecimento ? 'Revogar visão de reabastecimento' : 'Conceder visão de reabastecimento'}
+              title={p.pode_ver_reabastecimento ? 'Vê o painel — clique pra revogar' : 'Sem acesso — clique pra conceder'}
+              className={cn(
+                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                p.pode_ver_reabastecimento ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
+                busy && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <span className={cn(
+                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                p.pode_ver_reabastecimento ? 'translate-x-[18px]' : 'translate-x-0.5'
               )} />
             </button>
           )}

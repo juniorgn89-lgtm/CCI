@@ -7,13 +7,16 @@ import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import TabelaPostos from '@/pages/Dashboard/components/TabelaPostos'
+import ReabastecimentoCard from '@/pages/Dashboard/components/ReabastecimentoCard'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
+import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
 
 const Dashboard = () => {
   const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const { isCacheHit } = useDashboardData()
+  const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
 
   // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
   // existe turno aberto em mês passado, só ruído visual.
@@ -109,6 +112,7 @@ const Dashboard = () => {
             <div className="min-w-0 flex-1 space-y-4">
               {!periodIsPast && <TurnosAoVivo />}
               <TabelaPostos />
+              {canVerReabastecimento && <ReabastecimentoCard />}
             </div>
             <aside className="hidden w-[260px] shrink-0 xl:block">
               <ProjecoesPainel />

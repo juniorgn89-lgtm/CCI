@@ -46,6 +46,7 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setModulosPermitidos(null)
         useAuthStore.getState().setIsMaster(false)
         useAuthStore.getState().setCanApurar(false)
+        useAuthStore.getState().setCanVerReabastecimento(false)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
         // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
         useFilterStore.getState().setEmpresas([])
@@ -89,7 +90,7 @@ const loadTenantForUser = async () => {
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, pode_apurar, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, pode_apurar, pode_ver_reabastecimento, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile) {
@@ -98,6 +99,7 @@ const loadTenantForUser = async () => {
         modulos_permitidos: string[] | null
         is_master: boolean | null
         pode_apurar: boolean | null
+        pode_ver_reabastecimento: boolean | null
         redes: { id: string; nome: string; chave: string; api_base_url: string } | null
       }
       const isMaster = !!typed.is_master
@@ -113,6 +115,7 @@ const loadTenantForUser = async () => {
       useAuthStore.getState().setIsMaster(isMaster)
       // Master sempre tem o poder de apurar; pra outros, lê o flag do profile.
       useAuthStore.getState().setCanApurar(isMaster || !!typed.pode_apurar)
+      useAuthStore.getState().setCanVerReabastecimento(isMaster || !!typed.pode_ver_reabastecimento)
       return
     }
 
@@ -133,6 +136,7 @@ const loadTenantForUser = async () => {
       useAuthStore.getState().setModulosPermitidos(null)
       useAuthStore.getState().setIsMaster(false)
       useAuthStore.getState().setCanApurar(false)
+      useAuthStore.getState().setCanVerReabastecimento(false)
       return
     }
 
@@ -141,12 +145,14 @@ const loadTenantForUser = async () => {
     useAuthStore.getState().setModulosPermitidos(null)
     useAuthStore.getState().setIsMaster(false)
     useAuthStore.getState().setCanApurar(false)
+    useAuthStore.getState().setCanVerReabastecimento(false)
   } catch {
     useTenantStore.getState().setRede(null)
     useAuthStore.getState().setEmpresaCodigos(null)
     useAuthStore.getState().setModulosPermitidos(null)
     useAuthStore.getState().setIsMaster(false)
     useAuthStore.getState().setCanApurar(false)
+    useAuthStore.getState().setCanVerReabastecimento(false)
   }
 }
 
