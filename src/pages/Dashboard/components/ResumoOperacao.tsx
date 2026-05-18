@@ -19,6 +19,8 @@ import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatLiters } from '@/lib/formatters'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
+import { useAuthStore } from '@/store/auth'
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -281,7 +283,9 @@ const MainKpiCard = ({
 
 const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const navigate = useNavigate()
-  const { dataInicial, dataFinal } = useFilterStore()
+  const { dataInicial, dataFinal, empresaCodigos } = useFilterStore()
+  const empresaCodigo = empresaCodigos[0] ?? null
+  const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const {
     faturamentoCombustivel,
     totalLitros,
@@ -451,6 +455,11 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           onClick={() => navigate('/operacao?tab=caixa')}
         />
       </div>
+
+      {/* Nível dos tanques — todos os combustíveis do posto, gated por permissão */}
+      {canVerReabastecimento && empresaCodigo != null && (
+        <NivelTanquesCard empresaCodigo={empresaCodigo} />
+      )}
 
       {/* Mini-gráfico: Apurado diário com projeção */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">

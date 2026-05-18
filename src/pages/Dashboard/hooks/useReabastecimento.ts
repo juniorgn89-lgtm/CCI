@@ -24,13 +24,23 @@ export interface ReabastTanque {
 const CRITICO_THRESHOLD = 20 // < 20% → crítico
 const ALERTA_THRESHOLD = 30 // < 30% → alerta
 
+interface UseReabastecimentoOptions {
+  /** Quando informado, fetcha tanques só dessa empresa (single-posto view). */
+  empresaCodigo?: number | null
+}
+
 /**
  * Calcula o nível de cada tanque (capacidade vs estoque escritural) e
  * destaca os que estão abaixo do limite pra alertar o gerente sobre
- * reabastecimento. Multi-posto: agrega tanques de todas as empresas
- * permitidas pro usuário logado.
+ * reabastecimento.
+ *
+ *  - Sem `empresaCodigo`: agrega tanques de todas as empresas permitidas
+ *    (uso na Central da Rede).
+ *  - Com `empresaCodigo`: fetcha só dessa empresa (uso no ResumoOperacao).
  */
-const useReabastecimento = () => {
+const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
+  const { empresaCodigo } = options
+
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas({ limite: 200 }),
@@ -65,10 +75,17 @@ const useReabastecimento = () => {
   }, [produtos])
 
   // Tanques: 1 fetch por empresa em paralelo (endpoint exige empresaCodigo).
-  const empresasCodes = useMemo(
-    () => empresasPermitidas.map((e) => e.codigo).slice().sort((a, b) => a - b),
+  // Quando empresaCodigo é informado E está nas permitidas, fetcha só dela.
+  const allowedEmpresasCodes = useMemo(
+    () => empresasPermitidas.map((e) => e.codigo),
     [empresasPermitidas]
   )
+  const empresasCodes = useMemo(() => {
+    if (empresaCodigo != null && allowedEmpresasCodes.includes(empresaCodigo)) {
+      return [empresaCodigo]
+    }
+    return allowedEmpresasCodes.slice().sort((a, b) => a - b)
+  }, [empresaCodigo, allowedEmpresasCodes])
   const { data: tanquesAll = [], isLoading } = useQuery({
     queryKey: ['tanques-reabast', empresasCodes.join(',')],
     queryFn: async () => {
