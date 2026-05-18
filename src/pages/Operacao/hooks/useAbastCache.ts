@@ -9,6 +9,7 @@ import {
   enumerateDays,
   type PeriodSplit,
 } from '@/api/supabase/apuracao'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import type { Abastecimento } from '@/api/types/combustivel'
 
 interface UseAbastCacheInput {
@@ -122,11 +123,28 @@ const useAbastCache = (input: UseAbastCacheInput): UseAbastCacheResult => {
     staleTime: 5 * 60 * 1000,
   })
 
-  const abastecimentos = useMemo(() => rows.map(cacheRowToAbastecimento), [rows])
+  // HOJE — sempre live (volátil), só quando hoje está no período. Cache cobre
+  // só dias fechados, então sem este fetch perderíamos as horas de hoje.
+  const todayIni = split.todayPart?.dataInicial ?? ''
+  const todayEnd = split.todayPart?.dataFinal ?? ''
+  const { data: todayAbastRaw = [], isLoading: loadingToday } = useQuery({
+    queryKey: ['abast-cache-today', todayIni, todayEnd],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: todayIni, dataFinal: todayEnd }),
+    enabled: isCacheHit && !!split.todayPart,
+    staleTime: 60 * 1000,
+  })
+
+  const abastecimentos = useMemo(() => {
+    const fromCache = rows.map(cacheRowToAbastecimento)
+    const fromToday = todayAbastRaw.filter(
+      (a) => empresaCodigo == null || a.empresaCodigo === empresaCodigo,
+    )
+    return [...fromCache, ...fromToday]
+  }, [rows, todayAbastRaw, empresaCodigo])
 
   return {
     isEligible,
-    isChecking: isEligible && (loadingProbe || (isCacheHit && loadingRows)),
+    isChecking: isEligible && (loadingProbe || (isCacheHit && (loadingRows || loadingToday))),
     isCacheHit: isCacheHit && !loadingRows,
     abastecimentos,
     split,
