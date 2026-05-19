@@ -1,8 +1,12 @@
 import { TrendingUp, TrendingDown, AlertTriangle, Minus, Calendar } from 'lucide-react'
 import useProjecaoMes from '@/pages/Dashboard/hooks/useProjecaoMes'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import type { ComparisonMode } from '@/store/filters'
 
-const VariationBadge = ({ value }: { value: number }) => {
+const comparisonLabel = (mode: ComparisonMode): string =>
+  mode === 'prevMonth' ? 'vs mês anterior' : 'vs ano anterior'
+
+const VariationBadge = ({ value, mode }: { value: number; mode: ComparisonMode }) => {
   if (!isFinite(value) || value === 0) {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
@@ -21,7 +25,7 @@ const VariationBadge = ({ value }: { value: number }) => {
     >
       <Icon className="h-3 w-3" />
       {positive ? '+' : ''}
-      {formatPercent(value)} vs ano anterior
+      {formatPercent(value)} {comparisonLabel(mode)}
     </span>
   )
 }
@@ -31,10 +35,11 @@ interface KpiBlockProps {
   realizado: string
   projetado: string
   variacao: number
+  comparisonMode: ComparisonMode
   projetadoLabel?: string
 }
 
-const KpiBlock = ({ label, realizado, projetado, variacao, projetadoLabel = 'Projetado' }: KpiBlockProps) => (
+const KpiBlock = ({ label, realizado, projetado, variacao, comparisonMode, projetadoLabel = 'Projetado' }: KpiBlockProps) => (
   <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
     <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
       {label}
@@ -61,7 +66,7 @@ const KpiBlock = ({ label, realizado, projetado, variacao, projetadoLabel = 'Pro
       </div>
     </div>
 
-    <VariationBadge value={variacao} />
+    <VariationBadge value={variacao} mode={comparisonMode} />
   </div>
 )
 
@@ -69,7 +74,8 @@ const ProjecoesPainel = () => {
   const {
     realizado,
     projetado,
-    variacaoYoY,
+    variacao,
+    comparisonMode,
     diasFechados,
     diasNoMes,
     alertaMenorMargem,
@@ -122,19 +128,22 @@ const ProjecoesPainel = () => {
             label="Faturamento"
             realizado={formatCurrency(realizado.faturamento)}
             projetado={formatCurrency(projetado.faturamento)}
-            variacao={variacaoYoY.faturamento}
+            variacao={variacao.faturamento}
+            comparisonMode={comparisonMode}
           />
           <KpiBlock
             label="Lucro Bruto"
             realizado={formatCurrency(realizado.lucroBruto)}
             projetado={formatCurrency(projetado.lucroBruto)}
-            variacao={variacaoYoY.lucroBruto}
+            variacao={variacao.lucroBruto}
+            comparisonMode={comparisonMode}
           />
           <KpiBlock
             label="Margem"
             realizado={formatPercent(realizado.margem)}
             projetado={formatPercent(projetado.margem)}
             variacao={0}
+            comparisonMode={comparisonMode}
             projetadoLabel="Projetada"
           />
 

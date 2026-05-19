@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useDashboardData from './useDashboardData'
+import { useFilterStore, type ComparisonMode } from '@/store/filters'
 
 export interface ProjecaoValues {
   faturamento: number
@@ -23,7 +24,13 @@ export interface AlertaMenorMargem {
 export interface ProjecaoMesData {
   realizado: ProjecaoValues
   projetado: ProjecaoValues
-  variacaoYoY: ProjecaoVariacao
+  /**
+   * Variação realizada vs benchmark escolhido (mês anterior ou ano anterior).
+   * O `comparisonMode` indica contra qual período a variação foi calculada,
+   * pra que a UI mostre o label certo ("vs mês anterior" / "vs ano anterior").
+   */
+  variacao: ProjecaoVariacao
+  comparisonMode: ComparisonMode
   diasFechados: number
   diasNoMes: number
   alertaMenorMargem: AlertaMenorMargem | null
@@ -60,12 +67,15 @@ const useProjecaoMes = (): ProjecaoMesData => {
     period: { dataInicial, dataFinal },
   })
 
+  const comparisonMode = useFilterStore((s) => s.comparisonMode)
+
   return useMemo<ProjecaoMesData>(() => {
     if (awaitingFirstClose) {
       return {
         realizado: { faturamento: 0, lucroBruto: 0, margem: 0 },
         projetado: { faturamento: 0, lucroBruto: 0, margem: 0 },
-        variacaoYoY: { faturamento: 0, lucroBruto: 0 },
+        variacao: { faturamento: 0, lucroBruto: 0 },
+        comparisonMode,
         diasFechados: 0,
         diasNoMes,
         alertaMenorMargem: null,
@@ -89,13 +99,19 @@ const useProjecaoMes = (): ProjecaoMesData => {
       margem: projetadoFat > 0 ? (projetadoLB / projetadoFat) * 100 : 0,
     }
 
-    const prevYearFat = comparison?.prevYear.faturamento ?? 0
-    const prevYearLB = comparison?.prevYear.lucroBruto ?? 0
-    const variacaoYoY: ProjecaoVariacao = {
+    // Benchmark conforme escolha do usuário: prevMonth ou prevYear.
+    // Ambos já vêm prontos do useDashboardData (queries paralelas com cache).
+    const benchmark =
+      comparisonMode === 'prevMonth'
+        ? comparison?.prevMonth
+        : comparison?.prevYear
+    const benchFat = benchmark?.faturamento ?? 0
+    const benchLB = benchmark?.lucroBruto ?? 0
+    const variacao: ProjecaoVariacao = {
       faturamento:
-        prevYearFat > 0 ? ((realizado.faturamento - prevYearFat) / prevYearFat) * 100 : 0,
+        benchFat > 0 ? ((realizado.faturamento - benchFat) / benchFat) * 100 : 0,
       lucroBruto:
-        prevYearLB > 0 ? ((realizado.lucroBruto - prevYearLB) / prevYearLB) * 100 : 0,
+        benchLB > 0 ? ((realizado.lucroBruto - benchLB) / benchLB) * 100 : 0,
     }
 
     const fuelEmpresas = sectorDetails?.combustivel.empresas ?? []
@@ -118,7 +134,8 @@ const useProjecaoMes = (): ProjecaoMesData => {
     return {
       realizado,
       projetado,
-      variacaoYoY,
+      variacao,
+      comparisonMode,
       diasFechados,
       diasNoMes,
       alertaMenorMargem,
@@ -129,6 +146,7 @@ const useProjecaoMes = (): ProjecaoMesData => {
     globalKpi,
     sectorDetails,
     comparison,
+    comparisonMode,
     diasFechados,
     diasNoMes,
     awaitingFirstClose,

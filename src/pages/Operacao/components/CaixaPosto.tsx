@@ -279,14 +279,15 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
     g.pagamentos.find((p) => p.tipo === tipo)?.valor ?? 0
 
   // Apurado efetivo de um turno:
-  //  - fechado: usa g.apuradoTotal (definitivo, batido fisicamente)
-  //  - aberto: API ainda não preencheu apurado, então usa o combustível
-  //    bombeado em tempo real (soma do faturamento dos abastecimentos do turno).
-  //    Conveniência só fica disponível depois que o caixa fecha.
+  //  - fechado: usa g.apuradoTotal (definitivo, batido fisicamente).
+  //  - aberto: alguns postos preenchem g.apuradoTotal em tempo real (PDV
+  //    consolidado), outros só liberam combustível via abastecimentos. Pega
+  //    o maior dos dois pra não zerar a coluna em nenhum caso. Conveniência
+  //    fica embutida no apuradoTotal quando o PDV já a consolidou.
   const getApuradoEfetivo = (g: TurnoGroup): { value: number; isPartial: boolean } => {
     if (g.fechado) return { value: g.apuradoTotal, isPartial: false }
     const combustivelParcial = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
-    return { value: combustivelParcial, isPartial: true }
+    return { value: Math.max(g.apuradoTotal, combustivelParcial), isPartial: true }
   }
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)

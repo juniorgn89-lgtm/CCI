@@ -765,6 +765,59 @@ const useOperacaoData = () => {
       )
     }
 
+    // Instrumentação temporária — turnos abertos de hoje sem abastecimentos
+    // atribuídos. Diagnóstico do bug "0 abast no turno ao vivo apesar de
+    // formas de pagamento ativas". Pode remover quando resolvido.
+    const todayISOForLog = new Date().toISOString().slice(0, 10)
+    const abastToday = abastecimentos.filter((a) => {
+      const dF = (a.dataFiscal ?? '').slice(0, 10)
+      const dH = (a.dataHoraAbastecimento ?? '').slice(0, 10)
+      return dF === todayISOForLog || dH === todayISOForLog
+    })
+    const openTurnosToday = turnoGroups.filter(
+      (g) => !g.fechado && g.dataMovimento?.slice(0, 10) === todayISOForLog,
+    )
+    if (openTurnosToday.length > 0) {
+      // eslint-disable-next-line no-console
+      console.group(`[turno-debug] empresa=${empresaCodigo ?? 'all'} · today=${todayISOForLog}`)
+      // eslint-disable-next-line no-console
+      console.log(
+        `[turno-debug] abastecimentos total=${abastecimentos.length} · hoje=${abastToday.length}`,
+      )
+      if (abastToday.length > 0) {
+        const sample = abastToday[0]
+        // eslint-disable-next-line no-console
+        console.log('[turno-debug] sample abast hoje:', {
+          empresaCodigo: sample.empresaCodigo,
+          dataFiscal: sample.dataFiscal,
+          dataHoraAbastecimento: sample.dataHoraAbastecimento,
+          codigoFrentista: sample.codigoFrentista,
+          quantidade: sample.quantidade,
+          valorTotal: sample.valorTotal,
+        })
+      }
+      for (const g of openTurnosToday) {
+        const grpCaixas = caixas.filter((c) => g.caixaCodigos.includes(c.caixaCodigo))
+        const aberturaTs = Math.min(
+          ...grpCaixas.map((c) => (c.abertura ? new Date(c.abertura).getTime() : Infinity)),
+        )
+        const grpAbast = abastecimentos.filter((a) => {
+          const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+          if (abastDate !== g.dataMovimento.slice(0, 10)) return false
+          if (!a.dataHoraAbastecimento || !isFinite(aberturaTs)) return true
+          const ts = new Date(a.dataHoraAbastecimento).getTime()
+          return ts >= aberturaTs && ts <= Date.now()
+        })
+        const orfaos = abastToday.length - grpAbast.length
+        // eslint-disable-next-line no-console
+        console.log(
+          `[turno-debug] ${g.turno} (${g.responsaveis.join(', ')}) · caixaCodigos=[${g.caixaCodigos.join(',')}] · abertura=${g.abertura} · abast no window=${grpAbast.length}/${abastToday.length} · frentistas=${g.frentistas.length} · apurado=${g.apuradoTotal.toFixed(2)} · orfaos=${orfaos}`,
+        )
+      }
+      // eslint-disable-next-line no-console
+      console.groupEnd()
+    }
+
     // ── KPIs (current period) ──
     const totalLitros = abastecimentos.reduce((s, a) => s + a.quantidade, 0)
     const totalFat = abastecimentos.reduce((s, a) => s + a.valorTotal, 0)

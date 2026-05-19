@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+export type ComparisonMode = 'prevMonth' | 'prevYear'
+
 interface FilterState {
   empresaCodigos: number[]
   dataInicial: string
@@ -12,8 +14,16 @@ interface FilterState {
    * sem precisar reabrir o dropdown.
    */
   lastSingleEmpresaCodigo: number | null
+  /**
+   * Modo de comparação dos KPIs: contra o mês anterior ou contra o mesmo
+   * período do ano anterior. Default 'prevYear' mantém comportamento legado
+   * da Central da Rede ("vs ano anterior"). Persistido pra que o usuário
+   * mantenha sua preferência entre sessões.
+   */
+  comparisonMode: ComparisonMode
   setEmpresas: (codigos: number[]) => void
   setPeriodo: (dataInicial: string, dataFinal: string) => void
+  setComparisonMode: (mode: ComparisonMode) => void
 }
 
 const now = new Date()
@@ -30,6 +40,7 @@ export const useFilterStore = create<FilterState>()(
       dataInicial: firstDay,
       dataFinal: lastDayStr,
       lastSingleEmpresaCodigo: null,
+      comparisonMode: 'prevYear',
 
       setEmpresas: (codigos) => {
         set((state) => ({
@@ -43,6 +54,10 @@ export const useFilterStore = create<FilterState>()(
 
       setPeriodo: (dataInicial, dataFinal) => {
         set({ dataInicial, dataFinal })
+      },
+
+      setComparisonMode: (comparisonMode) => {
+        set({ comparisonMode })
       },
     }),
     {
