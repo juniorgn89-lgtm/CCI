@@ -4,6 +4,7 @@ import { formatCurrency } from '@/lib/formatters'
 /* ─── Types ─── */
 
 export interface CaixaSnapshot {
+  rede_id: string
   empresa_codigo: number
   caixa_codigo: number
   turno_codigo: number
@@ -17,6 +18,7 @@ export interface CaixaSnapshot {
 
 export interface CaixaAlteracao {
   id: string
+  rede_id: string
   empresa_codigo: number
   caixa_codigo: number
   turno_codigo: number
@@ -29,33 +31,69 @@ export interface CaixaAlteracao {
   detectado_em: string
 }
 
-/* ─── Detect and save changes ─── */
+type AlteracaoInsert = Omit<CaixaAlteracao, 'id' | 'detectado_em'>
 
+const snapshotKey = (s: { rede_id: string; empresa_codigo: number; caixa_codigo: number; turno_codigo: number; data_movimento: string }) =>
+  `${s.rede_id}-${s.empresa_codigo}-${s.caixa_codigo}-${s.turno_codigo}-${s.data_movimento}`
+
+/* ─── Detect and save changes (batch) ─── */
+
+/**
+ * Compara snapshots atuais com o que está gravado em `caixa_snapshots`,
+ * detecta mudanças em apurado/diferenca/fechado e grava em `caixa_alteracoes`.
+ *
+ * Versão batch: 1 SELECT pra buscar os existing, depois 3 operações de write
+ * em lote (insert dos novos, upsert dos atualizados, insert das alterações).
+ * Substitui o loop antigo que fazia 2-3 round trips por caixa.
+ */
 export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
   if (!supabase || snapshots.length === 0) return
 
+  // Todos os snapshots no batch são da mesma rede + empresa + range de datas.
+  // Usa essas chaves pra pré-buscar só o que interessa em UM SELECT.
+  const redeId = snapshots[0].rede_id
+  const empresaCodigos = Array.from(new Set(snapshots.map((s) => s.empresa_codigo)))
+  const datas = snapshots.map((s) => s.data_movimento).sort()
+  const minData = datas[0]
+  const maxData = datas[datas.length - 1]
+
+  const { data: existingRows, error: fetchErr } = await supabase
+    .from('caixa_snapshots')
+    .select('*')
+    .eq('rede_id', redeId)
+    .in('empresa_codigo', empresaCodigos)
+    .gte('data_movimento', minData)
+    .lte('data_movimento', maxData)
+
+  if (fetchErr) {
+    console.warn('[caixaHistory] fetch existing snapshots error:', fetchErr.message)
+    return
+  }
+
+  const existingMap = new Map<string, CaixaSnapshot>()
+  for (const row of (existingRows ?? []) as CaixaSnapshot[]) {
+    existingMap.set(snapshotKey(row), row)
+  }
+
+  const toInsertSnapshots: CaixaSnapshot[] = []
+  const toUpsertSnapshots: CaixaSnapshot[] = []
+  const alteracoesToInsert: AlteracaoInsert[] = []
+
   for (const snap of snapshots) {
-    // Check if snapshot exists
-    const { data: existing } = await supabase
-      .from('caixa_snapshots')
-      .select('*')
-      .eq('empresa_codigo', snap.empresa_codigo)
-      .eq('caixa_codigo', snap.caixa_codigo)
-      .eq('turno_codigo', snap.turno_codigo)
-      .eq('data_movimento', snap.data_movimento)
-      .maybeSingle()
+    const key = snapshotKey(snap)
+    const existing = existingMap.get(key)
 
     if (!existing) {
-      // First time seeing this session — save snapshot
-      await supabase.from('caixa_snapshots').insert(snap)
+      // Primeira vez vendo esse caixa-turno-data: apenas grava o baseline.
+      toInsertSnapshots.push(snap)
       continue
     }
 
-    // Compare and detect changes
-    const alteracoes: Omit<CaixaAlteracao, 'id' | 'detectado_em'>[] = []
-
-    if (existing.apurado !== snap.apurado) {
-      alteracoes.push({
+    // Detecta alterações campo a campo. Cents de tolerância pra evitar
+    // ruído de float, mas mantém a sensibilidade pra mudanças reais.
+    if (Math.abs(existing.apurado - snap.apurado) > 0.005) {
+      alteracoesToInsert.push({
+        rede_id: snap.rede_id,
         empresa_codigo: snap.empresa_codigo,
         caixa_codigo: snap.caixa_codigo,
         turno_codigo: snap.turno_codigo,
@@ -68,8 +106,9 @@ export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
       })
     }
 
-    if (existing.diferenca !== snap.diferenca) {
-      alteracoes.push({
+    if (Math.abs(existing.diferenca - snap.diferenca) > 0.005) {
+      alteracoesToInsert.push({
+        rede_id: snap.rede_id,
         empresa_codigo: snap.empresa_codigo,
         caixa_codigo: snap.caixa_codigo,
         turno_codigo: snap.turno_codigo,
@@ -83,7 +122,8 @@ export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
     }
 
     if (existing.fechado !== snap.fechado) {
-      alteracoes.push({
+      alteracoesToInsert.push({
+        rede_id: snap.rede_id,
         empresa_codigo: snap.empresa_codigo,
         caixa_codigo: snap.caixa_codigo,
         turno_codigo: snap.turno_codigo,
@@ -98,39 +138,50 @@ export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
       })
     }
 
-    // Save alterations
-    if (alteracoes.length > 0) {
-      await supabase.from('caixa_alteracoes').insert(alteracoes)
-    }
-
-    // Update snapshot with current values
-    await supabase
-      .from('caixa_snapshots')
-      .update({
-        apurado: snap.apurado,
-        diferenca: snap.diferenca,
-        fechado: snap.fechado,
-        funcionario_nome: snap.funcionario_nome,
-        snapshot_at: new Date().toISOString(),
-      })
-      .eq('empresa_codigo', snap.empresa_codigo)
-      .eq('caixa_codigo', snap.caixa_codigo)
-      .eq('turno_codigo', snap.turno_codigo)
-      .eq('data_movimento', snap.data_movimento)
+    // Sempre atualiza o snapshot pro estado mais recente — mesmo quando
+    // nenhum campo mudou, refresca o snapshot_at pra registrar atividade.
+    toUpsertSnapshots.push(snap)
   }
+
+  // 3 operações em lote — independentes, podem rodar em paralelo.
+  await Promise.all([
+    toInsertSnapshots.length > 0
+      ? supabase.from('caixa_snapshots').insert(toInsertSnapshots).then((res) => {
+          if (res.error) console.warn('[caixaHistory] insert snapshots:', res.error.message)
+        })
+      : Promise.resolve(),
+    toUpsertSnapshots.length > 0
+      ? supabase
+          .from('caixa_snapshots')
+          .upsert(
+            toUpsertSnapshots.map((s) => ({ ...s, snapshot_at: new Date().toISOString() })),
+            { onConflict: 'rede_id,empresa_codigo,caixa_codigo,turno_codigo,data_movimento' },
+          )
+          .then((res) => {
+            if (res.error) console.warn('[caixaHistory] upsert snapshots:', res.error.message)
+          })
+      : Promise.resolve(),
+    alteracoesToInsert.length > 0
+      ? supabase.from('caixa_alteracoes').insert(alteracoesToInsert).then((res) => {
+          if (res.error) console.warn('[caixaHistory] insert alteracoes:', res.error.message)
+        })
+      : Promise.resolve(),
+  ])
 }
 
 /* ─── Fetch history ─── */
 
 export const fetchCaixaAlteracoes = async (
+  redeId: string,
   empresaCodigo: number,
   dataInicial?: string,
-  dataFinal?: string
+  dataFinal?: string,
 ): Promise<CaixaAlteracao[]> => {
   if (!supabase) return []
   let query = supabase
     .from('caixa_alteracoes')
     .select('*')
+    .eq('rede_id', redeId)
     .eq('empresa_codigo', empresaCodigo)
     .order('detectado_em', { ascending: false })
     .limit(100)
@@ -144,14 +195,16 @@ export const fetchCaixaAlteracoes = async (
 }
 
 export const fetchCaixaAlteracoesByCaixa = async (
+  redeId: string,
   caixaCodigo: number,
   turnoCodigo: number,
-  dataMovimento: string
+  dataMovimento: string,
 ): Promise<CaixaAlteracao[]> => {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('caixa_alteracoes')
     .select('*')
+    .eq('rede_id', redeId)
     .eq('caixa_codigo', caixaCodigo)
     .eq('turno_codigo', turnoCodigo)
     .eq('data_movimento', dataMovimento)

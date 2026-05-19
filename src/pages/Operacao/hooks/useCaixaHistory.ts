@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
+import { useTenantStore } from '@/store/tenant'
 import {
   syncCaixaSnapshots,
   fetchCaixaAlteracoes,
@@ -22,14 +23,18 @@ interface UseCaixaHistoryParams {
 const useCaixaHistory = ({ turnoRows }: UseCaixaHistoryParams) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
-  const hasSynced = useRef(false)
+  const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const configured = isSupabaseConfigured()
 
-  // Sync snapshots when turnoRows change
+  // Sincroniza snapshots toda vez que turnoRows mudar (refetch do React Query,
+  // mudança de empresa/período, etc.). Sem flag de "synced uma vez" — assim
+  // o histórico capta alterações que aconteceram entre refreshes na sessão.
+  // O batch interno do syncCaixaSnapshots evita explosão de round-trips.
   useEffect(() => {
-    if (!configured || !empresaCodigo || turnoRows.length === 0 || hasSynced.current) return
+    if (!configured || !redeId || !empresaCodigo || turnoRows.length === 0) return
 
     const snapshots: CaixaSnapshot[] = turnoRows.map((t) => ({
+      rede_id: redeId,
       empresa_codigo: empresaCodigo,
       caixa_codigo: t.caixaCodigo,
       turno_codigo: t.turnoCodigo,
@@ -42,19 +47,12 @@ const useCaixaHistory = ({ turnoRows }: UseCaixaHistoryParams) => {
     }))
 
     syncCaixaSnapshots(snapshots).catch(console.error)
-    hasSynced.current = true
-  }, [configured, empresaCodigo, turnoRows])
+  }, [configured, redeId, empresaCodigo, turnoRows])
 
-  // Reset sync flag when empresa/period changes
-  useEffect(() => {
-    hasSynced.current = false
-  }, [empresaCodigo, dataInicial, dataFinal])
-
-  // Fetch alterations history
   const { data: alteracoes = [], isLoading } = useQuery<CaixaAlteracao[]>({
-    queryKey: ['caixaAlteracoes', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchCaixaAlteracoes(empresaCodigo!, dataInicial, dataFinal),
-    enabled: configured && !!empresaCodigo,
+    queryKey: ['caixaAlteracoes', redeId, empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchCaixaAlteracoes(redeId!, empresaCodigo!, dataInicial, dataFinal),
+    enabled: configured && !!redeId && !!empresaCodigo,
     staleTime: 5 * 60 * 1000,
   })
 

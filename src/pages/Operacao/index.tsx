@@ -70,6 +70,7 @@ const Operacao = () => {
     bombaRowsPrev,
     abastecimentoRows,
     abastecimentoRowsPrev,
+    turnoRows,
     turnoGroups,
     caixaResumo,
     pagamentoBreakdown,
@@ -213,6 +214,7 @@ const Operacao = () => {
                     <CaixaPosto
                       caixaResumo={caixaResumo}
                       pagamentoBreakdown={pagamentoBreakdown}
+                      turnoRows={turnoRows}
                       turnoGroups={turnoGroups}
                       apuradoPorDia={apuradoPorDia}
                     />

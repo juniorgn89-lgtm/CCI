@@ -17,13 +17,14 @@ import {
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn, isPastPeriod } from '@/lib/utils'
-import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { CaixaResumo, PagamentoBreakdown, TurnoRow, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
 import useCaixaHistory from '@/pages/Operacao/hooks/useCaixaHistory'
 import CaixaHistorico from '@/pages/Operacao/components/CaixaHistorico'
 
 interface CaixaPostoProps {
   caixaResumo: CaixaResumo
   pagamentoBreakdown: PagamentoBreakdown[]
+  turnoRows: TurnoRow[]
   turnoGroups: TurnoGroup[]
   apuradoPorDia: ApuradoPorDia[]
 }
@@ -77,7 +78,7 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
   )
 }
 
-const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
+const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
   // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
@@ -292,8 +293,10 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
-  // useCaixaHistory expects turnoRows but we pass empty for now
-  const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows: [] })
+  // useCaixaHistory compara snapshot anterior em Supabase com os turnoRows
+  // atuais e detecta mudanças em apurado/diferenca/fechado — registra cada
+  // diferença em caixa_alteracoes pra timeline aparecer aqui.
+  const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows })
 
   // Resumo de diferenças (apenas turnos fechados — caixa aberto não tem
   // diferença definitiva). Tolerância de cents para tratar arredondamento.
