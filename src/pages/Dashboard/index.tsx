@@ -11,6 +11,7 @@ import ReabastecimentoCard from '@/pages/Dashboard/components/ReabastecimentoCar
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
+import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 
 const Dashboard = () => {
   const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
@@ -88,31 +89,32 @@ const Dashboard = () => {
         <ResumoOperacao empresaNome={empresaNome} />
       ) : (
         <>
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-              <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-                {isCacheHit && (
-                  <span
-                    title="Dados do snapshot mensal — carregamento instantâneo"
-                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
-                  >
-                    <Zap className="h-2.5 w-2.5" />
-                    instantâneo
-                  </span>
-                )}
+          <PageHeaderTitle>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                <LayoutDashboard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {periodIsPast
-                  ? 'Resumo consolidado do período selecionado'
-                  : 'Acompanhamento dos postos em tempo real'}
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+                  {isCacheHit && (
+                    <span
+                      title="Dados do snapshot mensal — carregamento instantâneo"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
+                    >
+                      <Zap className="h-2.5 w-2.5" />
+                      instantâneo
+                    </span>
+                  )}
+                </div>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {periodIsPast
+                    ? 'Resumo consolidado do período selecionado'
+                    : 'Acompanhamento dos postos em tempo real'}
+                </p>
+              </div>
             </div>
-          </div>
+          </PageHeaderTitle>
 
           {/* Projeção do mês — strip horizontal no topo, full width. KPIs
               (Faturamento, Lucro Bruto, Margem) + alerta menor margem em grid. */}

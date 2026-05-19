@@ -3,6 +3,8 @@ import { Warehouse, Package, DollarSign, RefreshCw, BarChart3, TrendingUp, Shopp
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import { useEstoquesLayout } from '@/store/moduleLayout'
@@ -50,20 +52,22 @@ const Estoques = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <PageHeaderTitle>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <Warehouse className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Estoque</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Estoque</h1>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Giro, médias, vendas e necessidade de compra dos últimos 6 meses
             </p>
           </div>
         </div>
+      </PageHeaderTitle>
+      <PageHeaderActions>
         <ModuleSettings title="Estoques" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </div>
+      </PageHeaderActions>
 
       {!hasEmpresa && <SelectCompanyState />}
 

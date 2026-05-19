@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -66,6 +66,7 @@ const Usuarios = () => {
   const [showCreate, setShowCreate] = useState(false)
   const [editingEmpresasFor, setEditingEmpresasFor] = useState<ProfileRow | null>(null)
   const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
+  const [deletingUser, setDeletingUser] = useState<ProfileRow | null>(null)
 
   const handleToggleRole = async (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
@@ -192,7 +193,7 @@ const Usuarios = () => {
     }
   }
 
-  const handleDelete = async (row: ProfileRow) => {
+  const handleDelete = (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
       alert('Você não pode excluir a própria conta.')
       return
@@ -201,17 +202,18 @@ const Usuarios = () => {
       alert('Gerente não pode ser excluído.')
       return
     }
-    const nome = row.full_name || row.email
-    const ok = window.confirm(
-      `Excluir o usuário ${nome}?\n\nEssa ação remove o acesso permanentemente.`
-    )
-    if (!ok) return
+    // Abre o modal de confirmação por digitação (similar ao /admin/redes).
+    setDeletingUser(row)
+  }
+
+  const handleConfirmDelete = async (row: ProfileRow) => {
     setBusyUserId(row.user_id)
     try {
       await deleteUser(row.user_id)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      setDeletingUser(null)
     } catch (e) {
-      alert(`Erro: ${(e as Error).message}`)
+      throw e
     } finally {
       setBusyUserId(null)
     }
@@ -333,16 +335,14 @@ const Usuarios = () => {
           <table className="w-full text-sm">
             <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
               <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Nome</th>
-                <th className="px-4 py-2.5 text-left font-medium">Email</th>
-                <th className="px-4 py-2.5 text-center font-medium">Acesso</th>
-                <th className="px-4 py-2.5 text-left font-medium">Rede</th>
-                <th className="px-4 py-2.5 text-center font-medium">Postos</th>
-                <th className="px-4 py-2.5 text-center font-medium">Módulos</th>
-                <th className="px-4 py-2.5 text-center font-medium" title="Pode apurar dados pra alimentar o cache">Apurar</th>
-                <th className="px-4 py-2.5 text-center font-medium" title="Pode ver o painel de Reabastecimento na Central da Rede">Reabast.</th>
-                <th className="px-4 py-2.5 text-center font-medium">Papel</th>
-                <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
+                <th className="px-3 py-2.5 text-left font-medium">Usuário</th>
+                <th className="px-3 py-2.5 text-center font-medium">Acesso</th>
+                <th className="px-3 py-2.5 text-left font-medium">Rede</th>
+                <th className="px-3 py-2.5 text-center font-medium">Postos</th>
+                <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
+                <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
+                <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
+                <th className="w-16 px-3 py-2.5 text-right font-medium">Excluir</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -398,6 +398,14 @@ const Usuarios = () => {
           profile={editingModulosFor}
           onClose={() => setEditingModulosFor(null)}
           onSave={handleSaveModulos}
+        />
+      )}
+
+      {deletingUser && (
+        <DeleteUserModal
+          profile={deletingUser}
+          onClose={() => setDeletingUser(null)}
+          onConfirm={() => handleConfirmDelete(deletingUser)}
         />
       )}
     </div>
@@ -623,18 +631,27 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
     : null
   return (
     <tr>
-      <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
-        {p.full_name || '—'}
-        {isSelf && (
-          <span className="ml-2 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-            você
+      {/* Usuário — nome + email empilhados pra economizar coluna */}
+      <td className="px-3 py-3">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="whitespace-nowrap font-medium text-gray-900 dark:text-gray-100">
+              {p.full_name || '—'}
+            </span>
+            {isSelf && (
+              <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                você
+              </span>
+            )}
+          </div>
+          <span className="truncate text-[11px] text-gray-500 dark:text-gray-400" title={p.email}>
+            {p.email}
           </span>
-        )}
+        </div>
       </td>
-      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.email}</td>
 
       {/* Acesso (toggle) */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <div className="flex items-center justify-center gap-2">
           <button
             onClick={onToggleApproved}
@@ -664,7 +681,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
       </td>
 
       {/* Rede (dropdown) — gerente fica "—" porque vê todas */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         {p.is_master ? (
           <span className="text-xs text-gray-400">— vê todas —</span>
         ) : (
@@ -683,7 +700,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
       </td>
 
       {/* Postos — atalho pra modal de checkboxes. Gerente vê todos por design. */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         {p.is_master ? (
           <span className="block text-center text-xs text-gray-400">— todos —</span>
         ) : (
@@ -708,7 +725,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
       </td>
 
       {/* Módulos — mesmo padrão dos postos. Gerente vê todos por design. */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         {p.is_master ? (
           <span className="block text-center text-xs text-gray-400">— todos —</span>
         ) : (
@@ -732,79 +749,80 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
         )}
       </td>
 
-      {/* Apurar — toggle pra dar/tirar o poder de pré-carregar meses fechados.
-          Gerente sempre tem (não precisa do flag) → mostra ícone fixo. */}
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center">
-          {p.is_master ? (
+      {/* Permissões — Apurar + Reabastecimento empilhados verticalmente
+          pra economizar largura. Gerente sempre tem ambos. */}
+      <td className="px-3 py-3">
+        {p.is_master ? (
+          <div className="flex flex-col items-center gap-1">
             <span
               title="Gerente já tem o poder de apurar"
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
             >
               <Database className="h-2.5 w-2.5" />
-              Sempre
+              Apurar
             </span>
-          ) : (
-            <button
-              onClick={onTogglePodeApurar}
-              disabled={busy}
-              role="switch"
-              aria-checked={p.pode_apurar}
-              aria-label={p.pode_apurar ? 'Revogar poder de apurar' : 'Conceder poder de apurar'}
-              title={p.pode_apurar ? 'Pode apurar — clique pra revogar' : 'Sem poder — clique pra conceder'}
-              className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-                p.pode_apurar ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
-                busy && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <span className={cn(
-                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                p.pode_apurar ? 'translate-x-[18px]' : 'translate-x-0.5'
-              )} />
-            </button>
-          )}
-        </div>
-      </td>
-
-      {/* Reabastecimento — toggle pra dar/tirar a visão do painel de estoque baixo */}
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center">
-          {p.is_master ? (
             <span
               title="Gerente sempre vê o reabastecimento"
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
             >
               <Fuel className="h-2.5 w-2.5" />
-              Sempre
+              Reabast.
             </span>
-          ) : (
-            <button
-              onClick={onTogglePodeReabast}
-              disabled={busy}
-              role="switch"
-              aria-checked={p.pode_ver_reabastecimento}
-              aria-label={p.pode_ver_reabastecimento ? 'Revogar visão de reabastecimento' : 'Conceder visão de reabastecimento'}
-              title={p.pode_ver_reabastecimento ? 'Vê o painel — clique pra revogar' : 'Sem acesso — clique pra conceder'}
-              className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-                p.pode_ver_reabastecimento ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
-                busy && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <span className={cn(
-                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                p.pode_ver_reabastecimento ? 'translate-x-[18px]' : 'translate-x-0.5'
-              )} />
-            </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1.5">
+            {/* Apurar */}
+            <div className="flex items-center gap-1.5">
+              <Database className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeApurar}
+                disabled={busy}
+                role="switch"
+                aria-checked={p.pode_apurar}
+                aria-label={p.pode_apurar ? 'Revogar poder de apurar' : 'Conceder poder de apurar'}
+                title={p.pode_apurar ? 'Apurar: liberado — clique pra revogar' : 'Apurar: sem acesso — clique pra conceder'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_apurar ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_apurar ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {/* Reabastecimento */}
+            <div className="flex items-center gap-1.5">
+              <Fuel className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeReabast}
+                disabled={busy}
+                role="switch"
+                aria-checked={p.pode_ver_reabastecimento}
+                aria-label={p.pode_ver_reabastecimento ? 'Revogar visão de reabastecimento' : 'Conceder visão de reabastecimento'}
+                title={p.pode_ver_reabastecimento ? 'Reabast.: liberado — clique pra revogar' : 'Reabast.: sem acesso — clique pra conceder'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_ver_reabastecimento ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_ver_reabastecimento ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+          </div>
+        )}
       </td>
 
       {/* Papel — badge Gerente pra is_master OR segmented control Usuário | Supervisor */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         {p.is_master ? (
           <div className="flex items-center justify-center gap-1.5">
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -850,8 +868,10 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
           }
           aria-label={`Excluir ${p.full_name || p.email}`}
           className={cn(
-            'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
-            (busy || isSelf || p.is_master) && 'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-gray-400 dark:hover:bg-transparent dark:hover:text-gray-400'
+            'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+            (busy || isSelf || p.is_master)
+              ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
+              : 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20',
           )}
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -1163,6 +1183,133 @@ const RoleOption = ({ active, color, icon, label, disabled, onClick }: RoleOptio
       {icon}
       {label}
     </button>
+  )
+}
+
+/* ─── Modal de exclusão de usuário ─── */
+
+interface DeleteUserModalProps {
+  profile: ProfileRow
+  onClose: () => void
+  onConfirm: () => Promise<void>
+}
+
+const DeleteUserModal = ({ profile, onClose, onConfirm }: DeleteUserModalProps) => {
+  // Requer digitar o email exato pra liberar o botão — protege contra
+  // exclusão acidental, já que é operação irreversível.
+  const [confirmText, setConfirmText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const canDelete = confirmText.trim().toLowerCase() === profile.email.toLowerCase()
+  const nomeExibicao = profile.full_name || profile.email
+
+  const handleDelete = async () => {
+    if (!canDelete) return
+    setSubmitting(true)
+    setErr(null)
+    try {
+      await onConfirm()
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-red-600 dark:text-red-400">
+            <AlertTriangle className="h-4 w-4" />
+            Excluir usuário
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          {/* Aviso destacado */}
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+              Esta ação é irreversível.
+            </p>
+            <p className="mt-1.5 text-xs text-red-600/90 dark:text-red-400/80">
+              O usuário <span className="font-semibold">{nomeExibicao}</span> será
+              excluído permanentemente. Após confirmar:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-600/90 dark:text-red-400/80">
+              <li>Perde o acesso ao sistema imediatamente</li>
+              <li>O profile e a conta de autenticação são removidos</li>
+              <li>Histórico de ações detectadas (ex: alterações de caixa) fica órfão</li>
+              <li>Pra reativar, precisa criar tudo de novo (e-mail, perfil, permissões)</li>
+            </ul>
+          </div>
+
+          {/* Confirmação por digitação */}
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Pra confirmar, digite o e-mail{' '}
+              <span className="font-mono font-semibold text-red-600 dark:text-red-400">
+                {profile.email}
+              </span>{' '}
+              abaixo:
+            </span>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={profile.email}
+              autoFocus
+              className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </label>
+
+          {err && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+              <p className="text-xs font-medium text-red-600 dark:text-red-400">{err}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={!canDelete || submitting}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-white transition-colors',
+                canDelete && !submitting
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'cursor-not-allowed bg-red-300 dark:bg-red-900/50',
+              )}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir usuário
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

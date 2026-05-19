@@ -19,6 +19,8 @@ import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatLiters } from '@/lib/formatters'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
 import { useAuthStore } from '@/store/auth'
 
@@ -391,25 +393,35 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
 
   return (
     <div className="space-y-5">
-      {/* Header dinâmico */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Resumo · {empresaNome}</h2>
-            {isCacheHit && (
-              <span
-                title="Combustível do snapshot mensal — carregamento instantâneo"
-                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
-              >
-                <Zap className="h-2.5 w-2.5" />
-                instantâneo
-              </span>
-            )}
+      {/* Título + cache badge → portal pra sub-bar (esquerda).
+          Botão "Ver Operação" → portal pra sub-bar (direita). */}
+      <PageHeaderTitle>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+            <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Visão consolidada do posto com projeção de fim de período
-          </p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+                Resumo · {empresaNome}
+              </h2>
+              {isCacheHit && (
+                <span
+                  title="Combustível do snapshot mensal — carregamento instantâneo"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
+                >
+                  <Zap className="h-2.5 w-2.5" />
+                  instantâneo
+                </span>
+              )}
+            </div>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+              Visão consolidada do posto com projeção de fim de período
+            </p>
+          </div>
         </div>
+      </PageHeaderTitle>
+      <PageHeaderActions>
         <button
           type="button"
           onClick={() => navigate('/operacao')}
@@ -418,7 +430,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           Ver Operação completa
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
-      </div>
+      </PageHeaderActions>
 
       {/* 2 KPIs principais com projeção em destaque */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

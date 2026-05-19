@@ -4,6 +4,8 @@ import { Fuel, Gauge, Wallet, BarChart3, Activity, Settings, Droplets, DollarSig
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
@@ -83,21 +85,25 @@ const Operacao = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+      {/* Header da página — título à esquerda + engrenagem à direita,
+          ambos portados pra sub-bar do AppLayout via Portals. Resultado:
+          tudo na mesma linha horizontal compartilhada com os filtros. */}
+      <PageHeaderTitle>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <Fuel className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Operação do Posto</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Operação do Posto</h1>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Bombas, abastecimentos, turnos, caixa e produtividade
             </p>
           </div>
         </div>
+      </PageHeaderTitle>
+      <PageHeaderActions>
         <ModuleSettings title="Operação" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </div>
+      </PageHeaderActions>
 
       {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}

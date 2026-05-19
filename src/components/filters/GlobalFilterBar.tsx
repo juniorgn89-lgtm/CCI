@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import CompanySelect from '@/components/filters/CompanySelect'
 import PeriodSelect from '@/components/filters/PeriodSelect'
 import DateRangePicker from '@/components/filters/DateRangePicker'
-import ComparisonSelect from '@/components/filters/ComparisonSelect'
 import { Separator } from '@/components/ui/separator'
 import { useFilters } from '@/hooks/useFilters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -62,11 +61,6 @@ const GlobalFilterBar = () => {
         )}
         <DateRangePicker />
       </div>
-
-      <Separator orientation="vertical" className="hidden h-6 sm:block" />
-
-      {/* Benchmark de comparação dos KPIs */}
-      <ComparisonSelect />
     </div>
   )
 }

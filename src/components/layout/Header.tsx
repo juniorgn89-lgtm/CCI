@@ -3,9 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { navItems } from '@/components/layout/Sidebar'
-import GlobalFilterBar from '@/components/filters/GlobalFilterBar'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
+import ComparisonSelect from '@/components/filters/ComparisonSelect'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -97,11 +97,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {pathname !== '/inteligencia' && (
-            <div className="hidden xl:block">
-              <GlobalFilterBar />
-            </div>
-          )}
+          {/* Benchmark de comparação — fica no topo porque é "ação global"
+              (afeta como os KPIs comparam, não o que está em foco). */}
+          {pathname !== '/inteligencia' && <ComparisonSelect />}
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}
@@ -117,13 +115,6 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           <NotificationBell />
         </div>
       </div>
-
-      {/* Filters row — always visible below xl, inline above (hidden on Inteligência) */}
-      {pathname !== '/inteligencia' && (
-        <div className="border-t border-gray-100 px-4 py-1.5 dark:border-gray-700 xl:hidden">
-          <GlobalFilterBar />
-        </div>
-      )}
     </header>
   )
 }

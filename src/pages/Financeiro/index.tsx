@@ -3,6 +3,8 @@ import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity } from 'lu
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 import FinanceiroIndicadores from '@/pages/Financeiro/components/FinanceiroIndicadores'
@@ -57,21 +59,22 @@ const Financeiro = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+      <PageHeaderTitle>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <Landmark className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Contas a receber, contas a pagar e fluxo de caixa
             </p>
           </div>
         </div>
+      </PageHeaderTitle>
+      <PageHeaderActions>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </div>
+      </PageHeaderActions>
 
       {/* Empty state: no empresa selected */}
       {!hasEmpresa && <SelectCompanyState />}
