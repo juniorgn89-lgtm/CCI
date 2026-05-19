@@ -280,6 +280,13 @@ export interface AbastecimentoCacheRow {
   valor_unitario: number
   valor_total: number
   placa: string | null
+  /**
+   * Preço de custo unitário no momento da apuração (do LMC mais recente).
+   * Permite que /operacao calcule lucroBruto sem fetchar LMC live quando
+   * cache HIT — derruba ~3-5s do load do modo Apurado.
+   * Nullable porque rows antigos (antes da migration) não têm.
+   */
+  preco_custo: number | null
 }
 
 export type AbastecimentoCacheUpsert = Omit<AbastecimentoCacheRow, 'computed_at'>
@@ -348,10 +355,30 @@ export const upsertAbastecimentosCache = async (
   }
 }
 
+/**
+ * Constrói o mapa empresa+produto → precoCusto mais recente a partir do LMC.
+ * Mesmo algoritmo usado em `computeApuracaoRows`, extraído pra reuso pela
+ * apuração ao gravar o `preco_custo` em cada row do cache de abast.
+ */
+export const buildCostMapFromLmc = (lmc: import('@/api/types/combustivel').LMC[]): Map<string, number> => {
+  const costMap = new Map<string, number>()
+  const sortedLmc = [...lmc].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
+  for (const l of sortedLmc) {
+    for (const prodCode of l.produtoCodigo) {
+      const key = `${l.empresaCodigo}-${prodCode}`
+      if (!costMap.has(key) && l.precoCusto > 0) {
+        costMap.set(key, l.precoCusto)
+      }
+    }
+  }
+  return costMap
+}
+
 /** Mapeia raw da Quality (Abastecimento) → row do cache. */
 export const abastecimentoToCacheRow = (
   a: Abastecimento,
-  redeId: string
+  redeId: string,
+  costMap?: Map<string, number>,
 ): AbastecimentoCacheUpsert => ({
   rede_id: redeId,
   empresa_codigo: a.empresaCodigo,
@@ -365,6 +392,7 @@ export const abastecimentoToCacheRow = (
   valor_unitario: a.valorUnitario,
   valor_total: a.valorTotal,
   placa: a.placa || null,
+  preco_custo: costMap?.get(`${a.empresaCodigo}-${a.codigoProduto}`) ?? null,
 })
 
 /** Mapeia row do cache → Abastecimento (shape da API Quality) pra reuso a jusante. */
@@ -390,6 +418,9 @@ export const cacheRowToAbastecimento = (r: AbastecimentoCacheRow): Abastecimento
   placa: r.placa ?? '',
   abastecimentoCodigo: r.abastecimento_codigo,
   encerrante: 0,
+  // Propagar custo gravado durante a apuração — quando definido, o front
+  // dispensa o LMC live pra calcular lucroBruto.
+  precoCusto: r.preco_custo ?? undefined,
 })
 
 // ═══════════════════════════════════════════════════════════════════════

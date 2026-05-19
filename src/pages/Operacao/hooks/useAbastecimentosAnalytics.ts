@@ -230,7 +230,15 @@ const useAbastecimentosAnalytics = () => {
   // evolutionAbast saiu — substituído por `evolutionDaily` (ApuracaoDiariaRow[])
   // que é consumido direto no agregado mensal.
 
-  const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
+  // Detecta se o cache atual já tem custo embutido (preco_custo gravado pela
+  // apuração). Quando todos os rows têm, dispensamos o LMC live e a aba
+  // Apurado fica instantânea.
+  const cacheHasCostEmbedded =
+    abastCacheCurrent.isCacheHit &&
+    abastCacheCurrent.abastecimentos.length > 0 &&
+    abastCacheCurrent.abastecimentos.every((a) => typeof a.precoCusto === 'number' && a.precoCusto > 0)
+
+  const { data: lmcData = [], isLoading: isLoadingLmcRaw } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal],
     queryFn: async () => {
       const t = performance.now()
@@ -246,8 +254,10 @@ const useAbastecimentosAnalytics = () => {
       console.log(`[abast-tab] LIVE lmc (${lmcDataInicial}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
       return res
     },
+    enabled: !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
+  const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
@@ -297,11 +307,11 @@ const useAbastecimentosAnalytics = () => {
       const hit = (h: boolean) => (h ? 'HIT' : 'MISS')
       // eslint-disable-next-line no-console
       console.log(
-        `[abast-tab] ━━━ TOTAL primeira carga: ${fmtMs(total)} · cache current=${hit(abastCacheCurrent.isCacheHit)}, prev=${hit(abastCachePrev.isCacheHit)}, evolution=DIARIA ━━━`,
+        `[abast-tab] ━━━ TOTAL primeira carga: ${fmtMs(total)} · cache current=${hit(abastCacheCurrent.isCacheHit)}, prev=${hit(abastCachePrev.isCacheHit)}, evolution=DIARIA, lmc=${cacheHasCostEmbedded ? 'SKIPPED (custo embutido)' : 'live'} ━━━`,
       )
       logged.current = true
     }
-  }, [isLoading, abastCacheCurrent.isCacheHit, abastCachePrev.isCacheHit])
+  }, [isLoading, abastCacheCurrent.isCacheHit, abastCachePrev.isCacheHit, cacheHasCostEmbedded])
 
   const computed = useMemo(() => {
     const productMap = new Map<number, string>()
@@ -336,12 +346,23 @@ const useAbastecimentosAnalytics = () => {
     const empresaMap = new Map<number, string>()
     for (const e of empresasData?.resultados ?? []) empresaMap.set(e.codigo, e.fantasia)
 
+    // Constrói o costMap (empresa+produto → precoCusto). Quando os abast do
+    // cache trazem `precoCusto` embutido (gravado pela apuração), usa esses
+    // valores direto — sem precisar do LMC. Caso contrário, cai no LMC live.
     const costMap = new Map<string, number>()
-    const sortedLmc = [...lmcData].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
-    for (const lmc of sortedLmc) {
-      for (const prodCode of lmc.produtoCodigo) {
-        const key = `${lmc.empresaCodigo}-${prodCode}`
-        if (!costMap.has(key) && lmc.precoCusto > 0) costMap.set(key, lmc.precoCusto)
+    if (cacheHasCostEmbedded) {
+      for (const a of abastecimentos) {
+        if (typeof a.precoCusto !== 'number' || a.precoCusto <= 0) continue
+        const key = `${a.empresaCodigo}-${a.codigoProduto}`
+        if (!costMap.has(key)) costMap.set(key, a.precoCusto)
+      }
+    } else {
+      const sortedLmc = [...lmcData].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
+      for (const lmc of sortedLmc) {
+        for (const prodCode of lmc.produtoCodigo) {
+          const key = `${lmc.empresaCodigo}-${prodCode}`
+          if (!costMap.has(key) && lmc.precoCusto > 0) costMap.set(key, lmc.precoCusto)
+        }
       }
     }
     const getCost = (emp: number, prod: number) => costMap.get(`${emp}-${prod}`) ?? 0
@@ -652,7 +673,7 @@ const useAbastecimentosAnalytics = () => {
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

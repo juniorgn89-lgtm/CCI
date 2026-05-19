@@ -20,6 +20,13 @@ export interface Abastecimento {
   placa: string
   abastecimentoCodigo: number
   encerrante: number
+  /**
+   * Custo unitário do produto no momento da apuração. Quality não retorna
+   * esse campo no /ABASTECIMENTO live (precisa do LMC pra calcular), mas
+   * o cache do Supabase preenche durante a apuração — assim o front pode
+   * computar lucroBruto sem precisar refetchar LMC quando cache HIT.
+   */
+  precoCusto?: number
 }
 
 export interface Tanque {

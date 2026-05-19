@@ -12,6 +12,7 @@ import {
   computeApuracaoRows,
   upsertAbastecimentosCache,
   abastecimentoToCacheRow,
+  buildCostMapFromLmc,
   upsertCaixasCache,
   caixaToCacheRow,
   upsertFormasPagamentoCache,
@@ -253,8 +254,10 @@ const Apuracao = () => {
         vendaResumo: resumo,
       })
 
-      // Grava em paralelo as 4 tabelas do cache.
-      const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id))
+      // Grava em paralelo as 4 tabelas do cache. CostMap (montado do LMC)
+      // entra em cada abast row pra que o front dispense LMC live na leitura.
+      const costMap = buildCostMapFromLmc(lmc)
+      const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
       const caixaRows = caixas
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
