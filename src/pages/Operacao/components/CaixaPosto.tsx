@@ -49,6 +49,16 @@ const formatIsoTime = (iso: string | null | undefined): string => {
   return iso.substring(0, 5)
 }
 
+const WEEKDAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+
+/** Dia da semana em pt-BR a partir de yyyy-MM-dd (UTC-safe). */
+const weekdayPtBr = (iso: string): string => {
+  if (!iso || iso.length < 10) return ''
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  // new Date(yyyy, mm-1, dd) usa fuso local — suficiente pra weekday.
+  return WEEKDAYS_PT[new Date(y, m - 1, d).getDay()] ?? ''
+}
+
 interface DailyChartItem {
   data: string
   label: string
@@ -84,6 +94,8 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
   const periodIsPast = isPastPeriod(dataFinal)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // Dias colapsados — default todos abertos. Click no header do dia toggla.
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
@@ -132,6 +144,50 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
       return true
     })
   }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca, selectedPgto, selectedDay, hasChartFilter])
+
+  // Agrupa os filteredGroups por dataMovimento, somando apurado e diferença
+  // dos turnos visíveis — bate com o que o user vê quando filtra "Com diferença"
+  // (totais refletem só os turnos exibidos, não o dia inteiro).
+  interface DayGroup {
+    data: string
+    weekday: string
+    turnos: TurnoGroup[]
+    apuradoTotal: number
+    diferencaTotal: number
+    hasAberto: boolean
+  }
+  const daysGroups = useMemo<DayGroup[]>(() => {
+    const map = new Map<string, DayGroup>()
+    for (const g of filteredGroups) {
+      const data = g.dataMovimento?.slice(0, 10) ?? ''
+      if (!data) continue
+      const day = map.get(data) ?? {
+        data,
+        weekday: weekdayPtBr(data),
+        turnos: [],
+        apuradoTotal: 0,
+        diferencaTotal: 0,
+        hasAberto: false,
+      }
+      day.turnos.push(g)
+      day.apuradoTotal += g.apuradoTotal
+      // Diferença só faz sentido em fechados — caixas abertos não entram na soma
+      if (g.fechado) day.diferencaTotal += g.diferencaTotal
+      if (!g.fechado) day.hasAberto = true
+      map.set(data, day)
+    }
+    // Ordenação: mais recente primeiro
+    return Array.from(map.values()).sort((a, b) => b.data.localeCompare(a.data))
+  }, [filteredGroups])
+
+  const toggleDay = (data: string) => {
+    setCollapsedDays((prev) => {
+      const next = new Set(prev)
+      if (next.has(data)) next.delete(data)
+      else next.add(data)
+      return next
+    })
+  }
 
   const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'ao-vivo' || filterDiferenca !== 'todas'
 
@@ -784,18 +840,72 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredGroups.map((g, idx) => {
-                  const isExpanded = expanded.has(g.groupKey)
-                  const totalCombustivel = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
-                  const conveniencia = Math.max(0, g.apuradoTotal - totalCombustivel)
-                  const totalLitros = g.frentistas.reduce((s, f) => s + f.litros, 0)
-                  const totalAbast = g.frentistas.reduce((s, f) => s + f.atendimentos, 0)
-                  const responsaveisLabel = g.responsaveis.length <= 2
-                    ? g.responsaveis.join(' · ')
-                    : `${g.responsaveis.slice(0, 2).join(' · ')} (+${g.responsaveis.length - 2})`
-
+                {daysGroups.map((day) => {
+                  const dayCollapsed = collapsedDays.has(day.data)
+                  const dataFmt = day.data.split('-').reverse().join('/')
+                  const diferencaPositiva = day.diferencaTotal > 0.005
+                  const diferencaNegativa = day.diferencaTotal < -0.005
                   return (
-                    <React.Fragment key={g.groupKey}>
+                    <React.Fragment key={day.data}>
+                      {/* Day header — clicável pra colapsar/expandir os turnos do dia */}
+                      <tr
+                        onClick={() => toggleDay(day.data)}
+                        className="cursor-pointer border-y border-gray-200 bg-gray-100/80 hover:bg-gray-200/60 dark:border-gray-700 dark:bg-gray-800/70 dark:hover:bg-gray-700/60"
+                      >
+                        <td colSpan={4} className="px-4 py-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-500 transition-transform', dayCollapsed && '-rotate-90')} />
+                            <span className="font-semibold text-gray-900 dark:text-gray-100">{dataFmt}</span>
+                            <span className="text-xs text-gray-400">·</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{day.weekday}</span>
+                            <span className="text-xs text-gray-400">·</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {day.turnos.length} {day.turnos.length === 1 ? 'turno' : 'turnos'}
+                            </span>
+                            {day.hasAberto && !periodIsPast && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:bg-green-900/20 dark:text-green-400">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-green-400 opacity-75" />
+                                  <span className="relative h-1.5 w-1.5 rounded-full bg-green-500" />
+                                </span>
+                                ao vivo
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(day.apuradoTotal)}
+                        </td>
+                        <td
+                          className={cn(
+                            'px-4 py-2 text-right text-sm font-semibold tabular-nums',
+                            diferencaPositiva
+                              ? 'text-green-600 dark:text-green-400'
+                              : diferencaNegativa
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-gray-400',
+                          )}
+                        >
+                          {Math.abs(day.diferencaTotal) > 0.005
+                            ? `${day.diferencaTotal > 0 ? '+' : ''}${formatCurrency(day.diferencaTotal)}`
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-2" />
+                      </tr>
+
+                      {/* Turnos do dia — só renderiza se o dia não está colapsado */}
+                      {!dayCollapsed && day.turnos.map((g, idx) => {
+                        const isExpanded = expanded.has(g.groupKey)
+                        const totalCombustivel = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
+                        const conveniencia = Math.max(0, g.apuradoTotal - totalCombustivel)
+                        const totalLitros = g.frentistas.reduce((s, f) => s + f.litros, 0)
+                        const totalAbast = g.frentistas.reduce((s, f) => s + f.atendimentos, 0)
+                        const responsaveisLabel = g.responsaveis.length <= 2
+                          ? g.responsaveis.join(' · ')
+                          : `${g.responsaveis.slice(0, 2).join(' · ')} (+${g.responsaveis.length - 2})`
+
+                        return (
+                          <React.Fragment key={g.groupKey}>
                       {/* Group header row */}
                       <tr
                         onClick={() => {
@@ -1009,6 +1119,9 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                           )}
                         </>
                       )}
+                          </React.Fragment>
+                        )
+                      })}
                     </React.Fragment>
                   )
                 })}

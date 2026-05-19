@@ -75,19 +75,21 @@ export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
     existingMap.set(snapshotKey(row), row)
   }
 
-  const toInsertSnapshots: CaixaSnapshot[] = []
-  const toUpsertSnapshots: CaixaSnapshot[] = []
+  // Upsert pra TODOS os snapshots (novos + atualizados). Idempotente —
+  // evita race condition entre sync calls paralelos: se 2 useEffects
+  // rodam ao mesmo tempo e o SELECT do segundo ainda não viu o INSERT
+  // do primeiro, o UPSERT do segundo simplesmente atualiza em vez de
+  // bater no unique constraint.
+  const allSnapshotsToUpsert: CaixaSnapshot[] = snapshots
   const alteracoesToInsert: AlteracaoInsert[] = []
 
   for (const snap of snapshots) {
     const key = snapshotKey(snap)
     const existing = existingMap.get(key)
 
-    if (!existing) {
-      // Primeira vez vendo esse caixa-turno-data: apenas grava o baseline.
-      toInsertSnapshots.push(snap)
-      continue
-    }
+    // Se nunca vimos esse caixa-turno-data, não há "alteração" pra
+    // registrar — só cria o baseline via upsert lá embaixo.
+    if (!existing) continue
 
     // Detecta alterações campo a campo. Cents de tolerância pra evitar
     // ruído de float, mas mantém a sensibilidade pra mudanças reais.
@@ -138,29 +140,22 @@ export const syncCaixaSnapshots = async (snapshots: CaixaSnapshot[]) => {
       })
     }
 
-    // Sempre atualiza o snapshot pro estado mais recente — mesmo quando
-    // nenhum campo mudou, refresca o snapshot_at pra registrar atividade.
-    toUpsertSnapshots.push(snap)
   }
 
-  // 3 operações em lote — independentes, podem rodar em paralelo.
+  // 2 operações em lote independentes (podem rodar em paralelo):
+  //  1. Upsert de TODOS os snapshots — idempotente, resolve corrida de
+  //     concorrência. snapshot_at sempre atualiza pra marcar última visita.
+  //  2. Insert das alterações detectadas (acumulado no loop acima).
   await Promise.all([
-    toInsertSnapshots.length > 0
-      ? supabase.from('caixa_snapshots').insert(toInsertSnapshots).then((res) => {
-          if (res.error) console.warn('[caixaHistory] insert snapshots:', res.error.message)
-        })
-      : Promise.resolve(),
-    toUpsertSnapshots.length > 0
-      ? supabase
-          .from('caixa_snapshots')
-          .upsert(
-            toUpsertSnapshots.map((s) => ({ ...s, snapshot_at: new Date().toISOString() })),
-            { onConflict: 'rede_id,empresa_codigo,caixa_codigo,turno_codigo,data_movimento' },
-          )
-          .then((res) => {
-            if (res.error) console.warn('[caixaHistory] upsert snapshots:', res.error.message)
-          })
-      : Promise.resolve(),
+    supabase
+      .from('caixa_snapshots')
+      .upsert(
+        allSnapshotsToUpsert.map((s) => ({ ...s, snapshot_at: new Date().toISOString() })),
+        { onConflict: 'rede_id,empresa_codigo,caixa_codigo,turno_codigo,data_movimento' },
+      )
+      .then((res) => {
+        if (res.error) console.warn('[caixaHistory] upsert snapshots:', res.error.message)
+      }),
     alteracoesToInsert.length > 0
       ? supabase.from('caixa_alteracoes').insert(alteracoesToInsert).then((res) => {
           if (res.error) console.warn('[caixaHistory] insert alteracoes:', res.error.message)
