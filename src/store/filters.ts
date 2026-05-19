@@ -8,13 +8,6 @@ interface FilterState {
   dataInicial: string
   dataFinal: string
   /**
-   * Memória do último posto único filtrado — usada pelo toggle
-   * "Central da Rede ⇄ Posto" do Dashboard. Sobrevive entre navegações
-   * e reloads pra que o usuário consiga voltar pro posto que tava vendo
-   * sem precisar reabrir o dropdown.
-   */
-  lastSingleEmpresaCodigo: number | null
-  /**
    * Modo de comparação dos KPIs: contra o mês anterior ou contra o mesmo
    * período do ano anterior. Default 'prevYear' mantém comportamento legado
    * da Central da Rede ("vs ano anterior"). Persistido pra que o usuário
@@ -39,17 +32,10 @@ export const useFilterStore = create<FilterState>()(
       empresaCodigos: [],
       dataInicial: firstDay,
       dataFinal: lastDayStr,
-      lastSingleEmpresaCodigo: null,
       comparisonMode: 'prevYear',
 
       setEmpresas: (codigos) => {
-        set((state) => ({
-          empresaCodigos: codigos,
-          // Atualiza memória só quando a seleção é de um único posto.
-          // Clicar em "Central" (codigos=[]) preserva a memória anterior.
-          lastSingleEmpresaCodigo:
-            codigos.length === 1 ? codigos[0] : state.lastSingleEmpresaCodigo,
-        }))
+        set({ empresaCodigos: codigos })
       },
 
       setPeriodo: (dataInicial, dataFinal) => {

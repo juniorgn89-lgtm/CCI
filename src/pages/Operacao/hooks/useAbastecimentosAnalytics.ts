@@ -9,6 +9,7 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
+import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 
 const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   const d = new Date(dateStr)
@@ -143,8 +144,11 @@ const useAbastecimentosAnalytics = () => {
   const empresasPermitidas = useEmpresasPermitidas(empresasDataForCount?.resultados ?? [])
   const empresasPermitidasCount = empresasPermitidas.length
 
-  // Cache de abast Supabase pra os 3 períodos. Quando HIT, dispensa fetch
-  // live (que pra evolution12m chega a alguns segundos).
+  // Cache raw de abast Supabase pros 2 períodos curtos (current + prev).
+  // Pro evolution12m NÃO usamos cache raw — 12 meses × N postos vira
+  // ~250k linhas paginadas em chunks de 1000, dando >2min só pra ler.
+  // Em vez disso, lemos `apuracao_diaria` agregado por dia × empresa
+  // (~360 linhas / posto / ano), que basta pro gráfico mensal de L.B./Litro.
   const abastCacheCurrent = useAbastCache({
     dataInicial,
     dataFinal,
@@ -154,12 +158,6 @@ const useAbastecimentosAnalytics = () => {
   const abastCachePrev = useAbastCache({
     dataInicial: prevMonthInicial,
     dataFinal: prevMonthFinal,
-    empresaCodigo: empresaCodigoSingle,
-    empresasPermitidasCount,
-  })
-  const abastCacheEvolution = useAbastCache({
-    dataInicial: evolution12mInicialFirst,
-    dataFinal,
     empresaCodigo: empresaCodigoSingle,
     empresasPermitidasCount,
   })
@@ -199,18 +197,29 @@ const useAbastecimentosAnalytics = () => {
     retry: false,
   })
 
-  // Evolução 12 meses — historicamente o pior. Cache derruba pra <300ms
-  // quando todos os meses do range estão apurados.
-  const { data: evolutionLive = [] } = useQuery({
-    queryKey: ['abastecimentos', evolution12mInicialFirst, dataFinal],
+  // Evolução 12 meses — busca `apuracao_diaria` (já agregado por dia×empresa).
+  // Substitui o antigo fetch de raw abast, que era o gargalo principal da aba.
+  const evolutionEmpresaCodigos = useMemo(
+    () =>
+      empresaCodigoSingle != null
+        ? [empresaCodigoSingle]
+        : empresasPermitidas.map((e) => e.codigo),
+    [empresaCodigoSingle, empresasPermitidas],
+  )
+  const { data: evolutionDaily = [], isLoading: isLoadingEvolution } = useQuery({
+    queryKey: ['apuracao-diaria-evolution', evolutionEmpresaCodigos.join(','), evolution12mInicialFirst, dataFinal],
     queryFn: async () => {
       const t = performance.now()
-      const res = await fetchAbastecimentosChunked({ dataInicial: evolution12mInicialFirst, dataFinal, chunkDays: 30 })
+      const res = await fetchApuracaoDiaria({
+        empresaCodigos: evolutionEmpresaCodigos,
+        dataInicial: evolution12mInicialFirst,
+        dataFinal,
+      })
       // eslint-disable-next-line no-console
-      console.log(`[abast-tab] LIVE evolution12m (${evolution12mInicialFirst}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
+      console.log(`[abast-tab] DIARIA evolution12m (${evolution12mInicialFirst}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
       return res
     },
-    enabled: !abastCacheEvolution.isCacheHit && !abastCacheEvolution.isChecking,
+    enabled: evolutionEmpresaCodigos.length > 0,
     staleTime: 10 * 60 * 1000,
   })
 
@@ -218,7 +227,8 @@ const useAbastecimentosAnalytics = () => {
   // ao useOperacaoData — mantém comportamento legado em MISS (sem regressão).
   const abastecimentos = abastCacheCurrent.isCacheHit ? abastCacheCurrent.abastecimentos : abastLive
   const prevMonthAbast = abastCachePrev.isCacheHit ? abastCachePrev.abastecimentos : prevMonthLive
-  const evolutionAbast = abastCacheEvolution.isCacheHit ? abastCacheEvolution.abastecimentos : evolutionLive
+  // evolutionAbast saiu — substituído por `evolutionDaily` (ApuracaoDiariaRow[])
+  // que é consumido direto no agregado mensal.
 
   const { data: lmcData = [], isLoading: isLoadingLmc } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal],
@@ -274,23 +284,24 @@ const useAbastecimentosAnalytics = () => {
   const isLoading =
     abastCacheCurrent.isChecking ||
     abastCachePrev.isChecking ||
-    abastCacheEvolution.isChecking ||
     (isLoadingAbastLive && !abastCacheCurrent.isCacheHit) ||
+    isLoadingEvolution ||
     isLoadingLmc
 
   // Quando todas as queries primárias terminam, loga o total uma vez por mount
-  // + status do cache pra cada um dos 3 períodos.
+  // + status do cache pros 2 períodos curtos. Evolution agora vem de
+  // apuracao_diaria (agregado), sem cache HIT/MISS pra reportar.
   useEffect(() => {
     if (!isLoading && !logged.current) {
       const total = performance.now() - tMount.current
       const hit = (h: boolean) => (h ? 'HIT' : 'MISS')
       // eslint-disable-next-line no-console
       console.log(
-        `[abast-tab] ━━━ TOTAL primeira carga: ${fmtMs(total)} · cache current=${hit(abastCacheCurrent.isCacheHit)}, prev=${hit(abastCachePrev.isCacheHit)}, evolution=${hit(abastCacheEvolution.isCacheHit)} ━━━`,
+        `[abast-tab] ━━━ TOTAL primeira carga: ${fmtMs(total)} · cache current=${hit(abastCacheCurrent.isCacheHit)}, prev=${hit(abastCachePrev.isCacheHit)}, evolution=DIARIA ━━━`,
       )
       logged.current = true
     }
-  }, [isLoading, abastCacheCurrent.isCacheHit, abastCachePrev.isCacheHit, abastCacheEvolution.isCacheHit])
+  }, [isLoading, abastCacheCurrent.isCacheHit, abastCachePrev.isCacheHit])
 
   const computed = useMemo(() => {
     const productMap = new Map<number, string>()
@@ -550,14 +561,18 @@ const useAbastecimentosAnalytics = () => {
       }))
       .sort((a, b) => b.lbPorLitro - a.lbPorLitro)
 
-    // Monthly evolution (12 meses) — apenas litros/lucroBruto agregados por mês
-    const filteredEvolution = hasEmpresa ? evolutionAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : evolutionAbast
+    // Monthly evolution (12 meses) — consome `evolutionDaily` (apuracao_diaria),
+    // que já vem agregado por dia × empresa. Soma só por mês.
     const byMonth = new Map<string, { litros: number; fat: number; custo: number }>()
-    for (const a of filteredEvolution) {
-      const month = a.dataHoraAbastecimento.substring(0, 7)
+    for (const d of evolutionDaily) {
+      if (hasEmpresa && !matchEmpresa(d.empresa_codigo)) continue
+      const month = d.data.substring(0, 7)
       const prev = byMonth.get(month) ?? { litros: 0, fat: 0, custo: 0 }
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
-      byMonth.set(month, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade })
+      byMonth.set(month, {
+        litros: prev.litros + (d.fuel_litros ?? 0),
+        fat: prev.fat + (d.fuel_faturamento ?? 0),
+        custo: prev.custo + (d.fuel_custo ?? 0),
+      })
     }
     // Mês corrente (YYYY-MM) — usado pra projetar o end-of-month
     const currentMonthStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}`
@@ -637,7 +652,7 @@ const useAbastecimentosAnalytics = () => {
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionAbast, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

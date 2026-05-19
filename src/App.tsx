@@ -49,9 +49,7 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setCanVerReabastecimento(false)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
         // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
-        // Reseta direto pra também apagar a memória do toggle (setEmpresas
-        // preserva lastSingleEmpresaCodigo de propósito durante a sessão).
-        useFilterStore.setState({ empresaCodigos: [], lastSingleEmpresaCodigo: null })
+        useFilterStore.getState().setEmpresas([])
         return
       }
       await loadTenantForUser()

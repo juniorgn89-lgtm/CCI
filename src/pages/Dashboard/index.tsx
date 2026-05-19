@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
 
 const Dashboard = () => {
-  const { empresaCodigos, setEmpresas, dataFinal, lastSingleEmpresaCodigo } = useFilterStore()
+  const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const { isCacheHit } = useDashboardData()
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
@@ -40,15 +40,13 @@ const Dashboard = () => {
 
   // Toggle:
   // - Sempre aparece pra user com exatamente 1 posto permitido (Keidma).
-  // - Pra multi-posto (master/supervisor com vários), aparece quando há um
-  //   posto em foco — selecionado no header ou lembrado da última seleção
-  //   (lastSingleEmpresaCodigo, persistido em localStorage). Assim o user
-  //   consegue alternar Central ⇄ Posto sem perder a memória ao navegar
-  //   entre módulos ou recarregar a página.
+  // - Pra multi-posto, aparece SOMENTE quando há um posto selecionado no
+  //   filtro atual. Quando o user clica "Central da Rede", o filtro é
+  //   limpo e o toggle some — pra voltar ao posto, use o dropdown do header.
   const isSinglePermitido = empresasPermitidas.length === 1
   const togglePostoCodigo = isSinglePermitido
     ? empresasPermitidas[0].codigo
-    : (empresaCodigo ?? lastSingleEmpresaCodigo)
+    : empresaCodigo
   const togglePosto = togglePostoCodigo
     ? empresasPermitidas.find((e) => e.codigo === togglePostoCodigo) ?? null
     : null
