@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter, History } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -96,6 +96,8 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // Dias colapsados — default todos abertos. Click no header do dia toggla.
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
+  // Sub-aba dentro do Caixa & Turnos: 'turnos' (default) ou 'historico'.
+  const [activeSubTab, setActiveSubTab] = useState<'turnos' | 'historico'>('turnos')
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
@@ -397,6 +399,38 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
 
   return (
     <div className="space-y-4">
+      {/* Sub-tabs do Caixa & Turnos */}
+      <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+        {(
+          [
+            { v: 'turnos', l: 'Turnos de Caixa', Icon: Wallet },
+            { v: 'historico', l: 'Histórico de Alterações', Icon: History },
+          ] as const
+        ).map((tab) => {
+          const isActive = activeSubTab === tab.v
+          return (
+            <button
+              key={tab.v}
+              type="button"
+              onClick={() => setActiveSubTab(tab.v)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                isActive
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              <tab.Icon className="h-3.5 w-3.5" />
+              {tab.l}
+            </button>
+          )
+        })}
+      </div>
+
+      {activeSubTab === 'historico' ? (
+        <CaixaHistorico alteracoes={alteracoes} isLoading={histLoading} configured={configured} />
+      ) : (
+      <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Formas de pagamento */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -1141,7 +1175,8 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
         )}
       </div>
 
-      <CaixaHistorico alteracoes={alteracoes} isLoading={histLoading} configured={configured} />
+      </>
+      )}
     </div>
   )
 }
