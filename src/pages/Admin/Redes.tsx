@@ -10,6 +10,7 @@ import {
   deleteRede,
   type RedeRow,
 } from '@/api/supabase/redes'
+import { useTenantStore } from '@/store/tenant'
 import { cn } from '@/lib/utils'
 
 const DEFAULT_API_BASE = 'https://web.qualityautomacao.com.br/INTEGRACAO'
@@ -297,6 +298,8 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
   const [apiBaseUrl, setApiBaseUrl] = useState(rede?.api_base_url ?? DEFAULT_API_BASE)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const tenantRede = useTenantStore((s) => s.rede)
+  const setTenantRede = useTenantStore((s) => s.setRede)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -312,11 +315,19 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
       if (mode === 'create') {
         await createRede({ nome: nome.trim(), chave: chave.trim(), api_base_url: apiBaseUrl.trim() })
       } else if (rede) {
-        await updateRede(rede.id, {
+        const novosCampos = {
           nome: nome.trim(),
           chave: chave.trim(),
           api_base_url: apiBaseUrl.trim(),
-        })
+        }
+        await updateRede(rede.id, novosCampos)
+        // Se a rede editada é a tenant ativa, atualiza a store em memória
+        // pra refletir nome/chave/url novos imediatamente — sem isso, o
+        // RedeSwitcher e tudo que usa tenant.nome continuam com o valor
+        // antigo até o próximo login.
+        if (tenantRede?.id === rede.id) {
+          setTenantRede({ id: rede.id, ...novosCampos })
+        }
       }
       onSaved()
     } catch (e) {

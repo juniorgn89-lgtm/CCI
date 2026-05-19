@@ -412,8 +412,37 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 </div>
               </div>
 
-              {/* Combustíveis tags */}
-              {s.bomba.combustiveis.length > 0 && (
+              {/* Combustíveis com litros bombeados.
+                  Se temos detalhes (dados do período), mostra como linha tipo
+                  "GASOLINA COMUM · 28.500 L". Senão (bicos cadastrados sem
+                  movimento ainda), cai pra chips simples só com o nome. */}
+              {s.bomba.combustiveisDetalhes.length > 0 ? (
+                <ul className="mb-3 space-y-1">
+                  {s.bomba.combustiveisDetalhes.map((c) => {
+                    const pct = s.bomba.litrosVendidos > 0
+                      ? (c.litros / s.bomba.litrosVendidos) * 100
+                      : 0
+                    return (
+                      <li
+                        key={c.nome}
+                        className="flex items-center justify-between gap-2 rounded-md bg-gray-50 px-2 py-1 dark:bg-gray-800/60"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[10px] font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300">
+                            {c.nome}
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                            {pct.toFixed(0)}% da bomba
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatLiters(c.litros)}
+                        </p>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : s.bomba.combustiveis.length > 0 ? (
                 <div className="mb-3 flex flex-wrap gap-1">
                   {s.bomba.combustiveis.map((c) => (
                     <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
@@ -421,7 +450,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                     </span>
                   ))}
                 </div>
-              )}
+              ) : null}
 
               {/* Stats */}
               <div className="mb-3 grid grid-cols-3 gap-2">

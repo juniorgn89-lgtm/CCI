@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { supabase } from '@/lib/supabase'
 
 export interface RedeRow {
@@ -8,6 +9,31 @@ export interface RedeRow {
   ativo: boolean
   created_at: string
   updated_at: string
+}
+
+interface QualityEmpresasResponse {
+  resultados?: Array<{ codigo: number }>
+}
+
+/**
+ * Conta quantos postos a rede tem na Quality, chamando o endpoint /EMPRESAS
+ * com a CHAVE dela. Bypassa o client global (que usa o tenant ativo) pra
+ * permitir que o master conte simultaneamente várias redes diferentes.
+ *
+ * Em erro (rede com CHAVE inválida, Quality fora do ar), retorna null pra
+ * sinalizar "não foi possível contar" — o caller esconde o número em vez
+ * de mostrar 0 enganoso.
+ */
+export const fetchEmpresasCountForRede = async (rede: RedeRow): Promise<number | null> => {
+  try {
+    const res = await axios.get<QualityEmpresasResponse>(`${rede.api_base_url}/EMPRESAS`, {
+      params: { CHAVE: rede.chave, limite: 500 },
+      timeout: 15_000,
+    })
+    return res.data?.resultados?.length ?? 0
+  } catch {
+    return null
+  }
 }
 
 export const fetchRedes = async (): Promise<RedeRow[]> => {

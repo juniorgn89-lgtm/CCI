@@ -12,7 +12,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
-import { fetchRedes } from '@/api/supabase/redes'
+import { fetchRedes, fetchEmpresasCountForRede } from '@/api/supabase/redes'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 
@@ -55,6 +55,22 @@ const RedeSwitcher = () => {
     queryFn: fetchRedes,
     enabled: isMaster === true,
     staleTime: 5 * 60 * 1000,
+  })
+
+  // Conta postos por rede (chama Quality em paralelo pra cada uma).
+  // Cache de 30min — número de postos raramente muda. Em erro, retorna null
+  // pra rede problemática e a UI esconde o badge dela.
+  const redeIdsForQuery = redes.map((r) => r.id).sort().join(',')
+  const { data: empresasCounts } = useQuery({
+    queryKey: ['redes-empresas-count', redeIdsForQuery],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        redes.map(async (r) => [r.id, await fetchEmpresasCountForRede(r)] as const),
+      )
+      return new Map<string, number | null>(entries)
+    },
+    enabled: redes.length > 0,
+    staleTime: 30 * 60 * 1000,
   })
 
   if (!isMaster || !tenant) return null
@@ -110,15 +126,23 @@ const RedeSwitcher = () => {
         ) : (
           redesAtivas.map((r) => {
             const active = r.id === tenant.id
+            const count = empresasCounts?.get(r.id)
             return (
               <DropdownMenuItem
                 key={r.id}
                 onSelect={() => handleSelect(r.id)}
                 className="flex items-center justify-between gap-2"
               >
-                <span className={cn('truncate', active && 'font-semibold text-blue-600 dark:text-blue-400')}>
-                  {r.nome}
-                </span>
+                <div className="flex min-w-0 flex-col">
+                  <span className={cn('truncate', active && 'font-semibold text-blue-600 dark:text-blue-400')}>
+                    {r.nome}
+                  </span>
+                  {count != null && (
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                      {count} {count === 1 ? 'posto' : 'postos'}
+                    </span>
+                  )}
+                </div>
                 {active && <Check className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
               </DropdownMenuItem>
             )

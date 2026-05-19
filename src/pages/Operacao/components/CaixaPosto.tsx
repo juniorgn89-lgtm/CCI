@@ -102,7 +102,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
   // Filters
   const [filterNome, setFilterNome] = useState('')
   const [filterTurno, setFilterTurno] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo'>(
+  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo' | 'apurado'>(
     periodIsPast ? 'todos' : 'ao-vivo'
   )
   const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'com' | 'sem'>('todas')
@@ -132,6 +132,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
       // (do contrário, o default "aberto" esconde caixas fechados que combinam com o filtro)
       if (!hasChartFilter) {
         if (filterStatus === 'ao-vivo' && g.fechado) return false
+        if (filterStatus === 'apurado' && !g.fechado) return false
       }
       // "Com/Sem diferença" só faz sentido em caixas conferidos — exclui abertos.
       // Threshold em cents para tolerar arredondamento de float.
@@ -200,7 +201,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
 
   // Filtro unificado em 4 pills: Todos / Ao vivo / Com diferença / Sem diferença.
   // Cada pill seta uma combinação específica de filterStatus + filterDiferenca.
-  type FilterPill = 'todos' | 'aovivo' | 'com' | 'sem'
+  type FilterPill = 'todos' | 'aovivo' | 'apurado' | 'com' | 'sem'
 
   const activePill: FilterPill =
     filterDiferenca === 'com'
@@ -209,6 +210,8 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
       ? 'sem'
       : filterStatus === 'ao-vivo'
       ? 'aovivo'
+      : filterStatus === 'apurado'
+      ? 'apurado'
       : 'todos'
 
   const handleFilterPill = (pill: FilterPill) => {
@@ -219,6 +222,11 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
         break
       case 'aovivo':
         setFilterStatus('ao-vivo')
+        setFilterDiferenca('todas')
+        break
+      case 'apurado':
+        // Mostra apenas caixas fechados (apurados), qualquer diferença
+        setFilterStatus('apurado')
         setFilterDiferenca('todas')
         break
       case 'com':
@@ -790,13 +798,15 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
               {turnosUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
 
-            {/* Filtro unificado: Todos / Ao vivo / Com diferença / Sem diferença.
-                "Ao vivo" some em período passado (não tem caixa aberto a essa altura). */}
+            {/* Filtro unificado: Todos / Ao vivo / Apurados / Com diferença / Sem diferença.
+                "Ao vivo" some em período passado (não tem caixa aberto a essa altura).
+                "Apurados" mostra caixas fechados (com ou sem diferença). */}
             <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
               {(
                 [
                   { v: 'todos', l: 'Todos' },
                   ...(periodIsPast ? [] : [{ v: 'aovivo', l: 'Ao vivo', live: true }]),
+                  { v: 'apurado', l: 'Apurados' },
                   { v: 'com', l: 'Com diferença' },
                   { v: 'sem', l: 'Sem diferença' },
                 ] as { v: FilterPill; l: string; live?: boolean }[]

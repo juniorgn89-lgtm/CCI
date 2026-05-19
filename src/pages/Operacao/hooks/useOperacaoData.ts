@@ -39,6 +39,13 @@ export interface FrentistaRow {
   ticketMedio: number
 }
 
+export interface BombaCombustivelDetalhe {
+  nome: string
+  litros: number
+  abastecimentos: number
+  faturamento: number
+}
+
 export interface BombaRow {
   bombaCodigo: number
   descricao: string
@@ -51,6 +58,11 @@ export interface BombaRow {
   abastecimentos: number
   faturamento: number
   combustiveis: string[]
+  /**
+   * Detalhamento de litros / abastecimentos / faturamento por combustível
+   * dentro da bomba. Ordenado por litros desc.
+   */
+  combustiveisDetalhes: BombaCombustivelDetalhe[]
   /** Litros bombeados por dia no período atual (para filtrar desde dataUltima manutenção) */
   dailyLitros: { data: string; litros: number }[]
 }
@@ -385,16 +397,38 @@ const useOperacaoData = () => {
       .sort((a, b) => b.litrosVendidos - a.litrosVendidos)
 
     // ── Bombas ──
-    const bombaAgg = new Map<number, { litros: number; count: number; valor: number; combustiveis: Set<string> }>()
+    // `porCombustivel` agrega litros/count/valor por nome do combustível
+    // dentro da bomba — vira o `combustiveisDetalhes` do BombaRow.
+    interface BombaAggEntry {
+      litros: number
+      count: number
+      valor: number
+      combustiveis: Set<string>
+      porCombustivel: Map<string, { litros: number; count: number; valor: number }>
+    }
+    const makeEmptyAgg = (): BombaAggEntry => ({
+      litros: 0,
+      count: 0,
+      valor: 0,
+      combustiveis: new Set<string>(),
+      porCombustivel: new Map(),
+    })
+    const bombaAgg = new Map<number, BombaAggEntry>()
     const bombaDaily = new Map<number, Map<string, number>>()
     for (const a of abastecimentos) {
       const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
-      const prev = bombaAgg.get(bombaCod) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
+      const prev = bombaAgg.get(bombaCod) ?? makeEmptyAgg()
       prev.litros += a.quantidade
       prev.count += 1
       prev.valor += a.valorTotal
       const prodNome = resolveProdutoNome(a.codigoProduto, a.codigoBico)
       if (!prodNome.startsWith('Produto ')) prev.combustiveis.add(prodNome)
+      // Detalhamento por combustível
+      const combPrev = prev.porCombustivel.get(prodNome) ?? { litros: 0, count: 0, valor: 0 }
+      combPrev.litros += a.quantidade
+      combPrev.count += 1
+      combPrev.valor += a.valorTotal
+      prev.porCombustivel.set(prodNome, combPrev)
       bombaAgg.set(bombaCod, prev)
 
       const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
@@ -411,12 +445,21 @@ const useOperacaoData = () => {
     ): BombaRow[] =>
       bombas
         .map((b) => {
-          const a = agg.get(b.bombaCodigo) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
+          const a = agg.get(b.bombaCodigo) ?? makeEmptyAgg()
           const bombaBicos = bicos.filter((bi) => bi.bombaCodigo === b.bombaCodigo)
           const combustiveis =
             a.combustiveis.size > 0
               ? Array.from(a.combustiveis)
               : bombaBicos.map((bi) => produtoMap.get(bi.produtoCodigo) ?? '').filter(Boolean)
+          // Detalhes por combustível ordenados por litros desc
+          const combustiveisDetalhes = Array.from(a.porCombustivel.entries())
+            .map(([nome, v]) => ({
+              nome,
+              litros: v.litros,
+              abastecimentos: v.count,
+              faturamento: v.valor,
+            }))
+            .sort((x, y) => y.litros - x.litros)
           const dm = daily.get(b.bombaCodigo) ?? new Map<string, number>()
           const dailyLitros = Array.from(dm.entries())
             .map(([data, litros]) => ({ data, litros }))
@@ -433,6 +476,7 @@ const useOperacaoData = () => {
             abastecimentos: a.count,
             faturamento: a.valor,
             combustiveis: [...new Set(combustiveis)],
+            combustiveisDetalhes,
             dailyLitros,
           }
         })
@@ -441,14 +485,21 @@ const useOperacaoData = () => {
     const bombaRows = buildBombaRows(bombaAgg, bombaDaily)
 
     // Previous-period bombas (mesmo cálculo, agregado em abastPrev)
-    const bombaAggPrev = new Map<number, { litros: number; count: number; valor: number; combustiveis: Set<string> }>()
+    const bombaAggPrev = new Map<number, BombaAggEntry>()
     const bombaDailyPrev = new Map<number, Map<string, number>>()
     for (const a of abastPrev) {
       const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
-      const prev = bombaAggPrev.get(bombaCod) ?? { litros: 0, count: 0, valor: 0, combustiveis: new Set<string>() }
+      const prev = bombaAggPrev.get(bombaCod) ?? makeEmptyAgg()
       prev.litros += a.quantidade
       prev.count += 1
       prev.valor += a.valorTotal
+      const prodNome = resolveProdutoNome(a.codigoProduto, a.codigoBico)
+      if (!prodNome.startsWith('Produto ')) prev.combustiveis.add(prodNome)
+      const combPrev = prev.porCombustivel.get(prodNome) ?? { litros: 0, count: 0, valor: 0 }
+      combPrev.litros += a.quantidade
+      combPrev.count += 1
+      combPrev.valor += a.valorTotal
+      prev.porCombustivel.set(prodNome, combPrev)
       bombaAggPrev.set(bombaCod, prev)
 
       const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
