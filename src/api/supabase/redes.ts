@@ -59,3 +59,20 @@ export const updateRede = async (id: string, patch: UpdateRedeInput): Promise<vo
 
 export const toggleRedeAtivo = (id: string, ativo: boolean) =>
   updateRede(id, { ativo })
+
+/**
+ * Exclui uma rede do sistema. Operação irreversível.
+ *
+ * Os profiles vinculados via `rede_id` permanecem (FK com ON DELETE SET NULL
+ * ou similar — depende do schema). O histórico de apuração (apuracao_diaria,
+ * apuracao_abastecimentos, etc.) é mantido órfão pra auditoria, a menos que
+ * o schema tenha CASCADE.
+ *
+ * Se houver FK sem cascade configurado, o Supabase retorna erro (ex:
+ * "violates foreign key constraint") e o caller exibe pro usuário.
+ */
+export const deleteRede = async (id: string): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('redes').delete().eq('id', id)
+  if (error) throw error
+}

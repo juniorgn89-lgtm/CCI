@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff } from 'lucide-react'
+import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle } from 'lucide-react'
 import {
   fetchRedes,
   createRede,
   updateRede,
   toggleRedeAtivo,
+  deleteRede,
   type RedeRow,
 } from '@/api/supabase/redes'
 import { cn } from '@/lib/utils'
@@ -49,6 +50,7 @@ const Redes = () => {
 
   const [showCreate, setShowCreate] = useState(false)
   const [editingRede, setEditingRede] = useState<RedeRow | null>(null)
+  const [deletingRede, setDeletingRede] = useState<RedeRow | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const handleToggleAtivo = async (rede: RedeRow) => {
@@ -144,6 +146,7 @@ const Redes = () => {
                   busy={busyId === r.id}
                   onToggle={() => handleToggleAtivo(r)}
                   onEdit={() => setEditingRede(r)}
+                  onDelete={() => setDeletingRede(r)}
                 />
               ))}
             </tbody>
@@ -178,6 +181,17 @@ const Redes = () => {
           }}
         />
       )}
+
+      {deletingRede && (
+        <DeleteRedeModal
+          rede={deletingRede}
+          onClose={() => setDeletingRede(null)}
+          onDeleted={() => {
+            setDeletingRede(null)
+            queryClient.invalidateQueries({ queryKey: ['redes'] })
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -189,11 +203,13 @@ const RedeRowComp = ({
   busy,
   onToggle,
   onEdit,
+  onDelete,
 }: {
   rede: RedeRow
   busy: boolean
   onToggle: () => void
   onEdit: () => void
+  onDelete: () => void
 }) => {
   const [revealed, setRevealed] = useState(false)
   const chave = revealed ? rede.chave : `${rede.chave.slice(0, 8)}…`
@@ -244,13 +260,23 @@ const RedeRowComp = ({
         </div>
       </td>
       <td className="px-4 py-3 text-right">
-        <button
-          onClick={onEdit}
-          className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <Edit2 className="h-3 w-3" />
-          Editar
-        </button>
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <Edit2 className="h-3 w-3" />
+            Editar
+          </button>
+          <button
+            onClick={onDelete}
+            title="Excluir rede"
+            className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <Trash2 className="h-3 w-3" />
+            Excluir
+          </button>
+        </div>
       </td>
     </tr>
   )
@@ -381,6 +407,129 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Modal de exclusão ─── */
+
+interface DeleteRedeModalProps {
+  rede: RedeRow
+  onClose: () => void
+  onDeleted: () => void
+}
+
+const DeleteRedeModal = ({ rede, onClose, onDeleted }: DeleteRedeModalProps) => {
+  // Requer digitar o nome exato pra liberar o botão — protege contra
+  // exclusão acidental, já que é operação irreversível.
+  const [confirmText, setConfirmText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const canDelete = confirmText.trim() === rede.nome
+
+  const handleDelete = async () => {
+    if (!canDelete) return
+    setSubmitting(true)
+    setErr(null)
+    try {
+      await deleteRede(rede.id)
+      onDeleted()
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-red-600 dark:text-red-400">
+            <AlertTriangle className="h-4 w-4" />
+            Excluir rede
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          {/* Aviso destacado */}
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+              Esta ação é irreversível.
+            </p>
+            <p className="mt-1.5 text-xs text-red-600/90 dark:text-red-400/80">
+              A rede <span className="font-semibold">{rede.nome}</span> será
+              excluída permanentemente. Após confirmar:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-600/90 dark:text-red-400/80">
+              <li>Gerentes e frentistas vinculados a esta rede perderão acesso</li>
+              <li>O histórico de apuração permanecerá no banco mas órfão</li>
+              <li>A CHAVE da Quality usada pela rede não será mais válida no sistema</li>
+              <li>Não há como desfazer — só recriando manualmente</li>
+            </ul>
+          </div>
+
+          {/* Confirmação por digitação */}
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Pra confirmar, digite <span className="font-mono font-semibold text-red-600 dark:text-red-400">{rede.nome}</span> abaixo:
+            </span>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={rede.nome}
+              autoFocus
+              className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </label>
+
+          {err && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+              <p className="text-xs font-medium text-red-600 dark:text-red-400">{err}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={!canDelete || submitting}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-white transition-colors',
+                canDelete && !submitting
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-red-300 cursor-not-allowed dark:bg-red-900/50',
+              )}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir rede
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
