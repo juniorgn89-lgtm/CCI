@@ -6,6 +6,7 @@ import { navItems } from '@/components/layout/Sidebar'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
+import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -97,6 +98,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick-select do escopo dos dados (Em andamento / Apurado / Completo).
+              Vem antes do ComparisonSelect — define O QUE carregamos, enquanto
+              o de comparação define CONTRA O QUÊ comparamos. */}
+          {pathname !== '/inteligencia' && <DataFilterModeSelect />}
           {/* Benchmark de comparação — fica no topo porque é "ação global"
               (afeta como os KPIs comparam, não o que está em foco). */}
           {pathname !== '/inteligencia' && <ComparisonSelect />}
