@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTanques, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -162,25 +162,20 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     const todayStr = fmtDate(today)
 
     for (const lmc of lmcData) {
-      // Acumula saída do mês corrente
+      // Consumo do mês corrente: usa lmcBico.venda agregado por tanque.
+      // `LmcTanque` só expõe abertura/escritural/fechamento — pra tanques com
+      // estoque parado (abertura ≈ fechamento) o delta fica zero mesmo com
+      // vendas pequenas. Já `LmcBico.venda` é a venda real medida no bico,
+      // ligada ao tanque via `tanqueCodigo`.
       if (lmc.dataMovimento >= currentMonthStart && lmc.dataMovimento <= todayStr) {
-        // Cada LMC tem lmcTanque[] com saída por tanque? Olhando o tipo,
-        // tem `lmcTanque[]` (abertura/fechamento) e `saida` no nível LMC raiz.
-        // Pra precisão por tanque, somo do tanqueCodigo do lmcTanque[0] (se há).
-        const totalSaidaTanqueLmc = lmc.lmcTanque?.reduce((s, t) => {
-          // Saída = abertura - fechamento (positivo quando consumiu)
-          return s + Math.max(0, (t.abertura ?? 0) - (t.fechamento ?? 0))
-        }, 0) ?? 0
-        // Se há múltiplos tanques no LMC, distribuir proporcionalmente
-        for (const lt of lmc.lmcTanque ?? []) {
-          const consumoTanque = Math.max(0, (lt.abertura ?? 0) - (lt.fechamento ?? 0))
-          if (consumoTanque <= 0) continue
-          const key = `${lmc.empresaCodigo}-${lt.tanqueCodigo}`
+        for (const lb of lmc.lmcBico ?? []) {
+          const venda = lb.venda ?? 0
+          if (venda <= 0) continue
+          const key = `${lmc.empresaCodigo}-${lb.tanqueCodigo}`
           const prev = m.get(key) ?? { ultimaCompra: null, consumoMes: 0 }
-          prev.consumoMes += consumoTanque
+          prev.consumoMes += venda
           m.set(key, prev)
         }
-        void totalSaidaTanqueLmc  // mantido como referência mental
       }
 
       // Última compra: itera lmcNota
@@ -256,6 +251,72 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
 
   const baixos = useMemo(() => tanques.filter((t) => t.nivel !== 'ok'), [tanques])
   const criticos = useMemo(() => tanques.filter((t) => t.nivel === 'critico'), [tanques])
+
+  // Instrumentação: pra tanques baixos sem ultimaCompra OU sem consumoMes,
+  // loga as estatísticas do LMC daquela empresa pra distinguir falha de
+  // dado (Quality vazio) de falha de matching (codigo errado).
+  // Roda só uma vez por mudança real de dados, não em cada re-render.
+  const logged = useRef<string>('')
+  useEffect(() => {
+    if (!includeDetalhes) return
+    if (tanquesAll.length === 0 || lmcData.length === 0) return
+
+    const incompletos = baixos.filter((t) => !t.ultimaCompra || t.necessidadeFimDoMes === 0)
+    if (incompletos.length === 0) return
+
+    // Evita relogar quando só o ref do array muda mas o conteúdo é o mesmo.
+    const sig = incompletos.map((t) => `${t.empresaCodigo}-${t.tanqueCodigo}`).join('|')
+    if (logged.current === sig) return
+    logged.current = sig
+
+    // Indexa LMC por empresa pra inspeção rápida.
+    const lmcByEmp = new Map<number, typeof lmcData>()
+    for (const lmc of lmcData) {
+      const arr = lmcByEmp.get(lmc.empresaCodigo) ?? []
+      arr.push(lmc)
+      lmcByEmp.set(lmc.empresaCodigo, arr)
+    }
+
+    // eslint-disable-next-line no-console
+    console.group(`[reabast-debug] ${incompletos.length} tanque(s) com dados incompletos`)
+    for (const t of incompletos) {
+      const lmcEmp = lmcByEmp.get(t.empresaCodigo) ?? []
+      let notasEmp = 0
+      let notasTanque = 0
+      let movEmp = 0
+      let movTanque = 0
+      const tanqueCodigosDeNotas = new Set<number>()
+      const tanqueCodigosDeMov = new Set<number>()
+      for (const lmc of lmcEmp) {
+        for (const n of lmc.lmcNota ?? []) {
+          notasEmp++
+          tanqueCodigosDeNotas.add(n.tanqueCodigo)
+          if (n.tanqueCodigo === t.tanqueCodigo && (n.volumeRecebido ?? 0) > 0) notasTanque++
+        }
+        for (const m of lmc.lmcTanque ?? []) {
+          movEmp++
+          tanqueCodigosDeMov.add(m.tanqueCodigo)
+          if (m.tanqueCodigo === t.tanqueCodigo) movTanque++
+        }
+      }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[reabast-debug] ${t.empresaNome} · Tanque ${t.tanqueCodigo} (${t.produtoNome}) · ${t.nivelPct.toFixed(0)}%`,
+        {
+          ultimaCompra: t.ultimaCompra ? 'OK' : 'MISSING',
+          consumoMesProjetado: t.necessidadeFimDoMes > 0 ? 'OK' : 'MISSING',
+          notasNaEmpresa: notasEmp,
+          notasComEsteTanque: notasTanque,
+          movimentacoesNaEmpresa: movEmp,
+          movimentacoesComEsteTanque: movTanque,
+          tanquesDistintosEmNotas: Array.from(tanqueCodigosDeNotas).sort((a, b) => a - b),
+          tanquesDistintosEmMov: Array.from(tanqueCodigosDeMov).sort((a, b) => a - b),
+        },
+      )
+    }
+    // eslint-disable-next-line no-console
+    console.groupEnd()
+  }, [includeDetalhes, baixos, tanquesAll.length, lmcData])
 
   return {
     tanques,
