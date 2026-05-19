@@ -125,15 +125,26 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
 
   const { data: lmcData = [] } = useQuery({
     queryKey: ['lmc-reabast', empresasCodes.join(','), lmcInicial, lmcFinal],
-    queryFn: () =>
-      fetchAllPages(
-        (p) => fetchLmc({
-          empresaCodigo: empresasCodes,
-          dataInicial: lmcInicial, dataFinal: lmcFinal,
-          ultimoCodigo: p.ultimoCodigo, limite: p.limite,
-        }),
-        1000, 50
-      ),
+    queryFn: async () => {
+      // Fetch por empresa em paralelo — quando passamos array no `empresaCodigo`
+      // pra Quality, observamos que `lmcNota[]` vinha vazio pra muitos tanques
+      // (provavelmente serialização do filtro). Per-empresa garante dados
+      // completos. Mesma estratégia usada em `fetchTanques` acima.
+      if (empresasCodes.length === 0) return []
+      const results = await Promise.all(
+        empresasCodes.map((ec) =>
+          fetchAllPages(
+            (p) => fetchLmc({
+              empresaCodigo: [ec],
+              dataInicial: lmcInicial, dataFinal: lmcFinal,
+              ultimoCodigo: p.ultimoCodigo, limite: p.limite,
+            }),
+            1000, 50,
+          ),
+        ),
+      )
+      return results.flat()
+    },
     enabled: includeDetalhes && empresasCodes.length > 0,
     staleTime: 10 * 60 * 1000,
   })

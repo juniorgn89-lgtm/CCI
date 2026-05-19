@@ -1,8 +1,10 @@
-import { Fuel, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { Fuel, ChevronRight, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatLiters, formatPercent } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
 
 const margemBadgeClass = (margem: number): string => {
   if (margem < 10) {
@@ -18,6 +20,7 @@ const TabelaPostos = () => {
   const navigate = useNavigate()
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const { sectorDetails, isLoading } = useDashboardData()
+  const [expanded, setExpanded] = useState(false)
 
   const empresas = (sectorDetails?.combustivel.empresas ?? [])
     .filter((e) => e.litros > 0)
@@ -31,8 +34,16 @@ const TabelaPostos = () => {
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+      {/* Header — clicável pra colapsar/expandir */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className={cn(
+          'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/60 dark:hover:bg-gray-800/40',
+          expanded && 'border-b border-gray-100 dark:border-gray-800',
+        )}
+      >
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
           <Fuel className="h-4 w-4 text-blue-600 dark:text-blue-400" />
         </div>
@@ -43,13 +54,18 @@ const TabelaPostos = () => {
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             {isLoading
               ? 'Carregando dados dos postos...'
-              : `${empresas.length} ${empresas.length === 1 ? 'posto' : 'postos'} no período · clique para ver detalhes`}
+              : `${empresas.length} ${empresas.length === 1 ? 'posto' : 'postos'} no período · clique pra ${expanded ? 'minimizar' : 'expandir'}`}
           </p>
         </div>
-      </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-gray-400 transition-transform',
+            expanded && 'rotate-180',
+          )}
+        />
+      </button>
 
-      {/* Loading skeleton */}
-      {isLoading && empresas.length === 0 ? (
+      {!expanded ? null : isLoading && empresas.length === 0 ? (
         <div className="space-y-2 p-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
