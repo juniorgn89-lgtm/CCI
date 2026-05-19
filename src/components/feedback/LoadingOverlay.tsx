@@ -95,18 +95,18 @@ const LoadingOverlay = () => {
     if (staleTimer.current) clearTimeout(staleTimer.current)
   }, [currentCompanyKey])
 
-  // Animate progress
+  // Animate progress — mais rápido, com plateau cedo pra não dar a
+  // impressão de "preso em 88%". Total ~1.8s pra chegar a 90%.
   useEffect(() => {
     if (!showOverlay || fadeOut) return
 
     const steps = [
-      { delay: 50, value: 8 },
-      { delay: 400, value: 20 },
-      { delay: 900, value: 35 },
-      { delay: 1500, value: 50 },
-      { delay: 2200, value: 65 },
-      { delay: 3200, value: 78 },
-      { delay: 4500, value: 88 },
+      { delay: 30, value: 15 },
+      { delay: 200, value: 35 },
+      { delay: 500, value: 55 },
+      { delay: 900, value: 72 },
+      { delay: 1400, value: 85 },
+      { delay: 1900, value: 92 },
     ]
 
     const timers = steps.map(({ delay, value }) =>
@@ -116,23 +116,43 @@ const LoadingOverlay = () => {
     return () => timers.forEach(clearTimeout)
   }, [showOverlay, fadeOut])
 
-  // Complete overlay when fetching ends
+  // Dispensa o overlay assim que isFetching = 0 (tudo terminou) OU após um
+  // tempo limite de 2s (dados críticos provavelmente já chegaram; o que tá
+  // faltando é prev/comparativos que enchem delta badges em background).
+  // Sem o cap, o overlay esperava todas as queries — incluindo prev period
+  // que demora ~2.5s sozinho e travava a UI inteira.
+  const MAX_OVERLAY_MS = 2000
+
+  const dismissOverlay = useCallback(() => {
+    setProgress(100)
+    setTimeout(() => {
+      setFadeOut(true)
+      setTimeout(() => {
+        setShowOverlay(false)
+        setFadeOut(false)
+        loadedCompanyKey.current = currentCompanyKey
+        if (staleTimer.current) clearTimeout(staleTimer.current)
+        staleTimer.current = setTimeout(() => setShowBanner(true), STALE_TIMEOUT)
+      }, 400)
+    }, 300)
+  }, [currentCompanyKey])
+
+  // Caso 1: isFetching baixou — fade out
   useEffect(() => {
     if (isFetching === 0 && showOverlay && !fadeOut && progress > 0) {
-      setProgress(100)
-      const t = setTimeout(() => {
-        setFadeOut(true)
-        setTimeout(() => {
-          setShowOverlay(false)
-          setFadeOut(false)
-          loadedCompanyKey.current = currentCompanyKey
-          if (staleTimer.current) clearTimeout(staleTimer.current)
-          staleTimer.current = setTimeout(() => setShowBanner(true), STALE_TIMEOUT)
-        }, 500)
-      }, 400)
-      return () => clearTimeout(t)
+      dismissOverlay()
     }
-  }, [isFetching, showOverlay, fadeOut, progress, currentCompanyKey])
+  }, [isFetching, showOverlay, fadeOut, progress, dismissOverlay])
+
+  // Caso 2: timeout teto — força fade out mesmo com queries pendentes
+  useEffect(() => {
+    if (!showOverlay || fadeOut) return
+    const t = setTimeout(() => {
+      // Só dispensa por timeout se ainda não dispensou via isFetching === 0
+      if (showOverlay && !fadeOut) dismissOverlay()
+    }, MAX_OVERLAY_MS)
+    return () => clearTimeout(t)
+  }, [showOverlay, fadeOut, dismissOverlay])
 
   // Banner refresh
   const handleRefresh = useCallback(() => {

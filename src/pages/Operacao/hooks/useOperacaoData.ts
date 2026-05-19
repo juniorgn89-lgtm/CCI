@@ -285,12 +285,12 @@ const useOperacaoData = () => {
 
   // l1 (abast) e l6/l7 (caixas/formas) só são relevantes quando cache MISS.
   // Aguardar isChecking dos probes evita flicker entre cache e live.
+  // Períodos `prev` (abast + caixas) NÃO entram no gate — UI renderiza
+  // com dados correntes prontos; delta badges enchem quando o prev chegar.
   const isLoading =
     (l1 && !abastCacheCurrent.isCacheHit) ||
     abastCacheCurrent.isChecking ||
-    abastCachePrev.isChecking ||
     caixasCacheCurrent.isChecking ||
-    caixasCachePrev.isChecking ||
     l2 || l3 || l4 || l5 ||
     (l6 && !caixasCacheCurrent.isCacheHit) ||
     (l7 && !caixasCacheCurrent.isCacheHit)

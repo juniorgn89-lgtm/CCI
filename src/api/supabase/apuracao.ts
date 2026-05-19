@@ -297,20 +297,25 @@ interface FetchAbastCacheParams {
   dataFinal: string
 }
 
-/** Lê abastecimentos do cache pra um período (com paginação interna). */
+/** Lê abastecimentos do cache pra um período (paginação cursor sequencial).
+ *  Tentei paralelizar via range mas Postgres saturou — cada page virou 4s.
+ *  Serial cursor com índice composto fica ~250ms por page. */
 export const fetchAbastecimentosCache = async (
   params: FetchAbastCacheParams
 ): Promise<AbastecimentoCacheRow[]> => {
   if (!supabase) return []
-  // Supabase limita 1000 rows por SELECT default; pra range maior, paginamos
-  // por chave primária (abastecimento_codigo) ordenado.
+  const tStart = performance.now()
   const all: AbastecimentoCacheRow[] = []
   const pageSize = 1000
   let cursor = -1
+  let pageNum = 0
   while (true) {
+    const tPage = performance.now()
+    // Seleção explícita das colunas usadas no front (rede_id sai porque
+    // já é filtrado por RLS, e a economia de payload acumula em 10k rows).
     let query = supabase
       .from('apuracao_abastecimentos')
-      .select('*')
+      .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario,valor_total,placa,preco_custo')
       .gte('data_fiscal', params.dataInicial)
       .lte('data_fiscal', params.dataFinal)
       .order('abastecimento_codigo', { ascending: true })
@@ -322,6 +327,9 @@ export const fetchAbastecimentosCache = async (
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
     const { data, error } = await query
+    pageNum++
+    // eslint-disable-next-line no-console
+    console.log(`[apuracao_abast] page ${pageNum}: ${(performance.now() - tPage).toFixed(0)}ms · ${(data ?? []).length} rows`)
     if (error) {
       console.warn('[apuracao_abast] fetch error:', error.message)
       break
@@ -332,6 +340,8 @@ export const fetchAbastecimentosCache = async (
     if (rows.length < pageSize) break
     cursor = rows[rows.length - 1].abastecimento_codigo
   }
+  // eslint-disable-next-line no-console
+  console.log(`[apuracao_abast] TOTAL: ${(performance.now() - tStart).toFixed(0)}ms · ${all.length} rows · ${pageNum} pages`)
   return all
 }
 

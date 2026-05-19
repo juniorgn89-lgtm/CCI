@@ -230,13 +230,16 @@ const useAbastecimentosAnalytics = () => {
   // evolutionAbast saiu — substituído por `evolutionDaily` (ApuracaoDiariaRow[])
   // que é consumido direto no agregado mensal.
 
-  // Detecta se o cache atual já tem custo embutido (preco_custo gravado pela
-  // apuração). Quando todos os rows têm, dispensamos o LMC live e a aba
-  // Apurado fica instantânea.
+  // Detecta se o cache atual já tem custo embutido. Política lenient:
+  // basta UMA row ter preco_custo pra dispensar LMC — o costMap é construído
+  // best-effort a partir das rows do cache. Produtos sem custo no cache vão
+  // pra lucroBruto=0 (aceitável: melhor mostrar fast com gap do que esperar
+  // 5s pelo LMC). Quando NADA tem preco_custo (rows antigas de antes da
+  // migration), cai pro LMC live como antes.
   const cacheHasCostEmbedded =
     abastCacheCurrent.isCacheHit &&
     abastCacheCurrent.abastecimentos.length > 0 &&
-    abastCacheCurrent.abastecimentos.every((a) => typeof a.precoCusto === 'number' && a.precoCusto > 0)
+    abastCacheCurrent.abastecimentos.some((a) => typeof a.precoCusto === 'number' && a.precoCusto > 0)
 
   const { data: lmcData = [], isLoading: isLoadingLmcRaw } = useQuery({
     queryKey: ['lmc', lmcDataInicial, dataFinal],
@@ -254,7 +257,10 @@ const useAbastecimentosAnalytics = () => {
       console.log(`[abast-tab] LIVE lmc (${lmcDataInicial}→${dataFinal}): ${fmtMs(performance.now() - t)} · ${res.length} rows`)
       return res
     },
-    enabled: !cacheHasCostEmbedded,
+    // Só dispara LMC DEPOIS que a checagem do cache terminou — evita
+    // fetch redundante enquanto isChecking=true e abastecimentos=[].
+    // Cancela quando descobrimos que o cache tem custo embutido.
+    enabled: !abastCacheCurrent.isChecking && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
@@ -293,10 +299,11 @@ const useAbastecimentosAnalytics = () => {
   // Quando cache HIT, isLoadingAbastLive sempre é false (query enabled=false).
   const isLoading =
     abastCacheCurrent.isChecking ||
-    abastCachePrev.isChecking ||
     (isLoadingAbastLive && !abastCacheCurrent.isCacheHit) ||
     isLoadingEvolution ||
     isLoadingLmc
+    // abastCachePrev removido do gate — UI renderiza com o atual pronto e
+    // delta badges/comparativos enchem quando o prev chegar (sem skeleton).
 
   // Quando todas as queries primárias terminam, loga o total uma vez por mount
   // + status do cache pros 2 períodos curtos. Evolution agora vem de
