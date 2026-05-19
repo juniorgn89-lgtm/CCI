@@ -191,7 +191,7 @@ const AppLayout = () => {
             Páginas que não usarem o slot da esquerda ficam só com a direita
             (filtros encostam na borda direita). */}
         {pathname !== '/inteligencia' && (
-          <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-1.5 dark:from-gray-900 dark:to-gray-950 md:px-6">
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-3 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pt-4">
             <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
             <div className="flex shrink-0 items-center gap-3">
               <GlobalFilterBar />
@@ -203,7 +203,7 @@ const AppLayout = () => {
         <main
           ref={mainRef}
           role="main"
-          className="flex-1 overflow-y-auto px-4 pb-4 pt-0 md:px-6 md:pb-6 md:pt-0"
+          className="flex-1 overflow-y-auto px-4 pb-4 pt-5 md:px-6 md:pb-6 md:pt-7"
         >
           <LoadingOverlay />
           <ErrorBoundary key={pathname}>

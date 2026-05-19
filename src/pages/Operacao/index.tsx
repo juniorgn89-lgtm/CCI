@@ -112,7 +112,7 @@ const Operacao = () => {
       {hasEmpresa && (
         <>
           {/* KPIs principais — sempre visíveis acima das abas */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => setActiveTab('abastecimentos')}
