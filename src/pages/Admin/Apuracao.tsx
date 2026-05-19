@@ -492,6 +492,20 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onAp
 
   const canApurar = !disabled && !isFutureMonth && state.status !== 'em_andamento'
 
+  // Aviso no mês corrente: quantos dias fechados existem hoje, pra lembrar
+  // que sempre há dados pendentes mesmo após uma apuração — todo dia que
+  // vira, novo dia "fechado" entra pra fila e o status escorrega de
+  // 'apurado' pra 'parcial'.
+  const today = new Date()
+  const closedDaysCurrentMonth = Math.max(0, today.getDate() - 1)
+  const showCurrentMonthHint =
+    isCurrentMonth &&
+    closedDaysCurrentMonth > 0 &&
+    state.status !== 'em_andamento' &&
+    state.status !== 'futuro' &&
+    state.status !== 'erro'
+  const allCovered = state.status === 'apurado'
+
   return (
     <div
       className={cn(
@@ -532,6 +546,27 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onAp
           {' · '}
           {relativeTime(state.lastComputedAt)}
         </p>
+      )}
+
+      {/* Aviso no mês corrente — sempre visível pra lembrar que existem dias
+          fechados elegíveis pra apuração, mesmo quando o status mostra "Apurado"
+          (que envelhece todo dia que passa). */}
+      {showCurrentMonthHint && (
+        <div
+          className={cn(
+            'mt-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[10.5px] leading-snug',
+            allCovered
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-400'
+              : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400',
+          )}
+        >
+          <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>
+            {allCovered
+              ? `${closedDaysCurrentMonth} dia${closedDaysCurrentMonth === 1 ? '' : 's'} fechado${closedDaysCurrentMonth === 1 ? '' : 's'} já cobertos. Reapurar quando virar o dia.`
+              : `${closedDaysCurrentMonth} dia${closedDaysCurrentMonth === 1 ? '' : 's'} fechado${closedDaysCurrentMonth === 1 ? '' : 's'} pra apurar.`}
+          </span>
+        </div>
       )}
 
       <button
