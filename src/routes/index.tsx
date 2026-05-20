@@ -12,6 +12,9 @@ const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
+const OperacaoCombustivel = lazy(() => import('@/pages/Operacao/Combustivel'))
+const OperacaoPista = lazy(() => import('@/pages/Operacao/Pista'))
+const OperacaoMix = lazy(() => import('@/pages/Operacao/Mix'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
@@ -55,6 +58,9 @@ const AppRoutes = () => {
           <Route path="/financeiro" element={<Suspense fallback={null}><Financeiro /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={null}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={null}><Operacao /></Suspense>} />
+          <Route path="/operacao/combustivel" element={<Suspense fallback={null}><OperacaoCombustivel /></Suspense>} />
+          <Route path="/operacao/pista" element={<Suspense fallback={null}><OperacaoPista /></Suspense>} />
+          <Route path="/operacao/mix" element={<Suspense fallback={null}><OperacaoMix /></Suspense>} />
           <Route path="/mobile" element={<Suspense fallback={null}><Mobile /></Suspense>} />
           <Route path="/configuracoes" element={<Suspense fallback={null}><Configuracoes /></Suspense>} />
           <Route path="/admin/frentistas" element={<Suspense fallback={null}><AdminFrentistas /></Suspense>} />

@@ -240,7 +240,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const isActive = pathname === item.path
+                // Match exato OU sub-rotas (ex: /operacao/combustivel ainda destaca "Operação")
+                const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
                 const Icon = item.icon
 
                 return (

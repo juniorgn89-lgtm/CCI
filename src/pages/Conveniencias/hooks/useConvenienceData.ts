@@ -209,6 +209,7 @@ const useConvenienceData = () => {
     staleTime: 30 * 60 * 1000,
   })
 
+
   // Stock levels (direct call, not fetchAllPages — API returns flat list)
   const { data: estoqueRaw, isLoading: l5 } = useQuery({
     queryKey: ['produtoEstoque', empresaCodigo],
@@ -231,19 +232,25 @@ const useConvenienceData = () => {
     const estoque = estoqueRaw?.resultados ?? []
 
     // ── Maps ──
+    // grupoMap construído PRIMEIRO porque produtoMap filtra pelo nome
+    // do grupo pra excluir produtos da pista (PS-) — esses vivem em
+    // /operacao/pista, não em Conveniências.
+    const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
+
     const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string }>()
     for (const p of produtos) {
-      // Filter: only non-fuel products (conveniência)
-      if (!p.combustivel) {
-        produtoMap.set(p.produtoCodigo, {
-          nome: p.nome,
-          grupoCodigo: p.grupoCodigo,
-          ativo: p.ativo,
-          unidade: p.unidadeVenda || 'UN',
-        })
-      }
+      // Skip combustível — Conveniência é só loja
+      if (p.combustivel) continue
+      // Skip produtos da pista (PS-) — vivem em /operacao/pista
+      const grupoNome = grupoMap.get(p.grupoCodigo) ?? ''
+      if (grupoNome.startsWith('PS -')) continue
+      produtoMap.set(p.produtoCodigo, {
+        nome: p.nome,
+        grupoCodigo: p.grupoCodigo,
+        ativo: p.ativo,
+        unidade: p.unidadeVenda || 'UN',
+      })
     }
-    const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
 
     const getName = (code: number) => produtoMap.get(code)?.nome ?? `Produto ${code}`
     const getGroup = (code: number) => {
