@@ -94,7 +94,9 @@ const loadTenantForUser = async () => {
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile) {
-      const typed = profile as {
+      // Supabase infere o join `redes:rede_id` como array, mas a relação é
+      // to-one (retorna objeto em runtime) — cast via unknown pra alinhar.
+      const typed = profile as unknown as {
         empresa_codigos: number[] | null
         modulos_permitidos: string[] | null
         is_master: boolean | null
@@ -126,7 +128,8 @@ const loadTenantForUser = async () => {
       .eq('user_id', user.id)
       .maybeSingle()
     if (frentista && (frentista as Record<string, unknown>).redes) {
-      const typed = frentista as {
+      // Mesmo caso do profile: join to-one inferido como array.
+      const typed = frentista as unknown as {
         empresa_codigo: number
         redes: { id: string; nome: string; chave: string; api_base_url: string }
       }

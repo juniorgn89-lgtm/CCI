@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -14,9 +14,7 @@ import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatDate, formatNumber } from '@/lib/formatters'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { DailyRow, GroupRow, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
@@ -51,15 +49,6 @@ const groupCols: Column<GroupRow>[] = [
   },
 ]
 
-const dailyCsvCols: ExportColumn<DailyRow>[] = [
-  { header: 'Data', accessor: (r) => r.data },
-  { header: 'Itens', accessor: (r) => r.qtdItens },
-  { header: 'Faturamento', accessor: (r) => r.faturamento },
-  { header: 'Custo', accessor: (r) => r.custo },
-  { header: 'Margem R$', accessor: (r) => r.margemRs },
-  { header: 'Margem %', accessor: (r) => r.margemPct },
-]
-
 const formatMonth = (mes: string) => {
   const [year, month] = mes.split('-')
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -68,10 +57,6 @@ const formatMonth = (mes: string) => {
 
 const SalesOverview = ({ dailyData, groupTable, revenueData }: SalesOverviewProps) => {
   const [subView, setSubView] = useState<SubView>('diario')
-
-  const handleExport = useCallback(() => {
-    exportToCsv('conveniencia-vendas-diario', dailyData, dailyCsvCols)
-  }, [dailyData])
 
   const totals = useMemo(() => {
     const faturamento = dailyData.reduce((s, d) => s + d.faturamento, 0)
@@ -129,7 +114,6 @@ const SalesOverview = ({ dailyData, groupTable, revenueData }: SalesOverviewProp
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Resumo diário</span>
-            <ExportButton onExport={handleExport} />
           </div>
           <DataTable columns={dailyCols} data={dailyData} keyExtractor={(r) => r.data} />
         </div>

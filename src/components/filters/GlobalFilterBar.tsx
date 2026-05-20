@@ -52,13 +52,7 @@ const GlobalFilterBar = () => {
       <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
       {/* Date range picker */}
-      <div className={cn(
-        'flex flex-col gap-0.5 transition-opacity',
-        isPeriodMode && 'opacity-50'
-      )}>
-        {!isPeriodMode && (
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-blue-500">Período ativo</span>
-        )}
+      <div className="flex flex-col gap-0.5">
         <DateRangePicker />
       </div>
     </div>

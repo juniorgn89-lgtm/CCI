@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, HelpCircle } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
@@ -37,15 +35,6 @@ const columns: Column<ProductAnalyticsRow>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<ProductAnalyticsRow>[] = [
-  { header: 'Produto', accessor: (r) => r.produtoNome },
-  { header: 'Categoria', accessor: (r) => r.categoria },
-  { header: 'Vendas 6m', accessor: (r) => r.vendasUltimos6m },
-  { header: 'Estoque médio', accessor: (r) => r.estoqueMedio },
-  { header: 'Saldo atual', accessor: (r) => r.saldoAtual },
-  { header: 'Giro 6m', accessor: (r) => r.giro },
-]
-
 const GiroProdutos = ({ data, categorias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -66,10 +55,6 @@ const GiroProdutos = ({ data, categorias }: Props) => {
     const giroMedio = comGiro.length > 0 ? comGiro.reduce((s, r) => s + r.giro, 0) / comGiro.length : 0
     const semGiro = filtered.length - comGiro.length
     return { giroMedio, comGiro: comGiro.length, semGiro }
-  }, [filtered])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('giro-produtos', filtered, csvColumns)
   }, [filtered])
 
   return (
@@ -116,7 +101,6 @@ const GiroProdutos = ({ data, categorias }: Props) => {
             <option value="">Todas categorias</option>
             {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       {showHelp && (

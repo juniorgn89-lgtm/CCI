@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatLiters } from '@/lib/formatters'
+import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -34,12 +35,11 @@ interface ProjectionMeta {
   daysElapsed: number
   daysRemaining: number
   isProjectable: boolean
-  scaleFactor: number
 }
 
 const computeProjection = (dataInicial: string, dataFinal: string): ProjectionMeta => {
   if (!dataInicial || !dataFinal) {
-    return { daysTotal: 0, daysElapsed: 0, daysRemaining: 0, isProjectable: false, scaleFactor: 1 }
+    return { daysTotal: 0, daysElapsed: 0, daysRemaining: 0, isProjectable: false }
   }
   const dayMs = 24 * 3600 * 1000
   const today = new Date()
@@ -47,13 +47,12 @@ const computeProjection = (dataInicial: string, dataFinal: string): ProjectionMe
   const start = new Date(`${dataInicial}T00:00:00`)
   const end = new Date(`${dataFinal}T00:00:00`)
   const daysTotal = Math.max(1, Math.round((end.getTime() - start.getTime()) / dayMs) + 1)
-  if (today < start) return { daysTotal, daysElapsed: 0, daysRemaining: daysTotal, isProjectable: false, scaleFactor: 1 }
-  if (today > end) return { daysTotal, daysElapsed: daysTotal, daysRemaining: 0, isProjectable: false, scaleFactor: 1 }
+  if (today < start) return { daysTotal, daysElapsed: 0, daysRemaining: daysTotal, isProjectable: false }
+  if (today > end) return { daysTotal, daysElapsed: daysTotal, daysRemaining: 0, isProjectable: false }
   const daysElapsed = Math.max(1, Math.round((today.getTime() - start.getTime()) / dayMs) + 1)
   const daysRemaining = Math.max(0, Math.round((end.getTime() - today.getTime()) / dayMs))
   const isProjectable = daysRemaining > 0 && daysElapsed > 0
-  const scaleFactor = isProjectable ? daysTotal / daysElapsed : 1
-  return { daysTotal, daysElapsed, daysRemaining, isProjectable, scaleFactor }
+  return { daysTotal, daysElapsed, daysRemaining, isProjectable }
 }
 
 /* ── Tooltip ─────────────────────────────────────────────── */
@@ -332,9 +331,10 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const apuradoChartData: DailyPoint[] = useMemo(() => {
     if (!apuradoPorDia.length) return []
     const today = ymd(new Date())
-    const past = apuradoPorDia.filter((d) => d.data <= today)
-    const last7 = past.slice(-7)
-    const avg = last7.length > 0 ? last7.reduce((s, d) => s + d.apurado, 0) / last7.length : 0
+    const avg = movingAverageDailyRate(
+      apuradoPorDia.map((d) => ({ data: d.data, value: d.apurado })),
+      today,
+    )
     return apuradoPorDia.map((d) => {
       const isFuture = d.data > today
       const isToday = d.data === today
@@ -350,9 +350,10 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const litrosChartData: DailyPoint[] = useMemo(() => {
     if (!litrosPorDia.length) return []
     const today = ymd(new Date())
-    const past = litrosPorDia.filter((d) => d.data <= today)
-    const last7 = past.slice(-7)
-    const avg = last7.length > 0 ? last7.reduce((s, d) => s + d.litros, 0) / last7.length : 0
+    const avg = movingAverageDailyRate(
+      litrosPorDia.map((d) => ({ data: d.data, value: d.litros })),
+      today,
+    )
     // Gera todos os dias do período
     const startD = new Date(`${dataInicial}T00:00:00`)
     const endD = new Date(`${dataFinal}T00:00:00`)
@@ -372,9 +373,27 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
     return out
   }, [litrosPorDia, dataInicial, dataFinal])
 
-  /* Projetados totais (litros é calculado a partir do scaleFactor) */
-  const projFaturamento = faturamentoCombustivel * projection.scaleFactor
-  const projApurado = totalApurado * projection.scaleFactor
+  /* Projetados totais — média móvel dos últimos 7 dias fechados (hoje
+     excluído) aplicada aos dias restantes, em vez de extrapolação linear. */
+  const todayISO = ymd(new Date())
+  const projFaturamento = smoothedProjection({
+    realizado: faturamentoCombustivel,
+    dailySeries: faturamentoPorDia.map((d) => ({ data: d.data, value: d.faturamento })),
+    diasRestantes: projection.daysRemaining,
+    today: todayISO,
+  }).projetado
+  const projApurado = smoothedProjection({
+    realizado: totalApurado,
+    dailySeries: apuradoPorDia.map((d) => ({ data: d.data, value: d.apurado })),
+    diasRestantes: projection.daysRemaining,
+    today: todayISO,
+  }).projetado
+  const projLitros = smoothedProjection({
+    realizado: totalLitros,
+    dailySeries: litrosPorDia.map((d) => ({ data: d.data, value: d.litros })),
+    diasRestantes: projection.daysRemaining,
+    today: todayISO,
+  }).projetado
 
   if (showSkeleton) {
     return (
@@ -539,7 +558,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           </h3>
           {projection.isProjectable && (
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
-              Projeção: {formatLiters(totalLitros * projection.scaleFactor)}
+              Projeção: {formatLiters(projLitros)}
             </span>
           )}
         </div>

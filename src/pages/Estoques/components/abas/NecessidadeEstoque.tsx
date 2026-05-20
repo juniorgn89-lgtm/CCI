@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, AlertOctagon } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
@@ -100,18 +98,6 @@ const buildColumns = (coberturaDias: number): Column<ProductAnalyticsRow>[] => [
   },
 ]
 
-const csvColumns: ExportColumn<ProductAnalyticsRow>[] = [
-  { header: 'Produto', accessor: (r) => r.produtoNome },
-  { header: 'Categoria', accessor: (r) => r.categoria },
-  { header: 'Saldo atual', accessor: (r) => r.saldoAtual },
-  { header: 'Média mensal', accessor: (r) => r.mediaMensalVendas },
-  { header: 'Dias de cobertura', accessor: (r) => Math.round(r.diasCobertura) },
-  { header: 'Comprar (unid)', accessor: (r) => r.necessidadeUnidades },
-  { header: 'Custo unitário', accessor: (r) => r.custoMedio },
-  { header: 'Custo da compra', accessor: (r) => r.necessidadeUnidades * r.custoMedio },
-  { header: 'Status', accessor: (r) => r.necessidadeStatus },
-]
-
 const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -146,10 +132,6 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange
   }, [data])
 
   const columns = useMemo(() => buildColumns(coberturaDias), [coberturaDias])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('necessidade-estoque', filtered, csvColumns)
-  }, [filtered])
 
   const applyCobertura = () => {
     const n = Number(coberturaInput)
@@ -257,7 +239,6 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange
               <option value="">Todas categorias</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <ExportButton onExport={handleExport} />
           </div>
         </div>
 

@@ -1,11 +1,9 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { TrendingDown, Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
@@ -116,18 +114,6 @@ const columns: Column<PayableRow>[] = [
 
 type FilterSituacao = 'todos' | 'aberto' | 'vencido' | 'pago'
 
-const csvExportColumns: ExportColumn<PayableRow>[] = [
-  { header: 'Fornecedor', accessor: (r) => r.nomeFornecedor || `Fornecedor ${r.fornecedorCodigo}` },
-  { header: 'Descrição', accessor: (r) => r.descricao },
-  { header: 'Vencimento', accessor: (r) => r.vencimento },
-  { header: 'Valor', accessor: (r) => r.valor },
-  { header: 'Valor Pago', accessor: (r) => r.valorPago },
-  { header: 'Saldo Restante', accessor: (r) => r.saldoRestante },
-  { header: 'Parcela', accessor: (r) => r.quantidadeParcelas > 1 ? `${r.parcela}/${r.quantidadeParcelas}` : '' },
-  { header: 'Situação', accessor: (r) => r.situacaoLabel },
-  { header: 'Dias Atraso', accessor: (r) => r.diasAtraso },
-]
-
 const filterOptions: { value: FilterSituacao; label: string }[] = [
   { value: 'todos', label: 'Todos' },
   { value: 'aberto', label: 'A Vencer' },
@@ -155,10 +141,6 @@ const PayablesTable = ({ data }: PayablesTableProps) => {
       return true
     })
   }, [data, filter, search])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('financeiro-pagar', filtered, csvExportColumns)
-  }, [filtered])
 
   const overdueCount = data.filter((r) => r.statusTag === 'vencido').length
 
@@ -227,7 +209,6 @@ const PayablesTable = ({ data }: PayablesTableProps) => {
           <span className="text-xs text-gray-400 dark:text-gray-500">
             {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
           </span>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       <div className="overflow-x-auto">

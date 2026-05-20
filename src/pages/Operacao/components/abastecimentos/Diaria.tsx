@@ -1,10 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Fuel } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency, formatDate, formatLiters } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type {
   DailyRow,
   AbastecimentoRow,
@@ -45,18 +43,6 @@ const baseColumns: Column<ProjectedDailyRow>[] = [
       </span>
     ),
   },
-]
-
-const csvColumns: ExportColumn<ProjectedDailyRow>[] = [
-  { header: 'Data', accessor: (r) => r.data },
-  { header: 'Abastecimentos', accessor: (r) => r.abastecimentos },
-  { header: 'Litros', accessor: (r) => r.litros },
-  { header: 'Faturamento', accessor: (r) => r.faturamento },
-  { header: 'Custo', accessor: (r) => r.custo },
-  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
-  { header: 'Margem %', accessor: (r) => r.margemPct },
-  { header: 'Ticket Médio', accessor: (r) => r.ticketMedio },
-  { header: 'Projeção do mês (Litros)', accessor: (r) => r.projecaoLitros },
 ]
 
 const Diaria = ({ data, rows, combustiveis, projection }: DiariaProps) => {
@@ -106,10 +92,6 @@ const Diaria = ({ data, rows, combustiveis, projection }: DiariaProps) => {
     return withProjection(aggregated)
   }, [data, rows, selectedFuel, projection.daysTotal])
 
-  const handleExport = useCallback(() => {
-    exportToCsv(`abastecimentos-diario${selectedFuel ? `-${selectedFuel}` : ''}`, filteredData, csvColumns)
-  }, [filteredData, selectedFuel])
-
   const totals = useMemo(() => {
     const t = filteredData.reduce(
       (acc, r) => ({
@@ -148,7 +130,6 @@ const Diaria = ({ data, rows, combustiveis, projection }: DiariaProps) => {
               ))}
             </select>
           </div>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       {filteredData.length > 0 && (

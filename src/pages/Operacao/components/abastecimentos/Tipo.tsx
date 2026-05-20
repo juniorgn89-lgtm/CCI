@@ -1,9 +1,7 @@
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { FuelTypeRow, ProjectionMeta } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
@@ -61,23 +59,6 @@ const columns: Column<ProjectedFuelTypeRow>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<ProjectedFuelTypeRow>[] = [
-  { header: 'Código', accessor: (r) => r.produtoCodigo },
-  { header: 'Combustível', accessor: (r) => r.nome },
-  { header: 'Litros', accessor: (r) => r.litros },
-  { header: 'Participação %', accessor: (r) => r.participacao },
-  { header: 'Faturamento', accessor: (r) => r.faturamento },
-  { header: 'Custo', accessor: (r) => r.custo },
-  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
-  { header: 'Preço Venda', accessor: (r) => r.precoMedioVenda },
-  { header: 'Preço Custo', accessor: (r) => r.precoCustoMedio },
-  { header: 'L.B./Litro', accessor: (r) => r.lbPorLitro },
-  { header: 'Margem %', accessor: (r) => r.margem },
-  { header: 'Projeção Litros', accessor: (r) => r.projecaoLitros },
-  { header: 'Projeção Faturamento', accessor: (r) => r.projecaoFaturamento },
-  { header: 'Projeção Lucro Bruto', accessor: (r) => r.projecaoLucroBruto },
-]
-
 const Tipo = ({ data, projection }: TipoProps) => {
   const projectedData = useMemo<ProjectedFuelTypeRow[]>(
     () => data.map((r) => ({
@@ -88,10 +69,6 @@ const Tipo = ({ data, projection }: TipoProps) => {
     })),
     [data, projection.scaleFactor]
   )
-
-  const handleExport = useCallback(() => {
-    exportToCsv('abastecimentos-tipo', projectedData, csvColumns)
-  }, [projectedData])
 
   const totals = useMemo(() => {
     const t = data.reduce(
@@ -115,7 +92,6 @@ const Tipo = ({ data, projection }: TipoProps) => {
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Por tipo de combustível</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">Detalhamento por produto com participação e margens</p>
         </div>
-        <ExportButton onExport={handleExport} />
       </div>
       {data.length > 0 && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800/50">

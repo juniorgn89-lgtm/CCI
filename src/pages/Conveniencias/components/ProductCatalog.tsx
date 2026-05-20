@@ -1,10 +1,8 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Search, ShoppingCart } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
@@ -54,18 +52,6 @@ const columns: Column<CatalogProduct>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<CatalogProduct>[] = [
-  { header: 'Código', accessor: (r) => r.produtoCodigo },
-  { header: 'Produto', accessor: (r) => r.nome },
-  { header: 'Grupo', accessor: (r) => r.grupo },
-  { header: 'Preço Médio', accessor: (r) => r.precoMedioVenda },
-  { header: 'Custo Médio', accessor: (r) => r.custoMedio },
-  { header: 'Qtd Vendida', accessor: (r) => r.qtdVendida },
-  { header: 'Faturamento', accessor: (r) => r.faturamento },
-  { header: 'Margem %', accessor: (r) => r.margemPct },
-  { header: 'Status', accessor: (r) => (r.ativo ? 'Ativo' : 'Inativo') },
-]
-
 const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
   const [search, setSearch] = useState('')
   const [grupoFilter, setGrupoFilter] = useState('')
@@ -82,10 +68,6 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     }
     return [...result].sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number))
   }, [products, search, grupoFilter, sortBy])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('conveniencia-catalogo', filtered, csvColumns)
-  }, [filtered])
 
   const catalogTotals = useMemo(() => {
     const faturamento = filtered.reduce((s, p) => s + p.faturamento, 0)
@@ -165,8 +147,6 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
               Limpar
             </button>
           )}
-
-          <ExportButton onExport={handleExport} />
         </div>
 
         <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} />

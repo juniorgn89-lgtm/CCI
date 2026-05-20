@@ -1,8 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, ArrowUp, ArrowDown } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
@@ -46,14 +44,6 @@ const columns: Column<EnrichedRow>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<EnrichedRow>[] = [
-  { header: 'Produto', accessor: (r) => r.produtoNome },
-  { header: 'Categoria', accessor: (r) => r.categoria },
-  { header: 'Estoque médio (6m)', accessor: (r) => r.estoqueMedio },
-  { header: 'Saldo atual', accessor: (r) => r.saldoAtual },
-  { header: 'Variação % vs média', accessor: (r) => r.variacaoVsMedia },
-]
-
 const EstoqueMedio = ({ data, categorias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -80,10 +70,6 @@ const EstoqueMedio = ({ data, categorias }: Props) => {
     const totalMedio = filtered.reduce((s, r) => s + r.estoqueMedio, 0)
     const totalAtual = filtered.reduce((s, r) => s + r.saldoAtual, 0)
     return { totalMedio, totalAtual, count: filtered.length }
-  }, [filtered])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('estoque-medio', filtered, csvColumns)
   }, [filtered])
 
   return (
@@ -114,7 +100,6 @@ const EstoqueMedio = ({ data, categorias }: Props) => {
             <option value="">Todas categorias</option>
             {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       {filtered.length > 0 && (

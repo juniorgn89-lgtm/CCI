@@ -304,13 +304,10 @@ export const fetchAbastecimentosCache = async (
   params: FetchAbastCacheParams
 ): Promise<AbastecimentoCacheRow[]> => {
   if (!supabase) return []
-  const tStart = performance.now()
   const all: AbastecimentoCacheRow[] = []
   const pageSize = 1000
   let cursor = -1
-  let pageNum = 0
   while (true) {
-    const tPage = performance.now()
     // Seleção explícita das colunas usadas no front (rede_id sai porque
     // já é filtrado por RLS, e a economia de payload acumula em 10k rows).
     let query = supabase
@@ -327,9 +324,6 @@ export const fetchAbastecimentosCache = async (
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
     const { data, error } = await query
-    pageNum++
-    // eslint-disable-next-line no-console
-    console.log(`[apuracao_abast] page ${pageNum}: ${(performance.now() - tPage).toFixed(0)}ms · ${(data ?? []).length} rows`)
     if (error) {
       console.warn('[apuracao_abast] fetch error:', error.message)
       break
@@ -340,8 +334,6 @@ export const fetchAbastecimentosCache = async (
     if (rows.length < pageSize) break
     cursor = rows[rows.length - 1].abastecimento_codigo
   }
-  // eslint-disable-next-line no-console
-  console.log(`[apuracao_abast] TOTAL: ${(performance.now() - tStart).toFixed(0)}ms · ${all.length} rows · ${pageNum} pages`)
   return all
 }
 

@@ -1,11 +1,9 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { TrendingUp, Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
@@ -90,16 +88,6 @@ const columns: Column<ReceivableRow>[] = [
 
 type FilterSituacao = 'todos' | 'aberto' | 'vencido' | 'pago'
 
-const csvExportColumns: ExportColumn<ReceivableRow>[] = [
-  { header: 'Cliente', accessor: (r) => r.nomeCliente || `Cliente ${r.clienteCodigo}` },
-  { header: 'Documento', accessor: (r) => r.documento },
-  { header: 'Vencimento', accessor: (r) => r.dataVencimento },
-  { header: 'Valor', accessor: (r) => r.valor },
-  { header: 'Tipo', accessor: (r) => r.tipo },
-  { header: 'Situação', accessor: (r) => r.situacaoLabel },
-  { header: 'Dias Atraso', accessor: (r) => r.diasAtraso },
-]
-
 const filterOptions: { value: FilterSituacao; label: string }[] = [
   { value: 'todos', label: 'Todos' },
   { value: 'aberto', label: 'A Vencer' },
@@ -125,10 +113,6 @@ const ReceivablesTable = ({ data }: ReceivablesTableProps) => {
       return true
     })
   }, [data, filter, search])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('financeiro-receber', filtered, csvExportColumns)
-  }, [filtered])
 
   const overdueCount = data.filter((r) => r.statusTag === 'vencido').length
 
@@ -197,7 +181,6 @@ const ReceivablesTable = ({ data }: ReceivablesTableProps) => {
           <span className="text-xs text-gray-400 dark:text-gray-500">
             {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
           </span>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       <div className="overflow-x-auto">

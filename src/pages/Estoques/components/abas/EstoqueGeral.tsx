@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
@@ -39,15 +37,6 @@ const columns: Column<ProductAnalyticsRow>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<ProductAnalyticsRow>[] = [
-  { header: 'SKU', accessor: (r) => r.codigoSku },
-  { header: 'Produto', accessor: (r) => r.produtoNome },
-  { header: 'Categoria', accessor: (r) => r.categoria },
-  { header: 'Saldo atual', accessor: (r) => r.saldoAtual },
-  { header: 'Custo médio', accessor: (r) => r.custoMedio },
-  { header: 'Valor em estoque', accessor: (r) => r.valorEstoque },
-]
-
 const EstoqueGeral = ({ data, categorias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -66,16 +55,12 @@ const EstoqueGeral = ({ data, categorias }: Props) => {
     return { valor, unidades, count: filtered.length }
   }, [filtered])
 
-  const handleExport = useCallback(() => {
-    exportToCsv('estoque-geral', filtered, csvColumns)
-  }, [filtered])
-
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
         <div>
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Estoque de todos os produtos</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Saldo atual por produto, ordenável e exportável</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Saldo atual por produto, ordenável</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -96,7 +81,6 @@ const EstoqueGeral = ({ data, categorias }: Props) => {
             <option value="">Todas categorias</option>
             {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       {filtered.length > 0 && (

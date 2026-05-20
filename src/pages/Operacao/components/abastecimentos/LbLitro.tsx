@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -18,8 +18,6 @@ import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip } from '@/li
 import { cn } from '@/lib/utils'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import ExportButton from '@/components/tables/ExportButton'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type {
   LbLitroData,
   LbLitroProduct,
@@ -134,16 +132,6 @@ const tableColumns: Column<ProjectedLbLitroProduct>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<ProjectedLbLitroProduct>[] = [
-  { header: 'Combustível', accessor: (r) => r.nome },
-  { header: 'L.B./Litro', accessor: (r) => r.lbPorLitro },
-  { header: 'Lucro Bruto', accessor: (r) => r.lucroBruto },
-  { header: 'Litros', accessor: (r) => r.litros },
-  { header: 'Participação L.B. %', accessor: (r) => r.participacaoLb },
-  { header: 'Projeção Lucro Bruto', accessor: (r) => r.projecaoLucroBruto },
-  { header: 'Projeção Litros', accessor: (r) => r.projecaoLitros },
-]
-
 const LbLitro = ({ data, projection }: LbLitroProps) => {
   const projectedByProduct = useMemo<ProjectedLbLitroProduct[]>(
     () => data.byProduct.map((r) => ({
@@ -153,10 +141,6 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
     })),
     [data.byProduct, projection.scaleFactor]
   )
-
-  const handleExport = useCallback(() => {
-    exportToCsv('abastecimentos-lb-litro', projectedByProduct, csvColumns)
-  }, [projectedByProduct])
 
   const best = data.byProduct.length > 0 ? data.byProduct[0] : null
   const worst = data.byProduct.length > 1 ? data.byProduct[data.byProduct.length - 1] : null
@@ -514,7 +498,6 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
               {data.byProduct.length} combustíveis — ordenados por L.B./Litro
             </p>
           </div>
-          <ExportButton onExport={handleExport} />
         </div>
         {data.byProduct.length === 0 ? (
           <div className="flex h-48 items-center justify-center">

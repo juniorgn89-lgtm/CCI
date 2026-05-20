@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import useDashboardData from './useDashboardData'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
+import { smoothedProjection } from '@/lib/projection'
 
 export interface ProjecaoValues {
   faturamento: number
@@ -62,8 +63,12 @@ const useProjecaoMes = (): ProjecaoMesData => {
   // Quando aguardando primeiro fechamento, range é inválido (D1 > D-1).
   // Usa firstOfMonth como dataFinal para manter range válido — o flag awaitingFirstClose ignora os dados retornados.
   const dataFinal = awaitingFirstClose ? dataInicial : formatDate(yesterday)
+  const todayISO = formatDate(today)
+  // A query cobre só 1º→ontem (dias fechados), então hoje + futuro ainda não
+  // entraram no realizado e são os dias a projetar.
+  const diasRestantes = diasNoMes - diasFechados
 
-  const { globalKpi, sectorDetails, comparison, isLoading } = useDashboardData({
+  const { globalKpi, sectorDetails, comparison, salesEvolution, isLoading } = useDashboardData({
     period: { dataInicial, dataFinal },
   })
 
@@ -90,9 +95,22 @@ const useProjecaoMes = (): ProjecaoMesData => {
       margem: globalKpi?.margem ?? 0,
     }
 
-    const factor = diasNoMes / diasFechados
-    const projetadoFat = realizado.faturamento * factor
-    const projetadoLB = realizado.lucroBruto * factor
+    // Ritmo via média móvel dos últimos 7 dias fechados (faturamento total
+    // por dia = combustível + não-combustível).
+    const dailyFat = salesEvolution.map((p) => ({
+      data: p.date,
+      value: p.fuelRevenue + p.nonFuelRevenue,
+    }))
+    const { projetado: projetadoFat } = smoothedProjection({
+      realizado: realizado.faturamento,
+      dailySeries: dailyFat,
+      diasRestantes,
+      today: todayISO,
+    })
+    // Não temos lucro diário pra suavizar, então o lucro cresce proporcional
+    // ao faturamento — mantém a margem realizada (mesmo comportamento de antes).
+    const growth = realizado.faturamento > 0 ? projetadoFat / realizado.faturamento : 1
+    const projetadoLB = realizado.lucroBruto * growth
     const projetado: ProjecaoValues = {
       faturamento: projetadoFat,
       lucroBruto: projetadoLB,
@@ -147,6 +165,9 @@ const useProjecaoMes = (): ProjecaoMesData => {
     sectorDetails,
     comparison,
     comparisonMode,
+    salesEvolution,
+    todayISO,
+    diasRestantes,
     diasFechados,
     diasNoMes,
     awaitingFirstClose,

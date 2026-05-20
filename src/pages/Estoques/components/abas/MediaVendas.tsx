@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
-import ExportButton from '@/components/tables/ExportButton'
 import { formatCurrency } from '@/lib/formatters'
-import exportToCsv, { type ExportColumn } from '@/lib/exportCsv'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
@@ -61,16 +59,6 @@ const columns: Column<ProductAnalyticsRow>[] = [
   },
 ]
 
-const csvColumns: ExportColumn<ProductAnalyticsRow>[] = [
-  { header: 'Produto', accessor: (r) => r.produtoNome },
-  { header: 'Categoria', accessor: (r) => r.categoria },
-  { header: 'Vendas 6m', accessor: (r) => r.vendasUltimos6m },
-  { header: 'Média mensal', accessor: (r) => r.mediaMensalVendas },
-  { header: 'Pico (qtd)', accessor: (r) => r.vendasPico },
-  { header: 'Pico (mês)', accessor: (r) => r.mesPico ?? '' },
-  { header: 'Receita 6m', accessor: (r) => r.receitaUltimos6m },
-]
-
 const MediaVendas = ({ data, categorias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -90,10 +78,6 @@ const MediaVendas = ({ data, categorias }: Props) => {
     const totalVendas = filtered.reduce((s, r) => s + r.vendasUltimos6m, 0)
     const totalReceita = filtered.reduce((s, r) => s + r.receitaUltimos6m, 0)
     return { totalVendas, totalReceita, count: filtered.length }
-  }, [filtered])
-
-  const handleExport = useCallback(() => {
-    exportToCsv('media-vendas-6m', filtered, csvColumns)
   }, [filtered])
 
   return (
@@ -124,7 +108,6 @@ const MediaVendas = ({ data, categorias }: Props) => {
             <option value="">Todas categorias</option>
             {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <ExportButton onExport={handleExport} />
         </div>
       </div>
       {filtered.length > 0 && (
