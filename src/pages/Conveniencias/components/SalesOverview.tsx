@@ -86,6 +86,12 @@ const SalesOverview = ({ dailyData, groupTable, revenueData, salesByDay, product
     return { faturamento, margem, margemPct, itens }
   }, [dailyData])
 
+  // Dia a Dia sempre começa decrescente (dia mais recente no topo).
+  const dailyDesc = useMemo(
+    () => [...dailyData].sort((a, b) => b.data.localeCompare(a.data)),
+    [dailyData],
+  )
+
   const subTabs: { key: SubView; label: string }[] = [
     { key: 'diario', label: 'Dia a Dia' },
     { key: 'grupo', label: 'Por Grupo' },
@@ -135,7 +141,7 @@ const SalesOverview = ({ dailyData, groupTable, revenueData, salesByDay, product
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Resumo diário</span>
             <span className="text-xs text-gray-400 dark:text-gray-500">Clique num dia pra ver os produtos vendidos</span>
           </div>
-          <DataTable columns={dailyCols} data={dailyData} keyExtractor={(r) => r.data} onRowClick={(r) => setSelectedDay(r.data)} />
+          <DataTable columns={dailyCols} data={dailyDesc} keyExtractor={(r) => r.data} onRowClick={(r) => setSelectedDay(r.data)} />
         </div>
       )}
 
