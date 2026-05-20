@@ -447,6 +447,38 @@ const useConvenienceData = () => {
       salesByDay[day] = list
     }
 
+    // ── Produtos por grupo (pro modal de detalhe do grupo) ──
+    const byGrupoProduto = new Map<number, Map<number, { quantidade: number; faturamento: number; custo: number }>>()
+    for (const a of convAggs) {
+      const gc = getGroupCode(a.produtoCodigo)
+      const gMap = byGrupoProduto.get(gc) ?? new Map<number, { quantidade: number; faturamento: number; custo: number }>()
+      const p = gMap.get(a.produtoCodigo) ?? { quantidade: 0, faturamento: 0, custo: 0 }
+      p.quantidade += a.quantidade
+      p.faturamento += a.totalVenda
+      p.custo += a.totalCusto
+      gMap.set(a.produtoCodigo, p)
+      byGrupoProduto.set(gc, gMap)
+    }
+    const productsByGroup: Record<number, DaySaleProduct[]> = {}
+    for (const [gc, gMap] of byGrupoProduto) {
+      const list: DaySaleProduct[] = []
+      for (const [code, v] of gMap) {
+        const margemRs = v.faturamento - v.custo
+        list.push({
+          produtoCodigo: code,
+          nome: getName(code),
+          grupo: getGroup(code),
+          quantidade: v.quantidade,
+          faturamento: v.faturamento,
+          custo: v.custo,
+          margemRs,
+          margemPct: v.faturamento > 0 ? (margemRs / v.faturamento) * 100 : 0,
+        })
+      }
+      list.sort((a, b) => b.faturamento - a.faturamento)
+      productsByGroup[gc] = list
+    }
+
     // ── Group breakdown ──
     const byGrupo = new Map<number, { faturamento: number; quantidade: number; custo: number }>()
     for (const a of convAggs) {
@@ -754,6 +786,7 @@ const useConvenienceData = () => {
       dailyData,
       dailyChartData,
       salesByDay,
+      productsByGroup,
       groupTable,
       revenueData,
       catalogProducts,

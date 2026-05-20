@@ -28,7 +28,7 @@ export interface ProratedPagamentos {
   totalTransacoes: number
 }
 
-export interface UseDiaPagamentosResult {
+export interface PagamentosRawResult {
   itens: VendaItem[]
   formas: VendaFormaPagamento[]
   isLoading: boolean
@@ -74,42 +74,47 @@ export const computeProratedPagamentos = (
   return { breakdown, total, totalTransacoes }
 }
 
-const useDiaPagamentos = (data: string | null): UseDiaPagamentosResult => {
+/**
+ * Busca itens + formas crus de um período (dia único ou mês inteiro), sob
+ * demanda. Usado tanto pelo modal do dia (data==dataFinal) quanto pelo modal
+ * de grupo (período inteiro). Desabilitado quando o range é nulo.
+ */
+const usePagamentosRaw = (dataInicial: string | null, dataFinal: string | null): PagamentosRawResult => {
   const empresaCodigo = useFilterStore((s) => s.empresaCodigos[0] ?? null)
-  const enabled = !!data && empresaCodigo != null
+  const enabled = !!dataInicial && !!dataFinal && empresaCodigo != null
 
-  // Itens crus do dia — TODOS (loja + combustível), pra calcular a proporção.
+  // Itens crus — TODOS (loja + combustível), pra calcular a proporção do rateio.
   // usaProdutoLmc:false garante o produtoCodigo real (casa com o catálogo).
   const { data: itens = [], isLoading: loadingItens } = useQuery({
-    queryKey: ['conv-dia-itens', empresaCodigo, data],
+    queryKey: ['conv-pag-itens', empresaCodigo, dataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchVendaItens({
           empresaCodigo: empresaCodigo ?? undefined,
-          dataInicial: data!,
-          dataFinal: data!,
+          dataInicial: dataInicial!,
+          dataFinal: dataFinal!,
           usaProdutoLmc: false,
           ultimoCodigo: p.ultimoCodigo,
           limite: p.limite,
         }),
-        1000, 50,
+        1000, 100,
       ),
     enabled,
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: formas = [], isLoading: loadingFormas } = useQuery({
-    queryKey: ['conv-dia-formas', empresaCodigo, data],
+    queryKey: ['conv-pag-formas', empresaCodigo, dataInicial, dataFinal],
     queryFn: () =>
       fetchAllPages(
         (p) => fetchVendaFormasPagamento({
           empresaCodigo: empresaCodigo ?? undefined,
-          dataInicial: data!,
-          dataFinal: data!,
+          dataInicial: dataInicial!,
+          dataFinal: dataFinal!,
           ultimoCodigo: p.ultimoCodigo,
           limite: p.limite,
         }),
-        1000, 50,
+        1000, 100,
       ),
     enabled,
     staleTime: 5 * 60 * 1000,
@@ -118,4 +123,4 @@ const useDiaPagamentos = (data: string | null): UseDiaPagamentosResult => {
   return { itens, formas, isLoading: loadingItens || loadingFormas }
 }
 
-export default useDiaPagamentos
+export default usePagamentosRaw
