@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { Wrench, ArrowLeft, Package, TrendingUp, DollarSign, Layers } from 'lucide-react'
+import { Wrench, Package, TrendingUp, DollarSign, Layers } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -11,6 +10,7 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 
 /* ─── Helpers ─── */
 
@@ -189,13 +189,6 @@ const OperacaoPista = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-3">
-          <Link
-            to="/operacao"
-            aria-label="Voltar pra Operação"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
             <Wrench className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           </div>
@@ -209,6 +202,9 @@ const OperacaoPista = () => {
           </div>
         </div>
       </PageHeaderTitle>
+
+      {/* Switcher entre Combustível / Pista / Mix */}
+      <OperacaoNav />
 
       {!hasEmpresa && <SelectCompanyState />}
 

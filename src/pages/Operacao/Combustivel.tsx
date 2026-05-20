@@ -6,6 +6,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
@@ -104,6 +105,9 @@ const Operacao = () => {
       <PageHeaderActions>
         <ModuleSettings title="Operação" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </PageHeaderActions>
+
+      {/* Switcher entre Combustível / Pista / Mix */}
+      <OperacaoNav />
 
       {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}

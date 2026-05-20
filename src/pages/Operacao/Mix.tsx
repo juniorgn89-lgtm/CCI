@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { GitMerge, ArrowLeft, Fuel, Wrench, DollarSign, TrendingUp } from 'lucide-react'
+import { GitMerge, Fuel, Wrench, DollarSign, TrendingUp } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { useFilterStore } from '@/store/filters'
+import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 
 /* ─── Placeholder ─── */
 
@@ -25,13 +26,6 @@ const OperacaoMix = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-3">
-          <Link
-            to="/operacao"
-            aria-label="Voltar pra Operação"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/30">
             <GitMerge className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
@@ -45,6 +39,9 @@ const OperacaoMix = () => {
           </div>
         </div>
       </PageHeaderTitle>
+
+      {/* Switcher entre Combustível / Pista / Mix */}
+      <OperacaoNav />
 
       {!hasEmpresa && <SelectCompanyState />}
 
