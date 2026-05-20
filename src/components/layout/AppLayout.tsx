@@ -17,6 +17,7 @@ import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
+import { showsGlobalFilters } from '@/lib/globalFilters'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -190,10 +191,9 @@ const AppLayout = () => {
             direita:  filtros globais + slot pra ações da página
             Páginas que não usarem o slot da esquerda ficam só com a direita
             (filtros encostam na borda direita).
-            Escondida em /inteligencia, Configurações e nas telas de Admin
-            (nível de rede — os filtros de posto/período/comparativo não se
-            aplicam). */}
-        {pathname !== '/inteligencia' && pathname !== '/configuracoes' && !pathname.startsWith('/admin/') && (
+            Escondida em /inteligencia e nas telas de nível de rede (Admin,
+            Configurações, Selecionar rede) — ver showsGlobalFilters. */}
+        {showsGlobalFilters(pathname) && (
           <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-3 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pt-4">
             <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
             <div className="flex shrink-0 items-center gap-3">
