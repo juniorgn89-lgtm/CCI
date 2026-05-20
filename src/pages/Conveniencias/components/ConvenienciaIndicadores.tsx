@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import {
-  Package, Receipt, Trophy,
+  Package, Trophy,
 } from 'lucide-react'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -9,13 +9,12 @@ import {
 import { cn } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
-import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem } from '@/pages/Conveniencias/hooks/useConvenienceData'
+import type { DailyChartRow, GroupRow, TopSellerItem } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
 interface Props {
-  kpis: ConvKpiData
-  dailyData: DailyRow[]
+  dailyChartData: DailyChartRow[]
   groupTable: GroupRow[]
   topSellers: TopSellerItem[]
   onNavigateTab: (tab: string) => void
@@ -26,7 +25,7 @@ const fmtDay = (d: string) => {
   return `${parts[2]}/${parts[1]}`
 }
 
-const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, onNavigateTab }: Props) => {
+const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNavigateTab }: Props) => {
   const computed = useMemo(() => {
     // Top 5 groups for donut
     const topGroups = groupTable.slice(0, 6)
@@ -37,31 +36,14 @@ const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, onNa
 
   return (
     <div className="space-y-6">
-      {/* KPI secundário — Ticket Médio (os principais ficam globais acima das abas) */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-        <button
-          type="button"
-          onClick={() => onNavigateTab('vendas')}
-          className="rounded-lg border border-gray-200/60 bg-gray-50/50 px-3 py-3 text-left shadow-sm transition-all hover:bg-white hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800/40 dark:hover:bg-gray-800"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Ticket Médio</p>
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
-              <Receipt className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-            </div>
-          </div>
-          <p className="mt-1 text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(kpis.ticketMedio)}</p>
-        </button>
-      </div>
-
       {/* Daily sales chart — moved from Vendas tab */}
-      {dailyData.length > 0 && (
+      {dailyChartData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">Vendas Diárias</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart data={dailyData}>
+            <ComposedChart data={dailyChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-              <XAxis dataKey="data" tickFormatter={fmtDay} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+              <XAxis dataKey="data" tickFormatter={fmtDay} tick={{ fontSize: 11, fill: '#9ca3af' }} interval="preserveStartEnd" minTickGap={16} />
               <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
@@ -69,8 +51,11 @@ const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, onNa
                 labelFormatter={fmtDay as never}
               />
               <Legend />
-              <Bar dataKey="faturamento" name="Faturamento" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="margemRs" name="Margem" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+              {/* Barras reais (dias fechados) + projeção (dias futuros, tracejado).
+                  stackId mantém a largura cheia já que só um valor existe por dia. */}
+              <Bar dataKey="faturamento" name="Faturamento" stackId="fat" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="projetado" name="Projeção" stackId="fat" fill={CHART_COLORS[1]} fillOpacity={0.25} stroke={CHART_COLORS[1]} strokeOpacity={0.5} strokeDasharray="3 3" radius={[4, 4, 0, 0]} />
+              <Line type="monotone" dataKey="margemRs" name="Margem" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} connectNulls={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

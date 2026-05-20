@@ -5,7 +5,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { smoothedProjection } from '@/lib/projection'
+import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
 import useVendasCache, { aggregateItensToVendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -34,6 +34,12 @@ export interface ProjecaoVendas {
   comparativo: number
   /** Variação % do projetado vs mês anterior. */
   variacao: number
+  /**
+   * True só quando o período tem dias futuros (há o que projetar) — modo
+   * "Completo" do mês corrente. Em "Apurado"/"Em andamento" não há futuro, então
+   * `faturamento` = realizado e a projeção não é real (a UI avisa o usuário).
+   */
+  isProjetada: boolean
 }
 
 export interface DailyRow {
@@ -44,6 +50,20 @@ export interface DailyRow {
   margemPct: number
   qtdItens: number
   ticketMedio: number
+  [key: string]: unknown
+}
+
+/**
+ * Série diária pro gráfico "Vendas Diárias" cobrindo o período inteiro:
+ * dias passados/hoje vêm como `faturamento` (real) e os dias que faltam até o
+ * fim do período como `projetado` (média móvel suavizada). `margemRs` só nos
+ * dias reais (a linha de margem para em hoje).
+ */
+export interface DailyChartRow {
+  data: string
+  faturamento: number | null
+  projetado: number | null
+  margemRs: number | null
   [key: string]: unknown
 }
 
@@ -657,12 +677,37 @@ const useConvenienceData = () => {
       faturamento: projetadoFat,
       comparativo: prevFat,
       variacao: prevFat > 0 ? ((projetadoFat - prevFat) / prevFat) * 100 : 0,
+      isProjetada: diasRestantes > 0,
+    }
+
+    // ── Série diária do gráfico (real + projeção dos dias futuros) ──
+    const fatRate = movingAverageDailyRate(
+      dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
+      todayISO,
+    )
+    const dailyByDate = new Map(dailyData.map((d) => [d.data, d]))
+    const dailyChartData: DailyChartRow[] = []
+    {
+      const s = new Date(`${dataInicial}T00:00:00`)
+      const e = new Date(`${dataFinal}T00:00:00`)
+      for (const cur = new Date(s); cur <= e; cur.setDate(cur.getDate() + 1)) {
+        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
+        const isFuture = ds > todayISO
+        const row = dailyByDate.get(ds)
+        dailyChartData.push({
+          data: ds,
+          faturamento: isFuture ? null : (row?.faturamento ?? 0),
+          projetado: isFuture ? fatRate : null,
+          margemRs: isFuture ? null : (row?.margemRs ?? 0),
+        })
+      }
     }
 
     return {
       kpis,
       projecao,
       dailyData,
+      dailyChartData,
       groupTable,
       revenueData,
       catalogProducts,

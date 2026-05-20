@@ -47,6 +47,12 @@ interface Option {
 
 const options: Option[] = [
   {
+    value: 'completo',
+    label: 'Completo',
+    Icon: Layers,
+    title: 'Mês inteiro (1º → último dia) — apurados + dia corrente',
+  },
+  {
     value: 'em_andamento',
     label: 'Em andamento',
     Icon: Activity,
@@ -57,12 +63,6 @@ const options: Option[] = [
     label: 'Apurado',
     Icon: CheckCircle2,
     title: 'Só dias já fechados do mês (1º → ontem) — bate no cache, super rápido',
-  },
-  {
-    value: 'completo',
-    label: 'Completo',
-    Icon: Layers,
-    title: 'Mês inteiro (1º → último dia) — apurados + dia corrente',
   },
 ]
 

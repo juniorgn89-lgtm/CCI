@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart } from 'lucide-react'
+import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart, Info } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -104,6 +104,7 @@ const Conveniencias = () => {
     kpis,
     projecao,
     dailyData,
+    dailyChartData,
     groupTable,
     revenueData,
     catalogProducts,
@@ -206,7 +207,14 @@ const Conveniencias = () => {
                   <LineChart className="h-4 w-4 text-white" />
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-white">
+              <p
+                className={cn(
+                  'mt-2 text-2xl font-bold tabular-nums text-white',
+                  // Sem dias futuros (Apurado/Em andamento) o valor não é projeção:
+                  // risca pra deixar claro que não há previsão.
+                  kpis && !projecao.isProjetada && 'text-white/50 line-through decoration-white/60',
+                )}
+              >
                 {showSkeleton || !kpis ? '—' : formatCurrencyInt(projecao.faturamento)}
               </p>
               <p className="mt-2 text-[11px] text-white/70">Previsão - Mês anterior</p>
@@ -216,6 +224,14 @@ const Conveniencias = () => {
                 </span>
                 {kpis && <DeltaPill pct={projecao.variacao} light />}
               </div>
+              {/* A projeção só extrapola quando há dias futuros (modo "Completo").
+                  Nos modos "Apurado"/"Em andamento" o valor = realizado, então avisamos. */}
+              {kpis && !projecao.isProjetada && (
+                <p className="mt-2 flex items-start gap-1 text-[10px] leading-snug text-white/70">
+                  <Info className="mt-px h-3 w-3 shrink-0" />
+                  Projeção disponível só no modo "Completo".
+                </p>
+              )}
             </button>
           </div>
 
@@ -260,8 +276,7 @@ const Conveniencias = () => {
                 <Suspense fallback={<ContentSkeleton />}>
                   {activeTab === 'indicadores' && kpis && (
                     <ConvenienciaIndicadores
-                      kpis={kpis}
-                      dailyData={dailyData}
+                      dailyChartData={dailyChartData}
                       groupTable={groupTable}
                       topSellers={topSellers}
                       onNavigateTab={setActiveTab}
