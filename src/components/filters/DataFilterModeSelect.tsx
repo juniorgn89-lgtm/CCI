@@ -83,14 +83,15 @@ const DataFilterModeSelect = () => {
   const lastM = lastOfCurrentMonth()
   const yesterday = yesterdayOrFirst()
 
-  const activeMode: Mode | null =
+  // "Em andamento" (só hoje) e "Apurado" (1º→ontem) são exatos. Qualquer outro
+  // range — mês completo, multi-mês ou personalizado — cai em "Completo", que
+  // fica marcado como o modo padrão. Clicar em outro modo reseta o período.
+  const activeMode: Mode =
     dataInicial === today && dataFinal === today
       ? 'em_andamento'
       : dataInicial === firstM && dataFinal === yesterday
         ? 'apurado'
-        : dataInicial === firstM && dataFinal === lastM
-          ? 'completo'
-          : null
+        : 'completo'
 
   const handleSelect = (mode: Mode) => {
     if (mode === 'em_andamento') {

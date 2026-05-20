@@ -568,6 +568,28 @@ const useOperacaoData = () => {
       }))
     }
 
+    // Pré-indexa abastecimentos e formas por DIA (com timestamp memoizado).
+    // Antes o cruzamento caixa×abastecimento fazia `abastecimentos.filter` por
+    // caixa → O(caixas × abast), que travava a tela em períodos longos (2+ meses).
+    // Agora cada caixa só varre o bucket do seu dia.
+    const abastByDay = new Map<string, { a: typeof abastecimentos[number]; ts: number | null }[]>()
+    for (const a of abastecimentos) {
+      const dia = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+      if (!dia) continue
+      const ts = a.dataHoraAbastecimento ? new Date(a.dataHoraAbastecimento).getTime() : null
+      const bucket = abastByDay.get(dia) ?? []
+      bucket.push({ a, ts })
+      abastByDay.set(dia, bucket)
+    }
+    const formasByDay = new Map<string, typeof formasPgto>()
+    for (const fp of formasPgto) {
+      const dia = fp.dataMovimento?.substring(0, 10) ?? ''
+      if (!dia) continue
+      const bucket = formasByDay.get(dia) ?? []
+      bucket.push(fp)
+      formasByDay.set(dia, bucket)
+    }
+
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
         const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
@@ -586,17 +608,12 @@ const useOperacaoData = () => {
             : Date.now()
         }
 
-        const shiftAbast = abastecimentos.filter((a) => {
-          // Pre-filter by date for performance
-          const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-          if (abastDate !== caixaDate) return false
-          // Time window via UTC timestamps
-          if (!a.dataHoraAbastecimento || !aberturaTs) return true
-          const abastTs = new Date(a.dataHoraAbastecimento).getTime()
-          if (abastTs < aberturaTs) return false
-          if (abastTs > fechamentoTs!) return false
-          return true
-        })
+        const shiftAbast = (abastByDay.get(caixaDate) ?? [])
+          .filter(({ ts }) => {
+            if (ts == null || aberturaTs == null) return true
+            return ts >= aberturaTs && ts <= fechamentoTs!
+          })
+          .map(({ a }) => a)
 
         // Aggregate frentistas who worked this shift
         const frentistaAgg = new Map<number, { litros: number; count: number; valor: number }>()
@@ -618,11 +635,8 @@ const useOperacaoData = () => {
           }))
           .sort((a, b) => b.litros - a.litros)
 
-        // Cross-reference formas de pagamento for this shift
-        const shiftPgto = formasPgto.filter((fp) => {
-          const fpDate = fp.dataMovimento?.substring(0, 10) ?? ''
-          return fpDate === caixaDate
-        })
+        // Cross-reference formas de pagamento for this shift (bucket do dia)
+        const shiftPgto = formasByDay.get(caixaDate) ?? []
 
         const pgtoAggShift = new Map<string, { nome: string; valor: number; count: number }>()
         for (const fp of shiftPgto) {
@@ -662,6 +676,8 @@ const useOperacaoData = () => {
       })
 
     // ── Turno groups (group caixas by turnoCodigo + dataMovimento) ──
+    // Índice caixa→turnoRow pra mesclar pagamentos sem varrer turnoRows por grupo.
+    const turnoRowByCaixa = new Map(turnoRows.map((r) => [r.caixaCodigo, r]))
     const groupMap = new Map<string, typeof caixas>()
     for (const c of caixas) {
       const key = `${c.turnoCodigo}-${c.dataMovimento?.substring(0, 10)}`
@@ -689,14 +705,13 @@ const useOperacaoData = () => {
           ? Math.max(...grpCaixas.map((c) => c.fechamento ? new Date(c.fechamento).getTime() : 0))
           : Date.now()
 
-        // All abastecimentos in the group's time window
-        const grpAbast = abastecimentos.filter((a) => {
-          const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-          if (abastDate !== caixaDate) return false
-          if (!a.dataHoraAbastecimento || !isFinite(aberturaTs)) return true
-          const ts = new Date(a.dataHoraAbastecimento).getTime()
-          return ts >= aberturaTs && ts <= maxFechamentoTs
-        })
+        // All abastecimentos in the group's time window (bucket do dia)
+        const grpAbast = (abastByDay.get(caixaDate) ?? [])
+          .filter(({ ts }) => {
+            if (ts == null || !isFinite(aberturaTs)) return true
+            return ts >= aberturaTs && ts <= maxFechamentoTs
+          })
+          .map(({ a }) => a)
 
         // Frentistas aggregated for the whole turno
         const frentAgg = new Map<number, { litros: number; count: number; valor: number }>()
@@ -717,9 +732,11 @@ const useOperacaoData = () => {
           }))
           .sort((a, b) => b.faturamento - a.faturamento)
 
-        // Merged pagamentos
+        // Merged pagamentos (lookup direto por caixa, sem varrer turnoRows)
         const pgtoMerge = new Map<string, TurnoPagamento>()
-        for (const row of turnoRows.filter((r) => grpCaixas.some((c) => c.caixaCodigo === r.caixaCodigo))) {
+        for (const c of grpCaixas) {
+          const row = turnoRowByCaixa.get(c.caixaCodigo)
+          if (!row) continue
           for (const p of row.pagamentos) {
             const prev = pgtoMerge.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
             pgtoMerge.set(p.tipo, { ...prev, valor: prev.valor + p.valor, quantidade: prev.quantidade + p.quantidade })
