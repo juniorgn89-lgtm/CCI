@@ -323,7 +323,7 @@ const Apuracao = () => {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Você não tem permissão para apurar dados. Peça ao gerente para liberar.
+          Você não tem permissão para apurar dados. Peça ao administrador para liberar.
         </p>
         <button
           onClick={() => navigate('/dashboard')}

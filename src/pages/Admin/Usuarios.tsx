@@ -75,7 +75,7 @@ const Usuarios = () => {
       return
     }
     if (row.is_master) {
-      alert('Gerente não pode ser rebaixado.')
+      alert('Administrador não pode ser rebaixado.')
       return
     }
     const next: 'user' | 'supervisor' = row.role === 'supervisor' ? 'user' : 'supervisor'
@@ -112,7 +112,7 @@ const Usuarios = () => {
 
   const handleChangeRede = async (row: ProfileRow, redeId: string) => {
     if (row.is_master) {
-      alert('Gerente não tem rede vinculada (vê todas).')
+      alert('Administrador não tem rede vinculada (vê todas).')
       return
     }
     setBusyUserId(row.user_id)
@@ -160,7 +160,7 @@ const Usuarios = () => {
       return
     }
     if (row.is_master) {
-      alert('Gerente já tem o poder de apurar — não precisa do flag.')
+      alert('Administrador já tem o poder de apurar — não precisa do flag.')
       return
     }
     setBusyUserId(row.user_id)
@@ -180,7 +180,7 @@ const Usuarios = () => {
       return
     }
     if (row.is_master) {
-      alert('Gerente já vê o reabastecimento — não precisa do flag.')
+      alert('Administrador já vê o reabastecimento — não precisa do flag.')
       return
     }
     setBusyUserId(row.user_id)
@@ -200,7 +200,7 @@ const Usuarios = () => {
       return
     }
     if (row.is_master) {
-      alert('Gerente não pode ser excluído.')
+      alert('Administrador não pode ser excluído.')
       return
     }
     // Abre o modal de confirmação por digitação (similar ao /admin/redes).
@@ -325,7 +325,7 @@ const Usuarios = () => {
       {gerentes.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            Gerente{gerentes.length > 1 ? 's' : ''} (CCI Consultoria)
+            Administrador{gerentes.length > 1 ? 'es' : ''} (CCI Consultoria)
           </p>
           <div className="flex flex-wrap gap-2">
             {gerentes.map((g) => {
@@ -829,14 +829,14 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
         {p.is_master ? (
           <div className="flex flex-col items-center gap-1">
             <span
-              title="Gerente já tem o poder de apurar"
+              title="Administrador já tem o poder de apurar"
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
             >
               <Database className="h-2.5 w-2.5" />
               Apurar
             </span>
             <span
-              title="Gerente sempre vê o reabastecimento"
+              title="Administrador sempre vê o reabastecimento"
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
             >
               <Fuel className="h-2.5 w-2.5" />
@@ -901,7 +901,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
           <div className="flex items-center justify-center gap-1.5">
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
               <Crown className="h-3 w-3" />
-              Gerente
+              Administrador
             </span>
           </div>
         ) : (
@@ -937,7 +937,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             isSelf
               ? 'Você não pode excluir a própria conta'
               : p.is_master
-                ? 'Gerente não pode ser excluído'
+                ? 'Administrador não pode ser excluído'
                 : 'Excluir usuário'
           }
           aria-label={`Excluir ${p.full_name || p.email}`}

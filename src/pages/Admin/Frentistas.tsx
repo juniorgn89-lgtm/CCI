@@ -156,7 +156,7 @@ const Frentistas = () => {
     return (
       <div className="mx-auto max-w-md text-center py-16">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Acesso restrito a supervisores e gerentes.
+          Acesso restrito a supervisores e administradores.
         </p>
         <button
           onClick={() => navigate('/dashboard')}

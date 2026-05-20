@@ -7,6 +7,7 @@ import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
 import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
+import { showsGlobalFilters } from '@/lib/globalFilters'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -31,10 +32,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  // Filtros de posto/período/comparativo não se aplicam à Inteligência, às
-  // Configurações nem às telas de Admin (apuração, usuários, etc. são por rede).
-  const showDataFilters =
-    pathname !== '/inteligencia' && pathname !== '/configuracoes' && !pathname.startsWith('/admin/')
+  const showDataFilters = showsGlobalFilters(pathname)
 
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
   const [manualRefreshing, setManualRefreshing] = useState(false)
