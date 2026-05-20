@@ -1,15 +1,15 @@
 import { useMemo } from 'react'
 import {
-  Package, Receipt, Trophy, Clock,
+  Package, Receipt, Trophy,
 } from 'lucide-react'
 import {
-  ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
 } from 'recharts'
 import { cn } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
-import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem, RevenueRow } from '@/pages/Conveniencias/hooks/useConvenienceData'
+import type { ConvKpiData, DailyRow, GroupRow, TopSellerItem } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
@@ -18,7 +18,6 @@ interface Props {
   dailyData: DailyRow[]
   groupTable: GroupRow[]
   topSellers: TopSellerItem[]
-  revenueData: RevenueRow[]
   onNavigateTab: (tab: string) => void
 }
 
@@ -27,7 +26,7 @@ const fmtDay = (d: string) => {
   return `${parts[2]}/${parts[1]}`
 }
 
-const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, revenueData, onNavigateTab }: Props) => {
+const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, onNavigateTab }: Props) => {
   const computed = useMemo(() => {
     // Top 5 groups for donut
     const topGroups = groupTable.slice(0, 6)
@@ -170,29 +169,6 @@ const ConvenienciaIndicadores = ({ kpis, dailyData, groupTable, topSellers, reve
           )}
         </div>
       </div>
-
-      {/* Evolução mensal */}
-      {revenueData.length > 1 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            <Clock className="mr-1.5 inline h-4 w-4 text-blue-500" />
-            Evolução Mensal
-          </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={revenueData} margin={{ left: -10, right: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-              <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name === 'faturamento' ? 'Faturamento' : 'Margem']) as never}
-              />
-              <Bar dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="margem" name="Margem" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   )
 }

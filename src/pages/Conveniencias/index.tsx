@@ -1,15 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp } from 'lucide-react'
+import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import InstantBadge from '@/components/layout/InstantBadge'
-import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
 // Conteúdo das abas em chunks separados (recharts/treemap só baixam quando a
@@ -46,12 +45,64 @@ const ContentSkeleton = () => (
   </div>
 )
 
+const pctDelta = (curr: number, prev: number): number =>
+  prev > 0 ? ((curr - prev) / prev) * 100 : 0
+
+/** Badge de variação % (2 casas, vírgula). `light` = sobre fundo escuro. */
+const DeltaPill = ({ pct, light = false }: { pct: number; light?: boolean }) => {
+  if (!isFinite(pct) || pct === 0) return null
+  const up = pct >= 0
+  const Icon = up ? TrendingUp : TrendingDown
+  const color = up
+    ? light ? 'text-emerald-300' : 'text-emerald-600 dark:text-emerald-400'
+    : light ? 'text-red-300' : 'text-red-600 dark:text-red-400'
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums', color)}>
+      <Icon className="h-3 w-3" />
+      {up ? '+' : ''}{pct.toFixed(2).replace('.', ',')}%
+    </span>
+  )
+}
+
+interface KpiCardProps {
+  label: string
+  value: string
+  prevValue: string
+  delta: number
+  Icon: typeof Store
+  chipClass: string
+  iconClass: string
+  onClick?: () => void
+}
+
+const KpiCard = ({ label, value, prevValue, delta, Icon, chipClass, iconClass, onClick }: KpiCardProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+  >
+    <div className="flex items-start justify-between gap-2">
+      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p>
+      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', chipClass)}>
+        <Icon className={cn('h-4 w-4', iconClass)} />
+      </div>
+    </div>
+    <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">Mês anterior</p>
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">{prevValue}</span>
+      <DeltaPill pct={delta} />
+    </div>
+  </button>
+)
+
 const Conveniencias = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useConvenienciasLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
   const {
     kpis,
+    projecao,
     dailyData,
     groupTable,
     revenueData,
@@ -101,66 +152,70 @@ const Conveniencias = () => {
       {hasEmpresa && (
         <>
           {/* KPIs principais — sempre visíveis acima das abas */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <KpiCard
+              label="Faturamento"
+              value={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.faturamento)}
+              prevValue={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.prev.faturamento)}
+              delta={kpis ? pctDelta(kpis.faturamento, kpis.prev.faturamento) : 0}
+              Icon={CircleDollarSign}
+              chipClass="bg-blue-100 dark:bg-blue-900/30"
+              iconClass="text-blue-600 dark:text-blue-400"
+              onClick={() => setActiveTab('vendas')}
+            />
+            <KpiCard
+              label="Lucro bruto"
+              value={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.margem)}
+              prevValue={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.prev.margem)}
+              delta={kpis ? pctDelta(kpis.margem, kpis.prev.margem) : 0}
+              Icon={DollarSign}
+              chipClass="bg-emerald-100 dark:bg-emerald-900/30"
+              iconClass="text-emerald-600 dark:text-emerald-400"
+              onClick={() => setActiveTab('vendas')}
+            />
+            <KpiCard
+              label="Margem"
+              value={showSkeleton || !kpis ? '—' : `${kpis.margemPct.toFixed(2).replace('.', ',')}%`}
+              prevValue={showSkeleton || !kpis ? '—' : `${kpis.prev.margemPct.toFixed(2).replace('.', ',')}%`}
+              delta={kpis ? pctDelta(kpis.margemPct, kpis.prev.margemPct) : 0}
+              Icon={PieChart}
+              chipClass="bg-amber-100 dark:bg-amber-900/30"
+              iconClass="text-amber-600 dark:text-amber-400"
+              onClick={() => setActiveTab('vendas')}
+            />
+            <KpiCard
+              label="Ticket médio"
+              value={showSkeleton || !kpis ? '—' : formatCurrency(kpis.ticketMedio)}
+              prevValue={showSkeleton || !kpis ? '—' : formatCurrency(kpis.prev.ticketMedio)}
+              delta={kpis ? pctDelta(kpis.ticketMedio, kpis.prev.ticketMedio) : 0}
+              Icon={Ticket}
+              chipClass="bg-rose-100 dark:bg-rose-900/30"
+              iconClass="text-rose-600 dark:text-rose-400"
+              onClick={() => setActiveTab('vendas')}
+            />
+
+            {/* Projeção de vendas — card preenchido (azul) */}
             <button
               type="button"
               onClick={() => setActiveTab('vendas')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900"
+              className="flex flex-col rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] p-4 text-left shadow-sm transition-all hover:shadow-md"
             >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Faturamento</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                  <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-white/90">Projeção de vendas</p>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15">
+                  <LineChart className="h-4 w-4 text-white" />
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.faturamento)}
+              <p className="mt-2 text-2xl font-bold tabular-nums text-white">
+                {showSkeleton || !kpis ? '—' : formatCurrencyInt(projecao.faturamento)}
               </p>
-              {kpis && <DeltaBadge current={kpis.faturamento} previous={kpis.prev.faturamento} />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('vendas')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Margem Bruta</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
+              <p className="mt-2 text-[11px] text-white/70">Previsão - Mês anterior</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs tabular-nums text-white/85">
+                  {showSkeleton || !kpis ? '—' : formatCurrencyInt(projecao.comparativo)}
+                </span>
+                {kpis && <DeltaPill pct={projecao.variacao} light />}
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.margem)}
-              </p>
-              {kpis && (
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{kpis.margemPct.toFixed(1)}%</span>
-                  <DeltaBadge current={kpis.margem} previous={kpis.prev.margem} />
-                </div>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('topVendidos')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-violet-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-violet-950/20 dark:to-gray-900"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Itens Vendidos</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
-                  <Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatNumber(kpis.qtdItens)}
-              </p>
-              {kpis && (
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{formatNumber(kpis.totalProdutos)} produtos</span>
-                  <DeltaBadge current={kpis.qtdItens} previous={kpis.prev.qtdItens} />
-                </div>
-              )}
             </button>
           </div>
 
@@ -209,7 +264,6 @@ const Conveniencias = () => {
                       dailyData={dailyData}
                       groupTable={groupTable}
                       topSellers={topSellers}
-                      revenueData={revenueData}
                       onNavigateTab={setActiveTab}
                     />
                   )}

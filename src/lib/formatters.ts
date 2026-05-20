@@ -9,6 +9,15 @@ export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('pt-BR').format(value)
 }
 
+/** Moeda sem centavos — pra valores grandes em cards (ex.: "R$ 41.276"). */
+export const formatCurrencyInt = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 export const formatPercent = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'percent',

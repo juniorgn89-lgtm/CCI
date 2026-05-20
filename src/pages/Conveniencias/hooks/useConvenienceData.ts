@@ -5,6 +5,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { smoothedProjection } from '@/lib/projection'
 import useVendasCache, { aggregateItensToVendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -19,8 +20,20 @@ export interface ConvKpiData {
   prev: {
     faturamento: number
     margem: number
+    margemPct: number
+    ticketMedio: number
     qtdItens: number
   }
+}
+
+/** Projeção de vendas do período: extrapola o mês corrente e compara ao mês anterior. */
+export interface ProjecaoVendas {
+  /** Faturamento projetado pro fim do período (= realizado em meses fechados). */
+  faturamento: number
+  /** Faturamento do mês anterior (base de comparação). */
+  comparativo: number
+  /** Variação % do projetado vs mês anterior. */
+  variacao: number
 }
 
 export interface DailyRow {
@@ -322,6 +335,9 @@ const useConvenienceData = () => {
     const prevFat = convPrevAggs.reduce((s, a) => s + a.totalVenda, 0)
     const prevCusto = convPrevAggs.reduce((s, a) => s + a.totalCusto, 0)
     const prevQtd = convPrevAggs.reduce((s, a) => s + a.quantidade, 0)
+    const prevLinhas = convPrevAggs.reduce((s, a) => s + a.linhas, 0)
+    const prevMargemPct = prevFat > 0 ? ((prevFat - prevCusto) / prevFat) * 100 : 0
+    const prevTicket = prevLinhas > 0 ? prevFat / prevLinhas : 0
 
     const kpis: ConvKpiData = {
       faturamento: totalFat,
@@ -333,6 +349,8 @@ const useConvenienceData = () => {
       prev: {
         faturamento: prevFat,
         margem: prevFat - prevCusto,
+        margemPct: prevMargemPct,
+        ticketMedio: prevTicket,
         qtdItens: prevQtd,
       },
     }
@@ -617,8 +635,33 @@ const useConvenienceData = () => {
     // Groups list for filters
     const gruposList = [...new Set(catalogProducts.map((p) => p.grupo))].sort()
 
+    // ── Projeção de vendas ──
+    // Extrapola o faturamento do mês corrente pelos dias que faltam (média
+    // móvel suavizada). Em mês fechado não há dias restantes → projetado =
+    // realizado. Compara com o faturamento do mês anterior.
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    let diasRestantes = 0
+    if (dataInicial <= todayISO && todayISO <= dataFinal) {
+      const end = new Date(`${dataFinal}T00:00:00`)
+      const t = new Date(`${todayISO}T00:00:00`)
+      diasRestantes = Math.max(0, Math.round((end.getTime() - t.getTime()) / 86400000))
+    }
+    const projetadoFat = smoothedProjection({
+      realizado: totalFat,
+      dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
+      diasRestantes,
+      today: todayISO,
+    }).projetado
+    const projecao: ProjecaoVendas = {
+      faturamento: projetadoFat,
+      comparativo: prevFat,
+      variacao: prevFat > 0 ? ((projetadoFat - prevFat) / prevFat) * 100 : 0,
+    }
+
     return {
       kpis,
+      projecao,
       dailyData,
       groupTable,
       revenueData,
@@ -635,6 +678,7 @@ const useConvenienceData = () => {
     }
   }, [
     vendaItensData, prevMonthData, evolutionData, produtosData, gruposData, estoqueRaw, empresaCodigo,
+    dataInicial, dataFinal,
     vendasCacheCurrent.isCacheHit, vendasCacheCurrent.vendas,
     vendasCachePrev.isCacheHit, vendasCachePrev.vendas,
     vendasCacheEvo.isCacheHit, vendasCacheEvo.vendas,
