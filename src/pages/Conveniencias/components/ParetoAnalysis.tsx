@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import BarCell from '@/components/tables/BarCell'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
@@ -53,9 +54,16 @@ const buildCols = (maxFat: number, maxLB: number): Column<ParetoRow>[] => [
 
 const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
   const [threshold, setThreshold] = useState<number>(60)
+  const [grupo, setGrupo] = useState<string>('all')
+
+  const grupos = useMemo(
+    () => [...new Set(products.filter((p) => p.faturamento > 0).map((p) => p.grupo))].sort(),
+    [products],
+  )
 
   const data = useMemo(() => {
-    const vendidos = products.filter((p) => p.faturamento > 0)
+    const base = grupo === 'all' ? products : products.filter((p) => p.grupo === grupo)
+    const vendidos = base.filter((p) => p.faturamento > 0)
     const totalFat = vendidos.reduce((s, p) => s + p.faturamento, 0)
     const sorted = [...vendidos].sort((a, b) => b.faturamento - a.faturamento)
 
@@ -82,7 +90,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
     const pctProdutos = vendidos.length > 0 ? (rows.length / vendidos.length) * 100 : 0
     const pctFat = totalFat > 0 ? (acumulado / totalFat) * 100 : 0
     return { rows, totalVendidos: vendidos.length, paretoFat: acumulado, pctProdutos, pctFat }
-  }, [products, threshold])
+  }, [products, threshold, grupo])
 
   const cols = useMemo(() => {
     const maxFat = data.rows.reduce((m, r) => Math.max(m, r.faturamento), 0)
@@ -93,23 +101,37 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
   return (
     <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex flex-wrap items-start justify-between gap-6">
-        {/* Threshold + texto */}
+        {/* Threshold + grupo + texto */}
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-            {THRESHOLDS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setThreshold(t)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-                  threshold === t
-                    ? 'bg-[#1e3a5f] text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-                )}
-              >
-                {t}%
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+              {THRESHOLDS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setThreshold(t)}
+                  className={cn(
+                    'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                    threshold === t
+                      ? 'bg-[#1e3a5f] text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                  )}
+                >
+                  {t}%
+                </button>
+              ))}
+            </div>
+
+            <Select value={grupo} onValueChange={setGrupo}>
+              <SelectTrigger className="h-9 w-[220px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os grupos</SelectItem>
+                {grupos.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-gray-700 dark:text-gray-300">
             <span className="font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.rows.length)} produtos</span>, de{' '}
