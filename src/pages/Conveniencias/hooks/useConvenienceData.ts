@@ -5,6 +5,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import useVendasCache, { aggregateItensToVendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -137,6 +138,12 @@ const useConvenienceData = () => {
   const prevMonth = getPrevMonthRange(dataInicial)
   const evolutionRange = getEvolutionRange(dataInicial, 3) // last 3 months before current period
 
+  // Cache de vendas (apuracao_vendas) pra current + prev + evolução.
+  // HIT = pula fetch live; MISS = fetch live como antes (sem regressão).
+  const vendasCacheCurrent = useVendasCache({ dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
+  const vendasCachePrev = useVendasCache({ dataInicial: prevMonth.dataInicial, dataFinal: prevMonth.dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
+  const vendasCacheEvo = useVendasCache({ dataInicial: evolutionRange.dataInicial, dataFinal: evolutionRange.dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
+
   const filterParams = {
     empresaCodigo: empresaCodigo ?? undefined,
     dataInicial,
@@ -144,17 +151,17 @@ const useConvenienceData = () => {
     usaProdutoLmc: false,
   }
 
-  // Current period venda itens (non-fuel) — paginated
+  // Current period venda itens (non-fuel) — live só quando cache MISS.
   const { data: vendaItensData, isLoading: l1 } = useQuery({
     queryKey: ['vendaItensAll', empresaCodigo, dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchVendaItens({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 50
     ),
-    enabled: hasEmpresa,
+    enabled: hasEmpresa && !vendasCacheCurrent.isCacheHit && !vendasCacheCurrent.isChecking,
   })
 
-  // Previous month venda itens (for KPI comparison) — paginated
+  // Previous month venda itens (for KPI comparison) — live só quando cache MISS.
   const { data: prevMonthData, isLoading: l2 } = useQuery({
     queryKey: ['vendaItensAll', empresaCodigo, prevMonth.dataInicial, prevMonth.dataFinal],
     queryFn: () => fetchAllPages(
@@ -168,7 +175,7 @@ const useConvenienceData = () => {
       }),
       1000, 50
     ),
-    enabled: hasEmpresa,
+    enabled: hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking,
   })
 
   // Historical months for evolution chart (fills gap between prevMonth and current)
@@ -185,7 +192,7 @@ const useConvenienceData = () => {
       }),
       1000, 50
     ),
-    enabled: hasEmpresa,
+    enabled: hasEmpresa && !vendasCacheEvo.isCacheHit && !vendasCacheEvo.isChecking,
     staleTime: 10 * 60 * 1000,
   })
 
@@ -221,12 +228,28 @@ const useConvenienceData = () => {
     staleTime: 5 * 60 * 1000,
   })
 
-  const isLoading = l1 || l2 || l3 || l4 || l5 || l6
+  const isLoading =
+    (l1 && !vendasCacheCurrent.isCacheHit) ||
+    (l2 && !vendasCachePrev.isCacheHit) ||
+    (l6 && !vendasCacheEvo.isCacheHit) ||
+    vendasCacheCurrent.isChecking ||
+    vendasCachePrev.isChecking ||
+    vendasCacheEvo.isChecking ||
+    l3 || l4 || l5
 
   const computed = useMemo(() => {
-    const vendaItens = vendaItensData ?? []
-    const prevItens = prevMonthData ?? []
-    const histItens = evolutionData ?? []
+    // Vendas vêm do cache Supabase quando HIT; senão, agregadas do live.
+    const filterEmpresa = (i: { empresaCodigo: number }) =>
+      empresaCodigo == null || i.empresaCodigo === empresaCodigo
+    const vendaAggs = vendasCacheCurrent.isCacheHit
+      ? vendasCacheCurrent.vendas
+      : aggregateItensToVendaAgg((vendaItensData ?? []).filter(filterEmpresa))
+    const prevAggs = vendasCachePrev.isCacheHit
+      ? vendasCachePrev.vendas
+      : aggregateItensToVendaAgg((prevMonthData ?? []).filter(filterEmpresa))
+    const histAggs = vendasCacheEvo.isCacheHit
+      ? vendasCacheEvo.vendas
+      : aggregateItensToVendaAgg((evolutionData ?? []).filter(filterEmpresa))
     const produtos = produtosData ?? []
     const grupos = gruposData ?? []
     const estoque = estoqueRaw?.resultados ?? []
@@ -259,43 +282,46 @@ const useConvenienceData = () => {
     }
     const getGroupCode = (code: number) => produtoMap.get(code)?.grupoCodigo ?? 0
 
-    // Filter vendaItens to non-fuel only
-    const convItens = vendaItens.filter((i) => produtoMap.has(i.produtoCodigo))
-    const convPrevItens = prevItens.filter((i) => produtoMap.has(i.produtoCodigo))
+    // Filter aggregates to non-fuel only (produtoMap exclui combustível + PS-)
+    const convAggs = vendaAggs.filter((a) => produtoMap.has(a.produtoCodigo))
+    const convPrevAggs = prevAggs.filter((a) => produtoMap.has(a.produtoCodigo))
 
     // ── Aggregate by product (current) ──
+    // `count` soma `linhas` (nº de itens de venda) pra preservar o ticket médio.
     const byProduct = new Map<number, { faturamento: number; quantidade: number; custo: number; count: number }>()
-    for (const item of convItens) {
-      const prev = byProduct.get(item.produtoCodigo) ?? { faturamento: 0, quantidade: 0, custo: 0, count: 0 }
-      byProduct.set(item.produtoCodigo, {
-        faturamento: prev.faturamento + item.totalVenda,
-        quantidade: prev.quantidade + item.quantidade,
-        custo: prev.custo + item.totalCusto,
-        count: prev.count + 1,
+    for (const a of convAggs) {
+      const prev = byProduct.get(a.produtoCodigo) ?? { faturamento: 0, quantidade: 0, custo: 0, count: 0 }
+      byProduct.set(a.produtoCodigo, {
+        faturamento: prev.faturamento + a.totalVenda,
+        quantidade: prev.quantidade + a.quantidade,
+        custo: prev.custo + a.totalCusto,
+        count: prev.count + a.linhas,
       })
     }
 
     // ── Aggregate prev month by product ──
     const byProductPrev = new Map<number, { faturamento: number; quantidade: number }>()
-    for (const item of convPrevItens) {
-      const prev = byProductPrev.get(item.produtoCodigo) ?? { faturamento: 0, quantidade: 0 }
-      byProductPrev.set(item.produtoCodigo, {
-        faturamento: prev.faturamento + item.totalVenda,
-        quantidade: prev.quantidade + item.quantidade,
+    for (const a of convPrevAggs) {
+      const prev = byProductPrev.get(a.produtoCodigo) ?? { faturamento: 0, quantidade: 0 }
+      byProductPrev.set(a.produtoCodigo, {
+        faturamento: prev.faturamento + a.totalVenda,
+        quantidade: prev.quantidade + a.quantidade,
       })
     }
 
     // ── KPIs ──
-    const totalFat = convItens.reduce((s, i) => s + i.totalVenda, 0)
-    const totalCusto = convItens.reduce((s, i) => s + i.totalCusto, 0)
-    const totalQtd = convItens.reduce((s, i) => s + i.quantidade, 0)
+    const totalFat = convAggs.reduce((s, a) => s + a.totalVenda, 0)
+    const totalCusto = convAggs.reduce((s, a) => s + a.totalCusto, 0)
+    const totalQtd = convAggs.reduce((s, a) => s + a.quantidade, 0)
+    const totalLinhas = convAggs.reduce((s, a) => s + a.linhas, 0)
     const totalMargem = totalFat - totalCusto
     const margemPct = totalFat > 0 ? (totalMargem / totalFat) * 100 : 0
-    const ticketMedio = convItens.length > 0 ? totalFat / convItens.length : 0
+    // Ticket médio = faturamento ÷ nº de itens de venda (linhas), não transações.
+    const ticketMedio = totalLinhas > 0 ? totalFat / totalLinhas : 0
 
-    const prevFat = convPrevItens.reduce((s, i) => s + i.totalVenda, 0)
-    const prevCusto = convPrevItens.reduce((s, i) => s + i.totalCusto, 0)
-    const prevQtd = convPrevItens.reduce((s, i) => s + i.quantidade, 0)
+    const prevFat = convPrevAggs.reduce((s, a) => s + a.totalVenda, 0)
+    const prevCusto = convPrevAggs.reduce((s, a) => s + a.totalCusto, 0)
+    const prevQtd = convPrevAggs.reduce((s, a) => s + a.quantidade, 0)
 
     const kpis: ConvKpiData = {
       faturamento: totalFat,
@@ -313,14 +339,14 @@ const useConvenienceData = () => {
 
     // ── Daily data ──
     const byDay = new Map<string, { faturamento: number; custo: number; qtdItens: number; count: number }>()
-    for (const item of convItens) {
-      const day = item.dataMovimento.split('T')[0]
+    for (const a of convAggs) {
+      const day = a.data
       const prev = byDay.get(day) ?? { faturamento: 0, custo: 0, qtdItens: 0, count: 0 }
       byDay.set(day, {
-        faturamento: prev.faturamento + item.totalVenda,
-        custo: prev.custo + item.totalCusto,
-        qtdItens: prev.qtdItens + item.quantidade,
-        count: prev.count + 1,
+        faturamento: prev.faturamento + a.totalVenda,
+        custo: prev.custo + a.totalCusto,
+        qtdItens: prev.qtdItens + a.quantidade,
+        count: prev.count + a.linhas,
       })
     }
     const dailyData: DailyRow[] = Array.from(byDay.entries())
@@ -340,13 +366,13 @@ const useConvenienceData = () => {
 
     // ── Group breakdown ──
     const byGrupo = new Map<number, { faturamento: number; quantidade: number; custo: number }>()
-    for (const item of convItens) {
-      const gc = getGroupCode(item.produtoCodigo)
+    for (const a of convAggs) {
+      const gc = getGroupCode(a.produtoCodigo)
       const prev = byGrupo.get(gc) ?? { faturamento: 0, quantidade: 0, custo: 0 }
       byGrupo.set(gc, {
-        faturamento: prev.faturamento + item.totalVenda,
-        quantidade: prev.quantidade + item.quantidade,
-        custo: prev.custo + item.totalCusto,
+        faturamento: prev.faturamento + a.totalVenda,
+        quantidade: prev.quantidade + a.quantidade,
+        custo: prev.custo + a.totalCusto,
       })
     }
     const groupTable: GroupRow[] = Array.from(byGrupo.entries())
@@ -362,20 +388,20 @@ const useConvenienceData = () => {
 
     // ── Monthly evolution (historical + previous + current) ──
     const byMonth = new Map<string, { faturamento: number; custo: number }>()
-    const addToMonth = (items: typeof convItens, filterByProdutoMap = false) => {
-      for (const item of items) {
-        if (filterByProdutoMap && !produtoMap.has(item.produtoCodigo)) continue
-        const month = item.dataMovimento.substring(0, 7)
+    const addToMonth = (aggs: typeof convAggs, filterByProdutoMap = false) => {
+      for (const a of aggs) {
+        if (filterByProdutoMap && !produtoMap.has(a.produtoCodigo)) continue
+        const month = a.data.substring(0, 7)
         const prev = byMonth.get(month) ?? { faturamento: 0, custo: 0 }
         byMonth.set(month, {
-          faturamento: prev.faturamento + item.totalVenda,
-          custo: prev.custo + item.totalCusto,
+          faturamento: prev.faturamento + a.totalVenda,
+          custo: prev.custo + a.totalCusto,
         })
       }
     }
-    addToMonth(histItens, true)   // historical months (filter non-fuel)
-    addToMonth(prevItens, true)   // previous month (filter non-fuel)
-    addToMonth(convItens, false)  // current period (already filtered)
+    addToMonth(histAggs, true)    // historical months (filter non-fuel)
+    addToMonth(prevAggs, true)    // previous month (filter non-fuel)
+    addToMonth(convAggs, false)   // current period (already filtered)
     const revenueData: RevenueRow[] = Array.from(byMonth.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, v]) => {
@@ -607,12 +633,19 @@ const useConvenienceData = () => {
       insights,
       gruposList,
     }
-  }, [vendaItensData, prevMonthData, evolutionData, produtosData, gruposData, estoqueRaw])
+  }, [
+    vendaItensData, prevMonthData, evolutionData, produtosData, gruposData, estoqueRaw, empresaCodigo,
+    vendasCacheCurrent.isCacheHit, vendasCacheCurrent.vendas,
+    vendasCachePrev.isCacheHit, vendasCachePrev.vendas,
+    vendasCacheEvo.isCacheHit, vendasCacheEvo.vendas,
+  ])
 
   return {
     ...computed,
     isLoading,
     hasEmpresa,
+    // "Instantâneo": vendas vieram do snapshot mensal (apuracao_vendas).
+    isCacheHit: vendasCacheCurrent.isCacheHit,
   }
 }
 

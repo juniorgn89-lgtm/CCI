@@ -64,4 +64,28 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Separa os vendors pesados em chunks próprios. Vantagens:
+        //  - download em paralelo (HTTP/2) e entry menor no primeiro paint
+        //  - cache de longo prazo: vendor muda raramente, então revisitas e
+        //    deploys que só mexem no app não rebaixam os chunks de lib.
+        // Ordem importa: pacotes cujo nome contém "react" (react-router,
+        // lucide-react, react-leaflet) são capturados ANTES do react base.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory-vendor') || id.includes('internmap')) return 'charts'
+          if (id.includes('leaflet')) return 'maps'
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('@tanstack')) return 'query'
+          if (id.includes('react-router') || id.includes('@remix-run')) return 'router'
+          if (id.includes('@radix-ui')) return 'radix'
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react-vendor'
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

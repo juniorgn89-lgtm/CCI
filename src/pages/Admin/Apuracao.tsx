@@ -19,6 +19,8 @@ import {
   caixaToCacheRow,
   upsertFormasPagamentoCache,
   formaPagamentoToCacheRow,
+  upsertVendasCache,
+  aggregateVendaItensToCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
 } from '@/api/supabase/apuracao'
@@ -26,7 +28,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
-import { fetchVendaResumo, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
+import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { cn } from '@/lib/utils'
 
@@ -249,8 +251,25 @@ const Apuracao = () => {
         }
         return all
       }
+      // Itens de venda da loja (Conveniência) — per-empresa, paginado por cursor.
+      const fetchVendaItensAllEmpresas = async () => {
+        const all = [] as Awaited<ReturnType<typeof fetchVendaItens>>['resultados']
+        for (const ec of empresasCodes) {
+          const r = await fetchAllPages(
+            (p) => fetchVendaItens({
+              empresaCodigo: ec,
+              dataInicial: start, dataFinal: end,
+              usaProdutoLmc: false,  // produtoCodigo real (casa com o catálogo da Conveniência)
+              ultimoCodigo: p.ultimoCodigo, limite: p.limite,
+            }),
+            1000, 200
+          )
+          all.push(...r)
+        }
+        return all
+      }
 
-      const [abast, lmc, resumo, caixas, formasPgto] = await Promise.all([
+      const [abast, lmc, resumo, caixas, formasPgto, vendaItens] = await Promise.all([
         fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
         fetchAllPages(
           (p) => fetchLmc({
@@ -263,6 +282,7 @@ const Apuracao = () => {
         fetchVendaResumo({ dataInicial: start, dataFinal: end }),
         fetchCaixasAllEmpresas(),
         fetchFormasAllEmpresas(),
+        fetchVendaItensAllEmpresas(),
       ])
 
       const rows = computeApuracaoRows({
@@ -283,11 +303,13 @@ const Apuracao = () => {
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
       const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
+      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertAbastecimentosCache(abastRows),
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),
+        upsertVendasCache(vendaRows, currentUser?.id),
       ])
       return { ok: true, rows: rows.length }
     } catch (e) {

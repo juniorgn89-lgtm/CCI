@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { Eye, EyeOff, Fuel, User, BarChart3 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
@@ -6,10 +6,27 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { useFrentistaAuth } from '@/hooks/useFrentistaAuth'
 import { cn } from '@/lib/utils'
+import { prefetchPrincipais } from '@/routes/prefetch'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 import EsqueciSenhaModal from '@/pages/Login/components/EsqueciSenhaModal'
 
 type LoginMode = 'gerente' | 'frentista'
+
+// Prefetch do /dashboard em idle: baixa o chunk enquanto o usuário digita,
+// pra que o redirect pós-login seja instantâneo. Degrada pra setTimeout
+// onde requestIdleCallback não existe (Safari mais antigo).
+const schedulePrefetch = (fn: () => void): (() => void) => {
+  const ric = (window as typeof window & {
+    requestIdleCallback?: (cb: () => void) => number
+    cancelIdleCallback?: (id: number) => void
+  }).requestIdleCallback
+  if (ric) {
+    const id = ric(fn)
+    return () => (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id)
+  }
+  const id = window.setTimeout(fn, 1500)
+  return () => window.clearTimeout(id)
+}
 
 const Login = () => {
   const [mode, setMode] = useState<LoginMode>('gerente')
@@ -26,6 +43,8 @@ const Login = () => {
   const navigate = useNavigate()
 
   const [forgotOpen, setForgotOpen] = useState(false)
+
+  useEffect(() => schedulePrefetch(prefetchPrincipais), [])
 
   const handleGerenteSubmit = async (e: FormEvent) => {
     e.preventDefault()

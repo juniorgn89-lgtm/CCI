@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Abastecimento, LMC } from '@/api/types/combustivel'
-import type { VendaResumo, VendaFormaPagamento } from '@/api/types/venda'
+import type { VendaResumo, VendaFormaPagamento, VendaItem } from '@/api/types/venda'
 import type { Caixa } from '@/api/types/financeiro'
 
 /**
@@ -649,6 +649,117 @@ export const cacheRowToFormaPagamento = (r: FormaPagamentoCacheRow): VendaFormaP
   tipoFormaPagamento: r.tipo_forma_pagamento ?? '',
   nomeFormaPagamento: r.nome_forma_pagamento ?? '',
 })
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cache de VENDAS DA LOJA / Conveniência (apuracao_vendas)
+// ═══════════════════════════════════════════════════════════════════════
+// Agregado por (rede, empresa, dia, produto). Guarda quantidade, total de
+// venda, total de custo e o nº de LINHAS de item — a tela de Conveniência
+// calcula o ticket médio como faturamento ÷ nº de itens, então precisamos
+// preservar a contagem de linhas, não só os somatórios.
+// Veja docs/supabase-apuracao-vendas.sql para o schema completo.
+
+export interface ApuracaoVendaRow {
+  rede_id: string
+  empresa_codigo: number
+  data: string // yyyy-MM-dd
+  produto_codigo: number
+  quantidade: number
+  total_venda: number
+  total_custo: number
+  linhas: number
+  computed_at: string
+  computed_by: string | null
+}
+
+/** Linha pronta pra UPSERT (sem campos de auditoria que o banco preenche). */
+export type ApuracaoVendaUpsert = Omit<ApuracaoVendaRow, 'computed_at' | 'computed_by'>
+
+export const fetchVendasCache = async (
+  params: FetchCaixasCacheParams,
+): Promise<ApuracaoVendaRow[]> => {
+  if (!supabase) return []
+  const all: ApuracaoVendaRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_vendas')
+      .select('*')
+      .gte('data', params.dataInicial)
+      .lte('data', params.dataFinal)
+      .order('data', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_vendas] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoVendaRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
+export const upsertVendasCache = async (
+  rows: ApuracaoVendaUpsert[],
+  computedBy?: string | null,
+): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const stamped = rows.map((r) => ({ ...r, computed_by: computedBy ?? null }))
+  const chunkSize = 500
+  for (let i = 0; i < stamped.length; i += chunkSize) {
+    const chunk = stamped.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_vendas')
+      .upsert(chunk, { onConflict: 'rede_id,empresa_codigo,data,produto_codigo' })
+    if (error) {
+      console.warn('[apuracao_vendas] upsert error:', error.message)
+      return
+    }
+  }
+}
+
+/**
+ * Agrega itens de venda crus (VendaItem) em linhas do cache, somando por
+ * (empresa, dia, produto). `linhas` conta o nº de itens de venda, pra
+ * preservar o ticket médio (faturamento ÷ nº de itens) da Conveniência.
+ */
+export const aggregateVendaItensToCache = (
+  itens: VendaItem[],
+  redeId: string,
+): ApuracaoVendaUpsert[] => {
+  const map = new Map<string, ApuracaoVendaUpsert>()
+  for (const it of itens) {
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data) continue
+    const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.quantidade += it.quantidade ?? 0
+      existing.total_venda += it.totalVenda ?? 0
+      existing.total_custo += it.totalCusto ?? 0
+      existing.linhas += 1
+    } else {
+      map.set(key, {
+        rede_id: redeId,
+        empresa_codigo: it.empresaCodigo,
+        data,
+        produto_codigo: it.produtoCodigo,
+        quantidade: it.quantidade ?? 0,
+        total_venda: it.totalVenda ?? 0,
+        total_custo: it.totalCusto ?? 0,
+        linhas: 1,
+      })
+    }
+  }
+  return Array.from(map.values())
+}
 
 /**
  * Lista os dias do período (yyyy-MM-dd). Útil pra detectar "buracos" entre o

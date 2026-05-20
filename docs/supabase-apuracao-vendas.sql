@@ -1,0 +1,59 @@
+-- ============================================
+-- apuracao_vendas — cache de vendas da loja (Conveniência)
+-- ============================================
+-- Materializa as vendas de itens da loja por rede × empresa × dia × produto,
+-- pra a tela de Conveniência abrir instantâneo em meses fechados (mesmo
+-- padrão de abastecimentos/caixas). Hoje continua sempre live.
+--
+-- Granularidade: 1 linha por (rede, empresa, data, produto). Guarda quantidade,
+-- total de venda, total de custo e o nº de LINHAS de item (pro ticket médio,
+-- que na Conveniência é faturamento ÷ nº de itens, não por transação).
+--
+-- Rode no SQL Editor do Supabase.
+
+create table if not exists apuracao_vendas (
+  rede_id        uuid    not null references redes(id) on delete cascade,
+  empresa_codigo integer not null,
+  data           date    not null,
+  produto_codigo integer not null,
+  quantidade     numeric not null default 0,  -- soma de item.quantidade
+  total_venda    numeric not null default 0,  -- soma de item.totalVenda
+  total_custo    numeric not null default 0,  -- soma de item.totalCusto
+  linhas         integer not null default 0,  -- nº de itens de venda (ticket médio)
+  computed_at    timestamptz not null default now(),
+  computed_by    uuid,
+  primary key (rede_id, empresa_codigo, data, produto_codigo)
+);
+
+-- Índices pras leituras do front (rede_id sempre primeiro pra isolar tenant).
+create index if not exists idx_apuracao_vendas_rede_data
+  on apuracao_vendas (rede_id, data, empresa_codigo);
+
+create index if not exists idx_apuracao_vendas_rede_empresa_data
+  on apuracao_vendas (rede_id, empresa_codigo, data);
+
+-- ============================================
+-- RLS — master vê/grava tudo; demais só a própria rede.
+-- ============================================
+alter table apuracao_vendas enable row level security;
+
+drop policy if exists "vendas_select_own_rede" on apuracao_vendas;
+create policy "vendas_select_own_rede" on apuracao_vendas
+  for select using (
+    rede_id in (select rede_id from profiles where user_id = auth.uid())
+    or (select is_master from profiles where user_id = auth.uid())
+  );
+
+drop policy if exists "vendas_insert_own_rede" on apuracao_vendas;
+create policy "vendas_insert_own_rede" on apuracao_vendas
+  for insert with check (
+    rede_id in (select rede_id from profiles where user_id = auth.uid())
+    or (select is_master from profiles where user_id = auth.uid())
+  );
+
+drop policy if exists "vendas_update_own_rede" on apuracao_vendas;
+create policy "vendas_update_own_rede" on apuracao_vendas
+  for update using (
+    rede_id in (select rede_id from profiles where user_id = auth.uid())
+    or (select is_master from profiles where user_id = auth.uid())
+  );
