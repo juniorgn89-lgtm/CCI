@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Fuel, Gauge, Wallet, BarChart3, Activity, Settings, Droplets, DollarSign, TrendingUp } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
@@ -13,13 +13,16 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useOperacaoLayout } from '@/store/moduleLayout'
-import OperacaoIndicadores from '@/pages/Operacao/components/OperacaoIndicadores'
-import ControleBombas from '@/pages/Operacao/components/ControleBombas'
-import AbastecimentosTab from '@/pages/Operacao/components/AbastecimentosTab'
-import CaixaPosto from '@/pages/Operacao/components/CaixaPosto'
-import ProdutividadeTab from '@/pages/Operacao/components/ProdutividadeTab'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+
+// Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
+// Os KPIs do topo continuam instantâneos.
+const OperacaoIndicadores = lazy(() => import('@/pages/Operacao/components/OperacaoIndicadores'))
+const ControleBombas = lazy(() => import('@/pages/Operacao/components/ControleBombas'))
+const AbastecimentosTab = lazy(() => import('@/pages/Operacao/components/AbastecimentosTab'))
+const CaixaPosto = lazy(() => import('@/pages/Operacao/components/CaixaPosto'))
+const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
 
 const TAB_ICONS: Record<string, typeof Fuel> = {
   indicadores: Activity,
@@ -28,6 +31,12 @@ const TAB_ICONS: Record<string, typeof Fuel> = {
   caixa: Wallet,
   produtividade: BarChart3,
 }
+
+const TabFallback = () => (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+    {Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)}
+  </div>
+)
 
 const Operacao = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useOperacaoLayout()
@@ -217,7 +226,7 @@ const Operacao = () => {
                   </div>
                 </div>
               ) : (
-                <>
+                <Suspense fallback={<TabFallback />}>
                   {activeTab === 'indicadores' && kpis && (
                     <OperacaoIndicadores
                       kpis={kpis}
@@ -247,7 +256,7 @@ const Operacao = () => {
                       isLoading={isLoading}
                     />
                   )}
-                </>
+                </Suspense>
               )}
             </>
           )}

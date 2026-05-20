@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -8,10 +8,11 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
-import FinanceiroIndicadores from '@/pages/Financeiro/components/FinanceiroIndicadores'
-import ReceivablesTable from '@/pages/Financeiro/components/ReceivablesTable'
-import PayablesTable from '@/pages/Financeiro/components/PayablesTable'
-import CashFlowChart from '@/pages/Financeiro/components/CashFlowChart'
+// Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
+const FinanceiroIndicadores = lazy(() => import('@/pages/Financeiro/components/FinanceiroIndicadores'))
+const ReceivablesTable = lazy(() => import('@/pages/Financeiro/components/ReceivablesTable'))
+const PayablesTable = lazy(() => import('@/pages/Financeiro/components/PayablesTable'))
+const CashFlowChart = lazy(() => import('@/pages/Financeiro/components/CashFlowChart'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
@@ -138,7 +139,7 @@ const Financeiro = () => {
               {showSkeleton ? (
                 <TableSkeleton />
               ) : (
-                <>
+                <Suspense fallback={<TableSkeleton />}>
                   {activeTab === 'indicadores' && kpis && (
                     <FinanceiroIndicadores
                       kpis={kpis}
@@ -161,7 +162,7 @@ const Financeiro = () => {
                       prevTotals={cashFlowPrevTotals}
                     />
                   )}
-                </>
+                </Suspense>
               )}
             </>
           )}

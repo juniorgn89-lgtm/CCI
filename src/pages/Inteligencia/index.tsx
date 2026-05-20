@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import {
   Brain,
   GitCompareArrows,
@@ -16,13 +16,33 @@ import useNetworkData from './hooks/useNetworkData'
 import usePostoComparativo from './hooks/usePostoComparativo'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import CompanyPicker from './components/CompanyPicker'
-import PostoComparison from './components/PostoComparison'
-import PostoComparativo from './components/PostoComparativo'
-import NetworkMap from './components/NetworkMap'
-import SmartAnalysis from './components/SmartAnalysis'
-import PostoGoals from './components/PostoGoals'
-import SalesForecast from './components/SalesForecast'
-import ControlCenter from './components/ControlCenter'
+
+// Conteúdo das abas em chunks separados: recharts (Comparação/Previsão) e
+// leaflet (Mapa, ~154 kB) só baixam quando a aba é aberta.
+const PostoComparison = lazy(() => import('./components/PostoComparison'))
+const PostoComparativo = lazy(() => import('./components/PostoComparativo'))
+const NetworkMap = lazy(() => import('./components/NetworkMap'))
+const SmartAnalysis = lazy(() => import('./components/SmartAnalysis'))
+const PostoGoals = lazy(() => import('./components/PostoGoals'))
+const SalesForecast = lazy(() => import('./components/SalesForecast'))
+const ControlCenter = lazy(() => import('./components/ControlCenter'))
+
+const TabFallback = () => (
+  <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <KpiSkeleton key={i} />
+      ))}
+    </div>
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    </div>
+  </div>
+)
 
 type TabKey = 'comparativo' | 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle'
 
@@ -152,7 +172,7 @@ const Inteligencia = () => {
               </div>
             </div>
           ) : (
-            <>
+            <Suspense fallback={<TabFallback />}>
               {/* Single posto: temporal comparison */}
               {activeTab === 'comparativo' && isSingle && comparativo && (
                 <PostoComparativo data={comparativo} />
@@ -169,7 +189,7 @@ const Inteligencia = () => {
               {activeTab === 'analise' && <SmartAnalysis insights={insights} />}
               {activeTab === 'metas' && <PostoGoals goals={goals} />}
               {activeTab === 'previsao' && <SalesForecast forecastData={forecastData} />}
-            </>
+            </Suspense>
           )}
         </>
       )}

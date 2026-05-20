@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -12,10 +12,12 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
-import ConvenienciaIndicadores from '@/pages/Conveniencias/components/ConvenienciaIndicadores'
-import SalesOverview from '@/pages/Conveniencias/components/SalesOverview'
-import ProductCatalog from '@/pages/Conveniencias/components/ProductCatalog'
-import TopSellers from '@/pages/Conveniencias/components/TopSellers'
+// Conteúdo das abas em chunks separados (recharts/treemap só baixam quando a
+// aba é aberta). Os KPIs do topo continuam instantâneos.
+const ConvenienciaIndicadores = lazy(() => import('@/pages/Conveniencias/components/ConvenienciaIndicadores'))
+const SalesOverview = lazy(() => import('@/pages/Conveniencias/components/SalesOverview'))
+const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
+const TopSellers = lazy(() => import('@/pages/Conveniencias/components/TopSellers'))
 
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -200,7 +202,7 @@ const Conveniencias = () => {
                   <ContentSkeleton />
                 </div>
               ) : (
-                <>
+                <Suspense fallback={<ContentSkeleton />}>
                   {activeTab === 'indicadores' && kpis && (
                     <ConvenienciaIndicadores
                       kpis={kpis}
@@ -230,8 +232,7 @@ const Conveniencias = () => {
                       treemapData={treemapData}
                     />
                   )}
-
-                </>
+                </Suspense>
               )}
             </>
           )}
