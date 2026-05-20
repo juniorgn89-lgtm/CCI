@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, CheckCircle2, Clock, Loader2, Play, RefreshCw, AlertCircle, Database,
+  ArrowLeft, CheckCircle2, Clock, Loader2, Play, RefreshCw, AlertCircle, Database, Network, ChevronRight,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
+import { useFilterStore } from '@/store/filters'
+import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import {
   fetchApuracaoStatusByMonth,
   upsertApuracaoDiaria,
@@ -120,6 +122,8 @@ const Apuracao = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const rede = useTenantStore((s) => s.rede)
+  const setRede = useTenantStore((s) => s.setRede)
+  const setEmpresas = useFilterStore((s) => s.setEmpresas)
 
   // Gate: master OU supervisor com pode_apurar=true. Já vem da auth store
   // (bootstrap consolida is_master + pode_apurar em canApurar).
@@ -141,6 +145,23 @@ const Apuracao = () => {
   })
   const empresas = empresasData?.resultados ?? []
   const empresasCount = empresas.length
+
+  // Redes disponíveis pro master escolher quando não há nenhuma conectada —
+  // permite apurar direto daqui sem passar por /selecionar-rede.
+  const { data: redesList = [], isLoading: redesLoading } = useQuery({
+    queryKey: ['redes'],
+    queryFn: fetchRedes,
+    enabled: hasAccess && !rede && isMaster,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Conecta a rede escolhida (mesmo fluxo do /selecionar-rede): seta o tenant,
+  // limpa caches e o filtro de empresa. A tela já reflete a rede na sequência.
+  const handleConectar = (r: RedeRow) => {
+    queryClient.clear()
+    setEmpresas([])
+    setRede({ id: r.id, nome: r.nome, chave: r.chave, api_base_url: r.api_base_url })
+  }
 
   // Status do ano selecionado — mapa mês → metadata (count + last apuração).
   const { data: statusMap, isLoading: loadingStatus, refetch: refetchStatus } = useQuery({
@@ -344,14 +365,44 @@ const Apuracao = () => {
           Nenhuma rede conectada
         </p>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Conecte uma rede em <strong>/selecionar-rede</strong> antes de apurar dados.
+          Escolha a rede que deseja apurar.
         </p>
-        <button
-          onClick={() => navigate('/selecionar-rede')}
-          className="mt-4 rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]"
-        >
-          Selecionar rede
-        </button>
+
+        {!isMaster ? (
+          <button
+            onClick={() => navigate('/selecionar-rede')}
+            className="mt-4 rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]"
+          >
+            Selecionar rede
+          </button>
+        ) : redesLoading ? (
+          <div className="mt-5 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          </div>
+        ) : redesList.length === 0 ? (
+          <p className="mt-5 text-xs text-gray-500 dark:text-gray-400">Nenhuma rede cadastrada.</p>
+        ) : (
+          <div className="mx-auto mt-5 max-w-sm space-y-2 text-left">
+            {redesList.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => handleConectar(r)}
+                className="group flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/50 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-blue-800/50 dark:hover:bg-blue-900/10"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                  <Network className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {r.nome}
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  Conectar
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
