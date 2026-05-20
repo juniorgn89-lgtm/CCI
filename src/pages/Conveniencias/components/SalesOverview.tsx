@@ -1,37 +1,29 @@
 import { useMemo, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from 'recharts'
-import { CHART_COLORS } from '@/lib/constants'
-import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatDate, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
-import type { DailyRow, GroupRow, RevenueRow, DaySaleProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
+import type { DailyRow, GroupRow, DaySaleProduct, CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 import usePagamentosRaw from '@/pages/Conveniencias/hooks/useDiaPagamentos'
 import VendaDetailModal from '@/pages/Conveniencias/components/VendaDetailModal'
+import ParetoAnalysis from '@/pages/Conveniencias/components/ParetoAnalysis'
+import CurvaABC from '@/pages/Conveniencias/components/CurvaABC'
 
 interface SalesOverviewProps {
   dailyData: DailyRow[]
   groupTable: GroupRow[]
-  revenueData: RevenueRow[]
   /** Produtos vendidos por dia (yyyy-MM-dd → lista) — pro modal do dia. */
   salesByDay: Record<string, DaySaleProduct[]>
   /** Produtos por grupo (grupoCodigo → lista) — pro modal do grupo. */
   productsByGroup: Record<number, DaySaleProduct[]>
+  /** Catálogo do período (produto × métricas) — pro Pareto / Curva ABC. */
+  catalogProducts: CatalogProduct[]
 }
 
-type SubView = 'diario' | 'grupo' | 'evolucao'
+type SubView = 'diario' | 'grupo' | 'pareto' | 'abc'
 
 const dailyCols: Column<DailyRow>[] = [
   { key: 'data', label: 'Data', sortable: true, render: (r) => formatDate(r.data) },
@@ -56,13 +48,7 @@ const groupCols: Column<GroupRow>[] = [
   },
 ]
 
-const formatMonth = (mes: string) => {
-  const [year, month] = mes.split('-')
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  return `${months[Number(month) - 1]}/${year.slice(2)}`
-}
-
-const SalesOverview = ({ dailyData, groupTable, revenueData, salesByDay, productsByGroup }: SalesOverviewProps) => {
+const SalesOverview = ({ dailyData, groupTable, salesByDay, productsByGroup, catalogProducts }: SalesOverviewProps) => {
   const [subView, setSubView] = useState<SubView>('diario')
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<{ codigo: number; nome: string } | null>(null)
@@ -95,7 +81,8 @@ const SalesOverview = ({ dailyData, groupTable, revenueData, salesByDay, product
   const subTabs: { key: SubView; label: string }[] = [
     { key: 'diario', label: 'Dia a Dia' },
     { key: 'grupo', label: 'Por Grupo' },
-    { key: 'evolucao', label: 'Evolução' },
+    { key: 'pareto', label: 'Análise de Pareto' },
+    { key: 'abc', label: 'Curva ABC' },
   ]
 
   return (
@@ -155,25 +142,9 @@ const SalesOverview = ({ dailyData, groupTable, revenueData, salesByDay, product
         </div>
       )}
 
-      {subView === 'evolucao' && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">Evolução de Faturamento</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <AreaChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="mes" tickFormatter={formatMonth} tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 12 }} />
-              <Tooltip
-                formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name]) as never}
-                labelFormatter={formatMonth as never}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="faturamento" name="Faturamento" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.15} />
-              <Area type="monotone" dataKey="margem" name="Margem" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.15} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {subView === 'pareto' && <ParetoAnalysis products={catalogProducts} />}
+
+      {subView === 'abc' && <CurvaABC products={catalogProducts} />}
 
       {/* Modal do dia — produtos vendidos no dia + pagamento rateado. */}
       <VendaDetailModal

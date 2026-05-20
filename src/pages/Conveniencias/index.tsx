@@ -108,7 +108,6 @@ const Conveniencias = () => {
     salesByDay,
     productsByGroup,
     groupTable,
-    revenueData,
     catalogProducts,
     topSellers,
     treemapData,
@@ -288,9 +287,9 @@ const Conveniencias = () => {
                     <SalesOverview
                       dailyData={dailyData}
                       groupTable={groupTable}
-                      revenueData={revenueData}
                       salesByDay={salesByDay}
                       productsByGroup={productsByGroup}
+                      catalogProducts={catalogProducts}
                     />
                   )}
                   {activeTab === 'catalogo' && (
