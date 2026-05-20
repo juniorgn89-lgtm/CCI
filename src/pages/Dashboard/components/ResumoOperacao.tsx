@@ -109,12 +109,14 @@ interface MainKpiCardProps {
   iconBg: string
   iconColor: string
   formatter: (v: number) => string
+  /** Linha pequena opcional sob "realizado no período" (ex.: litros + preço médio). */
+  submetric?: string
   onClick: () => void
 }
 
 const MainKpiCard = ({
   label, realizado, projetado, projetadoFirst7, isProjectable, daysElapsed, daysTotal, daysRemaining,
-  icon: Icon, cardBg, iconBg, iconColor, formatter, onClick,
+  icon: Icon, cardBg, iconBg, iconColor, formatter, submetric, onClick,
 }: MainKpiCardProps) => {
   const progressPct = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
   // Para mês fechado: compara o realizado total com o que era projetado pela
@@ -161,6 +163,9 @@ const MainKpiCard = ({
             {formatter(realizado)}
           </p>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">realizado no período</p>
+          {submetric && (
+            <p className="mt-1 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">{submetric}</p>
+          )}
         </div>
         <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', iconBg)}>
           <Icon className={cn('h-6 w-6', iconColor)} />
@@ -302,6 +307,10 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const showSkeleton = useShowSkeleton(isLoading, hasData)
 
   const projection = useMemo(() => computeProjection(dataInicial, dataFinal), [dataInicial, dataFinal])
+
+  // Período de um único dia (ex.: "Em andamento" = hoje) — os gráficos diários
+  // viram um ponto só, então escondemos.
+  const isSingleDay = dataInicial === dataFinal
 
   // Projeção baseada nos 7 primeiros dias do período: extrapola "se mantivesse
   // o ritmo inicial, fecharíamos em X". Usado pra mês fechado (comparar
@@ -462,6 +471,11 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           iconBg="bg-emerald-100 dark:bg-emerald-900/30"
           iconColor="text-emerald-600 dark:text-emerald-400"
           formatter={formatCurrency}
+          submetric={
+            totalLitros > 0
+              ? `${formatLiters(totalLitros)} vendidos · ${formatCurrency(faturamentoCombustivel / totalLitros)}/L`
+              : undefined
+          }
           onClick={() => navigate('/operacao/combustivel?tab=caixa')}
         />
         <MainKpiCard
@@ -482,6 +496,10 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
         />
       </div>
 
+      {/* Gráficos diários — escondidos quando o período é um único dia
+          (ex.: "Em andamento" = hoje), em que viram um ponto só. */}
+      {!isSingleDay && (
+      <>
       {/* Mini-gráfico: Apurado diário com projeção */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -576,6 +594,8 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           </ResponsiveContainer>
         )}
       </div>
+      </>
+      )}
 
       {/* Nível dos tanques — todos os combustíveis do posto, gated por permissão */}
       {canVerReabastecimento && empresaCodigo != null && (
