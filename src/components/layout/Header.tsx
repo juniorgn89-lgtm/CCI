@@ -31,6 +31,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
+  // Filtros de posto/período/comparativo não se aplicam à Inteligência nem às
+  // telas de Admin (apuração, usuários, etc. são por rede inteira).
+  const showDataFilters = pathname !== '/inteligencia' && !pathname.startsWith('/admin/')
+
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const lastRefreshTime = useRef(new Date())
@@ -98,13 +102,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick-select do escopo dos dados (Em andamento / Apurado / Completo).
-              Vem antes do ComparisonSelect — define O QUE carregamos, enquanto
-              o de comparação define CONTRA O QUÊ comparamos. */}
-          {pathname !== '/inteligencia' && <DataFilterModeSelect />}
-          {/* Benchmark de comparação — fica no topo porque é "ação global"
-              (afeta como os KPIs comparam, não o que está em foco). */}
-          {pathname !== '/inteligencia' && <ComparisonSelect />}
+          {/* Filtros de escopo/comparação — escondidos em /inteligencia e nas
+              telas de Admin (nível de rede, não de posto/período). */}
+          {showDataFilters && <DataFilterModeSelect />}
+          {showDataFilters && <ComparisonSelect />}
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}

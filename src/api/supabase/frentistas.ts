@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 export interface FrentistaRow {
   user_id: string
+  rede_id: string
   codigo: number
   nome: string
   empresa_codigo: number
@@ -12,12 +13,16 @@ export interface FrentistaRow {
   updated_at: string
 }
 
-export const fetchFrentistas = async (): Promise<FrentistaRow[]> => {
+/**
+ * Lista frentistas. Quando `redeId` é informado, filtra por essa rede — usado
+ * pelo master (controle total), que escolhe a rede no topo. Pra supervisor o
+ * RLS já restringe à própria rede, mas passar o redeId mantém o escopo explícito.
+ */
+export const fetchFrentistas = async (redeId?: string): Promise<FrentistaRow[]> => {
   if (!supabase) return []
-  const { data, error } = await supabase
-    .from('frentistas')
-    .select('*')
-    .order('codigo', { ascending: true })
+  let query = supabase.from('frentistas').select('*').order('codigo', { ascending: true })
+  if (redeId) query = query.eq('rede_id', redeId)
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []) as FrentistaRow[]
 }

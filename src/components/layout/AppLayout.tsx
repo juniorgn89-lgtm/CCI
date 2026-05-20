@@ -189,8 +189,10 @@ const AppLayout = () => {
             esquerda: slot pro título da página (via PageHeaderTitle)
             direita:  filtros globais + slot pra ações da página
             Páginas que não usarem o slot da esquerda ficam só com a direita
-            (filtros encostam na borda direita). */}
-        {pathname !== '/inteligencia' && (
+            (filtros encostam na borda direita).
+            Escondida em /inteligencia e nas telas de Admin (nível de rede —
+            os filtros de posto/período/comparativo não se aplicam). */}
+        {pathname !== '/inteligencia' && !pathname.startsWith('/admin/') && (
           <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-3 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pt-4">
             <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
             <div className="flex shrink-0 items-center gap-3">

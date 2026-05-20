@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -220,6 +220,52 @@ const Usuarios = () => {
     }
   }
 
+  const redesAtivas = redes.filter((r) => r.ativo)
+
+  // Gerente (is_master) aparece em card à parte; a tabela lista os demais.
+  const gerentes = profiles.filter((p) => p.is_master)
+  const naoMasterTodos = profiles.filter((p) => !p.is_master)
+
+  // Busca por nome ou email
+  const naoMaster = useMemo(() => {
+    const q = userSearch.trim().toLowerCase()
+    if (!q) return naoMasterTodos
+    return naoMasterTodos.filter(
+      (p) =>
+        (p.full_name || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q),
+    )
+  }, [naoMasterTodos, userSearch])
+
+  // Agrupa os usuários por rede (Sem rede por último).
+  const redeNomeById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const r of redes) m.set(r.id, r.nome)
+    return m
+  }, [redes])
+
+  const gruposPorRede = useMemo(() => {
+    const SEM_REDE = '__sem_rede__'
+    const m = new Map<string, ProfileRow[]>()
+    for (const p of naoMaster) {
+      const key = p.rede_id ?? SEM_REDE
+      const arr = m.get(key) ?? []
+      arr.push(p)
+      m.set(key, arr)
+    }
+    return Array.from(m.entries())
+      .map(([key, items]) => ({
+        key,
+        nome: key === SEM_REDE ? 'Sem rede' : redeNomeById.get(key) ?? 'Rede',
+        items,
+      }))
+      .sort((a, b) => {
+        if (a.key === SEM_REDE) return 1
+        if (b.key === SEM_REDE) return -1
+        return a.nome.localeCompare(b.nome)
+      })
+  }, [naoMaster, redeNomeById])
+
   if (isMaster === null) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -244,24 +290,6 @@ const Usuarios = () => {
       </div>
     )
   }
-
-  const redesAtivas = redes.filter((r) => r.ativo)
-
-  // Separa gerentes (is_master) dos demais usuários — gerente aparece em card acima,
-  // não na tabela. A tabela só lista quem realmente pode ser editado/promovido.
-  const gerentes = profiles.filter((p) => p.is_master)
-  const naoMasterTodos = profiles.filter((p) => !p.is_master)
-
-  // Busca por nome ou email
-  const naoMaster = useMemo(() => {
-    const q = userSearch.trim().toLowerCase()
-    if (!q) return naoMasterTodos
-    return naoMasterTodos.filter(
-      (p) =>
-        (p.full_name || '').toLowerCase().includes(q) ||
-        (p.email || '').toLowerCase().includes(q),
-    )
-  }, [naoMasterTodos, userSearch])
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -332,70 +360,87 @@ const Usuarios = () => {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        {/* Busca por nome ou email — aparece quando há mais de 3 usuários */}
-        {naoMasterTodos.length > 3 && (
-          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
-            <div className="relative w-full max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Buscar por nome ou email..."
-                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-              />
+      {/* Busca por nome ou email — aparece quando há mais de 3 usuários */}
+      {naoMasterTodos.length > 3 && (
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="Buscar por nome ou email..."
+            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          />
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+        </div>
+      ) : naoMaster.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {userSearch.trim()
+              ? 'Nenhum usuário encontrado pra essa busca.'
+              : <>Nenhum usuário cadastrado ainda. Use <strong>"+ Novo usuário"</strong> para criar.</>}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {gruposPorRede.map((g) => (
+            <div
+              key={g.key}
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
+                <Network className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                <h2 className="truncate text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  {g.nome}
+                </h2>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  · {g.items.length} {g.items.length === 1 ? 'usuário' : 'usuários'}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-medium">Usuário</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Acesso</th>
+                      <th className="px-3 py-2.5 text-left font-medium">Rede</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Postos</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
+                      <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
+                      <th className="w-16 px-3 py-2.5 text-right font-medium">Excluir</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {g.items.map((p) => (
+                      <UserRow
+                        key={p.user_id}
+                        profile={p}
+                        isSelf={p.user_id === myUser?.id}
+                        redes={redesAtivas}
+                        busy={busyUserId === p.user_id}
+                        onToggleApproved={() => handleToggleApproved(p)}
+                        onToggleRole={() => handleToggleRole(p)}
+                        onChangeRede={(redeId) => handleChangeRede(p, redeId)}
+                        onEditEmpresas={() => setEditingEmpresasFor(p)}
+                        onEditModulos={() => setEditingModulosFor(p)}
+                        onTogglePodeApurar={() => handleTogglePodeApurar(p)}
+                        onTogglePodeReabast={() => handleTogglePodeReabast(p)}
+                        onDelete={() => handleDelete(p)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
-        {isLoading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-          </div>
-        ) : naoMaster.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {userSearch.trim()
-                ? 'Nenhum usuário encontrado pra essa busca.'
-                : <>Nenhum usuário cadastrado ainda. Use <strong>"+ Novo usuário"</strong> para criar.</>}
-            </p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-medium">Usuário</th>
-                <th className="px-3 py-2.5 text-center font-medium">Acesso</th>
-                <th className="px-3 py-2.5 text-left font-medium">Rede</th>
-                <th className="px-3 py-2.5 text-center font-medium">Postos</th>
-                <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
-                <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
-                <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
-                <th className="w-16 px-3 py-2.5 text-right font-medium">Excluir</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {naoMaster.map((p) => (
-                <UserRow
-                  key={p.user_id}
-                  profile={p}
-                  isSelf={p.user_id === myUser?.id}
-                  redes={redesAtivas}
-                  busy={busyUserId === p.user_id}
-                  onToggleApproved={() => handleToggleApproved(p)}
-                  onToggleRole={() => handleToggleRole(p)}
-                  onChangeRede={(redeId) => handleChangeRede(p, redeId)}
-                  onEditEmpresas={() => setEditingEmpresasFor(p)}
-                  onEditModulos={() => setEditingModulosFor(p)}
-                  onTogglePodeApurar={() => handleTogglePodeApurar(p)}
-                  onTogglePodeReabast={() => handleTogglePodeReabast(p)}
-                  onDelete={() => handleDelete(p)}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       <p className="text-xs text-gray-400 dark:text-gray-500">
         Supervisor de uma rede gerencia frentistas <strong>só dessa rede</strong>.

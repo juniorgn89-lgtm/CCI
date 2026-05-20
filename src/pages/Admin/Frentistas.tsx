@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search } from 'lucide-react'
+import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search, Network } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchFrentistas,
@@ -10,6 +10,7 @@ import {
   deleteFrentista,
   type FrentistaRow,
 } from '@/api/supabase/frentistas'
+import { fetchRedes } from '@/api/supabase/redes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -18,23 +19,31 @@ import { cn } from '@/lib/utils'
 const Frentistas = () => {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const isMaster = useAuthStore((s) => s.isMaster)
   const queryClient = useQueryClient()
 
-  // Gate: só supervisor entra aqui
+  // Gate: supervisor (da própria rede) OU master (controle total, gerencia a
+  // rede que escolheu no topo).
   const role = (user?.user_metadata as Record<string, unknown> | undefined)?.role as string | undefined
   const [profileRole, setProfileRole] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   useEffect(() => {
     // O role real está em profiles, não em user_metadata. Busca uma vez.
+    // Filtra por user_id + maybeSingle: master vê todos os profiles via RLS,
+    // então .single() sem filtro retornaria N linhas e quebraria (406).
     let cancelled = false
     const checkRole = async () => {
       const { supabase } = await import('@/lib/supabase')
-      if (!supabase) {
+      if (!supabase || !user) {
         setProfileLoaded(true)
         return
       }
-      const { data } = await supabase.from('profiles').select('role').single()
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
       if (!cancelled) {
         setProfileRole(data?.role ?? null)
         setProfileLoaded(true)
@@ -42,14 +51,24 @@ const Frentistas = () => {
     }
     checkRole()
     return () => { cancelled = true }
-  }, [])
+  }, [user])
 
   const isSupervisor = profileRole === 'supervisor' || role === 'supervisor'
+  const canManage = isSupervisor || isMaster
 
+  // RLS escopa: master vê todas as redes, supervisor só a própria.
   const { data: frentistas = [], isLoading, error } = useQuery({
     queryKey: ['frentistas'],
-    queryFn: fetchFrentistas,
-    enabled: isSupervisor,
+    queryFn: () => fetchFrentistas(),
+    enabled: canManage,
+  })
+
+  // Nomes das redes pra agrupar (master tem várias).
+  const { data: redes = [] } = useQuery({
+    queryKey: ['redes'],
+    queryFn: fetchRedes,
+    staleTime: 30 * 60 * 1000,
+    enabled: canManage,
   })
 
   // Empresas pra dropdown do form de criação
@@ -57,7 +76,7 @@ const Frentistas = () => {
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 30 * 60 * 1000,
-    enabled: isSupervisor,
+    enabled: canManage,
   })
   // Aplica a restrição do user logado (supervisor restrito vê só seus postos)
   const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -77,6 +96,25 @@ const Frentistas = () => {
         (f.empresa_nome || '').toLowerCase().includes(q),
     )
   }, [frentistas, search])
+
+  // Agrupa por rede (master vê várias; supervisor vê só a dele).
+  const redeNomeById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const r of redes) m.set(r.id, r.nome)
+    return m
+  }, [redes])
+
+  const gruposPorRede = useMemo(() => {
+    const m = new Map<string, FrentistaRow[]>()
+    for (const f of frentistasFiltrados) {
+      const arr = m.get(f.rede_id) ?? []
+      arr.push(f)
+      m.set(f.rede_id, arr)
+    }
+    return Array.from(m.entries())
+      .map(([redeId, items]) => ({ redeId, nome: redeNomeById.get(redeId) ?? 'Rede', items }))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [frentistasFiltrados, redeNomeById])
 
   const handleToggleAtivo = async (row: FrentistaRow) => {
     setBusyUserId(row.user_id)
@@ -114,11 +152,11 @@ const Frentistas = () => {
     )
   }
 
-  if (!isSupervisor) {
+  if (!canManage) {
     return (
       <div className="mx-auto max-w-md text-center py-16">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Acesso restrito a supervisores.
+          Acesso restrito a supervisores e gerentes.
         </p>
         <button
           onClick={() => navigate('/dashboard')}
@@ -160,104 +198,56 @@ const Frentistas = () => {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        {/* Busca — aparece com mais de 5 frentistas */}
-        {frentistas.length > 5 && (
-          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
-            <div className="relative w-full max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar nome, código ou posto..."
-                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+      {/* Busca — aparece com mais de 5 frentistas */}
+      {frentistas.length > 5 && (
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar nome, código ou posto..."
+            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          />
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+        </div>
+      ) : frentistasFiltrados.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {search.trim() ? 'Nenhum frentista encontrado pra essa busca.' : 'Nenhum frentista cadastrado.'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {gruposPorRede.map((g) => (
+            <div
+              key={g.redeId}
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
+                <Network className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                <h2 className="truncate text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  {g.nome}
+                </h2>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  · {g.items.length} {g.items.length === 1 ? 'frentista' : 'frentistas'}
+                </span>
+              </div>
+              <FrentistaTabela
+                items={g.items}
+                busyUserId={busyUserId}
+                onToggle={handleToggleAtivo}
+                onDelete={handleDelete}
               />
             </div>
-          </div>
-        )}
-        {isLoading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-          </div>
-        ) : frentistasFiltrados.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {search.trim() ? 'Nenhum frentista encontrado pra essa busca.' : 'Nenhum frentista cadastrado.'}
-            </p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
-              <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Código</th>
-                <th className="px-4 py-2.5 text-left font-medium">Nome</th>
-                <th className="px-4 py-2.5 text-left font-medium">Posto</th>
-                <th className="px-4 py-2.5 text-center font-medium">Status</th>
-                <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {frentistasFiltrados.map((f) => {
-                const busy = busyUserId === f.user_id
-                return (
-                  <tr key={f.user_id}>
-                    <td className="px-4 py-3 tabular-nums font-medium text-gray-900 dark:text-gray-100">
-                      {f.codigo}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.nome}</td>
-                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.empresa_nome}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleToggleAtivo(f)}
-                          disabled={busy}
-                          role="switch"
-                          aria-checked={f.ativo}
-                          aria-label={f.ativo ? 'Desativar frentista' : 'Ativar frentista'}
-                          className={cn(
-                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-                            f.ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
-                            busy && 'opacity-50 cursor-wait'
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                              f.ativo ? 'translate-x-[18px]' : 'translate-x-0.5'
-                            )}
-                          />
-                        </button>
-                        <span className={cn(
-                          'text-xs font-medium',
-                          f.ativo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
-                        )}>
-                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : (f.ativo ? 'Ativo' : 'Inativo')}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleDelete(f)}
-                        disabled={busy}
-                        title="Excluir frentista"
-                        aria-label={`Excluir ${f.nome}`}
-                        className={cn(
-                          'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
-                          busy && 'opacity-50 cursor-not-allowed'
-                        )}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {showCreate && (
         <CreateFrentistaModal
@@ -458,5 +448,86 @@ const CreateFrentistaModal = ({ empresas, codigosJaCadastrados, onClose, onCreat
     </div>
   )
 }
+
+interface FrentistaTabelaProps {
+  items: FrentistaRow[]
+  busyUserId: string | null
+  onToggle: (row: FrentistaRow) => void
+  onDelete: (row: FrentistaRow) => void
+}
+
+const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete }: FrentistaTabelaProps) => (
+  <table className="w-full text-sm">
+    <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+      <tr>
+        <th className="px-4 py-2.5 text-left font-medium">Código</th>
+        <th className="px-4 py-2.5 text-left font-medium">Nome</th>
+        <th className="px-4 py-2.5 text-left font-medium">Posto</th>
+        <th className="px-4 py-2.5 text-center font-medium">Status</th>
+        <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+      {items.map((f) => {
+        const busy = busyUserId === f.user_id
+        return (
+          <tr key={f.user_id}>
+            <td className="px-4 py-3 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+              {f.codigo}
+            </td>
+            <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.nome}</td>
+            <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{f.empresa_nome}</td>
+            <td className="px-4 py-3">
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => onToggle(f)}
+                  disabled={busy}
+                  role="switch"
+                  aria-checked={f.ativo}
+                  aria-label={f.ativo ? 'Desativar frentista' : 'Ativar frentista'}
+                  className={cn(
+                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                    f.ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
+                    busy && 'opacity-50 cursor-wait',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                      f.ativo ? 'translate-x-[18px]' : 'translate-x-0.5',
+                    )}
+                  />
+                </button>
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    f.ativo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500',
+                  )}
+                >
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : f.ativo ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
+            </td>
+            <td className="px-4 py-3 text-right">
+              <button
+                onClick={() => onDelete(f)}
+                disabled={busy}
+                title="Excluir frentista"
+                aria-label={`Excluir ${f.nome}`}
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
+                  busy && 'opacity-50 cursor-not-allowed',
+                )}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </td>
+          </tr>
+        )
+      })}
+    </tbody>
+  </table>
+)
 
 export default Frentistas
