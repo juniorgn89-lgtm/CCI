@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Wrench, Package, TrendingUp, DollarSign, Layers } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Wrench, Package, TrendingUp, DollarSign, Layers, Search } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -49,6 +49,10 @@ const OperacaoPista = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+
+  // Filtros da tabela de produtos
+  const [searchProduto, setSearchProduto] = useState('')
+  const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
 
   // Carrega produtos + grupos pra montar o mapa de produtos PS-.
   const { data: produtosData } = useQuery({
@@ -185,6 +189,22 @@ const OperacaoPista = () => {
     }
   }, [produtosData, gruposData, vendaItens])
 
+  // Aplica busca + filtro de categoria na lista de produtos.
+  const produtosFiltrados = useMemo(() => {
+    if (!computed) return []
+    const q = searchProduto.trim().toLowerCase()
+    return computed.produtosVendidos.filter((p) => {
+      if (categoriaFiltro !== 'todas' && p.categoria !== categoriaFiltro) return false
+      if (q && !p.nome.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [computed, searchProduto, categoriaFiltro])
+
+  // Tem filtro ativo? Define se mostramos top-20 ou todos os resultados.
+  const hasProductFilter = searchProduto.trim() !== '' || categoriaFiltro !== 'todas'
+  const produtosExibidos = hasProductFilter ? produtosFiltrados : produtosFiltrados.slice(0, 20)
+  const categoriasDisponiveis = computed?.categorias.map((c) => c.nome) ?? []
+
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
@@ -309,15 +329,42 @@ const OperacaoPista = () => {
             )}
           </section>
 
-          {/* Top 20 produtos */}
+          {/* Tabela de produtos com busca + filtro de categoria */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Top 20 produtos
-              </h2>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Produtos mais vendidos no período (por faturamento)
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {hasProductFilter ? 'Produtos' : 'Top 20 produtos'}
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {hasProductFilter
+                    ? `${produtosFiltrados.length} resultado${produtosFiltrados.length === 1 ? '' : 's'}`
+                    : 'Produtos mais vendidos no período (por faturamento)'}
+                </p>
+              </div>
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchProduto}
+                    onChange={(e) => setSearchProduto(e.target.value)}
+                    placeholder="Buscar produto..."
+                    className="h-8 w-[180px] rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  />
+                </div>
+                <select
+                  value={categoriaFiltro}
+                  onChange={(e) => setCategoriaFiltro(e.target.value)}
+                  className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  <option value="todas">Todas as categorias</option>
+                  {categoriasDisponiveis.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             {isLoadingVendas ? (
               <div className="space-y-2 p-5">
@@ -325,9 +372,11 @@ const OperacaoPista = () => {
                   <Skeleton key={i} className="h-10 rounded-md" />
                 ))}
               </div>
-            ) : !computed || computed.produtosVendidos.length === 0 ? (
+            ) : produtosExibidos.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-gray-400">
-                Nenhum produto vendido no período.
+                {hasProductFilter
+                  ? 'Nenhum produto pros filtros aplicados.'
+                  : 'Nenhum produto vendido no período.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -342,7 +391,7 @@ const OperacaoPista = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {computed.produtosVendidos.slice(0, 20).map((p) => {
+                    {produtosExibidos.map((p) => {
                       const margemPct = p.faturamento > 0
                         ? ((p.faturamento - p.custo) / p.faturamento) * 100
                         : 0

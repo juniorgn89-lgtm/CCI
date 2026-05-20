@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle } from 'lucide-react'
+import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search } from 'lucide-react'
 import {
   fetchRedes,
   createRede,
@@ -52,6 +52,14 @@ const Redes = () => {
   const [showCreate, setShowCreate] = useState(false)
   const [editingRede, setEditingRede] = useState<RedeRow | null>(null)
   const [deletingRede, setDeletingRede] = useState<RedeRow | null>(null)
+  const [search, setSearch] = useState('')
+
+  // Busca por nome da rede
+  const redesFiltradas = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return redes
+    return redes.filter((r) => r.nome.toLowerCase().includes(q))
+  }, [redes, search])
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const handleToggleAtivo = async (rede: RedeRow) => {
@@ -121,13 +129,30 @@ const Redes = () => {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        {/* Busca por rede — aparece com mais de 5 redes */}
+        {redes.length > 5 && (
+          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar rede..."
+                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              />
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
           </div>
-        ) : redes.length === 0 ? (
+        ) : redesFiltradas.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma rede cadastrada.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {search.trim() ? 'Nenhuma rede encontrada pra essa busca.' : 'Nenhuma rede cadastrada.'}
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -140,7 +165,7 @@ const Redes = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {redes.map((r) => (
+              {redesFiltradas.map((r) => (
                 <RedeRowComp
                   key={r.id}
                   rede={r}

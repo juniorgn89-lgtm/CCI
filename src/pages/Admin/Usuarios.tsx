@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -64,6 +64,7 @@ const Usuarios = () => {
 
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
   const [editingEmpresasFor, setEditingEmpresasFor] = useState<ProfileRow | null>(null)
   const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
   const [deletingUser, setDeletingUser] = useState<ProfileRow | null>(null)
@@ -249,7 +250,18 @@ const Usuarios = () => {
   // Separa gerentes (is_master) dos demais usuários — gerente aparece em card acima,
   // não na tabela. A tabela só lista quem realmente pode ser editado/promovido.
   const gerentes = profiles.filter((p) => p.is_master)
-  const naoMaster = profiles.filter((p) => !p.is_master)
+  const naoMasterTodos = profiles.filter((p) => !p.is_master)
+
+  // Busca por nome ou email
+  const naoMaster = useMemo(() => {
+    const q = userSearch.trim().toLowerCase()
+    if (!q) return naoMasterTodos
+    return naoMasterTodos.filter(
+      (p) =>
+        (p.full_name || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q),
+    )
+  }, [naoMasterTodos, userSearch])
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -321,6 +333,21 @@ const Usuarios = () => {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        {/* Busca por nome ou email — aparece quando há mais de 3 usuários */}
+        {naoMasterTodos.length > 3 && (
+          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder="Buscar por nome ou email..."
+                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              />
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
@@ -328,7 +355,9 @@ const Usuarios = () => {
         ) : naoMaster.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Nenhum usuário cadastrado ainda. Use <strong>"+ Novo usuário"</strong> para criar.
+              {userSearch.trim()
+                ? 'Nenhum usuário encontrado pra essa busca.'
+                : <>Nenhum usuário cadastrado ainda. Use <strong>"+ Novo usuário"</strong> para criar.</>}
             </p>
           </div>
         ) : (

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Plus, ArrowLeft, X, Loader2, Trash2 } from 'lucide-react'
+import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchFrentistas,
@@ -64,6 +64,19 @@ const Frentistas = () => {
 
   const [showCreate, setShowCreate] = useState(false)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  // Busca por nome, código ou posto
+  const frentistasFiltrados = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return frentistas
+    return frentistas.filter(
+      (f) =>
+        (f.nome || '').toLowerCase().includes(q) ||
+        String(f.codigo).includes(q) ||
+        (f.empresa_nome || '').toLowerCase().includes(q),
+    )
+  }, [frentistas, search])
 
   const handleToggleAtivo = async (row: FrentistaRow) => {
     setBusyUserId(row.user_id)
@@ -148,13 +161,30 @@ const Frentistas = () => {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        {/* Busca — aparece com mais de 5 frentistas */}
+        {frentistas.length > 5 && (
+          <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar nome, código ou posto..."
+                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              />
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
           </div>
-        ) : frentistas.length === 0 ? (
+        ) : frentistasFiltrados.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum frentista cadastrado.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {search.trim() ? 'Nenhum frentista encontrado pra essa busca.' : 'Nenhum frentista cadastrado.'}
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -168,7 +198,7 @@ const Frentistas = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {frentistas.map((f) => {
+              {frentistasFiltrados.map((f) => {
                 const busy = busyUserId === f.user_id
                 return (
                   <tr key={f.user_id}>

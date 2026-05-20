@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { TrendingDown } from 'lucide-react'
+import { TrendingDown, Search } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import ExportButton from '@/components/tables/ExportButton'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
@@ -137,13 +137,24 @@ const filterOptions: { value: FilterSituacao; label: string }[] = [
 
 const PayablesTable = ({ data }: PayablesTableProps) => {
   const [filter, setFilter] = useState<FilterSituacao>('todos')
+  const [search, setSearch] = useState('')
 
-  const filtered = data.filter((row) => {
-    if (filter === 'aberto') return row.statusTag === 'a-vencer'
-    if (filter === 'vencido') return row.statusTag === 'vencido'
-    if (filter === 'pago') return row.statusTag === 'pago'
-    return true
-  })
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return data.filter((row) => {
+      // Status
+      if (filter === 'aberto' && row.statusTag !== 'a-vencer') return false
+      if (filter === 'vencido' && row.statusTag !== 'vencido') return false
+      if (filter === 'pago' && row.statusTag !== 'pago') return false
+      // Busca por fornecedor ou descrição
+      if (q) {
+        const fornecedor = (row.nomeFornecedor || `Fornecedor ${row.fornecedorCodigo}`).toLowerCase()
+        const descricao = (row.descricao || '').toLowerCase()
+        if (!fornecedor.includes(q) && !descricao.includes(q)) return false
+      }
+      return true
+    })
+  }, [data, filter, search])
 
   const handleExport = useCallback(() => {
     exportToCsv('financeiro-pagar', filtered, csvExportColumns)
@@ -178,8 +189,19 @@ const PayablesTable = ({ data }: PayablesTableProps) => {
 
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Situação:</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Busca por fornecedor */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar fornecedor..."
+              className="h-8 w-[200px] rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            />
+          </div>
+          <span className="ml-1 text-sm font-medium text-gray-600 dark:text-gray-400">Situação:</span>
           {filterOptions.map((opt) => (
             <button
               key={opt.value}

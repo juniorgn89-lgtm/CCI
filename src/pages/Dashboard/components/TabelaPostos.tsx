@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Fuel, ChevronRight, ChevronDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Fuel, ChevronRight, ChevronDown, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useFilterStore } from '@/store/filters'
@@ -21,11 +21,22 @@ const TabelaPostos = () => {
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const { sectorDetails, isLoading } = useDashboardData()
   const [expanded, setExpanded] = useState(false)
+  const [search, setSearch] = useState('')
 
   const empresas = (sectorDetails?.combustivel.empresas ?? [])
     .filter((e) => e.litros > 0)
     .map((e) => ({ ...e, faturamentoCalc: e.litros * e.precoVenda }))
     .sort((a, b) => b.faturamentoCalc - a.faturamentoCalc)
+
+  // Lista filtrada pela busca de posto
+  const empresasFiltradas = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return empresas
+    return empresas.filter((e) => e.empresa.toLowerCase().includes(q))
+  }, [empresas, search])
+
+  // Busca só faz sentido com vários postos
+  const showSearch = empresas.length > 3
 
   const handleRowClick = (empresaCodigo: number) => {
     setEmpresas([empresaCodigo])
@@ -65,6 +76,22 @@ const TabelaPostos = () => {
         />
       </button>
 
+      {/* Busca por posto — só quando expandido e há postos suficientes */}
+      {expanded && showSearch && (
+        <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar posto..."
+              className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            />
+          </div>
+        </div>
+      )}
+
       {!expanded ? null : isLoading && empresas.length === 0 ? (
         <div className="space-y-2 p-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -74,10 +101,12 @@ const TabelaPostos = () => {
             />
           ))}
         </div>
-      ) : empresas.length === 0 ? (
+      ) : empresasFiltradas.length === 0 ? (
         <div className="p-8 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Nenhum posto com vendas de combustível no período.
+            {search.trim()
+              ? 'Nenhum posto encontrado pra essa busca.'
+              : 'Nenhum posto com vendas de combustível no período.'}
           </p>
         </div>
       ) : (
@@ -104,7 +133,7 @@ const TabelaPostos = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {empresas.map((emp) => (
+              {empresasFiltradas.map((emp) => (
                 <tr
                   key={emp.empresaCodigo}
                   onClick={() => handleRowClick(emp.empresaCodigo)}
