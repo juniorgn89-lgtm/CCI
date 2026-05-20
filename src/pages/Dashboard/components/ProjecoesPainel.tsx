@@ -17,12 +17,9 @@ const VariationBadge = ({ value, mode }: { value: number; mode: ComparisonMode }
   }
   const positive = value > 0
   const Icon = positive ? TrendingUp : TrendingDown
+  // Cinza neutro (sem verde/vermelho) — a seta já indica subiu/caiu.
   return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs font-medium ${
-        positive ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
-      }`}
-    >
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
       <Icon className="h-3 w-3" />
       {positive ? '+' : ''}
       {formatPercent(value)} {comparisonLabel(mode)}
@@ -53,8 +50,8 @@ const KpiBlock = ({ label, realizado, projetado, variacao, comparisonMode, proje
       </p>
     </div>
 
-    {/* Projetado — bloco azul */}
-    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-2.5 py-1.5 dark:border-blue-800/40 dark:bg-blue-900/20">
+    {/* Projetado — só o texto em azul, sem fundo */}
+    <div className="flex items-center gap-2 rounded-md border border-gray-200 px-2.5 py-1.5 dark:border-gray-700">
       <TrendingUp className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
       <div className="min-w-0 flex-1">
         <p className="text-[9px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
