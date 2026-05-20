@@ -44,6 +44,7 @@ const ReabastecimentoCard = () => {
   const [agruparPor, setAgruparPor] = useState<AgruparPor>('posto')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos')
   const [filterProduto, setFilterProduto] = useState<string>('todos')
+  const [filterPosto, setFilterPosto] = useState<string>('todos')
 
   // Resumo estável pro cabeçalho do painel (independe do agrupamento atual).
   const postosCount = useMemo(() => new Set(baixos.map((t) => t.empresaCodigo)).size, [baixos])
@@ -52,6 +53,14 @@ const ReabastecimentoCard = () => {
     const set = new Set<string>()
     for (const t of baixos) set.add(t.produtoNome)
     return Array.from(set).sort()
+  }, [baixos])
+
+  const postosUnicos = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const t of baixos) map.set(t.empresaCodigo, t.empresaNome)
+    return Array.from(map.entries())
+      .map(([codigo, nome]) => ({ codigo, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [baixos])
 
   // Resumo de reposição: por posto, e dentro de cada posto consolidado por
@@ -100,12 +109,13 @@ const ReabastecimentoCard = () => {
         const tanques = g.tanques.filter(
           (t) =>
             (filterStatus === 'todos' || t.nivel === filterStatus) &&
-            (filterProduto === 'todos' || t.produtoNome === filterProduto),
+            (filterProduto === 'todos' || t.produtoNome === filterProduto) &&
+            (filterPosto === 'todos' || String(t.empresaCodigo) === filterPosto),
         )
         return { ...g, tanques, criticosCount: tanques.filter((t) => t.nivel === 'critico').length }
       })
       .filter((g) => g.tanques.length > 0)
-  }, [grupos, filterStatus, filterProduto])
+  }, [grupos, filterStatus, filterProduto, filterPosto])
 
   const totalFiltrados = gruposFiltrados.reduce((s, g) => s + g.tanques.length, 0)
 
@@ -113,8 +123,9 @@ const ReabastecimentoCard = () => {
 
   const trocarAgrupamento = (modo: AgruparPor) => {
     setAgruparPor(modo)
-    // Filtro de produto é redundante quando já agrupa por combustível.
+    // Cada agrupamento mostra o filtro do "outro eixo"; reseta ambos ao trocar.
     setFilterProduto('todos')
+    setFilterPosto('todos')
   }
 
   return (
@@ -286,6 +297,37 @@ const ReabastecimentoCard = () => {
                         )}
                       >
                         {p === 'todos' ? 'Todos os produtos' : p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Posto — só faz sentido quando agrupando por combustível */}
+                {agruparPor === 'combustivel' && postosUnicos.length > 1 && (
+                  <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                    <button
+                      onClick={() => setFilterPosto('todos')}
+                      className={cn(
+                        'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                        filterPosto === 'todos'
+                          ? 'bg-[#1e3a5f] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
+                      )}
+                    >
+                      Todos os postos
+                    </button>
+                    {postosUnicos.map((p) => (
+                      <button
+                        key={p.codigo}
+                        onClick={() => setFilterPosto(String(p.codigo))}
+                        className={cn(
+                          'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                          filterPosto === String(p.codigo)
+                            ? 'bg-[#1e3a5f] text-white shadow-sm'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
+                        )}
+                      >
+                        {p.nome}
                       </button>
                     ))}
                   </div>
