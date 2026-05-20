@@ -462,7 +462,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           iconBg="bg-emerald-100 dark:bg-emerald-900/30"
           iconColor="text-emerald-600 dark:text-emerald-400"
           formatter={formatCurrency}
-          onClick={() => navigate('/operacao?tab=caixa')}
+          onClick={() => navigate('/operacao/combustivel?tab=caixa')}
         />
         <MainKpiCard
           label="Total Apurado"
@@ -478,7 +478,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           iconBg="bg-blue-100 dark:bg-blue-900/30"
           iconColor="text-blue-600 dark:text-blue-400"
           formatter={formatCurrency}
-          onClick={() => navigate('/operacao?tab=caixa')}
+          onClick={() => navigate('/operacao/combustivel?tab=caixa')}
         />
       </div>
 
