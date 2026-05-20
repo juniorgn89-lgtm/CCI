@@ -53,6 +53,19 @@ export interface DailyRow {
   [key: string]: unknown
 }
 
+/** Um produto vendido num dia específico — usado no modal de detalhe do dia. */
+export interface DaySaleProduct {
+  produtoCodigo: number
+  nome: string
+  grupo: string
+  quantidade: number
+  faturamento: number
+  custo: number
+  margemRs: number
+  margemPct: number
+  [key: string]: unknown
+}
+
 /**
  * Série diária pro gráfico "Vendas Diárias" cobrindo o período inteiro:
  * dias passados/hoje vêm como `faturamento` (real) e os dias que faltam até o
@@ -402,6 +415,38 @@ const useConvenienceData = () => {
         }
       })
 
+    // ── Produtos vendidos por dia (pro modal de detalhe do dia) ──
+    // Reaproveita os agregados já em memória — sem nenhuma chamada extra.
+    const byDayProduto = new Map<string, Map<number, { quantidade: number; faturamento: number; custo: number }>>()
+    for (const a of convAggs) {
+      const dayMap = byDayProduto.get(a.data) ?? new Map<number, { quantidade: number; faturamento: number; custo: number }>()
+      const p = dayMap.get(a.produtoCodigo) ?? { quantidade: 0, faturamento: 0, custo: 0 }
+      p.quantidade += a.quantidade
+      p.faturamento += a.totalVenda
+      p.custo += a.totalCusto
+      dayMap.set(a.produtoCodigo, p)
+      byDayProduto.set(a.data, dayMap)
+    }
+    const salesByDay: Record<string, DaySaleProduct[]> = {}
+    for (const [day, dayMap] of byDayProduto) {
+      const list: DaySaleProduct[] = []
+      for (const [code, v] of dayMap) {
+        const margemRs = v.faturamento - v.custo
+        list.push({
+          produtoCodigo: code,
+          nome: getName(code),
+          grupo: getGroup(code),
+          quantidade: v.quantidade,
+          faturamento: v.faturamento,
+          custo: v.custo,
+          margemRs,
+          margemPct: v.faturamento > 0 ? (margemRs / v.faturamento) * 100 : 0,
+        })
+      }
+      list.sort((a, b) => b.faturamento - a.faturamento)
+      salesByDay[day] = list
+    }
+
     // ── Group breakdown ──
     const byGrupo = new Map<number, { faturamento: number; quantidade: number; custo: number }>()
     for (const a of convAggs) {
@@ -708,6 +753,7 @@ const useConvenienceData = () => {
       projecao,
       dailyData,
       dailyChartData,
+      salesByDay,
       groupTable,
       revenueData,
       catalogProducts,

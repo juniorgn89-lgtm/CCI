@@ -105,6 +105,7 @@ const Conveniencias = () => {
     projecao,
     dailyData,
     dailyChartData,
+    salesByDay,
     groupTable,
     revenueData,
     catalogProducts,
@@ -287,6 +288,7 @@ const Conveniencias = () => {
                       dailyData={dailyData}
                       groupTable={groupTable}
                       revenueData={revenueData}
+                      salesByDay={salesByDay}
                     />
                   )}
                   {activeTab === 'catalogo' && (

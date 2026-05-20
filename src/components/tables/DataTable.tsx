@@ -28,6 +28,8 @@ interface DataTableProps<T> {
    * Colunas sem entrada renderizam vazio. Não é afetada pela ordenação.
    */
   footer?: Partial<Record<string, ReactNode>>
+  /** Se fornecido, cada linha vira clicável (cursor + onClick). */
+  onRowClick?: (row: T) => void
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -37,6 +39,7 @@ const DataTable = <T extends Record<string, unknown>>({
   data,
   keyExtractor,
   footer,
+  onRowClick,
 }: DataTableProps<T>) => {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
@@ -129,9 +132,11 @@ const DataTable = <T extends Record<string, unknown>>({
         {sortedData.map((row, index) => (
           <TableRow
             key={keyExtractor(row)}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
             className={cn(
               'hover:bg-blue-50/50 dark:hover:bg-gray-800/50',
-              index % 2 === 1 && 'bg-gray-50 dark:bg-gray-800/30'
+              index % 2 === 1 && 'bg-gray-50 dark:bg-gray-800/30',
+              onRowClick && 'cursor-pointer'
             )}
           >
             {columns.map((col) => (
