@@ -31,9 +31,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  // Filtros de posto/período/comparativo não se aplicam à Inteligência nem às
-  // telas de Admin (apuração, usuários, etc. são por rede inteira).
-  const showDataFilters = pathname !== '/inteligencia' && !pathname.startsWith('/admin/')
+  // Filtros de posto/período/comparativo não se aplicam à Inteligência, às
+  // Configurações nem às telas de Admin (apuração, usuários, etc. são por rede).
+  const showDataFilters =
+    pathname !== '/inteligencia' && pathname !== '/configuracoes' && !pathname.startsWith('/admin/')
 
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
   const [manualRefreshing, setManualRefreshing] = useState(false)

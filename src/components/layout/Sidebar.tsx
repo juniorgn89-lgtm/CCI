@@ -7,12 +7,9 @@ import {
   DollarSign,
   Brain,
   Gauge,
-  ChevronRight as ArrowRight,
   PanelLeft,
   Settings,
   LogOut,
-  Globe,
-  HelpCircle,
   Users,
   UserCog,
   Network,
@@ -405,29 +402,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                   Apuração
                 </button>
               )}
-
-              {/* Idioma */}
-              <button
-                role="menuitem"
-                onClick={() => setMenuOpen(false)}
-                className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                <span className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-gray-500" />
-                  Idioma
-                </span>
-                <ArrowRight className="h-4 w-4 text-gray-400" />
-              </button>
-
-              {/* Receber ajuda */}
-              <button
-                role="menuitem"
-                onClick={() => setMenuOpen(false)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                <HelpCircle className="h-4 w-4 text-gray-500" />
-                Receber ajuda
-              </button>
 
               <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
 
