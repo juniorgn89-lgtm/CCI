@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
+import { useFilterStore } from '@/store/filters'
 import type { DailyChartRow, GroupRow, TopSellerItem } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
@@ -26,6 +27,10 @@ const fmtDay = (d: string) => {
 }
 
 const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNavigateTab }: Props) => {
+  // Período de um único dia ("Em andamento") → o gráfico diário vira uma barra
+  // só; escondemos. Vendas por grupo / Top 5 continuam fazendo sentido.
+  const isSingleDay = useFilterStore((s) => s.dataInicial === s.dataFinal)
+
   const computed = useMemo(() => {
     // Top 5 groups for donut
     const topGroups = groupTable.slice(0, 6)
@@ -36,8 +41,8 @@ const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNav
 
   return (
     <div className="space-y-6">
-      {/* Daily sales chart — moved from Vendas tab */}
-      {dailyChartData.length > 0 && (
+      {/* Daily sales chart — escondido em período de um dia (Em andamento). */}
+      {!isSingleDay && dailyChartData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">Vendas Diárias</h3>
           <ResponsiveContainer width="100%" height={250}>
