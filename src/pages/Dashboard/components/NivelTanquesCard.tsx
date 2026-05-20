@@ -1,29 +1,24 @@
 import { useMemo, useState } from 'react'
-import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, ShoppingCart, TrendingDown } from 'lucide-react'
-import { formatCurrency, formatLiters } from '@/lib/formatters'
+import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList } from 'lucide-react'
+import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
+import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
+import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
+import ReposicaoTabela, { aggregarPorProduto } from '@/pages/Dashboard/components/ReposicaoTabela'
 
 interface NivelTanquesCardProps {
   empresaCodigo: number
 }
 
 type FilterStatus = 'todos' | 'critico' | 'alerta' | 'ok'
-
-/** Formata data yyyy-MM-dd como dd/MM/yy curto. */
-const fmtDateShort = (iso: string): string => {
-  if (!iso || iso.length < 10) return iso
-  const [y, m, d] = iso.slice(0, 10).split('-')
-  return `${d}/${m}/${y.slice(2)}`
-}
+type View = 'tanques' | 'resumo'
 
 /**
- * Seção de reabastecimento do posto: stat cards (total/críticos/alerta/ok),
- * necessidade total até fim do mês, filtros (status + produto) e lista de
- * tanques com nível + última compra + projeção.
+ * Seção de reabastecimento do posto: stat cards (total/críticos/alerta/ok) +
+ * necessidade total, e duas visões (switcher instantâneo): "Tanques" (cards) e
+ * "Resumo" (relatório de reposição por combustível). Mesmo padrão da Central.
  *
- * Substituiu o módulo /reabastecimento — agora vive direto no Resumo do posto
- * porque única tela faz mais sentido como continuação do resumo operacional.
+ * Substituiu o módulo /reabastecimento — agora vive direto no Resumo do posto.
  */
 const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
   const { tanques, isLoading } = useReabastecimento({
@@ -31,6 +26,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
     includeDetalhes: true,
   })
 
+  const [view, setView] = useState<View>('tanques')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos')
   const [filterProduto, setFilterProduto] = useState<string>('todos')
 
@@ -51,13 +47,17 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
     return { critico, alerta, ok, total: tanques.length, totalNecessidade }
   }, [tanques])
 
-  const filtrados = useMemo(() => {
-    return tanques.filter((t) => {
-      if (filterStatus !== 'todos' && t.nivel !== filterStatus) return false
-      if (filterProduto !== 'todos' && t.produtoNome !== filterProduto) return false
-      return true
-    })
-  }, [tanques, filterStatus, filterProduto])
+  // Filtro de status vale pras duas visões; produto só pros cards.
+  const tanquesPorStatus = useMemo(
+    () => tanques.filter((t) => filterStatus === 'todos' || t.nivel === filterStatus),
+    [tanques, filterStatus],
+  )
+  const filtrados = useMemo(
+    () => tanquesPorStatus.filter((t) => filterProduto === 'todos' || t.produtoNome === filterProduto),
+    [tanquesPorStatus, filterProduto],
+  )
+  const linhasResumo = useMemo(() => aggregarPorProduto(tanquesPorStatus), [tanquesPorStatus])
+  const totalSugestao = tanquesPorStatus.reduce((s, t) => s + t.necessidadeFimDoMes, 0)
 
   if (isLoading) {
     return (
@@ -110,8 +110,32 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
         </div>
       )}
 
-      {/* Filtros */}
+      {/* Switcher de visão + filtro de status (vale pras duas visões) */}
       <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+          {(
+            [
+              { v: 'tanques', l: 'Tanques', Icon: LayoutGrid },
+              { v: 'resumo', l: 'Resumo', Icon: ClipboardList },
+            ] as { v: View; l: string; Icon: typeof LayoutGrid }[]
+          ).map((opt) => (
+            <button
+              key={opt.v}
+              onClick={() => setView(opt.v)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                view === opt.v
+                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
+              )}
+            >
+              <opt.Icon className="h-3.5 w-3.5" />
+              {opt.l}
+            </button>
+          ))}
+        </div>
+
+        {/* Status — filtra cards e resumo */}
         <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
           {(
             [
@@ -136,26 +160,48 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
           ))}
         </div>
 
-        {produtosUnicos.length > 1 && (
-          <select
-            value={filterProduto}
-            onChange={(e) => setFilterProduto(e.target.value)}
-            className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-          >
-            <option value="todos">Todos os produtos</option>
-            {produtosUnicos.map((p) => (
-              <option key={p} value={p}>{p}</option>
+        {/* Produto — só na visão Tanques */}
+        {view === 'tanques' && produtosUnicos.length > 1 && (
+          <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+            {['todos', ...produtosUnicos].map((p) => (
+              <button
+                key={p}
+                onClick={() => setFilterProduto(p)}
+                className={cn(
+                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                  filterProduto === p
+                    ? 'bg-[#1e3a5f] text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
+                )}
+              >
+                {p === 'todos' ? 'Todos os produtos' : p}
+              </button>
             ))}
-          </select>
+          </div>
         )}
 
         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
-          {filtrados.length} de {tanques.length} {tanques.length === 1 ? 'tanque' : 'tanques'}
+          {view === 'resumo' ? (
+            <>
+              Total a comprar:{' '}
+              <span className="font-semibold tabular-nums text-blue-700 dark:text-blue-400">
+                {formatLiters(totalSugestao)}
+              </span>
+            </>
+          ) : (
+            <>
+              {filtrados.length} de {tanques.length} {tanques.length === 1 ? 'tanque' : 'tanques'}
+            </>
+          )}
         </span>
       </div>
 
-      {/* Lista de tanques */}
-      {filtrados.length === 0 ? (
+      {view === 'resumo' ? (
+        /* ── Visão Resumo: relatório de reposição por combustível ── */
+        <div className="p-4">
+          <ReposicaoTabela linhas={linhasResumo} />
+        </div>
+      ) : filtrados.length === 0 ? (
         <div className="p-8 text-center">
           <Fuel className="mx-auto h-7 w-7 text-gray-400" />
           <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -163,11 +209,12 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+        /* ── Visão Tanques: cards ── */
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtrados.map((t) => (
-            <TanqueRow key={`${t.empresaCodigo}-${t.tanqueCodigo}`} t={t} />
+            <TanqueCard key={`${t.empresaCodigo}-${t.tanqueCodigo}`} t={t} />
           ))}
-        </ul>
+        </div>
       )}
     </section>
   )
@@ -203,104 +250,6 @@ const StatCard = ({ label, value, sub, icon: Icon, color }: StatCardProps) => {
         {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>}
       </div>
     </div>
-  )
-}
-
-const TanqueRow = ({ t }: { t: ReabastTanque }) => {
-  const barColor =
-    t.nivel === 'critico' ? 'bg-red-500' :
-    t.nivel === 'alerta' ? 'bg-amber-500' :
-    'bg-emerald-500'
-  const textColor =
-    t.nivel === 'critico' ? 'text-red-600 dark:text-red-400' :
-    t.nivel === 'alerta' ? 'text-amber-700 dark:text-amber-400' :
-    'text-emerald-700 dark:text-emerald-400'
-  const badge =
-    t.nivel === 'critico' ? { label: 'Crítico', bg: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' } :
-    t.nivel === 'alerta' ? { label: 'Alerta', bg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' } :
-    { label: 'OK', bg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' }
-
-  return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t.tanqueNome}
-          </p>
-          <span className="text-xs text-gray-400">·</span>
-          <p className="truncate text-xs font-medium text-gray-700 dark:text-gray-300">
-            {t.produtoNome}
-          </p>
-        </div>
-
-        <div className="mt-2 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-            <div
-              className={cn('h-1.5 rounded-full transition-all', barColor)}
-              style={{ width: `${Math.max(2, Math.min(100, t.nivelPct))}%` }}
-            />
-          </div>
-          <span className={cn('shrink-0 text-xs font-semibold tabular-nums', textColor)}>
-            {t.nivelPct.toFixed(0)}%
-          </span>
-        </div>
-
-        <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-          {formatLiters(t.estoqueAtual)} de {formatLiters(t.capacidade)}
-        </p>
-
-        {(t.ultimaCompra || t.necessidadeFimDoMes > 0) && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-100 pt-1.5 text-[11px] dark:border-gray-800">
-            {t.ultimaCompra && (
-              <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                <ShoppingCart className="h-3 w-3 text-gray-400" />
-                <span>
-                  Última compra:{' '}
-                  <span className="font-medium tabular-nums text-gray-800 dark:text-gray-200">
-                    {formatLiters(t.ultimaCompra.volume)}
-                  </span>
-                  {' '}em{' '}
-                  <span className="tabular-nums">{fmtDateShort(t.ultimaCompra.data)}</span>
-                  {t.ultimaCompra.valorEstimado > 0 && (
-                    <> · <span className="tabular-nums" title="Estimado: volume × preço de custo do dia">
-                      {formatCurrency(t.ultimaCompra.valorEstimado)}
-                    </span></>
-                  )}
-                </span>
-              </span>
-            )}
-            {t.necessidadeFimDoMes > 0 && (
-              <span
-                className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400"
-                title="Projeção: consumo médio diário × dias restantes do mês − estoque atual"
-              >
-                <TrendingDown className="h-3 w-3" />
-                <span>
-                  Comprar até fim do mês:{' '}
-                  <span className="font-semibold tabular-nums">
-                    {formatLiters(t.necessidadeFimDoMes)}
-                  </span>
-                  {t.diasRestantes != null && (
-                    <span className="ml-1 text-[10px] text-blue-600/70 dark:text-blue-400/70">
-                      (estoque cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
-                    </span>
-                  )}
-                </span>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <span
-        className={cn(
-          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-          badge.bg,
-        )}
-      >
-        {badge.label}
-      </span>
-    </li>
   )
 }
 

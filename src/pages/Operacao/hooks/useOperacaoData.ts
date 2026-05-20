@@ -896,6 +896,8 @@ const useOperacaoData = () => {
     ...computed,
     isLoading,
     hasEmpresa,
+    // "Instantâneo": dados vieram do snapshot mensal (abastecimentos + caixas).
+    isCacheHit: abastCacheCurrent.isCacheHit && caixasCacheCurrent.isCacheHit,
   }
 }
 

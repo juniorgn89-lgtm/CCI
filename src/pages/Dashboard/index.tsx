@@ -1,4 +1,4 @@
-import { LayoutDashboard, Building2, Network, Zap } from 'lucide-react'
+import { LayoutDashboard, Building2, Network } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -6,8 +6,9 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
-import TabelaPostos from '@/pages/Dashboard/components/TabelaPostos'
+import BenchmarkPostos from '@/pages/Dashboard/components/BenchmarkPostos'
 import ReabastecimentoCard from '@/pages/Dashboard/components/ReabastecimentoCard'
+import InstantBadge from '@/components/layout/InstantBadge'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
@@ -97,15 +98,7 @@ const Dashboard = () => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-                  {isCacheHit && (
-                    <span
-                      title="Dados do snapshot mensal — carregamento instantâneo"
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
-                    >
-                      <Zap className="h-2.5 w-2.5" />
-                      instantâneo
-                    </span>
-                  )}
+                  {isCacheHit && <InstantBadge />}
                 </div>
                 <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                   {periodIsPast
@@ -123,7 +116,7 @@ const Dashboard = () => {
           {/* Conteúdo principal abaixo da projeção */}
           <div className="space-y-4">
             {!periodIsPast && <TurnosAoVivo />}
-            <TabelaPostos />
+            <BenchmarkPostos />
             {canVerReabastecimento && <ReabastecimentoCard />}
           </div>
         </>

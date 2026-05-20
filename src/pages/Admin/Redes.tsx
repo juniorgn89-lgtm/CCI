@@ -103,12 +103,12 @@ const Redes = () => {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <Network className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Redes</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Redes</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Redes de postos cadastradas no sistema
             </p>
           </div>

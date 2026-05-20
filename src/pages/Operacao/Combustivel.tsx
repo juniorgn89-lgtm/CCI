@@ -7,9 +7,11 @@ import ModuleSettings from '@/components/layout/ModuleSettings'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
+import InstantBadge from '@/components/layout/InstantBadge'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useOperacaoLayout } from '@/store/moduleLayout'
 import OperacaoIndicadores from '@/pages/Operacao/components/OperacaoIndicadores'
 import ControleBombas from '@/pages/Operacao/components/ControleBombas'
@@ -80,7 +82,9 @@ const Operacao = () => {
     apuradoPorDia,
     isLoading,
     hasEmpresa,
+    isCacheHit,
   } = useOperacaoData()
+  const empresaNome = useEmpresaNome()
 
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
@@ -95,7 +99,12 @@ const Operacao = () => {
             <Fuel className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Operação do Posto</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+                Operação{empresaNome ? ` · ${empresaNome}` : ''}
+              </h1>
+              {isCacheHit && <InstantBadge />}
+            </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Bombas, abastecimentos, turnos, caixa e produtividade
             </p>

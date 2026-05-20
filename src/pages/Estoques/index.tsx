@@ -7,6 +7,7 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useEstoquesLayout } from '@/store/moduleLayout'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
 import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
@@ -44,6 +45,7 @@ const Estoques = () => {
   const [coberturaDias, setCoberturaDias] = useState(30)
 
   const { productAnalytics, kpis, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
+  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, productAnalytics.length > 0)
 
   useEffect(() => {
@@ -58,7 +60,9 @@ const Estoques = () => {
             <Warehouse className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Estoque</h1>
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+              Estoque{empresaNome ? ` · ${empresaNome}` : ''}
+            </h1>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Giro, médias, vendas e necessidade de compra dos últimos 6 meses
             </p>

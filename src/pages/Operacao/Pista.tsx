@@ -10,6 +10,7 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 
 /* ─── Helpers ─── */
@@ -49,6 +50,7 @@ const OperacaoPista = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+  const empresaNome = useEmpresaNome()
 
   // Filtros da tabela de produtos
   const [searchProduto, setSearchProduto] = useState('')
@@ -214,7 +216,7 @@ const OperacaoPista = () => {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
-              Pista · Produtos Automotivos
+              Pista{empresaNome ? ` · ${empresaNome}` : ' · Produtos Automotivos'}
             </h1>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Filtros, óleos, palhetas, aditivos, baterias e acessórios

@@ -353,11 +353,11 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           return (
             <div
               key={s.bomba.bombaCodigo}
-              className="relative"
+              className="relative h-full"
               style={{ perspective: '1200px' }}
             >
               <div
-                className="relative transition-transform duration-500"
+                className="relative h-full transition-transform duration-500"
                 style={{
                   transformStyle: 'preserve-3d',
                   transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -366,7 +366,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 {/* ── FRONT FACE ── */}
                 <div
                   className={cn(
-                    'flex flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-900',
+                    'flex h-full flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-900',
                     meta.border,
                   )}
                   style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}

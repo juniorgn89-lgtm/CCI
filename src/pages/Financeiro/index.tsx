@@ -6,6 +6,7 @@ import ModuleSettings from '@/components/layout/ModuleSettings'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 import FinanceiroIndicadores from '@/pages/Financeiro/components/FinanceiroIndicadores'
 import ReceivablesTable from '@/pages/Financeiro/components/ReceivablesTable'
@@ -51,6 +52,7 @@ const Financeiro = () => {
     isLoading,
     hasEmpresa,
   } = useFinanceData()
+  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   useEffect(() => {
@@ -65,7 +67,9 @@ const Financeiro = () => {
             <Landmark className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+              Financeiro{empresaNome ? ` · ${empresaNome}` : ''}
+            </h1>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Contas a receber, contas a pagar e fluxo de caixa
             </p>

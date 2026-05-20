@@ -97,14 +97,14 @@ const Mobile = () => {
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
           <Smartphone className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
             Gestao Mobile
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Gerencie o acesso dos frentistas ao aplicativo
           </p>
         </div>

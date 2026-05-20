@@ -11,13 +11,14 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
-import { DollarSign, Wallet, Droplets, TrendingUp, ArrowRight, Clock, Zap, HelpCircle } from 'lucide-react'
+import { DollarSign, Wallet, Droplets, TrendingUp, Clock, HelpCircle, Network } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatLiters } from '@/lib/formatters'
 import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
+import InstantBadge from '@/components/layout/InstantBadge'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -284,7 +285,7 @@ const MainKpiCard = ({
 
 const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const navigate = useNavigate()
-  const { dataInicial, dataFinal, empresaCodigos } = useFilterStore()
+  const { dataInicial, dataFinal, empresaCodigos, setEmpresas } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const {
@@ -425,13 +426,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
                 Resumo · {empresaNome}
               </h2>
               {isCacheHit && (
-                <span
-                  title="Combustível do snapshot mensal — carregamento instantâneo"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
-                >
-                  <Zap className="h-2.5 w-2.5" />
-                  instantâneo
-                </span>
+                <InstantBadge title="Combustível do snapshot mensal — carregamento instantâneo" />
               )}
             </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
@@ -443,11 +438,11 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
       <PageHeaderActions>
         <button
           type="button"
-          onClick={() => navigate('/operacao')}
+          onClick={() => setEmpresas([])}
           className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
         >
-          Ver Operação completa
-          <ArrowRight className="h-3.5 w-3.5" />
+          <Network className="h-3.5 w-3.5" />
+          Central da Rede
         </button>
       </PageHeaderActions>
 
@@ -486,11 +481,6 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           onClick={() => navigate('/operacao?tab=caixa')}
         />
       </div>
-
-      {/* Nível dos tanques — todos os combustíveis do posto, gated por permissão */}
-      {canVerReabastecimento && empresaCodigo != null && (
-        <NivelTanquesCard empresaCodigo={empresaCodigo} />
-      )}
 
       {/* Mini-gráfico: Apurado diário com projeção */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -586,6 +576,11 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Nível dos tanques — todos os combustíveis do posto, gated por permissão */}
+      {canVerReabastecimento && empresaCodigo != null && (
+        <NivelTanquesCard empresaCodigo={empresaCodigo} />
+      )}
     </div>
   )
 }

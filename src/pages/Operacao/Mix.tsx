@@ -3,6 +3,7 @@ import { GitMerge, Fuel, Wrench, DollarSign, TrendingUp } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { useFilterStore } from '@/store/filters'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 
 /* ─── Placeholder ─── */
@@ -21,6 +22,7 @@ import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 const OperacaoMix = () => {
   const { empresaCodigos } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
+  const empresaNome = useEmpresaNome()
 
   return (
     <div className="space-y-6">
@@ -31,7 +33,7 @@ const OperacaoMix = () => {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
-              Mix · Combustível + Automotivos
+              Mix{empresaNome ? ` · ${empresaNome}` : ' · Combustível + Automotivos'}
             </h1>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Visão consolidada da pista

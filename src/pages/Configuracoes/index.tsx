@@ -311,12 +311,12 @@ const Configuracoes = () => {
     <div className="mx-auto max-w-3xl space-y-8">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
           <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Configurações</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Preferências da conta e do sistema</p>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Configurações</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Preferências da conta e do sistema</p>
         </div>
       </div>
 

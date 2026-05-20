@@ -9,6 +9,7 @@ import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
 import ConvenienciaIndicadores from '@/pages/Conveniencias/components/ConvenienciaIndicadores'
 import SalesOverview from '@/pages/Conveniencias/components/SalesOverview'
@@ -58,6 +59,7 @@ const Conveniencias = () => {
     isLoading,
     hasEmpresa,
   } = useConvenienceData()
+  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   useEffect(() => {
@@ -72,7 +74,9 @@ const Conveniencias = () => {
             <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Conveniência</h1>
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+              Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
+            </h1>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Vendas, catálogo, estoque e análise de performance da loja
             </p>
