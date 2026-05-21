@@ -54,7 +54,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 7,
+        version: 8,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -76,7 +76,6 @@ export const useConvenienciasLayout = createModuleLayoutStore('ccisga-convenienc
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'vendas', label: 'Vendas', visible: true },
   { id: 'catalogo', label: 'Catálogo', visible: true },
-  { id: 'topVendidos', label: 'Mais Vendidos', visible: true },
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout', [

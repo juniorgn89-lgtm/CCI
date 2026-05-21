@@ -122,7 +122,6 @@ const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNav
               <Trophy className="mr-1.5 inline h-4 w-4 text-amber-500" />
               Top 5 Produtos
             </h3>
-            <button onClick={() => onNavigateTab('topVendidos')} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">Ver ranking</button>
           </div>
           {computed.top5.length === 0 ? (
             <div className="flex h-[200px] items-center justify-center text-sm text-gray-400">Sem dados.</div>

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Trophy, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart, Info } from 'lucide-react'
+import { Store, ShoppingCart, Package, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart, Info } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -16,7 +16,6 @@ import { useConvenienciasLayout } from '@/store/moduleLayout'
 const ConvenienciaIndicadores = lazy(() => import('@/pages/Conveniencias/components/ConvenienciaIndicadores'))
 const SalesOverview = lazy(() => import('@/pages/Conveniencias/components/SalesOverview'))
 const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
-const TopSellers = lazy(() => import('@/pages/Conveniencias/components/TopSellers'))
 
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -25,7 +24,6 @@ const TAB_ICONS: Record<string, typeof Store> = {
   indicadores: Activity,
   vendas: ShoppingCart,
   catalogo: Package,
-  topVendidos: Trophy,
 }
 
 const ContentSkeleton = () => (
@@ -98,7 +96,10 @@ const KpiCard = ({ label, value, prevValue, delta, Icon, chipClass, iconClass, o
 
 const Conveniencias = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useConvenienciasLayout()
-  const visibleTabs = layoutTabs.filter((t) => t.visible)
+  // Defensivo: ignora abas legadas do layout salvo (ex.: "Mais Vendidos"
+  // removida) sem depender da migração do store rodar primeiro.
+  const knownTabs = layoutTabs.filter((t) => t.id in TAB_ICONS)
+  const visibleTabs = knownTabs.filter((t) => t.visible)
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
   const {
     kpis,
@@ -110,7 +111,6 @@ const Conveniencias = () => {
     groupTable,
     catalogProducts,
     topSellers,
-    treemapData,
     gruposList,
     isLoading,
     hasEmpresa,
@@ -144,7 +144,7 @@ const Conveniencias = () => {
         </div>
       </PageHeaderTitle>
       <PageHeaderActions>
-        <ModuleSettings title="Conveniência" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
+        <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </PageHeaderActions>
 
       {/* Empty state */}
@@ -296,12 +296,6 @@ const Conveniencias = () => {
                     <ProductCatalog
                       products={catalogProducts}
                       gruposList={gruposList}
-                    />
-                  )}
-                  {activeTab === 'topVendidos' && (
-                    <TopSellers
-                      topSellers={topSellers}
-                      treemapData={treemapData}
                     />
                   )}
                 </Suspense>
