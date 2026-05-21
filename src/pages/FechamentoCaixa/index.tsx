@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Receipt, ChevronDown } from 'lucide-react'
+import { lazy, Suspense, useMemo, useState } from 'react'
+import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -12,7 +13,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
-import BarCell from '@/components/tables/BarCell'
+
+const CaixaGeral = lazy(() => import('@/pages/FechamentoCaixa/components/CaixaGeral'))
+const Sangria = lazy(() => import('@/pages/FechamentoCaixa/components/Sangria'))
+const SobrasFaltas = lazy(() => import('@/pages/FechamentoCaixa/components/SobrasFaltas'))
+const DiferencaEncerrantes = lazy(() => import('@/pages/FechamentoCaixa/components/DiferencaEncerrantes'))
 
 interface Caixa {
   id: string
@@ -95,17 +100,59 @@ const formatCaixaFull = (c: Caixa) =>
 const formatCaixaShort = (c: Caixa) =>
   `${c.data} · ${c.turno} · ${c.pdv}`
 
-const fmt = (value: number, digits = 2) =>
-  new Intl.NumberFormat('pt-BR', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value)
+// Indicadores-resumo de cada caixa, para preview rápido no dropdown.
+// Valores-base escalados pelo caixaFator (mesma lógica das tabelas).
+const baseResumoCaixa = {
+  vendas: 3920.69,
+  sangria: 8231.0,
+  diferenca: -68.44,
+}
+
+const resumoCaixa = (id: string) => {
+  const f = caixaFator[id] ?? 0
+  return {
+    vendas: baseResumoCaixa.vendas * f,
+    sangria: baseResumoCaixa.sangria * f,
+    diferenca: baseResumoCaixa.diferenca * f,
+  }
+}
+
+const fmtMoney = (value: number): string => {
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (abs >= 1000) {
+    const k = (abs / 1000).toFixed(1).replace('.', ',')
+    return `${sign}R$ ${k}K`
+  }
+  return `${sign}R$ ${abs.toFixed(0)}`
+}
+
+type TabId = 'geral' | 'sangria' | 'sobras' | 'encerrantes'
+
+const TABS: { id: TabId; label: string; icon: typeof Receipt }[] = [
+  { id: 'geral', label: 'Caixa Geral', icon: FileText },
+  { id: 'sangria', label: 'Sangria', icon: HandCoins },
+  { id: 'sobras', label: 'Sobras e Faltas', icon: Scale },
+  { id: 'encerrantes', label: 'Diferença Encerrantes', icon: Fuel },
+]
+
+const TabSkeleton = () => (
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="space-y-3">
+      <Skeleton className="h-8 w-full" />
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} className="h-12 w-full" />
+      ))}
+    </div>
+  </div>
+)
 
 const FechamentoCaixa = () => {
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const hasEmpresa = empresaCodigos.length > 0
 
   const [selectedIds, setSelectedIds] = useState<string[]>(() => [caixas[0].id])
+  const [activeTab, setActiveTab] = useState<TabId>('geral')
 
   const selectedCaixas = caixas.filter((c) => selectedIds.includes(c.id))
   const allSelected = selectedIds.length === caixas.length
@@ -129,9 +176,12 @@ const FechamentoCaixa = () => {
     ? 'Nenhum caixa selecionado'
     : `Caixas: ${selectedCaixas.map(formatCaixaFull).join(' • ')}`
 
-  const dados = useMemo(() => {
-    const fator = selectedIds.reduce((acc, id) => acc + (caixaFator[id] ?? 0), 0)
+  const fator = useMemo(
+    () => selectedIds.reduce((acc, id) => acc + (caixaFator[id] ?? 0), 0),
+    [selectedIds],
+  )
 
+  const dados = useMemo(() => {
     const grupos = baseGrupos.map((g) => ({
       ...g,
       quantidade: g.quantidade * fator,
@@ -171,7 +221,7 @@ const FechamentoCaixa = () => {
       maxEntrada,
       maxSaida,
     }
-  }, [selectedIds])
+  }, [fator])
 
   return (
     <div className="space-y-6">
@@ -235,164 +285,82 @@ const FechamentoCaixa = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {caixas.map((c) => (
-                  <DropdownMenuCheckboxItem
-                    key={c.id}
-                    checked={selectedIds.includes(c.id)}
-                    onCheckedChange={() => toggleCaixa(c.id)}
-                    onSelect={(e) => e.preventDefault()}
-                    className="text-xs"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {c.data} · {c.turno}
-                      </span>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                        {c.pdv} · A: {c.abertura} F: {c.fechamento}
-                      </span>
-                    </div>
-                  </DropdownMenuCheckboxItem>
-                ))}
+                {caixas.map((c) => {
+                  const r = resumoCaixa(c.id)
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={c.id}
+                      checked={selectedIds.includes(c.id)}
+                      onCheckedChange={() => toggleCaixa(c.id)}
+                      onSelect={(e) => e.preventDefault()}
+                      className="text-xs"
+                    >
+                      <div className="flex w-full flex-col gap-1">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {c.data} · {c.turno}
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {c.pdv} · A: {c.abertura} F: {c.fechamento}
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                            <span className="opacity-70">Vendas</span>
+                            <span className="tabular-nums">{fmtMoney(r.vendas)}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            <span className="opacity-70">Sangria</span>
+                            <span className="tabular-nums">{fmtMoney(r.sangria)}</span>
+                          </span>
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                              r.diferenca < 0
+                                ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                            )}
+                          >
+                            <span className="opacity-70">Dif.</span>
+                            <span className="tabular-nums">{fmtMoney(r.diferenca)}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            {/* Cabeçalho do relatório */}
-            <div className="flex flex-col gap-4 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
-              <div className="flex flex-col gap-2">
-                <div className="inline-flex w-fit items-center rounded-md bg-gray-900 px-2.5 py-1 text-xs font-bold tracking-wide text-white dark:bg-gray-100 dark:text-gray-900">
-                  autobem
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Caixa Geral</h2>
-                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    {metaLine}
-                  </p>
-                </div>
-              </div>
-              <div className="text-left md:text-right">
-                <p className="text-sm font-bold text-gray-900 dark:text-gray-100">POSTO ITAPOA</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">31.465.040/0001-32</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">21/05/2026 12:13:51 BRT</p>
-              </div>
-            </div>
-
-            {/* Vendas por Grupos */}
-            <section className="mt-6">
-              <div className="rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                Vendas por Grupos
-              </div>
-              <div className="overflow-x-auto rounded-b-md border border-gray-200 dark:border-gray-700">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                      <th className="px-4 py-2 text-left">Grupo</th>
-                      <th className="px-4 py-2 text-right">Quantidade</th>
-                      <th className="px-4 py-2 text-right">Total (R$)</th>
-                      <th className="px-4 py-2 text-right">Margem Bruta (R$)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dados.grupos.map((row) => (
-                      <tr
-                        key={row.grupo}
-                        className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
-                      >
-                        <td className="px-4 py-2 text-left">{row.grupo}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{fmt(row.quantidade)}</td>
-                        <td className="px-2 py-1.5">
-                          <BarCell value={row.total} max={dados.maxTotal} formatted={fmt(row.total)} color="blue" align="near" />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <BarCell
-                            value={Math.abs(row.margemBruta)}
-                            max={dados.maxMargemAbs}
-                            formatted={fmt(row.margemBruta, 3)}
-                            color={row.margemBruta < 0 ? 'red' : 'green'}
-                            align="near"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                      <td className="px-4 py-2 text-left">Total:</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.gruposTotal.quantidade)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.gruposTotal.total)}</td>
-                      <td
-                        className={cn(
-                          'px-4 py-2 text-right tabular-nums',
-                          dados.gruposTotal.margemBruta < 0 && 'text-red-600 dark:text-red-400',
-                        )}
-                      >
-                        {fmt(dados.gruposTotal.margemBruta, 3)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* Movimentação Financeira dos Caixas */}
-            <section className="mt-6">
-              <div className="rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                Movimentação Financeira dos Caixas
-              </div>
-              <div className="grid grid-cols-1 gap-0 rounded-b-md border border-gray-200 md:grid-cols-2 md:divide-x md:divide-gray-200 dark:border-gray-700 dark:md:divide-gray-700">
-                {/* Entradas */}
-                <div>
-                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                    Entradas
-                  </div>
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {dados.entradas.map((row) => (
-                        <tr
-                          key={row.label}
-                          className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
-                        >
-                          <td className="px-4 py-2 text-left">{row.label}</td>
-                          <td className="px-2 py-1.5">
-                            <BarCell value={row.valor} max={dados.maxEntrada} formatted={fmt(row.valor)} color="blue" align="near" />
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                        <td className="px-4 py-2 text-left">Total:</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.entradasTotal)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Saídas */}
-                <div>
-                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                    Saídas
-                  </div>
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {dados.saidas.map((row) => (
-                        <tr
-                          key={row.label}
-                          className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
-                        >
-                          <td className="px-4 py-2 text-left">{row.label}</td>
-                          <td className="px-2 py-1.5">
-                            <BarCell value={row.valor} max={dados.maxSaida} formatted={fmt(row.valor)} color="green" align="near" />
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                        <td className="px-4 py-2 text-left">Total:</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.saidasTotal)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
+          {/* Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex w-fit items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
+                    activeTab === tab.id
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              )
+            })}
           </div>
+
+          {/* Tab content */}
+          <Suspense fallback={<TabSkeleton />}>
+            {activeTab === 'geral' && <CaixaGeral dados={dados} metaLine={metaLine} />}
+            {activeTab === 'sangria' && <Sangria fator={fator} />}
+            {activeTab === 'sobras' && <SobrasFaltas fator={fator} />}
+            {activeTab === 'encerrantes' && <DiferencaEncerrantes fator={fator} />}
+          </Suspense>
         </>
       )}
     </div>
