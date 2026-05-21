@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
-import { useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { navItems } from '@/components/layout/Sidebar'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
+import CompanySelect from '@/components/filters/CompanySelect'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
 import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { showsGlobalFilters } from '@/lib/globalFilters'
+import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -33,6 +37,17 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const isFetching = useIsFetching()
 
   const showDataFilters = showsGlobalFilters(pathname)
+
+  // Mesma lógica do antigo GlobalFilterBar: esconde o seletor de posto quando
+  // o usuário só tem uma empresa permitida (não há o que escolher).
+  const { data: empresasData } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas(),
+    staleTime: 10 * 60 * 1000,
+    enabled: showDataFilters,
+  })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const showCompanySelect = showDataFilters && empresasPermitidas.length !== 1
 
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
   const [manualRefreshing, setManualRefreshing] = useState(false)
@@ -101,10 +116,12 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {showCompanySelect && <CompanySelect />}
           {/* Filtros de escopo/comparação — escondidos em /inteligencia e nas
               telas de Admin (nível de rede, não de posto/período). */}
           {showDataFilters && <DataFilterModeSelect />}
           {showDataFilters && <ComparisonSelect />}
+          <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}

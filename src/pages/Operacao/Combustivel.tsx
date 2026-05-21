@@ -4,7 +4,7 @@ import { Fuel, Gauge, Wallet, BarChart3, Activity, Settings, Droplets, DollarSig
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import HeaderTray from '@/components/layout/HeaderTray'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 import InstantBadge from '@/components/layout/InstantBadge'
@@ -120,9 +120,9 @@ const Operacao = () => {
           </div>
         </div>
       </PageHeaderTitle>
-      <PageHeaderActions>
+      <HeaderTray>
         <ModuleSettings title="Operação" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </PageHeaderActions>
+      </HeaderTray>
 
       {/* Switcher entre Combustível / Pista / Mix */}
       <OperacaoNav />

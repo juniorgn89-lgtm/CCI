@@ -11,7 +11,6 @@ import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
 import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
-import GlobalFilterBar from '@/components/filters/GlobalFilterBar'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { useAuthStore } from '@/store/auth'
@@ -186,20 +185,14 @@ const AppLayout = () => {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
-        {/* Sub-bar — gradient suave do Header pra página, com 3 zonas:
-            esquerda: slot pro título da página (via PageHeaderTitle)
-            direita:  filtros globais + slot pra ações da página
-            Páginas que não usarem o slot da esquerda ficam só com a direita
-            (filtros encostam na borda direita).
-            Escondida em /inteligencia e nas telas de nível de rede (Admin,
-            Configurações, Selecionar rede) — ver showsGlobalFilters. */}
+        {/* Sub-bar — gradient suave do Header pra página com slot do título
+            (esquerda) e slot de ações (direita). Os filtros antes globais
+            (posto, período, datas) foram movidos: posto subiu pro Header,
+            datas viraram filtros locais por tela. */}
         {showsGlobalFilters(pathname) && (
           <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-3 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pt-4">
             <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
-            <div className="flex shrink-0 items-center gap-3">
-              <GlobalFilterBar />
-              <div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="shrink-0" />
-            </div>
+            <div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="shrink-0" />
           </div>
         )}
 

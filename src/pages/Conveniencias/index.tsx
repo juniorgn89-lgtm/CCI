@@ -3,7 +3,7 @@ import { Store, ShoppingCart, Package, Settings, Activity, DollarSign, TrendingU
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import HeaderTray from '@/components/layout/HeaderTray'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import InstantBadge from '@/components/layout/InstantBadge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -143,9 +143,9 @@ const Conveniencias = () => {
           </div>
         </div>
       </PageHeaderTitle>
-      <PageHeaderActions>
+      <HeaderTray>
         <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </PageHeaderActions>
+      </HeaderTray>
 
       {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}

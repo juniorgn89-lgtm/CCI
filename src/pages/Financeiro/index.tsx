@@ -3,7 +3,7 @@ import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity } from 'lu
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import HeaderTray from '@/components/layout/HeaderTray'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -77,9 +77,9 @@ const Financeiro = () => {
           </div>
         </div>
       </PageHeaderTitle>
-      <PageHeaderActions>
+      <HeaderTray>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </PageHeaderActions>
+      </HeaderTray>
 
       {/* Empty state: no empresa selected */}
       {!hasEmpresa && <SelectCompanyState />}
