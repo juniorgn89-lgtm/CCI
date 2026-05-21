@@ -60,7 +60,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
-      { label: 'Fechamento de Caixa', path: '/fechamento-caixa', icon: Receipt },
+      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
     ],
   },
   {
