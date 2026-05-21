@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { fmt } from './formatters'
+import GrupoProdutosModal, { type GrupoProduto } from './GrupoProdutosModal'
 
 interface GrupoRow {
   grupo: string
@@ -25,6 +27,7 @@ export interface CaixaGeralData {
   maxMargemAbs: number
   maxEntrada: number
   maxSaida: number
+  produtosPorGrupo: Record<string, GrupoProduto[]>
 }
 
 interface CaixaGeralProps {
@@ -33,6 +36,8 @@ interface CaixaGeralProps {
 }
 
 const CaixaGeral = ({ dados, metaLine }: CaixaGeralProps) => {
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
+  const produtos = selectedGroup ? (dados.produtosPorGrupo[selectedGroup] ?? []) : []
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       {/* Cabeçalho do relatório */}
@@ -55,8 +60,13 @@ const CaixaGeral = ({ dados, metaLine }: CaixaGeralProps) => {
 
       {/* Vendas por Grupos */}
       <section className="mt-6">
-        <div className="rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-          Vendas por Grupos
+        <div className="flex items-center justify-between rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+          <span className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+            Vendas por Grupos
+          </span>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+            Clique num grupo pra ver os produtos
+          </span>
         </div>
         <div className="overflow-x-auto rounded-b-md border border-gray-200 dark:border-gray-700">
           <table className="w-full text-sm">
@@ -72,7 +82,8 @@ const CaixaGeral = ({ dados, metaLine }: CaixaGeralProps) => {
               {dados.grupos.map((row) => (
                 <tr
                   key={row.grupo}
-                  className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                  onClick={() => setSelectedGroup(row.grupo)}
+                  className="cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-blue-900/20"
                 >
                   <td className="px-4 py-2 text-left">{row.grupo}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{fmt(row.quantidade)}</td>
@@ -167,6 +178,13 @@ const CaixaGeral = ({ dados, metaLine }: CaixaGeralProps) => {
           </div>
         </div>
       </section>
+
+      <GrupoProdutosModal
+        open={!!selectedGroup}
+        onClose={() => setSelectedGroup(null)}
+        grupo={selectedGroup}
+        produtos={produtos}
+      />
     </div>
   )
 }

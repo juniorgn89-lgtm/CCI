@@ -41,18 +41,46 @@ interface MovimentacaoRow {
 }
 
 const caixas: Caixa[] = [
+  // 19/05/2026
   { id: '20260519-1-conv', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59' },
   { id: '20260519-2-conv', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59' },
+  { id: '20260519-1-pista', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55' },
+  { id: '20260519-2-pista', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55' },
+  // 18/05/2026
   { id: '20260518-1-conv', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58' },
+  { id: '20260518-2-conv', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58' },
   { id: '20260518-1-pista', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55' },
+  { id: '20260518-2-pista', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55' },
+  // 17/05/2026
+  { id: '20260517-1-conv', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57' },
+  { id: '20260517-2-conv', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57' },
+  { id: '20260517-1-pista', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58' },
+  { id: '20260517-2-pista', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58' },
+  // 16/05/2026
+  { id: '20260516-1-conv', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55' },
+  { id: '20260516-2-conv', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55' },
+  { id: '20260516-1-pista', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50' },
+  { id: '20260516-2-pista', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50' },
 ]
 
 // Mock — fator de escala por caixa. Quando o backend chegar, vira fetch real.
 const caixaFator: Record<string, number> = {
   '20260519-1-conv': 1,
   '20260519-2-conv': 0.65,
+  '20260519-1-pista': 1.6,
+  '20260519-2-pista': 1.2,
   '20260518-1-conv': 0.82,
+  '20260518-2-conv': 0.7,
   '20260518-1-pista': 1.4,
+  '20260518-2-pista': 1.1,
+  '20260517-1-conv': 0.95,
+  '20260517-2-conv': 0.75,
+  '20260517-1-pista': 1.5,
+  '20260517-2-pista': 1.3,
+  '20260516-1-conv': 0.88,
+  '20260516-2-conv': 0.68,
+  '20260516-1-pista': 1.45,
+  '20260516-2-pista': 1.15,
 }
 
 const baseGrupos: GrupoRow[] = [
@@ -94,6 +122,74 @@ const baseSaidas: MovimentacaoRow[] = [
   { label: 'Transferência Bancária Crédito', valor: 866.72 },
 ]
 
+// Mock de produtos por grupo — drill-down ao clicar numa linha do grupo.
+const baseProdutosPorGrupo: Record<string, Array<{ nome: string; quantidade: number; total: number; margemBruta: number }>> = {
+  'LJ - BEBIDAS ALCOOLICAS': [
+    { nome: 'CERVEJA SKOL LATA 350ML', quantidade: 1, total: 12.9, margemBruta: 8.814 },
+  ],
+  'LJ - BEBIDAS NAO ALCOOLICAS': [
+    { nome: 'COCA COLA 600ML', quantidade: 22, total: 198.0, margemBruta: 121.5 },
+    { nome: 'GUARANA ANT. 600ML', quantidade: 18, total: 156.0, margemBruta: 96.2 },
+    { nome: 'AGUA MINERAL 500ML', quantidade: 12, total: 84.04, margemBruta: 51.8 },
+    { nome: 'SUCO DEL VALLE 300ML', quantidade: 8, total: 60.0, margemBruta: 35.613 },
+  ],
+  'LJ - BOMBONIERE': [
+    { nome: 'BALA 7 BELO', quantidade: 35, total: 105.0, margemBruta: 42.5 },
+    { nome: 'CHOCOLATE LACTA', quantidade: 28, total: 168.34, margemBruta: 58.337 },
+    { nome: 'TRIDENT TUTTI-FRUTTI', quantidade: 18, total: 92.0, margemBruta: 28.0 },
+  ],
+  'LJ - CERVEJAS': [
+    { nome: 'CERVEJA BRAHMA LONG NECK', quantidade: 12, total: 132.0, margemBruta: 70.0 },
+    { nome: 'CERVEJA HEINEKEN 330ML', quantidade: 8, total: 96.78, margemBruta: 52.022 },
+    { nome: 'CERVEJA CORONA 355ML', quantidade: 6, total: 54.0, margemBruta: 28.0 },
+  ],
+  'LJ - CONGELADOS': [
+    { nome: 'AÇAI SAMBAZON 100G', quantidade: 1, total: 13.5, margemBruta: 4.788 },
+  ],
+  'LJ - CORTESIA': [
+    { nome: 'CAFÉ DOAÇÃO CORTESIA', quantidade: 50, total: 0.5, margemBruta: -28.0 },
+    { nome: 'ÁGUA CORTESIA', quantidade: 13, total: 0.13, margemBruta: -8.24 },
+  ],
+  'LJ - ELETRONICOS': [
+    { nome: 'CABO USB-C 1M', quantidade: 1, total: 29.9, margemBruta: 11.9 },
+  ],
+  'LJ - ENERGETICO E ISOTONICOS': [
+    { nome: 'RED BULL 250ML', quantidade: 8, total: 144.0, margemBruta: 72.5 },
+    { nome: 'GATORADE 500ML', quantidade: 5, total: 60.05, margemBruta: 28.024 },
+    { nome: 'MONSTER ENERGY 473ML', quantidade: 0, total: 27.0, margemBruta: 14.0 },
+  ],
+  'LJ - FAST-FOOD': [
+    { nome: 'COXINHA UNID.', quantidade: 280, total: 420.0, margemBruta: 280.0 },
+    { nome: 'PÃO DE QUEIJO UNID.', quantidade: 210, total: 315.0, margemBruta: 210.0 },
+    { nome: 'KIBE UNID.', quantidade: 120, total: 240.0, margemBruta: 155.0 },
+    { nome: 'EMPADA FRANGO UNID.', quantidade: 80, total: 160.0, margemBruta: 100.0 },
+    { nome: 'SANDUICHE NATURAL', quantidade: 56, total: 75.66, margemBruta: 48.218 },
+  ],
+  'LJ - MINI MERCADO': [
+    { nome: 'ARROZ 1KG', quantidade: 3, total: 30.0, margemBruta: 10.0 },
+    { nome: 'FEIJÃO 1KG', quantidade: 2, total: 22.0, margemBruta: 8.0 },
+    { nome: 'AÇUCAR 1KG', quantidade: 2, total: 16.46, margemBruta: 6.923 },
+  ],
+  'LJ - SNACKS': [
+    { nome: 'BATATA PRINGLES ORIGINAL', quantidade: 6, total: 60.0, margemBruta: 24.0 },
+    { nome: 'DORITOS COOL RANCH', quantidade: 5, total: 32.48, margemBruta: 14.278 },
+    { nome: 'CHEETOS LUA', quantidade: 3, total: 14.0, margemBruta: 7.0 },
+  ],
+  'LJ - SORVETES': [
+    { nome: 'CORNETTO CHOCOLATE', quantidade: 4, total: 48.0, margemBruta: 14.5 },
+    { nome: 'MAGNUM CLASSIC', quantidade: 2, total: 26.8, margemBruta: 8.226 },
+  ],
+  'LJ - TABACARIA': [
+    { nome: 'CIGARRO MARLBORO RED', quantidade: 30, total: 450.0, margemBruta: 138.0 },
+    { nome: 'CIGARRO CARLTON SUAVE', quantidade: 22, total: 330.0, margemBruta: 101.0 },
+    { nome: 'CIGARRO LUCKY STRIKE', quantidade: 14, total: 214.55, margemBruta: 65.958 },
+  ],
+  'LJ - TABACARIA ACESSÓRIOS': [
+    { nome: 'ISQUEIRO BIC', quantidade: 3, total: 21.0, margemBruta: 12.5 },
+    { nome: 'SEDA SMOKING KING', quantidade: 1, total: 10.6, margemBruta: 6.067 },
+  ],
+}
+
 const formatCaixaFull = (c: Caixa) =>
   `${c.data} ${c.turno} ${c.pdv} A: ${c.abertura} F: ${c.fechamento}`
 
@@ -126,6 +222,20 @@ const fmtMoney = (value: number): string => {
   }
   return `${sign}R$ ${abs.toFixed(0)}`
 }
+
+// dd/mm/yyyy → 'yyyymmdd' para ordenar
+const dataKey = (data: string) => data.split('/').reverse().join('')
+
+const caixasPorData: { data: string; lista: Caixa[] }[] = (() => {
+  const map = new Map<string, Caixa[]>()
+  for (const c of caixas) {
+    if (!map.has(c.data)) map.set(c.data, [])
+    map.get(c.data)!.push(c)
+  }
+  return [...map.entries()]
+    .sort((a, b) => dataKey(b[0]).localeCompare(dataKey(a[0])))
+    .map(([data, lista]) => ({ data, lista }))
+})()
 
 type TabId = 'geral' | 'sangria' | 'sobras' | 'encerrantes'
 
@@ -209,6 +319,18 @@ const FechamentoCaixa = () => {
     const maxEntrada = entradas.reduce((m, e) => Math.max(m, e.valor), 0)
     const maxSaida = saidas.reduce((m, s) => Math.max(m, s.valor), 0)
 
+    const produtosPorGrupo = Object.fromEntries(
+      Object.entries(baseProdutosPorGrupo).map(([grupo, lista]) => [
+        grupo,
+        lista.map((p) => ({
+          ...p,
+          quantidade: p.quantidade * fator,
+          total: p.total * fator,
+          margemBruta: p.margemBruta * fator,
+        })),
+      ]),
+    )
+
     return {
       grupos,
       gruposTotal,
@@ -220,6 +342,7 @@ const FechamentoCaixa = () => {
       maxMargemAbs,
       maxEntrada,
       maxSaida,
+      produtosPorGrupo,
     }
   }, [fator])
 
@@ -263,7 +386,7 @@ const FechamentoCaixa = () => {
                   <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-[340px]">
+              <DropdownMenuContent align="start" className="max-h-[70vh] w-[340px] overflow-y-auto">
                 <DropdownMenuLabel className="flex items-center justify-between gap-3 text-xs">
                   <span>Selecionar caixas</span>
                   <div className="flex items-center gap-2 text-[11px] font-normal">
@@ -285,46 +408,73 @@ const FechamentoCaixa = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {caixas.map((c) => {
-                  const r = resumoCaixa(c.id)
+                {caixasPorData.map(({ data, lista }, gi) => {
+                  const allDaySelected = lista.every((c) => selectedIds.includes(c.id))
+                  const toggleDay = () => {
+                    const dayIds = lista.map((c) => c.id)
+                    setSelectedIds((prev) =>
+                      allDaySelected
+                        ? prev.filter((id) => !dayIds.includes(id))
+                        : [...new Set([...prev, ...dayIds])],
+                    )
+                  }
                   return (
-                    <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={selectedIds.includes(c.id)}
-                      onCheckedChange={() => toggleCaixa(c.id)}
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-xs"
-                    >
-                      <div className="flex w-full flex-col gap-1">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
-                          {c.data} · {c.turno}
+                    <div key={data} className={cn(gi > 0 && 'mt-1 border-t border-gray-100 pt-1 dark:border-gray-800')}>
+                      <div className="flex items-center justify-between px-2 py-1.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                          {data}
                         </span>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                          {c.pdv} · A: {c.abertura} F: {c.fechamento}
-                        </span>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                            <span className="opacity-70">Vendas</span>
-                            <span className="tabular-nums">{fmtMoney(r.vendas)}</span>
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                            <span className="opacity-70">Sangria</span>
-                            <span className="tabular-nums">{fmtMoney(r.sangria)}</span>
-                          </span>
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                              r.diferenca < 0
-                                ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-                            )}
-                          >
-                            <span className="opacity-70">Dif.</span>
-                            <span className="tabular-nums">{fmtMoney(r.diferenca)}</span>
-                          </span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={toggleDay}
+                          className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          {allDaySelected ? 'Desmarcar dia' : 'Selecionar dia'}
+                        </button>
                       </div>
-                    </DropdownMenuCheckboxItem>
+                      {lista.map((c) => {
+                        const r = resumoCaixa(c.id)
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={c.id}
+                            checked={selectedIds.includes(c.id)}
+                            onCheckedChange={() => toggleCaixa(c.id)}
+                            onSelect={(e) => e.preventDefault()}
+                            className="text-xs"
+                          >
+                            <div className="flex w-full flex-col gap-1">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {c.turno} · {c.pdv}
+                              </span>
+                              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                A: {c.abertura} F: {c.fechamento}
+                              </span>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                  <span className="opacity-70">Vendas</span>
+                                  <span className="tabular-nums">{fmtMoney(r.vendas)}</span>
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                  <span className="opacity-70">Sangria</span>
+                                  <span className="tabular-nums">{fmtMoney(r.sangria)}</span>
+                                </span>
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                    r.diferenca < 0
+                                      ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                  )}
+                                >
+                                  <span className="opacity-70">Dif.</span>
+                                  <span className="tabular-nums">{fmtMoney(r.diferenca)}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                    </div>
                   )
                 })}
               </DropdownMenuContent>
