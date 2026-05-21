@@ -7,6 +7,8 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -224,6 +226,9 @@ const OperacaoPista = () => {
           </div>
         </div>
       </PageHeaderTitle>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {/* Switcher entre Combustível / Pista / Mix */}
       <OperacaoNav />

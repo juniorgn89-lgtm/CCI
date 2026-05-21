@@ -4,7 +4,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -72,6 +74,9 @@ const Estoques = () => {
       <HeaderTray>
         <ModuleSettings title="Estoques" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {!hasEmpresa && <SelectCompanyState />}
 

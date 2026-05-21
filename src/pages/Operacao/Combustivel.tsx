@@ -5,7 +5,9 @@ import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
 import InstantBadge from '@/components/layout/InstantBadge'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
@@ -123,6 +125,9 @@ const Operacao = () => {
       <HeaderTray>
         <ModuleSettings title="Operação" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {/* Switcher entre Combustível / Pista / Mix */}
       <OperacaoNav />

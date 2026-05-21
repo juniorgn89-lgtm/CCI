@@ -83,15 +83,19 @@ const DataFilterModeSelect = () => {
   const lastM = lastOfCurrentMonth()
   const yesterday = yesterdayOrFirst()
 
-  // "Em andamento" (só hoje) e "Apurado" (1º→ontem) são exatos. Qualquer outro
-  // range — mês completo, multi-mês ou personalizado — cai em "Completo", que
-  // fica marcado como o modo padrão. Clicar em outro modo reseta o período.
+  // "Em andamento" = só hoje. "Apurado" = (a) range exato 1º→ontem do mês
+  // corrente OU (b) qualquer período inteiramente no passado (já fechado).
+  // Qualquer outro range (mês corrente completo, futuro, multi-mês com mês
+  // corrente incluído) cai em "Completo". Comparar strings yyyy-MM-dd com
+  // `<` funciona porque a ordem lexicográfica bate com a cronológica.
   const activeMode: Mode =
     dataInicial === today && dataFinal === today
       ? 'em_andamento'
       : dataInicial === firstM && dataFinal === yesterday
         ? 'apurado'
-        : 'completo'
+        : dataFinal < today
+          ? 'apurado'
+          : 'completo'
 
   const handleSelect = (mode: Mode) => {
     if (mode === 'em_andamento') {

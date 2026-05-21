@@ -4,7 +4,9 @@ import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import InstantBadge from '@/components/layout/InstantBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -146,6 +148,9 @@ const Conveniencias = () => {
       <HeaderTray>
         <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}

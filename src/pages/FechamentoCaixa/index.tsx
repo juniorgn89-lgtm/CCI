@@ -1,6 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -363,6 +365,9 @@ const FechamentoCaixa = () => {
           </div>
         </div>
       </PageHeaderTitle>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {!hasEmpresa && <SelectCompanyState />}
 

@@ -13,6 +13,8 @@ import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 
 const Dashboard = () => {
   const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
@@ -108,6 +110,9 @@ const Dashboard = () => {
               </div>
             </div>
           </PageHeaderTitle>
+          <PageHeaderActions>
+            <DateRangeToolbar />
+          </PageHeaderActions>
 
           {/* Projeção do mês — strip horizontal no topo, full width. KPIs
               (Faturamento, Lucro Bruto, Margem) + alerta menor margem em grid. */}

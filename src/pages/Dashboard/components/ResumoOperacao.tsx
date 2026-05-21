@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle, Network } from 'lucide-react'
+import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -10,7 +10,6 @@ import InstantBadge from '@/components/layout/InstantBadge'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
 import type { DailyPoint } from '@/pages/Dashboard/components/ResumoCharts'
 import { useAuthStore } from '@/store/auth'
@@ -256,7 +255,7 @@ const MainKpiCard = ({
 
 const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   const navigate = useNavigate()
-  const { dataInicial, dataFinal, empresaCodigos, setEmpresas } = useFilterStore()
+  const { dataInicial, dataFinal, empresaCodigos } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const {
@@ -410,17 +409,6 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           </div>
         </div>
       </PageHeaderTitle>
-      <PageHeaderActions>
-        <button
-          type="button"
-          onClick={() => setEmpresas([])}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-        >
-          <Network className="h-3.5 w-3.5" />
-          Central da Rede
-        </button>
-      </PageHeaderActions>
-
       {/* 2 KPIs principais com projeção em destaque */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MainKpiCard

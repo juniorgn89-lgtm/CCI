@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { GitMerge, Fuel, Wrench, DollarSign, TrendingUp } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -41,6 +43,9 @@ const OperacaoMix = () => {
           </div>
         </div>
       </PageHeaderTitle>
+      <PageHeaderActions>
+        <DateRangeToolbar />
+      </PageHeaderActions>
 
       {/* Switcher entre Combustível / Pista / Mix */}
       <OperacaoNav />
