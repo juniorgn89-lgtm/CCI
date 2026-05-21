@@ -1,6 +1,6 @@
-# Agentes de IA — CCISGA
+# Agentes de IA — Visor360
 
-Time de agentes especializados para o desenvolvimento do CCISGA.
+Time de agentes especializados para o desenvolvimento do Visor360.
 
 > **Regra de Ouro:** Todos os agentes devem respeitar que o sistema é **READ-ONLY**. Apenas GET (exceção: POST para login).
 

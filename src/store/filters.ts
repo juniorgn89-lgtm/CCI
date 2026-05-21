@@ -47,7 +47,7 @@ export const useFilterStore = create<FilterState>()(
       },
     }),
     {
-      name: 'ccisga-filters',
+      name: 'visor360-filters',
       storage: createJSONStorage(() => localStorage),
     },
   ),

@@ -72,7 +72,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   }
 
   const currentModule = navItems.find((item) => item.path === pathname)
-  const title = currentModule?.label ?? 'CCISGA'
+  const title = currentModule?.label ?? 'Visor360'
 
   return (
     <header className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">

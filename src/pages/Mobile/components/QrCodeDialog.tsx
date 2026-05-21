@@ -39,7 +39,7 @@ const QrCodeDialog = ({
   }
 
   const handleWhatsApp = () => {
-    const text = `Olá ${frentistaName.split(' ')[0]}! Acesse o app CCISGA pelo link abaixo:`
+    const text = `Olá ${frentistaName.split(' ')[0]}! Acesse o app Visor360 pelo link abaixo:`
     window.open(
       `https://wa.me/?text=${encodeURIComponent(text)}%0A%0A${encodeURIComponent(url)}`,
       '_blank'
@@ -47,9 +47,9 @@ const QrCodeDialog = ({
   }
 
   const handleEmail = () => {
-    const body = `Olá ${frentistaName.split(' ')[0]},\n\nAcesse o app CCISGA pelo link abaixo:\n\n${url}\n\nApós abrir, clique em "Adicionar à tela inicial" para instalar.`
+    const body = `Olá ${frentistaName.split(' ')[0]},\n\nAcesse o app Visor360 pelo link abaixo:\n\n${url}\n\nApós abrir, clique em "Adicionar à tela inicial" para instalar.`
     window.open(
-      `mailto:?subject=CCISGA - Acesso ao App&body=${encodeURIComponent(body)}`,
+      `mailto:?subject=Visor360 - Acesso ao App&body=${encodeURIComponent(body)}`,
       '_blank'
     )
   }

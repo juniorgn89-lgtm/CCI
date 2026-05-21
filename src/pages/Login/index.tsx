@@ -92,7 +92,7 @@ const Login = () => {
         </div>
 
         <p className="absolute bottom-6 text-xs text-white/25">
-          &copy; {new Date().getFullYear()} CCISGA — Todos os direitos reservados
+          &copy; {new Date().getFullYear()} Visor360 — Todos os direitos reservados
         </p>
       </div>
 
@@ -106,7 +106,7 @@ const Login = () => {
             </div>
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight text-[#1e3a5f] dark:text-white">
-                CCISGA
+                Visor360
               </h1>
               <p className="text-[11px] text-gray-400 dark:text-gray-500">
                 Simplifique sua gestão, amplifique seus resultados
@@ -259,7 +259,7 @@ const Login = () => {
         </div>
 
         <p className="mt-12 text-center text-xs text-gray-400 dark:text-gray-500 lg:hidden">
-          &copy; {new Date().getFullYear()} CCISGA
+          &copy; {new Date().getFullYear()} Visor360
         </p>
       </div>
 

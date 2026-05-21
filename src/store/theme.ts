@@ -12,8 +12,8 @@ interface ThemeState {
   toggle: () => void
 }
 
-const STORAGE_KEY = 'ccisga-theme-mode'
-const LEGACY_KEY = 'ccisga-theme'
+const STORAGE_KEY = 'visor360-theme-mode'
+const LEGACY_KEY = 'visor360-theme'
 
 const getSystemDark = (): boolean =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches

@@ -72,13 +72,13 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 
 /* ─── Module stores ─── */
 
-export const useConvenienciasLayout = createModuleLayoutStore('ccisga-conveniencias-layout', [
+export const useConvenienciasLayout = createModuleLayoutStore('visor360-conveniencias-layout', [
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'vendas', label: 'Vendas', visible: true },
   { id: 'catalogo', label: 'Catálogo', visible: true },
 ])
 
-export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout', [
+export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layout', [
   { id: 'geral', label: 'Estoque geral', visible: true },
   { id: 'giro', label: 'Giro', visible: true },
   { id: 'estoqueMedio', label: 'Estoque médio', visible: true },
@@ -86,14 +86,14 @@ export const useEstoquesLayout = createModuleLayoutStore('ccisga-estoques-layout
   { id: 'necessidade', label: 'Necessidade', visible: true },
 ])
 
-export const useFinanceiroLayout = createModuleLayoutStore('ccisga-financeiro-layout', [
+export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout', [
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
 ])
 
-export const useOperacaoLayout = createModuleLayoutStore('ccisga-operacao-layout', [
+export const useOperacaoLayout = createModuleLayoutStore('visor360-operacao-layout', [
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'bombas', label: 'Bombas', visible: true },
   { id: 'abastecimentos', label: 'Abastecimentos', visible: true },

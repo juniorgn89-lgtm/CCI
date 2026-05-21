@@ -213,7 +213,7 @@ const LoadingOverlay = () => {
                 </div>
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-wider text-white">CCISGA</h1>
+                <h1 className="text-lg font-bold tracking-wider text-white">Visor360</h1>
                 <p className="text-[10px] text-white/40">
                   {empresaNome ? `Carregando ${empresaNome}` : 'Carregando dados do posto'}
                 </p>

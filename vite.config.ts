@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['vite.svg'],
       manifest: {
-        name: 'CCISGA - Gestão de Postos',
-        short_name: 'CCISGA',
+        name: 'Visor360 - Gestão de Postos',
+        short_name: 'Visor360',
         description: 'Dashboard analítico para redes de postos de combustível',
         theme_color: '#1e3a5f',
         background_color: '#ffffff',

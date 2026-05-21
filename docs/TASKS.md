@@ -8,7 +8,7 @@
 
 #### 1.1 Setup do Projeto Vite + TypeScript
 
-- [x] 1.1.1 Criar projeto com `npm create vite@latest ccisga -- --template react-ts`
+- [x] 1.1.1 Criar projeto com `npm create vite@latest visor360 -- --template react-ts`
 - [x] 1.1.2 Configurar `tsconfig.json` com `strict: true` e path alias `@/*` apontando para `src/*`
 - [x] 1.1.3 Configurar `tsconfig.app.json` com `baseUrl: "."` e `paths: { "@/*": ["./src/*"] }`
 - [x] 1.1.4 Configurar `vite.config.ts` com resolve alias `@` → `./src`
@@ -50,7 +50,7 @@
 
 - [x] 1.5.1 Criar `src/api/endpoints/auth.ts` com função `login(email, password)` que faz POST (única exceção) e retorna token
 - [x] 1.5.2 Criar `src/hooks/useAuth.ts` com estado de autenticação (token em memória, isAuthenticated, login, logout)
-- [x] 1.5.3 Criar `src/pages/Login/index.tsx` — formulário com email, senha, botão "Entrar", logo do CCISGA
+- [x] 1.5.3 Criar `src/pages/Login/index.tsx` — formulário com email, senha, botão "Entrar", logo do Visor360
 - [x] 1.5.4 Estilizar tela de login: centralizada, card branco com sombra, fundo gray-50, logo acima
 - [x] 1.5.5 Implementar lógica de login: chamada ao endpoint, armazenamento do token, redirect para Dashboard
 - [x] 1.5.6 Implementar tratamento de erro de login: mensagem "Credenciais inválidas" em vermelho

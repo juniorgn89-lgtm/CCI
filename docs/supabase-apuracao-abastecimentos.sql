@@ -1,5 +1,5 @@
 -- ============================================
--- CCISGA - Cache RAW de abastecimentos
+-- Visor360 - Cache RAW de abastecimentos
 -- ============================================
 -- Diferente de apuracao_diaria (que cacheia agregados), esta tabela guarda
 -- 1 row por abastecimento real. Permite que /operacao mostre lista row-level,

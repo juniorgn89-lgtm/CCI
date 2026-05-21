@@ -208,7 +208,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             title="Página inicial"
             className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
           >
-            CCISGA
+            Visor360
           </Link>
         )}
         <button

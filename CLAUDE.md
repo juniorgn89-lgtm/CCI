@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CCISGA is a **READ-ONLY** analytics dashboard for gas station networks. It's a React SPA that consumes the Quality Automação REST API (`https://web.qualityautomacao.com.br/INTEGRACAO/`) using **only GET requests**. There is no backend — frontend-only.
+Visor360 is a **READ-ONLY** analytics dashboard for gas station networks. It's a React SPA that consumes the Quality Automação REST API (`https://web.qualityautomacao.com.br/INTEGRACAO/`) using **only GET requests**. There is no backend — frontend-only.
 
 ## Critical Rule: READ-ONLY
 

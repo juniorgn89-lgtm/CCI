@@ -15,7 +15,7 @@ import {
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 
 const APP_VERSION = 'v1.0.0'
-const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'suporte@ccisga.com.br'
+const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'suporte@visor360.com.br'
 
 const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Claro', icon: Sun },
@@ -466,7 +466,7 @@ const Configuracoes = () => {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-gray-500 dark:text-gray-400">Versão do sistema</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">CCISGA {APP_VERSION}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Visor360 {APP_VERSION}</p>
             </div>
           </div>
           <a

@@ -1,4 +1,4 @@
-# CCISGA — Documentação
+# Visor360 — Documentação
 
 Dashboard analítico READ-ONLY para redes de postos de combustível.
 Consome a API REST da Quality Automação usando **exclusivamente GET** (exceção: POST para login).

@@ -77,8 +77,8 @@ const Mobile = () => {
   const handleShareInstall = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'CCISGA - App Frentista',
-        text: 'Instale o app CCISGA para acompanhar seus abastecimentos',
+        title: 'Visor360 - App Frentista',
+        text: 'Instale o app Visor360 para acompanhar seus abastecimentos',
         url: pwaUrl,
       }).catch(() => {
         // User cancelled share

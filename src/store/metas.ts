@@ -21,6 +21,6 @@ export const useMetasStore = create<MetasState>()(
         set((state) => ({ metas: { ...state.metas, [codigo]: valor } })),
       resetMetas: () => set({ metas: {} }),
     }),
-    { name: 'ccisga-metas' }
+    { name: 'visor360-metas' }
   )
 )

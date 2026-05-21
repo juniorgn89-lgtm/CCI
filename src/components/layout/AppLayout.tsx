@@ -152,7 +152,7 @@ const AppLayout = () => {
               aria-label="Página inicial"
               className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
             >
-              CCISGA
+              Visor360
             </Link>
           </div>
           <nav aria-label="Menu principal" className="mt-2 space-y-1 px-2">

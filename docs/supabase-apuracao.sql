@@ -1,5 +1,5 @@
 -- ============================================
--- CCISGA - Cache de apuração diária
+-- Visor360 - Cache de apuração diária
 -- ============================================
 -- Materializa o resumo de combustível + total de vendas por (rede, empresa, dia)
 -- pra meses fechados. Mês corrente continua live na API Quality.

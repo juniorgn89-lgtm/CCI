@@ -1,4 +1,4 @@
-# QA Tester Memory — CCISGA
+# QA Tester Memory — Visor360
 
 ## Key Findings
 

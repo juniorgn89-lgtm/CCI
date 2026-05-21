@@ -38,7 +38,7 @@ export const useTenantStore = create<TenantState>()(
       clear: () => set({ rede: null, isLoading: false }),
     }),
     {
-      name: 'ccisga-tenant',
+      name: 'visor360-tenant',
       storage: createJSONStorage(() => localStorage),
       // isLoading não vale a pena persistir
       partialize: (state) => ({ rede: state.rede }),

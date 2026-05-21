@@ -2,7 +2,7 @@
 
 ## Regra READ-ONLY
 
-O CCISGA usa **apenas GET** para consumir dados da API Quality Automação.
+O Visor360 usa **apenas GET** para consumir dados da API Quality Automação.
 
 **Proibido:**
 - `client.post()`, `.put()`, `.delete()`, `.patch()` (exceto login)

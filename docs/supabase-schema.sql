@@ -1,5 +1,5 @@
 -- ============================================
--- CCISGA - Supabase Schema
+-- Visor360 - Supabase Schema
 -- Histórico de alterações de caixa
 -- ============================================
 --

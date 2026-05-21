@@ -1,5 +1,5 @@
 -- ============================================
--- CCISGA - Cache de caixas + formas de pagamento
+-- Visor360 - Cache de caixas + formas de pagamento
 -- ============================================
 -- Materializa /CAIXA e /VENDA_FORMA_PAGAMENTO em Supabase pra que /operacao
 -- (especialmente a tab Caixa & Turnos) e ResumoOperacao deixem de fetchar

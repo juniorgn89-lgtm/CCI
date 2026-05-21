@@ -21,7 +21,7 @@
 - `src/store/dashboardLayout.ts` — `useDashboardLayoutStore` with Zustand `persist` middleware
 - Sections: `summary`, `sectorKpis`, `sectorDetails` — each has `id`, `label`, `visible`
 - Actions: `toggleVisibility`, `moveUp`, `moveDown`, `reset`
-- localStorage key: `ccisga-dashboard-layout`, version: 1, with migration for future sections
+- localStorage key: `visor360-dashboard-layout`, version: 1, with migration for future sections
 - Settings panel: `src/pages/Dashboard/components/DashboardSettings.tsx` (Sheet slide-out)
 
 ## Estoques Module

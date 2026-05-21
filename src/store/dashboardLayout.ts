@@ -59,7 +59,7 @@ export const useDashboardLayoutStore = create<DashboardLayoutState>()(
       reset: () => set({ sections: DEFAULT_SECTIONS }),
     }),
     {
-      name: 'ccisga-dashboard-layout',
+      name: 'visor360-dashboard-layout',
       version: 1,
       migrate: (persisted, version) => {
         if (version === 0 || !persisted) {

@@ -98,7 +98,7 @@ const RedefinirSenha = () => {
             Redefinir senha
           </h1>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Defina uma nova senha pra sua conta CCISGA.
+            Defina uma nova senha pra sua conta Visor360.
           </p>
         </div>
 

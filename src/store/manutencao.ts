@@ -77,7 +77,7 @@ export const useManutencaoStore = create<ManutencaoState>()(
           return { configs: next }
         }),
     }),
-    { name: 'ccisga-manutencao', version: 2 }
+    { name: 'visor360-manutencao', version: 2 }
   )
 )
 
