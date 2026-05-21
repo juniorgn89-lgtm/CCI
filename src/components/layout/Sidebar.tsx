@@ -14,6 +14,7 @@ import {
   UserCog,
   Network,
   Database,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -59,6 +60,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
+      { label: 'Fechamento de Caixa', path: '/fechamento-caixa', icon: Receipt },
     ],
   },
   {

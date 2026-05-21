@@ -12,6 +12,7 @@ const Dashboard = lazy(importDashboard)
 const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
+const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
 const OperacaoCombustivel = lazy(() => import('@/pages/Operacao/Combustivel'))
@@ -58,6 +59,7 @@ const AppRoutes = () => {
           <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />
           <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
+          <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
           <Route path="/operacao/combustivel" element={<Suspense fallback={<RouteFallback />}><OperacaoCombustivel /></Suspense>} />
