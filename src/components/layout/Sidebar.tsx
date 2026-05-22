@@ -7,14 +7,15 @@ import {
   DollarSign,
   Brain,
   Gauge,
-  PanelLeft,
+  Receipt,
   Settings,
   LogOut,
   Users,
   UserCog,
   Network,
   Database,
-  Receipt,
+  PanelLeft,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -83,12 +84,24 @@ const getInitials = (name: string): string => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-interface SidebarProps {
-  collapsed: boolean
-  onToggle: () => void
+type SidebarMode = 'expanded' | 'collapsed' | 'hover'
+
+const SIDEBAR_MODE_KEY = 'sidebar_mode'
+
+const readMode = (): SidebarMode => {
+  if (typeof window === 'undefined') return 'collapsed'
+  const v = localStorage.getItem(SIDEBAR_MODE_KEY)
+  if (v === 'expanded' || v === 'collapsed' || v === 'hover') return v
+  return 'collapsed'
 }
 
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const modeOptions: { value: SidebarMode; label: string }[] = [
+  { value: 'expanded', label: 'Expandido' },
+  { value: 'collapsed', label: 'Recolhido' },
+  { value: 'hover', label: 'Expandir ao passar o mouse' },
+]
+
+const Sidebar = () => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
@@ -99,6 +112,79 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const [mode, setMode] = useState<SidebarMode>(readMode)
+  const [hovered, setHovered] = useState(false)
+  const [controlOpen, setControlOpen] = useState(false)
+  const controlRef = useRef<HTMLDivElement>(null)
+  const leaveTimerRef = useRef<number | null>(null)
+  const expanded = mode === 'expanded' || (mode === 'hover' && hovered)
+
+  // Dois "shadows" do `expanded` pra coordenar UI com a animação CSS:
+  //  - `wide`: true 200ms DEPOIS de expandir → renderiza labels inline
+  //  - `narrow`: true 220ms DEPOIS de recolher → renderiza tooltips
+  // No intervalo (durante a animação), nem labels nem tooltips são renderizados;
+  // só o ícone fica visível. Evita: (a) labels aparecerem antes do menu abrir
+  // e (b) tooltips piscarem ao tirar o mouse.
+  const [wide, setWide] = useState(expanded)
+  const [narrow, setNarrow] = useState(!expanded)
+  useEffect(() => {
+    if (expanded) {
+      setNarrow(false)
+      const t = window.setTimeout(() => setWide(true), 200)
+      return () => window.clearTimeout(t)
+    }
+    setWide(false)
+    const t = window.setTimeout(() => setNarrow(true), 220)
+    return () => window.clearTimeout(t)
+  }, [expanded])
+
+  const handleHoverEnter = () => {
+    if (mode !== 'hover') return
+    if (leaveTimerRef.current !== null) {
+      window.clearTimeout(leaveTimerRef.current)
+      leaveTimerRef.current = null
+    }
+    setHovered(true)
+  }
+
+  const handleHoverLeave = () => {
+    if (mode !== 'hover') return
+    // Pequeno delay pra não recolher se o cursor "raspar" a borda ou cruzar
+    // pra um popover (config/perfil) que abre fora da sidebar.
+    if (leaveTimerRef.current !== null) window.clearTimeout(leaveTimerRef.current)
+    leaveTimerRef.current = window.setTimeout(() => {
+      setHovered(false)
+      leaveTimerRef.current = null
+    }, 180)
+  }
+
+  // Limpa timer pendente ao desmontar
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current !== null) window.clearTimeout(leaveTimerRef.current)
+    }
+  }, [])
+
+  const setSidebarMode = (m: SidebarMode) => {
+    setMode(m)
+    try {
+      localStorage.setItem(SIDEBAR_MODE_KEY, m)
+    } catch { /* noop */ }
+    setControlOpen(false)
+  }
+
+  // Close control popover on outside click
+  useEffect(() => {
+    if (!controlOpen) return
+    const handler = (e: MouseEvent) => {
+      if (controlRef.current && !controlRef.current.contains(e.target as Node)) {
+        setControlOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [controlOpen])
 
   const userName =
     (supabaseUser?.user_metadata?.full_name as string | undefined) || 'Usuário'
@@ -158,7 +244,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   }
 
   // Role do usuário — só pra decidir o menu "Frentistas" (supervisor).
-  // is_master já vem da store. Filtra por user_id pra evitar múltiplas rows.
   const [role, setRole] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
@@ -197,49 +282,41 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
   return (
     <aside
+      onMouseEnter={handleHoverEnter}
+      onMouseLeave={handleHoverLeave}
       className={cn(
-        'hidden md:flex flex-col border-r border-gray-100 bg-white text-gray-700 transition-all duration-300 dark:border-gray-800 dark:bg-[#1e3a5f] dark:text-gray-200',
-        collapsed ? 'w-16 overflow-visible' : 'w-52'
+        'hidden flex-col overflow-visible border-r border-gray-100 bg-white text-gray-700 dark:border-gray-800 dark:bg-[#1e3a5f] dark:text-gray-200 md:flex',
+        '[transition:width_220ms_cubic-bezier(0.4,0,0.2,1)]',
+        expanded ? 'w-52' : 'w-14',
       )}
     >
-      <div className={cn('flex h-16 items-center px-4', collapsed && 'justify-center')}>
-        {!collapsed && (
-          <Link
-            to="/"
-            aria-label="Página inicial"
-            title="Página inicial"
-            className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
-          >
-            Visor360
-          </Link>
-        )}
-        <button
-          onClick={onToggle}
+      {/* Logo */}
+      <div className={cn('flex h-14 items-center', wide ? 'px-4' : 'justify-center')}>
+        <Link
+          to="/"
+          aria-label="Página inicial"
+          title="Visor360"
           className={cn(
-            'rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white',
-            !collapsed && 'ml-auto',
+            'font-bold tracking-wider text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200',
+            wide ? 'text-lg' : 'text-[13px]',
           )}
-          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         >
-          <PanelLeft className="h-5 w-5" />
-        </button>
+          {wide ? 'Visor360' : 'V360'}
+        </Link>
       </div>
 
-      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4 pt-2">
+      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4">
         {visibleNavGroups.map((group, gi) => (
-          <div key={group.title} className={cn(gi > 0 && 'mt-4')}>
-            {!collapsed && (
+          <div key={group.title} className={cn(wide && gi > 0 && 'mt-4')}>
+            {wide ? (
               <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-white/40">
                 {group.title}
               </p>
-            )}
-            {collapsed && gi > 0 && (
-              <div className="mx-3 mb-2 border-t border-gray-100 dark:border-white/10" />
+            ) : (
+              gi > 0 && <div className="mx-2 my-2 border-t border-gray-100 dark:border-white/10" />
             )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                // Match exato OU sub-rotas (ex: /operacao/combustivel ainda destaca "Operação")
                 const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
                 const Icon = item.icon
 
@@ -247,23 +324,31 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    aria-label={collapsed ? item.label : undefined}
+                    aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      'group relative flex h-10 items-center rounded-lg transition-colors',
                       isActive
-                        ? 'bg-gray-100 text-gray-900 shadow-sm dark:bg-white/15 dark:text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                        ? 'bg-gray-100 text-gray-900 dark:bg-white/15 dark:text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white',
                     )}
                   >
-                    <Icon className={cn(
-                      'h-[18px] w-[18px] shrink-0',
-                      isActive
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-500 dark:text-white/60'
-                    )} />
-                    {!collapsed && <span>{item.label}</span>}
-                    {collapsed && (
+                    {/* Coluna fixa do ícone — fica sempre na mesma posição quer
+                        a sidebar esteja narrow ou wide. */}
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center">
+                      <Icon
+                        className={cn(
+                          'h-[18px] w-[18px]',
+                          isActive
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-gray-500 dark:text-white/60',
+                        )}
+                      />
+                    </span>
+                    {wide && (
+                      <span className="text-sm font-medium">{item.label}</span>
+                    )}
+                    {narrow && (
                       <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
                         {item.label}
                       </span>
@@ -276,77 +361,88 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         ))}
       </nav>
 
-      {/* Footer — perfil + ações */}
-      <div className="border-t border-gray-100 px-3 py-3 dark:border-white/10">
-        <div ref={menuRef} className="relative">
-          {!collapsed ? (
-            <div className="flex items-center gap-2">
+      {/* Controle do menu lateral — popover acima do perfil */}
+      <div ref={controlRef} className={cn('relative px-2 pb-1 pt-2', wide ? '' : 'flex justify-center')}>
+        <button
+          onClick={() => setControlOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={controlOpen}
+          aria-label="Controle do menu lateral"
+          title="Controle do menu lateral"
+          className={cn(
+            'group relative flex h-7 items-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white',
+            wide ? 'w-full justify-start gap-2 px-2 text-xs' : 'w-7 justify-center',
+          )}
+        >
+          <PanelLeft className="h-3.5 w-3.5 shrink-0" />
+          {wide && <span>Menu lateral</span>}
+          {narrow && (
+            <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+              Controle do menu
+            </span>
+          )}
+        </button>
+
+        {controlOpen && (
+          <div
+            role="menu"
+            className="absolute bottom-0 left-full z-50 ml-2 w-60 rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+          >
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              Controle do menu
+            </p>
+            {modeOptions.map((opt) => (
               <button
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-label={`Conta de ${userName}`}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                key={opt.value}
+                role="menuitemradio"
+                aria-checked={mode === opt.value}
+                onClick={() => setSidebarMode(opt.value)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
               >
-                {initials}
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                  {mode === opt.value && <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
+                </span>
+                {opt.label}
               </button>
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 hover:text-gray-900 dark:text-white/80 dark:hover:text-white"
-                title={userName}
-              >
-                {userName}
-              </button>
-              <button
-                onClick={handleConfiguracoes}
-                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
-                aria-label="Configurações"
-                title="Configurações"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleLogout}
-                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
-                aria-label="Sair"
-                title="Sair"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-label={`Conta de ${userName}`}
-                title={userName}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                {initials}
-              </button>
-            </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer — perfil */}
+      <div className="border-t border-gray-100 px-2 py-3 dark:border-white/10">
+        <div ref={menuRef} className={cn('relative', wide ? 'flex items-center gap-2' : 'flex justify-center')}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={`Conta de ${userName}`}
+            title={userName}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            {initials}
+          </button>
+          {wide && (
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 hover:text-gray-900 dark:text-white/80 dark:hover:text-white"
+              title={userName}
+            >
+              {userName}
+            </button>
           )}
 
           {menuOpen && (
             <div
               role="menu"
-              className={cn(
-                'absolute z-50 w-56 rounded-xl border border-gray-200 bg-white py-1 text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
-                collapsed
-                  ? 'bottom-0 left-full ml-2'
-                  : 'bottom-full left-0 mb-2'
-              )}
+              className="absolute bottom-0 left-full z-50 ml-2 w-56 rounded-xl border border-gray-200 bg-white py-1 text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
             >
-              {/* Email */}
               <p className="truncate px-3 py-2 text-xs text-gray-400" title={userEmail}>
                 {userEmail}
               </p>
 
               <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
 
-              {/* Configurações */}
               <button
                 role="menuitem"
                 onClick={handleConfiguracoes}
@@ -359,7 +455,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
               </button>
 
-              {/* Frentistas — supervisor ou gerente */}
               {isSupervisor && (
                 <button
                   role="menuitem"
@@ -371,7 +466,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 </button>
               )}
 
-              {/* Gerente (CCI Consultoria) — só is_master vê estes */}
               {isMaster && (
                 <>
                   <button
@@ -393,7 +487,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 </>
               )}
 
-              {/* Apuração — master sempre vê; supervisor só quando pode_apurar=true */}
               {canApurar && (
                 <button
                   role="menuitem"
@@ -407,7 +500,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
               <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
 
-              {/* Sair */}
               <button
                 role="menuitem"
                 onClick={handleLogout}

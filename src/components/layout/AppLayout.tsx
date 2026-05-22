@@ -27,24 +27,6 @@ const isSafeWithoutRede = (path: string): boolean =>
   || path.startsWith('/admin/')
   || path === '/configuracoes'
 
-const SIDEBAR_PREF_KEY = 'sidebar_collapsed'
-
-const readManualPreference = (): boolean | null => {
-  if (typeof window === 'undefined') return null
-  const v = localStorage.getItem(SIDEBAR_PREF_KEY)
-  if (v === 'true') return true
-  if (v === 'false') return false
-  return null
-}
-
-const getInitialCollapsed = (): boolean => {
-  if (typeof window === 'undefined') return false
-  // Preferência manual sempre vence o breakpoint automático
-  const manual = readManualPreference()
-  if (manual !== null) return manual
-  return window.innerWidth < 1280
-}
-
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
 
 const AppLayout = () => {
@@ -52,10 +34,6 @@ const AppLayout = () => {
   useAlertGenerator()
   useAutoSelectSinglePosto()
   useFiltersUrlSync()
-  const [collapsed, setCollapsed] = useState(getInitialCollapsed)
-  const [hasManualPref, setHasManualPref] = useState<boolean>(
-    () => readManualPreference() !== null
-  )
   const [mobileOpen, setMobileOpen] = useState(false)
   const { pathname } = useLocation()
   const navigate = useNavigate()
@@ -109,27 +87,6 @@ const AppLayout = () => {
     return items
   })()
 
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 1280px)')
-    const handler = (e: MediaQueryListEvent) => {
-      // Só aplica o breakpoint automático quando o usuário ainda não fixou preferência manual
-      if (!hasManualPref) setCollapsed(!e.matches)
-    }
-    mql.addEventListener('change', handler)
-    return () => mql.removeEventListener('change', handler)
-  }, [hasManualPref])
-
-  const handleSidebarToggle = () => {
-    setCollapsed((v) => {
-      const next = !v
-      try {
-        localStorage.setItem(SIDEBAR_PREF_KEY, String(next))
-      } catch { /* noop */ }
-      return next
-    })
-    setHasManualPref(true)
-  }
-
   // Scroll to top on route change
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
@@ -138,7 +95,7 @@ const AppLayout = () => {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       {/* Desktop sidebar */}
-      <Sidebar collapsed={collapsed} onToggle={handleSidebarToggle} />
+      <Sidebar />
 
       {/* Mobile sidebar (Sheet) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
