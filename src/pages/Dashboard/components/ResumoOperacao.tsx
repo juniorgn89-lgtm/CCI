@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle } from 'lucide-react'
+import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle, CalendarRange } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -76,12 +76,14 @@ interface MainKpiCardProps {
   formatter: (v: number) => string
   /** Linha pequena opcional sob "realizado no período" (ex.: litros + preço médio). */
   submetric?: string
+  /** Faixa de datas aplicada (já formatada pt-BR), ex.: "01/05/2026 — 31/05/2026". */
+  periodLabel: string
   onClick: () => void
 }
 
 const MainKpiCard = ({
   label, realizado, projetado, projetadoFirst7, isProjectable, daysElapsed, daysTotal, daysRemaining,
-  icon: Icon, cardBg, iconBg, iconColor, formatter, submetric, onClick,
+  icon: Icon, cardBg, iconBg, iconColor, formatter, submetric, periodLabel, onClick,
 }: MainKpiCardProps) => {
   const progressPct = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
   // Para mês fechado: compara o realizado total com o que era projetado pela
@@ -127,7 +129,13 @@ const MainKpiCard = ({
           <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {formatter(realizado)}
           </p>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">realizado no período</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <span>realizado no período</span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white/70 px-1.5 py-0.5 text-[11px] font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-200">
+              <CalendarRange className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+              <span className="tabular-nums">{periodLabel}</span>
+            </span>
+          </div>
           {submetric && (
             <p className="mt-1 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">{submetric}</p>
           )}
@@ -276,6 +284,17 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
   // Período de um único dia (ex.: "Em andamento" = hoje) — os gráficos diários
   // viram um ponto só, então escondemos.
   const isSingleDay = dataInicial === dataFinal
+
+  // Faixa de datas formatada pt-BR (dd/MM/yyyy) — exibida nos KPIs principais
+  // já que essa tela não tem filtro visível de data.
+  const periodLabel = useMemo(() => {
+    const fmt = (iso: string) => {
+      if (!iso || iso.length < 10) return iso
+      const [y, m, d] = iso.slice(0, 10).split('-')
+      return `${d}/${m}/${y}`
+    }
+    return isSingleDay ? fmt(dataInicial) : `${fmt(dataInicial)} — ${fmt(dataFinal)}`
+  }, [dataInicial, dataFinal, isSingleDay])
 
   // Projeção baseada nos 7 primeiros dias do período: extrapola "se mantivesse
   // o ritmo inicial, fecharíamos em X". Usado pra mês fechado (comparar
@@ -430,6 +449,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
               ? `${formatLiters(totalLitros)} vendidos · ${formatCurrency(faturamentoCombustivel / totalLitros)}/L`
               : undefined
           }
+          periodLabel={periodLabel}
           onClick={() => navigate('/operacao/combustivel?tab=caixa')}
         />
         <MainKpiCard
@@ -446,6 +466,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           iconBg="bg-blue-100 dark:bg-blue-900/30"
           iconColor="text-blue-600 dark:text-blue-400"
           formatter={formatCurrency}
+          periodLabel={periodLabel}
           onClick={() => navigate('/operacao/combustivel?tab=caixa')}
         />
       </div>

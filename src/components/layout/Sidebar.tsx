@@ -305,7 +305,7 @@ const Sidebar = () => {
         </Link>
       </div>
 
-      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4">
+      <nav aria-label="Menu principal" className="flex-1 px-2 pb-4 pt-3 md:pt-4">
         {visibleNavGroups.map((group, gi) => (
           <div key={group.title} className={cn(wide && gi > 0 && 'mt-4')}>
             {wide ? (
