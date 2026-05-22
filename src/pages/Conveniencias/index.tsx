@@ -127,18 +127,18 @@ const Conveniencias = () => {
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-            <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-900/30">
+            <Store className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-1.5">
+              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
                 Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
               </h1>
               <FocusModeToggle />
             </div>
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
               Vendas, catálogo, estoque e análise de performance da loja
             </p>
           </div>

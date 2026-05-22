@@ -86,7 +86,11 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
     })
   }
 
-  const currentModule = navItems.find((item) => item.path === pathname)
+  // Match exato OU sub-rota (ex.: /operacao/combustivel ainda casa com Operação)
+  // — mesma lógica do Sidebar, evita "Visor360" aparecer em rotas filhas.
+  const currentModule = navItems.find(
+    (item) => pathname === item.path || pathname.startsWith(item.path + '/'),
+  )
   const title = currentModule?.label ?? 'Visor360'
 
   return (
@@ -100,12 +104,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          {/* Título do módulo no Header — escondido no Dashboard pra evitar
-              repetição com o PageHeaderTitle da sub-bar. Teste em uma tela só;
-              replicar nas outras se aprovado. */}
-          {currentModule && pathname !== '/dashboard' ? (
-            <h1 className="hidden text-sm font-semibold text-gray-900 dark:text-gray-100 xl:block">{title}</h1>
-          ) : !currentModule ? (
+          {/* Título do módulo no Header — sempre escondido pra evitar
+              repetição com o PageHeaderTitle da sub-bar. Mostra só "Visor360"
+              quando não há módulo (rotas fora do catálogo). */}
+          {!currentModule && (
             <Link
               to="/"
               aria-label="Página inicial"
@@ -114,7 +116,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             >
               {title}
             </Link>
-          ) : null}
+          )}
           <RedeSwitcher />
         </div>
 

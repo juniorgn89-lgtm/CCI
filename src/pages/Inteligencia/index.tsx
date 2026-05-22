@@ -105,18 +105,18 @@ const Inteligencia = () => {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/30">
-            <Brain className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-50 dark:bg-purple-900/30">
+            <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">
                 Inteligência da Rede
               </h1>
               <FocusModeToggle />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
               {isSingle
                 ? 'Análise temporal e comparativo de desempenho'
                 : 'Análise estratégica e comparação de desempenho entre postos'}

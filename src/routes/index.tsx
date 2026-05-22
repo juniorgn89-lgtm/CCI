@@ -18,6 +18,11 @@ const Operacao = lazy(() => import('@/pages/Operacao'))
 const OperacaoCombustivel = lazy(() => import('@/pages/Operacao/Combustivel'))
 const OperacaoPista = lazy(() => import('@/pages/Operacao/Pista'))
 const OperacaoMix = lazy(() => import('@/pages/Operacao/Mix'))
+const Comercial = lazy(() => import('@/pages/Comercial'))
+const ComercialVendas = lazy(() => import('@/pages/Comercial/Vendas'))
+const ComercialCombustivel = lazy(() => import('@/pages/Comercial/Combustivel'))
+const ComercialPista = lazy(() => import('@/pages/Comercial/Pista'))
+const ComercialConveniencia = lazy(() => import('@/pages/Comercial/Conveniencia'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
@@ -65,6 +70,11 @@ const AppRoutes = () => {
           <Route path="/operacao/combustivel" element={<Suspense fallback={<RouteFallback />}><OperacaoCombustivel /></Suspense>} />
           <Route path="/operacao/pista" element={<Suspense fallback={<RouteFallback />}><OperacaoPista /></Suspense>} />
           <Route path="/operacao/mix" element={<Suspense fallback={<RouteFallback />}><OperacaoMix /></Suspense>} />
+          <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
+          <Route path="/comercial/vendas" element={<Suspense fallback={<RouteFallback />}><ComercialVendas /></Suspense>} />
+          <Route path="/comercial/combustivel" element={<Suspense fallback={<RouteFallback />}><ComercialCombustivel /></Suspense>} />
+          <Route path="/comercial/pista" element={<Suspense fallback={<RouteFallback />}><ComercialPista /></Suspense>} />
+          <Route path="/comercial/conveniencia" element={<Suspense fallback={<RouteFallback />}><ComercialConveniencia /></Suspense>} />
           <Route path="/mobile" element={<Suspense fallback={<RouteFallback />}><Mobile /></Suspense>} />
           <Route path="/configuracoes" element={<Suspense fallback={<RouteFallback />}><Configuracoes /></Suspense>} />
           <Route path="/admin/frentistas" element={<Suspense fallback={<RouteFallback />}><AdminFrentistas /></Suspense>} />

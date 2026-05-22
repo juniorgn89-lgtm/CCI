@@ -16,6 +16,7 @@ import {
   Database,
   PanelLeft,
   Check,
+  ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
     title: 'Operacional',
     items: [
       { label: 'Operação', path: '/operacao', icon: Gauge },
+      { label: 'Comercial', path: '/comercial', icon: ShoppingBag },
       { label: 'Conveniências', path: '/conveniencias', icon: Store },
     ],
   },
