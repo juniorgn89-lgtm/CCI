@@ -7,7 +7,7 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import InstantBadge from '@/components/layout/InstantBadge'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
@@ -116,7 +116,6 @@ const Conveniencias = () => {
     gruposList,
     isLoading,
     hasEmpresa,
-    isCacheHit,
   } = useConvenienceData()
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
@@ -137,7 +136,7 @@ const Conveniencias = () => {
               <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
                 Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
               </h1>
-              {isCacheHit && <InstantBadge />}
+              <FocusModeToggle />
             </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Vendas, catálogo, estoque e análise de performance da loja

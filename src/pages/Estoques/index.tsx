@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
@@ -62,9 +63,12 @@ const Estoques = () => {
             <Warehouse className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
-              Estoque{empresaNome ? ` · ${empresaNome}` : ''}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+                Estoque{empresaNome ? ` · ${empresaNome}` : ''}
+              </h1>
+              <FocusModeToggle />
+            </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Giro, médias, vendas e necessidade de compra dos últimos 6 meses
             </p>

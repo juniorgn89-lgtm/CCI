@@ -4,6 +4,8 @@ import { fmt } from './formatters'
 
 interface DiferencaEncerrantesProps {
   fator: number
+  empresaNome: string
+  empresaCnpj: string
 }
 
 interface EncerranteRow {
@@ -20,7 +22,7 @@ const baseRows: EncerranteRow[] = [
   { ref: '000004', produto: 'GASOLINA ADITIVADA', encerrante: 387.36, venda: 387.36 },
 ]
 
-const DiferencaEncerrantes = ({ fator }: DiferencaEncerrantesProps) => {
+const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEncerrantesProps) => {
   const rows = useMemo(
     () =>
       baseRows.map((r) => {
@@ -44,8 +46,8 @@ const DiferencaEncerrantes = ({ fator }: DiferencaEncerrantesProps) => {
           </div>
         </div>
         <div className="text-left md:text-right">
-          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">POSTO ITAPOA</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400">31.465.040/0001-32</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{empresaNome || '—'}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{empresaCnpj || '—'}</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">21/05/2026 12:13:51 BRT</p>
         </div>
       </div>

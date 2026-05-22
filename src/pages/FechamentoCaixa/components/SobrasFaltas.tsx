@@ -1,11 +1,24 @@
 import { useMemo, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { fmt } from './formatters'
 import SobrasFaltasDetailModal, { type SobrasFaltasDetail } from './SobrasFaltasDetailModal'
 
+type ValoresFilter = 'ambos' | 'sobras' | 'faltas'
+
+interface SelectedCaixaInfo {
+  id: string
+  data: string
+  turno: string
+  pdv: string
+}
+
 interface SobrasFaltasProps {
-  fator: number
+  postoScale: number // diferenciação por posto (não muda com seleção)
+  empresaNome: string
+  empresaCnpj: string
+  selectedCaixas: SelectedCaixaInfo[]
 }
 
 interface SobraFaltaRow {
@@ -23,26 +36,34 @@ interface ResponsavelGroup {
   rows: SobraFaltaRow[]
 }
 
-const baseGroups: ResponsavelGroup[] = [
-  {
-    codigo: '00069 - CRISTIELE MAURICIO ALVES',
-    rows: [
-      { data: '19/05/2026', turno: '1', pdv: '008 - PDV CONVENIENCIA', sobra: 2.48, falta: 0, diferenca: 2.48, acumulado: 2.48 },
-      { data: '19/05/2026', turno: '1', pdv: '008 - PDV CONVENIENCIA', sobra: 0.6, falta: 0, diferenca: 0.6, acumulado: 0.6 },
-      { data: '19/05/2026', turno: '1', pdv: '008 - PDV CONVENIENCIA', sobra: 0.56, falta: 0, diferenca: 0.56, acumulado: 0.56 },
-    ],
-  },
-  {
-    codigo: '00077 - JEAN REIS',
-    rows: [
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 0, falta: -71.32, diferenca: -71.32, acumulado: -71.32 },
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 1.16, falta: 0, diferenca: 1.16, acumulado: 1.16 },
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 0, falta: -0.88, diferenca: -0.88, acumulado: -0.88 },
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 0, falta: -0.6, diferenca: -0.6, acumulado: -0.6 },
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 0, falta: -1.36, diferenca: -1.36, acumulado: -1.36 },
-      { data: '19/05/2026', turno: '1', pdv: '001 - PDV', sobra: 0.92, falta: 0, diferenca: 0.92, acumulado: 0.92 },
-    ],
-  },
+// Cada linha de sobra/falta é amarrada a UM caixa específico (caixaId).
+// Selecionar caixas filtra quais linhas aparecem; valores são fixos.
+interface PoolLinha {
+  caixaId: string
+  responsavel: string
+  sobra: number
+  falta: number
+}
+
+const pool: PoolLinha[] = [
+  // 19/05/2026 — abertos (só entram se "Incluir abertos" marcado)
+  { caixaId: '20260519-1-conv', responsavel: '00069 - CRISTIELE MAURICIO ALVES', sobra: 1.12, falta: 0 },
+  { caixaId: '20260519-1-pista', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -22.50 },
+  // 18/05/2026
+  { caixaId: '20260518-1-conv', responsavel: '00069 - CRISTIELE MAURICIO ALVES', sobra: 2.48, falta: 0 },
+  { caixaId: '20260518-1-conv', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -71.32 },
+  { caixaId: '20260518-2-conv', responsavel: '00069 - CRISTIELE MAURICIO ALVES', sobra: 0.6, falta: 0 },
+  { caixaId: '20260518-1-pista', responsavel: '00077 - JEAN REIS', sobra: 1.16, falta: 0 },
+  { caixaId: '20260518-2-pista', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -0.88 },
+  // 17/05/2026
+  { caixaId: '20260517-1-conv', responsavel: '00069 - CRISTIELE MAURICIO ALVES', sobra: 0.56, falta: 0 },
+  { caixaId: '20260517-1-conv', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -0.6 },
+  { caixaId: '20260517-2-conv', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -1.36 },
+  { caixaId: '20260517-1-pista', responsavel: '00077 - JEAN REIS', sobra: 0.92, falta: 0 },
+  // 16/05/2026
+  { caixaId: '20260516-1-conv', responsavel: '00069 - CRISTIELE MAURICIO ALVES', sobra: 3.20, falta: 0 },
+  { caixaId: '20260516-2-conv', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -8.50 },
+  { caixaId: '20260516-1-pista', responsavel: '00077 - JEAN REIS', sobra: 0, falta: -15.30 },
 ]
 
 // Mock de detalhes por linha — em produção viria de /CAIXA + caixa_alteracoes.
@@ -184,20 +205,54 @@ const colorDiff = (v: number) =>
       ? 'text-red-700 dark:text-red-400'
       : 'text-gray-400 dark:text-gray-500'
 
-const SobrasFaltas = ({ fator }: SobrasFaltasProps) => {
+const SobrasFaltas = ({ postoScale, empresaNome, empresaCnpj, selectedCaixas }: SobrasFaltasProps) => {
   const [selected, setSelected] = useState<SobrasFaltasDetail | null>(null)
+  const [valoresFilter, setValoresFilter] = useState<ValoresFilter>('ambos')
 
   const { groups, filialTotals, geralTotals, maxSobra, maxFalta, maxDiff } = useMemo(() => {
-    const scale = (n: number) => n * fator
+    // Index caixaId → metadados (data/turno/pdv) pra exibir nas linhas.
+    const turnoShort = (t: string) => t.replace(/º\s*TURNO\s*/i, '').trim() || t
+    const caixaById = new Map(selectedCaixas.map((c) => [c.id, c]))
+    const selectedIds = new Set(selectedCaixas.map((c) => c.id))
 
-    const groups = baseGroups.map((g) => {
-      const rows = g.rows.map((r) => ({
-        ...r,
-        sobra: scale(r.sobra),
-        falta: scale(r.falta),
-        diferenca: scale(r.diferenca),
-        acumulado: scale(r.acumulado),
-      }))
+    // Filtra pool pelos caixas selecionados. Cada linha tem valores REAIS (não
+    // escalados pela quantidade de caixas). `postoScale` é aplicado pra
+    // diferenciar postos (mesmo posto + mesmo caixa = mesmo valor sempre).
+    const linhasFiltradas = pool.filter((l) => selectedIds.has(l.caixaId))
+
+    // Agrupa por responsável e ordena por data desc, depois por caixaId.
+    const porResp = new Map<string, Array<SobraFaltaRow>>()
+    let acumPorResp: Record<string, number> = {}
+    const ordenadas = [...linhasFiltradas].sort((a, b) => {
+      const ca = caixaById.get(a.caixaId)
+      const cb = caixaById.get(b.caixaId)
+      if (!ca || !cb) return 0
+      // dd/mm/yyyy → comparar como yyyymmdd
+      const ka = ca.data.split('/').reverse().join('')
+      const kb = cb.data.split('/').reverse().join('')
+      return kb.localeCompare(ka) || a.caixaId.localeCompare(b.caixaId)
+    })
+    for (const l of ordenadas) {
+      const caixa = caixaById.get(l.caixaId)
+      if (!caixa) continue
+      const sobra = l.sobra * postoScale
+      const falta = l.falta * postoScale
+      const diferenca = sobra + falta
+      acumPorResp[l.responsavel] = (acumPorResp[l.responsavel] ?? 0) + diferenca
+      const row: SobraFaltaRow = {
+        data: caixa.data,
+        turno: turnoShort(caixa.turno),
+        pdv: caixa.pdv,
+        sobra,
+        falta,
+        diferenca,
+        acumulado: acumPorResp[l.responsavel],
+      }
+      if (!porResp.has(l.responsavel)) porResp.set(l.responsavel, [])
+      porResp.get(l.responsavel)!.push(row)
+    }
+
+    const groups = Array.from(porResp.entries()).map(([codigo, rows]) => {
       const subtotal = rows.reduce(
         (acc, r) => ({
           sobra: acc.sobra + r.sobra,
@@ -206,7 +261,7 @@ const SobrasFaltas = ({ fator }: SobrasFaltasProps) => {
         }),
         { sobra: 0, falta: 0, diferenca: 0 },
       )
-      return { codigo: g.codigo, rows, subtotal }
+      return { codigo, rows, subtotal }
     })
 
     const filialTotals = groups.reduce(
@@ -226,7 +281,41 @@ const SobrasFaltas = ({ fator }: SobrasFaltasProps) => {
     const maxDiff = allRows.reduce((m, r) => Math.max(m, Math.abs(r.diferenca)), 0)
 
     return { groups, filialTotals, geralTotals, maxSobra, maxFalta, maxDiff }
-  }, [fator])
+  }, [postoScale, selectedCaixas])
+
+  // Resumo dedicado às FALTAS (independente do filtro de exibição).
+  const faltasSummary = useMemo(() => {
+    const allRows = groups.flatMap((g) => g.rows.map((r) => ({ ...r, responsavel: g.codigo })))
+    const faltasRows = allRows.filter((r) => r.falta < 0)
+    const total = faltasRows.reduce((s, r) => s + r.falta, 0)
+    const incidencias = faltasRows.length
+    const maior = faltasRows.reduce(
+      (acc, r) => (r.falta < acc.falta ? { falta: r.falta, responsavel: r.responsavel } : acc),
+      { falta: 0, responsavel: '—' as string },
+    )
+    const porResp = new Map<string, number>()
+    for (const r of faltasRows) porResp.set(r.responsavel, (porResp.get(r.responsavel) ?? 0) + r.falta)
+    let topResp = '—'
+    let topRespTotal = 0
+    for (const [resp, t] of porResp) {
+      if (t < topRespTotal) {
+        topResp = resp
+        topRespTotal = t
+      }
+    }
+    return { total, incidencias, maior, topResp, topRespTotal }
+  }, [groups])
+
+  // Filtra os grupos pra exibição conforme `valoresFilter`.
+  const displayGroups = useMemo(() => {
+    if (valoresFilter === 'ambos') return groups
+    return groups
+      .map((g) => ({
+        ...g,
+        rows: g.rows.filter((r) => (valoresFilter === 'sobras' ? r.sobra > 0 : r.falta < 0)),
+      }))
+      .filter((g) => g.rows.length > 0)
+  }, [groups, valoresFilter])
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -241,19 +330,93 @@ const SobrasFaltas = ({ fator }: SobrasFaltasProps) => {
           </div>
         </div>
         <div className="text-left md:text-right">
-          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">POSTO ITAPOA</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400">31.465.040/0001-32</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{empresaNome || '—'}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{empresaCnpj || '—'}</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">21/05/2026 12:13:51 BRT</p>
         </div>
       </div>
 
-      <section className="mt-6 space-y-6">
+      {/* Resumo das faltas — strip horizontal compacto */}
+      {faltasSummary.incidencias === 0 ? (
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
+          <AlertTriangle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          Sem faltas registradas no período.
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-md border border-red-200 bg-red-50/50 px-3 py-2 text-xs dark:border-red-900/40 dark:bg-red-900/10">
+          <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-3.5 w-3.5" /> Faltas
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            Total{' '}
+            <span className="font-semibold tabular-nums text-red-700 dark:text-red-400">
+              R$ {fmt(faltasSummary.total)}
+            </span>
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{faltasSummary.incidencias}</span>{' '}
+            {faltasSummary.incidencias === 1 ? 'incidência' : 'incidências'}
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            Maior{' '}
+            <span className="font-semibold tabular-nums text-red-700 dark:text-red-400">
+              R$ {fmt(faltasSummary.maior.falta)}
+            </span>{' '}
+            <span className="text-gray-500 dark:text-gray-500" title={faltasSummary.maior.responsavel}>
+              ({faltasSummary.maior.responsavel})
+            </span>
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            Top{' '}
+            <span className="font-semibold text-gray-900 dark:text-gray-100" title={faltasSummary.topResp}>
+              {faltasSummary.topResp}
+            </span>{' '}
+            <span className="font-semibold tabular-nums text-red-700 dark:text-red-400">
+              R$ {fmt(faltasSummary.topRespTotal)}
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* Filtro de visualização: ambos / sobras / faltas */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Mostrar:
+        </span>
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+          {([
+            { v: 'ambos', l: 'Ambos' },
+            { v: 'sobras', l: 'Só sobras' },
+            { v: 'faltas', l: 'Só faltas' },
+          ] as { v: ValoresFilter; l: string }[]).map((opt) => (
+            <button
+              key={opt.v}
+              type="button"
+              onClick={() => setValoresFilter(opt.v)}
+              className={cn(
+                'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
+                valoresFilter === opt.v
+                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              {opt.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section className="mt-4 space-y-6">
         {/* Filial band */}
         <div className="rounded-t-md border border-b-0 border-gray-200 bg-gray-200 px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100">
-          Filial: POSTO ITAPOA
+          Filial: {empresaNome || '—'}
         </div>
 
-        {groups.map((g) => (
+        {displayGroups.map((g) => (
           <div key={g.codigo}>
             <div className="flex items-center justify-between rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
               <span className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
@@ -350,7 +513,7 @@ const SobrasFaltas = ({ fator }: SobrasFaltasProps) => {
             <table className="w-full text-sm">
               <tbody>
                 <tr className="bg-gray-50 font-bold text-gray-900 dark:bg-gray-800 dark:text-gray-100">
-                  <td className="px-4 py-2 text-left">POSTO ITAPOA</td>
+                  <td className="px-4 py-2 text-left">{empresaNome || '—'}</td>
                   <td className={cn('px-4 py-2 text-right tabular-nums', colorDiff(filialTotals.sobra))}>{fmt(filialTotals.sobra)}</td>
                   <td className={cn('px-4 py-2 text-right tabular-nums', colorDiff(filialTotals.falta))}>{fmt(filialTotals.falta)}</td>
                   <td className={cn('px-4 py-2 text-right tabular-nums', colorDiff(filialTotals.diferenca))}>

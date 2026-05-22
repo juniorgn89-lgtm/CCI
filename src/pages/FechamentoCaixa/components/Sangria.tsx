@@ -5,6 +5,8 @@ import { fmt } from './formatters'
 
 interface SangriaProps {
   fator: number
+  empresaNome: string
+  empresaCnpj: string
 }
 
 interface FuncionarioRow {
@@ -84,7 +86,7 @@ const otherCols = [
   'Vale',
 ] as const
 
-const Sangria = ({ fator }: SangriaProps) => {
+const Sangria = ({ fator, empresaNome, empresaCnpj }: SangriaProps) => {
   const [selectedFunc, setSelectedFunc] = useState<{ nome: string; total: number } | null>(null)
 
   const { rows, total, maxDinheiro } = useMemo(() => {
@@ -107,8 +109,8 @@ const Sangria = ({ fator }: SangriaProps) => {
           </div>
         </div>
         <div className="text-left md:text-right">
-          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">POSTO ITAPOA</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400">31.465.040/0001-32</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{empresaNome || '—'}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{empresaCnpj || '—'}</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">21/05/2026 12:13:51 BRT</p>
         </div>
       </div>

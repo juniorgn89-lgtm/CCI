@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { GitMerge, Fuel, Wrench, DollarSign, TrendingUp } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { useFilterStore } from '@/store/filters'
@@ -34,9 +35,12 @@ const OperacaoMix = () => {
             <GitMerge className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
-              Mix{empresaNome ? ` · ${empresaNome}` : ' · Combustível + Automotivos'}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+                Mix{empresaNome ? ` · ${empresaNome}` : ' · Combustível + Automotivos'}
+              </h1>
+              <FocusModeToggle />
+            </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Visão consolidada da pista
             </p>

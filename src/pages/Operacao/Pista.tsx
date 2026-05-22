@@ -8,6 +8,7 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -217,9 +218,12 @@ const OperacaoPista = () => {
             <Wrench className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
-              Pista{empresaNome ? ` · ${empresaNome}` : ' · Produtos Automotivos'}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
+                Pista{empresaNome ? ` · ${empresaNome}` : ' · Produtos Automotivos'}
+              </h1>
+              <FocusModeToggle />
+            </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Filtros, óleos, palhetas, aditivos, baterias e acessórios
             </p>

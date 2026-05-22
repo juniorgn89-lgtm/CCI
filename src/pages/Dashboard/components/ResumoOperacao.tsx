@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
-import InstantBadge from '@/components/layout/InstantBadge'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -274,7 +274,6 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
     faturamentoPorDia,
     apuradoPorDia,
     isLoading,
-    isCacheHit,
   } = useResumoOperacaoData()
   const hasData = faturamentoCombustivel > 0 || totalApurado > 0 || totalLitros > 0
   const showSkeleton = useShowSkeleton(isLoading, hasData)
@@ -418,9 +417,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
               <h2 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
                 Resumo · {empresaNome}
               </h2>
-              {isCacheHit && (
-                <InstantBadge title="Combustível do snapshot mensal — carregamento instantâneo" />
-              )}
+              <FocusModeToggle />
             </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Visão consolidada do posto com projeção de fim de período

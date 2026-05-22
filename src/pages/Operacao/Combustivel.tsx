@@ -9,7 +9,7 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import OperacaoNav from '@/pages/Operacao/OperacaoNav'
-import InstantBadge from '@/components/layout/InstantBadge'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
@@ -93,7 +93,6 @@ const Operacao = () => {
     apuradoPorDia,
     isLoading,
     hasEmpresa,
-    isCacheHit,
   } = useOperacaoData()
   const empresaNome = useEmpresaNome()
 
@@ -114,7 +113,7 @@ const Operacao = () => {
               <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">
                 Operação{empresaNome ? ` · ${empresaNome}` : ''}
               </h1>
-              {isCacheHit && <InstantBadge />}
+              <FocusModeToggle />
             </div>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               Bombas, abastecimentos, turnos, caixa e produtividade

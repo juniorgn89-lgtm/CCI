@@ -17,6 +17,7 @@ import useNetworkData from './hooks/useNetworkData'
 import usePostoComparativo from './hooks/usePostoComparativo'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import CompanyPicker from './components/CompanyPicker'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 
 // Conteúdo das abas em chunks separados: recharts (Comparação/Previsão) e
 // leaflet (Mapa, ~154 kB) só baixam quando a aba é aberta.
@@ -109,9 +110,12 @@ const Inteligencia = () => {
             <Brain className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              Inteligência da Rede
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                Inteligência da Rede
+              </h1>
+              <FocusModeToggle />
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {isSingle
                 ? 'Análise temporal e comparativo de desempenho'
