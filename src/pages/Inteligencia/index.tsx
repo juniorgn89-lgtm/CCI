@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Activity,
   CalendarDays,
+  Wallet,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
@@ -26,6 +27,7 @@ const SmartAnalysis = lazy(() => import('./components/SmartAnalysis'))
 const PostoGoals = lazy(() => import('./components/PostoGoals'))
 const SalesForecast = lazy(() => import('./components/SalesForecast'))
 const ControlCenter = lazy(() => import('./components/ControlCenter'))
+const FechamentoConsolidado = lazy(() => import('./components/FechamentoConsolidado'))
 
 const TabFallback = () => (
   <div className="space-y-4">
@@ -44,10 +46,11 @@ const TabFallback = () => (
   </div>
 )
 
-type TabKey = 'comparativo' | 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle'
+type TabKey = 'comparativo' | 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle' | 'fechamento'
 
 const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
+  { key: 'fechamento', label: 'Fechamento', icon: Wallet },
   { key: 'comparacao', label: 'Comparação', icon: GitCompareArrows },
   { key: 'mapa', label: 'Mapa da Rede', icon: Map },
   { key: 'analise', label: 'Análise Inteligente', icon: Lightbulb },
@@ -58,6 +61,7 @@ const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
 const singleTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'comparativo', label: 'Comparativo', icon: CalendarDays },
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
+  { key: 'fechamento', label: 'Fechamento', icon: Wallet },
   { key: 'analise', label: 'Análise Inteligente', icon: Lightbulb },
   { key: 'metas', label: 'Metas', icon: Target },
   { key: 'previsao', label: 'Previsão', icon: TrendingUp },
@@ -186,6 +190,7 @@ const Inteligencia = () => {
                 <PostoComparison postos={postos} networkAvg={networkAvg} />
               )}
               {activeTab === 'mapa' && !isSingle && <NetworkMap postos={postos} />}
+              {activeTab === 'fechamento' && <FechamentoConsolidado postos={postos} />}
               {activeTab === 'analise' && <SmartAnalysis insights={insights} />}
               {activeTab === 'metas' && <PostoGoals goals={goals} />}
               {activeTab === 'previsao' && <SalesForecast forecastData={forecastData} />}
