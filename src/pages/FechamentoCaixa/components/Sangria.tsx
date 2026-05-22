@@ -99,9 +99,6 @@ const Sangria = ({ fator }: SangriaProps) => {
       {/* Cabeçalho do relatório */}
       <div className="flex flex-col gap-4 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col gap-2">
-          <div className="inline-flex w-fit items-center rounded-md bg-gray-900 px-2.5 py-1 text-xs font-bold tracking-wide text-white dark:bg-gray-100 dark:text-gray-900">
-            autobem
-          </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sangria</h2>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
