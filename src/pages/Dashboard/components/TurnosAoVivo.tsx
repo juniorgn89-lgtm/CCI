@@ -1,4 +1,4 @@
-import { Activity, Building2, ArrowRight, Wallet } from 'lucide-react'
+import { Building2, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
 import { useFilterStore } from '@/store/filters'
@@ -84,52 +84,56 @@ const TurnosAoVivo = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {empresas
             .filter((emp) => emp.caixas.length > 0)
             .map((emp) => (
               <button
                 key={emp.empresaCodigo}
                 onClick={() => handleClick(emp.empresaCodigo)}
-                className="group flex flex-col rounded-xl border border-l-4 border-gray-200 border-l-green-500 bg-white text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:border-l-green-500 dark:bg-gray-900 dark:hover:border-green-700"
+                className="group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-green-700"
               >
-                {/* Header do posto — padding reduzido pra caber sem scroll */}
-                <div className="flex items-start justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
-                      <Activity className="h-3 w-3" />
-                      Ao vivo · {emp.caixas.length} {emp.caixas.length === 1 ? 'caixa' : 'caixas'}
-                    </p>
-                    <p
-                      className="mt-0.5 truncate text-sm font-semibold text-gray-900 dark:text-gray-100"
-                      title={emp.empresaNome}
-                    >
+                {/* Header: nome do posto + badge "Ao vivo" */}
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100" title={emp.empresaNome}>
                       {emp.empresaNome}
                     </p>
-                    {emp.apuradoParcial > 0 && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <Wallet className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                        <span
-                          className="tabular-nums text-sm font-bold text-gray-900 dark:text-gray-100"
-                          title="Combustível bombeado desde a abertura do caixa mais antigo"
-                        >
-                          {formatCurrency(emp.apuradoParcial)}
-                        </span>
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                          parcial
-                        </span>
-                      </div>
-                    )}
+                    <p className="truncate text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      {emp.caixas.length} {emp.caixas.length === 1 ? 'caixa aberto' : 'caixas abertos'}
+                    </p>
                   </div>
-                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600" />
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                    </span>
+                    Ao vivo
+                  </span>
                 </div>
 
-                {/* Lista de caixas — uma linha por caixa: turno + hora + nome inline */}
-                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                {/* Apurado parcial em destaque */}
+                {emp.apuradoParcial > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Wallet className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span
+                      className="text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100"
+                      title="Combustível bombeado desde a abertura do caixa mais antigo"
+                    >
+                      {formatCurrency(emp.apuradoParcial)}
+                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                      parcial
+                    </span>
+                  </div>
+                )}
+
+                {/* Lista de caixas no rodapé */}
+                <div className="mt-auto flex flex-col gap-1 border-t border-gray-100 pt-2.5 text-[11px] dark:border-gray-800">
                   {emp.caixas.map((c) => (
-                    <li
+                    <span
                       key={`${c.empresaCodigo}-${c.caixaCodigo}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                      className="flex items-center gap-1.5"
                       title={`${c.turno} · ${formatDataAbertura(c.abertura)} ${formatHora(c.abertura)} · ${c.responsavelNome}`}
                     >
                       <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -141,9 +145,9 @@ const TurnosAoVivo = () => {
                       <span className="truncate text-gray-700 dark:text-gray-300">
                         {c.responsavelNome}
                       </span>
-                    </li>
+                    </span>
                   ))}
-                </ul>
+                </div>
               </button>
             ))}
         </div>
