@@ -48,14 +48,14 @@ const CompanySelect = () => {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 w-[220px] justify-between text-xs font-normal xl:w-[280px] xl:text-sm"
+          className="h-7 w-[200px] justify-between text-[11px] font-normal xl:w-[240px] xl:text-xs"
           disabled={isLoading}
         >
-          <span className="flex items-center gap-2 truncate">
-            <Building2 className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+          <span className="flex items-center gap-1.5 truncate">
+            <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
             <span className="truncate">{isLoading ? 'Carregando...' : getLabel()}</span>
           </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[280px]">

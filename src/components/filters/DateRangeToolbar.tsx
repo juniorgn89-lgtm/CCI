@@ -56,17 +56,17 @@ const DateRangeToolbar = () => {
   // (o que o usuário está vendo nos inputs), não o que está commitado.
   const auto = isAutoPeriod(draftIni, draftFim)
   const inputClass = cn(
-    'h-9 w-[150px] text-sm transition-colors',
+    'h-7 w-[120px] text-xs transition-colors',
     auto
       ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
       : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
   )
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <CalendarRange className="mb-2 h-4 w-4 self-end text-gray-400" />
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+    <div className="flex flex-wrap items-end gap-2">
+      <CalendarRange className="mb-1.5 h-3.5 w-3.5 self-end text-gray-400" />
+      <div className="flex flex-col gap-0.5">
+        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Mês
         </label>
         <MonthRangeSelect
@@ -78,8 +78,8 @@ const DateRangeToolbar = () => {
           }}
         />
       </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+      <div className="flex flex-col gap-0.5">
+        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Inicial
         </label>
         <Input
@@ -90,9 +90,9 @@ const DateRangeToolbar = () => {
           aria-label="Data inicial"
         />
       </div>
-      <span className="mb-2 self-end text-gray-400">—</span>
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+      <span className="mb-1.5 self-end text-xs text-gray-400">—</span>
+      <div className="flex flex-col gap-0.5">
+        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Final
         </label>
         <Input
@@ -108,13 +108,13 @@ const DateRangeToolbar = () => {
         onClick={handleVisualizar}
         disabled={!dirty}
         className={cn(
-          'inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-all',
+          'inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-all',
           dirty
             ? 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162a44]'
             : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
         )}
       >
-        <Eye className="h-4 w-4" />
+        <Eye className="h-3.5 w-3.5" />
         Visualizar
       </button>
       {dirty && (

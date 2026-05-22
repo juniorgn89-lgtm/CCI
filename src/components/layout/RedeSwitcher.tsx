@@ -102,7 +102,7 @@ const RedeSwitcher = () => {
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors',
+            'flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition-colors',
             'hover:bg-gray-50 hover:border-gray-300',
             'dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
           )}

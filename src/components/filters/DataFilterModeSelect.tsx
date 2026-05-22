@@ -123,7 +123,7 @@ const DataFilterModeSelect = () => {
             title={opt.title}
             onClick={() => handleSelect(opt.value)}
             className={cn(
-              'inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+              'inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
               isActive
                 ? 'bg-[#1e3a5f] text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',

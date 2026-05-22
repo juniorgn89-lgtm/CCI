@@ -190,7 +190,7 @@ const AppLayout = () => {
             (posto, período, datas) foram movidos: posto subiu pro Header,
             datas viraram filtros locais por tela. */}
         {showsGlobalFilters(pathname) && (
-          <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-b from-white to-gray-50 px-4 pb-0 pt-3 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pt-4">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-b from-white to-gray-50 px-4 pb-3 pt-3 dark:border-gray-800 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pb-4 md:pt-4">
             <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
             <div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="shrink-0" />
           </div>
