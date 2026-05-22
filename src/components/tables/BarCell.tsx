@@ -5,7 +5,7 @@ interface BarCellProps {
   /** Maior valor da coluna — define 100% da barra. */
   max: number
   formatted: string
-  color?: 'blue' | 'green' | 'red'
+  color?: 'blue' | 'green' | 'red' | 'amber'
   /** Largura máxima da barra como % da célula (default 100). */
   maxWidthPct?: number
   /**
@@ -36,7 +36,9 @@ const BarCell = ({
       ? 'bg-emerald-100 dark:bg-emerald-900/30'
       : color === 'red'
         ? 'bg-red-100 dark:bg-red-900/30'
-        : 'bg-blue-100 dark:bg-blue-900/30'
+        : color === 'amber'
+          ? 'bg-amber-100 dark:bg-amber-900/30'
+          : 'bg-blue-100 dark:bg-blue-900/30'
   const text =
     color === 'red' ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
 

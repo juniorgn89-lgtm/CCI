@@ -1,20 +1,46 @@
-import { LayoutDashboard, Building2, Network } from 'lucide-react'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { LayoutDashboard, Building2, Network, Activity, Fuel, Layers } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import TurnosAoVivo from '@/pages/Dashboard/components/TurnosAoVivo'
 import ResumoOperacao from '@/pages/Dashboard/components/ResumoOperacao'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
-import BenchmarkPostos from '@/pages/Dashboard/components/BenchmarkPostos'
-import ReabastecimentoCard from '@/pages/Dashboard/components/ReabastecimentoCard'
 import InstantBadge from '@/components/layout/InstantBadge'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import { useAuthStore } from '@/store/auth'
 import { cn, isPastPeriod } from '@/lib/utils'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
+import HeaderTray from '@/components/layout/HeaderTray'
+import ModuleSettings from '@/components/layout/ModuleSettings'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
+import { useDashboardLayout } from '@/store/moduleLayout'
+
+// Lazy: TurnosAoVivo (cards live) e ReabastecimentoCard (recharts/lógica de
+// tanques) só carregam quando a aba é aberta.
+const TurnosAoVivo = lazy(() => import('@/pages/Dashboard/components/TurnosAoVivo'))
+const ReabastecimentoCard = lazy(() => import('@/pages/Dashboard/components/ReabastecimentoCard'))
+const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/BenchmarkSetor'))
+
+type TabId = 'setor' | 'aovivo' | 'reabastecimento'
+
+const TAB_ICONS: Record<TabId, typeof Activity> = {
+  setor: Layers,
+  aovivo: Activity,
+  reabastecimento: Fuel,
+}
+
+const TabSkeleton = () => (
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="space-y-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-12 w-full" />
+      ))}
+    </div>
+  </div>
+)
 
 const Dashboard = () => {
   const { empresaCodigos, setEmpresas, dataFinal } = useFilterStore()
@@ -25,6 +51,23 @@ const Dashboard = () => {
   // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
   // existe turno aberto em mês passado, só ruído visual.
   const periodIsPast = isPastPeriod(dataFinal)
+
+  // Layout das abas (Ao Vivo Rede / Reabastecimento). Engrenagem no HeaderTray
+  // permite reordenar/ocultar; permissão (canVerReabastecimento) e contexto
+  // (periodIsPast) escondem abas que não fazem sentido naquele estado.
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useDashboardLayout()
+  const knownTabs = layoutTabs.filter((t) => {
+    if (t.id === 'aovivo' && periodIsPast) return false
+    if (t.id === 'reabastecimento' && !canVerReabastecimento) return false
+    return true
+  })
+  const visibleTabs = knownTabs.filter((t) => t.visible)
+  const [activeTab, setActiveTab] = useState<TabId>((visibleTabs[0]?.id ?? 'setor') as TabId)
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab((visibleTabs[0]?.id ?? 'setor') as TabId)
+    }
+  }, [visibleTabs, activeTab])
 
   // Carrega empresas pra: (a) descobrir nome do posto selecionado;
   // (b) saber quantos postos o user tem permissão pra ver — se for 1 só,
@@ -113,17 +156,53 @@ const Dashboard = () => {
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>
+          {knownTabs.length > 0 && (
+            <HeaderTray>
+              <ModuleSettings
+                title="Central da Rede"
+                tabs={knownTabs}
+                toggleVisibility={toggleVisibility}
+                moveUp={moveUp}
+                moveDown={moveDown}
+                reset={reset}
+              />
+            </HeaderTray>
+          )}
 
-          {/* Projeção do mês — strip horizontal no topo, full width. KPIs
-              (Faturamento, Lucro Bruto, Margem) + alerta menor margem em grid. */}
+          {/* Cards de segmento sempre visíveis (Combustível, Automotivos, Conveniência, Global, Projeção). */}
           <ProjecoesPainel />
 
-          {/* Conteúdo principal abaixo da projeção */}
-          <div className="space-y-4">
-            {!periodIsPast && <TurnosAoVivo />}
-            <BenchmarkPostos />
-            {canVerReabastecimento && <ReabastecimentoCard />}
-          </div>
+          {/* Tab strip + conteúdo (Ao Vivo Rede / Reabastecimento) */}
+          {visibleTabs.length > 0 && (
+            <>
+              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
+                {visibleTabs.map((tab) => {
+                  const Icon = TAB_ICONS[tab.id as TabId] ?? Activity
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id as TabId)}
+                      className={cn(
+                        'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
+                        activeTab === tab.id
+                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <Suspense fallback={<TabSkeleton />}>
+                {activeTab === 'setor' && <BenchmarkSetor />}
+                {activeTab === 'aovivo' && <TurnosAoVivo />}
+                {activeTab === 'reabastecimento' && <ReabastecimentoCard />}
+              </Suspense>
+            </>
+          )}
         </>
       )}
     </div>

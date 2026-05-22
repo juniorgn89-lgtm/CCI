@@ -72,6 +72,12 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 
 /* ─── Module stores ─── */
 
+export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-layout', [
+  { id: 'setor', label: 'Por Setor', visible: true },
+  { id: 'aovivo', label: 'Ao Vivo Rede', visible: true },
+  { id: 'reabastecimento', label: 'Reabastecimento', visible: true },
+])
+
 export const useConvenienciasLayout = createModuleLayoutStore('visor360-conveniencias-layout', [
   { id: 'indicadores', label: 'Indicadores', visible: true },
   { id: 'vendas', label: 'Vendas', visible: true },

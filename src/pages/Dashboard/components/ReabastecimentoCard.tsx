@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatLiters } from '@/lib/formatters'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
-import ReposicaoTabela, { aggregarPorProduto, type ReposicaoLinha } from '@/pages/Dashboard/components/ReposicaoTabela'
+import ReposicaoTabela, { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/ReposicaoTabela'
 
 // A Central só lista tanques baixos (crítico/alerta), então não há filtro "OK".
 type FilterStatus = 'todos' | 'critico' | 'alerta'
@@ -83,6 +83,9 @@ const ReabastecimentoCard = () => {
   }, [baixos, filterStatus])
 
   const totalSugestao = resumoPostos.reduce((s, rp) => s + rp.totalSugestao, 0)
+  // Máximos globais (todos os postos) — barras das tabelas compartilham a mesma
+  // escala, viabilizando comparação visual cross-posto.
+  const resumoMaxes = useMemo(() => calcularMaxes(resumoPostos), [resumoPostos])
 
   // Agrupa por posto ou por combustível. Grupos ordenados por urgência (menor
   // % primeiro); tanques dentro do grupo também (pior primeiro).
@@ -248,7 +251,7 @@ const ReabastecimentoCard = () => {
                       </span>
                     </span>
                   </div>
-                  <ReposicaoTabela linhas={rp.linhas} />
+                  <ReposicaoTabela linhas={rp.linhas} maxes={resumoMaxes} />
                 </div>
               ))}
             </div>
