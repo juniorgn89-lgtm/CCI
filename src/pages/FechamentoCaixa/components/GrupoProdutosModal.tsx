@@ -36,11 +36,13 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
     const quantidade = filtered.reduce((s, p) => s + p.quantidade, 0)
     const total = filtered.reduce((s, p) => s + p.total, 0)
     const margem = filtered.reduce((s, p) => s + p.margemBruta, 0)
+    const custo = total - margem
     const margemPct = total > 0 ? (margem / total) * 100 : 0
-    return { quantidade, total, margem, margemPct, itens: filtered.length }
+    return { quantidade, total, custo, margem, margemPct, itens: filtered.length }
   }, [filtered])
 
   const maxTotal = filtered.reduce((m, p) => Math.max(m, p.total), 0)
+  const maxCusto = filtered.reduce((m, p) => Math.max(m, p.total - p.margemBruta), 0)
   const maxMargemAbs = filtered.reduce((m, p) => Math.max(m, Math.abs(p.margemBruta)), 0)
 
   return (
@@ -75,34 +77,41 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
                     <th className="px-4 py-2 text-left">Produto</th>
                     <th className="px-4 py-2 text-right">Qtd</th>
                     <th className="px-4 py-2 text-right">Total (R$)</th>
+                    <th className="px-4 py-2 text-right">Custo (R$)</th>
                     <th className="px-4 py-2 text-right">Margem (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p) => (
-                    <tr
-                      key={p.nome}
-                      className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
-                    >
-                      <td className="px-4 py-2 text-left">{p.nome}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(p.quantidade)}</td>
-                      <td className="px-2 py-1.5">
-                        <BarCell value={p.total} max={maxTotal} formatted={fmt(p.total)} color="blue" align="near" />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <BarCell
-                          value={Math.abs(p.margemBruta)}
-                          max={maxMargemAbs}
-                          formatted={fmt(p.margemBruta, 3)}
-                          color={p.margemBruta < 0 ? 'red' : 'green'}
-                          align="near"
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((p) => {
+                    const custo = p.total - p.margemBruta
+                    return (
+                      <tr
+                        key={p.nome}
+                        className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                      >
+                        <td className="px-4 py-2 text-left">{p.nome}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{fmt(p.quantidade)}</td>
+                        <td className="px-2 py-1.5">
+                          <BarCell value={p.total} max={maxTotal} formatted={fmt(p.total)} color="blue" align="near" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <BarCell value={custo} max={maxCusto} formatted={fmt(custo)} color="red" align="near" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <BarCell
+                            value={Math.abs(p.margemBruta)}
+                            max={maxMargemAbs}
+                            formatted={fmt(p.margemBruta, 3)}
+                            color={p.margemBruta < 0 ? 'red' : 'green'}
+                            align="near"
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-xs text-gray-400">
+                      <td colSpan={5} className="px-4 py-8 text-center text-xs text-gray-400">
                         Nenhum produto corresponde à busca.
                       </td>
                     </tr>
@@ -113,6 +122,7 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
                     <td className="px-4 py-2 text-left">Total:</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(totals.quantidade)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(totals.total)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmt(totals.custo)}</td>
                     <td
                       className={cn(
                         'px-4 py-2 text-right tabular-nums',
