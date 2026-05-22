@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import Sidebar, { navItems } from '@/components/layout/Sidebar'
+import { useFocusMode } from '@/store/focusMode'
 import Header from '@/components/layout/Header'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
@@ -35,9 +36,51 @@ const AppLayout = () => {
   useAutoSelectSinglePosto()
   useFiltersUrlSync()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const focusActive = useFocusMode((s) => s.active)
+  const setFocus = useFocusMode((s) => s.set)
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
+
+  // ESC sai do modo foco (UX padrão pra reading mode).
+  useEffect(() => {
+    if (!focusActive) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFocus(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [focusActive, setFocus])
+
+  // Sair do modo foco automaticamente ao mudar de rota.
+  useEffect(() => {
+    setFocus(false)
+  }, [pathname, setFocus])
+
+  // Sincroniza o modo foco com o fullscreen nativo do browser.
+  // Entrar: requestFullscreen (precisa de gesto do usuário — o click no botão
+  // já conta). Sair: exitFullscreen. Falhas viram no-op (silencioso).
+  useEffect(() => {
+    if (focusActive) {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch(() => { /* user gesture pode ter expirado */ })
+      }
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => { /* noop */ })
+      }
+    }
+  }, [focusActive])
+
+  // Se o user sair do fullscreen via F11 / ESC nativo / dropdown do browser,
+  // espelhamos no estado pra UI ficar consistente.
+  useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setFocus(false)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [setFocus])
 
   const isMaster = useAuthStore((s) => s.isMaster)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
@@ -94,8 +137,8 @@ const AppLayout = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Desktop sidebar */}
-      <Sidebar />
+      {/* Desktop sidebar — escondida quando o Modo Foco está ativo. */}
+      {!focusActive && <Sidebar />}
 
       {/* Mobile sidebar (Sheet) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

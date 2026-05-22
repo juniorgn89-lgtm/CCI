@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
@@ -272,9 +272,8 @@ const BenchmarkSetor = () => {
               const qtdVar = variacaoPct(p.qtd, p.qtdAnoAnterior)
               const lucroVar = variacaoPct(p.lucroBruto, p.lucroBrutoAnoAnterior)
               return (
-                <>
+                <Fragment key={p.posto}>
                   <tr
-                    key={p.posto}
                     onClick={() => togglePosto(p.posto)}
                     className="cursor-pointer border-b border-gray-100 bg-gray-50/40 font-semibold text-gray-900 transition-colors hover:bg-blue-50/60 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-100 dark:hover:bg-blue-900/20"
                   >
@@ -324,7 +323,7 @@ const BenchmarkSetor = () => {
                       </tr>
                     )
                   })}
-                </>
+                </Fragment>
               )
             })}
             <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">

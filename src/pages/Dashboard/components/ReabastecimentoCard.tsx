@@ -439,7 +439,7 @@ const GrupoCarrossel = ({ grupo, agruparPor }: { grupo: Grupo; agruparPor: Agrup
           className="flex gap-3 overflow-x-auto scroll-smooth px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {grupo.tanques.map((t) => (
-            <div key={`${t.empresaCodigo}-${t.tanqueCodigo}`} className="w-[19rem] shrink-0">
+            <div key={`${t.empresaCodigo}-${t.tanqueCodigo}`} className="w-[21rem] shrink-0">
               <TanqueCard t={t} subtitle={agruparPor === 'combustivel' ? t.empresaNome : undefined} />
             </div>
           ))}

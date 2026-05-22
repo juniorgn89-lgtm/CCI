@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { LayoutDashboard, Building2, Network, Activity, Fuel, Layers } from 'lucide-react'
+import { LayoutDashboard, Building2, Network, Activity, Fuel, Layers, Maximize2, Minimize2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
@@ -17,6 +17,7 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useDashboardLayout } from '@/store/moduleLayout'
+import { useFocusMode } from '@/store/focusMode'
 
 // Lazy: TurnosAoVivo (cards live) e ReabastecimentoCard (recharts/lógica de
 // tanques) só carregam quando a aba é aberta.
@@ -51,6 +52,10 @@ const Dashboard = () => {
   // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
   // existe turno aberto em mês passado, só ruído visual.
   const periodIsPast = isPastPeriod(dataFinal)
+
+  // Modo Foco — esconde a sidebar pra dar largura máxima ao conteúdo.
+  const focusActive = useFocusMode((s) => s.active)
+  const toggleFocus = useFocusMode((s) => s.toggle)
 
   // Layout das abas (Ao Vivo Rede / Reabastecimento). Engrenagem no HeaderTray
   // permite reordenar/ocultar; permissão (canVerReabastecimento) e contexto
@@ -143,6 +148,20 @@ const Dashboard = () => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="truncate text-base font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+                  <button
+                    type="button"
+                    onClick={toggleFocus}
+                    title={focusActive ? 'Sair do modo foco (ESC)' : 'Modo Foco — esconde a sidebar pra dar mais largura aos dados'}
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+                      focusActive
+                        ? 'border-blue-200 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:border-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-blue-800 dark:hover:bg-blue-900/30 dark:hover:text-blue-300',
+                    )}
+                  >
+                    {focusActive ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                    Modo Foco
+                  </button>
                   {isCacheHit && <InstantBadge />}
                 </div>
                 <p className="truncate text-xs text-gray-500 dark:text-gray-400">
