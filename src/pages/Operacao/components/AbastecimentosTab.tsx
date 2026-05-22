@@ -33,7 +33,7 @@ const AbastecimentosTab = () => {
     <div className="space-y-5">
       <AlertaDataFutura inconsistencias={inconsistenciasFuturas} />
 
-      <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
         {subTabs.map((tab) => {
           const Icon = tab.icon
           const isActive = active === tab.key
@@ -42,10 +42,10 @@ const AbastecimentosTab = () => {
               key={tab.key}
               onClick={() => setActive(tab.key)}
               className={cn(
-                'flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm transition-all',
+                'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
                 isActive
-                  ? 'border border-gray-200 bg-white font-medium text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
-                  : 'border border-transparent bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               )}
             >
               <Icon className="h-4 w-4" />

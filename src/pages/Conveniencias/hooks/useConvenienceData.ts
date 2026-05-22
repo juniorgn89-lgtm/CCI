@@ -303,14 +303,14 @@ const useConvenienceData = () => {
     // ── Maps ──
     // grupoMap construído PRIMEIRO porque produtoMap filtra pelo nome
     // do grupo pra excluir produtos da pista (PS-) — esses vivem em
-    // /operacao/pista, não em Conveniências.
+    // /comercial/vendas/pista, não em Conveniências.
     const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
 
     const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string }>()
     for (const p of produtos) {
       // Skip combustível — Conveniência é só loja
       if (p.combustivel) continue
-      // Skip produtos da pista (PS-) — vivem em /operacao/pista
+      // Skip produtos da pista (PS-) — vivem em /comercial/vendas/pista
       const grupoNome = grupoMap.get(p.grupoCodigo) ?? ''
       if (grupoNome.startsWith('PS -')) continue
       produtoMap.set(p.produtoCodigo, {

@@ -96,7 +96,16 @@ const KpiCard = ({ label, value, prevValue, delta, Icon, chipClass, iconClass, o
   </button>
 )
 
-const Conveniencias = () => {
+interface ConvenienciasProps {
+  /**
+   * Quando true, oculta o cabeçalho (PageHeaderTitle / HeaderTray /
+   * PageHeaderActions). Usado ao embutir esta tela como aba dentro de
+   * Comercial · Vendas, onde o cabeçalho vem da página externa.
+   */
+  embedded?: boolean
+}
+
+const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useConvenienciasLayout()
   // Defensivo: ignora abas legadas do layout salvo (ex.: "Mais Vendidos"
   // removida) sem depender da migração do store rodar primeiro.
@@ -126,30 +135,39 @@ const Conveniencias = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-900/30">
-            <Store className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
+      {!embedded && (
+        <>
+          <PageHeaderTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-900/30">
+                <Store className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
+                    Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
+                  </h1>
+                  <FocusModeToggle />
+                </div>
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                  Vendas, catálogo, estoque e análise de performance da loja
+                </p>
+              </div>
             </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Vendas, catálogo, estoque e análise de performance da loja
-            </p>
-          </div>
-        </div>
-      </PageHeaderTitle>
-      <HeaderTray>
-        <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </HeaderTray>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+          </PageHeaderTitle>
+          <HeaderTray>
+            <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
+          </HeaderTray>
+          <PageHeaderActions>
+            <DateRangeToolbar />
+          </PageHeaderActions>
+        </>
+      )}
+      {embedded && (
+        <HeaderTray>
+          <ModuleSettings title="Conveniência" tabs={knownTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
+        </HeaderTray>
+      )}
 
       {/* Empty state */}
       {!hasEmpresa && <SelectCompanyState />}

@@ -9,20 +9,17 @@ import Login from '@/pages/Login'
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 
 const Dashboard = lazy(importDashboard)
-const Conveniencias = lazy(() => import('@/pages/Conveniencias'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
-const OperacaoCombustivel = lazy(() => import('@/pages/Operacao/Combustivel'))
-const OperacaoPista = lazy(() => import('@/pages/Operacao/Pista'))
-const OperacaoMix = lazy(() => import('@/pages/Operacao/Mix'))
+const Abastecimentos = lazy(() => import('@/pages/Abastecimentos'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
 const ComercialVendas = lazy(() => import('@/pages/Comercial/Vendas'))
-const ComercialCombustivel = lazy(() => import('@/pages/Comercial/Combustivel'))
-const ComercialPista = lazy(() => import('@/pages/Comercial/Pista'))
-const ComercialConveniencia = lazy(() => import('@/pages/Comercial/Conveniencia'))
+const ComercialVendasCombustivel = lazy(() => import('@/pages/Comercial/Vendas/Combustivel'))
+const ComercialVendasPista = lazy(() => import('@/pages/Comercial/Vendas/Pista'))
+const ComercialVendasConveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
@@ -57,9 +54,10 @@ const AppRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
-          <Route path="/combustiveis" element={<Navigate to="/operacao?tab=abastecimentos" replace />} />
-          <Route path="/produtos" element={<Navigate to="/conveniencias" replace />} />
-          <Route path="/conveniencias" element={<Suspense fallback={<RouteFallback />}><Conveniencias /></Suspense>} />
+          <Route path="/combustiveis" element={<Navigate to="/abastecimentos" replace />} />
+          <Route path="/abastecimentos" element={<Suspense fallback={<RouteFallback />}><Abastecimentos /></Suspense>} />
+          <Route path="/produtos" element={<Navigate to="/comercial/vendas/conveniencia" replace />} />
+          <Route path="/conveniencias" element={<Navigate to="/comercial/vendas/conveniencia" replace />} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />
           <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
@@ -67,14 +65,16 @@ const AppRoutes = () => {
           <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
-          <Route path="/operacao/combustivel" element={<Suspense fallback={<RouteFallback />}><OperacaoCombustivel /></Suspense>} />
-          <Route path="/operacao/pista" element={<Suspense fallback={<RouteFallback />}><OperacaoPista /></Suspense>} />
-          <Route path="/operacao/mix" element={<Suspense fallback={<RouteFallback />}><OperacaoMix /></Suspense>} />
+          {/* Redirects das sub-rotas antigas — Combustível/Pista agora vivem em
+              Comercial · Vendas; Operação concentra só a visão operacional do posto. */}
+          <Route path="/operacao/combustivel" element={<Navigate to="/operacao" replace />} />
+          <Route path="/operacao/pista" element={<Navigate to="/comercial/vendas/pista" replace />} />
+          <Route path="/operacao/mix" element={<Navigate to="/comercial/vendas" replace />} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
           <Route path="/comercial/vendas" element={<Suspense fallback={<RouteFallback />}><ComercialVendas /></Suspense>} />
-          <Route path="/comercial/combustivel" element={<Suspense fallback={<RouteFallback />}><ComercialCombustivel /></Suspense>} />
-          <Route path="/comercial/pista" element={<Suspense fallback={<RouteFallback />}><ComercialPista /></Suspense>} />
-          <Route path="/comercial/conveniencia" element={<Suspense fallback={<RouteFallback />}><ComercialConveniencia /></Suspense>} />
+          <Route path="/comercial/vendas/combustivel" element={<Suspense fallback={<RouteFallback />}><ComercialVendasCombustivel /></Suspense>} />
+          <Route path="/comercial/vendas/pista" element={<Suspense fallback={<RouteFallback />}><ComercialVendasPista /></Suspense>} />
+          <Route path="/comercial/vendas/conveniencia" element={<Suspense fallback={<RouteFallback />}><ComercialVendasConveniencia /></Suspense>} />
           <Route path="/mobile" element={<Suspense fallback={<RouteFallback />}><Mobile /></Suspense>} />
           <Route path="/configuracoes" element={<Suspense fallback={<RouteFallback />}><Configuracoes /></Suspense>} />
           <Route path="/admin/frentistas" element={<Suspense fallback={<RouteFallback />}><AdminFrentistas /></Suspense>} />

@@ -86,8 +86,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
     })
   }
 
-  // Match exato OU sub-rota (ex.: /operacao/combustivel ainda casa com Operação)
-  // — mesma lógica do Sidebar, evita "Visor360" aparecer em rotas filhas.
+  // Match exato OU sub-rota (ex.: /comercial/vendas/pista ainda casa com
+  // /comercial/vendas) — mesma lógica do Sidebar, evita "Visor360" aparecer
+  // em rotas filhas.
   const currentModule = navItems.find(
     (item) => pathname === item.path || pathname.startsWith(item.path + '/'),
   )

@@ -22,9 +22,11 @@ export interface OperacaoKpiData {
   bombasAtivas: number
   caixasAbertos: number
   totalApurado: number
-  // Previous-period totals for DeltaBadge comparison (3 main KPIs only)
+  // Previous-period totals for DeltaBadge comparison
+  prevTotalAbastecimentos: number
   prevTotalLitros: number
   prevFaturamentoCombustivel: number
+  prevTicketMedio: number
   prevTotalApurado: number
 }
 
@@ -875,8 +877,10 @@ const useOperacaoData = () => {
       bombasAtivas: bombaRows.filter((b) => b.abastecimentos > 0).length,
       caixasAbertos: caixaResumo.caixasAbertos,
       totalApurado: caixaResumo.totalApurado,
+      prevTotalAbastecimentos: abastPrev.length,
       prevTotalLitros,
       prevFaturamentoCombustivel,
+      prevTicketMedio: abastPrev.length > 0 ? prevFaturamentoCombustivel / abastPrev.length : 0,
       prevTotalApurado,
     }
 

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Fuel, Receipt, Users, Gauge, Wallet, Clock,
 } from 'lucide-react'
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
 import type { OperacaoKpiData, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
-type TabKey = 'indicadores' | 'bombas' | 'abastecimentos' | 'caixa' | 'produtividade'
+type TabKey = 'indicadores' | 'bombas' | 'caixa' | 'produtividade'
 
 interface Props {
   kpis: OperacaoKpiData
@@ -21,6 +22,7 @@ interface Props {
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316']
 
 const OperacaoIndicadores = ({ kpis, abastecimentoRows, onNavigateTab }: Props) => {
+  const navigate = useNavigate()
   const computed = useMemo(() => {
     // Abastecimentos por hora
     const horaMap = new Map<number, { count: number; litros: number }>()
@@ -50,13 +52,21 @@ const OperacaoIndicadores = ({ kpis, abastecimentoRows, onNavigateTab }: Props) 
     return { porHora, combustiveis }
   }, [abastecimentoRows])
 
-  // KPIs secundários compactos (sem DeltaBadge) — os principais ficam globais acima das abas
-  const secondaryKpiCards = [
-    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', tab: 'abastecimentos' as TabKey },
-    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-100 dark:bg-amber-900/30', tab: 'produtividade' as TabKey },
-    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', tab: 'bombas' as TabKey },
-    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-900/30', tab: 'caixa' as TabKey },
+  // KPIs secundários compactos (sem DeltaBadge) — os principais ficam globais acima das abas.
+  // `onClick` pode levar a uma aba interna (onNavigateTab) ou pra outro módulo (navigate).
+  const secondaryKpiCards: Array<{
+    label: string
+    value: string
+    icon: typeof Fuel
+    color: string
+    iconBg: string
+    onClick: () => void
+  }> = [
+    { label: 'Abastecimentos', value: formatNumber(kpis.totalAbastecimentos), icon: Fuel, color: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', onClick: () => navigate('/abastecimentos') },
+    { label: 'Ticket Médio', value: formatCurrency(kpis.ticketMedio), icon: Receipt, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', onClick: () => navigate('/abastecimentos') },
+    { label: 'Frentistas', value: formatNumber(kpis.frentistasAtivos), icon: Users, color: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-100 dark:bg-amber-900/30', onClick: () => onNavigateTab('produtividade') },
+    { label: 'Bombas Ativas', value: formatNumber(kpis.bombasAtivas), icon: Gauge, color: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', onClick: () => onNavigateTab('bombas') },
+    { label: 'Caixas Abertos', value: formatNumber(kpis.caixasAbertos), icon: Wallet, color: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-900/30', onClick: () => onNavigateTab('caixa') },
   ]
 
   return (
@@ -68,7 +78,7 @@ const OperacaoIndicadores = ({ kpis, abastecimentoRows, onNavigateTab }: Props) 
           return (
             <button
               key={card.label}
-              onClick={() => onNavigateTab(card.tab)}
+              onClick={card.onClick}
               className="rounded-lg border border-gray-200/60 bg-gray-50/50 px-3 py-3 text-left shadow-sm transition-all hover:shadow-md hover:bg-white dark:border-gray-700/60 dark:bg-gray-800/40 dark:hover:bg-gray-800"
             >
               <div className="flex items-center justify-between">

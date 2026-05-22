@@ -14,7 +14,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
-import OperacaoNav from '@/pages/Operacao/OperacaoNav'
+import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 
 /* ─── Helpers ─── */
 
@@ -49,7 +49,7 @@ const CATEGORIA_COLOR: Record<string, string> = {
 
 /* ─── Página ─── */
 
-const OperacaoPista = () => {
+const ComercialVendasPista = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
@@ -220,7 +220,7 @@ const OperacaoPista = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Pista{empresaNome ? ` · ${empresaNome}` : ' · Produtos Automotivos'}
+                Vendas · Pista{empresaNome ? ` · ${empresaNome}` : ''}
               </h1>
               <FocusModeToggle />
             </div>
@@ -234,8 +234,7 @@ const OperacaoPista = () => {
         <DateRangeToolbar />
       </PageHeaderActions>
 
-      {/* Switcher entre Combustível / Pista / Mix */}
-      <OperacaoNav />
+      <VendasNav />
 
       {!hasEmpresa && <SelectCompanyState />}
 
@@ -475,4 +474,4 @@ const KpiCard = ({ label, value, hint, Icon, loading }: KpiCardProps) => (
   </div>
 )
 
-export default OperacaoPista
+export default ComercialVendasPista

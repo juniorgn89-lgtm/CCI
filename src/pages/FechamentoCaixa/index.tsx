@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle } from 'lucide-react'
+import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle, DollarSign, TrendingUp } from 'lucide-react'
+import { formatCurrency } from '@/lib/formatters'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -568,6 +569,107 @@ const FechamentoCaixa = () => {
                 Marque "Incluir abertos" pra ver os dois tipos.
               </span>
             </span>
+          </div>
+
+          {/* KPIs principais — agregam os caixas selecionados (mock escala
+              pelo fator caixa × posto). Sempre visíveis acima das abas. */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('geral')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Vendas</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatCurrency(dados.gruposTotal.total)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                {selectedIds.length} {selectedIds.length === 1 ? 'caixa selecionado' : 'caixas selecionados'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('geral')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Margem Bruta</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatCurrency(dados.gruposTotal.margemBruta)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                {dados.gruposTotal.total > 0
+                  ? `${((dados.gruposTotal.margemBruta / dados.gruposTotal.total) * 100).toFixed(1).replace('.', ',')}% sobre vendas`
+                  : '—'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('sangria')}
+              className="rounded-xl border border-gray-200 bg-gradient-to-br from-amber-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-amber-950/20 dark:to-gray-900"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Sangria</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                  <HandCoins className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatCurrency(dados.saidasTotal)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                Total de saídas do caixa
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('encerrantes')}
+              className={cn(
+                'rounded-xl border border-gray-200 bg-gradient-to-br p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700',
+                baseResumoCaixa.diferenca * fator >= 0
+                  ? 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900'
+                  : 'from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença</p>
+                <div
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg',
+                    baseResumoCaixa.diferenca * fator >= 0
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                      : 'bg-red-100 dark:bg-red-900/30',
+                  )}
+                >
+                  <Scale
+                    className={cn(
+                      'h-5 w-5',
+                      baseResumoCaixa.diferenca * fator >= 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-red-600 dark:text-red-400',
+                    )}
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatCurrency(baseResumoCaixa.diferenca * fator)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                Conferência caixa × sistema
+              </p>
+            </button>
           </div>
 
           {/* Tabs */}
