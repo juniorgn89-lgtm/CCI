@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import BarCell from '@/components/tables/BarCell'
+import SangriaDetailModal, { type SangriaLancamento } from './SangriaDetailModal'
 import { fmt } from './formatters'
 
 interface SangriaProps {
@@ -24,6 +25,53 @@ const baseRows: FuncionarioRow[] = [
   { nome: 'WALACE ALBERTO FERREIRA', dinheiro: 700 },
 ]
 
+// Mock — lançamentos individuais por funcionário (proporções somam 1.0).
+// O valor real é calculado em runtime: pct * total do funcionário (já escalado
+// pelo fator dos caixas selecionados).
+const baseLancamentos: Record<string, SangriaLancamento[]> = {
+  'ANDERSON DE OLIVEIRA MENDES': [
+    { hora: '10:23', forma: 'Dinheiro', pct: 0.4, obs: 'Troco do cofre' },
+    { hora: '16:48', forma: 'Dinheiro', pct: 0.6 },
+  ],
+  'CRISTIELE MAURICIO ALVES': [
+    { hora: '15:30', forma: 'Dinheiro', pct: 1.0 },
+  ],
+  'DERMEVAL SANTANA': [
+    { hora: '09:12', forma: 'Dinheiro', pct: 0.55 },
+    { hora: '14:05', forma: 'Dinheiro', pct: 0.45 },
+  ],
+  'GILVONEY SANTOS BONFIM': [
+    { hora: '08:45', forma: 'Dinheiro', pct: 0.32 },
+    { hora: '13:20', forma: 'Dinheiro', pct: 0.40, obs: 'Reposição troco' },
+    { hora: '19:10', forma: 'Dinheiro', pct: 0.28 },
+  ],
+  'ITALO MATEUS ROSA GARCIA': [
+    { hora: '10:05', forma: 'Dinheiro', pct: 0.28 },
+    { hora: '14:30', forma: 'Dinheiro', pct: 0.35 },
+    { hora: '18:00', forma: 'Dinheiro', pct: 0.20 },
+    { hora: '21:45', forma: 'Dinheiro', pct: 0.17, obs: 'Final de turno' },
+  ],
+  'IVANILDO DA SILVA': [
+    { hora: '09:30', forma: 'Dinheiro', pct: 0.30 },
+    { hora: '13:15', forma: 'Dinheiro', pct: 0.40 },
+    { hora: '17:50', forma: 'Dinheiro', pct: 0.30 },
+  ],
+  'JEAN REIS': [
+    { hora: '11:40', forma: 'Dinheiro', pct: 1.0 },
+  ],
+  'KEILA MADUREIRA FRANCISCO': [
+    { hora: '10:55', forma: 'Dinheiro', pct: 0.6 },
+    { hora: '16:20', forma: 'Dinheiro', pct: 0.4 },
+  ],
+  'MAILANE DE JESUS SALES': [
+    { hora: '14:10', forma: 'Dinheiro', pct: 1.0 },
+  ],
+  'WALACE ALBERTO FERREIRA': [
+    { hora: '09:00', forma: 'Dinheiro', pct: 0.5 },
+    { hora: '15:35', forma: 'Dinheiro', pct: 0.5 },
+  ],
+}
+
 const otherCols = [
   'Cheque',
   'Cheque Pré',
@@ -37,6 +85,8 @@ const otherCols = [
 ] as const
 
 const Sangria = ({ fator }: SangriaProps) => {
+  const [selectedFunc, setSelectedFunc] = useState<{ nome: string; total: number } | null>(null)
+
   const { rows, total, maxDinheiro } = useMemo(() => {
     const rows = baseRows.map((r) => ({ ...r, dinheiro: r.dinheiro * fator }))
     const total = rows.reduce((acc, r) => acc + r.dinheiro, 0)
@@ -69,9 +119,18 @@ const Sangria = ({ fator }: SangriaProps) => {
       <section className="mt-6 space-y-6">
         {rows.map((row) => (
           <div key={row.nome}>
-            <div className="rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-              {row.nome}
-            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedFunc({ nome: row.nome, total: row.dinheiro })}
+              className="flex w-full items-center justify-between rounded-t-md border border-b-0 border-gray-200 bg-gray-100 px-4 py-2 text-left transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-blue-900/20"
+            >
+              <span className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                {row.nome}
+              </span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                Ver lançamentos →
+              </span>
+            </button>
             <div className="overflow-x-auto rounded-b-md border border-gray-200 dark:border-gray-700">
               <table className="w-full text-sm">
                 <thead>
@@ -144,6 +203,14 @@ const Sangria = ({ fator }: SangriaProps) => {
           Quantidade sangria efetuada: 27
         </span>
       </div>
+
+      <SangriaDetailModal
+        open={!!selectedFunc}
+        onClose={() => setSelectedFunc(null)}
+        funcionario={selectedFunc?.nome ?? null}
+        total={selectedFunc?.total ?? 0}
+        lancamentos={selectedFunc ? (baseLancamentos[selectedFunc.nome] ?? []) : []}
+      />
     </div>
   )
 }
