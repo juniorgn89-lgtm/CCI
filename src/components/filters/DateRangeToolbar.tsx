@@ -6,6 +6,32 @@ import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 
+const pad = (n: number) => String(n).padStart(2, '0')
+const fmtDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+/**
+ * Período "automático" = bate exatamente com um dos 3 presets do MÊS CORRENTE
+ * (Completo / Em andamento / Apurado). Qualquer outra coisa — mês passado,
+ * multi-mês, datas digitadas — conta como personalizado.
+ *
+ * Não confundir com o badge "Apurado" do DataFilterModeSelect: lá um período
+ * inteiramente no passado é classificado como "Apurado" (tipo), mas aqui
+ * (visual do input) ele é "personalizado" porque foi escolhido pelo usuário.
+ */
+const isAutoPeriod = (dataInicial: string, dataFinal: string): boolean => {
+  const now = new Date()
+  const today = fmtDate(now)
+  const firstM = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`
+  const lastM = fmtDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+  const yesterday = now.getDate() <= 1 ? firstM : fmtDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
+
+  return (
+    (dataInicial === firstM && dataFinal === lastM) // Completo
+    || (dataInicial === today && dataFinal === today) // Em andamento
+    || (dataInicial === firstM && dataFinal === yesterday) // Apurado clássico
+  )
+}
+
 /**
  * Toolbar de filtro de período pra ser portada via <PageHeaderActions> em cada
  * página. Estado local (draft) — só "commita" pro filtro global ao clicar
@@ -26,14 +52,19 @@ const DateRangeToolbar = () => {
   const dirty = draftIni !== periodIni || draftFim !== periodFim
   const handleVisualizar = () => setPeriodo(draftIni, draftFim)
 
+  // Azul = período automático; laranja = personalizado. Sempre reflete o draft
+  // (o que o usuário está vendo nos inputs), não o que está commitado.
+  const auto = isAutoPeriod(draftIni, draftFim)
+  const inputClass = cn(
+    'h-9 w-[150px] text-sm transition-colors',
+    auto
+      ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
+      : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
+  )
+
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <div className="flex items-center gap-2 self-center">
-        <CalendarRange className="h-4 w-4 text-gray-400" />
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Período
-        </span>
-      </div>
+      <CalendarRange className="mb-2 h-4 w-4 self-end text-gray-400" />
       <div className="flex flex-col gap-1">
         <label className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Mês
@@ -55,10 +86,7 @@ const DateRangeToolbar = () => {
           type="date"
           value={draftIni}
           onChange={(e) => setDraftIni(e.target.value)}
-          className={cn(
-            'h-9 w-[150px] text-sm transition-colors',
-            dirty && 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
-          )}
+          className={inputClass}
           aria-label="Data inicial"
         />
       </div>
@@ -71,10 +99,7 @@ const DateRangeToolbar = () => {
           type="date"
           value={draftFim}
           onChange={(e) => setDraftFim(e.target.value)}
-          className={cn(
-            'h-9 w-[150px] text-sm transition-colors',
-            dirty && 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
-          )}
+          className={inputClass}
           aria-label="Data final"
         />
       </div>

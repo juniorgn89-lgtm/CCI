@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -95,10 +95,7 @@ const MonthRangeSelect = ({ draftIni, draftFim, onChange }: MonthRangeSelectProp
             'dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800',
           )}
         >
-          <span className="flex items-center gap-2 truncate">
-            <CalendarDays className="h-4 w-4 shrink-0 text-gray-400" />
-            <span className="truncate">{triggerLabel}</span>
-          </span>
+          <span className="truncate">{triggerLabel}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
         </button>
       </DropdownMenuTrigger>
