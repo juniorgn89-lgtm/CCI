@@ -179,7 +179,7 @@ const ReabastecimentoCard = () => {
                   key={opt.v}
                   onClick={() => setView(opt.v)}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    'inline-flex h-7 min-w-[110px] items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
                     view === opt.v
                       ? 'bg-[#1e3a5f] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
@@ -204,7 +204,7 @@ const ReabastecimentoCard = () => {
                   key={opt.v}
                   onClick={() => setFilterStatus(opt.v)}
                   className={cn(
-                    'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
                     filterStatus === opt.v
                       ? 'bg-[#1e3a5f] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
@@ -255,31 +255,27 @@ const ReabastecimentoCard = () => {
           ) : (
             /* ── Visão Tanques: controles + carrosséis de cards ── */
             <>
-              <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-                {/* Agrupar por */}
-                <div className="inline-flex items-center gap-1.5">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Agrupar:</span>
-                  <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-                    {(
-                      [
-                        { v: 'posto', l: 'Posto' },
-                        { v: 'combustivel', l: 'Combustível' },
-                      ] as { v: AgruparPor; l: string }[]
-                    ).map((opt) => (
-                      <button
-                        key={opt.v}
-                        onClick={() => trocarAgrupamento(opt.v)}
-                        className={cn(
-                          'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                          agruparPor === opt.v
-                            ? 'bg-[#1e3a5f] text-white shadow-sm'
-                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
-                        )}
-                      >
-                        {opt.l}
-                      </button>
-                    ))}
-                  </div>
+              <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+                <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                  {(
+                    [
+                      { v: 'posto', l: 'Posto' },
+                      { v: 'combustivel', l: 'Combustível' },
+                    ] as { v: AgruparPor; l: string }[]
+                  ).map((opt) => (
+                    <button
+                      key={opt.v}
+                      onClick={() => trocarAgrupamento(opt.v)}
+                      className={cn(
+                        'inline-flex h-7 min-w-[110px] items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                        agruparPor === opt.v
+                          ? 'bg-[#1e3a5f] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
+                      )}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Produto — só faz sentido quando agrupando por posto */}
@@ -290,7 +286,7 @@ const ReabastecimentoCard = () => {
                         key={p}
                         onClick={() => setFilterProduto(p)}
                         className={cn(
-                          'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                          'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
                           filterProduto === p
                             ? 'bg-[#1e3a5f] text-white shadow-sm'
                             : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
@@ -308,7 +304,7 @@ const ReabastecimentoCard = () => {
                     <button
                       onClick={() => setFilterPosto('todos')}
                       className={cn(
-                        'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                        'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
                         filterPosto === 'todos'
                           ? 'bg-[#1e3a5f] text-white shadow-sm'
                           : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
@@ -321,7 +317,7 @@ const ReabastecimentoCard = () => {
                         key={p.codigo}
                         onClick={() => setFilterPosto(String(p.codigo))}
                         className={cn(
-                          'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                          'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
                           filterPosto === String(p.codigo)
                             ? 'bg-[#1e3a5f] text-white shadow-sm'
                             : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',

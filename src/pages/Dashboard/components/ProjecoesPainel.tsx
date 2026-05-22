@@ -1,6 +1,7 @@
-import { TrendingUp, TrendingDown, AlertTriangle, Minus, Calendar } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertTriangle, Minus, Calendar, CircleDollarSign, DollarSign, PieChart } from 'lucide-react'
 import useProjecaoMes from '@/pages/Dashboard/hooks/useProjecaoMes'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
 import type { ComparisonMode } from '@/store/filters'
 
 const comparisonLabel = (mode: ComparisonMode): string =>
@@ -34,36 +35,25 @@ interface KpiBlockProps {
   variacao: number
   comparisonMode: ComparisonMode
   projetadoLabel?: string
+  Icon: typeof CircleDollarSign
+  chipClass: string
+  iconClass: string
 }
 
-const KpiBlock = ({ label, realizado, projetado, variacao, comparisonMode, projetadoLabel = 'Projetado' }: KpiBlockProps) => (
-  <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-      {label}
-    </p>
-
-    {/* Realizado */}
-    <div>
-      <p className="text-[10px] text-gray-500 dark:text-gray-400">Realizado</p>
-      <p className="text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">
-        {realizado}
-      </p>
-    </div>
-
-    {/* Projetado — só o texto em azul, sem fundo */}
-    <div className="flex items-center gap-2 rounded-md border border-gray-200 px-2.5 py-1.5 dark:border-gray-700">
-      <TrendingUp className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[9px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-          {projetadoLabel}
-        </p>
-        <p className="text-sm font-bold tabular-nums text-blue-700 dark:text-blue-300">
-          {projetado}
-        </p>
+const KpiBlock = ({ label, realizado, projetado, variacao, comparisonMode, projetadoLabel = 'Projetado', Icon, chipClass, iconClass }: KpiBlockProps) => (
+  <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex items-start justify-between gap-2">
+      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p>
+      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', chipClass)}>
+        <Icon className={cn('h-4 w-4', iconClass)} />
       </div>
     </div>
-
-    <VariationBadge value={variacao} mode={comparisonMode} />
+    <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{realizado}</p>
+    <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">{projetadoLabel}</p>
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs font-semibold tabular-nums text-blue-700 dark:text-blue-300">{projetado}</span>
+      <VariationBadge value={variacao} mode={comparisonMode} />
+    </div>
   </div>
 )
 
@@ -127,6 +117,9 @@ const ProjecoesPainel = () => {
             projetado={formatCurrency(projetado.faturamento)}
             variacao={variacao.faturamento}
             comparisonMode={comparisonMode}
+            Icon={CircleDollarSign}
+            chipClass="bg-blue-100 dark:bg-blue-900/30"
+            iconClass="text-blue-600 dark:text-blue-400"
           />
           <KpiBlock
             label="Lucro Bruto"
@@ -134,6 +127,9 @@ const ProjecoesPainel = () => {
             projetado={formatCurrency(projetado.lucroBruto)}
             variacao={variacao.lucroBruto}
             comparisonMode={comparisonMode}
+            Icon={DollarSign}
+            chipClass="bg-emerald-100 dark:bg-emerald-900/30"
+            iconClass="text-emerald-600 dark:text-emerald-400"
           />
           <KpiBlock
             label="Margem"
@@ -142,6 +138,9 @@ const ProjecoesPainel = () => {
             variacao={0}
             comparisonMode={comparisonMode}
             projetadoLabel="Projetada"
+            Icon={PieChart}
+            chipClass="bg-amber-100 dark:bg-amber-900/30"
+            iconClass="text-amber-600 dark:text-amber-400"
           />
 
           {/* Alerta menor margem */}
