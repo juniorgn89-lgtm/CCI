@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info, HelpCircle } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info, HelpCircle, Trophy } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -930,12 +930,32 @@ const ComercialVendasCombustivel = () => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                              {semanalMatrix.rows.map((row) => (
+                              {semanalMatrix.rows.map((row, rowIdx) => (
                                 <tr key={row.nome}>
                                   <td className="py-1.5 pr-3 text-gray-700 dark:text-gray-300">
                                     <span className="flex items-center gap-1.5">
                                       <span className={cn('h-2 w-2 rounded-full', fuelColor(row.nome))} aria-hidden="true" />
                                       <span className="truncate" title={row.nome}>{row.nome}</span>
+                                      {/* Markers de líder e lanterna — rows já vem ordenado por
+                                          média total desc, então primeiro = melhor e último = pior. */}
+                                      {rowIdx === 0 && (
+                                        <span
+                                          className="inline-flex shrink-0"
+                                          title="Maior média do período"
+                                          aria-label="Maior média do período"
+                                        >
+                                          <Trophy className="h-3 w-3 text-amber-500" />
+                                        </span>
+                                      )}
+                                      {rowIdx === semanalMatrix.rows.length - 1 && semanalMatrix.rows.length > 1 && (
+                                        <span
+                                          className="inline-flex shrink-0"
+                                          title="Menor média do período"
+                                          aria-label="Menor média do período"
+                                        >
+                                          <TrendingDown className="h-3 w-3 text-red-500" />
+                                        </span>
+                                      )}
                                     </span>
                                   </td>
                                   {row.values.map((v, i) => {
