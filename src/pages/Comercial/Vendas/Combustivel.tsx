@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -797,6 +797,20 @@ const ComercialVendasCombustivel = () => {
                   semanalDaily.length === 0 ? (
                     <div className="px-5 py-12 text-center text-sm text-gray-400">
                       Sem vendas no período.
+                    </div>
+                  ) : semanalDaily.length < 2 ? (
+                    <div className="m-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-8 text-center dark:border-amber-700/50 dark:bg-amber-900/10">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                        <Info className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <h3 className="mt-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Análise semanal precisa de mais de um dia
+                      </h3>
+                      <p className="mx-auto mt-1 max-w-md text-xs text-gray-600 dark:text-gray-400">
+                        O gráfico de evolução diária e a comparação por dia da semana só fazem sentido
+                        quando o período filtrado tem pelo menos 2 dias. Amplie o intervalo de datas
+                        na barra superior para visualizar a análise.
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
