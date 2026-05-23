@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info, HelpCircle } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -82,6 +82,38 @@ const formatPct = (v: number, digits = 2): string => {
 }
 
 type DetalheTab = 'dia' | 'combustivel' | 'meses' | 'semana'
+
+/**
+ * Cabeçalho de coluna com ícone "?" — explica o que a métrica significa
+ * via tooltip que aparece no hover. Aceita alinhamento esquerda/direita
+ * pra posicionar o popover sem estourar o overflow da tabela.
+ */
+const ThWithHelp = ({
+  label,
+  help,
+  align = 'right',
+}: {
+  label: string
+  help: string
+  align?: 'left' | 'right'
+}) => (
+  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
+    <span className={cn('inline-flex items-center gap-1', align === 'left' ? '' : 'justify-end')}>
+      {label}
+      <span className="group relative inline-flex cursor-help">
+        <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
+        <span
+          className={cn(
+            'pointer-events-none absolute top-full z-50 mt-1 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700',
+            align === 'left' ? 'left-0' : 'right-0',
+          )}
+        >
+          {help}
+        </span>
+      </span>
+    </span>
+  </th>
+)
 
 const DETALHE_TABS: { id: DetalheTab; label: string }[] = [
   { id: 'dia', label: 'Realizado dia a dia' },
@@ -641,14 +673,15 @@ const ComercialVendasCombustivel = () => {
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
-                            <th className="px-4 py-2 text-left font-medium">Combustível</th>
-                            <th className="px-4 py-2 text-right font-medium">Litros</th>
-                            <th className="px-4 py-2 text-right font-medium">Preço méd.</th>
-                            <th className="px-4 py-2 text-right font-medium">Custo méd.</th>
-                            <th className="px-4 py-2 text-right font-medium">L.B./Litro</th>
-                            <th className="px-4 py-2 text-right font-medium">Margem %</th>
-                            <th className="px-4 py-2 text-right font-medium">Faturamento</th>
-                            <th className="px-4 py-2 text-right font-medium">% mix</th>
+                            <ThWithHelp align="left" label="Combustível" help="Tipo de combustível vendido no período." />
+                            <ThWithHelp label="Litros" help="Volume total vendido no período (L)." />
+                            <ThWithHelp label="Preço méd." help="Preço médio de venda por litro: faturamento ÷ litros." />
+                            <ThWithHelp label="Custo méd." help="Custo médio de aquisição por litro (vindo do LMC)." />
+                            <ThWithHelp label="L.B./Litro" help="Lucro bruto por litro: preço médio − custo médio (R$/L)." />
+                            <ThWithHelp label="Faturamento" help="Receita total da venda desse combustível (R$)." />
+                            <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                            <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
+                            <ThWithHelp label="% vol" help="Participação no volume total de litros do período." />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -656,40 +689,69 @@ const ComercialVendasCombustivel = () => {
                             // Máximos por coluna pra escalar as barras do tab "Por combustível"
                             const maxLitros = Math.max(...mix.map((f) => f.litros), 0)
                             const maxFat = Math.max(...mix.map((f) => f.faturamento), 0)
+                            const maxLucroBruto = Math.max(...mix.map((f) => f.lucroBruto), 0)
                             const maxLb = Math.max(...mix.map((f) => f.lbPorLitro), 0)
                             const maxMargem = Math.max(...mix.map((f) => f.margem), 0)
                             const maxParticipacao = Math.max(...mix.map((f) => f.participacao), 0)
-                            return mix.map((f) => (
-                              <tr
-                                key={f.produtoCodigo}
-                                className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
-                                onClick={() => setSelectedFuel(f)}
-                              >
-                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                                  <span className="flex items-center gap-2">
-                                    <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />
-                                    <span className="truncate underline-offset-4 hover:underline" title={f.nome}>{f.nome}</span>
-                                  </span>
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
-                                </td>
-                                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
-                                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={f.lbPorLitro} max={maxLb} formatted={formatCurrency(f.lbPorLitro)} color="amber" align="near" />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={f.participacao} max={maxParticipacao} formatted={`${f.participacao.toFixed(1).replace('.', ',')}%`} color="green" align="near" />
-                                </td>
-                              </tr>
-                            ))
+                            // Totais agregados — alimentam a linha "Total" no rodapé
+                            const totLitros = mix.reduce((s, f) => s + f.litros, 0)
+                            const totFat = mix.reduce((s, f) => s + f.faturamento, 0)
+                            const totLucroBruto = mix.reduce((s, f) => s + f.lucroBruto, 0)
+                            const totCusto = mix.reduce((s, f) => s + f.custo, 0)
+                            const totMargemPct = totFat > 0 ? (totLucroBruto / totFat) * 100 : 0
+                            const totPrecoMed = totLitros > 0 ? totFat / totLitros : 0
+                            const totCustoMed = totLitros > 0 ? totCusto / totLitros : 0
+                            const totLbLitro = totLitros > 0 ? totLucroBruto / totLitros : 0
+                            return (
+                              <>
+                                {mix.map((f) => (
+                                  <tr
+                                    key={f.produtoCodigo}
+                                    className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
+                                    onClick={() => setSelectedFuel(f)}
+                                  >
+                                    <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                                      <span className="flex items-center gap-2">
+                                        <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />
+                                        <span className="truncate underline-offset-4 hover:underline" title={f.nome}>{f.nome}</span>
+                                      </span>
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
+                                    </td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.lbPorLitro} max={maxLb} formatted={formatCurrency(f.lbPorLitro)} color="amber" align="near" />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.lucroBruto} max={maxLucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <BarCell value={f.participacao} max={maxParticipacao} formatted={`${f.participacao.toFixed(1).replace('.', ',')}%`} color="blue" align="near" />
+                                    </td>
+                                  </tr>
+                                ))}
+                                {/* Linha Total */}
+                                <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                                  <td className="px-4 py-2.5">Total</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totLitros)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totPrecoMed)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLbLitro)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucroBruto)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
+                                </tr>
+                              </>
+                            )
                           })()}
                         </tbody>
                       </table>
