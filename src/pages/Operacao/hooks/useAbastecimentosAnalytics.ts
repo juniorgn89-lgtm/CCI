@@ -93,7 +93,10 @@ export interface LbLitroMonthly {
   mes: string
   lbPorLitro: number
   litros: number
+  faturamento: number
   lucroBruto: number
+  /** Margem % do mês (lucroBruto / faturamento × 100). */
+  margemPct: number
   /** True quando este é o mês corrente (tem projeção no end-of-month) */
   isCurrentMonth: boolean
   /** Lucro bruto realizado até o momento do mês corrente; igual a lucroBruto pra meses fechados */
@@ -589,7 +592,9 @@ const useAbastecimentosAnalytics = () => {
           mes,
           lbPorLitro: lbPorLitroProjetado,
           litros: litrosProjetados,
+          faturamento: v.fat,
           lucroBruto: lb,
+          margemPct: v.fat > 0 ? (lb / v.fat) * 100 : 0,
           isCurrentMonth,
           lucroBrutoReal: lb,
           lucroBrutoProjetadoExtra,

@@ -2,36 +2,7 @@ import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
-
-/**
- * Heatmap por coluna — tom mais saturado pros valores altos (azul/verde) ou
- * baixos (vermelho), em escala suave estilo PowerBI conditional formatting.
- * Total row recebe '' (sem tint) pra preservar destaque.
- */
-const heatBlue = (value: number, min: number, max: number): string => {
-  if (max <= min) return ''
-  const ratio = (value - min) / (max - min)
-  if (ratio > 0.66) return 'bg-blue-100 dark:bg-blue-900/40'
-  if (ratio > 0.33) return 'bg-blue-50 dark:bg-blue-900/20'
-  return ''
-}
-
-const heatGreen = (value: number, min: number, max: number): string => {
-  if (max <= min) return ''
-  const ratio = (value - min) / (max - min)
-  if (ratio > 0.66) return 'bg-emerald-100 dark:bg-emerald-900/40'
-  if (ratio > 0.33) return 'bg-emerald-50 dark:bg-emerald-900/20'
-  return ''
-}
-
-const heatRed = (value: number, min: number, max: number): string => {
-  if (max <= min) return ''
-  const ratio = (value - min) / (max - min)
-  // Inverso: menor valor = mais vermelho (sinal de alerta pra margens baixas).
-  if (ratio < 0.33) return 'bg-red-100 dark:bg-red-900/40'
-  if (ratio < 0.66) return 'bg-red-50 dark:bg-red-900/20'
-  return ''
-}
+import BarCell from '@/components/tables/BarCell'
 
 export interface FuelLineDetalhe {
   nome: string
@@ -151,15 +122,15 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
               </thead>
               <tbody>
                 {(() => {
-                  // Faixas por coluna — define a escala do heatmap. Min/max do
-                  // próprio set (3..N combustíveis) pra contraste útil mesmo
-                  // quando os valores absolutos são bem diferentes entre dias.
-                  const litrosArr = detail.fuels.map((f) => f.litros)
-                  const lucroArr = detail.fuels.map((f) => f.lucroBruto)
-                  const lbArr = detail.fuels.map((f) => (f.litros > 0 ? f.lucroBruto / f.litros : 0))
-                  const litRange = { min: Math.min(...litrosArr, 0), max: Math.max(...litrosArr, 0) }
-                  const lucRange = { min: Math.min(...lucroArr, 0), max: Math.max(...lucroArr, 0) }
-                  const lbRange = { min: Math.min(...lbArr, 0), max: Math.max(...lbArr, 0) }
+                  // Máximos por coluna — definem o 100% das barras (estilo Power
+                  // BI Data Bars: maior valor da coluna = barra mais longa).
+                  const maxLitros = Math.max(...detail.fuels.map((f) => f.litros), 0)
+                  const maxFat = Math.max(...detail.fuels.map((f) => f.faturamento), 0)
+                  const maxLb = Math.max(...detail.fuels.map((f) => f.lucroBruto), 0)
+                  const maxLbLitro = Math.max(
+                    ...detail.fuels.map((f) => (f.litros > 0 ? f.lucroBruto / f.litros : 0)),
+                    0,
+                  )
                   return detail.fuels.map((f) => {
                     const fLb = f.litros > 0 ? f.lucroBruto / f.litros : 0
                     return (
@@ -170,17 +141,17 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
                             <span className="truncate" title={f.nome}>{f.nome}</span>
                           </span>
                         </td>
-                        <td className={cn('px-4 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300', heatBlue(f.litros, litRange.min, litRange.max))}>
-                          {formatNumber(f.litros)}
+                        <td className="px-2 py-1">
+                          <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
                         </td>
-                        <td className="px-4 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatCurrency(f.faturamento)}
+                        <td className="px-2 py-1">
+                          <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
                         </td>
-                        <td className={cn('px-4 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300', heatGreen(f.lucroBruto, lucRange.min, lucRange.max))}>
-                          {formatCurrency(f.lucroBruto)}
+                        <td className="px-2 py-1">
+                          <BarCell value={f.lucroBruto} max={maxLb} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />
                         </td>
-                        <td className={cn('px-4 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300', heatRed(fLb, lbRange.min, lbRange.max))}>
-                          {formatCurrency(fLb)}
+                        <td className="px-2 py-1">
+                          <BarCell value={fLb} max={maxLbLitro} formatted={formatCurrency(fLb)} color="amber" align="near" />
                         </td>
                       </tr>
                     )

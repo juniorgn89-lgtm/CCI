@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react'
+import {
+  ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend, LabelList,
+} from 'recharts'
 import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -16,6 +20,7 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
+import BarCell from '@/components/tables/BarCell'
 
 /* ─── Cores por tipo de combustível ─── */
 
@@ -45,25 +50,20 @@ const diaDaSemana = (iso: string): string => {
   return DIA_SEMANA[d.getDay()] ?? '—'
 }
 
+const MES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+/** Converte "2025-10" em "Out/2025". */
+const formatMonth = (yyyymm: string): string => {
+  const [year, month] = yyyymm.split('-')
+  const idx = parseInt(month, 10) - 1
+  return `${MES_ABREV[idx] ?? month}/${year}`
+}
+
 /** Subtrai N dias de uma data ISO. */
 const addDays = (iso: string, days: number): string => {
   const d = new Date(`${iso}T00:00:00`)
   d.setDate(d.getDate() + days)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** Chave da semana ISO no formato yyyy-Www (ex.: "2025-W43"). */
-const isoWeekKey = (iso: string): { key: string; weekNum: number; year: number } => {
-  const d = new Date(`${iso}T00:00:00`)
-  // ISO 8601: semana começa segunda, semana 1 contém a 1ª quinta-feira do ano
-  const target = new Date(d.valueOf())
-  const dayNr = (d.getDay() + 6) % 7
-  target.setDate(target.getDate() - dayNr + 3)
-  const firstThursday = new Date(target.getFullYear(), 0, 4)
-  const diff = target.valueOf() - firstThursday.valueOf()
-  const weekNum = 1 + Math.round((diff / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7)
-  const year = target.getFullYear()
-  return { key: `${year}-W${String(weekNum).padStart(2, '0')}`, weekNum, year }
 }
 
 /** Cor do badge de variação (verde >0, vermelho <0, cinza =0). */
@@ -77,27 +77,6 @@ const variationColor = (v: number): string => {
 const formatPct = (v: number, digits = 2): string => {
   const sign = v > 0 ? '+' : v < 0 ? '−' : ''
   return `${sign}${Math.abs(v).toFixed(digits).replace('.', ',')}%`
-}
-
-/**
- * Cor de fundo proporcional ao valor numa coluna (heatmap leve).
- * Quanto mais perto do min, mais intenso o tom. Usado pra destacar margens
- * baixas e L.B./litro fraco — mesma ideia do print do PowerBI.
- */
-const heatmapAmber = (value: number, min: number, max: number): string => {
-  if (max <= min || !isFinite(value)) return ''
-  const ratio = (value - min) / (max - min) // 0 (baixo) → 1 (alto)
-  if (ratio < 0.33) return 'bg-amber-100/70 dark:bg-amber-900/30'
-  if (ratio < 0.66) return 'bg-amber-50 dark:bg-amber-900/15'
-  return ''
-}
-
-const heatmapRed = (value: number, min: number, max: number): string => {
-  if (max <= min || !isFinite(value)) return ''
-  const ratio = (value - min) / (max - min)
-  if (ratio < 0.33) return 'bg-red-100/70 dark:bg-red-900/30'
-  if (ratio < 0.66) return 'bg-red-50 dark:bg-red-900/15'
-  return ''
 }
 
 type DetalheTab = 'dia' | 'combustivel' | 'meses' | 'semana'
@@ -158,6 +137,7 @@ const ComercialVendasCombustivel = () => {
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
+  const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
   // (% sobre litros totais) calculado no hook.
@@ -276,67 +256,128 @@ const ComercialVendasCombustivel = () => {
   }, [rows])
 
   /* ─── Análise SEMANAL ───
-   * Agrupa `dailyData` por semana ISO (yyyy-Www). Cada linha mostra:
-   * faixa de datas, litros, faturamento, ticket médio, margem %, L.B./litro.
+   * Dois charts/tabelas:
+   * 1) Litros vendidos por dia ao longo do período (linha) — filtrável por combustível
+   * 2) Média de venda em litros por dia da semana × combustível (heatmap)
+   *
+   * Denominador da média = nº de dias distintos no dataset que caíram naquele
+   * dia da semana (assim Segunda divide pelo nº de segundas do período).
    */
-  const detalheSemanal = useMemo(() => {
-    interface WeekLine {
-      key: string
-      label: string
-      dataInicio: string
-      dataFim: string
-      litros: number
-      faturamento: number
-      lucroBruto: number
-      ticketMedio: number
-      margemPct: number
-      lbLitro: number
-      diasComVenda: number
-    }
-    const byWeek = new Map<string, { weekNum: number; year: number; entries: typeof dailyData }>()
-    for (const d of dailyData) {
-      if (!d.data) continue
-      const { key, weekNum, year } = isoWeekKey(d.data)
-      const slot = byWeek.get(key) ?? { weekNum, year, entries: [] }
-      slot.entries = [...slot.entries, d]
-      byWeek.set(key, slot)
-    }
-    const weeks: WeekLine[] = Array.from(byWeek.entries())
-      .map(([key, slot]) => {
-        const sorted = [...slot.entries].sort((a, b) => a.data.localeCompare(b.data))
-        const litros = sorted.reduce((s, e) => s + e.litros, 0)
-        const faturamento = sorted.reduce((s, e) => s + e.faturamento, 0)
-        const lucroBruto = sorted.reduce((s, e) => s + e.lucroBruto, 0)
-        const abastecimentos = sorted.reduce((s, e) => s + e.abastecimentos, 0)
-        return {
-          key,
-          label: `Semana ${slot.weekNum}`,
-          dataInicio: sorted[0]?.data ?? '',
-          dataFim: sorted[sorted.length - 1]?.data ?? '',
-          litros,
-          faturamento,
-          lucroBruto,
-          ticketMedio: abastecimentos > 0 ? faturamento / abastecimentos : 0,
-          margemPct: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0,
-          lbLitro: litros > 0 ? lucroBruto / litros : 0,
-          diasComVenda: sorted.length,
-        }
-      })
-      .sort((a, b) => b.dataInicio.localeCompare(a.dataInicio))
-    return weeks
-  }, [dailyData])
+  const fuelOptions = useMemo(() => {
+    const set = new Set(rows.map((r) => r.combustivelNome).filter(Boolean))
+    return ['Todos', ...Array.from(set).sort()]
+  }, [rows])
 
-  /* ─── Faixas (min/max) pra heatmap de margem e L.B./litro ─── */
-  const margemRange = useMemo(() => {
-    const vals = detalheDiaADia.days.map((d) => (d.faturamento > 0 ? (d.lucroBruto / d.faturamento) * 100 : 0))
-    if (vals.length === 0) return { min: 0, max: 0 }
-    return { min: Math.min(...vals), max: Math.max(...vals) }
-  }, [detalheDiaADia])
+  const semanalDaily = useMemo(() => {
+    const byDate = new Map<string, number>()
+    for (const r of rows) {
+      if (semanalFuelFilter !== 'Todos' && r.combustivelNome !== semanalFuelFilter) continue
+      const date = r.dataHora.substring(0, 10)
+      if (!date) continue
+      byDate.set(date, (byDate.get(date) ?? 0) + r.litros)
+    }
+    return Array.from(byDate.entries())
+      .map(([data, litros]) => ({ data, dataFmt: formatDate(data), litros }))
+      .sort((a, b) => a.data.localeCompare(b.data))
+  }, [rows, semanalFuelFilter])
 
-  const lbLitroRange = useMemo(() => {
-    const vals = detalheDiaADia.days.map((d) => (d.litros > 0 ? d.lucroBruto / d.litros : 0))
-    if (vals.length === 0) return { min: 0, max: 0 }
-    return { min: Math.min(...vals), max: Math.max(...vals) }
+  const semanalMatrix = useMemo(() => {
+    // ordem segunda..domingo (JS getDay: 0=dom..6=sáb)
+    const dayOrder = [1, 2, 3, 4, 5, 6, 0]
+    const dayLabels = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+
+    // datas distintas por dia da semana
+    const datesByDow = new Map<number, Set<string>>()
+    // soma de litros por fuel × dia-da-semana
+    const fuelDowSum = new Map<string, Map<number, number>>()
+
+    for (const r of rows) {
+      const date = r.dataHora.substring(0, 10)
+      if (!date) continue
+      const dow = new Date(`${date}T00:00:00`).getDay()
+      const dateSet = datesByDow.get(dow) ?? new Set<string>()
+      dateSet.add(date)
+      datesByDow.set(dow, dateSet)
+
+      const fuelMap = fuelDowSum.get(r.combustivelNome) ?? new Map<number, number>()
+      fuelMap.set(dow, (fuelMap.get(dow) ?? 0) + r.litros)
+      fuelDowSum.set(r.combustivelNome, fuelMap)
+    }
+
+    // Linhas por combustível
+    const matrixRows = Array.from(fuelDowSum.entries()).map(([fuel, dowMap]) => {
+      const values: number[] = []
+      let totalSum = 0
+      let totalDays = 0
+      for (const dow of dayOrder) {
+        const sum = dowMap.get(dow) ?? 0
+        const days = datesByDow.get(dow)?.size ?? 0
+        values.push(days > 0 ? sum / days : 0)
+        totalSum += sum
+        totalDays += days
+      }
+      return {
+        nome: fuel,
+        values,
+        total: totalDays > 0 ? totalSum / totalDays : 0,
+      }
+    }).sort((a, b) => b.total - a.total)
+
+    // Coluna total (média do dia da semana somando todos os combustíveis)
+    const colValues: number[] = []
+    let grandSum = 0
+    let grandDays = 0
+    for (const dow of dayOrder) {
+      let colSum = 0
+      for (const dowMap of fuelDowSum.values()) {
+        colSum += dowMap.get(dow) ?? 0
+      }
+      const days = datesByDow.get(dow)?.size ?? 0
+      colValues.push(days > 0 ? colSum / days : 0)
+      grandSum += colSum
+      grandDays += days
+    }
+
+    // Max absoluto pra escala do heatmap
+    const allValues = matrixRows.flatMap((r) => r.values)
+    const matrixMax = Math.max(...allValues, 0)
+
+    return {
+      rows: matrixRows,
+      dayLabels,
+      colValues,
+      grandTotal: grandDays > 0 ? grandSum / grandDays : 0,
+      matrixMax,
+    }
+  }, [rows])
+
+  /* ─── Dados pra charts mensais (aba "Últimos 12 meses") ─── */
+  const monthlyChartData = useMemo(
+    () => lbLitroData.monthly.map((m) => ({
+      mes: formatMonth(m.mes),
+      litros: m.litros,
+      lbPorLitro: m.lbPorLitro,
+      faturamento: m.faturamento,
+      lucroBruto: m.lucroBruto,
+      margemPct: m.margemPct,
+      isCurrentMonth: m.isCurrentMonth,
+    })),
+    [lbLitroData.monthly],
+  )
+
+  /* ─── Máximos por coluna (Power BI Data Bars) ─── */
+  const colMax = useMemo(() => {
+    const days = detalheDiaADia.days
+    if (days.length === 0) {
+      return { litros: 0, faturamento: 0, lucroBruto: 0, margem: 0, lbLitro: 0 }
+    }
+    return {
+      litros: Math.max(...days.map((d) => d.litros)),
+      faturamento: Math.max(...days.map((d) => d.faturamento)),
+      lucroBruto: Math.max(...days.map((d) => d.lucroBruto)),
+      margem: Math.max(...days.map((d) => (d.faturamento > 0 ? (d.lucroBruto / d.faturamento) * 100 : 0))),
+      lbLitro: Math.max(...days.map((d) => (d.litros > 0 ? d.lucroBruto / d.litros : 0))),
+    }
   }, [detalheDiaADia])
 
 
@@ -505,8 +546,8 @@ const ComercialVendasCombustivel = () => {
                                   <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{d.dayOfWeek}</td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                                  {formatNumber(d.litros)}
+                                <td className="px-2 py-1">
+                                  <BarCell value={d.litros} max={colMax.litros} formatted={formatNumber(d.litros)} color="blue" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums">
                                   {d.variacaoSemanal === null ? (
@@ -518,11 +559,11 @@ const ComercialVendasCombustivel = () => {
                                     </span>
                                   )}
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                                  {formatCurrency(d.faturamento)}
+                                <td className="px-2 py-1">
+                                  <BarCell value={d.faturamento} max={colMax.faturamento} formatted={formatCurrency(d.faturamento)} color="green" align="near" />
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                                  {formatCurrency(d.lucroBruto)}
+                                <td className="px-2 py-1">
+                                  <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(d.lucroBruto)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                   {formatCurrency(d.acrescimos)}
@@ -530,11 +571,8 @@ const ComercialVendasCombustivel = () => {
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                   {formatCurrency(d.descontos)}
                                 </td>
-                                <td className={cn(
-                                  'px-3 py-2 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100',
-                                  heatmapAmber(margemPct, margemRange.min, margemRange.max),
-                                )}>
-                                  {margemPct.toFixed(2).replace('.', ',')}%
+                                <td className="px-2 py-1">
+                                  <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">
                                   {formatCurrency(precoVenda)}
@@ -542,11 +580,8 @@ const ComercialVendasCombustivel = () => {
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">
                                   {formatCurrency(precoCusto)}
                                 </td>
-                                <td className={cn(
-                                  'px-3 py-2 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100',
-                                  heatmapRed(lbLitro, lbLitroRange.min, lbLitroRange.max),
-                                )}>
-                                  {formatCurrency(lbLitro)}
+                                <td className="px-2 py-1">
+                                  <BarCell value={lbLitro} max={colMax.lbLitro} formatted={formatCurrency(lbLitro)} color="amber" align="near" />
                                 </td>
                               </tr>
                             )
@@ -614,27 +649,41 @@ const ComercialVendasCombustivel = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {mix.map((f) => (
-                            <tr key={f.produtoCodigo}>
-                              <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                                <span className="flex items-center gap-2">
-                                  <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />
-                                  <span className="truncate" title={f.nome}>{f.nome}</span>
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(f.litros)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.lbPorLitro)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                                {f.margem.toFixed(1).replace('.', ',')}%
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(f.faturamento)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                                {f.participacao.toFixed(1).replace('.', ',')}%
-                              </td>
-                            </tr>
-                          ))}
+                          {(() => {
+                            // Máximos por coluna pra escalar as barras do tab "Por combustível"
+                            const maxLitros = Math.max(...mix.map((f) => f.litros), 0)
+                            const maxFat = Math.max(...mix.map((f) => f.faturamento), 0)
+                            const maxLb = Math.max(...mix.map((f) => f.lbPorLitro), 0)
+                            const maxMargem = Math.max(...mix.map((f) => f.margem), 0)
+                            const maxParticipacao = Math.max(...mix.map((f) => f.participacao), 0)
+                            return mix.map((f) => (
+                              <tr key={f.produtoCodigo}>
+                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                                  <span className="flex items-center gap-2">
+                                    <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />
+                                    <span className="truncate" title={f.nome}>{f.nome}</span>
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
+                                </td>
+                                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
+                                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={f.lbPorLitro} max={maxLb} formatted={formatCurrency(f.lbPorLitro)} color="amber" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={f.participacao} max={maxParticipacao} formatted={`${f.participacao.toFixed(1).replace('.', ',')}%`} color="green" align="near" />
+                                </td>
+                              </tr>
+                            ))
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -643,88 +692,204 @@ const ComercialVendasCombustivel = () => {
 
                 {/* ── Tab: Últimos 12 meses ── */}
                 {detalheTab === 'meses' && (
-                  lbLitroData.monthly.length === 0 ? (
+                  monthlyChartData.length === 0 ? (
                     <div className="px-5 py-12 text-center text-sm text-gray-400">
                       Sem dados mensais.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
-                          <tr>
-                            <th className="px-4 py-2 text-left font-medium">Mês</th>
-                            <th className="px-4 py-2 text-right font-medium">Litros</th>
-                            <th className="px-4 py-2 text-right font-medium">Lucro bruto</th>
-                            <th className="px-4 py-2 text-right font-medium">L.B./Litro</th>
-                            <th className="px-4 py-2 text-right font-medium">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {lbLitroData.monthly.map((m) => (
-                            <tr key={m.mes}>
-                              <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{m.mes}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(m.litros)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(m.lucroBruto)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(m.lbPorLitro)}</td>
-                              <td className="px-4 py-2.5 text-right text-[11px]">
-                                {m.isCurrentMonth ? (
-                                  <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                    Mês corrente
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+                      {/* Chart 1: Litros (bar) + L.B./Litro (line) */}
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          Litros vendidos e L.B./Litro por mês
+                        </h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                            <YAxis
+                              yAxisId="right"
+                              orientation="right"
+                              tick={{ fontSize: 10, fill: '#9ca3af' }}
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={(v) => formatCurrency(v)}
+                            />
+                            <Tooltip
+                              formatter={(value: number, name: string) =>
+                                name === 'L.B./Litro' ? [formatCurrency(value), name] : [formatNumber(value), name]
+                              }
+                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                            <Bar yAxisId="left" dataKey="litros" name="Litros vendidos" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
+                              <LabelList dataKey="litros" position="top" formatter={(v: number) => formatNumber(v)} style={{ fontSize: 10, fill: '#374151' }} />
+                            </Bar>
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="lbPorLitro"
+                              name="L.B./Litro"
+                              stroke="#facc15"
+                              strokeWidth={2.5}
+                              dot={{ r: 4, fill: '#facc15', stroke: '#a16207', strokeWidth: 1 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Chart 2: Lucro bruto (bar) + Margem % (line) */}
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          Lucro bruto e Margem por mês
+                        </h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(v)} />
+                            <YAxis
+                              yAxisId="right"
+                              orientation="right"
+                              tick={{ fontSize: 10, fill: '#9ca3af' }}
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={(v) => `${v.toFixed(1)}%`}
+                            />
+                            <Tooltip
+                              formatter={(value: number, name: string) =>
+                                name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name] : [formatCurrency(value), name]
+                              }
+                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                            <Bar yAxisId="left" dataKey="lucroBruto" name="Lucro bruto" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
+                              <LabelList dataKey="lucroBruto" position="top" formatter={(v: number) => formatCurrency(v)} style={{ fontSize: 10, fill: '#374151' }} />
+                            </Bar>
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="margemPct"
+                              name="Margem"
+                              stroke="#facc15"
+                              strokeWidth={2.5}
+                              dot={{ r: 4, fill: '#facc15', stroke: '#a16207', strokeWidth: 1 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   )
                 )}
 
                 {/* ── Tab: Análise semanal ── */}
                 {detalheTab === 'semana' && (
-                  detalheSemanal.length === 0 ? (
+                  semanalDaily.length === 0 ? (
                     <div className="px-5 py-12 text-center text-sm text-gray-400">
                       Sem vendas no período.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
-                          <tr>
-                            <th className="px-4 py-2 text-left font-medium">Semana</th>
-                            <th className="px-4 py-2 text-left font-medium">Período</th>
-                            <th className="px-4 py-2 text-right font-medium">Dias</th>
-                            <th className="px-4 py-2 text-right font-medium">Litros</th>
-                            <th className="px-4 py-2 text-right font-medium">Faturamento</th>
-                            <th className="px-4 py-2 text-right font-medium">Lucro bruto</th>
-                            <th className="px-4 py-2 text-right font-medium">Ticket méd.</th>
-                            <th className="px-4 py-2 text-right font-medium">Margem %</th>
-                            <th className="px-4 py-2 text-right font-medium">L.B./Litro</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {detalheSemanal.map((w) => (
-                            <tr key={w.key}>
-                              <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{w.label}</td>
-                              <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">
-                                {formatDate(w.dataInicio)} – {formatDate(w.dataFim)}
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{w.diasComVenda}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(w.litros)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(w.faturamento)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(w.lucroBruto)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(w.ticketMedio)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                                {w.margemPct.toFixed(2).replace('.', ',')}%
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(w.lbLitro)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+                      {/* Left: chart "Litros vendidos por dia" com filtro por combustível */}
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            Litros vendidos por dia
+                          </h3>
+                          <select
+                            value={semanalFuelFilter}
+                            onChange={(e) => setSemanalFuelFilter(e.target.value)}
+                            className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          >
+                            {fuelOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <ResponsiveContainer width="100%" height={320}>
+                          <LineChart data={semanalDaily} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                            <XAxis dataKey="dataFmt" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                            <Tooltip
+                              formatter={(value: number) => [formatNumber(value), 'Litros']}
+                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="litros"
+                              stroke="#1e3a5f"
+                              strokeWidth={2}
+                              dot={{ r: 3, fill: '#1e3a5f' }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Right: heatmap "Média por dia da semana × combustível" */}
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          Média de venda em litros · Por dia da semana
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="border-b border-gray-100 text-[10px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                              <tr>
+                                <th className="py-1.5 pr-3 text-left font-medium">Combustível</th>
+                                {semanalMatrix.dayLabels.map((d) => (
+                                  <th key={d} className="px-2 py-1.5 text-right font-medium">{d}</th>
+                                ))}
+                                <th className="px-2 py-1.5 text-right font-medium">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              {semanalMatrix.rows.map((row) => (
+                                <tr key={row.nome}>
+                                  <td className="py-1.5 pr-3 text-gray-700 dark:text-gray-300">
+                                    <span className="flex items-center gap-1.5">
+                                      <span className={cn('h-2 w-2 rounded-full', fuelColor(row.nome))} aria-hidden="true" />
+                                      <span className="truncate" title={row.nome}>{row.nome}</span>
+                                    </span>
+                                  </td>
+                                  {row.values.map((v, i) => {
+                                    const intensity = semanalMatrix.matrixMax > 0
+                                      ? 0.05 + (v / semanalMatrix.matrixMax) * 0.55
+                                      : 0
+                                    return (
+                                      <td
+                                        key={i}
+                                        className="px-2 py-1.5 text-right tabular-nums"
+                                        style={{ backgroundColor: `rgba(30, 58, 95, ${intensity})` }}
+                                      >
+                                        {formatNumber(Math.round(v))}
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="px-2 py-1.5 text-right tabular-nums font-bold text-gray-900 dark:text-gray-100">
+                                    {formatNumber(Math.round(row.total))}
+                                  </td>
+                                </tr>
+                              ))}
+                              {/* Linha de totais */}
+                              <tr className="border-t-2 border-gray-300 font-bold text-gray-900 dark:border-gray-600 dark:text-gray-100">
+                                <td className="py-2 pr-3">Total</td>
+                                {semanalMatrix.colValues.map((v, i) => (
+                                  <td key={i} className="px-2 py-2 text-right tabular-nums">
+                                    {formatNumber(Math.round(v))}
+                                  </td>
+                                ))}
+                                <td className="px-2 py-2 text-right tabular-nums">
+                                  {formatNumber(Math.round(semanalMatrix.grandTotal))}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   )
                 )}
