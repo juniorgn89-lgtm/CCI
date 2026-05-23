@@ -446,8 +446,8 @@ const ComercialVendasCombustivel = () => {
 
       {hasEmpresa && (
         <>
-          {/* KPIs — 4 cards ocupando a largura toda (grid-cols-4 no lg).
-              Resumo geral do mês vai em linha separada logo abaixo. */}
+          {/* KPIs principais — 4 cards ocupando a largura toda (grid-cols-4
+              no lg, grid-cols-2 no mobile/tablet). */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"

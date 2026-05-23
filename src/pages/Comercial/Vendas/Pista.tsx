@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, DollarSign, Layers, Search } from 'lucide-react'
+import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy, Boxes } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
+import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
@@ -12,9 +13,11 @@ import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
+import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
+import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
 
 /* ─── Helpers ─── */
 
@@ -47,6 +50,111 @@ const CATEGORIA_COLOR: Record<string, string> = {
   'Outros': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
 }
 
+/**
+ * Cabeçalho de coluna com ícone "?" — explica a métrica via tooltip no hover.
+ * Mesmo helper usado em Combustivel.tsx; replicado aqui pra evitar import
+ * cruzado entre páginas irmãs (poderia virar `@/components/tables/ThWithHelp`
+ * quando uma terceira tela precisar).
+ */
+const ThWithHelp = ({
+  label,
+  help,
+  align = 'right',
+}: {
+  label: string
+  help: string
+  align?: 'left' | 'right'
+}) => (
+  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
+    <span className={cn('inline-flex items-center gap-1', align === 'left' ? '' : 'justify-end')}>
+      {label}
+      <span className="group relative inline-flex cursor-help">
+        <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
+        <span
+          className={cn(
+            'pointer-events-none absolute top-full z-50 mt-1 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700',
+            align === 'left' ? 'left-0' : 'right-0',
+          )}
+        >
+          {help}
+        </span>
+      </span>
+    </span>
+  </th>
+)
+
+/* ─── Cobertura de estoque (mesma lógica do CategoriaDetalheModal) ─── */
+
+const diasEntre = (inicio: string, fim: string): number => {
+  const a = new Date(`${inicio}T00:00:00`)
+  const b = new Date(`${fim}T00:00:00`)
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1)
+}
+
+/**
+ * Retorna o badge de cobertura pra uma linha — null quando o produto não tem
+ * registro de estoque (serviços etc.). Label compacto ("Xd") pra caber na
+ * tabela; o tooltip explica saldo e venda diária média.
+ */
+const coberturaBadgeData = (saldo: number | undefined, quantidade: number, diasPeriodo: number): {
+  bg: string
+  text: string
+  label: string
+  tooltip?: string
+} | null => {
+  if (saldo === undefined) return null
+  if (saldo === 0) {
+    return { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', label: 'Sem estoque' }
+  }
+  if (quantidade <= 0) {
+    return {
+      bg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      text: 'text-emerald-700 dark:text-emerald-300',
+      label: '> 90d',
+      tooltip: `Saldo: ${formatNumber(saldo)} un · sem vendas no período`,
+    }
+  }
+  const d = (saldo * diasPeriodo) / quantidade
+  const tooltip = `Saldo: ${formatNumber(saldo)} un · venda média: ${(quantidade / diasPeriodo).toFixed(1).replace('.', ',')} un/dia`
+  if (d < 7) {
+    return { bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300', label: `${Math.floor(d)}d`, tooltip }
+  }
+  if (d < 30) {
+    return { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300', label: `${Math.floor(d)}d`, tooltip }
+  }
+  return { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: `${Math.floor(d)}d`, tooltip }
+}
+
+/* ─── KPI card (mesmo padrão da tela Combustível) ─── */
+
+interface KpiCardProps {
+  label: string
+  value: string
+  hint?: string
+  Icon: typeof Package
+  iconBg: string
+  iconColor: string
+  cardBg: string
+  loading: boolean
+}
+
+const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => (
+  <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
+    <div className="flex items-center justify-between">
+      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
+        <Icon className={cn('h-5 w-5', iconColor)} />
+      </div>
+    </div>
+    {loading ? (
+      <Skeleton className="mt-2 h-8 w-32" />
+    ) : (
+      <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    )}
+    {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
+  </div>
+)
+
 /* ─── Página ─── */
 
 const ComercialVendasPista = () => {
@@ -58,6 +166,8 @@ const ComercialVendasPista = () => {
   // Filtros da tabela de produtos
   const [searchProduto, setSearchProduto] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
+  // Modal de drill-down ao clicar numa categoria
+  const [selectedCategoria, setSelectedCategoria] = useState<CategoriaData | null>(null)
 
   // Carrega produtos + grupos pra montar o mapa de produtos PS-.
   const { data: produtosData } = useQuery({
@@ -76,6 +186,18 @@ const ComercialVendasPista = () => {
       1000, 100,
     ),
     staleTime: 30 * 60 * 1000,
+  })
+
+  // Saldo de estoque por produto — mesma queryKey de Conveniências pra
+  // compartilhar a cache TanStack (uma fetch serve as 2 telas).
+  const { data: estoqueRaw } = useQuery({
+    queryKey: ['produtoEstoque', empresaCodigo],
+    queryFn: () => fetchProdutoEstoque({
+      empresaCodigo: empresaCodigo!,
+      limite: 1000,
+    }),
+    enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Vendas do período
@@ -210,6 +332,34 @@ const ComercialVendasPista = () => {
   const produtosExibidos = hasProductFilter ? produtosFiltrados : produtosFiltrados.slice(0, 20)
   const categoriasDisponiveis = computed?.categorias.map((c) => c.nome) ?? []
 
+  // Subconjunto pra alimentar o modal — produtos da categoria + vendas brutas
+  // pra computar a distribuição diária dentro do modal.
+  const produtosDaCategoria = useMemo(() => {
+    if (!selectedCategoria || !computed) return []
+    return computed.produtosVendidos.filter((p) => p.categoria === selectedCategoria.nome)
+  }, [selectedCategoria, computed])
+
+  const vendasDaCategoria = useMemo(() => {
+    if (!selectedCategoria || produtosDaCategoria.length === 0) return []
+    const codes = new Set(produtosDaCategoria.map((p) => p.produtoCodigo))
+    return vendaItens.filter((v) => codes.has(v.produtoCodigo))
+  }, [selectedCategoria, produtosDaCategoria, vendaItens])
+
+  // Mapa produtoCodigo → saldo de estoque (soma de saldoEstoque[].quantidade
+  // ou saldo do produto). Usado tanto no modal quanto na tabela Top 20.
+  const estoquePorProduto = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const e of estoqueRaw?.resultados ?? []) {
+      const saldo = e.saldoEstoque
+        ? e.saldoEstoque.reduce((s, x) => s + x.quantidade, 0)
+        : e.saldo
+      map.set(e.produtoCodigo, (map.get(e.produtoCodigo) ?? 0) + saldo)
+    }
+    return map
+  }, [estoqueRaw])
+
+  const diasPeriodo = useMemo(() => diasEntre(dataInicial, dataFinal), [dataInicial, dataFinal])
+
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
@@ -240,13 +390,16 @@ const ComercialVendasPista = () => {
 
       {hasEmpresa && (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* KPIs principais — 4 cards ocupando a largura toda (estilo Combustível) */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Produtos vendidos"
               value={computed ? formatNumber(computed.kpis.produtosDistintos) : '—'}
               hint="SKUs distintos com venda > 0"
               Icon={Package}
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+              cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
             />
             <KpiCard
@@ -254,6 +407,9 @@ const ComercialVendasPista = () => {
               value={computed ? formatNumber(computed.kpis.unidadesVendidas) : '—'}
               hint="Total de unidades vendidas"
               Icon={Layers}
+              iconBg="bg-cyan-100 dark:bg-cyan-900/30"
+              iconColor="text-cyan-600 dark:text-cyan-400"
+              cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
             />
             <KpiCard
@@ -261,33 +417,39 @@ const ComercialVendasPista = () => {
               value={computed ? formatCurrency(computed.kpis.faturamento) : '—'}
               hint="Soma das vendas no período"
               Icon={DollarSign}
+              iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              iconColor="text-emerald-600 dark:text-emerald-400"
+              cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
             />
             <KpiCard
               label="Margem"
               value={
                 computed
-                  ? `${formatCurrency(computed.kpis.margem)} · ${computed.kpis.margemPct.toFixed(1)}%`
+                  ? `${formatCurrency(computed.kpis.margem)} · ${computed.kpis.margemPct.toFixed(1).replace('.', ',')}%`
                   : '—'
               }
               hint="Lucro bruto e % sobre faturamento"
               Icon={TrendingUp}
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-600 dark:text-amber-400"
+              cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
             />
           </div>
 
-          {/* Por categoria */}
+          {/* Por categoria — table com BarCells, tooltips, Trophy/Lanterna e Total */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por categoria</h2>
               <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Performance agregada dos grupos PS- de cada família
+                Performance agregada dos grupos PS- por família de produto
               </p>
             </div>
             {isLoadingVendas ? (
               <div className="space-y-2 p-5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 rounded-md" />
+                  <Skeleton key={i} className="h-10 rounded-md" />
                 ))}
               </div>
             ) : !computed || computed.categorias.length === 0 ? (
@@ -295,51 +457,116 @@ const ComercialVendasPista = () => {
                 Nenhuma venda de produto automotivo no período.
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                {computed.categorias.map((c) => {
-                  const pct = computed.kpis.faturamento > 0
-                    ? (c.faturamento / computed.kpis.faturamento) * 100
-                    : 0
-                  const margemPct = c.faturamento > 0
-                    ? ((c.faturamento - c.custo) / c.faturamento) * 100
-                    : 0
-                  return (
-                    <li key={c.nome} className="flex items-center gap-4 px-5 py-3">
-                      <span
-                        className={cn(
-                          'inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-                          CATEGORIA_COLOR[c.nome] ?? CATEGORIA_COLOR['Outros'],
-                        )}
-                      >
-                        {c.nome}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatNumber(c.qtdProdutos)} {c.qtdProdutos === 1 ? 'SKU' : 'SKUs'} · {formatNumber(c.qtdVendida)} unidades · margem {margemPct.toFixed(1)}%
-                        </p>
-                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                          <div
-                            className="h-1.5 rounded-full bg-amber-500 transition-all"
-                            style={{ width: `${Math.max(2, pct)}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(c.faturamento)}
-                        </p>
-                        <p className="text-[10px] tabular-nums text-gray-400">
-                          {pct.toFixed(1)}% da pista
-                        </p>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                    <tr>
+                      <ThWithHelp align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
+                      <ThWithHelp label="SKUs" help="Quantidade de produtos distintos vendidos na categoria." />
+                      <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
+                      <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
+                      <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                      <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
+                      <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da pista." />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {(() => {
+                      const cats = computed.categorias
+                      const maxSKUs = Math.max(...cats.map((c) => c.qtdProdutos), 0)
+                      const maxUnidades = Math.max(...cats.map((c) => c.qtdVendida), 0)
+                      const maxFat = Math.max(...cats.map((c) => c.faturamento), 0)
+                      const maxLucro = Math.max(...cats.map((c) => c.faturamento - c.custo), 0)
+                      const maxMargem = Math.max(...cats.map((c) => (c.faturamento > 0 ? ((c.faturamento - c.custo) / c.faturamento) * 100 : 0)), 0)
+                      const totFat = cats.reduce((s, c) => s + c.faturamento, 0)
+                      const totUnid = cats.reduce((s, c) => s + c.qtdVendida, 0)
+                      const totSKUs = cats.reduce((s, c) => s + c.qtdProdutos, 0)
+                      const totLucro = cats.reduce((s, c) => s + (c.faturamento - c.custo), 0)
+                      const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
+                      const maxMix = totFat > 0 ? Math.max(...cats.map((c) => (c.faturamento / totFat) * 100)) : 0
+                      return (
+                        <>
+                          {cats.map((c, idx) => {
+                            const lucro = c.faturamento - c.custo
+                            const margemPct = c.faturamento > 0 ? (lucro / c.faturamento) * 100 : 0
+                            const mixPct = totFat > 0 ? (c.faturamento / totFat) * 100 : 0
+                            return (
+                              <tr
+                                key={c.nome}
+                                className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
+                                onClick={() => setSelectedCategoria(c)}
+                              >
+                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                                  <span className="flex items-center gap-2">
+                                    <span
+                                      className={cn(
+                                        'inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium underline-offset-4 group-hover:underline',
+                                        CATEGORIA_COLOR[c.nome] ?? CATEGORIA_COLOR['Outros'],
+                                      )}
+                                    >
+                                      {c.nome}
+                                    </span>
+                                    {idx === 0 && cats.length > 1 && (
+                                      <span
+                                        className="inline-flex shrink-0"
+                                        title="Categoria com maior faturamento"
+                                        aria-label="Categoria com maior faturamento"
+                                      >
+                                        <Trophy className="h-3 w-3 text-amber-500" />
+                                      </span>
+                                    )}
+                                    {idx === cats.length - 1 && cats.length > 1 && (
+                                      <span
+                                        className="inline-flex shrink-0"
+                                        title="Categoria com menor faturamento"
+                                        aria-label="Categoria com menor faturamento"
+                                      >
+                                        <TrendingDown className="h-3 w-3 text-red-500" />
+                                      </span>
+                                    )}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={c.qtdProdutos} max={maxSKUs} formatted={formatNumber(c.qtdProdutos)} color="blue" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={c.qtdVendida} max={maxUnidades} formatted={formatNumber(c.qtdVendida)} color="blue" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrency(c.faturamento)} color="green" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={mixPct} max={maxMix} formatted={`${mixPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                          {/* Linha Total */}
+                          <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                            <td className="px-4 py-2.5">Total</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totSKUs)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
+                          </tr>
+                        </>
+                      )
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
 
-          {/* Tabela de produtos com busca + filtro de categoria */}
+          {/* Tabela de produtos com busca + filtro de categoria + BarCells */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <div className="min-w-0">
@@ -391,47 +618,89 @@ const ComercialVendasPista = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium">Produto</th>
-                      <th className="px-4 py-2 text-left font-medium">Categoria</th>
-                      <th className="px-4 py-2 text-right font-medium">Unidades</th>
-                      <th className="px-4 py-2 text-right font-medium">Faturamento</th>
-                      <th className="px-4 py-2 text-right font-medium">Margem %</th>
+                      <ThWithHelp align="left" label="Produto" help="Nome do produto vendido." />
+                      <ThWithHelp align="left" label="Categoria" help="Família PS- (filtros, lubrificantes, etc.)." />
+                      <ThWithHelp label="Unidades" help="Quantidade total de unidades vendidas." />
+                      <ThWithHelp label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
+                      <ThWithHelp label="Faturamento" help="Receita total do produto (R$)." />
+                      <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                      <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {produtosExibidos.map((p) => {
-                      const margemPct = p.faturamento > 0
-                        ? ((p.faturamento - p.custo) / p.faturamento) * 100
-                        : 0
+                    {(() => {
+                      const maxUnidades = Math.max(...produtosExibidos.map((p) => p.quantidade), 0)
+                      const maxFat = Math.max(...produtosExibidos.map((p) => p.faturamento), 0)
+                      const maxLucro = Math.max(...produtosExibidos.map((p) => p.faturamento - p.custo), 0)
+                      const maxMargem = Math.max(...produtosExibidos.map((p) => (p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0)), 0)
+                      const totUnid = produtosExibidos.reduce((s, p) => s + p.quantidade, 0)
+                      const totFat = produtosExibidos.reduce((s, p) => s + p.faturamento, 0)
+                      const totLucro = produtosExibidos.reduce((s, p) => s + (p.faturamento - p.custo), 0)
+                      const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
                       return (
-                        <tr key={p.produtoCodigo}>
-                          <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                            <span className="block max-w-md truncate" title={p.nome}>{p.nome}</span>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className={cn(
-                                'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
-                                CATEGORIA_COLOR[p.categoria] ?? CATEGORIA_COLOR['Outros'],
-                              )}
-                            >
-                              {p.categoria}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                            {formatNumber(p.quantidade)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                            {formatCurrency(p.faturamento)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                            {margemPct.toFixed(1)}%
-                          </td>
-                        </tr>
+                        <>
+                          {produtosExibidos.map((p) => {
+                            const lucro = p.faturamento - p.custo
+                            const margemPct = p.faturamento > 0 ? (lucro / p.faturamento) * 100 : 0
+                            const badge = coberturaBadgeData(estoquePorProduto.get(p.produtoCodigo), p.quantidade, diasPeriodo)
+                            return (
+                              <tr key={p.produtoCodigo}>
+                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                                  <span className="block max-w-md truncate" title={p.nome}>{p.nome}</span>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <span
+                                    className={cn(
+                                      'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
+                                      CATEGORIA_COLOR[p.categoria] ?? CATEGORIA_COLOR['Outros'],
+                                    )}
+                                  >
+                                    {p.categoria}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={p.quantidade} max={maxUnidades} formatted={formatNumber(p.quantidade)} color="blue" align="near" />
+                                </td>
+                                <td className="px-4 py-2.5 text-right">
+                                  {badge ? (
+                                    <span
+                                      className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums', badge.bg, badge.text)}
+                                      title={badge.tooltip}
+                                    >
+                                      <Boxes className="h-3 w-3" />
+                                      {badge.label}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">—</span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                          {/* Linha Total */}
+                          <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                            <td className="px-4 py-2.5">Total</td>
+                            <td className="px-4 py-2.5" />
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
+                            <td className="px-4 py-2.5" />
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
+                          </tr>
+                        </>
                       )
-                    })}
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -439,39 +708,26 @@ const ComercialVendasPista = () => {
           </section>
         </>
       )}
+
+      {/* Modal ao clicar numa linha da seção "Por categoria":
+          indicadores + top produtos + distribuição diária da categoria. */}
+      <CategoriaDetalheModal
+        open={selectedCategoria !== null}
+        onClose={() => setSelectedCategoria(null)}
+        categoria={selectedCategoria}
+        produtos={produtosDaCategoria}
+        vendasDaCategoria={vendasDaCategoria}
+        estoquePorProduto={estoquePorProduto}
+        dataInicial={dataInicial}
+        dataFinal={dataFinal}
+        categoriaColorClass={
+          selectedCategoria
+            ? CATEGORIA_COLOR[selectedCategoria.nome] ?? CATEGORIA_COLOR['Outros']
+            : ''
+        }
+      />
     </div>
   )
 }
-
-/* ─── KPI card ─── */
-
-interface KpiCardProps {
-  label: string
-  value: string
-  hint: string
-  Icon: typeof Package
-  loading: boolean
-}
-
-const KpiCard = ({ label, value, hint, Icon, loading }: KpiCardProps) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
-        {loading ? (
-          <Skeleton className="mt-1.5 h-7 w-24" />
-        ) : (
-          <p className="mt-1.5 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {value}
-          </p>
-        )}
-        <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{hint}</p>
-      </div>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
-        <Icon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-      </div>
-    </div>
-  </div>
-)
 
 export default ComercialVendasPista
