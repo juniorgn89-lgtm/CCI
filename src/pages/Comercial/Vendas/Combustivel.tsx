@@ -20,7 +20,9 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
+import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
+import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
 
@@ -128,7 +130,7 @@ const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading,
 /* ─── Página ─── */
 
 const ComercialVendasCombustivel = () => {
-  const { empresaCodigos } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
@@ -137,6 +139,7 @@ const ComercialVendasCombustivel = () => {
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
+  const [selectedFuel, setSelectedFuel] = useState<FuelTypeRow | null>(null)
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
@@ -657,11 +660,15 @@ const ComercialVendasCombustivel = () => {
                             const maxMargem = Math.max(...mix.map((f) => f.margem), 0)
                             const maxParticipacao = Math.max(...mix.map((f) => f.participacao), 0)
                             return mix.map((f) => (
-                              <tr key={f.produtoCodigo}>
+                              <tr
+                                key={f.produtoCodigo}
+                                className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
+                                onClick={() => setSelectedFuel(f)}
+                              >
                                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                                   <span className="flex items-center gap-2">
                                     <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />
-                                    <span className="truncate" title={f.nome}>{f.nome}</span>
+                                    <span className="truncate underline-offset-4 hover:underline" title={f.nome}>{f.nome}</span>
                                   </span>
                                 </td>
                                 <td className="px-2 py-1">
@@ -904,6 +911,18 @@ const ComercialVendasCombustivel = () => {
         open={selectedDay !== null}
         onClose={() => setSelectedDay(null)}
         detail={selectedDay}
+        fuelColor={fuelColor}
+      />
+
+      {/* Modal ao clicar numa linha da aba "Realizado - por combustível":
+          indicadores, top frentistas, top bombas e distribuição horária. */}
+      <FuelDetalheModal
+        open={selectedFuel !== null}
+        onClose={() => setSelectedFuel(null)}
+        fuel={selectedFuel}
+        rows={rows}
+        dataInicial={dataInicial}
+        dataFinal={dataFinal}
         fuelColor={fuelColor}
       />
     </div>
