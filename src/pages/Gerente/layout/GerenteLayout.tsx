@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { useLocation, Link, Outlet, useNavigate } from 'react-router-dom'
+import { useLocation, Link, Outlet } from 'react-router-dom'
 import { useIsFetching } from '@tanstack/react-query'
 import { LayoutDashboard, Users, BarChart3, LogOut, Radio, Fuel, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
+import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
   { label: 'Início', path: '/gerente', icon: LayoutDashboard },
@@ -14,9 +15,12 @@ const navItems = [
 
 const GerenteLayout = () => {
   const { pathname } = useLocation()
-  const navigate = useNavigate()
   const isFetching = useIsFetching()
   const { setPeriodo } = useFilterStore()
+  // Logout completo: signOut do Supabase + queryClient.clear() + navigate.
+  // Apenas limpar sessionStorage (como antes) NÃO encerra a sessão Supabase,
+  // permitindo voltar direto pra /gerente sem re-autenticar.
+  const { logout } = useAuth()
 
   useEffect(() => {
     const now = new Date()
@@ -26,12 +30,6 @@ const GerenteLayout = () => {
     setPeriodo(today, today)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const handleLogout = () => {
-    sessionStorage.removeItem('app_authenticated')
-    sessionStorage.removeItem('app_mode')
-    navigate('/login')
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-950">
@@ -53,7 +51,7 @@ const GerenteLayout = () => {
               <span className="text-[10px] font-medium text-green-300">Tempo real</span>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => logout()}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white"
               aria-label="Sair"
             >

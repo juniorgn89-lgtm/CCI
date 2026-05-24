@@ -131,6 +131,7 @@ const CombustivelDetailModal = ({
             <SegmentKpiMini label="Quantidade vendida" value={formatLiters(data.litrosTotal)} variation={data.variations.qtd} />
           </div>
 
+          {data.dailyChart.length >= 2 && (
           <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Faturamento diário
@@ -149,6 +150,7 @@ const CombustivelDetailModal = ({
               </LineChart>
             </ResponsiveContainer>
           </div>
+          )}
 
           <div className="-mx-6 flex-1 overflow-auto px-6">
             <table className="w-full text-sm">

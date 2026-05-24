@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
+import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
@@ -202,6 +202,15 @@ const BenchmarkSetor = () => {
     return { postos, totals: { ...totals, margem: totalMargem, precoVenda: totalPrecoVenda, precoCusto: totalPrecoCusto, lbPorUnidade: totalLb } }
   }, [data])
 
+  // Posto que está "se destacando" no setor ativo — maior Lucro Bruto absoluto.
+  // Só destaca se houver mais de 1 posto e o vencedor tiver lucro > 0 (evita
+  // troféu inútil quando todos zerados ou só tem 1 posto pra comparar).
+  const postoDestaque = useMemo(() => {
+    if (aggregated.postos.length < 2) return null
+    const top = [...aggregated.postos].sort((a, b) => b.lucroBruto - a.lucroBruto)[0]
+    return top && top.lucroBruto > 0 ? top.posto : null
+  }, [aggregated])
+
   // Máximos pra calibrar barras
   const allRows = aggregated.postos.flatMap((p) => p.produtos)
   const maxQtd = allRows.reduce((m, r) => Math.max(m, r.qtd), 0)
@@ -293,9 +302,18 @@ const BenchmarkSetor = () => {
                     )}
                   >
                     <td className="px-3 py-2 text-left">
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5">
                         {expanded ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
                         {p.posto}
+                        {postoDestaque === p.posto && (
+                          <span
+                            title={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`}
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                          >
+                            <Trophy className="h-3 w-3" />
+                            Destaque
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatNumber(p.qtd)}</td>
