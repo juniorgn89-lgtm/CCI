@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
+import { getLoginThrottleStatus, registerLoginFailure, resetLoginThrottle } from '@/lib/loginThrottle'
 
 /**
  * Hook de auth do gerente — wrapper fino sobre Supabase Auth + auth store.
@@ -53,9 +54,25 @@ export const useAuth = () => {
       setError(null)
       if (!ensureClient() || !supabase) return
 
+      const throttle = getLoginThrottleStatus()
+      if (!throttle.allowed) {
+        const mins = Math.ceil(throttle.retryAfterSeconds / 60)
+        setError(`Muitas tentativas. Tente novamente em ${mins} min.`)
+        return
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
-        setError(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message)
+        const status = registerLoginFailure()
+        const msg = error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message
+        if (status.remainingAttempts > 0 && status.remainingAttempts <= 2) {
+          setError(`${msg} · ${status.remainingAttempts} tentativa(s) restante(s)`)
+        } else if (!status.allowed) {
+          const mins = Math.ceil(status.retryAfterSeconds / 60)
+          setError(`Muitas tentativas. Tente novamente em ${mins} min.`)
+        } else {
+          setError(msg)
+        }
         return
       }
 
@@ -66,6 +83,7 @@ export const useAuth = () => {
         return
       }
 
+      resetLoginThrottle()
       const isMobile = window.innerWidth < 768
       navigate(isMobile ? '/gerente' : '/dashboard')
     },

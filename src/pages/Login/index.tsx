@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { prefetchPrincipais } from '@/routes/prefetch'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 import EsqueciSenhaModal from '@/pages/Login/components/EsqueciSenhaModal'
+import SecurityBadge from '@/pages/Login/components/SecurityBadge'
 
 type LoginMode = 'gerente' | 'frentista'
 
@@ -116,6 +117,11 @@ const Login = () => {
         </div>
 
         <div className="w-full max-w-[380px]">
+          {/* Security badge — colapsável, expande pra mostrar as camadas ativas */}
+          <div className="mb-4">
+            <SecurityBadge />
+          </div>
+
           {/* Role selector tabs */}
           <div className="mb-6 flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
             <button
