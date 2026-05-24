@@ -411,7 +411,7 @@ const FechamentoCaixa = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Fechamento de Caixa
+                Fechamento de Caixa{empresaNome ? ` · ${empresaNome}` : ''}
               </h1>
               <FocusModeToggle />
             </div>
