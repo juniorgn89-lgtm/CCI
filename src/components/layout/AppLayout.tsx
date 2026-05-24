@@ -52,10 +52,18 @@ const AppLayout = () => {
     return () => document.removeEventListener('keydown', onKey)
   }, [focusActive, setFocus])
 
-  // Sair do modo foco automaticamente ao mudar de rota.
+  // Sair do modo foco automaticamente ao mudar de MÓDULO top-level
+  // (Comercial → Operação, etc.). Navegação dentro do mesmo módulo
+  // (ex.: tabs do Comercial · Vendas: Visão Geral → Combustível → Pista)
+  // preserva o foco — não faz sentido derrubar a cada clique de aba.
+  // Fallback: rotas fora do catálogo (admin, configurações) usam o próprio
+  // pathname como id, mantendo o comportamento legado.
+  const currentModuloId = MODULOS.find(
+    (m) => pathname === m.path || pathname.startsWith(m.path + '/'),
+  )?.id ?? pathname
   useEffect(() => {
     setFocus(false)
-  }, [pathname, setFocus])
+  }, [currentModuloId, setFocus])
 
   // Sincroniza o modo foco com o fullscreen nativo do browser.
   // Entrar: requestFullscreen (precisa de gesto do usuário — o click no botão
