@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
@@ -22,6 +22,9 @@ import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
+import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import { smoothedProjection } from '@/lib/projection'
+import { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
@@ -128,6 +131,8 @@ interface KpiCardProps {
   label: string
   value: string
   hint?: string
+  /** Bloco rico opcional após hint (divisor + linha de contexto adicional). */
+  extra?: ReactNode
   Icon: typeof Fuel
   iconBg: string
   iconColor: string
@@ -137,7 +142,7 @@ interface KpiCardProps {
   previous?: number
 }
 
-const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading, current, previous }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -156,6 +161,7 @@ const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading,
       <DeltaBadge current={current} previous={previous} />
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
+    {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
   </div>
 )
 
@@ -166,7 +172,7 @@ const ComercialVendasCombustivel = () => {
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
-  const { rows, dailyData, fuelTypeData, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
+  const { rows, dailyData, fuelTypeData, lbLitroData, projectionMeta, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
@@ -400,6 +406,38 @@ const ComercialVendasCombustivel = () => {
     [lbLitroData.monthly],
   )
 
+  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
+
+  /* ─── Projeção (faturamento + lucro) ── usa smoothedProjection sobre a
+   * série diária do useAbastecimentosAnalytics (dailyData tem ambos os
+   * campos) e `projectionMeta.daysRemaining`. */
+  const projecaoCombustivel = useMemo(() => {
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dias = projectionMeta?.daysRemaining ?? 0
+    const realizadoFat = kpis?.faturamentoCombustivel ?? 0
+    const realizadoLucro = fuelTypeData.reduce((s, f) => s + f.lucroBruto, 0)
+    const projetadoFat = smoothedProjection({
+      realizado: realizadoFat,
+      dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
+      diasRestantes: dias,
+      today: todayISO,
+    }).projetado
+    const projetadoLucro = smoothedProjection({
+      realizado: realizadoLucro,
+      dailySeries: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })),
+      diasRestantes: dias,
+      today: todayISO,
+    }).projetado
+    return {
+      realizadoFat,
+      realizadoLucro,
+      projetadoFat,
+      projetadoLucro,
+      isProjetada: dias > 0,
+    }
+  }, [kpis, fuelTypeData, dailyData, projectionMeta])
+
   /* ─── Máximos por coluna (Power BI Data Bars) ─── */
   const colMax = useMemo(() => {
     const days = detalheDiaADia.days
@@ -415,6 +453,12 @@ const ComercialVendasCombustivel = () => {
     }
   }, [detalheDiaADia])
 
+  /* ─── Ranking maior/menor L.B./Litro entre os combustíveis ─── */
+  const lbRanking = useMemo(() => {
+    if (fuelTypeData.length < 2) return null
+    const sorted = [...fuelTypeData].sort((a, b) => b.lbPorLitro - a.lbPorLitro)
+    return { maior: sorted[0], menor: sorted[sorted.length - 1] }
+  }, [fuelTypeData])
 
   return (
     <div className="space-y-6">
@@ -446,9 +490,9 @@ const ComercialVendasCombustivel = () => {
 
       {hasEmpresa && (
         <>
-          {/* KPIs principais — 4 cards ocupando a largura toda (grid-cols-4
-              no lg, grid-cols-2 no mobile/tablet). */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {/* KPIs principais — 4 cards + Projeção (5º) ocupando a largura
+              toda. Em mobile/tablet empilha em 2 ou 3 cols. */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard
               label="Litros Vendidos"
               value={showSkeleton || !kpis ? '—' : formatLiters(kpis.totalLitros)}
@@ -459,6 +503,29 @@ const ComercialVendasCombustivel = () => {
               loading={showSkeleton}
               current={kpis?.totalLitros}
               previous={kpis?.prevTotalLitros}
+              extra={
+                kpis && kpis.totalLitros > 0 && fuelTypeData.length > 0 ? (
+                  <>
+                    {/* Stacked bar com a composição por tipo de combustível */}
+                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      {fuelTypeData.map((f) => {
+                        const pct = (f.litros / kpis.totalLitros) * 100
+                        return pct > 0 ? (
+                          <span
+                            key={f.produtoCodigo}
+                            className={cn('h-full', fuelColor(f.nome))}
+                            style={{ width: `${pct}%` }}
+                            title={`${f.nome}: ${pct.toFixed(1).replace('.', ',')}%`}
+                          />
+                        ) : null
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                      Mix por tipo de combustível
+                    </p>
+                  </>
+                ) : null
+              }
             />
             <KpiCard
               label="Faturamento"
@@ -470,6 +537,24 @@ const ComercialVendasCombustivel = () => {
               loading={showSkeleton}
               current={kpis?.faturamentoCombustivel}
               previous={kpis?.prevFaturamentoCombustivel}
+              extra={
+                kpis && kpis.totalAbastecimentos > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Abastecimentos</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatNumber(kpis.totalAbastecimentos)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Média / dia</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrency(kpis.faturamentoCombustivel / diasPeriodo)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Ticket Médio"
@@ -481,6 +566,24 @@ const ComercialVendasCombustivel = () => {
               loading={showSkeleton}
               current={kpis?.ticketMedio}
               previous={kpis?.prevTicketMedio}
+              extra={
+                kpis && kpis.totalAbastecimentos > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>L / abastecimento</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatNumber(kpis.totalLitros / kpis.totalAbastecimentos)} L
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Abastec. / dia</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatNumber(Math.round(kpis.totalAbastecimentos / diasPeriodo))}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="L.B./Litro"
@@ -495,6 +598,39 @@ const ComercialVendasCombustivel = () => {
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingAnalytics}
+              extra={
+                lbRanking ? (
+                  <div className="space-y-1 text-[10px] tabular-nums">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                        <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.maior.nome))} />
+                        Maior · {lbRanking.maior.nome}
+                      </span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(lbRanking.maior.lbPorLitro)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                        <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.menor.nome))} />
+                        Menor · {lbRanking.menor.nome}
+                      </span>
+                      <span className="font-semibold text-red-600 dark:text-red-400">
+                        {formatCurrency(lbRanking.menor.lbPorLitro)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
+            />
+            <ProjecaoCard
+              realizadoFaturamento={projecaoCombustivel.realizadoFat}
+              projetadoFaturamento={projecaoCombustivel.projetadoFat}
+              realizadoLucro={projecaoCombustivel.realizadoLucro}
+              projetadoLucro={projecaoCombustivel.projetadoLucro}
+              dataFinal={dataFinal}
+              isProjetada={projecaoCombustivel.isProjetada}
+              loading={isLoadingAnalytics || isLoadingKpis}
             />
           </div>
 

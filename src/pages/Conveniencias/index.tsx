@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, type ReactNode, useEffect, useState } from 'react'
 import { Store, ShoppingCart, Package, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart, Info } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -9,6 +9,8 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
+import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -67,32 +69,39 @@ const DeltaPill = ({ pct, light = false }: { pct: number; light?: boolean }) => 
 interface KpiCardProps {
   label: string
   value: string
-  prevValue: string
+  /** Variação % vs período anterior (DeltaPill inline). */
   delta: number
+  /** Bloco rico opcional após o delta (linha de contexto adicional). */
+  extra?: ReactNode
   Icon: typeof Store
-  chipClass: string
-  iconClass: string
+  iconBg: string
+  iconColor: string
+  cardBg: string
   onClick?: () => void
 }
 
-const KpiCard = ({ label, value, prevValue, delta, Icon, chipClass, iconClass, onClick }: KpiCardProps) => (
+const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, onClick }: KpiCardProps) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+    className={cn(
+      'flex flex-col rounded-xl border border-gray-200 p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700',
+      cardBg,
+    )}
   >
-    <div className="flex items-start justify-between gap-2">
-      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p>
-      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', chipClass)}>
-        <Icon className={cn('h-4 w-4', iconClass)} />
+    <div className="flex items-center justify-between">
+      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
+        <Icon className={cn('h-5 w-5', iconColor)} />
       </div>
     </div>
     <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-    <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">Mês anterior</p>
-    <div className="flex items-center gap-1.5">
-      <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">{prevValue}</span>
-      <DeltaPill pct={delta} />
-    </div>
+    {isFinite(delta) && delta !== 0 && (
+      <div className="mt-1">
+        <DeltaPill pct={delta} />
+      </div>
+    )}
+    {extra && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
   </button>
 )
 
@@ -112,6 +121,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
   const knownTabs = layoutTabs.filter((t) => t.id in TAB_ICONS)
   const visibleTabs = knownTabs.filter((t) => t.visible)
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
+  const { dataFinal } = useFilterStore()
   const {
     kpis,
     projecao,
@@ -180,82 +190,139 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
             <KpiCard
               label="Faturamento"
               value={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.faturamento)}
-              prevValue={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.prev.faturamento)}
               delta={kpis ? pctDelta(kpis.faturamento, kpis.prev.faturamento) : 0}
               Icon={CircleDollarSign}
-              chipClass="bg-blue-100 dark:bg-blue-900/30"
-              iconClass="text-blue-600 dark:text-blue-400"
+              iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              iconColor="text-emerald-600 dark:text-emerald-400"
+              cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               onClick={() => setActiveTab('vendas')}
+              extra={
+                kpis ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Mês anterior</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrencyInt(kpis.prev.faturamento)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Itens vendidos</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {kpis.qtdItens.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Lucro bruto"
               value={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.margem)}
-              prevValue={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.prev.margem)}
               delta={kpis ? pctDelta(kpis.margem, kpis.prev.margem) : 0}
               Icon={DollarSign}
-              chipClass="bg-emerald-100 dark:bg-emerald-900/30"
-              iconClass="text-emerald-600 dark:text-emerald-400"
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+              cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               onClick={() => setActiveTab('vendas')}
+              extra={
+                kpis ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Mês anterior</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrencyInt(kpis.prev.margem)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Diferença</span>
+                      <span className={cn(
+                        'font-semibold',
+                        kpis.margem - kpis.prev.margem >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400',
+                      )}>
+                        {kpis.margem - kpis.prev.margem >= 0 ? '+' : ''}
+                        {formatCurrencyInt(kpis.margem - kpis.prev.margem)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Margem"
               value={showSkeleton || !kpis ? '—' : `${kpis.margemPct.toFixed(2).replace('.', ',')}%`}
-              prevValue={showSkeleton || !kpis ? '—' : `${kpis.prev.margemPct.toFixed(2).replace('.', ',')}%`}
               delta={kpis ? pctDelta(kpis.margemPct, kpis.prev.margemPct) : 0}
               Icon={PieChart}
-              chipClass="bg-amber-100 dark:bg-amber-900/30"
-              iconClass="text-amber-600 dark:text-amber-400"
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-600 dark:text-amber-400"
+              cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               onClick={() => setActiveTab('vendas')}
+              extra={
+                kpis ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Mês anterior</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {kpis.prev.margemPct.toFixed(2).replace('.', ',')}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Diferença</span>
+                      <span className={cn(
+                        'font-semibold',
+                        kpis.margemPct - kpis.prev.margemPct >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400',
+                      )}>
+                        {kpis.margemPct - kpis.prev.margemPct >= 0 ? '+' : ''}
+                        {(kpis.margemPct - kpis.prev.margemPct).toFixed(2).replace('.', ',')}pp
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Ticket médio"
               value={showSkeleton || !kpis ? '—' : formatCurrency(kpis.ticketMedio)}
-              prevValue={showSkeleton || !kpis ? '—' : formatCurrency(kpis.prev.ticketMedio)}
               delta={kpis ? pctDelta(kpis.ticketMedio, kpis.prev.ticketMedio) : 0}
               Icon={Ticket}
-              chipClass="bg-rose-100 dark:bg-rose-900/30"
-              iconClass="text-rose-600 dark:text-rose-400"
+              iconBg="bg-purple-100 dark:bg-purple-900/30"
+              iconColor="text-purple-600 dark:text-purple-400"
+              cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               onClick={() => setActiveTab('vendas')}
+              extra={
+                kpis && kpis.qtdItens > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Mês anterior</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrency(kpis.prev.ticketMedio)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Atendimentos</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {kpis.qtdItens.toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
 
-            {/* Projeção de vendas — card preenchido (azul) */}
-            <button
-              type="button"
+            {/* Projeção fim do período — componente shared do módulo Vendas */}
+            <ProjecaoCard
+              realizadoFaturamento={kpis?.faturamento ?? 0}
+              projetadoFaturamento={projecao.faturamento}
+              realizadoLucro={kpis?.margem ?? 0}
+              projetadoLucro={projecao.lucroBruto}
+              dataFinal={dataFinal}
+              isProjetada={projecao.isProjetada}
+              loading={showSkeleton}
               onClick={() => setActiveTab('vendas')}
-              className="flex flex-col rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] p-4 text-left shadow-sm transition-all hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-white/90">Projeção de vendas</p>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15">
-                  <LineChart className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <p
-                className={cn(
-                  'mt-2 text-2xl font-bold tabular-nums text-white',
-                  // Sem dias futuros (Apurado/Em andamento) o valor não é projeção:
-                  // risca pra deixar claro que não há previsão.
-                  kpis && !projecao.isProjetada && 'text-white/50 line-through decoration-white/60',
-                )}
-              >
-                {showSkeleton || !kpis ? '—' : formatCurrencyInt(projecao.faturamento)}
-              </p>
-              <p className="mt-2 text-[11px] text-white/70">Previsão - Mês anterior</p>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs tabular-nums text-white/85">
-                  {showSkeleton || !kpis ? '—' : formatCurrencyInt(projecao.comparativo)}
-                </span>
-                {kpis && <DeltaPill pct={projecao.variacao} light />}
-              </div>
-              {/* A projeção só extrapola quando há dias futuros (modo "Completo").
-                  Nos modos "Apurado"/"Em andamento" o valor = realizado, então avisamos. */}
-              {kpis && !projecao.isProjetada && (
-                <p className="mt-2 flex items-start gap-1 text-[10px] leading-snug text-white/70">
-                  <Info className="mt-px h-3 w-3 shrink-0" />
-                  Projeção disponível só no modo "Completo".
-                </p>
-              )}
-            </button>
+            />
           </div>
 
           {visibleTabs.length === 0 ? (

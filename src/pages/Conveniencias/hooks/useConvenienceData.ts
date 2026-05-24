@@ -30,6 +30,8 @@ export interface ConvKpiData {
 export interface ProjecaoVendas {
   /** Faturamento projetado pro fim do período (= realizado em meses fechados). */
   faturamento: number
+  /** Lucro bruto projetado pro fim do período (= realizado em meses fechados). */
+  lucroBruto: number
   /** Faturamento do mês anterior (base de comparação). */
   comparativo: number
   /** Variação % do projetado vs mês anterior. */
@@ -755,8 +757,17 @@ const useConvenienceData = () => {
       diasRestantes,
       today: todayISO,
     }).projetado
+    // Lucro bruto projetado — mesma técnica, série diária de margemRs (LB absoluto)
+    const totalLucro = dailyData.reduce((s, d) => s + d.margemRs, 0)
+    const projetadoLucro = smoothedProjection({
+      realizado: totalLucro,
+      dailySeries: dailyData.map((d) => ({ data: d.data, value: d.margemRs })),
+      diasRestantes,
+      today: todayISO,
+    }).projetado
     const projecao: ProjecaoVendas = {
       faturamento: projetadoFat,
+      lucroBruto: projetadoLucro,
       comparativo: prevFat,
       variacao: prevFat > 0 ? ((projetadoFat - prevFat) / prevFat) * 100 : 0,
       isProjetada: diasRestantes > 0,

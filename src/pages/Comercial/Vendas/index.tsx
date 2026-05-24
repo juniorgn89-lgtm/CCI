@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList,
 } from 'recharts'
-import { LayoutGrid, Fuel, Wrench, Store, DollarSign, TrendingUp, Percent, Receipt, ArrowRight, LineChart as LineChartIcon, Info } from 'lucide-react'
+import { LayoutGrid, Fuel, Wrench, Store, DollarSign, TrendingUp, Percent, Receipt, ArrowRight, LineChart as LineChartIcon } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -24,6 +24,7 @@ import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
+import ProjecaoCard from '@/components/kpi/ProjecaoCard'
 
 /* ─── Configuração dos segmentos ─── */
 
@@ -110,7 +111,7 @@ const ComercialVendasVisaoGeral = () => {
   const { fuelTypeData, dailyData: combDaily, projectionMeta } = useAbastecimentosAnalytics()
 
   // ── Fonte 2: Conveniência (cache compartilhada com a tab Conveniência)
-  const { kpis: convKpis, projecao: convProjecao, dailyData: convDaily, isLoading: isLoadingConv } = useConvenienceData()
+  const { kpis: convKpis, projecao: convProjecao, isLoading: isLoadingConv } = useConvenienceData()
 
   // ── Fonte 3: Pista — precisa de vendaItens + produtos + grupos pra
   // filtrar produtos PS-. Mesma queryKey da tela /comercial/vendas/pista
@@ -262,15 +263,9 @@ const ComercialVendasVisaoGeral = () => {
       today: todayISO,
     }).projetado
 
-    // Conveniência — faturamento já calculado no hook; lucro projeta agora
-    // a partir do dailyData (campo margemRs = lucro bruto absoluto).
+    // Conveniência — fat e lucro já calculados pelo useConvenienceData.
     const convFat = convProjecao?.faturamento ?? 0
-    const convLucro = smoothedProjection({
-      realizado: segmentos.conveniencia.lucro,
-      dailySeries: convDaily.map((d) => ({ data: d.data, value: d.margemRs })),
-      diasRestantes: dias,
-      today: todayISO,
-    }).projetado
+    const convLucro = convProjecao?.lucroBruto ?? 0
 
     return {
       combustivel: { faturamento: combFat, lucro: combLucro },
@@ -280,7 +275,7 @@ const ComercialVendasVisaoGeral = () => {
       totalLucro: combLucro + pistaLucro + convLucro,
       isProjetada: dias > 0,
     }
-  }, [segmentos, combDaily, convDaily, vendaItens, produtosData, gruposData, projectionMeta, convProjecao])
+  }, [segmentos, combDaily, vendaItens, produtosData, gruposData, projectionMeta, convProjecao])
 
   const isLoading = isLoadingOp || isLoadingConv || isLoadingVendas
 
@@ -475,63 +470,15 @@ const ComercialVendasVisaoGeral = () => {
               }
             />
 
-            {/* Projeção total (faturamento + lucro) — card preenchido (azul).
-                Risca os valores quando não há dias futuros (= realizado). */}
-            <div className="rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-white/90">Projeção fim do período</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
-                  <LineChartIcon className="h-5 w-5 text-white" />
-                </div>
-              </div>
-              {isLoading ? (
-                <Skeleton className="mt-2 h-8 w-32 bg-white/20" />
-              ) : (
-                <p
-                  className={cn(
-                    'mt-2 text-2xl font-bold tabular-nums text-white',
-                    !projecoes.isProjetada && 'text-white/50 line-through decoration-white/60',
-                  )}
-                >
-                  {formatCurrency(projecoes.totalFaturamento)}
-                </p>
-              )}
-              <p className="mt-1 text-[11px] text-white/70">
-                Faturamento estimado até {formatDate(dataFinal)}
-              </p>
-              {!isLoading && projecoes.isProjetada && projecoes.totalFaturamento > total.faturamento && (
-                <p className="mt-1 text-[11px] tabular-nums text-emerald-300">
-                  + {formatCurrency(projecoes.totalFaturamento - total.faturamento)} pra fechar
-                </p>
-              )}
-              {/* Lucro projetado (linha separada por divisor) */}
-              {!isLoading && (
-                <div className="mt-3 border-t border-white/15 pt-2">
-                  <p className="text-[11px] text-white/70">Lucro bruto estimado</p>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p
-                      className={cn(
-                        'text-base font-semibold tabular-nums text-white',
-                        !projecoes.isProjetada && 'text-white/50 line-through decoration-white/60',
-                      )}
-                    >
-                      {formatCurrency(projecoes.totalLucro)}
-                    </p>
-                    <p className="text-[11px] tabular-nums text-white/70">
-                      {projecoes.totalFaturamento > 0
-                        ? `${((projecoes.totalLucro / projecoes.totalFaturamento) * 100).toFixed(1).replace('.', ',')}% margem`
-                        : '—'}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {!isLoading && !projecoes.isProjetada && (
-                <p className="mt-2 flex items-start gap-1 text-[10px] leading-snug text-white/70">
-                  <Info className="mt-px h-3 w-3 shrink-0" />
-                  Sem dias futuros — valor = realizado.
-                </p>
-              )}
-            </div>
+            <ProjecaoCard
+              realizadoFaturamento={total.faturamento}
+              projetadoFaturamento={projecoes.totalFaturamento}
+              realizadoLucro={total.lucro}
+              projetadoLucro={projecoes.totalLucro}
+              dataFinal={dataFinal}
+              isProjetada={projecoes.isProjetada}
+              loading={isLoading}
+            />
           </div>
 
           {/* Cards por segmento — cada um clicável */}

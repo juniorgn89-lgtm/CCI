@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
-import { ShoppingCart } from 'lucide-react'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
-import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import type { DailyRow, GroupRow, DaySaleProduct, CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
@@ -63,15 +61,6 @@ const SalesOverview = ({ dailyData, groupTable, salesByDay, productsByGroup, cat
   const dayProducts = selectedDay ? (salesByDay[selectedDay] ?? []) : []
   const groupProducts = selectedGroup ? (productsByGroup[selectedGroup.codigo] ?? []) : []
 
-  const totals = useMemo(() => {
-    const faturamento = dailyData.reduce((s, d) => s + d.faturamento, 0)
-    const custo = dailyData.reduce((s, d) => s + d.custo, 0)
-    const margem = faturamento - custo
-    const margemPct = faturamento > 0 ? (margem / faturamento) * 100 : 0
-    const itens = dailyData.reduce((s, d) => s + d.qtdItens, 0)
-    return { faturamento, margem, margemPct, itens }
-  }, [dailyData])
-
   // Dia a Dia sempre começa decrescente (dia mais recente no topo).
   const dailyDesc = useMemo(
     () => [...dailyData].sort((a, b) => b.data.localeCompare(a.data)),
@@ -87,22 +76,6 @@ const SalesOverview = ({ dailyData, groupTable, salesByDay, productsByGroup, cat
 
   return (
     <div className="space-y-4">
-      {/* Summary strip */}
-      <TableSummaryStrip
-        icon={ShoppingCart}
-        iconColor="text-emerald-600"
-        iconBg="bg-emerald-100 dark:bg-emerald-900/40"
-        title="Vendas do Período"
-        subtitle={`${dailyData.length} dias`}
-        accentGradient="bg-gradient-to-r from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-gray-900"
-        metrics={[
-          { label: 'Faturamento', value: formatCurrency(totals.faturamento) },
-          { label: 'Margem', value: formatCurrency(totals.margem), color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Margem %', value: `${totals.margemPct.toFixed(1)}%` },
-          { label: 'Itens', value: formatNumber(totals.itens) },
-        ]}
-      />
-
       {/* Sub-tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
         {subTabs.map((tab) => (

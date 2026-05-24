@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
@@ -15,6 +15,9 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
+import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import { smoothedProjection } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -49,6 +52,18 @@ const CATEGORIA_COLOR: Record<string, string> = {
   'Baterias': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40',
   'Serviços': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
   'Outros': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
+}
+
+/** Cor sólida (500) por categoria — usada em mini barras stacked. */
+const CATEGORIA_BAR_COLOR: Record<string, string> = {
+  'Filtros': 'bg-blue-500',
+  'Lubrificantes': 'bg-amber-500',
+  'Palhetas': 'bg-emerald-500',
+  'Aditivos / Fluidos': 'bg-purple-500',
+  'Acessórios': 'bg-indigo-500',
+  'Baterias': 'bg-red-500',
+  'Serviços': 'bg-gray-500',
+  'Outros': 'bg-gray-400',
 }
 
 /**
@@ -90,6 +105,8 @@ interface KpiCardProps {
   label: string
   value: string
   hint?: string
+  /** Bloco rico opcional após hint (divisor + linha de contexto adicional). */
+  extra?: ReactNode
   Icon: typeof Package
   iconBg: string
   iconColor: string
@@ -97,7 +114,7 @@ interface KpiCardProps {
   loading: boolean
 }
 
-const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -111,6 +128,7 @@ const KpiCard = ({ label, value, hint, Icon, iconBg, iconColor, cardBg, loading 
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
+    {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
   </div>
 )
 
@@ -121,6 +139,8 @@ const ComercialVendasPista = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
+  // Cache compartilhada — só pra ler `projectionMeta.daysRemaining`.
+  const { projectionMeta } = useAbastecimentosAnalytics()
 
   // Filtros da tabela de produtos
   const [searchProduto, setSearchProduto] = useState('')
@@ -319,6 +339,69 @@ const ComercialVendasPista = () => {
 
   const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
 
+  /* Ranking categoria com maior/menor margem — usado no card "Margem" */
+  const categoriaMargemRanking = useMemo(() => {
+    if (!computed || computed.categorias.length < 2) return null
+    const ranked = computed.categorias
+      .filter((c) => c.faturamento > 0)
+      .map((c) => ({
+        nome: c.nome,
+        margemPct: c.faturamento > 0 ? ((c.faturamento - c.custo) / c.faturamento) * 100 : 0,
+      }))
+      .sort((a, b) => b.margemPct - a.margemPct)
+    return ranked.length >= 2
+      ? { maior: ranked[0], menor: ranked[ranked.length - 1] }
+      : null
+  }, [computed])
+
+  /* ─── Projeção (faturamento + lucro) ───
+   * Agrega vendaItens dos produtos PS- por dia e aplica smoothedProjection
+   * com `projectionMeta.daysRemaining`. Mesma técnica da Visão Geral. */
+  const projecaoPista = useMemo(() => {
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dias = projectionMeta?.daysRemaining ?? 0
+    const realizadoFat = computed?.kpis.faturamento ?? 0
+    const realizadoLucro = computed?.kpis.margem ?? 0
+
+    const fatDaily = new Map<string, number>()
+    const lucroDaily = new Map<string, number>()
+    if (computed && produtosData && gruposData) {
+      const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const psCodigos = new Set(
+        produtosData
+          .filter((p) => !p.combustivel && (grupoNomes.get(p.grupoCodigo) ?? '').startsWith('PS -'))
+          .map((p) => p.produtoCodigo),
+      )
+      for (const item of vendaItens) {
+        if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
+          const date = item.dataMovimento.substring(0, 10)
+          fatDaily.set(date, (fatDaily.get(date) ?? 0) + item.totalVenda)
+          lucroDaily.set(date, (lucroDaily.get(date) ?? 0) + (item.totalVenda - item.totalCusto))
+        }
+      }
+    }
+    const projetadoFat = smoothedProjection({
+      realizado: realizadoFat,
+      dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
+      diasRestantes: dias,
+      today: todayISO,
+    }).projetado
+    const projetadoLucro = smoothedProjection({
+      realizado: realizadoLucro,
+      dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
+      diasRestantes: dias,
+      today: todayISO,
+    }).projetado
+    return {
+      realizadoFat,
+      realizadoLucro,
+      projetadoFat,
+      projetadoLucro,
+      isProjetada: dias > 0,
+    }
+  }, [computed, vendaItens, produtosData, gruposData, projectionMeta])
+
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
@@ -350,7 +433,7 @@ const ComercialVendasPista = () => {
       {hasEmpresa && (
         <>
           {/* KPIs principais — 4 cards ocupando a largura toda (estilo Combustível) */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard
               label="Produtos vendidos"
               value={computed ? formatNumber(computed.kpis.produtosDistintos) : '—'}
@@ -360,6 +443,24 @@ const ComercialVendasPista = () => {
               iconColor="text-blue-600 dark:text-blue-400"
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              extra={
+                computed && computed.kpis.produtosDistintos > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Categorias ativas</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {computed.categorias.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Ticket / SKU</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrency(computed.kpis.faturamento / computed.kpis.produtosDistintos)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Unidades"
@@ -370,6 +471,24 @@ const ComercialVendasPista = () => {
               iconColor="text-cyan-600 dark:text-cyan-400"
               cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              extra={
+                computed && computed.kpis.unidadesVendidas > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Un / SKU</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {(computed.kpis.unidadesVendidas / computed.kpis.produtosDistintos).toFixed(1).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Un / dia</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {(computed.kpis.unidadesVendidas / diasPeriodo).toFixed(1).replace('.', ',')}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <KpiCard
               label="Faturamento"
@@ -380,6 +499,29 @@ const ComercialVendasPista = () => {
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              extra={
+                computed && computed.kpis.faturamento > 0 && computed.categorias.length > 0 ? (
+                  <>
+                    {/* Stacked bar com mix por categoria */}
+                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      {computed.categorias.map((c) => {
+                        const pct = (c.faturamento / computed.kpis.faturamento) * 100
+                        return pct > 0 ? (
+                          <span
+                            key={c.nome}
+                            className={cn('h-full', CATEGORIA_BAR_COLOR[c.nome] ?? 'bg-gray-400')}
+                            style={{ width: `${pct}%` }}
+                            title={`${c.nome}: ${pct.toFixed(1).replace('.', ',')}%`}
+                          />
+                        ) : null
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                      Mix por categoria
+                    </p>
+                  </>
+                ) : null
+              }
             />
             <KpiCard
               label="Margem"
@@ -392,7 +534,40 @@ const ComercialVendasPista = () => {
               Icon={TrendingUp}
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               iconColor="text-amber-600 dark:text-amber-400"
+              extra={
+                categoriaMargemRanking ? (
+                  <div className="space-y-1 text-[10px] tabular-nums">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                        <span className={cn('h-2 w-2 rounded-sm', CATEGORIA_BAR_COLOR[categoriaMargemRanking.maior.nome] ?? 'bg-gray-400')} />
+                        Maior · {categoriaMargemRanking.maior.nome}
+                      </span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {categoriaMargemRanking.maior.margemPct.toFixed(1).replace('.', ',')}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                        <span className={cn('h-2 w-2 rounded-sm', CATEGORIA_BAR_COLOR[categoriaMargemRanking.menor.nome] ?? 'bg-gray-400')} />
+                        Menor · {categoriaMargemRanking.menor.nome}
+                      </span>
+                      <span className="font-semibold text-red-600 dark:text-red-400">
+                        {categoriaMargemRanking.menor.margemPct.toFixed(1).replace('.', ',')}%
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
+              loading={isLoadingVendas}
+            />
+            <ProjecaoCard
+              realizadoFaturamento={projecaoPista.realizadoFat}
+              projetadoFaturamento={projecaoPista.projetadoFat}
+              realizadoLucro={projecaoPista.realizadoLucro}
+              projetadoLucro={projecaoPista.projetadoLucro}
+              dataFinal={dataFinal}
+              isProjetada={projecaoPista.isProjetada}
               loading={isLoadingVendas}
             />
           </div>
