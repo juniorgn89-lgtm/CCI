@@ -88,3 +88,37 @@ export const deleteFrentista = async (userId: string): Promise<void> => {
   if (error) throw new Error(error.message ?? 'Falha ao deletar frentista')
   if (data?.error) throw new Error(data.error)
 }
+
+/**
+ * Gera o PIN padrão de reset: 3 primeiras letras minúsculas do nome,
+ * sem acentos e sem espaços. Ex: "IVANILDO DA SILVA" → "iva".
+ * Nomes com menos de 3 letras retornam o que tiver.
+ */
+export const pinFromNome = (nome: string): string => {
+  return nome
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // remove combining diacritical marks
+    .replace(/[^a-zA-Z]/g, '')
+    .toLowerCase()
+    .substring(0, 3)
+}
+
+/**
+ * Reseta o PIN do frentista via Edge Function `reset-frentista-pin`
+ * (service_role). Caller precisa ser supervisor da mesma rede ou master.
+ * O novo PIN é sempre as 3 primeiras letras do nome — frentista é
+ * orientado a trocar pelo PIN definitivo no primeiro login após reset.
+ */
+export const resetFrentistaPin = async (userId: string, newPin: string): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const { data, error } = await supabase.functions.invoke('reset-frentista-pin', {
+    body: { user_id: userId, new_pin: newPin },
+  })
+
+  if (error) throw new Error(error.message ?? 'Falha ao resetar PIN')
+  if (data?.error) throw new Error(data.error)
+}

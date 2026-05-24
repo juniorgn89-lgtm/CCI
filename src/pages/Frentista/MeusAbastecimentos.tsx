@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Fuel, Droplets, Receipt, RefreshCw, Calendar, Target } from 'lucide-react'
 import { useFreentistaStore } from '@/store/frentista'
@@ -43,6 +43,16 @@ const PRODUCT_STYLES = [
 const MeusAbastecimentos = () => {
   const { session } = useFreentistaStore()
   const { dataInicial, dataFinal } = useFilterStore()
+  const setPeriodo = useFilterStore((s) => s.setPeriodo)
+
+  // Força "Hoje" toda vez que o frentista entra na tela — ele sempre quer ver
+  // o dia atual primeiro. Se quiser ver 7d/15d, clica nos badges.
+  useEffect(() => {
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    setPeriodo(today, today)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: abastData, isFetching } = useQuery({
     queryKey: ['abastecimentos-frentista', dataInicial, dataFinal],

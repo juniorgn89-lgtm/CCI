@@ -86,7 +86,7 @@ const Redes = () => {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Acesso restrito à CCI Consultoria.
+          Acesso restrito ao Gerente Geral.
         </p>
         <button
           onClick={() => navigate('/dashboard')}

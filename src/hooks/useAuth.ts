@@ -79,7 +79,7 @@ export const useAuth = () => {
       const approved = await isCurrentUserApproved()
       if (!approved) {
         await supabase.auth.signOut()
-        setError('Sua conta está aguardando aprovação da CCI Consultoria.')
+        setError('Sua conta está aguardando aprovação do Gerente Geral.')
         return
       }
 

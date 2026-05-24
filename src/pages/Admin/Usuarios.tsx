@@ -278,7 +278,7 @@ const Usuarios = () => {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Acesso restrito à CCI Consultoria.
+          Acesso restrito ao Gerente Geral.
         </p>
         <button
           onClick={() => navigate('/dashboard')}
@@ -325,7 +325,7 @@ const Usuarios = () => {
       {gerentes.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            Administrador{gerentes.length > 1 ? 'es' : ''} (CCI Consultoria)
+            {gerentes.length > 1 ? 'Gerentes Gerais' : 'Gerente Geral'}
           </p>
           <div className="flex flex-wrap gap-2">
             {gerentes.map((g) => {

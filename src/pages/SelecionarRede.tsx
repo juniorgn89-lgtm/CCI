@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Loader2, CheckCircle2, Power, Settings, UserCog, Database } from 'lucide-react'
+import { Network, Loader2, CheckCircle2, Power, Settings, UserCog, Database, Users } from 'lucide-react'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
@@ -74,6 +74,13 @@ const SelecionarRede = () => {
         >
           <UserCog className="h-3.5 w-3.5" />
           Usuários
+        </button>
+        <button
+          onClick={() => navigate('/admin/frentistas')}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <Users className="h-3.5 w-3.5" />
+          Frentistas
         </button>
         <button
           onClick={() => navigate('/admin/redes')}

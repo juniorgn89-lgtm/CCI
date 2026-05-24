@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search, Network } from 'lucide-react'
+import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search, Network, KeyRound, Info } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchFrentistas,
   toggleFrentistaAtivo,
   createFrentista,
   deleteFrentista,
+  resetFrentistaPin,
+  pinFromNome,
   type FrentistaRow,
 } from '@/api/supabase/frentistas'
 import { fetchRedes } from '@/api/supabase/redes'
@@ -144,6 +146,27 @@ const Frentistas = () => {
     }
   }
 
+  const handleResetPin = async (row: FrentistaRow) => {
+    const novoPin = pinFromNome(row.nome)
+    if (novoPin.length === 0) {
+      alert('Nome do frentista não tem letras válidas para gerar o PIN.')
+      return
+    }
+    const ok = window.confirm(
+      `Resetar PIN do frentista ${row.nome}?\n\nNovo PIN: "${novoPin}" (3 primeiras letras do nome em minúsculas).\n\nOriente o frentista a trocar o PIN no primeiro login após o reset.`
+    )
+    if (!ok) return
+    setBusyUserId(row.user_id)
+    try {
+      await resetFrentistaPin(row.user_id, novoPin)
+      alert(`PIN resetado com sucesso.\n\nNovo PIN: ${novoPin}`)
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
   if (!profileLoaded) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -198,6 +221,15 @@ const Frentistas = () => {
         </div>
       )}
 
+      {/* Observação sobre a regra do reset de PIN */}
+      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/30">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+        <p className="text-[11px] leading-snug text-blue-900 dark:text-blue-200">
+          O botão <strong>Resetar PIN</strong> define o novo PIN como as <strong>3 primeiras letras do nome</strong> do frentista
+          (ex: <em>João</em> → <code className="rounded bg-blue-100 px-1 dark:bg-blue-900/50">joa</code>). Oriente o frentista a trocar pelo PIN definitivo no primeiro login após o reset.
+        </p>
+      </div>
+
       {/* Busca — aparece com mais de 5 frentistas */}
       {frentistas.length > 5 && (
         <div className="relative w-full max-w-xs">
@@ -243,6 +275,7 @@ const Frentistas = () => {
                 busyUserId={busyUserId}
                 onToggle={handleToggleAtivo}
                 onDelete={handleDelete}
+                onResetPin={handleResetPin}
               />
             </div>
           ))}
@@ -454,9 +487,10 @@ interface FrentistaTabelaProps {
   busyUserId: string | null
   onToggle: (row: FrentistaRow) => void
   onDelete: (row: FrentistaRow) => void
+  onResetPin: (row: FrentistaRow) => void
 }
 
-const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete }: FrentistaTabelaProps) => (
+const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete, onResetPin }: FrentistaTabelaProps) => (
   <table className="w-full text-sm">
     <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
       <tr>
@@ -464,7 +498,7 @@ const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete }: FrentistaTab
         <th className="px-4 py-2.5 text-left font-medium">Nome</th>
         <th className="px-4 py-2.5 text-left font-medium">Posto</th>
         <th className="px-4 py-2.5 text-center font-medium">Status</th>
-        <th className="w-16 px-4 py-2.5 text-right font-medium">Ações</th>
+        <th className="w-24 px-4 py-2.5 text-right font-medium">Ações</th>
       </tr>
     </thead>
     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -509,19 +543,33 @@ const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete }: FrentistaTab
                 </span>
               </div>
             </td>
-            <td className="px-4 py-3 text-right">
-              <button
-                onClick={() => onDelete(f)}
-                disabled={busy}
-                title="Excluir frentista"
-                aria-label={`Excluir ${f.nome}`}
-                className={cn(
-                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
-                  busy && 'opacity-50 cursor-not-allowed',
-                )}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+            <td className="px-4 py-3">
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  onClick={() => onResetPin(f)}
+                  disabled={busy}
+                  title={`Resetar PIN para "${pinFromNome(f.nome) || '—'}" (3 primeiras letras do nome)`}
+                  aria-label={`Resetar PIN de ${f.nome}`}
+                  className={cn(
+                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400',
+                    busy && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(f)}
+                  disabled={busy}
+                  title="Excluir frentista"
+                  aria-label={`Excluir ${f.nome}`}
+                  className={cn(
+                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
+                    busy && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </td>
           </tr>
         )
