@@ -128,7 +128,7 @@ const VendaDetailModal = ({ open, onClose, title, products, showGroupFilter, ite
 
             {/* Só a tabela rola; o resumo de pagamentos fica fixo abaixo. */}
             <div className="-mx-6 mt-1 flex-1 overflow-auto px-6">
-              <DataTable columns={productCols} data={filtered} keyExtractor={(r) => r.produtoCodigo} />
+              <DataTable columns={productCols} data={filtered} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
               <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
                 Exibindo {filtered.length} de {products.length} produtos
               </p>

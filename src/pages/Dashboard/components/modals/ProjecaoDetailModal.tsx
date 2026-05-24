@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { LineChart as LineChartIcon, CalendarRange, TrendingUp, TrendingDown, Calendar, Target } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -33,6 +33,11 @@ const fmtPeriod = (di: string, df: string): string => {
 }
 
 const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }: ProjecaoDetailModalProps) => {
+  // Linha destacada — útil pra comparar realizado/projetado entre setores
+  const [selectedSetor, setSelectedSetor] = useState<string | null>(null)
+  const toggleSelectedSetor = (setor: string) => {
+    setSelectedSetor((curr) => (curr === setor ? null : setor))
+  }
   const dates = useMemo(() => buildDateRange(dataInicial, dataFinal), [dataInicial, dataFinal])
   const periodLabel = useMemo(() => fmtPeriod(dataInicial, dataFinal), [dataInicial, dataFinal])
 
@@ -230,8 +235,19 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
                   const pct = s.projetadoFaturamento > 0
                     ? (s.realizadoFaturamento / s.projetadoFaturamento) * 100
                     : 0
+                  const rowSelected = selectedSetor === s.setor
                   return (
-                    <tr key={s.setor} className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200">
+                    <tr
+                      key={s.setor}
+                      onClick={() => toggleSelectedSetor(s.setor)}
+                      aria-selected={rowSelected}
+                      className={cn(
+                        'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                        rowSelected
+                          ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                      )}
+                    >
                       <td className="px-3 py-2 text-left font-medium">{s.setor}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrencyInt(s.realizadoFaturamento)}</td>
                       <td className="px-2 py-1.5">

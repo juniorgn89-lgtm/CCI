@@ -36,6 +36,11 @@ type ChartView = 'litros' | 'receita' | 'evolucao'
 
 const PostoComparison = ({ postos, networkAvg }: Props) => {
   const [chartView, setChartView] = useState<ChartView>('litros')
+  // Linha destacada no Ranking Completo — útil pra comparar postos visualmente
+  const [selected, setSelected] = useState<number | null>(null)
+  const toggleSelected = (codigo: number) => {
+    setSelected((curr) => (curr === codigo ? null : codigo))
+  }
 
   const barData = useMemo(() =>
     postos.map(p => ({
@@ -128,8 +133,20 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                 </tr>
               </thead>
               <tbody>
-                {postos.map((p, i) => (
-                  <tr key={p.empresaCodigo} className="border-b border-gray-50 text-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
+                {postos.map((p, i) => {
+                  const rowSelected = selected === p.empresaCodigo
+                  return (
+                  <tr
+                    key={p.empresaCodigo}
+                    onClick={() => toggleSelected(p.empresaCodigo)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer border-b border-gray-50 text-sm transition-colors dark:border-gray-800',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                    )}
+                  >
                     <td className="px-4 py-2.5">
                       {i < 3 ? (
                         <Medal className={cn('h-5 w-5', medalColors[i])} />
@@ -157,7 +174,8 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmt(p.ticketMedio)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{p.conversao.toFixed(1)}%</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

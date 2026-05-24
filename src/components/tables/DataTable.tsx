@@ -30,6 +30,13 @@ interface DataTableProps<T> {
   footer?: Partial<Record<string, ReactNode>>
   /** Se fornecido, cada linha vira clicável (cursor + onClick). */
   onRowClick?: (row: T) => void
+  /**
+   * Habilita destaque visual ao clicar — uma linha por vez fica marcada
+   * com fundo âmbar, clique de novo desseleciona. Útil pra usuário marcar
+   * uma linha enquanto compara valores entre colunas. NÃO ativar em tabelas
+   * que abrem modal/drawer no onRowClick — fica confuso.
+   */
+  enableRowHighlight?: boolean
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -40,9 +47,11 @@ const DataTable = <T extends Record<string, unknown>>({
   keyExtractor,
   footer,
   onRowClick,
+  enableRowHighlight = false,
 }: DataTableProps<T>) => {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const [selectedKey, setSelectedKey] = useState<string | number | null>(null)
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -129,14 +138,30 @@ const DataTable = <T extends Record<string, unknown>>({
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-        {sortedData.map((row, index) => (
+        {sortedData.map((row, index) => {
+          const rowKey = keyExtractor(row)
+          const isSelected = enableRowHighlight && selectedKey === rowKey
+          const clickable = !!onRowClick || enableRowHighlight
+          const handleClick = clickable
+            ? () => {
+                if (enableRowHighlight) {
+                  setSelectedKey((curr) => (curr === rowKey ? null : rowKey))
+                }
+                onRowClick?.(row)
+              }
+            : undefined
+          return (
           <TableRow
-            key={keyExtractor(row)}
-            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            key={rowKey}
+            onClick={handleClick}
+            aria-selected={isSelected || undefined}
             className={cn(
-              'hover:bg-blue-50/50 dark:hover:bg-gray-800/50',
-              index % 2 === 1 && 'bg-gray-50 dark:bg-gray-800/30',
-              onRowClick && 'cursor-pointer'
+              isSelected
+                ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                : index % 2 === 1
+                  ? 'bg-gray-50 hover:bg-blue-50/50 dark:bg-gray-800/30 dark:hover:bg-gray-800/50'
+                  : 'hover:bg-blue-50/50 dark:hover:bg-gray-800/50',
+              clickable && 'cursor-pointer'
             )}
           >
             {columns.map((col) => (
@@ -153,7 +178,8 @@ const DataTable = <T extends Record<string, unknown>>({
               </TableCell>
             ))}
           </TableRow>
-        ))}
+          )
+        })}
         {footer && (
           <TableRow className="border-t-2 border-gray-300 bg-gray-100 font-semibold hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-800">
             {columns.map((col) => (

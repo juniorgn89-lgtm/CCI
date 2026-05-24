@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -30,6 +30,11 @@ interface ProdutoDrilldownModalProps {
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
 
 const ProdutoDrilldownModal = ({ open, onClose, payload, accentClass = 'text-blue-600 dark:text-blue-400' }: ProdutoDrilldownModalProps) => {
+  // Linha destacada — útil pra fixar visualmente um dia ao comparar com vizinhos
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const toggleSelectedDay = (data: string) => {
+    setSelectedDay((curr) => (curr === data ? null : data))
+  }
   const totals = useMemo(() => {
     if (!payload) return null
     const qtd = payload.dailyRows.reduce((s, r) => s + r.quantidade, 0)
@@ -68,8 +73,20 @@ const ProdutoDrilldownModal = ({ open, onClose, payload, accentClass = 'text-blu
               </tr>
             </thead>
             <tbody>
-              {payload.dailyRows.map((row) => (
-                <tr key={row.data} className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200">
+              {payload.dailyRows.map((row) => {
+                const rowSelected = selectedDay === row.data
+                return (
+                <tr
+                  key={row.data}
+                  onClick={() => toggleSelectedDay(row.data)}
+                  aria-selected={rowSelected}
+                  className={cn(
+                    'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                    rowSelected
+                      ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                  )}
+                >
                   <td className="px-3 py-1.5 text-left tabular-nums">{row.data.split('-').reverse().join('/')}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(row.quantidade)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(row.faturamento)}</td>
@@ -77,7 +94,8 @@ const ProdutoDrilldownModal = ({ open, onClose, payload, accentClass = 'text-blu
                     {formatCurrency(row.margem)}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
             {totals && (
               <tfoot className="sticky bottom-0">

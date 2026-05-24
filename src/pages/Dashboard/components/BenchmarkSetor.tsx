@@ -149,6 +149,13 @@ const VariacaoBadge = ({ value }: { value: number }) => {
 const BenchmarkSetor = () => {
   const [setor, setSetor] = useState<SetorId>('combustiveis')
   const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set(mockData.combustiveis.postos.map((p) => p.posto)))
+  // Linha destacada — uma única por vez. Útil pra comparar visualmente
+  // valores entre colunas sem perder de vista qual é a linha de interesse.
+  const [selected, setSelected] = useState<string | null>(null)
+
+  const toggleSelected = (key: string) => {
+    setSelected((curr) => (curr === key ? null : key))
+  }
 
   const data = mockData[setor]
 
@@ -271,11 +278,19 @@ const BenchmarkSetor = () => {
               const expanded = expandidos.has(p.posto)
               const qtdVar = variacaoPct(p.qtd, p.qtdAnoAnterior)
               const lucroVar = variacaoPct(p.lucroBruto, p.lucroBrutoAnoAnterior)
+              const postoKey = `posto:${p.posto}`
+              const postoSelected = selected === postoKey
               return (
                 <Fragment key={p.posto}>
                   <tr
-                    onClick={() => togglePosto(p.posto)}
-                    className="cursor-pointer border-b border-gray-100 bg-gray-50/40 font-semibold text-gray-900 transition-colors hover:bg-blue-50/60 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-100 dark:hover:bg-blue-900/20"
+                    onClick={() => { togglePosto(p.posto); toggleSelected(postoKey) }}
+                    aria-selected={postoSelected}
+                    className={cn(
+                      'cursor-pointer border-b border-gray-100 font-semibold text-gray-900 transition-colors dark:border-gray-800 dark:text-gray-100',
+                      postoSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/40 dark:hover:bg-amber-900/50'
+                        : 'bg-gray-50/40 hover:bg-blue-50/60 dark:bg-gray-800/30 dark:hover:bg-blue-900/20',
+                    )}
                   >
                     <td className="px-3 py-2 text-left">
                       <span className="inline-flex items-center gap-1">
@@ -299,8 +314,20 @@ const BenchmarkSetor = () => {
                   {expanded && p.produtos.map((prod) => {
                     const qVar = variacaoPct(prod.qtd, prod.qtdAnoAnterior)
                     const lVar = variacaoPct(prod.lucroBruto, prod.lucroBrutoAnoAnterior)
+                    const prodKey = `prod:${p.posto}:${prod.produto}`
+                    const prodSelected = selected === prodKey
                     return (
-                      <tr key={`${p.posto}-${prod.produto}`} className="border-b border-gray-100 text-gray-700 dark:border-gray-800 dark:text-gray-300">
+                      <tr
+                        key={`${p.posto}-${prod.produto}`}
+                        onClick={(e) => { e.stopPropagation(); toggleSelected(prodKey) }}
+                        aria-selected={prodSelected}
+                        className={cn(
+                          'cursor-pointer border-b border-gray-100 text-gray-700 transition-colors dark:border-gray-800 dark:text-gray-300',
+                          prodSelected
+                            ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                        )}
+                      >
                         <td className="px-3 py-1.5 pl-9 text-left text-xs">{prod.produto}</td>
                         <td className="px-2 py-1">
                           <BarCell value={prod.qtd} max={maxQtd} formatted={formatNumber(prod.qtd)} color="blue" align="near" maxWidthPct={60} />

@@ -21,9 +21,17 @@ interface GrupoProdutosModalProps {
 
 const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosModalProps) => {
   const [search, setSearch] = useState('')
+  // Linha destacada — útil pra comparar total/custo/margem entre produtos do grupo
+  const [selected, setSelected] = useState<string | null>(null)
+  const toggleSelected = (nome: string) => {
+    setSelected((curr) => (curr === nome ? null : nome))
+  }
 
   useEffect(() => {
-    if (open) setSearch('')
+    if (open) {
+      setSearch('')
+      setSelected(null)
+    }
   }, [open, grupo])
 
   const filtered = useMemo(() => {
@@ -84,10 +92,18 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
                 <tbody>
                   {filtered.map((p) => {
                     const custo = p.total - p.margemBruta
+                    const rowSelected = selected === p.nome
                     return (
                       <tr
                         key={p.nome}
-                        className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                        onClick={() => toggleSelected(p.nome)}
+                        aria-selected={rowSelected}
+                        className={cn(
+                          'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                          rowSelected
+                            ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                        )}
                       >
                         <td className="px-4 py-2 text-left">{p.nome}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{fmt(p.quantidade)}</td>

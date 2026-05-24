@@ -548,6 +548,7 @@ const LbLitro = ({ data, projection }: LbLitroProps) => {
               columns={tableColumns}
               data={projectedByProduct}
               keyExtractor={(row) => row.nome}
+              enableRowHighlight
             />
           </>
         )}

@@ -45,6 +45,11 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
   const [primarySort, setPrimarySort] = useState<PrimarySort>('litros')
   const [sortKey, setSortKey] = useState<SortKey>('litros')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  // Linha destacada — útil pra comparar frentistas ao analisar a tabela
+  const [selected, setSelected] = useState<number | null>(null)
+  const toggleSelected = (codigo: number) => {
+    setSelected((curr) => (curr === codigo ? null : codigo))
+  }
 
   const enriched = useMemo(
     () =>
@@ -329,8 +334,19 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
               ) : (
                 sorted.map((f, idx) => {
                   const metaStatus = f.meta === 0 ? 'na' : f.litros >= f.meta ? 'atingida' : f.litros >= f.meta * 0.7 ? 'parcial' : 'abaixo'
+                  const rowSelected = selected === f.funcionarioCodigo
                   return (
-                    <tr key={f.funcionarioCodigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                    <tr
+                      key={f.funcionarioCodigo}
+                      onClick={() => toggleSelected(f.funcionarioCodigo)}
+                      aria-selected={rowSelected}
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        rowSelected
+                          ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                          : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                      )}
+                    >
                       <td className="px-4 py-2.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                       <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{f.nome}</td>
                       <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(f.litros)}</td>

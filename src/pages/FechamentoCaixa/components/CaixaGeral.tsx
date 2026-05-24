@@ -39,6 +39,11 @@ interface CaixaGeralProps {
 
 const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralProps) => {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
+  // Linhas destacadas em Entradas / Saídas — útil pra fixar visualmente um item ao comparar
+  const [selectedEntrada, setSelectedEntrada] = useState<string | null>(null)
+  const [selectedSaida, setSelectedSaida] = useState<string | null>(null)
+  const toggleEntrada = (label: string) => setSelectedEntrada((curr) => (curr === label ? null : label))
+  const toggleSaida = (label: string) => setSelectedSaida((curr) => (curr === label ? null : label))
   const produtos = selectedGroup ? (dados.produtosPorGrupo[selectedGroup] ?? []) : []
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -131,17 +136,27 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
             </div>
             <table className="w-full text-sm">
               <tbody>
-                {dados.entradas.map((row) => (
+                {dados.entradas.map((row) => {
+                  const rowSelected = selectedEntrada === row.label
+                  return (
                   <tr
                     key={row.label}
-                    className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                    onClick={() => toggleEntrada(row.label)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                    )}
                   >
                     <td className="px-4 py-2 text-left">{row.label}</td>
                     <td className="px-2 py-1.5">
                       <BarCell value={row.valor} max={dados.maxEntrada} formatted={fmt(row.valor)} color="blue" align="near" />
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
                 <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                   <td className="px-4 py-2 text-left">Total:</td>
                   <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.entradasTotal)}</td>
@@ -157,17 +172,27 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
             </div>
             <table className="w-full text-sm">
               <tbody>
-                {dados.saidas.map((row) => (
+                {dados.saidas.map((row) => {
+                  const rowSelected = selectedSaida === row.label
+                  return (
                   <tr
                     key={row.label}
-                    className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                    onClick={() => toggleSaida(row.label)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                    )}
                   >
                     <td className="px-4 py-2 text-left">{row.label}</td>
                     <td className="px-2 py-1.5">
                       <BarCell value={row.valor} max={dados.maxSaida} formatted={fmt(row.valor)} color="green" align="near" />
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
                 <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                   <td className="px-4 py-2 text-left">Total:</td>
                   <td className="px-4 py-2 text-right tabular-nums">{fmt(dados.saidasTotal)}</td>

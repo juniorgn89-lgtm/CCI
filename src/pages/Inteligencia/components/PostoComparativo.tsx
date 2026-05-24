@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, Droplets, DollarSign, Fuel, Receipt,
   Calendar, CalendarDays, Lightbulb, AlertTriangle,
@@ -32,6 +33,11 @@ const metrics = [
 ]
 
 const PostoComparativo = ({ data }: Props) => {
+  // Linha destacada — útil pra fixar visualmente uma métrica ao analisar variações
+  const [selected, setSelected] = useState<string | null>(null)
+  const toggleSelected = (key: string) => {
+    setSelected((curr) => (curr === key ? null : key))
+  }
   // Auto insights
   const insights: { type: 'positive' | 'warning' | 'info'; text: string }[] = []
 
@@ -110,8 +116,19 @@ const PostoComparativo = ({ data }: Props) => {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {metrics.map((m) => {
                 const Icon = m.icon
+                const rowSelected = selected === m.key
                 return (
-                  <tr key={m.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                  <tr
+                    key={m.key}
+                    onClick={() => toggleSelected(m.key)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/30',
+                    )}
+                  >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', m.bg)}>

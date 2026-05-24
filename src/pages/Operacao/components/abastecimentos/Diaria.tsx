@@ -179,7 +179,7 @@ const Diaria = ({ data, rows, combustiveis, projection }: DiariaProps) => {
           )}
         </div>
       )}
-      <DataTable columns={baseColumns} data={filteredData} keyExtractor={(row) => row.data} />
+      <DataTable columns={baseColumns} data={filteredData} keyExtractor={(row) => row.data} enableRowHighlight />
     </div>
   )
 }

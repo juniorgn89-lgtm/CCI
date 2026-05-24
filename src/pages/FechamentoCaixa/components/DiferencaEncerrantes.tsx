@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { fmt } from './formatters'
 
@@ -23,6 +23,11 @@ const baseRows: EncerranteRow[] = [
 ]
 
 const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEncerrantesProps) => {
+  // Linha destacada — útil pra comparar encerrante x venda entre produtos
+  const [selected, setSelected] = useState<string | null>(null)
+  const toggleSelected = (ref: string) => {
+    setSelected((curr) => (curr === ref ? null : ref))
+  }
   const rows = useMemo(
     () =>
       baseRows.map((r) => {
@@ -68,10 +73,19 @@ const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEnce
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const rowSelected = selected === r.ref
+                return (
                 <tr
                   key={r.ref}
-                  className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                  onClick={() => toggleSelected(r.ref)}
+                  aria-selected={rowSelected}
+                  className={cn(
+                    'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                    rowSelected
+                      ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                  )}
                 >
                   <td className="px-4 py-2 text-left tabular-nums">{r.ref}</td>
                   <td className="px-4 py-2 text-left">{r.produto}</td>
@@ -88,7 +102,8 @@ const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEnce
                     {fmt(r.diferenca)}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

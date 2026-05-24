@@ -115,6 +115,11 @@ const Projecoes = ({ frentistas, periodInfo }: Props) => {
   const { manualMode, metas: manualMetas } = useMetasStore()
   const [helpOpen, setHelpOpen] = useState(false)
   const helpRef = useRef<HTMLDivElement>(null)
+  // Linha destacada na tabela "Projeção por Frentista" — útil pra comparar projeções
+  const [selectedFrentista, setSelectedFrentista] = useState<number | null>(null)
+  const toggleSelectedFrentista = (codigo: number) => {
+    setSelectedFrentista((curr) => (curr === codigo ? null : codigo))
+  }
 
   useEffect(() => {
     if (!helpOpen) return
@@ -469,8 +474,20 @@ const Projecoes = ({ frentistas, periodInfo }: Props) => {
                   </td>
                 </tr>
               ) : (
-                tableRows.map((f, idx) => (
-                  <tr key={f.funcionarioCodigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                tableRows.map((f, idx) => {
+                  const rowSelected = selectedFrentista === f.funcionarioCodigo
+                  return (
+                  <tr
+                    key={f.funcionarioCodigo}
+                    onClick={() => toggleSelectedFrentista(f.funcionarioCodigo)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                    )}
+                  >
                     <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{f.nome}</td>
                     <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                       {formatLiters(f.litros)}
@@ -493,7 +510,8 @@ const Projecoes = ({ frentistas, periodInfo }: Props) => {
                         : `${f.vsMeta >= 0 ? '+' : ''}${formatLiters(f.vsMeta)} (${f.vsMetaPct >= 0 ? '+' : ''}${f.vsMetaPct.toFixed(1)}%)`}
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

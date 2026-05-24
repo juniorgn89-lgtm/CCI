@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { fmt } from './formatters'
 
 export interface SangriaLancamento {
@@ -19,6 +20,11 @@ interface SangriaDetailModalProps {
 }
 
 const SangriaDetailModal = ({ open, onClose, funcionario, total, lancamentos }: SangriaDetailModalProps) => {
+  // Linha destacada — útil pra fixar visualmente um lançamento ao comparar valores
+  const [selected, setSelected] = useState<string | null>(null)
+  const toggleSelected = (key: string) => {
+    setSelected((curr) => (curr === key ? null : key))
+  }
   const linhas = useMemo(
     () => lancamentos.map((l) => ({ ...l, valor: l.pct * total })),
     [lancamentos, total],
@@ -48,10 +54,20 @@ const SangriaDetailModal = ({ open, onClose, funcionario, total, lancamentos }: 
                 </tr>
               </thead>
               <tbody>
-                {linhas.map((l, i) => (
+                {linhas.map((l, i) => {
+                  const rowKey = `${l.hora}-${i}`
+                  const rowSelected = selected === rowKey
+                  return (
                   <tr
-                    key={`${l.hora}-${i}`}
-                    className="border-b border-gray-100 text-gray-800 last:border-b-0 dark:border-gray-800 dark:text-gray-200"
+                    key={rowKey}
+                    onClick={() => toggleSelected(rowKey)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                    )}
                   >
                     <td className="px-4 py-2 text-left tabular-nums">
                       <span className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
@@ -69,7 +85,8 @@ const SangriaDetailModal = ({ open, onClose, funcionario, total, lancamentos }: 
                       {l.obs ?? '—'}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
               <tfoot className="sticky bottom-0">
                 <tr className="border-t border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">

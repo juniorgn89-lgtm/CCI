@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { HelpCircle } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { formatLiters } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
 import type { ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 
 /** Tooltip via Portal — escapa do `overflow-x-auto` da tabela. */
@@ -103,6 +104,11 @@ interface ReposicaoTabelaProps {
  *  tabelas são renderizadas no mesmo container (uma por posto). */
 const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
   const localMaxes = maxes ?? calcularMaxes([{ linhas }])
+  // Linha destacada — útil pra comparar estoque/ritmo/sugestão entre combustíveis
+  const [selected, setSelected] = useState<number | null>(null)
+  const toggleSelected = (codigo: number) => {
+    setSelected((curr) => (curr === codigo ? null : codigo))
+  }
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <table className="w-full table-fixed text-xs">
@@ -131,8 +137,19 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
           {linhas.map((r) => {
             const n = entregas(r.sugestao, r.capacidade)
+            const rowSelected = selected === r.produtoCodigo
             return (
-              <tr key={r.produtoCodigo}>
+              <tr
+                key={r.produtoCodigo}
+                onClick={() => toggleSelected(r.produtoCodigo)}
+                aria-selected={rowSelected}
+                className={cn(
+                  'cursor-pointer transition-colors',
+                  rowSelected
+                    ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                )}
+              >
                 <td className="px-3 py-2 font-mono text-[11px] text-gray-400 dark:text-gray-500">
                   {String(r.produtoCodigo).padStart(6, '0')}
                 </td>

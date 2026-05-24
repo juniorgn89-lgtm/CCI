@@ -164,7 +164,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
           )}
         </div>
 
-        <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} />
+        <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
 
         <div className="border-t border-gray-200 px-6 py-3 text-xs text-gray-400 dark:border-gray-700 dark:text-gray-500">
           Exibindo {filtered.length} de {products.length} produtos

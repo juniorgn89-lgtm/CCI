@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -40,6 +41,12 @@ const formatPct = (v: number): string => {
 }
 
 const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalProps) => {
+  // Linha destacada na tabela de combustíveis — útil pra comparar valores entre colunas
+  const [selectedFuel, setSelectedFuel] = useState<string | null>(null)
+  const toggleSelectedFuel = (nome: string) => {
+    setSelectedFuel((curr) => (curr === nome ? null : nome))
+  }
+
   if (!detail) return null
 
   const margemPct = detail.faturamento > 0 ? (detail.lucroBruto / detail.faturamento) * 100 : 0
@@ -133,8 +140,19 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
                   )
                   return detail.fuels.map((f) => {
                     const fLb = f.litros > 0 ? f.lucroBruto / f.litros : 0
+                    const rowSelected = selectedFuel === f.nome
                     return (
-                      <tr key={f.nome} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">
+                      <tr
+                        key={f.nome}
+                        onClick={() => toggleSelectedFuel(f.nome)}
+                        aria-selected={rowSelected}
+                        className={cn(
+                          'cursor-pointer border-b border-gray-100 transition-colors last:border-b-0 dark:border-gray-800',
+                          rowSelected
+                            ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                        )}
+                      >
                         <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">
                           <span className="flex items-center gap-1.5">
                             <span className={cn('h-2 w-2 rounded-full', fuelColor(f.nome))} aria-hidden="true" />

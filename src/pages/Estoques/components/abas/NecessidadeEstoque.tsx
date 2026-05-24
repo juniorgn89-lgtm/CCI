@@ -267,7 +267,7 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange
           ))}
         </div>
 
-        <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} />
+        <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
       </div>
     </div>
   )

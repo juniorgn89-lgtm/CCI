@@ -64,6 +64,11 @@ const formatBrDate = (yyyymmdd: string): string => {
 const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
   const { empresaCodigos } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
+  // Linha destacada na tabela "Comparativo de eficiência" — útil pra comparar bombas
+  const [selectedBomba, setSelectedBomba] = useState<number | null>(null)
+  const toggleSelectedBomba = (codigo: number) => {
+    setSelectedBomba((curr) => (curr === codigo ? null : codigo))
+  }
 
   const { mode, manutencoes, configs, setMode, setManutencao, clearManutencao } = useManutencaoStore()
   const config = getConfigOrDefault(configs, empresaCodigo)
@@ -705,8 +710,19 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
               {stats.map((s, idx) => {
                 const meta = wearStatusMeta[s.wearStatus]
                 const showVar = s.prevMedia > 0 && Math.abs(s.mediaQueda) <= 200
+                const rowSelected = selectedBomba === s.bomba.bombaCodigo
                 return (
-                  <tr key={s.bomba.bombaCodigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                  <tr
+                    key={s.bomba.bombaCodigo}
+                    onClick={() => toggleSelectedBomba(s.bomba.bombaCodigo)}
+                    aria-selected={rowSelected}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      rowSelected
+                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                        : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                    )}
+                  >
                     <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{s.bomba.descricao}</td>
                     <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                       {formatLiters(s.litrosMes)}

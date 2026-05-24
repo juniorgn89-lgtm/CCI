@@ -185,7 +185,7 @@ const GiroProdutos = ({ data, categorias }: Props) => {
           </span>
         </div>
       )}
-      <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} />
+      <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
     </div>
   )
 }

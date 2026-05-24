@@ -76,6 +76,11 @@ interface FrentistaDestaque {
 const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
   const { dataInicial } = useFilterStore()
   const { manualMode, metas: manualMetas } = useMetasStore()
+  // Linha destacada nas tabelas Top 5 / Novatos — útil pra fixar visualmente um frentista
+  const [selectedTop, setSelectedTop] = useState<number | null>(null)
+  const [selectedNovato, setSelectedNovato] = useState<number | null>(null)
+  const toggleSelectedTop = (codigo: number) => setSelectedTop((curr) => (curr === codigo ? null : codigo))
+  const toggleSelectedNovato = (codigo: number) => setSelectedNovato((curr) => (curr === codigo ? null : codigo))
 
   // Mês atual derivado de dataInicial
   const [yearStr, monthStr] = (dataInicial ?? '').split('-')
@@ -360,8 +365,20 @@ const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {top5.map((d, idx) => (
-                <tr key={d.codigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+              {top5.map((d, idx) => {
+                const rowSelected = selectedTop === d.codigo
+                return (
+                <tr
+                  key={d.codigo}
+                  onClick={() => toggleSelectedTop(d.codigo)}
+                  aria-selected={rowSelected}
+                  className={cn(
+                    'cursor-pointer transition-colors',
+                    rowSelected
+                      ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                      : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                  )}
+                >
                   <td className="px-4 py-2.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                   <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{d.nome}</td>
                   <td className="px-4 py-2.5">
@@ -419,7 +436,8 @@ const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -480,8 +498,19 @@ const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
                     const firstHalf = d.weeks[0].current + d.weeks[1].current
                     const secondHalf = d.weeks[2].current + d.weeks[3].current
                     const growing = firstHalf > 0 && secondHalf > firstHalf * 1.3
+                    const rowSelected = selectedNovato === d.codigo
                     return (
-                      <tr key={d.codigo} className={cn(idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30')}>
+                      <tr
+                        key={d.codigo}
+                        onClick={() => toggleSelectedNovato(d.codigo)}
+                        aria-selected={rowSelected}
+                        className={cn(
+                          'cursor-pointer transition-colors',
+                          rowSelected
+                            ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                            : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                        )}
+                      >
                         <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{d.nome}</td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-center">

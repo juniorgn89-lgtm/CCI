@@ -147,6 +147,11 @@ const ComercialVendasPista = () => {
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
   // Modal de drill-down ao clicar numa categoria
   const [selectedCategoria, setSelectedCategoria] = useState<CategoriaData | null>(null)
+  // Linha destacada na tabela "Top 20 produtos" — útil pra comparar valores visualmente
+  const [selectedProduto, setSelectedProduto] = useState<number | null>(null)
+  const toggleProdutoSelected = (codigo: number) => {
+    setSelectedProduto((curr) => (curr === codigo ? null : codigo))
+  }
 
   // Carrega produtos + grupos pra montar o mapa de produtos PS-.
   const { data: produtosData } = useQuery({
@@ -778,8 +783,19 @@ const ComercialVendasPista = () => {
                           {produtosExibidos.map((p) => {
                             const lucro = p.faturamento - p.custo
                             const margemPct = p.faturamento > 0 ? (lucro / p.faturamento) * 100 : 0
+                            const rowSelected = selectedProduto === p.produtoCodigo
                             return (
-                              <tr key={p.produtoCodigo}>
+                              <tr
+                                key={p.produtoCodigo}
+                                onClick={() => toggleProdutoSelected(p.produtoCodigo)}
+                                aria-selected={rowSelected}
+                                className={cn(
+                                  'cursor-pointer transition-colors',
+                                  rowSelected
+                                    ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
+                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                                )}
+                              >
                                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                                   <span className="block max-w-md truncate" title={p.nome}>{p.nome}</span>
                                 </td>

@@ -180,7 +180,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto">
-            <DataTable columns={cols} data={rows} keyExtractor={(r) => r.produtoCodigo} />
+            <DataTable columns={cols} data={rows} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
           </div>
         </div>
       </div>

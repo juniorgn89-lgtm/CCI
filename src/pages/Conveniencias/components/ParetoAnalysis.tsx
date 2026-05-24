@@ -161,7 +161,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
       </div>
 
       <div className="-mx-6 overflow-auto px-6">
-        <DataTable columns={cols} data={data.rows} keyExtractor={(r) => r.produtoCodigo} />
+        <DataTable columns={cols} data={data.rows} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
       </div>
     </div>
   )

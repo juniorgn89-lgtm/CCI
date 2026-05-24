@@ -138,7 +138,7 @@ const Tipo = ({ data, projection }: TipoProps) => {
           )}
         </div>
       )}
-      <DataTable columns={columns} data={projectedData} keyExtractor={(row) => row.nome} />
+      <DataTable columns={columns} data={projectedData} keyExtractor={(row) => row.nome} enableRowHighlight />
     </div>
   )
 }
