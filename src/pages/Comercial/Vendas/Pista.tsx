@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy, Boxes } from 'lucide-react'
+import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -14,6 +14,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
+import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -82,48 +83,6 @@ const ThWithHelp = ({
     </span>
   </th>
 )
-
-/* ─── Cobertura de estoque (mesma lógica do CategoriaDetalheModal) ─── */
-
-const diasEntre = (inicio: string, fim: string): number => {
-  const a = new Date(`${inicio}T00:00:00`)
-  const b = new Date(`${fim}T00:00:00`)
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1)
-}
-
-/**
- * Retorna o badge de cobertura pra uma linha — null quando o produto não tem
- * registro de estoque (serviços etc.). Label compacto ("Xd") pra caber na
- * tabela; o tooltip explica saldo e venda diária média.
- */
-const coberturaBadgeData = (saldo: number | undefined, quantidade: number, diasPeriodo: number): {
-  bg: string
-  text: string
-  label: string
-  tooltip?: string
-} | null => {
-  if (saldo === undefined) return null
-  if (saldo === 0) {
-    return { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', label: 'Sem estoque' }
-  }
-  if (quantidade <= 0) {
-    return {
-      bg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      text: 'text-emerald-700 dark:text-emerald-300',
-      label: '> 90d',
-      tooltip: `Saldo: ${formatNumber(saldo)} un · sem vendas no período`,
-    }
-  }
-  const d = (saldo * diasPeriodo) / quantidade
-  const tooltip = `Saldo: ${formatNumber(saldo)} un · venda média: ${(quantidade / diasPeriodo).toFixed(1).replace('.', ',')} un/dia`
-  if (d < 7) {
-    return { bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300', label: `${Math.floor(d)}d`, tooltip }
-  }
-  if (d < 30) {
-    return { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300', label: `${Math.floor(d)}d`, tooltip }
-  }
-  return { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: `${Math.floor(d)}d`, tooltip }
-}
 
 /* ─── KPI card (mesmo padrão da tela Combustível) ─── */
 
@@ -358,7 +317,7 @@ const ComercialVendasPista = () => {
     return map
   }, [estoqueRaw])
 
-  const diasPeriodo = useMemo(() => diasEntre(dataInicial, dataFinal), [dataInicial, dataFinal])
+  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
 
   return (
     <div className="space-y-6">
@@ -644,7 +603,6 @@ const ComercialVendasPista = () => {
                           {produtosExibidos.map((p) => {
                             const lucro = p.faturamento - p.custo
                             const margemPct = p.faturamento > 0 ? (lucro / p.faturamento) * 100 : 0
-                            const badge = coberturaBadgeData(estoquePorProduto.get(p.produtoCodigo), p.quantidade, diasPeriodo)
                             return (
                               <tr key={p.produtoCodigo}>
                                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
@@ -664,17 +622,11 @@ const ComercialVendasPista = () => {
                                   <BarCell value={p.quantidade} max={maxUnidades} formatted={formatNumber(p.quantidade)} color="blue" align="near" />
                                 </td>
                                 <td className="px-4 py-2.5 text-right">
-                                  {badge ? (
-                                    <span
-                                      className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums', badge.bg, badge.text)}
-                                      title={badge.tooltip}
-                                    >
-                                      <Boxes className="h-3 w-3" />
-                                      {badge.label}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-gray-400">—</span>
-                                  )}
+                                  <CoberturaBadge
+                                    saldo={estoquePorProduto.get(p.produtoCodigo)}
+                                    quantidade={p.quantidade}
+                                    diasPeriodo={diasPeriodo}
+                                  />
                                 </td>
                                 <td className="px-2 py-1">
                                   <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />

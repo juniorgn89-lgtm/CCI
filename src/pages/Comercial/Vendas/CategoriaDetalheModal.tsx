@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, ShoppingBag, Wallet, Clock, Boxes } from 'lucide-react'
+import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, ShoppingBag, Wallet, Clock } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
+import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import type { VendaItem } from '@/api/types/venda'
 
 export interface CategoriaData {
@@ -40,26 +41,6 @@ interface CategoriaDetalheModalProps {
   categoriaColorClass: string
 }
 
-/* ─── Helpers de cobertura de estoque ─── */
-
-const diasEntre = (inicio: string, fim: string): number => {
-  const a = new Date(`${inicio}T00:00:00`)
-  const b = new Date(`${fim}T00:00:00`)
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1)
-}
-
-/** Cor + label do badge de cobertura.
- *  - Verde se > 30 dias (confortável)
- *  - Âmbar se 7–30 dias (planejar reposição)
- *  - Vermelho se < 7 dias (crítico)
- *  - Cinza se = 0 (sem estoque) */
-const coberturaBadge = (dias: number | null): { bg: string; text: string; label: string } | null => {
-  if (dias === null) return null
-  if (dias === 0) return { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', label: 'Sem estoque' }
-  if (dias < 7) return { bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300', label: `${Math.floor(dias)} ${dias < 2 ? 'dia' : 'dias'}` }
-  if (dias < 30) return { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300', label: `${Math.floor(dias)} dias` }
-  return { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: `${Math.floor(dias)} dias` }
-}
 
 const CategoriaDetalheModal = ({
   open,
@@ -74,7 +55,7 @@ const CategoriaDetalheModal = ({
 }: CategoriaDetalheModalProps) => {
   // Tamanho do período em dias — usado pra calcular venda diária média
   // (cobertura = saldo × dias / quantidade vendida no período).
-  const diasPeriodo = useMemo(() => diasEntre(dataInicial, dataFinal), [dataInicial, dataFinal])
+  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
   // Top 5 produtos por faturamento
   const topProdutos = useMemo(
     () => [...produtos].sort((a, b) => b.faturamento - a.faturamento).slice(0, 5),
@@ -175,17 +156,6 @@ const CategoriaDetalheModal = ({
                 {topProdutos.map((p) => {
                   const barWidth = maxFat > 0 ? (p.faturamento / maxFat) * 100 : 0
                   const margemP = p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0
-                  // Cobertura = saldo atual × dias do período ÷ unidades vendidas
-                  // Null quando o produto não tem registro de estoque (serviços etc.)
-                  const saldo = estoquePorProduto.get(p.produtoCodigo)
-                  const dias = saldo === undefined
-                    ? null
-                    : p.quantidade > 0
-                      ? (saldo * diasPeriodo) / p.quantidade
-                      : saldo > 0 ? Infinity : 0
-                  const badge = dias === Infinity
-                    ? { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: '> 90 dias' }
-                    : coberturaBadge(dias)
                   return (
                     <li key={p.produtoCodigo} className="px-3 py-2">
                       <div className="flex items-center justify-between gap-2 text-xs">
@@ -204,19 +174,12 @@ const CategoriaDetalheModal = ({
                           <span>{formatNumber(p.quantidade)} unid.</span>
                           <span>margem {margemP.toFixed(1).replace('.', ',')}%</span>
                         </span>
-                        {badge && (
-                          <span
-                            className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium', badge.bg, badge.text)}
-                            title={
-                              saldo !== undefined
-                                ? `Saldo atual: ${formatNumber(saldo)} un · venda média: ${(p.quantidade / diasPeriodo).toFixed(1).replace('.', ',')} un/dia`
-                                : undefined
-                            }
-                          >
-                            <Boxes className="h-3 w-3" />
-                            {badge.label}
-                          </span>
-                        )}
+                        <CoberturaBadge
+                          saldo={estoquePorProduto.get(p.produtoCodigo)}
+                          quantidade={p.quantidade}
+                          diasPeriodo={diasPeriodo}
+                          fallback=""
+                        />
                       </div>
                     </li>
                   )

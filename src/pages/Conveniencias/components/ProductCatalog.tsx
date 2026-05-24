@@ -3,8 +3,10 @@ import { Search, ShoppingCart } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
+import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { useFilterStore } from '@/store/filters'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 interface ProductCatalogProps {
@@ -12,50 +14,63 @@ interface ProductCatalogProps {
   gruposList: string[]
 }
 
-const columns: Column<CatalogProduct>[] = [
-  { key: 'nome', label: 'Produto', sortable: true },
-  { key: 'grupo', label: 'Grupo', sortable: true },
-  {
-    key: 'precoMedioVenda', label: 'Preço Médio', align: 'right', sortable: true,
-    render: (r) => formatCurrency(r.precoMedioVenda),
-  },
-  {
-    key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true,
-    render: (r) => formatCurrency(r.custoMedio),
-  },
-  {
-    key: 'qtdVendida', label: 'Qtd Vendida', align: 'right', sortable: true,
-    render: (r) => formatNumber(r.qtdVendida),
-  },
-  {
-    key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
-    render: (r) => formatCurrency(r.faturamento),
-  },
-  {
-    key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
-    render: (r) => (
-      <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(1)}%`} />
-    ),
-  },
-  {
-    key: 'ativo', label: 'Status', align: 'center', sortable: true,
-    render: (r) => (
-      <span className={cn(
-        'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
-        r.ativo
-          ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-          : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-      )}>
-        {r.ativo ? 'Ativo' : 'Inativo'}
-      </span>
-    ),
-  },
-]
-
 const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
+  const { dataInicial, dataFinal } = useFilterStore()
+  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
+
   const [search, setSearch] = useState('')
   const [grupoFilter, setGrupoFilter] = useState('')
   const [sortBy, setSortBy] = useState<'faturamento' | 'qtdVendida' | 'margemPct'>('faturamento')
+
+  const columns = useMemo<Column<CatalogProduct>[]>(() => [
+    { key: 'nome', label: 'Produto', sortable: true },
+    { key: 'grupo', label: 'Grupo', sortable: true },
+    {
+      key: 'precoMedioVenda', label: 'Preço Médio', align: 'right', sortable: true,
+      render: (r) => formatCurrency(r.precoMedioVenda),
+    },
+    {
+      key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true,
+      render: (r) => formatCurrency(r.custoMedio),
+    },
+    {
+      key: 'qtdVendida', label: 'Qtd Vendida', align: 'right', sortable: true,
+      render: (r) => formatNumber(r.qtdVendida),
+    },
+    {
+      key: 'saldo', label: 'Cobertura', align: 'right', sortable: true,
+      render: (r) => (
+        <CoberturaBadge
+          saldo={r.saldo}
+          quantidade={r.qtdVendida}
+          diasPeriodo={diasPeriodo}
+        />
+      ),
+    },
+    {
+      key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
+      render: (r) => formatCurrency(r.faturamento),
+    },
+    {
+      key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
+      render: (r) => (
+        <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(1)}%`} />
+      ),
+    },
+    {
+      key: 'ativo', label: 'Status', align: 'center', sortable: true,
+      render: (r) => (
+        <span className={cn(
+          'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
+          r.ativo
+            ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+        )}>
+          {r.ativo ? 'Ativo' : 'Inativo'}
+        </span>
+      ),
+    },
+  ], [diasPeriodo])
 
   const filtered = useMemo(() => {
     let result = products

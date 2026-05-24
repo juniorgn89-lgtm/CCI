@@ -108,6 +108,9 @@ export interface CatalogProduct {
   faturamento: number
   ativo: boolean
   unidade: string
+  /** Saldo atual em estoque (soma de todos os estoques do posto). Undefined
+   * quando o produto não tem registro de estoque (serviços etc.). */
+  saldo?: number
   [key: string]: unknown
 }
 
@@ -528,6 +531,13 @@ const useConvenienceData = () => {
         }
       })
 
+    // ── Stock items — calculado ANTES do catálogo pra incluir saldo em cada
+    // CatalogProduct (necessário pro badge de cobertura no ProductCatalog). ──
+    const estoqueMap = new Map<number, number>()
+    for (const e of estoque) {
+      estoqueMap.set(e.produtoCodigo, (estoqueMap.get(e.produtoCodigo) ?? 0) + e.saldo)
+    }
+
     // ── Product catalog ──
     const catalogProducts: CatalogProduct[] = Array.from(byProduct.entries())
       .map(([code, v]) => {
@@ -544,15 +554,10 @@ const useConvenienceData = () => {
           faturamento: v.faturamento,
           ativo: info?.ativo ?? true,
           unidade: info?.unidade ?? 'UN',
+          saldo: estoqueMap.get(code),
         }
       })
       .sort((a, b) => b.faturamento - a.faturamento)
-
-    // ── Stock items ──
-    const estoqueMap = new Map<number, number>()
-    for (const e of estoque) {
-      estoqueMap.set(e.produtoCodigo, (estoqueMap.get(e.produtoCodigo) ?? 0) + e.saldo)
-    }
 
     const stockItems: StockItem[] = []
     for (const [code, saldo] of estoqueMap.entries()) {
