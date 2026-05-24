@@ -10,6 +10,7 @@ import { prefetchPrincipais } from '@/routes/prefetch'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 import EsqueciSenhaModal from '@/pages/Login/components/EsqueciSenhaModal'
 import SecurityBadge from '@/pages/Login/components/SecurityBadge'
+import FrentistaCarScene from '@/pages/Login/components/FrentistaCarScene'
 
 type LoginMode = 'gerente' | 'frentista'
 
@@ -88,33 +89,6 @@ const Login = () => {
           style={{ animation: 'login-float-c 10s ease-in-out infinite' }}
         />
 
-        {/* Mini-cards de KPI mock — "preview" do produto. Posicionados
-            absolutamente, com fade-in escalonado + float sutil. */}
-        <div
-          className="absolute left-10 top-16 z-10 rounded-xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-sm"
-          style={{ animation: 'login-kpi-pop 0.7s ease-out 0.6s both, login-float-c 8s ease-in-out 0.6s infinite' }}
-        >
-          <p className="text-[9px] uppercase tracking-wider text-blue-100/60">Faturamento mês</p>
-          <p className="font-bold text-[#f5c518] tabular-nums">R$ 1,2 mi</p>
-          <p className="text-[10px] text-emerald-300">↑ 12,3%</p>
-        </div>
-        <div
-          className="absolute right-12 top-12 z-10 rounded-xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-sm"
-          style={{ animation: 'login-kpi-pop 0.7s ease-out 0.9s both, login-float-a 9s ease-in-out 0.9s infinite' }}
-        >
-          <p className="text-[9px] uppercase tracking-wider text-blue-100/60">Litros vendidos</p>
-          <p className="font-bold text-white tabular-nums">348k L</p>
-          <p className="text-[10px] text-emerald-300">↑ 4,8%</p>
-        </div>
-        <div
-          className="absolute bottom-24 left-16 z-10 rounded-xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-sm"
-          style={{ animation: 'login-kpi-pop 0.7s ease-out 1.2s both, login-float-b 11s ease-in-out 1.2s infinite' }}
-        >
-          <p className="text-[9px] uppercase tracking-wider text-blue-100/60">L.B. / Litro</p>
-          <p className="font-bold text-white tabular-nums">R$ 0,72</p>
-          <p className="text-[10px] text-emerald-300">↑ 8,2%</p>
-        </div>
-
         <div className="relative z-20 max-w-md px-14 text-center">
           <div
             className="mb-8 flex justify-center"
@@ -141,6 +115,14 @@ const Login = () => {
           >
             Acompanhe indicadores de combustíveis, conveniências, operação e lucratividade em tempo real com visão 360° da sua rede de postos.
           </p>
+
+          {/* Caricatura animada — frentista abastecendo carro */}
+          <div
+            className="mt-8 flex justify-center"
+            style={{ animation: 'login-fade-up 0.8s ease-out 0.7s both' }}
+          >
+            <FrentistaCarScene />
+          </div>
         </div>
 
         <p className="absolute bottom-6 text-xs text-white/25">

@@ -182,3 +182,25 @@
   60%  { opacity: 1; transform: translateY(-3px) scale(1.02); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Frentista cartoon animations — bob + carro suspension + fuel droplet */
+@keyframes login-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+@keyframes login-car-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1px); }
+}
+@keyframes login-fuel-drop {
+  0%   { offset-distance: 0%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes login-coin-pop {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  20%  { opacity: 1; transform: translateY(-8px) scale(1); }
+  80%  { opacity: 1; transform: translateY(-24px) scale(1); }
+  100% { opacity: 0; transform: translateY(-32px) scale(0.8); }
+}
