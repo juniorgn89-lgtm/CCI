@@ -12,6 +12,7 @@ const Dashboard = lazy(importDashboard)
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
+const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
 const Abastecimentos = lazy(() => import('@/pages/Abastecimentos'))
@@ -63,6 +64,7 @@ const AppRoutes = () => {
           <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
           <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
+          <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
           {/* Redirects das sub-rotas antigas — Combustível/Pista agora vivem em

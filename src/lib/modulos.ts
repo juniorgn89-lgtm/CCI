@@ -24,6 +24,7 @@ export const MODULOS: ModuloInfo[] = [
   { id: 'estoques', label: 'Estoques', path: '/estoques' },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
   { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
+  { id: 'qualidade-dados', label: 'Qualidade de Dados', path: '/qualidade-dados' },
   { id: 'inteligencia', label: 'Inteligência', path: '/inteligencia' },
 ]
 
