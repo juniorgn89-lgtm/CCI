@@ -359,6 +359,50 @@ const ComercialVendasPista = () => {
       : null
   }, [computed])
 
+  /* ─── Projeção POR CATEGORIA ───
+   * Aplica smoothedProjection no faturamento de cada categoria pra estimar
+   * o fechamento do mês. Reusa o `projectionMeta.daysRemaining`. */
+  const projecaoPorCategoria = useMemo<Map<string, number>>(() => {
+    const out = new Map<string, number>()
+    if (!computed || !produtosData || !gruposData) return out
+    const dias = projectionMeta?.daysRemaining ?? 0
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    // produtoCodigo → categoria (precisa pra agrupar vendaItens)
+    const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+    const produtoCategoria = new Map<number, string>()
+    for (const p of produtosData) {
+      if (p.combustivel) continue
+      const grupoNome = grupoNomes.get(p.grupoCodigo) ?? ''
+      if (!grupoNome.startsWith('PS -')) continue
+      produtoCategoria.set(p.produtoCodigo, categoriaDoGrupo(grupoNome))
+    }
+
+    // Série diária de faturamento por categoria
+    const serieByCat = new Map<string, Map<string, number>>()
+    for (const item of vendaItens) {
+      const cat = produtoCategoria.get(item.produtoCodigo)
+      if (!cat || !item.dataMovimento) continue
+      const date = item.dataMovimento.substring(0, 10)
+      const serie = serieByCat.get(cat) ?? new Map<string, number>()
+      serie.set(date, (serie.get(date) ?? 0) + item.totalVenda)
+      serieByCat.set(cat, serie)
+    }
+
+    for (const c of computed.categorias) {
+      const serie = serieByCat.get(c.nome) ?? new Map<string, number>()
+      const projetado = smoothedProjection({
+        realizado: c.faturamento,
+        dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
+        diasRestantes: dias,
+        today: todayISO,
+      }).projetado
+      out.set(c.nome, projetado)
+    }
+    return out
+  }, [computed, vendaItens, produtosData, gruposData, projectionMeta])
+
   /* ─── Projeção (faturamento + lucro) ───
    * Agrega vendaItens dos produtos PS- por dia e aplica smoothedProjection
    * com `projectionMeta.daysRemaining`. Mesma técnica da Visão Geral. */
@@ -604,6 +648,7 @@ const ComercialVendasPista = () => {
                       <ThWithHelp label="SKUs" help="Quantidade de produtos distintos vendidos na categoria." />
                       <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
                       <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
+                      <ThWithHelp label="Projeção" help="Estimativa de faturamento ao final do mês usando a média móvel dos últimos dias (suavizada). Igual ao Faturamento quando o período é fechado." />
                       <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                       <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                       <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da pista." />
@@ -615,14 +660,17 @@ const ComercialVendasPista = () => {
                       const maxSKUs = Math.max(...cats.map((c) => c.qtdProdutos), 0)
                       const maxUnidades = Math.max(...cats.map((c) => c.qtdVendida), 0)
                       const maxFat = Math.max(...cats.map((c) => c.faturamento), 0)
+                      const maxProj = Math.max(...cats.map((c) => projecaoPorCategoria.get(c.nome) ?? 0), 0)
                       const maxLucro = Math.max(...cats.map((c) => c.faturamento - c.custo), 0)
                       const maxMargem = Math.max(...cats.map((c) => (c.faturamento > 0 ? ((c.faturamento - c.custo) / c.faturamento) * 100 : 0)), 0)
                       const totFat = cats.reduce((s, c) => s + c.faturamento, 0)
+                      const totProj = cats.reduce((s, c) => s + (projecaoPorCategoria.get(c.nome) ?? 0), 0)
                       const totUnid = cats.reduce((s, c) => s + c.qtdVendida, 0)
                       const totSKUs = cats.reduce((s, c) => s + c.qtdProdutos, 0)
                       const totLucro = cats.reduce((s, c) => s + (c.faturamento - c.custo), 0)
                       const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
                       const maxMix = totFat > 0 ? Math.max(...cats.map((c) => (c.faturamento / totFat) * 100)) : 0
+                      const isProjetada = (projectionMeta?.daysRemaining ?? 0) > 0
                       return (
                         <>
                           {cats.map((c, idx) => {
@@ -675,6 +723,12 @@ const ComercialVendasPista = () => {
                                   <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrency(c.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
+                                  {(() => {
+                                    const proj = projecaoPorCategoria.get(c.nome) ?? c.faturamento
+                                    return <BarCell value={proj} max={maxProj} formatted={formatCurrency(proj)} color={isProjetada ? 'blue' : 'green'} align="near" />
+                                  })()}
+                                </td>
+                                <td className="px-2 py-1">
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
@@ -692,6 +746,12 @@ const ComercialVendasPista = () => {
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totSKUs)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                            <td className={cn(
+                              'px-4 py-2.5 text-right tabular-nums',
+                              isProjetada && 'text-blue-700 dark:text-blue-400',
+                            )}>
+                              {formatCurrency(totProj)}
+                            </td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>

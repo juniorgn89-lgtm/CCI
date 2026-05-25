@@ -438,6 +438,37 @@ const ComercialVendasCombustivel = () => {
     }
   }, [kpis, fuelTypeData, dailyData, projectionMeta])
 
+  /* ─── Projeção POR COMBUSTÍVEL ───
+   * Agrega `rows` (abastecimentos brutos) por combustivelNome + dia e aplica
+   * smoothedProjection em cada um. Reusa `projectionMeta.daysRemaining`. */
+  const projecaoPorFuel = useMemo<Map<string, number>>(() => {
+    const out = new Map<string, number>()
+    const dias = projectionMeta?.daysRemaining ?? 0
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    const serieByFuel = new Map<string, Map<string, number>>()
+    for (const r of rows) {
+      const day = r.dataHora?.substring(0, 10)
+      if (!day || !r.combustivelNome) continue
+      const serie = serieByFuel.get(r.combustivelNome) ?? new Map<string, number>()
+      serie.set(day, (serie.get(day) ?? 0) + r.valorTotal)
+      serieByFuel.set(r.combustivelNome, serie)
+    }
+
+    for (const f of fuelTypeData) {
+      const serie = serieByFuel.get(f.nome) ?? new Map<string, number>()
+      const projetado = smoothedProjection({
+        realizado: f.faturamento,
+        dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
+        diasRestantes: dias,
+        today: todayISO,
+      }).projetado
+      out.set(f.nome, projetado)
+    }
+    return out
+  }, [rows, fuelTypeData, projectionMeta])
+
   /* ─── Máximos por coluna (Power BI Data Bars) ─── */
   const colMax = useMemo(() => {
     const days = detalheDiaADia.days
@@ -815,6 +846,7 @@ const ComercialVendasCombustivel = () => {
                             <ThWithHelp label="Custo méd." help="Custo médio de aquisição por litro (vindo do LMC)." />
                             <ThWithHelp label="L.B./Litro" help="Lucro bruto por litro: preço médio − custo médio (R$/L)." />
                             <ThWithHelp label="Faturamento" help="Receita total da venda desse combustível (R$)." />
+                            <ThWithHelp label="Projeção" help="Estimativa de faturamento ao final do mês usando a média móvel dos últimos dias (suavizada). Igual ao Faturamento quando o período é fechado." />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                             <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                             <ThWithHelp label="% vol" help="Participação no volume total de litros do período." />
@@ -825,6 +857,7 @@ const ComercialVendasCombustivel = () => {
                             // Máximos por coluna pra escalar as barras do tab "Por combustível"
                             const maxLitros = Math.max(...mix.map((f) => f.litros), 0)
                             const maxFat = Math.max(...mix.map((f) => f.faturamento), 0)
+                            const maxProj = Math.max(...mix.map((f) => projecaoPorFuel.get(f.nome) ?? 0), 0)
                             const maxLucroBruto = Math.max(...mix.map((f) => f.lucroBruto), 0)
                             const maxLb = Math.max(...mix.map((f) => f.lbPorLitro), 0)
                             const maxMargem = Math.max(...mix.map((f) => f.margem), 0)
@@ -832,12 +865,14 @@ const ComercialVendasCombustivel = () => {
                             // Totais agregados — alimentam a linha "Total" no rodapé
                             const totLitros = mix.reduce((s, f) => s + f.litros, 0)
                             const totFat = mix.reduce((s, f) => s + f.faturamento, 0)
+                            const totProj = mix.reduce((s, f) => s + (projecaoPorFuel.get(f.nome) ?? 0), 0)
                             const totLucroBruto = mix.reduce((s, f) => s + f.lucroBruto, 0)
                             const totCusto = mix.reduce((s, f) => s + f.custo, 0)
                             const totMargemPct = totFat > 0 ? (totLucroBruto / totFat) * 100 : 0
                             const totPrecoMed = totLitros > 0 ? totFat / totLitros : 0
                             const totCustoMed = totLitros > 0 ? totCusto / totLitros : 0
                             const totLbLitro = totLitros > 0 ? totLucroBruto / totLitros : 0
+                            const isProjetadaFuel = (projectionMeta?.daysRemaining ?? 0) > 0
                             return (
                               <>
                                 {mix.map((f) => (
@@ -864,6 +899,12 @@ const ComercialVendasCombustivel = () => {
                                       <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
+                                      {(() => {
+                                        const proj = projecaoPorFuel.get(f.nome) ?? f.faturamento
+                                        return <BarCell value={proj} max={maxProj} formatted={formatCurrency(proj)} color={isProjetadaFuel ? 'blue' : 'green'} align="near" />
+                                      })()}
+                                    </td>
+                                    <td className="px-2 py-1">
                                       <BarCell value={f.lucroBruto} max={maxLucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
@@ -882,6 +923,12 @@ const ComercialVendasCombustivel = () => {
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLbLitro)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                                  <td className={cn(
+                                    'px-4 py-2.5 text-right tabular-nums',
+                                    isProjetadaFuel && 'text-blue-700 dark:text-blue-400',
+                                  )}>
+                                    {formatCurrency(totProj)}
+                                  </td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucroBruto)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
