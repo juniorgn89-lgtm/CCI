@@ -7,7 +7,9 @@ import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
 import ReposicaoTabela, { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/ReposicaoTabela'
 
 // A Central só lista tanques baixos (crítico/alerta), então não há filtro "OK".
-type FilterStatus = 'todos' | 'critico' | 'alerta'
+// 'negativo' é ortogonal aos níveis — filtra por estoqueAtual < 0 (operador
+// não baixou nota de entrada ou houve erro contábil).
+type FilterStatus = 'todos' | 'critico' | 'alerta' | 'negativo'
 type AgruparPor = 'posto' | 'combustivel'
 type View = 'tanques' | 'resumo'
 
@@ -63,12 +65,20 @@ const ReabastecimentoCard = () => {
       .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [baixos])
 
+  // Helper de predicate do filtro de status — reaproveita o teste em resumoPostos
+  // e gruposFiltrados pra manter consistência.
+  const matchesStatus = (t: ReabastTanque, f: FilterStatus): boolean => {
+    if (f === 'todos') return true
+    if (f === 'negativo') return t.estoqueAtual < 0
+    return t.nivel === f
+  }
+
   // Resumo de reposição: por posto, e dentro de cada posto consolidado por
   // combustível (estilo relatório "Reposição de Estoque").
   const resumoPostos = useMemo<ResumoPosto[]>(() => {
     const postoMap = new Map<number, { empresaNome: string; tanques: ReabastTanque[] }>()
     for (const t of baixos) {
-      if (filterStatus !== 'todos' && t.nivel !== filterStatus) continue
+      if (!matchesStatus(t, filterStatus)) continue
       const g = postoMap.get(t.empresaCodigo) ?? { empresaNome: t.empresaNome, tanques: [] }
       g.tanques.push(t)
       postoMap.set(t.empresaCodigo, g)
@@ -111,13 +121,14 @@ const ReabastecimentoCard = () => {
       .map((g) => {
         const tanques = g.tanques.filter(
           (t) =>
-            (filterStatus === 'todos' || t.nivel === filterStatus) &&
+            matchesStatus(t, filterStatus) &&
             (filterProduto === 'todos' || t.produtoNome === filterProduto) &&
             (filterPosto === 'todos' || String(t.empresaCodigo) === filterPosto),
         )
         return { ...g, tanques, criticosCount: tanques.filter((t) => t.nivel === 'critico').length }
       })
       .filter((g) => g.tanques.length > 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grupos, filterStatus, filterProduto, filterPosto])
 
   const totalFiltrados = gruposFiltrados.reduce((s, g) => s + g.tanques.length, 0)
@@ -201,6 +212,7 @@ const ReabastecimentoCard = () => {
                   { v: 'todos', l: 'Todos' },
                   { v: 'critico', l: 'Críticos' },
                   { v: 'alerta', l: 'Alerta' },
+                  { v: 'negativo', l: 'Negativo' },
                 ] as { v: FilterStatus; l: string }[]
               ).map((opt) => (
                 <button
