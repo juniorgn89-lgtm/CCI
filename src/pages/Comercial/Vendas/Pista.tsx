@@ -1,5 +1,5 @@
-import { type ReactNode, useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy } from 'lucide-react'
+import { lazy, Suspense, type ReactNode, useMemo, useState } from 'react'
+import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy, LayoutDashboard, BarChart3, ListOrdered } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -12,6 +12,7 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import RouteFallback from '@/components/feedback/RouteFallback'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
@@ -22,6 +23,21 @@ import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
+import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
+
+// Lazy: 3 abas extras reusam os componentes da Conveniência
+const ParetoAnalysis = lazy(() => import('@/pages/Conveniencias/components/ParetoAnalysis'))
+const CurvaABC = lazy(() => import('@/pages/Conveniencias/components/CurvaABC'))
+const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
+
+type TabId = 'visao' | 'pareto' | 'abc' | 'catalogo'
+
+const TABS: { id: TabId; label: string; Icon: typeof LayoutDashboard }[] = [
+  { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
+  { id: 'pareto', label: 'Análise de Pareto', Icon: BarChart3 },
+  { id: 'abc', label: 'Curva ABC', Icon: ListOrdered },
+  { id: 'catalogo', label: 'Catálogo', Icon: Package },
+]
 
 /* ─── Helpers ─── */
 
@@ -142,9 +158,13 @@ const ComercialVendasPista = () => {
   // Cache compartilhada — só pra ler `projectionMeta.daysRemaining`.
   const { projectionMeta } = useAbastecimentosAnalytics()
 
+  // Aba ativa (Visão Geral por padrão — mostra "Por categoria" + "Top 20 produtos")
+  const [activeTab, setActiveTab] = useState<TabId>('visao')
+
   // Filtros da tabela de produtos
   const [searchProduto, setSearchProduto] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
+  const [estoqueFiltro, setEstoqueFiltro] = useState<'todos' | 'sem-estoque' | 'critico' | 'atencao' | 'ok' | 'sem-dados'>('todos')
   // Modal de drill-down ao clicar numa categoria
   const [selectedCategoria, setSelectedCategoria] = useState<CategoriaData | null>(null)
   // Linha destacada na tabela "Top 20 produtos" — útil pra comparar valores visualmente
@@ -300,19 +320,75 @@ const ComercialVendasPista = () => {
     }
   }, [produtosData, gruposData, vendaItens])
 
-  // Aplica busca + filtro de categoria na lista de produtos.
+  // Mapa produtoCodigo → saldo de estoque (soma de saldoEstoque[].quantidade
+  // ou saldo do produto). Usado pelo filtro de estoque, pelo modal e pela tabela.
+  const estoquePorProduto = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const e of estoqueRaw?.resultados ?? []) {
+      const saldo = e.saldoEstoque
+        ? e.saldoEstoque.reduce((s, x) => s + x.quantidade, 0)
+        : e.saldo
+      map.set(e.produtoCodigo, (map.get(e.produtoCodigo) ?? 0) + saldo)
+    }
+    return map
+  }, [estoqueRaw])
+
+  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
+
+  // Mapeia produtosVendidos pro formato CatalogProduct das abas Pareto/ABC/Catálogo
+  // (reaproveita componentes da Conveniência sem precisar duplicar). Aqui "grupo"
+  // = categoria PS- (Filtros, Lubrificantes, etc.).
+  const produtosAsCatalog = useMemo<CatalogProduct[]>(() => {
+    if (!computed) return []
+    return computed.produtosVendidos.map((p) => {
+      const precoMedioVenda = p.quantidade > 0 ? p.faturamento / p.quantidade : 0
+      const custoMedio = p.quantidade > 0 ? p.custo / p.quantidade : 0
+      const margemPct = p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0
+      return {
+        produtoCodigo: p.produtoCodigo,
+        nome: p.nome,
+        grupo: p.categoria,
+        grupoCodigo: 0, // não usado pelos componentes — só `grupo` (string)
+        precoMedioVenda,
+        custoMedio,
+        margemPct,
+        qtdVendida: p.quantidade,
+        faturamento: p.faturamento,
+        ativo: true,
+        unidade: '',
+        saldo: estoquePorProduto.get(p.produtoCodigo),
+      }
+    })
+  }, [computed, estoquePorProduto])
+
+  const gruposListPista = useMemo(() => computed?.categorias.map((c) => c.nome) ?? [], [computed])
+
+  // Aplica busca + filtro de categoria + filtro de estoque na lista de produtos.
   const produtosFiltrados = useMemo(() => {
     if (!computed) return []
     const q = searchProduto.trim().toLowerCase()
+    // Classificador inline pro filtro de estoque (mesmas faixas da CoberturaBadge).
+    const status = (saldo: number | undefined, qtd: number): 'sem-dados' | 'sem-estoque' | 'critico' | 'atencao' | 'ok' => {
+      if (saldo === undefined) return 'sem-dados'
+      if (saldo === 0) return 'sem-estoque'
+      if (qtd <= 0) return 'ok'
+      const d = (saldo * diasPeriodo) / qtd
+      if (d < 7) return 'critico'
+      if (d < 30) return 'atencao'
+      return 'ok'
+    }
     return computed.produtosVendidos.filter((p) => {
       if (categoriaFiltro !== 'todas' && p.categoria !== categoriaFiltro) return false
       if (q && !p.nome.toLowerCase().includes(q)) return false
+      if (estoqueFiltro !== 'todos') {
+        if (status(estoquePorProduto.get(p.produtoCodigo), p.quantidade) !== estoqueFiltro) return false
+      }
       return true
     })
-  }, [computed, searchProduto, categoriaFiltro])
+  }, [computed, searchProduto, categoriaFiltro, estoqueFiltro, estoquePorProduto, diasPeriodo])
 
   // Tem filtro ativo? Define se mostramos top-20 ou todos os resultados.
-  const hasProductFilter = searchProduto.trim() !== '' || categoriaFiltro !== 'todas'
+  const hasProductFilter = searchProduto.trim() !== '' || categoriaFiltro !== 'todas' || estoqueFiltro !== 'todos'
   const produtosExibidos = hasProductFilter ? produtosFiltrados : produtosFiltrados.slice(0, 20)
   const categoriasDisponiveis = computed?.categorias.map((c) => c.nome) ?? []
 
@@ -328,21 +404,6 @@ const ComercialVendasPista = () => {
     const codes = new Set(produtosDaCategoria.map((p) => p.produtoCodigo))
     return vendaItens.filter((v) => codes.has(v.produtoCodigo))
   }, [selectedCategoria, produtosDaCategoria, vendaItens])
-
-  // Mapa produtoCodigo → saldo de estoque (soma de saldoEstoque[].quantidade
-  // ou saldo do produto). Usado tanto no modal quanto na tabela Top 20.
-  const estoquePorProduto = useMemo(() => {
-    const map = new Map<number, number>()
-    for (const e of estoqueRaw?.resultados ?? []) {
-      const saldo = e.saldoEstoque
-        ? e.saldoEstoque.reduce((s, x) => s + x.quantidade, 0)
-        : e.saldo
-      map.set(e.produtoCodigo, (map.get(e.produtoCodigo) ?? 0) + saldo)
-    }
-    return map
-  }, [estoqueRaw])
-
-  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
 
   /* Ranking categoria com maior/menor margem — usado no card "Margem" */
   const categoriaMargemRanking = useMemo(() => {
@@ -621,6 +682,50 @@ const ComercialVendasPista = () => {
             />
           </div>
 
+          {/* Switcher de 4 abas */}
+          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
+            {TABS.map((tab) => {
+              const Icon = tab.Icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Abas extras — Pareto / Curva ABC / Catálogo reusam componentes da Conveniência */}
+          {activeTab === 'pareto' && (
+            <Suspense fallback={<RouteFallback />}>
+              <ParetoAnalysis products={produtosAsCatalog} />
+            </Suspense>
+          )}
+          {activeTab === 'abc' && (
+            <Suspense fallback={<RouteFallback />}>
+              <CurvaABC products={produtosAsCatalog} />
+            </Suspense>
+          )}
+          {activeTab === 'catalogo' && (
+            <Suspense fallback={<RouteFallback />}>
+              <ProductCatalog products={produtosAsCatalog} gruposList={gruposListPista} />
+            </Suspense>
+          )}
+
+          {/* Aba Visão Geral — conteúdo original (Por categoria + Top 20 produtos) */}
+          {activeTab === 'visao' && (
+            <>
+
           {/* Por categoria — table com BarCells, tooltips, Trophy/Lanterna e Total */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
@@ -800,6 +905,19 @@ const ComercialVendasPista = () => {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+                <select
+                  value={estoqueFiltro}
+                  onChange={(e) => setEstoqueFiltro(e.target.value as typeof estoqueFiltro)}
+                  className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  title="Filtra pela cobertura de estoque"
+                >
+                  <option value="todos">Todos estoques</option>
+                  <option value="critico">🔴 Crítico (&lt; 7d)</option>
+                  <option value="atencao">🟠 Atenção (7–30d)</option>
+                  <option value="ok">🟢 OK (&gt; 30d)</option>
+                  <option value="sem-estoque">⚫ Sem estoque</option>
+                  <option value="sem-dados">— Sem dados</option>
+                </select>
               </div>
             </div>
             {isLoadingVendas ? (
@@ -909,6 +1027,10 @@ const ComercialVendasPista = () => {
               </div>
             )}
           </section>
+
+          </>
+          )}
+          {/* fim do activeTab === 'visao' */}
         </>
       )}
 

@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import { Fuel, Droplets, DollarSign, TrendingUp, Receipt, Percent, ShoppingBag, Wallet, Users, Gauge, Clock, Calendar } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, TrendingUp, Receipt, Percent, Wallet, Users, Gauge, Clock, Calendar, LineChart as LineChartIcon } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
+import { smoothedProjection } from '@/lib/projection'
 import type { FuelTypeRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 interface FuelDetalheModalProps {
@@ -89,6 +90,37 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
       .map((s) => ({ hora: `${String(s.h).padStart(2, '0')}h`, litros: s.litros }))
   }, [filtered])
 
+  // Projeção de fechamento do combustível. Usa smoothedProjection com média
+  // móvel dos últimos dias fechados e os dias que ainda faltam até dataFinal.
+  const projecao = useMemo(() => {
+    if (!fuel) return null
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const endTs = new Date(`${dataFinal}T00:00:00`).getTime()
+    const todayTs = new Date(`${todayISO}T00:00:00`).getTime()
+    const diasRestantes = Math.max(0, Math.floor((endTs - todayTs) / 86_400_000))
+
+    // Série diária de faturamento dos abastecimentos deste combustível
+    const dailyMap = new Map<string, number>()
+    for (const r of filtered) {
+      const day = r.dataHora?.substring(0, 10)
+      if (!day) continue
+      dailyMap.set(day, (dailyMap.get(day) ?? 0) + r.valorTotal)
+    }
+    const result = smoothedProjection({
+      realizado: fuel.faturamento,
+      dailySeries: Array.from(dailyMap.entries()).map(([data, value]) => ({ data, value })),
+      diasRestantes,
+      today: todayISO,
+    })
+    return {
+      projetado: result.projetado,
+      dailyRate: result.dailyRate,
+      isProjetada: diasRestantes > 0,
+      diasRestantes,
+    }
+  }, [fuel, filtered, dataFinal])
+
   if (!fuel) return null
 
   const ticketPorLitro = fuel.litros > 0 ? fuel.faturamento / fuel.litros : 0
@@ -138,11 +170,17 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
               <Kpi Icon={Droplets} label="Litros" value={formatNumber(fuel.litros)} />
               <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(fuel.faturamento)} />
+              <Kpi
+                Icon={LineChartIcon}
+                label={projecao?.isProjetada ? 'Projeção fim do mês' : 'Projeção'}
+                value={formatCurrency(projecao?.projetado ?? fuel.faturamento)}
+                tone={projecao?.isProjetada ? 'projecao' : undefined}
+                hint={projecao?.isProjetada ? `Faltam ${projecao.diasRestantes} dia${projecao.diasRestantes === 1 ? '' : 's'}` : undefined}
+              />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(fuel.lucroBruto)} />
               <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(1).replace('.', ',')}%`} />
               <Kpi Icon={Receipt} label="Ticket / litro" value={formatCurrency(ticketPorLitro)} />
               <Kpi Icon={DollarSign} label="L.B./Litro" value={formatCurrency(fuel.lbPorLitro)} />
-              <Kpi Icon={ShoppingBag} label="Preço méd. venda" value={formatCurrency(fuel.precoMedioVenda)} />
               <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(fuel.precoCustoMedio)} />
             </div>
           </section>
@@ -252,13 +290,49 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
   )
 }
 
-const Kpi = ({ Icon, label, value }: { Icon: typeof Wallet; label: string; value: string }) => (
-  <div className="rounded-lg border border-gray-200 bg-white p-2.5 dark:border-gray-700 dark:bg-gray-900">
+const Kpi = ({
+  Icon,
+  label,
+  value,
+  tone,
+  hint,
+}: {
+  Icon: typeof Wallet
+  label: string
+  value: string
+  tone?: 'projecao'
+  hint?: string
+}) => (
+  <div
+    className={cn(
+      'rounded-lg border p-2.5',
+      tone === 'projecao'
+        ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 to-white dark:border-blue-900/50 dark:from-blue-950/30 dark:to-gray-900'
+        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
+    )}
+  >
     <div className="flex items-center justify-between">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
-      <Icon className="h-3.5 w-3.5 text-gray-400" />
+      <p
+        className={cn(
+          'text-[10px] font-semibold uppercase tracking-wider',
+          tone === 'projecao' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400',
+        )}
+      >
+        {label}
+      </p>
+      <Icon className={cn('h-3.5 w-3.5', tone === 'projecao' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400')} />
     </div>
-    <p className="mt-1 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    <p
+      className={cn(
+        'mt-1 text-sm font-bold tabular-nums',
+        tone === 'projecao' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-gray-100',
+      )}
+    >
+      {value}
+    </p>
+    {hint && (
+      <p className="mt-0.5 text-[10px] text-blue-600/80 dark:text-blue-400/70">{hint}</p>
+    )}
   </div>
 )
 

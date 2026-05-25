@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle, CalendarRange } from 'lucide-react'
+import { DollarSign, Wallet, TrendingUp, Clock, HelpCircle, CalendarRange, Receipt, CreditCard, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -8,6 +8,7 @@ import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import useResumoOperacaoData from '@/pages/Dashboard/hooks/useResumoOperacaoData'
+import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
@@ -275,8 +276,13 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
     apuradoPorDia,
     isLoading,
   } = useResumoOperacaoData()
+  // Resumo financeiro do posto — compartilha cache com /financeiro via queryKeys
+  // (titulosReceber/titulosPagar). Conecta visualmente o caixa do dia com o que
+  // está vencendo (a receber/pagar) na mesma tela.
+  const { kpis: finKpis, isLoading: finLoading } = useFinanceData()
   const hasData = faturamentoCombustivel > 0 || totalApurado > 0 || totalLitros > 0
   const showSkeleton = useShowSkeleton(isLoading, hasData)
+  const finShowSkeleton = useShowSkeleton(finLoading, !!finKpis)
 
   const projection = useMemo(() => computeProjection(dataInicial, dataFinal), [dataInicial, dataFinal])
 
@@ -466,6 +472,98 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           periodLabel={periodLabel}
           onClick={() => navigate('/operacao?tab=caixa')}
         />
+      </div>
+
+      {/* Resumo Financeiro — conecta caixa do dia com o que está vencendo.
+          Vencidos aparecem em destaque vermelho pra criar urgência visual.
+          Cache compartilhada com /financeiro: clique leva pra lá instantaneamente. */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Financeiro
+          </span>
+          <span className="text-[10px] text-gray-300 dark:text-gray-600">·</span>
+          <button
+            type="button"
+            onClick={() => navigate('/financeiro')}
+            className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            ver tudo →
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => navigate('/financeiro')}
+            className="rounded-xl border border-gray-200 bg-gradient-to-br from-cyan-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-cyan-950/20 dark:to-gray-900"
+          >
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Contas a Receber</p>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                  <CalendarRange className="h-3 w-3" />
+                  {periodLabel}
+                </p>
+              </div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                <Receipt className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              {finShowSkeleton || !finKpis ? '—' : formatCurrency(finKpis.totalReceber)}
+            </p>
+            <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
+              <span className="text-gray-500 dark:text-gray-400">
+                {finKpis ? `${finKpis.countReceber} ${finKpis.countReceber === 1 ? 'título' : 'títulos'}` : ''}
+              </span>
+              {finKpis && finKpis.countVencidosReceber > 0 && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600">·</span>
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    {formatCurrency(finKpis.totalVencidosReceber)} vencido
+                  </span>
+                </>
+              )}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/financeiro')}
+            className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900"
+          >
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Contas a Pagar</p>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                  <CalendarRange className="h-3 w-3" />
+                  {periodLabel}
+                </p>
+              </div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                <CreditCard className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              {finShowSkeleton || !finKpis ? '—' : formatCurrency(finKpis.totalPagar)}
+            </p>
+            <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
+              <span className="text-gray-500 dark:text-gray-400">
+                {finKpis ? `${finKpis.countPagar} ${finKpis.countPagar === 1 ? 'conta' : 'contas'}` : ''}
+              </span>
+              {finKpis && finKpis.countVencidosPagar > 0 && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600">·</span>
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    {formatCurrency(finKpis.totalVencidosPagar)} vencido
+                  </span>
+                </>
+              )}
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Gráficos diários — escondidos quando o período é um único dia

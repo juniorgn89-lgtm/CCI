@@ -18,6 +18,7 @@ import {
   LineChart,
   Fuel,
   ShieldAlert,
+  UsersRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -66,6 +67,7 @@ const navGroups: NavGroup[] = [
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
+      { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
     ],
   },
   {

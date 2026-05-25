@@ -23,6 +23,7 @@ const ComercialVendasPista = lazy(() => import('@/pages/Comercial/Vendas/Pista')
 const ComercialVendasConveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
+const Pessoas = lazy(() => import('@/pages/Pessoas'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
 const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
@@ -65,6 +66,7 @@ const AppRoutes = () => {
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
           <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
+          <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
           {/* Redirects das sub-rotas antigas — Combustível/Pista agora vivem em
