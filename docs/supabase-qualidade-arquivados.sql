@@ -26,8 +26,11 @@ create table if not exists qualidade_arquivados (
   -- Rótulo curto pra exibir na lista de arquivados sem precisar refazer query
   -- na API Quality. Ex: "Abastecimento #196907015 · POSTO DIVINO".
   rotulo text not null,
-  arquivado_por uuid not null references auth.users(id) on delete set null,
-  arquivado_por_nome text not null, -- email ou nome — denormalizado pra display rápido
+  -- arquivado_por: nullable porque ON DELETE SET NULL precisa zerar o FK
+  -- quando o usuário for excluído. O autor é preservado em arquivado_por_nome
+  -- (text denormalizado) — auditoria sobrevive à exclusão do usuário.
+  arquivado_por uuid references auth.users(id) on delete set null,
+  arquivado_por_nome text not null, -- email/nome — denormalizado pra preservar histórico mesmo após delete do user
   arquivado_em timestamptz not null default now(),
   -- Soft-restore: quando preenchido, o registro volta a aparecer na lista
   -- ativa. Histórico fica preservado.

@@ -135,7 +135,17 @@ const ArquivadosView = ({ arquivados, isLoading, onReabrir }: ArquivadosViewProp
                         </span>
                       </td>
                       <td className="px-3 py-2 text-gray-900 dark:text-gray-100">{a.rotulo}</td>
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{a.arquivado_por_nome}</td>
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                        {a.arquivado_por_nome}
+                        {a.arquivado_por === null && (
+                          <span
+                            className="ml-1.5 inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                            title="O usuário que arquivou foi excluído do sistema. O nome é preservado pra auditoria."
+                          >
+                            conta excluída
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{fmtDateTime(a.arquivado_em)}</td>
                       <td className="px-3 py-2">
                         {isAtivo ? (
@@ -145,7 +155,7 @@ const ArquivadosView = ({ arquivados, isLoading, onReabrir }: ArquivadosViewProp
                         ) : (
                           <span
                             className="inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                            title={`Restaurado por ${a.restaurado_por_nome ?? '—'} em ${a.restaurado_em ? fmtDateTime(a.restaurado_em) : '—'}`}
+                            title={`Restaurado por ${a.restaurado_por_nome ?? '—'}${a.restaurado_por === null && a.restaurado_por_nome ? ' (conta excluída)' : ''} em ${a.restaurado_em ? fmtDateTime(a.restaurado_em) : '—'}`}
                           >
                             Restaurado
                           </span>
