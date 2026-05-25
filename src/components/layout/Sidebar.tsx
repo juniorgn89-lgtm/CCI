@@ -56,7 +56,6 @@ const navGroups: NavGroup[] = [
     title: 'Posto',
     items: [
       { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
-      { label: 'Abastecimentos', path: '/abastecimentos', icon: Fuel },
       { label: 'Operação', path: '/operacao', icon: Gauge },
     ],
   },

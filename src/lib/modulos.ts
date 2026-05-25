@@ -19,7 +19,6 @@ export interface ModuloInfo {
 export const MODULOS: ModuloInfo[] = [
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
   { id: 'comercial', label: 'Comercial · Vendas', path: '/comercial' },
-  { id: 'abastecimentos', label: 'Abastecimentos', path: '/abastecimentos' },
   { id: 'operacao', label: 'Operação', path: '/operacao' },
   { id: 'estoques', label: 'Estoques', path: '/estoques' },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },

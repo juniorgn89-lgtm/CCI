@@ -139,7 +139,7 @@ const Operacao = () => {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             <button
               type="button"
-              onClick={() => navigate('/abastecimentos')}
+              onClick={() => navigate('/comercial/vendas/combustivel')}
               className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
             >
               <div className="flex items-center justify-between">

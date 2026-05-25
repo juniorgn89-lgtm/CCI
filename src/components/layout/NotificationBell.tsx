@@ -69,7 +69,7 @@ const categoryConfig: Record<AlertCategory, {
   combustivel: {
     label: 'Combustivel',
     icon: Fuel,
-    route: '/abastecimentos',
+    route: '/comercial/vendas/combustivel',
     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400',
   },
   bombas: {
