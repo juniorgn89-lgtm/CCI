@@ -70,3 +70,19 @@ export const smoothedProjection = ({
   const projetado = realizado + dailyRate * Math.max(0, diasRestantes)
   return { dailyRate, projetado }
 }
+
+/**
+ * Texto padrão de tooltip pra qualquer label/coluna "Projeção" no app. Usar
+ * sempre essa string pra manter a explicação consistente (em vez de variantes
+ * diferentes em cada tela). Quando em períodos fechados (sem dias futuros),
+ * a projeção fica igual ao realizado.
+ */
+export const PROJECAO_TOOLTIP =
+  'Projeção pro fim do período: realizado até agora + (média diária dos últimos 7 dias fechados × dias restantes). Em períodos fechados, é igual ao Faturamento.'
+
+/**
+ * Variante do tooltip pra Projeção POR PRODUTO individual (Top 20 / Catálogo) —
+ * alerta sobre o ruído típico de SKUs com vendas esporádicas.
+ */
+export const PROJECAO_TOOLTIP_PRODUTO =
+  'Projeção pro fim do período: realizado + (média diária dos últimos 7 dias × dias restantes). Pode ser ruidoso pra SKUs com vendas esporádicas (poucos dias de movimento) — use como referência, não como número exato.'

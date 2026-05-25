@@ -113,6 +113,7 @@ const ComercialVendasConveniencia = () => {
     gruposList,
     groupTable,
     salesByDay,
+    vendaItens,
     isLoading,
     hasEmpresa,
   } = useConvenienceData()
@@ -320,6 +321,7 @@ const ComercialVendasConveniencia = () => {
                   catalogProducts={catalogProducts}
                   groupTable={groupTable}
                   salesByDay={salesByDay}
+                  vendaItens={vendaItens}
                   dataInicial={dataInicial}
                   dataFinal={dataFinal}
                 />

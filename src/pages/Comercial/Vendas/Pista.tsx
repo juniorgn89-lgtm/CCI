@@ -18,7 +18,7 @@ import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import ProjecaoCard from '@/components/kpi/ProjecaoCard'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import { smoothedProjection } from '@/lib/projection'
+import { smoothedProjection, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -338,12 +338,36 @@ const ComercialVendasPista = () => {
   // Mapeia produtosVendidos pro formato CatalogProduct das abas Pareto/ABC/Catálogo
   // (reaproveita componentes da Conveniência sem precisar duplicar). Aqui "grupo"
   // = categoria PS- (Filtros, Lubrificantes, etc.).
+  // Inclui `projetado` por produto — extrapola faturamento até fim do período via
+  // smoothedProjection sobre a série diária do produto. Pode ser ruidoso pra
+  // SKUs com vendas esporádicas — usar como referência.
   const produtosAsCatalog = useMemo<CatalogProduct[]>(() => {
     if (!computed) return []
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dias = projectionMeta?.daysRemaining ?? 0
+
+    // Série diária por produto pra projeção — uma passada em vendaItens
+    const serieByProduto = new Map<number, Map<string, number>>()
+    for (const item of vendaItens) {
+      if (!item.dataMovimento) continue
+      const day = item.dataMovimento.substring(0, 10)
+      const s = serieByProduto.get(item.produtoCodigo) ?? new Map<string, number>()
+      s.set(day, (s.get(day) ?? 0) + item.totalVenda)
+      serieByProduto.set(item.produtoCodigo, s)
+    }
+
     return computed.produtosVendidos.map((p) => {
       const precoMedioVenda = p.quantidade > 0 ? p.faturamento / p.quantidade : 0
       const custoMedio = p.quantidade > 0 ? p.custo / p.quantidade : 0
       const margemPct = p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0
+      const serie = serieByProduto.get(p.produtoCodigo) ?? new Map<string, number>()
+      const projetado = smoothedProjection({
+        realizado: p.faturamento,
+        dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
+        diasRestantes: dias,
+        today: todayISO,
+      }).projetado
       return {
         produtoCodigo: p.produtoCodigo,
         nome: p.nome,
@@ -357,9 +381,10 @@ const ComercialVendasPista = () => {
         ativo: true,
         unidade: '',
         saldo: estoquePorProduto.get(p.produtoCodigo),
+        projetado,
       }
     })
-  }, [computed, estoquePorProduto])
+  }, [computed, estoquePorProduto, vendaItens, projectionMeta])
 
   const gruposListPista = useMemo(() => computed?.categorias.map((c) => c.nome) ?? [], [computed])
 
@@ -753,7 +778,7 @@ const ComercialVendasPista = () => {
                       <ThWithHelp label="SKUs" help="Quantidade de produtos distintos vendidos na categoria." />
                       <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
                       <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
-                      <ThWithHelp label="Projeção" help="Estimativa de faturamento ao final do mês usando a média móvel dos últimos dias (suavizada). Igual ao Faturamento quando o período é fechado." />
+                      <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
                       <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                       <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                       <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da pista." />
@@ -942,18 +967,23 @@ const ComercialVendasPista = () => {
                       <ThWithHelp label="Unidades" help="Quantidade total de unidades vendidas." />
                       <ThWithHelp label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
                       <ThWithHelp label="Faturamento" help="Receita total do produto (R$)." />
+                      <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
                       <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                       <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {(() => {
+                      const projByCodigo = new Map(produtosAsCatalog.map((p) => [p.produtoCodigo, p.projetado ?? p.faturamento]))
+                      const isProjetadaProd = (projectionMeta?.daysRemaining ?? 0) > 0
                       const maxUnidades = Math.max(...produtosExibidos.map((p) => p.quantidade), 0)
                       const maxFat = Math.max(...produtosExibidos.map((p) => p.faturamento), 0)
+                      const maxProjProd = Math.max(...produtosExibidos.map((p) => projByCodigo.get(p.produtoCodigo) ?? 0), 0)
                       const maxLucro = Math.max(...produtosExibidos.map((p) => p.faturamento - p.custo), 0)
                       const maxMargem = Math.max(...produtosExibidos.map((p) => (p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0)), 0)
                       const totUnid = produtosExibidos.reduce((s, p) => s + p.quantidade, 0)
                       const totFat = produtosExibidos.reduce((s, p) => s + p.faturamento, 0)
+                      const totProjProd = produtosExibidos.reduce((s, p) => s + (projByCodigo.get(p.produtoCodigo) ?? p.faturamento), 0)
                       const totLucro = produtosExibidos.reduce((s, p) => s + (p.faturamento - p.custo), 0)
                       const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
                       return (
@@ -1001,6 +1031,12 @@ const ComercialVendasPista = () => {
                                   <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
+                                  {(() => {
+                                    const proj = projByCodigo.get(p.produtoCodigo) ?? p.faturamento
+                                    return <BarCell value={proj} max={maxProjProd} formatted={formatCurrency(proj)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
+                                  })()}
+                                </td>
+                                <td className="px-2 py-1">
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
@@ -1016,6 +1052,12 @@ const ComercialVendasPista = () => {
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
                             <td className="px-4 py-2.5" />
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                            <td className={cn(
+                              'px-4 py-2.5 text-right tabular-nums',
+                              isProjetadaProd && 'text-blue-700 dark:text-blue-400',
+                            )}>
+                              {formatCurrency(totProjProd)}
+                            </td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
                           </tr>

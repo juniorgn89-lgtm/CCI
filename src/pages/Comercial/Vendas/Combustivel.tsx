@@ -23,7 +23,7 @@ import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/D
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
 import ProjecaoCard from '@/components/kpi/ProjecaoCard'
-import { smoothedProjection } from '@/lib/projection'
+import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
 import { diasEntreDatas } from '@/components/badges/CoberturaBadge'
 import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
@@ -846,7 +846,7 @@ const ComercialVendasCombustivel = () => {
                             <ThWithHelp label="Custo méd." help="Custo médio de aquisição por litro (vindo do LMC)." />
                             <ThWithHelp label="L.B./Litro" help="Lucro bruto por litro: preço médio − custo médio (R$/L)." />
                             <ThWithHelp label="Faturamento" help="Receita total da venda desse combustível (R$)." />
-                            <ThWithHelp label="Projeção" help="Estimativa de faturamento ao final do mês usando a média móvel dos últimos dias (suavizada). Igual ao Faturamento quando o período é fechado." />
+                            <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                             <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                             <ThWithHelp label="% vol" help="Participação no volume total de litros do período." />

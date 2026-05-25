@@ -7,6 +7,7 @@ import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBad
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
+import { PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 interface ProductCatalogProps {
@@ -50,6 +51,24 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     {
       key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
       render: (r) => formatCurrency(r.faturamento),
+    },
+    {
+      key: 'projetado', label: 'Projeção', align: 'right', sortable: true,
+      render: (r) => {
+        const proj = r.projetado ?? r.faturamento
+        const isProjetada = proj > r.faturamento + 0.01 // tolerância pra float
+        return (
+          <span
+            className={cn(
+              'tabular-nums cursor-help',
+              isProjetada && 'font-semibold text-blue-700 dark:text-blue-400',
+            )}
+            title={PROJECAO_TOOLTIP_PRODUTO}
+          >
+            {formatCurrency(proj)}
+          </span>
+        )
+      },
     },
     {
       key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,

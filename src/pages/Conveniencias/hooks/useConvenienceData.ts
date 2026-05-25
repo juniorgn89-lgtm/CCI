@@ -113,6 +113,13 @@ export interface CatalogProduct {
   /** Saldo atual em estoque (soma de todos os estoques do posto). Undefined
    * quando o produto não tem registro de estoque (serviços etc.). */
   saldo?: number
+  /**
+   * Faturamento projetado pro fim do período usando média móvel suavizada
+   * dos últimos dias. Igual a `faturamento` quando o período é fechado.
+   * Pode ser ruidoso pra produtos com vendas esporádicas (poucos dias com
+   * movimento) — usar como referência, não como número exato.
+   */
+  projetado?: number
   [key: string]: unknown
 }
 
@@ -540,10 +547,34 @@ const useConvenienceData = () => {
       estoqueMap.set(e.produtoCodigo, (estoqueMap.get(e.produtoCodigo) ?? 0) + e.saldo)
     }
 
+    // ── Série diária por produto — necessária pra computar `projetado` em
+    // cada CatalogProduct. Reaproveita convAggs já em memória. ──
+    const _now = new Date()
+    const _todayISO = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
+    let _diasRestantes = 0
+    if (dataInicial <= _todayISO && _todayISO <= dataFinal) {
+      const end = new Date(`${dataFinal}T00:00:00`)
+      const t = new Date(`${_todayISO}T00:00:00`)
+      _diasRestantes = Math.max(0, Math.round((end.getTime() - t.getTime()) / 86_400_000))
+    }
+    const serieByProduto = new Map<number, Map<string, number>>()
+    for (const a of convAggs) {
+      const s = serieByProduto.get(a.produtoCodigo) ?? new Map<string, number>()
+      s.set(a.data, (s.get(a.data) ?? 0) + a.totalVenda)
+      serieByProduto.set(a.produtoCodigo, s)
+    }
+
     // ── Product catalog ──
     const catalogProducts: CatalogProduct[] = Array.from(byProduct.entries())
       .map(([code, v]) => {
         const info = produtoMap.get(code)
+        const serie = serieByProduto.get(code) ?? new Map<string, number>()
+        const projetado = smoothedProjection({
+          realizado: v.faturamento,
+          dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
+          diasRestantes: _diasRestantes,
+          today: _todayISO,
+        }).projetado
         return {
           produtoCodigo: code,
           nome: getName(code),
@@ -557,6 +588,7 @@ const useConvenienceData = () => {
           ativo: info?.ativo ?? true,
           unidade: info?.unidade ?? 'UN',
           saldo: estoqueMap.get(code),
+          projetado,
         }
       })
       .sort((a, b) => b.faturamento - a.faturamento)
@@ -830,6 +862,9 @@ const useConvenienceData = () => {
     hasEmpresa,
     // "Instantâneo": vendas vieram do snapshot mensal (apuracao_vendas).
     isCacheHit: vendasCacheCurrent.isCacheHit,
+    // Vendas brutas — usadas por modals que precisam reagregar por dia/categoria
+    // sem refetch. Filtra pela empresa atual.
+    vendaItens: (vendaItensData ?? []).filter((v) => v.empresaCodigo === empresaCodigo),
   }
 }
 

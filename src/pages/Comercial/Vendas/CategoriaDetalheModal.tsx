@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
-import { smoothedProjection } from '@/lib/projection'
+import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
 import type { VendaItem } from '@/api/types/venda'
 
 export interface CategoriaData {
@@ -164,6 +164,7 @@ const CategoriaDetalheModal = ({
                 value={formatCurrency(projecao?.projetado ?? categoria.faturamento)}
                 tone={projecao?.isProjetada ? 'projecao' : undefined}
                 hint={projecao?.isProjetada ? `Faltam ${projecao.diasRestantes} dia${projecao.diasRestantes === 1 ? '' : 's'}` : undefined}
+                tooltip={PROJECAO_TOOLTIP}
               />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(lucro)} />
               <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(1).replace('.', ',')}%`} />
@@ -287,19 +288,24 @@ const Kpi = ({
   value,
   tone,
   hint,
+  tooltip,
 }: {
   Icon: typeof Wallet
   label: string
   value: string
   tone?: 'projecao'
   hint?: string
+  /** Tooltip nativo do navegador no card inteiro — usado pra explicar a métrica. */
+  tooltip?: string
 }) => (
   <div
+    title={tooltip}
     className={cn(
       'rounded-lg border p-2.5',
       tone === 'projecao'
         ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 to-white dark:border-blue-900/50 dark:from-blue-950/30 dark:to-gray-900'
         : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
+      tooltip && 'cursor-help',
     )}
   >
     <div className="flex items-center justify-between">

@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { Search, Trophy, TrendingDown, HelpCircle } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
-import { smoothedProjection } from '@/lib/projection'
+import { smoothedProjection, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
+import type { VendaItem } from '@/api/types/venda'
 import type {
   CatalogProduct,
   GroupRow,
@@ -27,6 +29,8 @@ interface ConvenienciaVisaoGeralProps {
   groupTable: GroupRow[]
   /** salesByDay[yyyy-mm-dd] = DaySaleProduct[] daquele dia — usado pra projeção por categoria. */
   salesByDay: Record<string, DaySaleProduct[]>
+  /** Vendas brutas — necessárias pelo CategoriaDetalheModal pra agregar distribuição diária da categoria selecionada. */
+  vendaItens: VendaItem[]
   dataInicial: string
   dataFinal: string
 }
@@ -57,6 +61,7 @@ const ConvenienciaVisaoGeral = ({
   catalogProducts,
   groupTable,
   salesByDay,
+  vendaItens,
   dataInicial,
   dataFinal,
 }: ConvenienciaVisaoGeralProps) => {
@@ -65,6 +70,8 @@ const ConvenienciaVisaoGeral = ({
   const [searchProduto, setSearchProduto] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas')
   const [estoqueFiltro, setEstoqueFiltro] = useState<'todos' | 'sem-estoque' | 'critico' | 'atencao' | 'ok' | 'sem-dados'>('todos')
+  /** Categoria clicada → abre o CategoriaDetalheModal. */
+  const [selectedCategoria, setSelectedCategoria] = useState<{ data: CategoriaData; grupoCodigo: number } | null>(null)
 
   // grupoCodigo → cor (rotativo). Calculado uma vez com base na ordem
   // do groupTable (já vem ordenado por faturamento desc).
@@ -193,7 +200,7 @@ const ConvenienciaVisaoGeral = ({
                   <ThWithHelp label="SKUs" help="Quantidade de produtos distintos com venda na categoria." />
                   <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
                   <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
-                  <ThWithHelp label="Projeção" help="Estimativa de faturamento ao final do mês usando a média móvel dos últimos dias (suavizada). Igual ao Faturamento quando o período é fechado." />
+                  <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
                   <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                   <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                   <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da conveniência." />
@@ -223,7 +230,20 @@ const ConvenienciaVisaoGeral = ({
                         const projetado = projecaoPorGrupo.get(c.grupoCodigo) ?? c.faturamento
                         const colorCls = grupoColorMap.get(c.grupoCodigo) ?? GROUP_COLORS[0]
                         return (
-                          <tr key={c.grupoCodigo} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
+                          <tr
+                            key={c.grupoCodigo}
+                            className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
+                            onClick={() => setSelectedCategoria({
+                              data: {
+                                nome: c.nome,
+                                qtdProdutos: skus,
+                                qtdVendida: c.quantidade,
+                                faturamento: c.faturamento,
+                                custo: c.faturamento - c.margemTotal,
+                              },
+                              grupoCodigo: c.grupoCodigo,
+                            })}
+                          >
                             <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                               <span className="flex items-center gap-2">
                                 <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium', colorCls)}>
@@ -353,6 +373,7 @@ const ConvenienciaVisaoGeral = ({
                   <ThWithHelp label="Unidades" help="Quantidade total de unidades vendidas." />
                   <ThWithHelp label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
                   <ThWithHelp label="Faturamento" help="Receita total do produto (R$)." />
+                  <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
                   <ThWithHelp label="Lucro bruto" help="Lucro bruto: (preço − custo) × quantidade (R$)." />
                   <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                 </tr>
@@ -361,11 +382,15 @@ const ConvenienciaVisaoGeral = ({
                 {(() => {
                   const maxUnidades = Math.max(...produtosExibidos.map((p) => p.qtdVendida), 0)
                   const maxFat = Math.max(...produtosExibidos.map((p) => p.faturamento), 0)
+                  const maxProjProd = Math.max(...produtosExibidos.map((p) => p.projetado ?? p.faturamento), 0)
                   const maxLucro = Math.max(...produtosExibidos.map((p) => (p.precoMedioVenda - p.custoMedio) * p.qtdVendida), 0)
                   const maxMargem = Math.max(...produtosExibidos.map((p) => p.margemPct), 0)
+                  // Cor azul quando há período projetando — pra ficar consistente com a categoria
+                  const isProjetadaProd = produtosExibidos.some((p) => (p.projetado ?? 0) > p.faturamento)
                   return produtosExibidos.map((p) => {
                     const lucro = (p.precoMedioVenda - p.custoMedio) * p.qtdVendida
                     const colorCls = grupoColorMap.get(p.grupoCodigo) ?? GROUP_COLORS[0]
+                    const projetado = p.projetado ?? p.faturamento
                     return (
                       <tr key={p.produtoCodigo} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
                         <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
@@ -391,6 +416,9 @@ const ConvenienciaVisaoGeral = ({
                           <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
+                          <BarCell value={projetado} max={maxProjProd} formatted={formatCurrency(projetado)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
+                        </td>
+                        <td className="px-2 py-1">
                           <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
@@ -405,6 +433,42 @@ const ConvenienciaVisaoGeral = ({
           </div>
         )}
       </section>
+
+      {/* Modal de detalhe da categoria — mesmo componente usado na Pista. */}
+      {(() => {
+        if (!selectedCategoria) return null
+        const grupoCodigoSel = selectedCategoria.grupoCodigo
+        const produtosDaCategoria = catalogProducts
+          .filter((p) => p.grupoCodigo === grupoCodigoSel && p.faturamento > 0)
+          .map((p) => ({
+            produtoCodigo: p.produtoCodigo,
+            nome: p.nome,
+            quantidade: p.qtdVendida,
+            faturamento: p.faturamento,
+            custo: p.custoMedio * p.qtdVendida,
+          }))
+        const produtoCodigos = new Set(produtosDaCategoria.map((p) => p.produtoCodigo))
+        const vendasDaCategoria = vendaItens.filter((v) => produtoCodigos.has(v.produtoCodigo))
+        const estoquePorProduto = new Map<number, number>()
+        for (const p of catalogProducts) {
+          if (p.grupoCodigo === grupoCodigoSel && p.saldo !== undefined) {
+            estoquePorProduto.set(p.produtoCodigo, p.saldo)
+          }
+        }
+        return (
+          <CategoriaDetalheModal
+            open
+            onClose={() => setSelectedCategoria(null)}
+            categoria={selectedCategoria.data}
+            produtos={produtosDaCategoria}
+            vendasDaCategoria={vendasDaCategoria}
+            estoquePorProduto={estoquePorProduto}
+            dataInicial={dataInicial}
+            dataFinal={dataFinal}
+            categoriaColorClass={grupoColorMap.get(grupoCodigoSel) ?? GROUP_COLORS[0]}
+          />
+        )
+      })()}
     </div>
   )
 }
