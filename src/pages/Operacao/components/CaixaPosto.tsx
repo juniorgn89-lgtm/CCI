@@ -109,16 +109,14 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
   // Filters
   const [filterNome, setFilterNome] = useState('')
   const [filterTurno, setFilterTurno] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'todos' | 'ao-vivo' | 'apurado'>(
-    periodIsPast ? 'todos' : 'ao-vivo'
+  const [filterStatus, setFilterStatus] = useState<'todos' | 'aberto' | 'fechado'>(
+    periodIsPast ? 'todos' : 'aberto'
   )
   const [filterDiferenca, setFilterDiferenca] = useState<'todas' | 'com' | 'sem'>('todas')
 
-  // Se o user navegar de período corrente pra passado com o filtro "ao-vivo"
-  // ativo, reseta pra 'todos' senão a lista fica vazia sem motivo aparente.
-  // Set-state inline (não precisa de useEffect; depois do set a condição
-  // fica falsa, não entra em loop).
-  if (periodIsPast && filterStatus === 'ao-vivo') {
+  // Em período passado o filtro "aberto" pode ficar vazio (caixas já foram
+  // fechados) — reseta pra 'todos' pra não dar a impressão de "sem dados".
+  if (periodIsPast && filterStatus === 'aberto') {
     setFilterStatus('todos')
   }
 
@@ -147,8 +145,8 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
       // Filtro de status é desabilitado quando há filtro vindo dos gráficos
       // (do contrário, o default "aberto" esconde caixas fechados que combinam com o filtro)
       if (!hasChartFilter) {
-        if (filterStatus === 'ao-vivo' && g.fechado) return false
-        if (filterStatus === 'apurado' && !g.fechado) return false
+        if (filterStatus === 'aberto' && g.fechado) return false
+        if (filterStatus === 'fechado' && !g.fechado) return false
       }
       // "Com/Sem diferença" só faz sentido em caixas conferidos — exclui abertos.
       // Threshold em cents para tolerar arredondamento de float.
@@ -213,28 +211,28 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     return dayOverrides.has(day.data) ? !defaultCollapsed : defaultCollapsed
   }
 
-  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'ao-vivo' || filterDiferenca !== 'todas'
+  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
 
   const clearFilters = () => {
     setFilterNome('')
     setFilterTurno('')
-    setFilterStatus('ao-vivo')
+    setFilterStatus('aberto')
     setFilterDiferenca('todas')
   }
 
-  // Filtro unificado em 4 pills: Todos / Ao vivo / Com diferença / Sem diferença.
+  // Filtro unificado em 5 pills: Todos / Abertos / Fechados / Com diferença / Sem diferença.
   // Cada pill seta uma combinação específica de filterStatus + filterDiferenca.
-  type FilterPill = 'todos' | 'aovivo' | 'apurado' | 'com' | 'sem'
+  type FilterPill = 'todos' | 'aberto' | 'fechado' | 'com' | 'sem'
 
   const activePill: FilterPill =
     filterDiferenca === 'com'
       ? 'com'
       : filterDiferenca === 'sem'
       ? 'sem'
-      : filterStatus === 'ao-vivo'
-      ? 'aovivo'
-      : filterStatus === 'apurado'
-      ? 'apurado'
+      : filterStatus === 'aberto'
+      ? 'aberto'
+      : filterStatus === 'fechado'
+      ? 'fechado'
       : 'todos'
 
   const handleFilterPill = (pill: FilterPill) => {
@@ -243,13 +241,12 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
         setFilterStatus('todos')
         setFilterDiferenca('todas')
         break
-      case 'aovivo':
-        setFilterStatus('ao-vivo')
+      case 'aberto':
+        setFilterStatus('aberto')
         setFilterDiferenca('todas')
         break
-      case 'apurado':
-        // Mostra apenas caixas fechados (apurados), qualquer diferença
-        setFilterStatus('apurado')
+      case 'fechado':
+        setFilterStatus('fechado')
         setFilterDiferenca('todas')
         break
       case 'com':
@@ -918,15 +915,14 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
               {turnosUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
 
-            {/* Filtro unificado: Todos / Ao vivo / Apurados / Com diferença / Sem diferença.
-                "Ao vivo" some em período passado (não tem caixa aberto a essa altura).
-                "Apurados" mostra caixas fechados (com ou sem diferença). */}
+            {/* Filtro unificado: Todos / Abertos / Fechados / Com diferença / Sem diferença.
+                "Abertos" no período corrente mostra indicador verde (live). */}
             <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
               {(
                 [
                   { v: 'todos', l: 'Todos' },
-                  ...(periodIsPast ? [] : [{ v: 'aovivo', l: 'Ao vivo', live: true }]),
-                  { v: 'apurado', l: 'Apurados' },
+                  { v: 'aberto', l: 'Abertos', live: !periodIsPast },
+                  { v: 'fechado', l: 'Fechados' },
                   { v: 'com', l: 'Com diferença' },
                   { v: 'sem', l: 'Sem diferença' },
                 ] as { v: FilterPill; l: string; live?: boolean }[]
@@ -1052,10 +1048,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                       {/* Group header row */}
                       <tr
                         onClick={() => {
-                          // Clicar num caixa aberto leva o filtro para "Ao vivo"
+                          // Clicar num caixa aberto leva o filtro para "Abertos"
                           // (em vez de manter a visão "Todos" com os fechados misturados)
-                          if (!g.fechado && filterStatus !== 'ao-vivo') {
-                            setFilterStatus('ao-vivo')
+                          if (!g.fechado && filterStatus !== 'aberto') {
+                            setFilterStatus('aberto')
                             setFilterDiferenca('todas')
                           }
                           setSelectedTurno(g)

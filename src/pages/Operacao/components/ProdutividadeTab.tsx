@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { LayoutDashboard, TrendingUp, Target, Award } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, Target, Award, Users, Zap, Fuel, Trophy } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
+import DeltaBadge from '@/components/kpi/DeltaBadge'
 import VisaoGeral from '@/pages/Operacao/components/produtividade/VisaoGeral'
 import Projecoes from '@/pages/Operacao/components/produtividade/Projecoes'
 import Metas from '@/pages/Operacao/components/produtividade/Metas'
@@ -88,6 +90,16 @@ interface ProdutividadeTabProps {
   abastecimentoRows: AbastecimentoRow[]
   abastecimentoRowsPrev: AbastecimentoRow[]
   isLoading: boolean
+  /** KPIs principais do módulo, renderizados como primeira seção da aba Visão Geral. */
+  topKpis?: {
+    frentistasAtivos: number
+    totalAbastecimentos: number
+    prevTotalAbastecimentos: number
+    ritmo: number
+    ritmoPrev: number
+    topFrentistaNome: string | null
+    topFrentistaLitros: number
+  }
 }
 
 /* ── Component ──────────────────────────────────────────── */
@@ -98,6 +110,7 @@ const ProdutividadeTab = ({
   abastecimentoRows,
   abastecimentoRowsPrev,
   isLoading,
+  topKpis,
 }: ProdutividadeTabProps) => {
   const [active, setActive] = useState<SubTab>('visao')
   const { dataInicial, dataFinal } = useFilterStore()
@@ -199,7 +212,74 @@ const ProdutividadeTab = ({
         })}
       </div>
 
-      {active === 'visao' && <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} />}
+      {active === 'visao' && (
+        <div className="space-y-4">
+          {topKpis && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-amber-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-amber-950/20 dark:to-gray-900">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Frentistas Ativos</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                  {formatNumber(topKpis.frentistasAtivos)}
+                </p>
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">com atendimento no período</p>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ritmo Operacional</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                  {`${topKpis.ritmo.toFixed(1).replace('.', ',')}/h`}
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <DeltaBadge current={topKpis.ritmo} previous={topKpis.ritmoPrev} />
+                  <span className="text-[11px] text-gray-400 dark:text-gray-500">abast./hora ativa</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-cyan-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-cyan-950/20 dark:to-gray-900">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Abastecimentos</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                    <Fuel className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                  {formatNumber(topKpis.totalAbastecimentos)}
+                </p>
+                <DeltaBadge current={topKpis.totalAbastecimentos} previous={topKpis.prevTotalAbastecimentos} />
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-emerald-900/50 dark:from-emerald-950/20 dark:to-gray-900">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Frentista Destaque</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                    <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                </div>
+                <p className={cn(
+                  'mt-2 truncate text-2xl font-bold tabular-nums',
+                  topKpis.topFrentistaNome ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'
+                )}>
+                  {topKpis.topFrentistaNome ?? '—'}
+                </p>
+                <p className="mt-1 text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                  {topKpis.topFrentistaNome ? formatLiters(topKpis.topFrentistaLitros) : ''}
+                </p>
+              </div>
+            </div>
+          )}
+          <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} />
+        </div>
+      )}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}
       {active === 'metas' && <Metas frentistas={frentistas} />}
       {active === 'destaques' && (
