@@ -7,6 +7,7 @@ import type {
   VendaItem,
   TituloReceber,
   TituloPagar,
+  CupomMultiAbast,
 } from '@/pages/QualidadeDados/hooks/useQualidadeDados'
 
 /**
@@ -59,6 +60,12 @@ export const identityCaixaDiferenca = (c: Caixa): ArquivadoIdentity => ({
 export const identityEstoqueNegativo = (e: ProdutoEstoqueNegativo): ArquivadoIdentity => ({
   codigo: String(e.produtoCodigo),
   rotulo: `Produto ${e.produtoCodigo} · ${e.nome}`,
+})
+
+/* ─── Cupom com múltiplos abastecimentos (fraude) ─── */
+export const identityCupomMultiAbast = (c: CupomMultiAbast): ArquivadoIdentity => ({
+  codigo: String(c.vendaCodigo),
+  rotulo: `Venda #${c.vendaCodigo} · ${c.funcionarioNome} · ${c.abastecimentos.length} abastecimentos`,
 })
 
 /* ─── Título (recebíveis OU pagáveis) ─── */

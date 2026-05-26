@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ShieldAlert, Fuel, ShoppingCart, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks } from 'lucide-react'
+import { ShieldAlert, Fuel, ShoppingCart, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -22,6 +22,7 @@ import useQualidadeDados, {
   type VendaItem,
   type TituloReceber,
   type TituloPagar,
+  type CupomMultiAbast,
 } from '@/pages/QualidadeDados/hooks/useQualidadeDados'
 import useQualidadeArquivados, { keyOf } from '@/pages/QualidadeDados/hooks/useQualidadeArquivados'
 import {
@@ -32,6 +33,7 @@ import {
   identityCaixaDiferenca,
   identityEstoqueNegativo,
   identityTitulo,
+  identityCupomMultiAbast,
   type ArquivadoIdentity,
 } from '@/pages/QualidadeDados/lib/arquivadoIdentity'
 import type { ArquivarInput } from '@/api/supabase/qualidadeArquivados'
@@ -392,6 +394,230 @@ const PrecoSuspeitoTable = ({
       </tbody>
     </table>
   </div>
+  )
+}
+
+/* ─── Adapter Cupom Multi-Abast ─── */
+// Mapeia tipo/nome de FPG pro ícone visual. Tenta nome primeiro (mais específico),
+// cai pra tipo se não bater. Default = HelpCircle (não conseguimos classificar).
+const fpgIcon = (tipo: string, nome: string) => {
+  const s = `${tipo} ${nome}`.toLowerCase()
+  if (s.includes('dinheiro') || s.includes('especie')) return Banknote
+  if (s.includes('pix')) return Smartphone
+  if (s.includes('cart') || s.includes('credit') || s.includes('debit') || s.includes('prime')) return CreditCard
+  return HelpCircle
+}
+
+const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): LancamentoDetalheData => {
+  void _qi
+  const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
+  const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 8) : c.dataHora.substring(11, 19)
+
+  // Soma por tipo de combustível pra mostrar resumo no topo da lista de abastecimentos.
+  const porCombustivel = new Map<string, { litros: number; total: number }>()
+  c.abastecimentos.forEach((a) => {
+    const key = a.tipoCombustivel || a.produtoNome
+    const prev = porCombustivel.get(key) ?? { litros: 0, total: 0 }
+    porCombustivel.set(key, { litros: prev.litros + a.quantidade, total: prev.total + a.totalVenda })
+  })
+
+  const abastecimentosNode = (
+    <div className="space-y-2">
+      {/* Resumo por combustível (só aparece quando tem mix) */}
+      {c.mixCombustiveis && (
+        <div className="flex flex-wrap gap-1.5">
+          {Array.from(porCombustivel.entries()).map(([nome, agg]) => (
+            <span
+              key={nome}
+              className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            >
+              <Fuel className="h-2.5 w-2.5" />
+              {nome} · {formatNumber(agg.litros)}L · {formatCurrency(agg.total)}
+            </span>
+          ))}
+        </div>
+      )}
+      {/* Lista de itens */}
+      <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
+        {c.abastecimentos.map((a, idx) => (
+          <li key={idx} className="flex items-center gap-2 px-2 py-1.5">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+              {idx + 1}
+            </span>
+            <Fuel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
+                {a.produtoNome}
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                Bico {a.bicoCodigo} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
+              </p>
+            </div>
+            <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+              {formatCurrency(a.totalVenda)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+
+  const formasPagamentoNode = c.formasPagamento.length > 0 ? (
+    <div className="flex flex-wrap gap-1.5">
+      {c.formasPagamento.map((f, idx) => {
+        const Icon = fpgIcon(f.tipo, f.nome)
+        const isCard = Icon === CreditCard
+        return (
+          <span
+            key={idx}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium',
+              isCard
+                ? 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700/40 dark:bg-purple-900/20 dark:text-purple-300'
+                : Icon === Banknote
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/20 dark:text-emerald-300'
+                : Icon === Smartphone
+                ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700/40 dark:bg-sky-900/20 dark:text-sky-300'
+                : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            <span className="capitalize">{f.nome.toLowerCase().replace(/\.+$/, '')}</span>
+            <span className="font-mono font-semibold tabular-nums">{formatCurrency(f.valor)}</span>
+          </span>
+        )
+      })}
+    </div>
+  ) : null
+
+  const motivoBase = `Esse cupom tem ${c.abastecimentos.length} abastecimentos no mesmo lançamento.`
+  const motivoExtra = c.riscoScore === 3
+    ? ' ⚠ Combina combustíveis diferentes E mistura formas de pagamento — sinal forte de "montagem" pra ocultar fraude.'
+    : c.mixCombustiveis
+    ? ' Combustíveis diferentes no mesmo cupom (ex.: gasolina + diesel) — incomum num cliente real.'
+    : c.mixPagamentos
+    ? ' Mix de formas de pagamento (ex.: cartão + dinheiro) — pode ser legítimo, mas vale conferir.'
+    : ' Mesmo combustível repetido — pode ser caminhão/frota, mas vale conferir o cliente.'
+  return {
+    title: `Cupom Venda #${c.vendaCodigo}`,
+    subtitle: `${formatDate(day)} ${hora} · ${c.funcionarioNome}`,
+    codigoLabel: 'Código da venda (no Quality)',
+    codigoValue: String(c.vendaCodigo),
+    qualityHint: 'Acesse Quality → Vendas → buscar pelo código acima. Confirme com o frentista e revise o cupom físico.',
+    motivo: motivoBase + motivoExtra,
+    severidade: c.riscoScore === 3 ? 'high' : c.riscoScore === 2 ? 'medium' : 'low',
+    details: [
+      { label: 'Data', value: formatDate(day) },
+      { label: 'Hora', value: hora || '—' },
+      { label: 'Frentista', value: c.funcionarioNome, highlight: true },
+      { label: 'Abastecimentos', value: abastecimentosNode },
+      { label: 'Total cupom', value: formatCurrency(c.totalVenda), numeric: true },
+      { label: 'Formas de pagamento', value: formasPagamentoNode },
+      { label: 'Combustíveis diferentes', value: c.mixCombustiveis ? 'Sim ⚠' : 'Não', highlight: c.mixCombustiveis },
+      { label: 'Score de risco', value: c.riscoScore === 3 ? '3 (ALTO)' : c.riscoScore === 2 ? '2 (MÉDIO)' : '1 (BAIXO)' },
+    ],
+  }
+}
+
+const RiscoBadge = ({ score }: { score: 1 | 2 | 3 }) => {
+  if (score === 3) return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-700 dark:bg-red-900/40 dark:text-red-300">Alto</span>
+  if (score === 2) return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Médio</span>
+  return <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Baixo</span>
+}
+
+const CupomMultiAbastTable = ({
+  items, qi, onSelect, selection,
+}: { items: CupomMultiAbast[]; qi: QualidadeIssue; selection?: SelectionProps<CupomMultiAbast> } & RowClickable) => {
+  const visible = items.slice(0, 100)
+  const visibleIds = visible.map((c) => {
+    const id = selection?.identityOf(c)
+    return id ? { key: keyOf(selection!.tipoIssue, id.codigo), rotulo: id.rotulo } : null
+  })
+  const totalSelectedVisible = selection
+    ? visibleIds.filter((v) => v && selection.selectedKeys.has(v.key)).length
+    : 0
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+          <tr>
+            {selection && (
+              <th className="w-8 px-3 py-2 text-left">
+                <HeaderCheck
+                  totalVisible={visible.length}
+                  totalSelectedVisible={totalSelectedVisible}
+                  onToggle={() => selection.onToggleAll(visibleIds.filter((v): v is { key: string; rotulo: string } => !!v))}
+                />
+              </th>
+            )}
+            <th className="px-3 py-2 text-left font-medium">Risco</th>
+            <th className="px-3 py-2 text-left font-medium">Venda #</th>
+            <th className="px-3 py-2 text-left font-medium">Data / Hora</th>
+            <th className="px-3 py-2 text-left font-medium">Frentista</th>
+            <th className="px-3 py-2 text-left font-medium">Combustíveis</th>
+            <th className="px-3 py-2 text-right font-medium">Total</th>
+            <th className="px-3 py-2 text-left font-medium">Pagamento</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          {visible.map((c, idx) => {
+            const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
+            const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 5) : c.dataHora.substring(11, 16)
+            const vid = visibleIds[idx]
+            const isSel = selection && vid ? selection.selectedKeys.has(vid.key) : false
+            const combustiveisLabel = c.abastecimentos
+              .map((a) => `${a.tipoCombustivel || a.produtoNome.split(' ')[0]} ${formatNumber(a.quantidade)}L`)
+              .join(' + ')
+            const pagamentoLabel = c.formasPagamento.length > 0
+              ? c.formasPagamento.map((f) => `${f.tipo} ${formatCurrency(f.valor)}`).join(' · ')
+              : '—'
+            return (
+              <tr
+                key={c.vendaCodigo}
+                className={cn(
+                  'cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40',
+                  isSel && 'bg-blue-50/60 dark:bg-blue-900/20',
+                  c.riscoScore === 3 && 'border-l-2 border-red-400 bg-red-50/30 dark:border-red-500/70 dark:bg-red-900/10',
+                )}
+                onClick={() => onSelect(adaptCupomMultiAbast(c, qi))}
+              >
+                {selection && vid && (
+                  <td className="px-3 py-1.5">
+                    <RowCheck checked={isSel} onChange={() => selection.onToggle(vid.key, vid.rotulo)} ariaLabel={`Selecionar ${vid.rotulo}`} />
+                  </td>
+                )}
+                <td className="px-3 py-1.5">
+                  <RiscoBadge score={c.riscoScore} />
+                </td>
+                <td className="px-3 py-1.5 font-mono tabular-nums text-blue-600 underline-offset-2 hover:underline dark:text-blue-400">
+                  #{c.vendaCodigo}
+                </td>
+                <td className="px-3 py-1.5 tabular-nums text-gray-900 dark:text-gray-100">
+                  {formatDate(day)} {hora && <span className="text-gray-500 dark:text-gray-400">{hora}</span>}
+                </td>
+                <td className="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
+                <td className={cn(
+                  'px-3 py-1.5 text-xs',
+                  c.mixCombustiveis ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300',
+                )}>
+                  {combustiveisLabel}
+                  <span className="ml-1 text-[10px] text-gray-400">({c.abastecimentos.length} itens)</span>
+                </td>
+                <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                  {formatCurrency(c.totalVenda)}
+                </td>
+                <td className={cn(
+                  'px-3 py-1.5 text-[11px]',
+                  c.mixPagamentos ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-500 dark:text-gray-400',
+                )}>
+                  {pagamentoLabel}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -804,6 +1030,18 @@ const QualidadeDados = () => {
     )
   })
   const vendasIssues: Issue[] = data.vendas.map((qi) => {
+    if (qi.id === 'cupom-multi-abast') {
+      const items = filterArchived(qi.items as CupomMultiAbast[], qi.id, identityCupomMultiAbast)
+      return toIssue(
+        { ...qi, count: items.length, items },
+        <CupomMultiAbastTable
+          items={items}
+          qi={qi}
+          onSelect={onSelect}
+          selection={makeSelection<CupomMultiAbast>(qi.id, identityCupomMultiAbast)}
+        />,
+      )
+    }
     const items = filterArchived(qi.items as VendaItem[], qi.id, identityVendaItem)
     return toIssue(
       { ...qi, count: items.length, items },
@@ -1022,7 +1260,7 @@ const QualidadeDados = () => {
               {/* Seções por categoria */}
               <div className="grid grid-cols-1 gap-4">
                 <IssueSection title="Abastecimentos" subtitle="Erros nos lançamentos de bomba" Icon={Fuel} issues={abastIssues} isLoading={data.isLoading} />
-                <IssueSection title="Vendas" subtitle="Inconsistências no PDV / itens vendidos" Icon={ShoppingCart} issues={vendasIssues} isLoading={data.isLoading} />
+                <IssueSection title="Vendas - Sistema Sherlock Holmes" subtitle="Inconsistências no PDV / itens vendidos" Icon={ShoppingCart} issues={vendasIssues} isLoading={data.isLoading} />
                 <IssueSection title="Caixa" subtitle="Fechamentos, diferenças e caixas pendurados" Icon={Wallet} issues={caixaIssues} isLoading={data.isLoading} />
                 <IssueSection title="Estoque" subtitle="Saldos negativos e divergências de inventário" Icon={Boxes} issues={estoqueIssues} isLoading={data.isLoading} />
                 <IssueSection title="Financeiro" subtitle="Títulos a receber e a pagar com problemas de cadastro" Icon={Landmark} issues={financeiroIssues} isLoading={data.isLoading} />

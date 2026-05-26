@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Copy, Check, ExternalLink, AlertTriangle, Info } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -6,7 +6,9 @@ import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSecti
 
 export interface DetailField {
   label: string
-  value: string | number | null | undefined
+  /** Aceita string/número simples OU ReactNode pra casos ricos (listas, chips,
+   * tabelas embutidas). Pra mostrar "—" passe null/undefined/''. */
+  value: string | number | null | undefined | ReactNode
   /** Quando true, valor aparece destacado (cor da severidade do issue). */
   highlight?: boolean
   /** Quando true, usa tabular-nums + alinhamento direito (pra valores monetários/quantitativos). */

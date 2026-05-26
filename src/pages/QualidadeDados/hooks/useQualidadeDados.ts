@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
-import { fetchVendaItens } from '@/api/endpoints/vendas'
+import { fetchVendaItens, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchCaixas, fetchTitulosReceber, fetchTitulosPagar } from '@/api/endpoints/financeiro'
+import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useAbastecimentosAnalytics, { type AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
@@ -39,6 +40,41 @@ export interface ProdutoEstoqueNegativo {
   produtoCodigo: number
   nome: string
   saldo: number
+}
+
+/**
+ * Cupom (venda) com 2+ abastecimentos de combustível — sinal de "montagem
+ * de cupom" usada em fraudes documentadas no Posto Trivela (abr/2026).
+ *
+ * Frentista combina vários abastecimentos num único cupom pra ocultar
+ * desvio de pagamento (parte cartão, parte dinheiro, valor real ≠ físico).
+ */
+export interface CupomMultiAbast {
+  vendaCodigo: number
+  dataHora: string
+  funcionarioCodigo: number
+  funcionarioNome: string
+  abastecimentos: Array<{
+    produtoCodigo: number
+    produtoNome: string
+    tipoCombustivel: string
+    quantidade: number
+    precoVenda: number
+    totalVenda: number
+    bicoCodigo: number
+  }>
+  totalVenda: number
+  formasPagamento: Array<{
+    tipo: string
+    nome: string
+    valor: number
+  }>
+  /** Combustíveis diferentes no mesmo cupom (ex.: gasolina + diesel). */
+  mixCombustiveis: boolean
+  /** Formas de pagamento diferentes (ex.: cartão + dinheiro). */
+  mixPagamentos: boolean
+  /** Score 1-3: 1 = mesmo combustível + 1 forma pgto, 3 = mix de tudo. */
+  riscoScore: 1 | 2 | 3
 }
 
 export interface QualidadeData {
@@ -101,6 +137,33 @@ const useQualidadeDados = (): QualidadeData => {
       1000, 50,
     ),
     enabled: hasEmpresa && empresaCodigo !== null,
+  })
+
+  // Formas de pagamento por venda — usado pra detectar mix cartão/dinheiro
+  // no detector de cupons "montados" (sinal de fraude do Posto Trivela).
+  const { data: formasPgto = [], isLoading: isLoadingFormas } = useQuery({
+    queryKey: ['vendaFormasPgto', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchVendaFormasPagamento({
+        empresaCodigo: empresaCodigo!,
+        dataInicial,
+        dataFinal,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 50,
+    ),
+    enabled: hasEmpresa && empresaCodigo !== null,
+  })
+
+  // Funcionários — pra resolver funcionarioCodigo → nome do frentista
+  // que emitiu o cupom suspeito. Mesma queryKey do useOperacaoData =
+  // React Query dedupe automático.
+  const { data: funcionariosRaw } = useQuery({
+    queryKey: ['funcionarios', empresaCodigo],
+    queryFn: () => fetchFuncionarios({ empresaCodigo: empresaCodigo!, limite: 1000 }),
+    enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 30 * 60 * 1000,
   })
 
   const { data: caixasRaw, isLoading: isLoadingCaixas } = useQuery({
@@ -232,10 +295,104 @@ const useQualidadeDados = (): QualidadeData => {
           count: 0,
           items: [],
         },
+        {
+          id: 'cupom-multi-abast',
+          label: 'Cupom com múltiplos abastecimentos',
+          description: 'Vendas com 2+ itens de combustível — sinal de "montagem de cupom" usada em fraudes de cartão.',
+          severity: 'high',
+          count: 0,
+          items: [],
+        },
       ]
     }
     const produtosSet = new Set(produtosData.map((p) => p.produtoCodigo))
     const itemSemProduto = vendaItens.filter((v) => !produtosSet.has(v.produtoCodigo))
+
+    // ── Detector cupom-multi-abast ──
+    // Lista vendas com 2+ itens de combustível no mesmo cupom. Padrão de
+    // fraude documentado no Posto Trivela (abr/2026): frentista junta vários
+    // abastecimentos num cupom só pra disfarçar desvio em pagamento (mix
+    // cartão + dinheiro). Score 1 = base, 2 = mix de combustíveis, 3 = + mix
+    // formas pgto.
+    const produtoMap = new Map(produtosData.map((p) => [p.produtoCodigo, p]))
+    const funcMap = new Map<number, string>()
+    for (const f of funcionariosRaw?.resultados ?? []) {
+      funcMap.set(f.funcionarioCodigo, f.nome)
+    }
+    const pgtoByVenda = new Map<number, typeof formasPgto>()
+    for (const fp of formasPgto) {
+      const arr = pgtoByVenda.get(fp.vendaCodigo) ?? []
+      arr.push(fp)
+      pgtoByVenda.set(fp.vendaCodigo, arr)
+    }
+
+    const itensPorVenda = new Map<number, typeof vendaItens>()
+    for (const item of vendaItens) {
+      const arr = itensPorVenda.get(item.vendaCodigo) ?? []
+      arr.push(item)
+      itensPorVenda.set(item.vendaCodigo, arr)
+    }
+
+    const cupomMultiAbast: CupomMultiAbast[] = []
+    for (const [vendaCodigo, itens] of itensPorVenda.entries()) {
+      const combItens = itens.filter((i) => {
+        const p = produtoMap.get(i.produtoCodigo)
+        return p?.combustivel === true
+      })
+      if (combItens.length < 2) continue
+
+      const abastecimentos = combItens.map((i) => {
+        const p = produtoMap.get(i.produtoCodigo)
+        return {
+          produtoCodigo: i.produtoCodigo,
+          produtoNome: p?.nome ?? `Produto ${i.produtoCodigo}`,
+          tipoCombustivel: p?.tipoCombustivel ?? '',
+          quantidade: i.quantidade,
+          precoVenda: i.precoVenda,
+          totalVenda: i.totalVenda,
+          bicoCodigo: i.bicoCodigo,
+        }
+      })
+
+      const tiposUnicos = new Set(abastecimentos.map((a) => a.tipoCombustivel).filter(Boolean))
+      const mixCombustiveis = tiposUnicos.size >= 2
+
+      const pgtos = pgtoByVenda.get(vendaCodigo) ?? []
+      const formasPagamento = pgtos.map((fp) => ({
+        tipo: fp.tipoFormaPagamento || 'OUTROS',
+        nome: fp.nomeFormaPagamento || fp.tipoFormaPagamento || 'Outros',
+        valor: fp.valorPagamento,
+      }))
+      const tiposFpgUnicos = new Set(formasPagamento.map((f) => f.tipo))
+      const mixPagamentos = tiposFpgUnicos.size >= 2
+
+      const riscoScore: 1 | 2 | 3 = mixCombustiveis && mixPagamentos
+        ? 3
+        : mixCombustiveis || mixPagamentos
+        ? 2
+        : 1
+
+      const firstItem = itens[0]
+      cupomMultiAbast.push({
+        vendaCodigo,
+        dataHora: firstItem.dataMovimento,
+        funcionarioCodigo: firstItem.funcionarioCodigo,
+        funcionarioNome: funcMap.get(firstItem.funcionarioCodigo) ?? `Funcionário ${firstItem.funcionarioCodigo}`,
+        abastecimentos,
+        totalVenda: abastecimentos.reduce((s, a) => s + a.totalVenda, 0),
+        formasPagamento,
+        mixCombustiveis,
+        mixPagamentos,
+        riscoScore,
+      })
+    }
+
+    // Ordena por risco desc, depois data mais recente primeiro
+    cupomMultiAbast.sort((a, b) => {
+      if (a.riscoScore !== b.riscoScore) return b.riscoScore - a.riscoScore
+      return b.dataHora.localeCompare(a.dataHora)
+    })
+
     return [
       {
         id: 'item-sem-produto',
@@ -245,8 +402,16 @@ const useQualidadeDados = (): QualidadeData => {
         count: itemSemProduto.length,
         items: itemSemProduto,
       },
+      {
+        id: 'cupom-multi-abast',
+        label: 'Cupom com múltiplos abastecimentos',
+        description: 'Vendas com 2+ itens de combustível no mesmo cupom. Padrão associado a fraude — frentista "monta" cupons combinando abastecimentos pra ocultar mix de cartão/dinheiro.',
+        severity: 'high',
+        count: cupomMultiAbast.length,
+        items: cupomMultiAbast,
+      },
     ]
-  }, [vendaItens, produtosData])
+  }, [vendaItens, produtosData, formasPgto, funcionariosRaw])
 
   // Caixa
   const caixa = useMemo<QualidadeIssue[]>(() => {
@@ -351,7 +516,7 @@ const useQualidadeDados = (): QualidadeData => {
   const totalAtencao = allIssues.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
   const totalInfo = allIssues.filter((i) => i.severity === 'low').reduce((s, i) => s + i.count, 0)
 
-  const isLoading = isLoadingAbast || isLoadingVendas || isLoadingCaixas || isLoadingEstoque || isLoadingReceber || isLoadingPagar
+  const isLoading = isLoadingAbast || isLoadingVendas || isLoadingFormas || isLoadingCaixas || isLoadingEstoque || isLoadingReceber || isLoadingPagar
 
   return {
     abastecimentos,
