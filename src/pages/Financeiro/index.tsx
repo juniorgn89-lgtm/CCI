@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity, AlertTriangle, Scale } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard, AlertTriangle, Scale } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { formatCurrency } from '@/lib/formatters'
@@ -21,7 +21,7 @@ import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
-  indicadores: Activity,
+  visao: LayoutDashboard,
   receber: Receipt,
   pagar: CreditCard,
   fluxo: BarChart3,
@@ -41,7 +41,7 @@ const TableSkeleton = () => (
 const Financeiro = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useFinanceiroLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'indicadores')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'visao')
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab)
@@ -249,7 +249,7 @@ const Financeiro = () => {
                 <TableSkeleton />
               ) : (
                 <Suspense fallback={<TableSkeleton />}>
-                  {activeTab === 'indicadores' && kpis && (
+                  {activeTab === 'visao' && kpis && (
                     <FinanceiroIndicadores
                       kpis={kpis}
                       receivablesData={receivablesData}

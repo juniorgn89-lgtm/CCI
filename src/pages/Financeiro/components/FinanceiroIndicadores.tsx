@@ -1,16 +1,16 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  DollarSign, CreditCard, TrendingUp, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, Hourglass,
+  ArrowUpRight, ArrowDownRight, Hourglass, CalendarClock,
+  Receipt, CreditCard, TrendingUp,
 } from 'lucide-react'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend,
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
 import type { FinanceKpiData, ReceivableRow, PayableRow, CashFlowRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
-type TabKey = 'indicadores' | 'receber' | 'pagar' | 'fluxo'
+type TabKey = 'visao' | 'receber' | 'pagar' | 'fluxo'
 
 interface FinanceiroIndicadoresProps {
   kpis: FinanceKpiData
@@ -22,14 +22,12 @@ interface FinanceiroIndicadoresProps {
 
 /* ─── Aging buckets ───
  * Faixas tradicionais de cobrança: < 30d ainda recuperável, > 90d normalmente
- * tratado como provisão. Usado pra direcionar estratégia (lembrete vs. negativação
- * vs. write-off) — diferença qualitativa enorme em relação a um único total "vencido".
+ * tratado como provisão.
  */
 interface AgingBucket {
   label: string
   count: number
   total: number
-  /** Tema de cor: âmbar (recente) → vermelho-escuro (antigo). */
   tone: 'amber' | 'orange' | 'red' | 'darkRed'
 }
 
@@ -148,28 +146,107 @@ const AgingColumn = ({
   )
 }
 
-const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowData, onNavigateTab }: FinanceiroIndicadoresProps) => {
+/* ─── Próximos vencimentos ───
+ * Top 5 a vencer mais próximos — direciona ação imediata (cobrar X
+ * ou separar caixa pra pagar Y).
+ */
+const ProximosVencimentos = <T extends { codigo: number; nome: string; valor: number; data: string }>({
+  title,
+  rows,
+  emptyMessage,
+  onClick,
+  accentColor,
+  icon: Icon,
+  nowTs,
+}: {
+  title: string
+  rows: T[]
+  emptyMessage: string
+  onClick: () => void
+  accentColor: 'emerald' | 'red'
+  icon: typeof Receipt
+  nowTs: number
+}) => {
+  const max = Math.max(...rows.map((r) => r.valor), 0)
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <Icon className={cn('h-4 w-4', accentColor === 'emerald' ? 'text-emerald-500' : 'text-red-500')} />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClick}
+          className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Ver todos
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-8 text-center text-xs text-gray-400">{emptyMessage}</p>
+      ) : (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+          {rows.map((r) => {
+            const barWidth = max > 0 ? (r.valor / max) * 100 : 0
+            const diasAteVencer = Math.ceil((new Date(`${r.data}T00:00:00`).getTime() - nowTs) / 86_400_000)
+            const isProximo = diasAteVencer <= 7
+            return (
+              <li key={r.codigo} className="px-4 py-2.5">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100" title={r.nome}>
+                    {r.nome}
+                  </span>
+                  <span className={cn(
+                    'shrink-0 font-semibold tabular-nums',
+                    accentColor === 'emerald' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400',
+                  )}>
+                    {formatCurrency(r.valor)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                    <div
+                      className={cn(
+                        'h-full rounded-full',
+                        accentColor === 'emerald' ? 'bg-emerald-500/70' : 'bg-red-500/70',
+                      )}
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                  <span className={cn(
+                    'shrink-0 text-[10px] tabular-nums',
+                    isProximo ? 'font-medium text-amber-600 dark:text-amber-400' : 'text-gray-400',
+                  )}>
+                    {formatDate(r.data)} · {diasAteVencer < 0 ? `${Math.abs(diasAteVencer)}d atrás` : diasAteVencer === 0 ? 'hoje' : `${diasAteVencer}d`}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+const FinanceiroIndicadores = ({ kpis: _kpis, receivablesData, payablesData, cashFlowData, onNavigateTab }: FinanceiroIndicadoresProps) => {
+  // _kpis fica disponível pro caso de reuso futuro; cards do topo do módulo já cobrem os totais
+  void _kpis
+  // "Agora" capturado uma vez (Date.now em render é impuro)
+  const [nowTs] = useState(() => Date.now())
   const computed = useMemo(() => {
     // Cash flow totals
     const totalEntradas = cashFlowData.reduce((acc, r) => acc + r.entradas, 0)
     const totalSaidas = cashFlowData.reduce((acc, r) => acc + r.saidas, 0)
     const saldoFluxo = totalEntradas - totalSaidas
-    const lastCashFlow = cashFlowData.length > 0 ? cashFlowData[cashFlowData.length - 1] : null
 
-    // Overdue receivables breakdown
+    // Overdue rows pra aging
     const overdueReceivables = receivablesData.filter((r) => r.statusTag === 'vencido')
-    const pendingReceivables = receivablesData.filter((r) => r.statusTag === 'a-vencer')
-    const totalOverdueReceivables = overdueReceivables.reduce((acc, r) => acc + r.valor, 0)
-    const totalPendingReceivables = pendingReceivables.reduce((acc, r) => acc + r.valor, 0)
-
-    // Overdue payables breakdown
     const overduePayables = payablesData.filter((p) => p.statusTag === 'vencido')
-    const pendingPayables = payablesData.filter((p) => p.statusTag === 'a-vencer')
+    const totalOverdueReceivables = overdueReceivables.reduce((acc, r) => acc + r.valor, 0)
     const totalOverduePayables = overduePayables.reduce((acc, p) => acc + p.saldoRestante, 0)
-    const totalPendingPayables = pendingPayables.reduce((acc, p) => acc + p.saldoRestante, 0)
 
-    // Aging — vencidos distribuídos por faixa de atraso (substitui os 2 cards "Vencidos *"
-    // que mostravam só o total, sem indicar se é dor crônica ou recente).
     const agingReceber = buildAgingBuckets(
       overdueReceivables.map((r) => ({ diasAtraso: r.diasAtraso, valor: r.valor }))
     )
@@ -177,122 +254,119 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       overduePayables.map((p) => ({ diasAtraso: p.diasAtraso, valor: p.saldoRestante }))
     )
 
-    // Cash flow chart — last 10 days for quick view
-    const recentCashFlow = cashFlowData.slice(-10).map((r) => ({
-      ...r,
-      data: r.data.substring(5), // MM-DD
-    }))
+    // Top 5 próximos a vencer — ordenados pela proximidade do vencimento
+    const proximosReceber = receivablesData
+      .filter((r) => r.statusTag === 'a-vencer')
+      .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento))
+      .slice(0, 5)
+      .map((r) => ({ codigo: r.codigo, nome: r.nomeCliente, valor: r.valor, data: r.dataVencimento }))
+
+    const proximosPagar = payablesData
+      .filter((p) => p.statusTag === 'a-vencer')
+      .sort((a, b) => a.vencimento.localeCompare(b.vencimento))
+      .slice(0, 5)
+      .map((p) => ({ codigo: p.codigo, nome: p.nomeFornecedor, valor: p.saldoRestante, data: p.vencimento }))
+
+    // Cash flow chart — todos os dias do período, com saldo acumulado.
+    // Reduce em vez de mutar `let acum` (regra de pureza).
+    const chartData = cashFlowData.reduce<{ rows: Array<{ data: string; dataLabel: string; entradas: number; saidas: number; saldoAcumulado: number }>; acum: number }>(
+      (acc, r) => {
+        const acum = acc.acum + r.entradas - r.saidas
+        acc.rows.push({
+          data: r.data,
+          dataLabel: r.data.substring(8) + '/' + r.data.substring(5, 7),
+          entradas: r.entradas,
+          saidas: -r.saidas,  // negativo pra empilhar visualmente abaixo do eixo
+          saldoAcumulado: acum,
+        })
+        return { rows: acc.rows, acum }
+      },
+      { rows: [], acum: 0 },
+    ).rows
 
     return {
       totalEntradas,
       totalSaidas,
       saldoFluxo,
-      lastCashFlow,
       totalOverdueReceivables,
-      totalPendingReceivables,
-      overdueReceivablesCount: overdueReceivables.length,
-      pendingReceivablesCount: pendingReceivables.length,
       totalOverduePayables,
-      totalPendingPayables,
-      overduePayablesCount: overduePayables.length,
-      pendingPayablesCount: pendingPayables.length,
       agingReceber,
       agingPagar,
-      recentCashFlow,
+      proximosReceber,
+      proximosPagar,
+      chartData,
     }
   }, [receivablesData, payablesData, cashFlowData])
 
-  const kpiCards = [
-    {
-      label: 'Total a Receber',
-      value: formatCurrency(kpis.totalReceber),
-      subtitle: `${formatNumber(kpis.countReceber)} títulos pendentes${kpis.countVencidosReceber > 0 ? ` · ${kpis.countVencidosReceber} vencidos` : ''}`,
-      icon: DollarSign,
-      cardBg: 'bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
-      iconColor: 'text-emerald-600 dark:text-emerald-400',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
-      tab: 'receber' as TabKey,
-    },
-    {
-      label: 'Total a Pagar',
-      value: formatCurrency(kpis.totalPagar),
-      subtitle: `${formatNumber(kpis.countPagar)} títulos pendentes${kpis.countVencidosPagar > 0 ? ` · ${kpis.countVencidosPagar} vencidos` : ''}`,
-      icon: CreditCard,
-      cardBg: 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
-      iconColor: 'text-red-600 dark:text-red-400',
-      iconBg: 'bg-red-100 dark:bg-red-900/30',
-      tab: 'pagar' as TabKey,
-    },
-    {
-      label: 'Saldo Líquido',
-      value: formatCurrency(kpis.saldoLiquido),
-      subtitle: kpis.saldoLiquido >= 0 ? 'Posição favorável' : 'Posição desfavorável',
-      icon: TrendingUp,
-      cardBg: kpis.saldoLiquido >= 0 ? 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900',
-      iconColor: kpis.saldoLiquido >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400',
-      iconBg: kpis.saldoLiquido >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-amber-100 dark:bg-amber-900/30',
-      tab: 'fluxo' as TabKey,
-    },
-    {
-      label: 'Inadimplência',
-      value: formatCurrency(kpis.inadimplencia),
-      subtitle: kpis.inadimplenciaPercent > 0
-        ? `${kpis.inadimplenciaPercent.toFixed(1)}% do total a receber`
-        : 'Nenhum título vencido',
-      icon: AlertTriangle,
-      cardBg: kpis.inadimplencia > 0 ? 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900' : 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-950/20 dark:to-gray-900',
-      iconColor: kpis.inadimplencia > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400',
-      iconBg: kpis.inadimplencia > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-800',
-      tab: 'receber' as TabKey,
-    },
-    {
-      label: 'Entradas',
-      value: formatCurrency(computed.totalEntradas),
-      subtitle: `${cashFlowData.length} dia${cashFlowData.length !== 1 ? 's' : ''} com movimentação`,
-      icon: ArrowUpRight,
-      cardBg: 'bg-gradient-to-br from-green-50/60 to-white dark:from-green-950/20 dark:to-gray-900',
-      iconColor: 'text-green-600 dark:text-green-400',
-      iconBg: 'bg-green-100 dark:bg-green-900/30',
-      tab: 'fluxo' as TabKey,
-    },
-    {
-      label: 'Saídas',
-      value: formatCurrency(computed.totalSaidas),
-      subtitle: computed.saldoFluxo >= 0 ? 'Cobertas pelas entradas' : 'Acima das entradas',
-      icon: ArrowDownRight,
-      cardBg: 'bg-gradient-to-br from-orange-50/60 to-white dark:from-orange-950/20 dark:to-gray-900',
-      iconColor: 'text-orange-600 dark:text-orange-400',
-      iconBg: 'bg-orange-100 dark:bg-orange-900/30',
-      tab: 'fluxo' as TabKey,
-    },
-  ]
-
   return (
-    <div className="space-y-6">
-      {/* KPIs (6 cards — Vencidos Receber/Pagar foram movidos pra seção Aging abaixo) */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
-        {kpiCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <button
-              key={card.label}
-              onClick={() => onNavigateTab(card.tab)}
-              className={cn('rounded-lg border border-gray-200/60 px-3 py-2.5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700/60', card.cardBg)}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                <div className={cn('flex h-6 w-6 items-center justify-center rounded-md', card.iconBg)}>
-                  <Icon className={cn('h-3.5 w-3.5', card.iconColor)} />
-                </div>
-              </div>
-              <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{card.value}</p>
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{card.subtitle}</p>
-            </button>
-          )
-        })}
+    <div className="space-y-4">
+      {/* 2 cards de cash flow — únicos não duplicados pelos KPIs do topo */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-green-50/60 to-white p-4 shadow-sm dark:border-gray-700 dark:from-green-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Entradas</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <ArrowUpRight className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(computed.totalEntradas)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+            {cashFlowData.length} dia{cashFlowData.length === 1 ? '' : 's'} com movimentação
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-4 shadow-sm dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saídas</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+              <ArrowDownRight className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(computed.totalSaidas)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+            {computed.saldoFluxo >= 0 ? 'Cobertas pelas entradas' : 'Acima das entradas'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onNavigateTab('fluxo')}
+          className={cn(
+            'rounded-xl border p-4 text-left shadow-sm transition-all hover:shadow-md',
+            computed.saldoFluxo >= 0
+              ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white dark:border-emerald-900/50 dark:from-emerald-950/20 dark:to-gray-900'
+              : 'border-red-200 bg-gradient-to-br from-red-50/60 to-white dark:border-red-900/50 dark:from-red-950/20 dark:to-gray-900',
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo do Fluxo</p>
+            <div className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg',
+              computed.saldoFluxo >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30',
+            )}>
+              <TrendingUp className={cn(
+                'h-4 w-4',
+                computed.saldoFluxo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+              )} />
+            </div>
+          </div>
+          <p className={cn(
+            'mt-2 text-xl font-bold tabular-nums',
+            computed.saldoFluxo >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300',
+          )}>
+            {computed.saldoFluxo >= 0 ? '+' : ''}{formatCurrency(computed.saldoFluxo)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+            entradas − saídas no período
+          </p>
+        </button>
       </div>
 
-      {/* Aging de Inadimplência — substitui os cards "Vencidos *" com detalhamento por faixa */}
+      {/* Aging de Inadimplência */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Hourglass className="h-4 w-4 text-amber-500" />
@@ -320,114 +394,126 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
         </div>
       </div>
 
+      {/* Próximos Vencimentos — top 5 cada lado */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Receber vs Pagar */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            <TrendingUp className="mr-1.5 inline h-4 w-4 text-blue-500" />
-            Receber vs Pagar
-          </h3>
-          <div className="space-y-4">
-            {/* Receber bar */}
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">A Receber</span>
-                <span className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(kpis.totalReceber)}</span>
-              </div>
-              <div className="h-3 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-                <div
-                  className="h-3 rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${Math.min(100, kpis.totalReceber > 0 && kpis.totalPagar > 0 ? (kpis.totalReceber / Math.max(kpis.totalReceber, kpis.totalPagar)) * 100 : kpis.totalReceber > 0 ? 100 : 0)}%` }}
-                />
-              </div>
-              <div className="mt-1 flex gap-3 text-[10px] text-gray-400">
-                <span>{computed.pendingReceivablesCount} a vencer ({formatCurrencyShort(computed.totalPendingReceivables)})</span>
-                {computed.overdueReceivablesCount > 0 && (
-                  <span className="text-red-500">{computed.overdueReceivablesCount} vencidos ({formatCurrencyShort(computed.totalOverdueReceivables)})</span>
-                )}
-              </div>
-            </div>
+        <ProximosVencimentos
+          title="Próximos a Receber"
+          rows={computed.proximosReceber}
+          emptyMessage="Sem títulos a vencer."
+          onClick={() => onNavigateTab('receber')}
+          accentColor="emerald"
+          icon={Receipt}
+          nowTs={nowTs}
+        />
+        <ProximosVencimentos
+          title="Próximos a Pagar"
+          rows={computed.proximosPagar}
+          emptyMessage="Sem contas a vencer."
+          onClick={() => onNavigateTab('pagar')}
+          accentColor="red"
+          icon={CreditCard}
+          nowTs={nowTs}
+        />
+      </div>
 
-            {/* Pagar bar */}
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">A Pagar</span>
-                <span className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">{formatCurrency(kpis.totalPagar)}</span>
-              </div>
-              <div className="h-3 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-                <div
-                  className="h-3 rounded-full bg-red-500 transition-all"
-                  style={{ width: `${Math.min(100, kpis.totalReceber > 0 && kpis.totalPagar > 0 ? (kpis.totalPagar / Math.max(kpis.totalReceber, kpis.totalPagar)) * 100 : kpis.totalPagar > 0 ? 100 : 0)}%` }}
-                />
-              </div>
-              <div className="mt-1 flex gap-3 text-[10px] text-gray-400">
-                <span>{computed.pendingPayablesCount} a vencer ({formatCurrencyShort(computed.totalPendingPayables)})</span>
-                {computed.overduePayablesCount > 0 && (
-                  <span className="text-red-500">{computed.overduePayablesCount} vencidos ({formatCurrencyShort(computed.totalOverduePayables)})</span>
-                )}
-              </div>
-            </div>
-
-            {/* Balance */}
-            <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Saldo Líquido</span>
-                <span className={cn(
-                  'text-sm font-bold tabular-nums',
-                  kpis.saldoLiquido >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'
-                )}>
-                  {formatCurrency(kpis.saldoLiquido)}
-                </span>
-              </div>
-            </div>
+      {/* Fluxo de Caixa — chart unificado com entradas/saídas + saldo acumulado */}
+      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-blue-500" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Fluxo de Caixa</h3>
+            <span className="text-[11px] text-gray-400">
+              entradas, saídas e saldo acumulado do período
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab('fluxo')}
+            className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Ver completo
+          </button>
         </div>
-
-        {/* Fluxo de Caixa Resumo */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              <DollarSign className="mr-1.5 inline h-4 w-4 text-green-500" />
-              Fluxo de Caixa
-            </h3>
-            <button onClick={() => onNavigateTab('fluxo')} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
-              Ver completo
-            </button>
-          </div>
-          {computed.recentCashFlow.length === 0 ? (
-            <div className="flex h-[200px] items-center justify-center text-sm text-gray-400">Sem dados de movimentação.</div>
+        <div className="p-4">
+          {computed.chartData.length === 0 ? (
+            <div className="flex h-72 items-center justify-center text-sm text-gray-400">Sem movimentação no período.</div>
           ) : (
-            <>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={computed.recentCashFlow} margin={{ left: -10, right: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                  <XAxis dataKey="data" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCurrencyShort(v)} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                    formatter={((v: number, name: string) => [formatCurrency(v), name === 'entradas' ? 'Entradas' : 'Saídas']) as never}
-                  />
-                  <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              {computed.lastCashFlow && (
-                <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Saldo Acumulado</span>
-                    <span className={cn(
-                      'text-sm font-bold tabular-nums',
-                      computed.lastCashFlow.saldoAcumulado >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                    )}>
-                      {formatCurrency(computed.lastCashFlow.saldoAcumulado)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={computed.chartData} margin={{ left: 0, right: 12, top: 10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="entradas-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.85} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.4} />
+                  </linearGradient>
+                  <linearGradient id="saidas-gradient" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.85} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                <XAxis
+                  dataKey="dataLabel"
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
+                />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => formatCurrencyShort(v)}
+                  width={62}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 10, fill: '#3b82f6' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => formatCurrencyShort(v)}
+                  width={62}
+                />
+                <ReferenceLine yAxisId="left" y={0} stroke="#9ca3af" strokeWidth={1} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 12 }}
+                  formatter={((v: number, name: string) => {
+                    if (name === 'Entradas') return [formatCurrency(v), 'Entradas']
+                    if (name === 'Saídas') return [formatCurrency(Math.abs(v)), 'Saídas']
+                    if (name === 'Saldo acumulado') return [formatCurrency(v), 'Saldo acumulado']
+                    return [formatCurrency(v), name]
+                  }) as never}
+                  labelFormatter={((label: string) => `Dia ${label}`) as never}
+                  // Força ordem lógica: Entradas → Saídas → Saldo acumulado.
+                  // Recharts default ordena por render order (Bar vs Line), que jogava
+                  // o saldo no meio.
+                  itemSorter={((item: { name: string }) => {
+                    if (item.name === 'Entradas') return 0
+                    if (item.name === 'Saídas') return 1
+                    return 2
+                  }) as never}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                <Bar yAxisId="left" dataKey="entradas" name="Entradas" fill="url(#entradas-gradient)" radius={[4, 4, 0, 0]} stackId="stack" />
+                <Bar yAxisId="left" dataKey="saidas" name="Saídas" fill="url(#saidas-gradient)" radius={[0, 0, 4, 4]} stackId="stack" />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="saldoAcumulado"
+                  name="Saldo acumulado"
+                  stroke="#3b82f6"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

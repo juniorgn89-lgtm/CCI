@@ -49,6 +49,7 @@ const Sidebar = () => {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const supabaseUser = useAuthStore((s) => s.user)
+  const profileFullName = useAuthStore((s) => s.fullName)
   const isMaster = useAuthStore((s) => s.isMaster)
   const canApurar = useAuthStore((s) => s.canApurar)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
@@ -132,8 +133,13 @@ const Sidebar = () => {
     return () => document.removeEventListener('mousedown', handler)
   }, [controlOpen])
 
+  // Prioriza profiles.full_name (fonte da verdade do app); user_metadata
+  // do Supabase auth pode estar desatualizado (ex.: usuário renomeado no admin
+  // mas o auth metadata ficou com o valor antigo "SUPERVISOR").
   const userName =
-    (supabaseUser?.user_metadata?.full_name as string | undefined) || 'Usuário'
+    profileFullName ||
+    (supabaseUser?.user_metadata?.full_name as string | undefined) ||
+    'Usuário'
   const userEmail = supabaseUser?.email || '—'
   const initials = getInitials(userName)
 

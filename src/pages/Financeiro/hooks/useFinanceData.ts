@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta } from '@/api/endpoints/financeiro'
+import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { MovimentoConta } from '@/api/types/financeiro'
 
 export interface FinanceKpiData {
@@ -138,49 +139,60 @@ const useFinanceData = () => {
   const prevDataFinal = offsetDateByDays(dataInicial, 1)
   const prevDataInicial = offsetDateByDays(prevDataFinal, diasNoPeriodo - 1)
 
+  // Todas as queries paginadas via `fetchAllPages` — Quality API tem cap default
+  // baixo (~100/1000); sem paginação postos com volume médio perdiam a maior
+  // parte do período no fluxo de caixa (só os primeiros N movimentos voltavam).
   const {
-    data: receberResponse,
+    data: titulosReceber = [],
     isLoading: isLoadingReceber,
   } = useQuery({
     queryKey: ['titulosReceber', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchTitulosReceber(filterParams),
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosReceber({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
     enabled: hasEmpresa,
   })
 
   const {
-    data: pagarResponse,
+    data: titulosPagar = [],
     isLoading: isLoadingPagar,
   } = useQuery({
     queryKey: ['titulosPagar', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchTitulosPagar(filterParams),
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosPagar({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
     enabled: hasEmpresa,
   })
 
   const {
-    data: movimentosResponse,
+    data: movimentos = [],
     isLoading: isLoadingMovimentos,
   } = useQuery({
     queryKey: ['movimentosConta', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchMovimentosConta(filterParams),
+    queryFn: () => fetchAllPages(
+      (p) => fetchMovimentosConta({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
     enabled: hasEmpresa,
   })
 
-  // Período anterior — mesmo endpoint, datas deslocadas. Usado nos cards de KPI do fluxo.
-  const { data: movimentosPrevResponse } = useQuery({
+  // Período anterior — só pros KPIs comparativos, paginado igual.
+  const { data: movimentosPrev = [] } = useQuery({
     queryKey: ['movimentosConta', empresaCodigo, prevDataInicial, prevDataFinal],
-    queryFn: () =>
-      fetchMovimentosConta({
+    queryFn: () => fetchAllPages(
+      (p) => fetchMovimentosConta({
         empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: prevDataInicial,
         dataFinal: prevDataFinal,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
       }),
+      1000, 20,
+    ),
     enabled: hasEmpresa,
   })
-
-  const titulosReceber = useMemo(() => receberResponse?.resultados ?? [], [receberResponse])
-  const titulosPagar = useMemo(() => pagarResponse?.resultados ?? [], [pagarResponse])
-  const movimentos = useMemo(() => movimentosResponse?.resultados ?? [], [movimentosResponse])
-  const movimentosPrev = useMemo(() => movimentosPrevResponse?.resultados ?? [], [movimentosPrevResponse])
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
 
@@ -272,23 +284,43 @@ const useFinanceData = () => {
       byDay.set(day, prev)
     }
 
+    // Enumera TODOS os dias do período (dataInicial → dataFinal) e preenche
+    // dias sem movimento com 0/0. Sem isso o chart só mostra dias que tiveram
+    // transação, dando a impressão de período curto.
+    const allDays: string[] = []
+    if (dataInicial && dataFinal) {
+      const addDays = (yyyymmdd: string, n: number): string => {
+        const [y, m, d] = yyyymmdd.split('-').map(Number)
+        const date = new Date(y, m - 1, d + n)
+        const yy = date.getFullYear()
+        const mm = String(date.getMonth() + 1).padStart(2, '0')
+        const dd = String(date.getDate()).padStart(2, '0')
+        return `${yy}-${mm}-${dd}`
+      }
+      let cursor = dataInicial
+      // Safety cap: 3 anos pra evitar loop infinito em range malformado
+      for (let i = 0; i < 1100 && cursor <= dataFinal; i++) {
+        allDays.push(cursor)
+        cursor = addDays(cursor, 1)
+      }
+    }
+
     // Reduce em vez de mutar `let saldoAcumulado` (regra de pureza).
-    const cashFlowData: CashFlowRow[] = Array.from(byDay.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .reduce<{ rows: CashFlowRow[]; acum: number }>(
-        (acc, [data, values]) => {
-          const acum = acc.acum + values.entradas - values.saidas
-          acc.rows.push({
-            data,
-            entradas: values.entradas,
-            saidas: values.saidas,
-            saldo: values.entradas - values.saidas,
-            saldoAcumulado: acum,
-          })
-          return { rows: acc.rows, acum }
-        },
-        { rows: [], acum: 0 },
-      ).rows
+    const cashFlowData: CashFlowRow[] = allDays.reduce<{ rows: CashFlowRow[]; acum: number }>(
+      (acc, data) => {
+        const values = byDay.get(data) ?? { entradas: 0, saidas: 0 }
+        const acum = acc.acum + values.entradas - values.saidas
+        acc.rows.push({
+          data,
+          entradas: values.entradas,
+          saidas: values.saidas,
+          saldo: values.entradas - values.saidas,
+          saldoAcumulado: acum,
+        })
+        return { rows: acc.rows, acum }
+      },
+      { rows: [], acum: 0 },
+    ).rows
 
     // --- Comparativo período anterior (totais do fluxo) ---
     const cashFlowTotals: CashFlowTotals = {

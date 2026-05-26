@@ -37,12 +37,19 @@ interface AuthState {
    * Master sempre pode; supervisor/user só com flag.
    */
   canVerReabastecimento: boolean
+  /**
+   * Nome de exibição do usuário (de `profiles.full_name`). Usado no avatar
+   * da sidebar e em qualquer lugar que mostre quem está logado. Quando null,
+   * UI cai pra `user_metadata.full_name` ou email.
+   */
+  fullName: string | null
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
   setIsMaster: (isMaster: boolean) => void
   setCanApurar: (canApurar: boolean) => void
   setCanVerReabastecimento: (v: boolean) => void
+  setFullName: (name: string | null) => void
   setLoaded: () => void
 }
 
@@ -55,6 +62,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isMaster: false,
   canApurar: false,
   canVerReabastecimento: false,
+  fullName: null,
   setAuth: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
@@ -62,5 +70,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   setIsMaster: (isMaster) => set({ isMaster }),
   setCanApurar: (canApurar) => set({ canApurar }),
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
+  setFullName: (fullName) => set({ fullName }),
   setLoaded: () => set({ isLoading: false }),
 }))

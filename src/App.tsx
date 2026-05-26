@@ -47,6 +47,7 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setIsMaster(false)
         useAuthStore.getState().setCanApurar(false)
         useAuthStore.getState().setCanVerReabastecimento(false)
+        useAuthStore.getState().setFullName(null)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
         // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
         useFilterStore.getState().setEmpresas([])
@@ -90,13 +91,14 @@ const loadTenantForUser = async () => {
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('rede_id, empresa_codigos, modulos_permitidos, is_master, pode_apurar, pode_ver_reabastecimento, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, full_name, empresa_codigos, modulos_permitidos, is_master, pode_apurar, pode_ver_reabastecimento, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile) {
       // Supabase infere o join `redes:rede_id` como array, mas a relação é
       // to-one (retorna objeto em runtime) — cast via unknown pra alinhar.
       const typed = profile as unknown as {
+        full_name: string | null
         empresa_codigos: number[] | null
         modulos_permitidos: string[] | null
         is_master: boolean | null
@@ -118,6 +120,9 @@ const loadTenantForUser = async () => {
       // Master sempre tem o poder de apurar; pra outros, lê o flag do profile.
       useAuthStore.getState().setCanApurar(isMaster || !!typed.pode_apurar)
       useAuthStore.getState().setCanVerReabastecimento(isMaster || !!typed.pode_ver_reabastecimento)
+      // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
+      // exibindo o user_metadata.full_name antigo do Supabase auth.
+      useAuthStore.getState().setFullName(typed.full_name)
       return
     }
 
