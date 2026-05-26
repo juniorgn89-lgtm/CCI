@@ -14,7 +14,9 @@ const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
 const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
-const Operacao = lazy(() => import('@/pages/Operacao'))
+const Bombas = lazy(() => import('@/pages/Bombas'))
+const CaixasTurnos = lazy(() => import('@/pages/CaixasTurnos'))
+const Produtividade = lazy(() => import('@/pages/Produtividade'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
 const ComercialVendas = lazy(() => import('@/pages/Comercial/Vendas'))
 const ComercialVendasCombustivel = lazy(() => import('@/pages/Comercial/Vendas/Combustivel'))
@@ -60,17 +62,19 @@ const AppRoutes = () => {
           <Route path="/produtos" element={<Navigate to="/comercial/vendas/conveniencia" replace />} />
           <Route path="/conveniencias" element={<Navigate to="/comercial/vendas/conveniencia" replace />} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
-          <Route path="/produtividade" element={<Navigate to="/operacao" replace />} />
           <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
           <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
-          <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
-          {/* Redirects das sub-rotas antigas — Combustível/Pista agora vivem em
-              Comercial · Vendas; Operação concentra só a visão operacional do posto. */}
-          <Route path="/operacao/combustivel" element={<Navigate to="/operacao" replace />} />
+          <Route path="/bombas" element={<Suspense fallback={<RouteFallback />}><Bombas /></Suspense>} />
+          <Route path="/caixas-turnos" element={<Suspense fallback={<RouteFallback />}><CaixasTurnos /></Suspense>} />
+          <Route path="/produtividade" element={<Suspense fallback={<RouteFallback />}><Produtividade /></Suspense>} />
+          {/* Redirects do antigo /operacao (foi quebrado em 3 módulos) — preserva
+              deep links de notificações e URLs salvas. */}
+          <Route path="/operacao" element={<Navigate to="/bombas" replace />} />
+          <Route path="/operacao/combustivel" element={<Navigate to="/comercial/vendas/combustivel" replace />} />
           <Route path="/operacao/pista" element={<Navigate to="/comercial/vendas/pista" replace />} />
           <Route path="/operacao/mix" element={<Navigate to="/comercial/vendas" replace />} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />

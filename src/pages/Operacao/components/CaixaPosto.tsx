@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter, History } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -18,8 +18,7 @@ import {
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { cn, isPastPeriod } from '@/lib/utils'
 import type { CaixaResumo, PagamentoBreakdown, TurnoRow, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
-import useCaixaHistory from '@/pages/Operacao/hooks/useCaixaHistory'
-import CaixaHistorico from '@/pages/Operacao/components/CaixaHistorico'
+import TurnoDetalheModal from '@/pages/Operacao/components/TurnoDetalheModal'
 
 interface CaixaPostoProps {
   caixaResumo: CaixaResumo
@@ -93,11 +92,15 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
   // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
   const periodIsPast = isPastPeriod(dataFinal)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // Dias colapsados — default todos abertos. Click no header do dia toggla.
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
-  // Sub-aba dentro do Caixa & Turnos: 'turnos' (default) ou 'historico'.
-  const [activeSubTab, setActiveSubTab] = useState<'turnos' | 'historico'>('turnos')
+  // Turno selecionado — abre o modal de detalhes (substitui expansão inline)
+  const [selectedTurno, setSelectedTurno] = useState<TurnoGroup | null>(null)
+  // Dias que o usuário toggou manualmente. O default depende do estado do dia:
+  //   - dia com algum turno ao vivo  → expandido (mostra o que tá rolando)
+  //   - dia 100% fechado             → colapsado (só o header, usuário clica pra abrir)
+  // Estar nesse Set inverte o default daquele dia.
+  const [dayOverrides, setDayOverrides] = useState<Set<string>>(new Set())
+  // Aba ativa — espelha o padrão de tabs do módulo Vendas.
+  const [activeTab, setActiveTab] = useState<'visao' | 'turnos'>('visao')
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
@@ -184,12 +187,19 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
   }, [filteredGroups])
 
   const toggleDay = (data: string) => {
-    setCollapsedDays((prev) => {
+    setDayOverrides((prev) => {
       const next = new Set(prev)
       if (next.has(data)) next.delete(data)
       else next.add(data)
       return next
     })
+  }
+
+  /** Considera o default (aberto pra dias com ao vivo, fechado pros demais) e
+   * inverte se o usuário tiver toggado aquele dia. */
+  const isDayCollapsed = (day: { data: string; hasAberto: boolean }): boolean => {
+    const defaultCollapsed = !day.hasAberto
+    return dayOverrides.has(day.data) ? !defaultCollapsed : defaultCollapsed
   }
 
   const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'ao-vivo' || filterDiferenca !== 'todas'
@@ -240,15 +250,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
         setFilterDiferenca('sem')
         break
     }
-  }
-
-  const toggleExpand = (key: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
   }
 
   // Chart data + projection (real até hoje, projetado nos dias futuros do período)
@@ -359,11 +360,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
-  // useCaixaHistory compara snapshot anterior em Supabase com os turnoRows
-  // atuais e detecta mudanças em apurado/diferenca/fechado — registra cada
-  // diferença em caixa_alteracoes pra timeline aparecer aqui.
-  const { alteracoes, isLoading: histLoading, configured } = useCaixaHistory({ turnoRows })
-
   // Resumo de diferenças (apenas turnos fechados — caixa aberto não tem
   // diferença definitiva). Tolerância de cents para tratar arredondamento.
   const diferencaSummary = useMemo(() => {
@@ -397,40 +393,47 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
     }
   }, [filteredGroups])
 
+  const TABS: { id: 'visao' | 'turnos'; label: string; Icon: typeof Wallet; count?: number }[] = [
+    { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
+    { id: 'turnos', label: 'Turnos de Caixa', Icon: Wallet, count: turnoGroups.length },
+  ]
+
   return (
     <div className="space-y-4">
-      {/* Sub-tabs do Caixa & Turnos */}
-      <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
-        {(
-          [
-            { v: 'turnos', l: 'Turnos de Caixa', Icon: Wallet },
-            { v: 'historico', l: 'Histórico de Alterações', Icon: History },
-          ] as const
-        ).map((tab) => {
-          const isActive = activeSubTab === tab.v
+      {/* Switcher de abas — espelha o padrão do módulo Vendas */}
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id
           return (
             <button
-              key={tab.v}
+              key={tab.id}
               type="button"
-              onClick={() => setActiveSubTab(tab.v)}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
                 isActive
                   ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
               )}
             >
-              <tab.Icon className="h-3.5 w-3.5" />
-              {tab.l}
+              <tab.Icon className="h-4 w-4" />
+              {tab.label}
+              {typeof tab.count === 'number' && (
+                <span className={cn(
+                  'ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+                  isActive
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                    : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                )}>
+                  {tab.count}
+                </span>
+              )}
             </button>
           )
         })}
       </div>
 
-      {activeSubTab === 'historico' ? (
-        <CaixaHistorico alteracoes={alteracoes} isLoading={histLoading} configured={configured} />
-      ) : (
-      <>
+      {activeTab === 'visao' && (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Formas de pagamento */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -710,8 +713,11 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
           )}
         </div>
       </div>
+      )}
 
-      {/* Banner do filtro vindo dos gráficos */}
+      {activeTab === 'turnos' && (
+      <>
+      {/* Banner do filtro vindo dos gráficos da Visão Geral */}
       {(selectedPgto || selectedDay) && (
         <div className="flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400">
           <div className="flex items-center gap-1.5">
@@ -758,16 +764,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                   Limpar filtros
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (expanded.size > 0) setExpanded(new Set())
-                  else setExpanded(new Set(filteredGroups.map((g) => g.groupKey)))
-                }}
-                className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400"
-              >
-                <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded.size > 0 && 'rotate-180')} />
-                {expanded.size > 0 ? 'Minimizar todos' : 'Expandir todos'}
-              </button>
             </div>
           </div>
         </div>
@@ -885,65 +881,79 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {daysGroups.map((day) => {
-                  const dayCollapsed = collapsedDays.has(day.data)
+                  const dayCollapsed = isDayCollapsed(day)
                   const dataFmt = day.data.split('-').reverse().join('/')
                   const diferencaPositiva = day.diferencaTotal > 0.005
                   const diferencaNegativa = day.diferencaTotal < -0.005
                   return (
                     <React.Fragment key={day.data}>
-                      {/* Day header — clicável pra colapsar/expandir os turnos do dia */}
+                      {/* Day header — banner clicável pra colapsar/expandir os turnos do dia.
+                          colSpan={7} ocupa a tabela toda; layout flex distribui informação
+                          em vez de deixar as colunas (Responsáveis, Horário, Status) vazias. */}
                       <tr
                         onClick={() => toggleDay(day.data)}
-                        className="cursor-pointer border-y border-gray-200 bg-gray-100/80 hover:bg-gray-200/60 dark:border-gray-700 dark:bg-gray-800/70 dark:hover:bg-gray-700/60"
+                        className={cn(
+                          'cursor-pointer border-y transition-colors',
+                          day.hasAberto && !periodIsPast
+                            ? 'border-green-200/60 bg-green-50/40 hover:bg-green-50/70 dark:border-green-900/40 dark:bg-green-900/10 dark:hover:bg-green-900/20'
+                            : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:bg-gray-800/60',
+                        )}
                       >
-                        <td colSpan={4} className="px-4 py-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-500 transition-transform', dayCollapsed && '-rotate-90')} />
-                            <span className="font-semibold text-gray-900 dark:text-gray-100">{dataFmt}</span>
-                            <span className="text-xs text-gray-400">·</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{day.weekday}</span>
-                            <span className="text-xs text-gray-400">·</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {day.turnos.length} {day.turnos.length === 1 ? 'turno' : 'turnos'}
-                            </span>
-                            {day.hasAberto && !periodIsPast && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:bg-green-900/20 dark:text-green-400">
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-green-400 opacity-75" />
-                                  <span className="relative h-1.5 w-1.5 rounded-full bg-green-500" />
-                                </span>
-                                ao vivo
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            {/* Esquerda — data + ao vivo + contagem */}
+                            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                              <ChevronDown className={cn(
+                                'h-4 w-4 shrink-0 transition-transform',
+                                dayCollapsed ? '-rotate-90 text-gray-400' : 'text-gray-500 dark:text-gray-400',
+                              )} />
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{dataFmt}</span>
+                                <span className="text-[11px] capitalize text-gray-400">{day.weekday}</span>
+                              </div>
+                              <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700">
+                                {day.turnos.length} {day.turnos.length === 1 ? 'turno' : 'turnos'}
                               </span>
-                            )}
+                              {day.hasAberto && !periodIsPast && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                                  <span className="relative flex h-1.5 w-1.5">
+                                    <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-green-400 opacity-75" />
+                                    <span className="relative h-1.5 w-1.5 rounded-full bg-green-500" />
+                                  </span>
+                                  ao vivo
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Direita — apurado + diferença em pills */}
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <p className="text-[10px] uppercase tracking-wider text-gray-400">Apurado</p>
+                                <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                                  {formatCurrency(day.apuradoTotal)}
+                                </p>
+                              </div>
+                              {Math.abs(day.diferencaTotal) > 0.005 ? (
+                                <span className={cn(
+                                  'rounded-md px-2 py-1 text-xs font-semibold tabular-nums',
+                                  diferencaPositiva
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                                    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                                )}>
+                                  {day.diferencaTotal > 0 ? '+' : ''}{formatCurrency(day.diferencaTotal)}
+                                </span>
+                              ) : (
+                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                                  s/ diferença
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td className="px-4 py-2 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(day.apuradoTotal)}
-                        </td>
-                        <td
-                          className={cn(
-                            'px-4 py-2 text-right text-sm font-semibold tabular-nums',
-                            diferencaPositiva
-                              ? 'text-green-600 dark:text-green-400'
-                              : diferencaNegativa
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-gray-400',
-                          )}
-                        >
-                          {Math.abs(day.diferencaTotal) > 0.005
-                            ? `${day.diferencaTotal > 0 ? '+' : ''}${formatCurrency(day.diferencaTotal)}`
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-2" />
                       </tr>
 
                       {/* Turnos do dia — só renderiza se o dia não está colapsado */}
                       {!dayCollapsed && day.turnos.map((g, idx) => {
-                        const isExpanded = expanded.has(g.groupKey)
-                        const totalCombustivel = g.frentistas.reduce((s, f) => s + f.faturamento, 0)
-                        const conveniencia = Math.max(0, g.apuradoTotal - totalCombustivel)
-                        const totalLitros = g.frentistas.reduce((s, f) => s + f.litros, 0)
-                        const totalAbast = g.frentistas.reduce((s, f) => s + f.atendimentos, 0)
                         const responsaveisLabel = g.responsaveis.length <= 2
                           ? g.responsaveis.join(' · ')
                           : `${g.responsaveis.slice(0, 2).join(' · ')} (+${g.responsaveis.length - 2})`
@@ -959,7 +969,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                             setFilterStatus('ao-vivo')
                             setFilterDiferenca('todas')
                           }
-                          toggleExpand(g.groupKey)
+                          setSelectedTurno(g)
                         }}
                         className={cn(
                           'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
@@ -974,10 +984,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                             !g.fechado && 'border-l-4 border-green-500'
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
-                            {g.turno}
-                          </div>
+                          {g.turno}
                         </td>
                         <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400">{responsaveisLabel}</td>
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
@@ -1040,129 +1047,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                           )}
                         </td>
                       </tr>
-
-                      {/* Expanded detail */}
-                      {isExpanded && (
-                        <>
-                          {/* Abastecimentos do turno header */}
-                          {g.frentistas.length > 0 && (
-                            <tr className="bg-blue-50/50 dark:bg-blue-900/10">
-                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400" colSpan={2}>
-                                <Users className="mr-1 inline h-3 w-3" />Abastecimentos do Turno
-                              </td>
-                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Abast.</td>
-                              <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Litros</td>
-                              <td className="px-4 py-1.5 text-right text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">Combustível</td>
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5" />
-                            </tr>
-                          )}
-                          {g.frentistas.map((f, fi) => (
-                            <tr key={`${g.groupKey}-f-${f.nome}`} className={cn('bg-blue-50/30 dark:bg-blue-900/10', fi % 2 === 1 && 'bg-blue-50/50 dark:bg-blue-900/20')}>
-                              <td className="py-2 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{f.nome}</td>
-                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(f.atendimentos)}</td>
-                              <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatLiters(f.litros)}</td>
-                              <td className="px-4 py-2 text-right text-xs tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.faturamento)}</td>
-                              <td className="px-4 py-2" />
-                              <td className="px-4 py-2" />
-                            </tr>
-                          ))}
-
-                          {/* Resumo do turno */}
-                          <tr className="bg-gray-100/80 dark:bg-gray-800/50">
-                            <td className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" colSpan={7}>
-                              Resumo do Turno
-                            </td>
-                          </tr>
-                          <tr className="bg-gray-50/80 dark:bg-gray-800/30">
-                            <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>
-                              <Fuel className="mr-1.5 inline h-3 w-3 text-blue-500" />Combustível
-                            </td>
-                            <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatNumber(totalAbast)} abast.</td>
-                            <td className="px-4 py-1.5 text-xs tabular-nums text-gray-400">{formatLiters(totalLitros)}</td>
-                            <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(totalCombustivel)}</td>
-                            <td className="px-4 py-1.5" />
-                            <td className="px-4 py-1.5" />
-                          </tr>
-                          {conveniencia > 0 && (
-                            <tr className="bg-gray-50/80 dark:bg-gray-800/30">
-                              <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>
-                                <Wallet className="mr-1.5 inline h-3 w-3 text-green-500" />Conveniência / Outros
-                              </td>
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(conveniencia)}</td>
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5" />
-                            </tr>
-                          )}
-                          <tr className="bg-gray-50/80 dark:bg-gray-800/30">
-                            <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>Apurado no Caixa (físico)</td>
-                            <td className="px-4 py-1.5" />
-                            <td className="px-4 py-1.5" />
-                            <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal)}</td>
-                            <td className="px-4 py-1.5" />
-                            <td className="px-4 py-1.5" />
-                          </tr>
-                          {g.fechado && (
-                            <tr className="bg-gray-50/80 dark:bg-gray-800/30">
-                              <td className="py-1.5 pl-10 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>Esperado (sistema)</td>
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(g.apuradoTotal - g.diferencaTotal)}</td>
-                              <td className="px-4 py-1.5" />
-                              <td className="px-4 py-1.5" />
-                            </tr>
-                          )}
-                          {g.fechado && g.diferencaTotal !== 0 && (
-                            <tr className="bg-gray-100/80 dark:bg-gray-800/50">
-                              <td className="py-2 pl-10 pr-4 text-xs font-medium text-gray-800 dark:text-gray-200" colSpan={2}>Diferença</td>
-                              <td className="px-4 py-2" />
-                              <td className="px-4 py-2" />
-                              <td className={cn('px-4 py-2 text-right text-xs font-medium tabular-nums', g.diferencaTotal > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
-                                {g.diferencaTotal > 0 ? '+' : ''}{formatCurrency(g.diferencaTotal)}
-                              </td>
-                              <td className="px-4 py-2" />
-                              <td className="px-4 py-2" />
-                            </tr>
-                          )}
-
-                          {/* Formas de pagamento do turno */}
-                          {g.pagamentos.length > 0 && (
-                            <>
-                              <tr className="bg-gray-100/80 dark:bg-gray-800/50">
-                                <td colSpan={7} className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                  <Wallet className="mr-1 inline h-3 w-3" />Formas de Pagamento
-                                </td>
-                              </tr>
-                              {g.pagamentos.map((p) => {
-                                const isSelected = selectedPgto === p.tipo
-                                const dimmed = selectedPgto !== null && !isSelected
-                                return (
-                                  <tr
-                                    key={`${g.groupKey}-pgto-${p.tipo}`}
-                                    className={cn(
-                                      isSelected
-                                        ? 'bg-blue-50 font-medium dark:bg-blue-900/30'
-                                        : 'bg-gray-50/80 dark:bg-gray-800/30',
-                                      dimmed && 'opacity-40',
-                                    )}
-                                  >
-                                    <td className="py-2 pl-16 pr-4 text-xs text-gray-600 dark:text-gray-400" colSpan={2}>{p.nome}</td>
-                                    <td className="px-4 py-2 text-xs tabular-nums text-gray-400">{formatNumber(p.quantidade)} transações</td>
-                                    <td className="px-4 py-2" />
-                                    <td className={cn('px-4 py-2 text-right text-xs tabular-nums', isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400')}>
-                                      {formatCurrency(p.valor)}
-                                    </td>
-                                    <td className="px-4 py-2" />
-                                    <td className="px-4 py-2" />
-                                  </tr>
-                                )
-                              })}
-                            </>
-                          )}
-                        </>
-                      )}
                           </React.Fragment>
                         )
                       })}
@@ -1174,9 +1058,14 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
           </div>
         )}
       </div>
-
       </>
       )}
+
+      <TurnoDetalheModal
+        open={selectedTurno !== null}
+        onClose={() => setSelectedTurno(null)}
+        turno={selectedTurno}
+      />
     </div>
   )
 }

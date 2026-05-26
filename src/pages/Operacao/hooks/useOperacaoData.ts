@@ -22,12 +22,15 @@ export interface OperacaoKpiData {
   bombasAtivas: number
   caixasAbertos: number
   totalApurado: number
+  /** Sobra (>0) / falta (<0) acumulada dos caixas fechados do período. */
+  totalDiferenca: number
   // Previous-period totals for DeltaBadge comparison
   prevTotalAbastecimentos: number
   prevTotalLitros: number
   prevFaturamentoCombustivel: number
   prevTicketMedio: number
   prevTotalApurado: number
+  prevTotalDiferenca: number
 }
 
 export interface FrentistaRow {
@@ -846,6 +849,9 @@ const useOperacaoData = () => {
       ? caixasCachePrev.caixas
       : (caixasPrevRaw?.resultados ?? [])
     const prevTotalApurado = prevCaixas.reduce((s, c) => s + c.apurado, 0)
+    const prevTotalDiferenca = prevCaixas
+      .filter((c) => c.fechado)
+      .reduce((s, c) => s + c.diferenca, 0)
 
     // Per-frentista previous-period totals (para comparativos do módulo Produtividade)
     const frentistaPrevAgg = new Map<number, { litros: number; count: number; valor: number }>()
@@ -877,11 +883,13 @@ const useOperacaoData = () => {
       bombasAtivas: bombaRows.filter((b) => b.abastecimentos > 0).length,
       caixasAbertos: caixaResumo.caixasAbertos,
       totalApurado: caixaResumo.totalApurado,
+      totalDiferenca: caixaResumo.totalDiferenca,
       prevTotalAbastecimentos: abastPrev.length,
       prevTotalLitros,
       prevFaturamentoCombustivel,
       prevTicketMedio: abastPrev.length > 0 ? prevFaturamentoCombustivel / abastPrev.length : 0,
       prevTotalApurado,
+      prevTotalDiferenca,
     }
 
     // Filter lists for UI

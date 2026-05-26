@@ -99,9 +99,3 @@ export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
 ])
 
-export const useOperacaoLayout = createModuleLayoutStore('visor360-operacao-layout', [
-  { id: 'indicadores', label: 'Indicadores', visible: true },
-  { id: 'bombas', label: 'Bombas', visible: true },
-  { id: 'caixa', label: 'Caixa & Turnos', visible: true },
-  { id: 'produtividade', label: 'Produtividade', visible: true },
-])

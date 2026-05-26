@@ -453,7 +453,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
               : undefined
           }
           periodLabel={periodLabel}
-          onClick={() => navigate('/operacao?tab=caixa')}
+          onClick={() => navigate('/caixas-turnos')}
         />
         <MainKpiCard
           label="Total Apurado"
@@ -470,7 +470,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           iconColor="text-blue-600 dark:text-blue-400"
           formatter={formatCurrency}
           periodLabel={periodLabel}
-          onClick={() => navigate('/operacao?tab=caixa')}
+          onClick={() => navigate('/caixas-turnos')}
         />
       </div>
 

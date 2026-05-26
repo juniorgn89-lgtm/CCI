@@ -238,16 +238,22 @@ const Apuracao = () => {
       const fetchCaixasAllEmpresas = async () => {
         const all = [] as Awaited<ReturnType<typeof fetchCaixas>>['resultados']
         for (const ec of empresasCodes) {
-          const r = await fetchCaixas({ empresaCodigo: ec, dataInicial: start, dataFinal: end, limite: 1000 })
-          all.push(...(r.resultados ?? []))
+          const rows = await fetchAllPages(
+            (p) => fetchCaixas({ empresaCodigo: ec, dataInicial: start, dataFinal: end, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+            1000, 20,
+          )
+          all.push(...rows)
         }
         return all
       }
       const fetchFormasAllEmpresas = async () => {
         const all = [] as Awaited<ReturnType<typeof fetchVendaFormasPagamento>>['resultados']
         for (const ec of empresasCodes) {
-          const r = await fetchVendaFormasPagamento({ empresaCodigo: ec, dataInicial: start, dataFinal: end, limite: 1000 })
-          all.push(...(r.resultados ?? []))
+          const rows = await fetchAllPages(
+            (p) => fetchVendaFormasPagamento({ empresaCodigo: ec, dataInicial: start, dataFinal: end, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+            1000, 20,
+          )
+          all.push(...rows)
         }
         return all
       }

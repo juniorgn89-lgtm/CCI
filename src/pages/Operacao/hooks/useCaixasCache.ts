@@ -11,6 +11,7 @@ import {
 } from '@/api/supabase/apuracao'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
+import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { Caixa } from '@/api/types/financeiro'
 import type { VendaFormaPagamento } from '@/api/types/venda'
 
@@ -86,6 +87,42 @@ const useCaixasCache = (input: UseCaixasCacheInput): UseCaixasCacheResult => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Safety net: cache de formas pode estar incompleto (cobrir alguns dias do
+  // período mas não outros) ou totalmente vazio (upsert silencioso no apurarMes,
+  // RLS). A condição "cache empty" não pega o caso parcial. Solução simples:
+  // sempre rodar live em paralelo quando há cache HIT e mergear/dedupe.
+  // Custo: 1 request extra por página. Benefício: dados consistentes.
+  const liveFallbackEnabled = isCacheHit && empresaCodigo != null
+
+  const { data: fallbackFormas = [], isLoading: loadingFallbackFormas } = useQuery({
+    queryKey: ['formas-live-closed', empresaCodigo, closedIni, closedEnd],
+    queryFn: async () => {
+      // eslint-disable-next-line no-console
+      console.warn('[useCaixasCache] fetching live formas for closed period:', {
+        empresaCodigo, closedIni, closedEnd,
+        cachedFormas: formasRows.length,
+      })
+      // Pagina via ultimoCodigo (até 20 páginas × 1000 = 20k formas/mês —
+      // suficiente até pra postos com volume alto).
+      const all = await fetchAllPages(
+        (p) => fetchVendaFormasPagamento({
+          empresaCodigo: empresaCodigo!,
+          dataInicial: closedIni,
+          dataFinal: closedEnd,
+          ultimoCodigo: p.ultimoCodigo,
+          limite: p.limite,
+        }),
+        1000,
+        20,
+      )
+      // eslint-disable-next-line no-console
+      console.warn('[useCaixasCache] live fetched', all.length, 'formas (paginated)')
+      return all
+    },
+    enabled: liveFallbackEnabled,
+    staleTime: 5 * 60 * 1000,
+  })
+
   // HOJE — sempre live (volátil). Caixas abertos ao vivo, formas de pgto de
   // vendas do dia. Cache só cobre dias fechados; sem isso, "Ao vivo" mostra 0.
   const todayIni = split.todayPart?.dataInicial ?? ''
@@ -113,20 +150,31 @@ const useCaixasCache = (input: UseCaixasCacheInput): UseCaixasCacheResult => {
     ],
     [caixasRows, todayCaixasRaw]
   )
-  const formasPagamento = useMemo(
-    () => [
-      ...formasRows.map(cacheRowToFormaPagamento),
-      ...(todayFormasRaw?.resultados ?? []),
-    ],
-    [formasRows, todayFormasRaw]
-  )
+  // Merge dedupe: cache + live closed + live today. Chave de dedupe inclui
+  // venda_codigo + venda_prazo_codigo + forma_pagamento_codigo (forma é a parte
+  // que diferencia múltiplos pagamentos da mesma venda).
+  const formasPagamento = useMemo<VendaFormaPagamento[]>(() => {
+    const seen = new Set<string>()
+    const out: VendaFormaPagamento[] = []
+    const consider = (fp: VendaFormaPagamento) => {
+      const key = `${fp.vendaCodigo}-${fp.vendaPrazoCodigo}-${fp.formaPagamentoCodigo}`
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push(fp)
+    }
+    // Ordem: cache primeiro (mais rápido), depois live (preenche o que faltou)
+    for (const r of formasRows) consider(cacheRowToFormaPagamento(r))
+    for (const fp of fallbackFormas) consider(fp)
+    for (const fp of todayFormasRaw?.resultados ?? []) consider(fp)
+    return out
+  }, [formasRows, fallbackFormas, todayFormasRaw])
 
   return {
     isCacheHit: isCacheHit && !loadingCaixas && !loadingFormas,
     isChecking:
       isEligible &&
       (loadingProbe ||
-        (isCacheHit && (loadingCaixas || loadingFormas || loadingTodayCaixas || loadingTodayFormas))),
+        (isCacheHit && (loadingCaixas || loadingFormas || loadingTodayCaixas || loadingTodayFormas || loadingFallbackFormas))),
     caixas,
     formasPagamento,
   }

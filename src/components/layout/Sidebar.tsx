@@ -6,6 +6,7 @@ import {
   DollarSign,
   Brain,
   Gauge,
+  Wallet,
   Receipt,
   Settings,
   LogOut,
@@ -16,7 +17,6 @@ import {
   PanelLeft,
   Check,
   LineChart,
-  Fuel,
   ShieldAlert,
   UsersRound,
 } from 'lucide-react'
@@ -56,7 +56,9 @@ const navGroups: NavGroup[] = [
     title: 'Posto',
     items: [
       { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
-      { label: 'Operação', path: '/operacao', icon: Gauge },
+      { label: 'Bombas', path: '/bombas', icon: Gauge },
+      { label: 'Caixas & Turnos', path: '/caixas-turnos', icon: Wallet },
+      { label: 'Produtividade', path: '/produtividade', icon: BarChart3 },
     ],
   },
   {
@@ -314,7 +316,7 @@ const Sidebar = () => {
         {visibleNavGroups.map((group, gi) => (
           <div key={group.title} className={cn(wide && gi > 0 && 'mt-4')}>
             {wide ? (
-              <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-white/40">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-white/35">
                 {group.title}
               </p>
             ) : (
@@ -332,26 +334,26 @@ const Sidebar = () => {
                     aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'group relative flex h-10 items-center rounded-lg transition-colors',
+                      'group relative flex h-9 items-center rounded-lg transition-colors',
                       isActive
-                        ? 'bg-gray-100 text-gray-900 dark:bg-white/15 dark:text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white',
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
                     )}
                   >
                     {/* Coluna fixa do ícone — fica sempre na mesma posição quer
                         a sidebar esteja narrow ou wide. */}
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center">
+                    <span className="flex h-9 w-10 shrink-0 items-center justify-center">
                       <Icon
                         className={cn(
-                          'h-[18px] w-[18px]',
+                          'h-[17px] w-[17px]',
                           isActive
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-gray-500 dark:text-white/60',
+                            ? 'text-blue-600 dark:text-blue-300'
+                            : 'text-gray-400 dark:text-white/55',
                         )}
                       />
                     </span>
                     {wide && (
-                      <span className="text-sm font-medium">{item.label}</span>
+                      <span className="text-[13px] font-medium">{item.label}</span>
                     )}
                     {narrow && (
                       <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">

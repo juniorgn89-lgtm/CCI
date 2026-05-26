@@ -25,7 +25,7 @@ const TurnosAoVivo = () => {
 
   const handleClick = (empresaCodigo: number) => {
     setEmpresas([empresaCodigo])
-    navigate('/operacao?tab=caixa')
+    navigate('/caixas-turnos')
   }
 
   return (

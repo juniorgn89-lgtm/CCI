@@ -75,7 +75,7 @@ const categoryConfig: Record<AlertCategory, {
   bombas: {
     label: 'Bombas',
     icon: Wrench,
-    route: '/operacao?tab=bombas',
+    route: '/bombas',
     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
   },
 }
