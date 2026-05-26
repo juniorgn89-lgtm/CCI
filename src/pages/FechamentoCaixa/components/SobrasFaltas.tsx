@@ -31,11 +31,6 @@ interface SobraFaltaRow {
   acumulado: number
 }
 
-interface ResponsavelGroup {
-  codigo: string
-  rows: SobraFaltaRow[]
-}
-
 // Cada linha de sobra/falta é amarrada a UM caixa específico (caixaId).
 // Selecionar caixas filtra quais linhas aparecem; valores são fixos.
 interface PoolLinha {
@@ -222,7 +217,7 @@ const SobrasFaltas = ({ postoScale, empresaNome, empresaCnpj, selectedCaixas }: 
 
     // Agrupa por responsável e ordena por data desc, depois por caixaId.
     const porResp = new Map<string, Array<SobraFaltaRow>>()
-    let acumPorResp: Record<string, number> = {}
+    const acumPorResp: Record<string, number> = {}
     const ordenadas = [...linhasFiltradas].sort((a, b) => {
       const ca = caixaById.get(a.caixaId)
       const cb = caixaById.get(b.caixaId)

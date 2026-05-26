@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 import { formatLiters } from '@/lib/formatters'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
-import ReposicaoTabela, { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/ReposicaoTabela'
+import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
+import { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/reposicao'
 
 // A Central só lista tanques baixos (crítico/alerta), então não há filtro "OK".
 // 'negativo' é ortogonal aos níveis — filtra por estoqueAtual < 0 (operador
@@ -128,7 +129,6 @@ const ReabastecimentoCard = () => {
         return { ...g, tanques, criticosCount: tanques.filter((t) => t.nivel === 'critico').length }
       })
       .filter((g) => g.tanques.length > 0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grupos, filterStatus, filterProduto, filterPosto])
 
   const totalFiltrados = gruposFiltrados.reduce((s, g) => s + g.tanques.length, 0)
@@ -400,7 +400,6 @@ const GrupoCarrossel = ({ grupo, agruparPor }: { grupo: Grupo; agruparPor: Agrup
       el.removeEventListener('scroll', updateArrows)
       window.removeEventListener('resize', updateArrows)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const scrollByDir = (dir: -1 | 1) => {

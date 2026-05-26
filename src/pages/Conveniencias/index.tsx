@@ -1,5 +1,5 @@
-import { lazy, Suspense, type ReactNode, useEffect, useState } from 'react'
-import { Store, ShoppingCart, Package, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket, LineChart, Info } from 'lucide-react'
+import { lazy, Suspense, type ReactNode, useState } from 'react'
+import { Store, ShoppingCart, Package, Settings, Activity, DollarSign, TrendingUp, TrendingDown, CircleDollarSign, PieChart, Ticket } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -139,9 +139,10 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
-  }, [visibleTabs, activeTab])
+  // Set-state durante render quando a aba persistida foi escondida via engrenagem.
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+    setActiveTab(visibleTabs[0].id)
+  }
 
   return (
     <div className="space-y-6">

@@ -36,7 +36,7 @@ const fetchChunkWithRetry = async (
       (p) => fetchAbastecimentos({ dataInicial: from, dataFinal: to, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 50
     )
-  } catch (err) {
+  } catch {
     if (attempt < 1) {
       await new Promise((res) => setTimeout(res, 2000))
       return fetchChunkWithRetry(from, to, attempt + 1)

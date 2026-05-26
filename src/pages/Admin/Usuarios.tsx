@@ -213,8 +213,6 @@ const Usuarios = () => {
       await deleteUser(row.user_id)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
       setDeletingUser(null)
-    } catch (e) {
-      throw e
     } finally {
       setBusyUserId(null)
     }

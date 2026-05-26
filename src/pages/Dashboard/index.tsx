@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { LayoutDashboard, Building2, Network, Activity, Fuel, Layers } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -63,11 +63,10 @@ const Dashboard = () => {
   })
   const visibleTabs = knownTabs.filter((t) => t.visible)
   const [activeTab, setActiveTab] = useState<TabId>((visibleTabs[0]?.id ?? 'setor') as TabId)
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) {
-      setActiveTab((visibleTabs[0]?.id ?? 'setor') as TabId)
-    }
-  }, [visibleTabs, activeTab])
+  // Set-state durante render quando a aba persistida foi escondida via engrenagem.
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+    setActiveTab(visibleTabs[0].id as TabId)
+  }
 
   // Carrega empresas pra: (a) descobrir nome do posto selecionado;
   // (b) saber quantos postos o user tem permissão pra ver — se for 1 só,

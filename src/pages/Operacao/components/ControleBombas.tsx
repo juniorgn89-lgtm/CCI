@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Fuel, Gauge, AlertTriangle, CheckCircle2, Clock, Wrench, Save, ArrowDown, HelpCircle, Settings, ExternalLink, History, ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatNumber, formatLiters } from '@/lib/formatters'
@@ -81,11 +81,14 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
   const [showHelp, setShowHelp] = useState(false)
   // Bombas com card "virado" mostrando o histórico de manutenções
   const [flippedPumps, setFlippedPumps] = useState<Set<number>>(new Set())
-
-  // Reseta flip ao trocar de empresa (cards remontam com novos códigos)
-  useEffect(() => {
+  // Reseta flip ao trocar de empresa (cards remontam com novos códigos).
+  // Padrão "store info from previous renders" — set-state durante render
+  // a partir da comparação com prev.
+  const [prevEmpresa, setPrevEmpresa] = useState(empresaCodigo)
+  if (empresaCodigo !== prevEmpresa) {
+    setPrevEmpresa(empresaCodigo)
     setFlippedPumps(new Set())
-  }, [empresaCodigo])
+  }
 
   const toggleFlip = (bombaCodigo: number) => {
     setFlippedPumps((prev) => {
@@ -154,7 +157,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
         proximaEstimadaLitros,
       }
     })
-  }, [bombaRows, bombaRowsPrev, manutencoes, configs, empresaCodigo, config.intervaloLitros, mode])
+  }, [bombaRows, bombaRowsPrev, manutencoes, empresaCodigo, config, mode])
 
   const handleSaveManutencao = (bombaCodigo: number) => {
     if (empresaCodigo === null) return

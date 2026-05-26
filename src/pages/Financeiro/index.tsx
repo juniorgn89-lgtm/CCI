@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Landmark, Receipt, CreditCard, BarChart3, Settings, Activity, AlertTriangle, Scale } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -60,9 +60,10 @@ const Financeiro = () => {
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'indicadores')
-  }, [visibleTabs, activeTab])
+  // Set-state durante render quando a aba persistida foi escondida via engrenagem.
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+    setActiveTab(visibleTabs[0].id)
+  }
 
   return (
     <div className="space-y-6">

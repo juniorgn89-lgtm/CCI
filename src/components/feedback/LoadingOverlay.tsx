@@ -84,14 +84,17 @@ const LoadingOverlay = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const staleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Show overlay when company changes
+  // Show overlay when company changes — reset de múltiplos states + timer
+  // em resposta a mudança externa, fora do padrão de derivação simples.
   useEffect(() => {
     if (currentCompanyKey === '' || currentCompanyKey === loadedCompanyKey.current) return
+    /* eslint-disable react-hooks/set-state-in-effect */
     setShowOverlay(true)
     setFadeOut(false)
     setProgress(0)
     setShowBanner(false)
     setIsRefreshing(false)
+    /* eslint-enable react-hooks/set-state-in-effect */
     if (staleTimer.current) clearTimeout(staleTimer.current)
   }, [currentCompanyKey])
 
@@ -137,9 +140,11 @@ const LoadingOverlay = () => {
     }, 300)
   }, [currentCompanyKey])
 
-  // Caso 1: isFetching baixou — fade out
+  // Caso 1: isFetching baixou — fade out (dismissOverlay dispara timeouts e
+  // múltiplos setStates em resposta a state externo, fora do padrão simples)
   useEffect(() => {
     if (isFetching === 0 && showOverlay && !fadeOut && progress > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       dismissOverlay()
     }
   }, [isFetching, showOverlay, fadeOut, progress, dismissOverlay])

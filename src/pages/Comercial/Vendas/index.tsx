@@ -13,7 +13,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { smoothedProjection } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -595,7 +595,7 @@ const ComercialVendasVisaoGeral = () => {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                          formatter={((value: number, name: string) => [formatCurrency(value), name]) as never}
                           contentStyle={{ borderRadius: 8, fontSize: 12 }}
                         />
                       </PieChart>
@@ -645,14 +645,14 @@ const ComercialVendasVisaoGeral = () => {
                     <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} />
                     <YAxis type="category" dataKey="nome" width={100} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(value: number) => [`${value.toFixed(2).replace('.', ',')}%`, 'Margem']}
+                      formatter={((value: number) => [`${value.toFixed(2).replace('.', ',')}%`, 'Margem']) as never}
                       contentStyle={{ borderRadius: 8, fontSize: 12 }}
                     />
                     <Bar dataKey="margem" radius={[0, 4, 4, 0]}>
                       {mixData.map((d) => (
                         <Cell key={d.nome} fill={d.cor} />
                       ))}
-                      <LabelList dataKey="margem" position="right" formatter={(v: number) => `${v.toFixed(1).replace('.', ',')}%`} style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                      <LabelList dataKey="margem" position="right" formatter={((v: number) => `${v.toFixed(1).replace('.', ',')}%`) as never} style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

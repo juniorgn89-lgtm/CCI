@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ShieldAlert, Fuel, ShoppingCart, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, RotateCcw, ListChecks, Inbox } from 'lucide-react'
+import { useState } from 'react'
+import { ShieldAlert, Fuel, ShoppingCart, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -34,7 +34,7 @@ import {
   identityTitulo,
   type ArquivadoIdentity,
 } from '@/pages/QualidadeDados/lib/arquivadoIdentity'
-import type { ArquivadoRow, ArquivarInput } from '@/api/supabase/qualidadeArquivados'
+import type { ArquivarInput } from '@/api/supabase/qualidadeArquivados'
 
 /* ─── Adapters: item bruto → LancamentoDetalheData ─── */
 

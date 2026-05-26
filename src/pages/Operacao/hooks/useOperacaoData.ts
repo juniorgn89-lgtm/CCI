@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
@@ -177,6 +177,10 @@ const useOperacaoData = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+  // Captura "agora" uma vez por mount (lazy init) — usado pra filtrar
+  // abastecimentos com data futura e pra fechamentoTs de caixas abertos.
+  // Date.now() não pode ser chamado direto no render (regra de pureza).
+  const [nowTs] = useState(() => Date.now())
 
   const prev = useMemo(() => previousPeriod(dataInicial, dataFinal), [dataInicial, dataFinal])
 
@@ -305,7 +309,7 @@ const useOperacaoData = () => {
     // (ex: alguém cria abast com dataFiscal='2026-05-28' enquanto hoje é 17/05).
     // OR semantics: se qualquer um dos campos (dataFiscal ou dataHoraAbastecimento)
     // estiver no futuro, considera erro — alguns abasts têm typo só em um campo.
-    const todayISO = new Date().toISOString().slice(0, 10)
+    const todayISO = new Date(nowTs).toISOString().slice(0, 10)
     const notFuture = (a: { dataFiscal?: string; dataHoraAbastecimento?: string }) => {
       const dF = (a.dataFiscal ?? '').slice(0, 10)
       const dH = (a.dataHoraAbastecimento ?? '').slice(0, 10)
@@ -610,7 +614,7 @@ const useOperacaoData = () => {
           )
           fechamentoTs = nextInPdv
             ? new Date(nextInPdv.abertura).getTime() - 1
-            : Date.now()
+            : nowTs
         }
 
         const shiftAbast = (abastByDay.get(caixaDate) ?? [])
@@ -708,7 +712,7 @@ const useOperacaoData = () => {
         )
         const maxFechamentoTs = fechado
           ? Math.max(...grpCaixas.map((c) => c.fechamento ? new Date(c.fechamento).getTime() : 0))
-          : Date.now()
+          : nowTs
 
         // All abastecimentos in the group's time window (bucket do dia)
         const grpAbast = (abastByDay.get(caixaDate) ?? [])
@@ -919,7 +923,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas])
+  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas])
 
   return {
     ...computed,

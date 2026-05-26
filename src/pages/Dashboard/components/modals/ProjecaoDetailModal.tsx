@@ -74,22 +74,25 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
   }, [setores])
 
   // Curva de faturamento diário — realizado até "hoje", projetado depois.
+  // Acumula com reduce em vez de mutar variáveis locais (regra de pureza).
   const chartData = useMemo(() => {
     const realizadoDiario = generateDailyEvolution('projecao-realizado', dates, totais.realizadoFaturamento)
     const projetadoDiario = generateDailyEvolution('projecao-projetado', dates, totais.projetadoFaturamento)
-    let realizadoAcum = 0
-    let projetadoAcum = 0
-    return dates.map((d, i) => {
-      realizadoAcum += realizadoDiario[i]?.faturamento ?? 0
-      projetadoAcum += projetadoDiario[i]?.faturamento ?? 0
-      const isFuturo = i >= diasDecorridos
-      return {
-        date: d,
-        dateLabel: d.slice(8, 10) + '/' + d.slice(5, 7),
-        realizado: isFuturo ? null : realizadoAcum,
-        projetado: projetadoAcum,
-      }
-    })
+    return dates.reduce<{ rows: { date: string; dateLabel: string; realizado: number | null; projetado: number }[]; rAcum: number; pAcum: number }>(
+      (acc, d, i) => {
+        const rAcum = acc.rAcum + (realizadoDiario[i]?.faturamento ?? 0)
+        const pAcum = acc.pAcum + (projetadoDiario[i]?.faturamento ?? 0)
+        const isFuturo = i >= diasDecorridos
+        acc.rows.push({
+          date: d,
+          dateLabel: d.slice(8, 10) + '/' + d.slice(5, 7),
+          realizado: isFuturo ? null : rAcum,
+          projetado: pAcum,
+        })
+        return { rows: acc.rows, rAcum, pAcum }
+      },
+      { rows: [], rAcum: 0, pAcum: 0 },
+    ).rows
   }, [dates, totais.realizadoFaturamento, totais.projetadoFaturamento, diasDecorridos])
 
   const refDate = chartData[diasDecorridos - 1]?.date
@@ -198,7 +201,7 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
                   tickFormatter={(v) => formatCurrencyShort(v as number)}
                 />
                 <Tooltip
-                  formatter={(v: number, name) => [formatCurrency(v), name === 'realizado' ? 'Realizado' : 'Projetado']}
+                  formatter={((v: number, name: string) => [formatCurrency(v), name === 'realizado' ? 'Realizado' : 'Projetado']) as never}
                   labelFormatter={(label) => `Dia ${label}`}
                   contentStyle={{ fontSize: 11 }}
                 />

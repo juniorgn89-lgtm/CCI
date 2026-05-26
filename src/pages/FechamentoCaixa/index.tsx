@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle, DollarSign, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -296,18 +296,23 @@ const FechamentoCaixa = () => {
   }, [empresaCodigos, includeAbertos])
   const caixasPorData = useMemo(() => agruparCaixasPorData(caixasDoPosto), [caixasDoPosto])
 
-  // Quando desliga "incluir abertos", deseleciona caixas abertos que tinham
-  // sido marcados (evita seleção fantasma com caixa que sumiu da dropdown).
-  useEffect(() => {
-    if (includeAbertos) return
-    setSelectedIds((prev) => prev.filter((id) => caixas.find((c) => c.id === id)?.fechado))
-  }, [includeAbertos])
+  // Quando desliga "incluir abertos", deseleciona caixas abertos.
+  // Padrão "store info from previous renders".
+  const [prevIncludeAbertos, setPrevIncludeAbertos] = useState(includeAbertos)
+  if (prevIncludeAbertos !== includeAbertos) {
+    setPrevIncludeAbertos(includeAbertos)
+    if (!includeAbertos) {
+      setSelectedIds((prev) => prev.filter((id) => caixas.find((c) => c.id === id)?.fechado))
+    }
+  }
 
   // Reset da seleção de caixas quando o posto muda — caixas pertencem a um
   // posto específico, então misturar seleções entre postos não faz sentido.
-  useEffect(() => {
+  const [prevEmpresaKey, setPrevEmpresaKey] = useState(empresaKey)
+  if (prevEmpresaKey !== empresaKey) {
+    setPrevEmpresaKey(empresaKey)
     setSelectedIds([])
-  }, [empresaKey])
+  }
 
   const selectedCaixas = caixasDoPosto.filter((c) => selectedIds.includes(c.id))
   const allSelected = caixasDoPosto.length > 0 && selectedIds.length === caixasDoPosto.length

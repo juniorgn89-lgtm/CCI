@@ -4,7 +4,8 @@ import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
 import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
-import ReposicaoTabela, { aggregarPorProduto } from '@/pages/Dashboard/components/ReposicaoTabela'
+import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
+import { aggregarPorProduto } from '@/pages/Dashboard/components/reposicao'
 
 interface NivelTanquesCardProps {
   empresaCodigo: number

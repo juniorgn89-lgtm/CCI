@@ -177,10 +177,10 @@ const useFinanceData = () => {
     enabled: hasEmpresa,
   })
 
-  const titulosReceber = receberResponse?.resultados ?? []
-  const titulosPagar = pagarResponse?.resultados ?? []
-  const movimentos = movimentosResponse?.resultados ?? []
-  const movimentosPrev = movimentosPrevResponse?.resultados ?? []
+  const titulosReceber = useMemo(() => receberResponse?.resultados ?? [], [receberResponse])
+  const titulosPagar = useMemo(() => pagarResponse?.resultados ?? [], [pagarResponse])
+  const movimentos = useMemo(() => movimentosResponse?.resultados ?? [], [movimentosResponse])
+  const movimentosPrev = useMemo(() => movimentosPrevResponse?.resultados ?? [], [movimentosPrevResponse])
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
 
@@ -272,19 +272,23 @@ const useFinanceData = () => {
       byDay.set(day, prev)
     }
 
-    let saldoAcumulado = 0
+    // Reduce em vez de mutar `let saldoAcumulado` (regra de pureza).
     const cashFlowData: CashFlowRow[] = Array.from(byDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([data, values]) => {
-        saldoAcumulado += values.entradas - values.saidas
-        return {
-          data,
-          entradas: values.entradas,
-          saidas: values.saidas,
-          saldo: values.entradas - values.saidas,
-          saldoAcumulado,
-        }
-      })
+      .reduce<{ rows: CashFlowRow[]; acum: number }>(
+        (acc, [data, values]) => {
+          const acum = acc.acum + values.entradas - values.saidas
+          acc.rows.push({
+            data,
+            entradas: values.entradas,
+            saidas: values.saidas,
+            saldo: values.entradas - values.saidas,
+            saldoAcumulado: acum,
+          })
+          return { rows: acc.rows, acum }
+        },
+        { rows: [], acum: 0 },
+      ).rows
 
     // --- Comparativo período anterior (totais do fluxo) ---
     const cashFlowTotals: CashFlowTotals = {

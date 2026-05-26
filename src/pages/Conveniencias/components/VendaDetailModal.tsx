@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, Info } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
@@ -39,12 +39,14 @@ interface VendaDetailModalProps {
 const VendaDetailModal = ({ open, onClose, title, products, showGroupFilter, itens, formas, pagLoading }: VendaDetailModalProps) => {
   const [search, setSearch] = useState('')
   const [grupo, setGrupo] = useState('')
-
   // Reseta os filtros ao abrir um novo recorte.
-  useEffect(() => {
+  const openKey = `${open}-${title}`
+  const [prevOpenKey, setPrevOpenKey] = useState(openKey)
+  if (prevOpenKey !== openKey) {
+    setPrevOpenKey(openKey)
     setSearch('')
     setGrupo('')
-  }, [open, title])
+  }
 
   const grupos = useMemo(
     () => (showGroupFilter ? [...new Set(products.map((p) => p.grupo))].sort() : []),

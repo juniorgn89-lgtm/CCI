@@ -26,7 +26,6 @@ const CaixasTurnos = () => {
     kpis,
     caixaResumo,
     pagamentoBreakdown,
-    turnoRows,
     turnoGroups,
     apuradoPorDia,
     isLoading,
@@ -154,7 +153,6 @@ const CaixasTurnos = () => {
               <CaixaPosto
                 caixaResumo={caixaResumo}
                 pagamentoBreakdown={pagamentoBreakdown}
-                turnoRows={turnoRows}
                 turnoGroups={turnoGroups}
                 apuradoPorDia={apuradoPorDia}
               />

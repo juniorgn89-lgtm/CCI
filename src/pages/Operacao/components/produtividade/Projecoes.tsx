@@ -155,10 +155,13 @@ const Projecoes = ({ frentistas, periodInfo }: Props) => {
     () => new Set(validFrentistas.slice(0, 5).map((f) => f.funcionarioCodigo))
   )
 
-  // Sincroniza seleção quando a lista de frentistas muda (período/filtros)
-  useEffect(() => {
+  // Sincroniza seleção quando a lista de frentistas muda. Padrão "store info
+  // from previous renders" — compara identidade da lista pra detectar mudança.
+  const [prevFrentistasRef, setPrevFrentistasRef] = useState(validFrentistas)
+  if (prevFrentistasRef !== validFrentistas) {
+    setPrevFrentistasRef(validFrentistas)
     setSelectedCodigos(new Set(validFrentistas.slice(0, 5).map((f) => f.funcionarioCodigo)))
-  }, [validFrentistas])
+  }
 
   // Toast inline para limite de 6
   const [toastMsg, setToastMsg] = useState<string | null>(null)

@@ -117,7 +117,7 @@ const Pessoas = () => {
       if (ca !== cb) return ca - cb
       return a.nome.localeCompare(b.nome, 'pt-BR')
     })
-  }, [profiles, frentistas, redeNomeById])
+  }, [profiles, frentistas, redeNomeById, isMaster])
 
   // Cargos visíveis no resumo — não-master não vê o card de Gerente Geral.
   const cargosVisiveis = useMemo<Cargo[]>(

@@ -46,7 +46,7 @@ const useQualidadeArquivados = (): UseQualidadeArquivadosResult => {
 
   const canArchive = !!rede && empresaCodigo !== null && !!user
 
-  const queryKey = ['qualidade-arquivados', rede?.id, empresaCodigo]
+  const queryKey = useMemo(() => ['qualidade-arquivados', rede?.id, empresaCodigo], [rede?.id, empresaCodigo])
 
   const { data: arquivados = [], isLoading } = useQuery({
     queryKey,

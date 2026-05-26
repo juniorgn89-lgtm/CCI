@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Save, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLiters } from '@/lib/formatters'
@@ -35,16 +35,19 @@ const Metas = ({ frentistas }: Props) => {
   // Filtro por status da meta
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos')
 
-  useEffect(() => {
-    // Quando muda o modo ou a lista de frentistas, sincroniza o buffer com o store.
-    // Trata 0 / undefined como input vazio para não pré-preencher o campo.
+  // Sincroniza o buffer com o store quando muda modo/lista/metas.
+  // Padrão "store info from previous renders" da doc do React.
+  const syncKey = `${manualMode}-${frentistas.length}-${Object.values(metas).join(',')}`
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
+  if (prevSyncKey !== syncKey) {
+    setPrevSyncKey(syncKey)
     const next: Record<number, string> = {}
     for (const f of frentistas) {
       const v = metas[f.funcionarioCodigo]
       next[f.funcionarioCodigo] = v && v > 0 ? String(v) : ''
     }
     setBuffer(next)
-  }, [frentistas, manualMode, metas])
+  }
 
   const dirty = frentistas.some((f) => {
     const buf = buffer[f.funcionarioCodigo] ?? ''

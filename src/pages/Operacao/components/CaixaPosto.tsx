@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Users, Search, Fuel, TrendingUp, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Search, TrendingUp, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -15,15 +15,14 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatDate } from '@/lib/formatters'
 import { cn, isPastPeriod } from '@/lib/utils'
-import type { CaixaResumo, PagamentoBreakdown, TurnoRow, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
 import TurnoDetalheModal from '@/pages/Operacao/components/TurnoDetalheModal'
 
 interface CaixaPostoProps {
   caixaResumo: CaixaResumo
   pagamentoBreakdown: PagamentoBreakdown[]
-  turnoRows: TurnoRow[]
   turnoGroups: TurnoGroup[]
   apuradoPorDia: ApuradoPorDia[]
 }
@@ -87,7 +86,7 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
   )
 }
 
-const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
+const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
   // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
@@ -114,15 +113,24 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
 
   // Se o user navegar de período corrente pra passado com o filtro "ao-vivo"
   // ativo, reseta pra 'todos' senão a lista fica vazia sem motivo aparente.
-  useEffect(() => {
-    if (periodIsPast && filterStatus === 'ao-vivo') {
-      setFilterStatus('todos')
-    }
-  }, [periodIsPast, filterStatus])
+  // Set-state inline (não precisa de useEffect; depois do set a condição
+  // fica falsa, não entra em loop).
+  if (periodIsPast && filterStatus === 'ao-vivo') {
+    setFilterStatus('todos')
+  }
 
   // Filtros vindos dos gráficos (mutuamente exclusivos)
   const [selectedPgto, setSelectedPgto] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  // Detecta mudança de período pra resetar seleções (padrão "store info from
+  // previous renders" da doc do React, mais limpo que useEffect + setState).
+  const periodKey = `${dataInicial}-${dataFinal}`
+  const [prevPeriodKey, setPrevPeriodKey] = useState(periodKey)
+  if (prevPeriodKey !== periodKey) {
+    setPrevPeriodKey(periodKey)
+    setSelectedPgto(null)
+    setSelectedDay(null)
+  }
 
   const turnosUnicos = useMemo(() => [...new Set(turnoGroups.map((g) => g.turno))].sort(), [turnoGroups])
 
@@ -288,14 +296,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
       showProjection: futureCount > 0 && last7Avg > 0,
     }
   }, [apuradoPorDia])
-
-  // Reseta seleções dos gráficos só quando o período muda (string estável,
-  // diferente das refs de array que mudavam em re-renders do parent e
-  // estavam apagando a seleção logo após o clique)
-  useEffect(() => {
-    setSelectedPgto(null)
-    setSelectedDay(null)
-  }, [dataInicial, dataFinal])
 
   // Indexação para cálculo da janela ±3 dias
   const dailyByLabel = useMemo(() => {
@@ -884,7 +884,6 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoRows, turnoGroups, apuradoPorDia 
                   const dayCollapsed = isDayCollapsed(day)
                   const dataFmt = day.data.split('-').reverse().join('/')
                   const diferencaPositiva = day.diferencaTotal > 0.005
-                  const diferencaNegativa = day.diferencaTotal < -0.005
                   return (
                     <React.Fragment key={day.data}>
                       {/* Day header — banner clicável pra colapsar/expandir os turnos do dia.

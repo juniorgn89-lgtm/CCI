@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CalendarRange, Eye } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import MonthRangeSelect from '@/components/filters/MonthRangeSelect'
@@ -45,10 +45,18 @@ const DateRangeToolbar = () => {
 
   const [draftIni, setDraftIni] = useState(periodIni)
   const [draftFim, setDraftFim] = useState(periodFim)
-  useEffect(() => {
+  // Sincroniza draft com o filtro global quando este muda externamente
+  // (botão "mês passado", etc.). Padrão "store info from previous renders".
+  const [prevIni, setPrevIni] = useState(periodIni)
+  const [prevFim, setPrevFim] = useState(periodFim)
+  if (prevIni !== periodIni) {
+    setPrevIni(periodIni)
     setDraftIni(periodIni)
+  }
+  if (prevFim !== periodFim) {
+    setPrevFim(periodFim)
     setDraftFim(periodFim)
-  }, [periodIni, periodFim])
+  }
   const dirty = draftIni !== periodIni || draftFim !== periodFim
   const handleVisualizar = () => setPeriodo(draftIni, draftFim)
 

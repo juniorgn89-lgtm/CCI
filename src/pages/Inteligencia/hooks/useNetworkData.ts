@@ -74,7 +74,7 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
     queryFn: () => fetchEmpresas({ limite: 100 }),
     staleTime: 30 * 60 * 1000,
   })
-  const empresasData = empresasRaw?.resultados ?? []
+  const empresasData = useMemo(() => empresasRaw?.resultados ?? [], [empresasRaw])
 
   // Fetch venda resumo per company
   const { data: resumoData } = useQuery({

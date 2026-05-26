@@ -200,7 +200,7 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
       agingPagar,
       recentCashFlow,
     }
-  }, [kpis, receivablesData, payablesData, cashFlowData])
+  }, [receivablesData, payablesData, cashFlowData])
 
   const kpiCards = [
     {

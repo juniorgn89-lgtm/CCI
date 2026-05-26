@@ -169,8 +169,8 @@ const GlobalDetailModal = ({
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
                 <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={62} />
                 <Tooltip
-                  formatter={(v: number, name) => [formatCurrencyTooltip(v), name as string]}
-                  labelFormatter={(label: string, payload) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label}
+                  formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name]) as never}
+                  labelFormatter={((label: string, payload: { payload?: { data?: string } }[]) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label) as never}
                   contentStyle={{ fontSize: 12 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, paddingBottom: 4 }} verticalAlign="top" height={20} />

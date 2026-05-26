@@ -24,7 +24,7 @@ import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
 import ProjecaoCard from '@/components/kpi/ProjecaoCard'
 import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
-import { diasEntreDatas } from '@/components/badges/CoberturaBadge'
+import { diasEntreDatas } from '@/components/badges/cobertura'
 import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
@@ -969,14 +969,14 @@ const ComercialVendasCombustivel = () => {
                               tickFormatter={(v) => formatCurrency(v)}
                             />
                             <Tooltip
-                              formatter={(value: number, name: string) =>
+                              formatter={((value: number, name: string) =>
                                 name === 'L.B./Litro' ? [formatCurrency(value), name] : [formatNumber(value), name]
-                              }
+                              ) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                             <Bar yAxisId="left" dataKey="litros" name="Litros vendidos" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="litros" position="top" formatter={(v: number) => formatNumber(v)} style={{ fontSize: 10, fill: '#374151' }} />
+                              <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(v)) as never} style={{ fontSize: 10, fill: '#374151' }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1011,14 +1011,14 @@ const ComercialVendasCombustivel = () => {
                               tickFormatter={(v) => `${v.toFixed(1)}%`}
                             />
                             <Tooltip
-                              formatter={(value: number, name: string) =>
+                              formatter={((value: number, name: string) =>
                                 name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name] : [formatCurrency(value), name]
-                              }
+                              ) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                             <Bar yAxisId="left" dataKey="lucroBruto" name="Lucro bruto" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="lucroBruto" position="top" formatter={(v: number) => formatCurrency(v)} style={{ fontSize: 10, fill: '#374151' }} />
+                              <LabelList dataKey="lucroBruto" position="top" formatter={((v: number) => formatCurrency(v)) as never} style={{ fontSize: 10, fill: '#374151' }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1081,7 +1081,7 @@ const ComercialVendasCombustivel = () => {
                             <XAxis dataKey="dataFmt" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
                             <Tooltip
-                              formatter={(value: number) => [formatNumber(value), 'Litros']}
+                              formatter={((value: number) => [formatNumber(value), 'Litros']) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}
                             />
                             <Line

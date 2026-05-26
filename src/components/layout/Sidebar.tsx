@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
-  BarChart3,
-  Warehouse,
-  DollarSign,
-  Brain,
-  Gauge,
-  Wallet,
-  Receipt,
   Settings,
   LogOut,
   Users,
@@ -16,70 +9,13 @@ import {
   Database,
   PanelLeft,
   Check,
-  LineChart,
-  ShieldAlert,
-  UsersRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
 import { MODULOS } from '@/lib/modulos'
-
-interface NavItem {
-  label: string
-  path: string
-  icon: typeof BarChart3
-  /** Quando true, item só aparece pro gerente (is_master). */
-  masterOnly?: boolean
-}
-
-interface NavGroup {
-  title: string
-  items: NavItem[]
-}
-
-const navGroups: NavGroup[] = [
-  {
-    title: 'Sistema',
-    items: [
-      { label: 'Selecionar Rede', path: '/selecionar-rede', icon: Network, masterOnly: true },
-    ],
-  },
-  {
-    title: 'Geral',
-    items: [
-      { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
-    ],
-  },
-  {
-    title: 'Posto',
-    items: [
-      { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
-      { label: 'Bombas', path: '/bombas', icon: Gauge },
-      { label: 'Caixas & Turnos', path: '/caixas-turnos', icon: Wallet },
-      { label: 'Produtividade', path: '/produtividade', icon: BarChart3 },
-    ],
-  },
-  {
-    title: 'Gestão',
-    items: [
-      { label: 'Estoques', path: '/estoques', icon: Warehouse },
-      { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
-      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
-      { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
-      { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
-    ],
-  },
-  {
-    title: 'Análise',
-    items: [
-      { label: 'Inteligência', path: '/inteligencia', icon: Brain },
-    ],
-  },
-]
-
-const navItems = navGroups.flatMap((g) => g.items)
+import { navGroups } from '@/components/layout/navConfig'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -135,7 +71,9 @@ const Sidebar = () => {
   // e (b) tooltips piscarem ao tirar o mouse.
   const [wide, setWide] = useState(expanded)
   const [narrow, setNarrow] = useState(!expanded)
+  // Timer-based animation sync; não é derivação direta de state.
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (expanded) {
       setNarrow(false)
       const t = window.setTimeout(() => setWide(true), 200)
@@ -144,6 +82,7 @@ const Sidebar = () => {
     setWide(false)
     const t = window.setTimeout(() => setNarrow(true), 220)
     return () => window.clearTimeout(t)
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [expanded])
 
   const handleHoverEnter = () => {
@@ -523,5 +462,4 @@ const Sidebar = () => {
   )
 }
 
-export { navItems }
 export default Sidebar

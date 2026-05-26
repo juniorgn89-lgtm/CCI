@@ -97,7 +97,6 @@ const useCaixasCache = (input: UseCaixasCacheInput): UseCaixasCacheResult => {
   const { data: fallbackFormas = [], isLoading: loadingFallbackFormas } = useQuery({
     queryKey: ['formas-live-closed', empresaCodigo, closedIni, closedEnd],
     queryFn: async () => {
-      // eslint-disable-next-line no-console
       console.warn('[useCaixasCache] fetching live formas for closed period:', {
         empresaCodigo, closedIni, closedEnd,
         cachedFormas: formasRows.length,
@@ -115,7 +114,6 @@ const useCaixasCache = (input: UseCaixasCacheInput): UseCaixasCacheResult => {
         1000,
         20,
       )
-      // eslint-disable-next-line no-console
       console.warn('[useCaixasCache] live fetched', all.length, 'formas (paginated)')
       return all
     },

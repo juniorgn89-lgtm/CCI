@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Warehouse, Package, DollarSign, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -53,9 +53,12 @@ const Estoques = () => {
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, productAnalytics.length > 0)
 
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === activeTab)) setActiveTab(visibleTabs[0]?.id ?? 'geral')
-  }, [visibleTabs, activeTab])
+  // Se o usuário escondeu a aba ativa via engrenagem, ajusta pra primeira
+  // visível direto no render (padrão da doc do React pra "store info from
+  // previous renders", mais limpo que useEffect + setState).
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+    setActiveTab(visibleTabs[0].id)
+  }
 
   return (
     <div className="space-y-6">

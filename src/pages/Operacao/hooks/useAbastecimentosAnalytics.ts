@@ -641,7 +641,7 @@ const useAbastecimentosAnalytics = () => {
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

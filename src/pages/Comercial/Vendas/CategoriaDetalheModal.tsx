@@ -6,7 +6,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
-import CoberturaBadge, { diasEntreDatas } from '@/components/badges/CoberturaBadge'
+import CoberturaBadge from '@/components/badges/CoberturaBadge'
+import { diasEntreDatas } from '@/components/badges/cobertura'
 import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
 import type { VendaItem } from '@/api/types/venda'
 
@@ -241,17 +242,17 @@ const CategoriaDetalheModal = ({
                     <XAxis dataKey="dataFmt" tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(v).replace('R$ ', '')} />
                     <Tooltip
-                      formatter={(value: number, name: string) => [
+                      formatter={((value: number, name: string) => [
                         formatCurrency(value),
                         name === 'projecaoLine' ? 'Ritmo projetado' : 'Faturamento',
-                      ]}
+                      ]) as never}
                       contentStyle={{ fontSize: 11, borderRadius: 6 }}
                     />
                     {projecao?.isProjetada && projecao.dailyRate > 0 && (
                       <Legend wrapperStyle={{ fontSize: 10 }} iconType="line" formatter={(v) => v === 'projecaoLine' ? 'Ritmo projetado' : 'Faturamento'} />
                     )}
                     <Bar dataKey="fat" fill="#f59e0b" radius={[3, 3, 0, 0]} name="Faturamento">
-                      <LabelList dataKey="fat" position="top" formatter={(v: number) => formatCurrency(v).replace('R$ ', '')} style={{ fontSize: 9, fill: '#374151' }} />
+                      <LabelList dataKey="fat" position="top" formatter={((v: number) => formatCurrency(v).replace('R$ ', '')) as never} style={{ fontSize: 9, fill: '#374151' }} />
                     </Bar>
                     {projecao?.isProjetada && projecao.dailyRate > 0 && (
                       <ReferenceLine

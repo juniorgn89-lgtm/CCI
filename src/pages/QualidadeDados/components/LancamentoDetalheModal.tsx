@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Copy, Check, ExternalLink, AlertTriangle, Info } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -52,12 +52,15 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; Icon: typ
  */
 const LancamentoDetalheModal = ({ open, onClose, data }: LancamentoDetalheModalProps) => {
   const [copied, setCopied] = useState(false)
-
   // Reseta o feedback de "Copiado" quando o modal fecha ou troca de registro,
   // pra evitar que um clique rápido em outra linha mostre "Copiado" do anterior.
-  useEffect(() => {
+  // Padrão "store info from previous renders".
+  const stateKey = `${open}-${data?.codigoValue ?? ''}`
+  const [prevStateKey, setPrevStateKey] = useState(stateKey)
+  if (prevStateKey !== stateKey) {
+    setPrevStateKey(stateKey)
     setCopied(false)
-  }, [open, data?.codigoValue])
+  }
 
   if (!data) return null
   const sev = severityStyle[data.severidade]

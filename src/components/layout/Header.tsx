@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
-import { navItems } from '@/components/layout/Sidebar'
+import { navItems } from '@/components/layout/navConfig'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import CompanySelect from '@/components/filters/CompanySelect'
@@ -53,12 +53,14 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const lastRefreshTime = useRef(new Date())
 
-  // Track when manual refresh completes
+  // Track when manual refresh completes — sync legítimo com isFetching global.
   useEffect(() => {
     if (manualRefreshing && isFetching === 0) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setManualRefreshing(false)
       lastRefreshTime.current = new Date()
       setLastRefreshLabel('Atualizado agora')
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [manualRefreshing, isFetching])
 

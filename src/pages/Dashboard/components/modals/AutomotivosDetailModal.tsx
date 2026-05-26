@@ -134,8 +134,8 @@ const AutomotivosDetailModal = ({
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
                 <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={56} />
                 <Tooltip
-                  formatter={(v: number) => [formatCurrencyTooltip(v), 'Faturamento']}
-                  labelFormatter={(label: string, payload) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label}
+                  formatter={((v: number) => [formatCurrencyTooltip(v), 'Faturamento']) as never}
+                  labelFormatter={((label: string, payload: { payload?: { data?: string } }[]) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label) as never}
                   contentStyle={{ fontSize: 12 }}
                 />
                 <Line type="monotone" dataKey="faturamento" stroke="#d97706" strokeWidth={2} dot={false} isAnimationActive={false} />

@@ -101,7 +101,9 @@ const BenchmarkPostos = () => {
     navigate('/dashboard')
   }
 
-  const SortableTh = ({ label, k }: { label: string; k: SortKey }) => (
+  // SortableTh é renderizado inline pra evitar re-criação de componente em
+  // cada render (react-hooks/static-components). É só uma função que retorna JSX.
+  const renderSortableTh = (label: string, k: SortKey) => (
     <th scope="col" className="px-3 py-2.5 text-right font-medium">
       <button
         type="button"
@@ -190,11 +192,11 @@ const BenchmarkPostos = () => {
                   <th scope="col" className="px-4 py-2.5 text-left font-medium">
                     Posto
                   </th>
-                  <SortableTh label="Litros" k="litros" />
-                  <SortableTh label="Faturamento" k="faturamento" />
-                  <SortableTh label="Preço médio" k="precoMedio" />
-                  <SortableTh label="Participação" k="participacao" />
-                  <SortableTh label="Margem" k="margem" />
+                  {renderSortableTh('Litros', 'litros')}
+                  {renderSortableTh('Faturamento', 'faturamento')}
+                  {renderSortableTh('Preço médio', 'precoMedio')}
+                  {renderSortableTh('Participação', 'participacao')}
+                  {renderSortableTh('Margem', 'margem')}
                   <th className="w-8 px-2 py-2.5" aria-label="Ações" />
                 </tr>
               </thead>

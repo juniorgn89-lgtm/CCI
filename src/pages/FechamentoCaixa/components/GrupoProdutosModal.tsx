@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import BarCell from '@/components/tables/BarCell'
@@ -27,12 +27,17 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
     setSelected((curr) => (curr === nome ? null : nome))
   }
 
-  useEffect(() => {
+  // Reseta filtros ao abrir um novo recorte (open/grupo). Set-state durante
+  // render via comparação com prev.
+  const resetKey = `${open}-${grupo}`
+  const [prevResetKey, setPrevResetKey] = useState(resetKey)
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey)
     if (open) {
       setSearch('')
       setSelected(null)
     }
-  }, [open, grupo])
+  }
 
   const filtered = useMemo(() => {
     if (!search) return produtos

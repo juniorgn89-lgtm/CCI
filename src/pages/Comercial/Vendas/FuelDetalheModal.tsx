@@ -274,11 +274,11 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                     <XAxis dataKey="hora" tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
                     <Tooltip
-                      formatter={(value: number) => [formatNumber(value), 'Litros']}
+                      formatter={((value: number) => [formatNumber(value), 'Litros']) as never}
                       contentStyle={{ fontSize: 11, borderRadius: 6 }}
                     />
                     <Bar dataKey="litros" fill="#2563eb" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="litros" position="top" formatter={(v: number) => formatNumber(Math.round(v))} style={{ fontSize: 9, fill: '#374151' }} />
+                      <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 9, fill: '#374151' }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
