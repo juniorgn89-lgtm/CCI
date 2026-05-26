@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Warehouse, Package, DollarSign, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings } from 'lucide-react'
+import { Warehouse, Package, DollarSign, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useEstoquesLayout } from '@/store/moduleLayout'
+import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
 import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
 import EstoqueMedio from '@/pages/Estoques/components/abas/EstoqueMedio'
@@ -21,6 +22,7 @@ import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
 const TAB_ICONS: Record<string, typeof Warehouse> = {
+  visao: LayoutDashboard,
   geral: Package,
   giro: RefreshCw,
   estoqueMedio: BarChart3,
@@ -148,6 +150,13 @@ const Estoques = () => {
                 <TableSkeleton />
               ) : (
                 <>
+                  {activeTab === 'visao' && (
+                    <EstoqueVisaoGeral
+                      data={productAnalytics}
+                      categorias={categorias}
+                      onNavigateTab={setActiveTab}
+                    />
+                  )}
                   {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
                   {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} />}
                   {activeTab === 'estoqueMedio' && <EstoqueMedio data={productAnalytics} categorias={categorias} />}

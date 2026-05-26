@@ -85,6 +85,7 @@ export const useConvenienciasLayout = createModuleLayoutStore('visor360-convenie
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layout', [
+  { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'geral', label: 'Estoque geral', visible: true },
   { id: 'giro', label: 'Giro', visible: true },
   { id: 'estoqueMedio', label: 'Estoque médio', visible: true },
