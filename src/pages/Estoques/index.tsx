@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Warehouse, Package, DollarSign, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard } from 'lucide-react'
+import { Warehouse, Package, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -9,7 +9,6 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useEstoquesLayout } from '@/store/moduleLayout'
 import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
@@ -29,8 +28,6 @@ const TAB_ICONS: Record<string, typeof Warehouse> = {
   mediaVendas: TrendingUp,
   necessidade: ShoppingCart,
 }
-
-const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v)
 
 const TableSkeleton = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -91,34 +88,6 @@ const Estoques = () => {
 
       {hasEmpresa && (
         <>
-          {/* KPIs no topo */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de produtos</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton ? '—' : fmtUnidades(kpis?.totalProdutos ?? 0)}
-              </p>
-              <p className="text-xs text-gray-500">não-combustíveis com saldo ou movimentação</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor total em estoque</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                  <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton ? '—' : formatCurrency(kpis?.valorTotalEstoque ?? 0)}
-              </p>
-              <p className="text-xs text-gray-500">a custo médio dos últimos 6 meses</p>
-            </div>
-          </div>
-
           {/* Tabs */}
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
@@ -157,6 +126,7 @@ const Estoques = () => {
                     <EstoqueVisaoGeral
                       data={productAnalytics}
                       categorias={categorias}
+                      kpis={kpis ?? null}
                       onNavigateTab={setActiveTab}
                     />
                   )}

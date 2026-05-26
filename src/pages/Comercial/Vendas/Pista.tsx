@@ -151,7 +151,12 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
 
 /* ─── Página ─── */
 
-const ComercialVendasPista = () => {
+interface ComercialVendasPistaProps {
+  /** Skip header/nav quando montada como aba do Vendas/index. */
+  embedded?: boolean
+}
+
+const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = {}) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
@@ -540,31 +545,35 @@ const ComercialVendasPista = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-900/30">
-            <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Vendas · Pista{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
+      {!embedded && (
+        <>
+          <PageHeaderTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-900/30">
+                <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
+                    Vendas · Pista{empresaNome ? ` · ${empresaNome}` : ''}
+                  </h1>
+                  <FocusModeToggle />
+                </div>
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                  Filtros, óleos, palhetas, aditivos, baterias e acessórios
+                </p>
+              </div>
             </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Filtros, óleos, palhetas, aditivos, baterias e acessórios
-            </p>
-          </div>
-        </div>
-      </PageHeaderTitle>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+          </PageHeaderTitle>
+          <PageHeaderActions>
+            <DateRangeToolbar />
+          </PageHeaderActions>
 
-      <VendasNav />
+          <VendasNav />
+        </>
+      )}
 
-      {!hasEmpresa && <SelectCompanyState />}
+      {!embedded && !hasEmpresa && <SelectCompanyState />}
 
       {hasEmpresa && (
         <>

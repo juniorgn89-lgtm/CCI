@@ -1,8 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard, AlertTriangle, Scale } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
-import { formatCurrency } from '@/lib/formatters'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -98,104 +97,6 @@ const Financeiro = () => {
       {/* Main content */}
       {hasEmpresa && (
         <>
-          {/* KPIs principais — sempre visíveis acima das abas */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab('receber')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">A Receber</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.totalReceber)}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                {showSkeleton || !kpis ? '' : `${kpis.countReceber} ${kpis.countReceber === 1 ? 'título' : 'títulos'}`}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('pagar')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">A Pagar</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                  <CreditCard className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.totalPagar)}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                {showSkeleton || !kpis ? '' : `${kpis.countPagar} ${kpis.countPagar === 1 ? 'conta' : 'contas'}`}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('fluxo')}
-              className={cn(
-                'rounded-xl border border-gray-200 bg-gradient-to-br p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700',
-                kpis && kpis.saldoLiquido >= 0
-                  ? 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900'
-                  : 'from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo Líquido</p>
-                <div
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    kpis && kpis.saldoLiquido >= 0
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                      : 'bg-red-100 dark:bg-red-900/30',
-                  )}
-                >
-                  <Scale
-                    className={cn(
-                      'h-5 w-5',
-                      kpis && kpis.saldoLiquido >= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-red-600 dark:text-red-400',
-                    )}
-                  />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.saldoLiquido)}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                A Receber − A Pagar
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('receber')}
-              className="rounded-xl border border-gray-200 bg-gradient-to-br from-red-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-red-950/20 dark:to-gray-900"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Inadimplência</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {showSkeleton || !kpis ? '—' : formatCurrency(kpis.totalVencidosReceber)}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                {showSkeleton || !kpis ? '' : `${kpis.countVencidosReceber} ${kpis.countVencidosReceber === 1 ? 'vencido' : 'vencidos'} · ${kpis.inadimplenciaPercent.toFixed(1).replace('.', ',')}%`}
-              </p>
-            </button>
-          </div>
-
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />

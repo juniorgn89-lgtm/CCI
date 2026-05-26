@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Search, TrendingUp, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Search, TrendingUp, Scale, Clock, CheckCircle2, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -17,10 +17,13 @@ import {
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatDate } from '@/lib/formatters'
 import { cn, isPastPeriod } from '@/lib/utils'
-import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia, OperacaoKpiData } from '@/pages/Operacao/hooks/useOperacaoData'
+import DeltaBadge from '@/components/kpi/DeltaBadge'
 import TurnoDetalheModal from '@/pages/Operacao/components/TurnoDetalheModal'
 
 interface CaixaPostoProps {
+  /** KPIs do módulo — renderizados como primeira seção da aba Visão Geral. */
+  kpis: OperacaoKpiData | undefined
   caixaResumo: CaixaResumo
   pagamentoBreakdown: PagamentoBreakdown[]
   turnoGroups: TurnoGroup[]
@@ -86,7 +89,7 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
   )
 }
 
-const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
+const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
   // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
@@ -434,6 +437,92 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
       </div>
 
       {activeTab === 'visao' && (
+      <>
+      {/* KPIs do módulo — primeira seção da aba Visão Geral */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apurado</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {!kpis ? '—' : formatCurrency(kpis.totalApurado)}
+          </p>
+          {kpis && <DeltaBadge current={kpis.totalApurado} previous={kpis.prevTotalApurado} />}
+        </div>
+
+        <div className={cn(
+          'rounded-xl border p-5 shadow-sm',
+          kpis && kpis.totalDiferenca < 0
+            ? 'border-red-200 bg-gradient-to-br from-red-50/60 to-white dark:border-red-900/50 dark:from-red-950/20 dark:to-gray-900'
+            : kpis && kpis.totalDiferenca > 0
+            ? 'border-amber-200 bg-gradient-to-br from-amber-50/60 to-white dark:border-amber-900/50 dark:from-amber-950/20 dark:to-gray-900'
+            : 'border-gray-200 bg-gradient-to-br from-gray-50/60 to-white dark:border-gray-700 dark:from-gray-800/40 dark:to-gray-900'
+        )}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença de Caixa</p>
+            <div className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-lg',
+              kpis && kpis.totalDiferenca < 0
+                ? 'bg-red-100 dark:bg-red-900/30'
+                : kpis && kpis.totalDiferenca > 0
+                ? 'bg-amber-100 dark:bg-amber-900/30'
+                : 'bg-gray-100 dark:bg-gray-800'
+            )}>
+              <Scale className={cn(
+                'h-5 w-5',
+                kpis && kpis.totalDiferenca < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : kpis && kpis.totalDiferenca > 0
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-gray-500 dark:text-gray-400'
+              )} />
+            </div>
+          </div>
+          <p className={cn(
+            'mt-2 text-2xl font-bold tabular-nums',
+            kpis && kpis.totalDiferenca < 0
+              ? 'text-red-600 dark:text-red-400'
+              : kpis && kpis.totalDiferenca > 0
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-gray-900 dark:text-gray-100'
+          )}>
+            {!kpis ? '—' : `${kpis.totalDiferenca > 0 ? '+' : ''}${formatCurrency(kpis.totalDiferenca)}`}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+            {kpis && kpis.totalDiferenca < 0 ? 'Falta acumulada' : kpis && kpis.totalDiferenca > 0 ? 'Sobra acumulada' : 'Caixas fechados'}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Abertos</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+              <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatNumber(caixaResumo.caixasAbertos)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">pendentes de fechamento</p>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-green-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-green-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Fechados</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatNumber(caixaResumo.caixasFechados)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">conferidos no período</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Formas de pagamento */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -713,6 +802,7 @@ const CaixaPosto = ({ pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPos
           )}
         </div>
       </div>
+      </>
       )}
 
       {activeTab === 'turnos' && (

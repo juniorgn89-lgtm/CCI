@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, Hourglass, CalendarClock,
-  Receipt, CreditCard, TrendingUp,
+  Receipt, CreditCard, TrendingUp, Scale, AlertTriangle,
 } from 'lucide-react'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend,
@@ -230,9 +230,7 @@ const ProximosVencimentos = <T extends { codigo: number; nome: string; valor: nu
   )
 }
 
-const FinanceiroIndicadores = ({ kpis: _kpis, receivablesData, payablesData, cashFlowData, onNavigateTab }: FinanceiroIndicadoresProps) => {
-  // _kpis fica disponível pro caso de reuso futuro; cards do topo do módulo já cobrem os totais
-  void _kpis
+const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowData, onNavigateTab }: FinanceiroIndicadoresProps) => {
   // "Agora" capturado uma vez (Date.now em render é impuro)
   const [nowTs] = useState(() => Date.now())
   const computed = useMemo(() => {
@@ -300,7 +298,101 @@ const FinanceiroIndicadores = ({ kpis: _kpis, receivablesData, payablesData, cas
 
   return (
     <div className="space-y-4">
-      {/* 2 cards de cash flow — únicos não duplicados pelos KPIs do topo */}
+      {/* KPIs principais — totais financeiros do período (movidos do topo da página) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => onNavigateTab('receber')}
+          className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">A Receber</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(kpis.totalReceber)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+            {kpis.countReceber} {kpis.countReceber === 1 ? 'título' : 'títulos'}
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigateTab('pagar')}
+          className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">A Pagar</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+              <CreditCard className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(kpis.totalPagar)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+            {kpis.countPagar} {kpis.countPagar === 1 ? 'conta' : 'contas'}
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigateTab('fluxo')}
+          className={cn(
+            'rounded-xl border border-gray-200 bg-gradient-to-br p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700',
+            kpis.saldoLiquido >= 0
+              ? 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900'
+              : 'from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900',
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo Líquido</p>
+            <div className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-lg',
+              kpis.saldoLiquido >= 0
+                ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                : 'bg-red-100 dark:bg-red-900/30',
+            )}>
+              <Scale className={cn(
+                'h-5 w-5',
+                kpis.saldoLiquido >= 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-600 dark:text-red-400',
+              )} />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(kpis.saldoLiquido)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+            A Receber − A Pagar
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigateTab('receber')}
+          className="rounded-xl border border-gray-200 bg-gradient-to-br from-red-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-red-950/20 dark:to-gray-900"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Inadimplência</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(kpis.totalVencidosReceber)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+            {kpis.countVencidosReceber} {kpis.countVencidosReceber === 1 ? 'vencido' : 'vencidos'} · {kpis.inadimplenciaPercent.toFixed(1).replace('.', ',')}%
+          </p>
+        </button>
+      </div>
+
+      {/* Cards de cash flow — entradas/saídas/saldo do período */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-green-50/60 to-white p-4 shadow-sm dark:border-gray-700 dark:from-green-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">

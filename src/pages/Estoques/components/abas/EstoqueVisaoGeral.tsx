@@ -1,15 +1,17 @@
 import { useMemo } from 'react'
 import {
   AlertTriangle, AlertCircle, RefreshCw, TrendingDown, Package, Layers,
-  ShoppingCart, Boxes, Clock, Hourglass,
+  ShoppingCart, Boxes, Clock, Hourglass, DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
-import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import type { ProductAnalyticsRow, EstoqueKpis } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
+  /** KPIs principais — renderizados como primeira seção (movidos do topo da página). */
+  kpis: EstoqueKpis | null
   onNavigateTab?: (tab: string) => void
 }
 
@@ -25,7 +27,7 @@ const necessidadeBadge = (status: ProductAnalyticsRow['necessidadeStatus']): { l
   }
 }
 
-const EstoqueVisaoGeral = ({ data, onNavigateTab }: Props) => {
+const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
   const stats = useMemo(() => {
     const negativos = data.filter((r) => r.saldoAtual < 0)
     const rupturas = data.filter((r) => r.saldoAtual === 0 && r.vendasUltimos6m > 0)
@@ -96,6 +98,34 @@ const EstoqueVisaoGeral = ({ data, onNavigateTab }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* KPIs principais — movidos do topo da página */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de produtos</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatNumber(kpis?.totalProdutos ?? 0)}
+          </p>
+          <p className="text-xs text-gray-500">não-combustíveis com saldo ou movimentação</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor total em estoque</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+              <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(kpis?.valorTotalEstoque ?? 0)}
+          </p>
+          <p className="text-xs text-gray-500">a custo médio dos últimos 6 meses</p>
+        </div>
+      </div>
+
       {/* Mini-KPIs operacionais — alarmes e indicadores agregados */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniKpi
