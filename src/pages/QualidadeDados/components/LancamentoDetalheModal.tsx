@@ -80,68 +80,68 @@ const LancamentoDetalheModal = ({ open, onClose, data }: LancamentoDetalheModalP
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{data.title}</DialogTitle>
-          {data.subtitle && <DialogDescription>{data.subtitle}</DialogDescription>}
+      <DialogContent className="flex max-h-[92vh] w-[95vw] max-w-2xl flex-col overflow-hidden p-4 sm:p-5">
+        <DialogHeader className="space-y-0.5">
+          <DialogTitle className="text-base">{data.title}</DialogTitle>
+          {data.subtitle && <DialogDescription className="text-xs">{data.subtitle}</DialogDescription>}
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-auto">
+        <div className="flex-1 space-y-2.5 overflow-auto">
           {/* Motivo do alerta */}
-          <div className={cn('flex items-start gap-2 rounded-lg px-3 py-2 text-xs', sev.bg)}>
-            <sev.Icon className={cn('mt-0.5 h-4 w-4 shrink-0', sev.text)} />
+          <div className={cn('flex items-start gap-2 rounded-md px-2.5 py-1.5 text-xs', sev.bg)}>
+            <sev.Icon className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', sev.text)} />
             <div className="min-w-0 flex-1">
               <p className={cn('text-[10px] font-semibold uppercase tracking-wider', sev.text)}>
                 {sev.label} · Motivo do alerta
               </p>
-              <p className="mt-0.5 text-gray-800 dark:text-gray-200">{data.motivo}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-gray-800 dark:text-gray-200">{data.motivo}</p>
             </div>
           </div>
 
           {/* Card de código + ação copiar */}
-          <section className="rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-4 dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
+          <section className="rounded-md border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white px-3 py-2 dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {data.codigoLabel}
             </p>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <p className="font-mono text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            <div className="mt-0.5 flex items-center justify-between gap-3">
+              <p className="font-mono text-lg font-bold tabular-nums leading-tight text-gray-900 dark:text-gray-100">
                 {data.codigoValue}
               </p>
               <button
                 type="button"
                 onClick={copyCode}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors',
                   copied
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                     : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
                 )}
                 title="Copiar pro clipboard"
               >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 {copied ? 'Copiado' : 'Copiar'}
               </button>
             </div>
-            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
-              <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+            <p className="mt-1 flex items-start gap-1.5 text-[10px] leading-snug text-gray-600 dark:text-gray-400">
+              <ExternalLink className="mt-0.5 h-2.5 w-2.5 shrink-0" />
               <span>{data.qualityHint}</span>
             </p>
           </section>
 
           {/* Detalhes do lançamento */}
-          <section className="rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <section className="rounded-md border border-gray-200 dark:border-gray-700">
+            <div className="border-b border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               Detalhes do lançamento
             </div>
             <table className="w-full text-xs">
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {data.details.map((field, i) => (
                   <tr key={i}>
-                    <td className="w-2/5 px-3 py-2 text-left text-gray-500 dark:text-gray-400">
+                    <td className="w-2/5 px-2.5 py-1.5 text-left text-gray-500 dark:text-gray-400">
                       {field.label}
                     </td>
                     <td className={cn(
-                      'px-3 py-2',
+                      'px-2.5 py-1.5',
                       field.numeric ? 'text-right tabular-nums' : 'text-left',
                       field.highlight
                         ? cn('font-semibold', sev.text)

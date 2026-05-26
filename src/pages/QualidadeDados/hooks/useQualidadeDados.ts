@@ -62,6 +62,10 @@ export interface CupomMultiAbast {
     precoVenda: number
     totalVenda: number
     bicoCodigo: number
+    /** Hora REAL do abastecimento na bomba (de /ABASTECIMENTO via vendaItemCodigo).
+     * Usada pra detectar fraude: itens "montados" no mesmo cupom mas com
+     * timestamps espalhados ao longo do turno. */
+    dataHoraAbastecimento: string | null
   }>
   totalVenda: number
   formasPagamento: Array<{
@@ -326,6 +330,37 @@ const useQualidadeDados = (): QualidadeData => {
       pgtoByVenda.set(fp.vendaCodigo, arr)
     }
 
+    // Ponte VendaItem → dataHora REAL do abastecimento na bomba.
+    // Crítico pra detectar "montagem de cupom": cliente real abastece tudo de
+    // uma vez; cupom montado tem timestamps espalhados pelo turno.
+    //
+    // Estratégia DUPLA pra cobrir cache (sem vendaItemCodigo) E live:
+    //   1) Quando rows tem vendaItemCodigo → join direto por código (preciso).
+    //   2) Senão, chave natural (empresa+bico+produto+qty+valor+data) — bate
+    //      em quase todos os casos do dia-a-dia.
+    const abastDataHoraByVendaItem = new Map<number, string>()
+    // Chave natural: empresa+bico+produto+qty+data. Qty (3 decimais) é
+    // discriminador forte — colisão exata na mesma bomba/dia é raríssima.
+    // Não usamos valorTotal porque pode ter desconto no VendaItem (gross vs net).
+    const abastDataHoraByNaturalKey = new Map<string, string>()
+    const naturalKey = (
+      empresa: number,
+      bico: number,
+      produto: number,
+      qty: number,
+      date: string,
+    ) =>
+      `${empresa}|${bico}|${produto}|${qty.toFixed(3)}|${date.slice(0, 10)}`
+    for (const r of abastRows) {
+      if (r.vendaItemCodigo) {
+        abastDataHoraByVendaItem.set(r.vendaItemCodigo, r.dataHora)
+      }
+      if (r.dataHora) {
+        const k = naturalKey(r.empresaCodigo, r.bicoCodigo, r.produtoCodigo, r.litros, r.dataHora)
+        abastDataHoraByNaturalKey.set(k, r.dataHora)
+      }
+    }
+
     const itensPorVenda = new Map<number, typeof vendaItens>()
     for (const item of vendaItens) {
       const arr = itensPorVenda.get(item.vendaCodigo) ?? []
@@ -343,6 +378,19 @@ const useQualidadeDados = (): QualidadeData => {
 
       const abastecimentos = combItens.map((i) => {
         const p = produtoMap.get(i.produtoCodigo)
+        // Tenta primeiro pelo vendaItemCodigo (preciso, só funciona com dados live).
+        // Cai pra natural-key (cobre dados de cache, onde vendaItemCodigo = 0).
+        let dataHoraAbast: string | null = abastDataHoraByVendaItem.get(i.vendaItemCodigo) ?? null
+        if (!dataHoraAbast) {
+          const k = naturalKey(
+            i.empresaCodigo,
+            i.bicoCodigo,
+            i.produtoCodigo,
+            i.quantidade,
+            i.dataMovimento,
+          )
+          dataHoraAbast = abastDataHoraByNaturalKey.get(k) ?? null
+        }
         return {
           produtoCodigo: i.produtoCodigo,
           produtoNome: p?.nome ?? `Produto ${i.produtoCodigo}`,
@@ -351,7 +399,17 @@ const useQualidadeDados = (): QualidadeData => {
           precoVenda: i.precoVenda,
           totalVenda: i.totalVenda,
           bicoCodigo: i.bicoCodigo,
+          dataHoraAbastecimento: dataHoraAbast,
         }
+      })
+
+      // Ordena em ordem cronológica (1º = mais antigo). Itens sem hora vão
+      // pro fim. Facilita visualizar o "spread" da fraude no modal.
+      abastecimentos.sort((a, b) => {
+        if (!a.dataHoraAbastecimento && !b.dataHoraAbastecimento) return 0
+        if (!a.dataHoraAbastecimento) return 1
+        if (!b.dataHoraAbastecimento) return -1
+        return a.dataHoraAbastecimento.localeCompare(b.dataHoraAbastecimento)
       })
 
       const tiposUnicos = new Set(abastecimentos.map((a) => a.tipoCombustivel).filter(Boolean))
@@ -373,9 +431,17 @@ const useQualidadeDados = (): QualidadeData => {
         : 1
 
       const firstItem = itens[0]
+      // Hora do cupom = primeiro abastecimento real do conjunto (não
+      // dataMovimento, que só tem data). Se nenhum item tem hora, cai pra
+      // dataMovimento mesmo.
+      const horasAbast = abastecimentos
+        .map((a) => a.dataHoraAbastecimento)
+        .filter((d): d is string => !!d)
+        .sort()
+      const dataHoraCupom = horasAbast[0] ?? firstItem.dataMovimento
       cupomMultiAbast.push({
         vendaCodigo,
-        dataHora: firstItem.dataMovimento,
+        dataHora: dataHoraCupom,
         funcionarioCodigo: firstItem.funcionarioCodigo,
         funcionarioNome: funcMap.get(firstItem.funcionarioCodigo) ?? `Funcionário ${firstItem.funcionarioCodigo}`,
         abastecimentos,
@@ -411,7 +477,7 @@ const useQualidadeDados = (): QualidadeData => {
         items: cupomMultiAbast,
       },
     ]
-  }, [vendaItens, produtosData, formasPgto, funcionariosRaw])
+  }, [vendaItens, produtosData, formasPgto, funcionariosRaw, abastRows])
 
   // Caixa
   const caixa = useMemo<QualidadeIssue[]>(() => {

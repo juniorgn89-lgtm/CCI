@@ -35,6 +35,9 @@ export interface AbastecimentoRow {
   lucroBruto: number
   margem: number
   placa: string
+  /** Liga o abastecimento ao VendaItem correspondente — usado pra detectar
+   * "montagem de cupom" (Qualidade de Dados / fraude). */
+  vendaItemCodigo: number
 }
 
 export interface DailyRow {
@@ -380,6 +383,7 @@ const useAbastecimentosAnalytics = () => {
         lucroBruto: lb,
         margem: a.valorTotal > 0 ? (lb / a.valorTotal) * 100 : 0,
         placa: a.placa || '—',
+        vendaItemCodigo: a.vendaItemCodigo,
       }
     })
 
@@ -637,6 +641,7 @@ const useAbastecimentosAnalytics = () => {
         lucroBruto: lb,
         margem: a.valorTotal > 0 ? (lb / a.valorTotal) * 100 : 0,
         placa: a.placa || '—',
+        vendaItemCodigo: a.vendaItemCodigo,
       }
     })
 

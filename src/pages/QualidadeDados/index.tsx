@@ -413,6 +413,27 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
   const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
   const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 8) : c.dataHora.substring(11, 19)
 
+  // Calcula o "spread" — intervalo entre o primeiro e o último abastecimento
+  // do mesmo cupom. Cliente real abastece de uma vez (poucos minutos);
+  // cupom "montado" tem itens espalhados pelo turno.
+  const tsMs = c.abastecimentos
+    .map((a) => (a.dataHoraAbastecimento ? new Date(a.dataHoraAbastecimento).getTime() : NaN))
+    .filter((t) => !Number.isNaN(t))
+    .sort((a, b) => a - b)
+  let spreadLabel: string | null = null
+  let spreadCritical = false
+  if (tsMs.length >= 2) {
+    const diffMin = (tsMs[tsMs.length - 1] - tsMs[0]) / 60000
+    spreadCritical = diffMin > 15
+    if (diffMin < 1) spreadLabel = '< 1 min (normal)'
+    else if (diffMin < 60) spreadLabel = `${Math.round(diffMin)} min`
+    else {
+      const h = Math.floor(diffMin / 60)
+      const m = Math.round(diffMin % 60)
+      spreadLabel = m > 0 ? `${h}h ${m}min` : `${h}h`
+    }
+  }
+
   // Soma por tipo de combustível pra mostrar resumo no topo da lista de abastecimentos.
   const porCombustivel = new Map<string, { litros: number; total: number }>()
   c.abastecimentos.forEach((a) => {
@@ -429,9 +450,9 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
           {Array.from(porCombustivel.entries()).map(([nome, agg]) => (
             <span
               key={nome}
-              className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+              className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
             >
-              <Fuel className="h-2.5 w-2.5" />
+              <Fuel className="h-2.5 w-2.5 text-gray-400" />
               {nome} · {formatNumber(agg.litros)}L · {formatCurrency(agg.total)}
             </span>
           ))}
@@ -439,25 +460,41 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
       )}
       {/* Lista de itens */}
       <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
-        {c.abastecimentos.map((a, idx) => (
-          <li key={idx} className="flex items-center gap-2 px-2 py-1.5">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-              {idx + 1}
-            </span>
-            <Fuel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
-                {a.produtoNome}
-              </p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                Bico {a.bicoCodigo} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
-              </p>
-            </div>
-            <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-              {formatCurrency(a.totalVenda)}
-            </span>
-          </li>
-        ))}
+        {c.abastecimentos.map((a, idx) => {
+          const horaAbast = a.dataHoraAbastecimento
+            ? a.dataHoraAbastecimento.includes('T')
+              ? a.dataHoraAbastecimento.split('T')[1]?.substring(0, 5)
+              : a.dataHoraAbastecimento.substring(11, 16)
+            : null
+          return (
+            <li key={idx} className="flex items-center gap-2 px-2 py-1">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[9px] font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                {idx + 1}
+              </span>
+              <Fuel className="h-3 w-3 shrink-0 text-gray-400" />
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-[11px] font-medium text-gray-900 dark:text-gray-100">
+                  {a.produtoNome}
+                </p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  Bico {a.bicoCodigo} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-baseline gap-2">
+                {horaAbast ? (
+                  <span className="font-mono text-[10px] font-medium tabular-nums text-gray-600 dark:text-gray-400">
+                    {horaAbast}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-gray-400">—</span>
+                )}
+                <span className="w-16 text-right font-mono text-[11px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                  {formatCurrency(a.totalVenda)}
+                </span>
+              </div>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
@@ -466,24 +503,14 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
     <div className="flex flex-wrap gap-1.5">
       {c.formasPagamento.map((f, idx) => {
         const Icon = fpgIcon(f.tipo, f.nome)
-        const isCard = Icon === CreditCard
         return (
           <span
             key={idx}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium',
-              isCard
-                ? 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700/40 dark:bg-purple-900/20 dark:text-purple-300'
-                : Icon === Banknote
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/20 dark:text-emerald-300'
-                : Icon === Smartphone
-                ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700/40 dark:bg-sky-900/20 dark:text-sky-300'
-                : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
-            )}
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           >
-            <Icon className="h-3 w-3" />
+            <Icon className="h-3 w-3 text-gray-400" />
             <span className="capitalize">{f.nome.toLowerCase().replace(/\.+$/, '')}</span>
-            <span className="font-mono font-semibold tabular-nums">{formatCurrency(f.valor)}</span>
+            <span className="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(f.valor)}</span>
           </span>
         )
       })}
@@ -509,8 +536,15 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
     details: [
       { label: 'Data', value: formatDate(day) },
       { label: 'Hora', value: hora || '—' },
-      { label: 'Frentista', value: c.funcionarioNome, highlight: true },
+      { label: 'Frentista', value: c.funcionarioNome },
       { label: 'Abastecimentos', value: abastecimentosNode },
+      ...(spreadLabel
+        ? [{
+            label: 'Intervalo 1º → último',
+            value: spreadCritical ? `${spreadLabel} ⚠` : spreadLabel,
+            highlight: spreadCritical,
+          }]
+        : []),
       { label: 'Total cupom', value: formatCurrency(c.totalVenda), numeric: true },
       { label: 'Formas de pagamento', value: formasPagamentoNode },
       { label: 'Combustíveis diferentes', value: c.mixCombustiveis ? 'Sim ⚠' : 'Não', highlight: c.mixCombustiveis },
