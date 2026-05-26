@@ -342,7 +342,7 @@ const useFinanceData = () => {
       cashFlowPrevPeriod: { dataInicial: prevDataInicial, dataFinal: prevDataFinal },
       diasNoPeriodo,
     }
-  }, [titulosReceber, titulosPagar, movimentos, movimentosPrev, prevDataInicial, prevDataFinal, diasNoPeriodo])
+  }, [titulosReceber, titulosPagar, movimentos, movimentosPrev, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
 
   return {
     ...computed,

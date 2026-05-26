@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle, DollarSign, TrendingUp } from 'lucide-react'
+import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle, DollarSign, TrendingUp, LayoutDashboard } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -19,6 +19,7 @@ import { useFilterStore } from '@/store/filters'
 import { useEmpresaAtual } from '@/hooks/useEmpresaAtual'
 import { cn } from '@/lib/utils'
 
+const VisaoGeral = lazy(() => import('@/pages/FechamentoCaixa/components/VisaoGeral'))
 const CaixaGeral = lazy(() => import('@/pages/FechamentoCaixa/components/CaixaGeral'))
 const Sangria = lazy(() => import('@/pages/FechamentoCaixa/components/Sangria'))
 const SobrasFaltas = lazy(() => import('@/pages/FechamentoCaixa/components/SobrasFaltas'))
@@ -256,9 +257,10 @@ const agruparCaixasPorData = (lista: Caixa[]): { data: string; lista: Caixa[] }[
     .map(([data, lista]) => ({ data, lista }))
 }
 
-type TabId = 'geral' | 'sangria' | 'sobras' | 'encerrantes'
+type TabId = 'visao' | 'geral' | 'sangria' | 'sobras' | 'encerrantes'
 
 const TABS: { id: TabId; label: string; icon: typeof Receipt }[] = [
+  { id: 'visao', label: 'Visão Geral', icon: LayoutDashboard },
   { id: 'geral', label: 'Caixa Geral', icon: FileText },
   { id: 'sangria', label: 'Sangria', icon: HandCoins },
   { id: 'sobras', label: 'Sobras e Faltas', icon: Scale },
@@ -285,7 +287,7 @@ const FechamentoCaixa = () => {
   const empresaCnpj = empresa?.cnpj ?? ''
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState<TabId>('geral')
+  const [activeTab, setActiveTab] = useState<TabId>('visao')
   const [includeAbertos, setIncludeAbertos] = useState(false)
 
   // Caixas filtrados pelo posto selecionado (mock — 2 lotes por par/ímpar).
@@ -434,6 +436,10 @@ const FechamentoCaixa = () => {
 
       {hasEmpresa && (
         <>
+          {/* Filtro de caixas + KPIs do topo só aparecem nas abas legadas (mock).
+              A aba Visão Geral tem seletor + KPIs próprios com dados reais. */}
+          {activeTab !== 'visao' && (
+          <>
           {/* Filtro de caixas */}
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -676,6 +682,8 @@ const FechamentoCaixa = () => {
               </p>
             </button>
           </div>
+          </>
+          )}
 
           {/* Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
@@ -702,6 +710,7 @@ const FechamentoCaixa = () => {
 
           {/* Tab content */}
           <Suspense fallback={<TabSkeleton />}>
+            {activeTab === 'visao' && <VisaoGeral />}
             {activeTab === 'geral' && <CaixaGeral dados={dados} metaLine={metaLine} empresaNome={empresaNome} empresaCnpj={empresaCnpj} />}
             {activeTab === 'sangria' && <Sangria fator={fator} empresaNome={empresaNome} empresaCnpj={empresaCnpj} />}
             {activeTab === 'sobras' && <SobrasFaltas postoScale={postoScale} empresaNome={empresaNome} empresaCnpj={empresaCnpj} selectedCaixas={selectedCaixas} />}
