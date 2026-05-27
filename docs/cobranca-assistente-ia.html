@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Visor360 · Cobrança do Assistente IA</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm;
+    }
+
+    :root {
+      --primary: #1e3a5f;
+      --accent: #2563eb;
+      --purple: #7c3aed;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --bg-soft: #f9fafb;
+      --green: #059669;
+      --amber: #d97706;
+      --red: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, sans-serif;
+      color: var(--text);
+      line-height: 1.55;
+      max-width: 820px;
+      margin: 32px auto;
+      padding: 0 24px 48px;
+      background: white;
+    }
+
+    /* Cabeçalho */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+    header .sub {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    header .date {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* Seções */
+    h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--primary);
+      margin: 28px 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 13px;
+      color: var(--primary);
+      margin: 18px 0 8px;
+    }
+    p { margin: 8px 0; font-size: 12.5px; }
+
+    /* Cards de resumo */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0 8px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: var(--bg-soft);
+    }
+    .card .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .card .value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .card .hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Tabelas */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 4px;
+      font-size: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: var(--bg-soft);
+      color: var(--primary);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tier-name { font-weight: 600; color: var(--primary); }
+
+    /* Boxes */
+    .box {
+      border-left: 3px solid var(--accent);
+      background: var(--bg-soft);
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+      font-size: 12px;
+    }
+    .box.amber { border-left-color: var(--amber); background: #fffbeb; }
+    .box.green { border-left-color: var(--green); background: #ecfdf5; }
+    .box strong { color: var(--primary); }
+
+    /* Lista de passos */
+    ol { padding-left: 20px; font-size: 12.5px; }
+    ol li { margin: 6px 0; }
+    ul { padding-left: 18px; font-size: 12.5px; }
+    ul li { margin: 4px 0; }
+
+    /* Rodapé */
+    footer {
+      margin-top: 32px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 11.5px;
+    }
+
+    /* Print */
+    @media print {
+      body { margin: 0; padding: 0; max-width: none; }
+      h2 { break-after: avoid; }
+      table, .card, .box { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">V</div>
+    <div>
+      <h1>Visor360 · Cobrança do Assistente IA</h1>
+      <p class="sub">Modelo de precificação e definição de limites por cliente</p>
+    </div>
+    <div class="date">
+      Documento de referência<br />
+      Versão de maio/2026
+    </div>
+  </header>
+
+  <h2>1. Custo da API (Anthropic)</h2>
+  <p>
+    O Assistente IA do Visor360 usa o modelo <code>claude-sonnet-4-5</code> da Anthropic. A cobrança é feita por token consumido (input + output).
+  </p>
+
+  <div class="summary">
+    <div class="card">
+      <div class="label">Input</div>
+      <div class="value">US$ 3</div>
+      <div class="hint">por 1 milhão de tokens</div>
+    </div>
+    <div class="card">
+      <div class="label">Output</div>
+      <div class="value">US$ 15</div>
+      <div class="hint">por 1 milhão de tokens</div>
+    </div>
+    <div class="card">
+      <div class="label">Câmbio referência</div>
+      <div class="value">R$ 5,50</div>
+      <div class="hint">USD/BRL · ajustar mensalmente</div>
+    </div>
+  </div>
+
+  <h2>2. Custo médio por pergunta</h2>
+  <p>
+    Cada pergunta consome system prompt fixo (~800 tokens), o retorno da ferramenta consultada (variável conforme volume de dados do posto) e a resposta gerada pelo modelo (~300–1.500 tokens).
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo de pergunta</th>
+        <th>Exemplo</th>
+        <th class="num">Custo (US$)</th>
+        <th class="num">Custo (R$)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Simples · 1 tool</td>
+        <td>"Qual o faturamento desta semana?"</td>
+        <td class="num">0,015 – 0,03</td>
+        <td class="num">R$ 0,08 – 0,17</td>
+      </tr>
+      <tr>
+        <td>Média · ranking</td>
+        <td>"Top frentistas do mês"</td>
+        <td class="num">0,04 – 0,08</td>
+        <td class="num">R$ 0,22 – 0,44</td>
+      </tr>
+      <tr>
+        <td>Pesada · multi-tool</td>
+        <td>"Compara margem e volume entre as 3 unidades"</td>
+        <td class="num">0,08 – 0,15</td>
+        <td class="num">R$ 0,44 – 0,83</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. Tiers sugeridos por cliente</h2>
+  <p>
+    Recomendado começar todo cliente novo no tier <strong>Light</strong>. Se ele bater o limite com frequência, sobe pro tier seguinte. Evita susto na fatura e cria oportunidade comercial.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tier</th>
+        <th>Perfil do cliente</th>
+        <th class="num">Perg./dia</th>
+        <th class="num">Cap mensal (US$)</th>
+        <th class="num">Cap mensal (R$)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tier-name">Light</td>
+        <td>Gerente consulta 1–2x/dia</td>
+        <td class="num">~20</td>
+        <td class="num">US$ 15</td>
+        <td class="num">R$ 80</td>
+      </tr>
+      <tr>
+        <td class="tier-name">Medium</td>
+        <td>Operação ativa, múltiplos usuários</td>
+        <td class="num">~50</td>
+        <td class="num">US$ 40</td>
+        <td class="num">R$ 220</td>
+      </tr>
+      <tr>
+        <td class="tier-name">Heavy</td>
+        <td>Multi-usuário, consulta constante</td>
+        <td class="num">100+</td>
+        <td class="num">US$ 120+</td>
+        <td class="num">R$ 650+</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Precificação ao cliente final</h2>
+  <p>
+    Margem recomendada: <strong>3x a 5x sobre o custo da API</strong>. Cobre suporte, infraestrutura, atualizações e a operação comercial.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tier</th>
+        <th class="num">Custo API (R$)</th>
+        <th class="num">Sugestão mín. (3x)</th>
+        <th class="num">Sugestão recomendada (5x)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tier-name">Light</td>
+        <td class="num">R$ 80</td>
+        <td class="num">R$ 240</td>
+        <td class="num">R$ 400</td>
+      </tr>
+      <tr>
+        <td class="tier-name">Medium</td>
+        <td class="num">R$ 220</td>
+        <td class="num">R$ 660</td>
+        <td class="num">R$ 1.100</td>
+      </tr>
+      <tr>
+        <td class="tier-name">Heavy</td>
+        <td class="num">R$ 650</td>
+        <td class="num">R$ 1.950</td>
+        <td class="num">R$ 3.250</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5. Como isolar custo por cliente (workspace)</h2>
+  <div class="box">
+    Cada cliente em uma <strong>workspace separada</strong> no console.anthropic.com. Se a chave vazar ou alguém abusar do uso, o estrago para naquele workspace — sua conta principal e os outros clientes não são afetados.
+  </div>
+
+  <h3>Passo a passo</h3>
+  <ol>
+    <li>No <code>console.anthropic.com</code>, vá em <strong>Settings → Workspaces → Create Workspace</strong>.</li>
+    <li>Nomeie a workspace com o cliente (ex: <code>Posto Trivela</code>, <code>Auto Posto XYZ</code>).</li>
+    <li>Dentro da workspace, gere a chave em <strong>API Keys → Create Key</strong>. Essa chave fica vinculada à workspace.</li>
+    <li>Em <strong>Settings → Limits</strong>, defina o <em>workspace spend limit</em> mensal conforme o tier contratado.</li>
+    <li>Entregue a chave pro cliente colar no Visor360 (Inteligência → Assistente IA → modal de configuração).</li>
+  </ol>
+
+  <h3>Camadas extras de proteção</h3>
+  <ul>
+    <li><strong>Rate limit por workspace</strong>: ex. 10 perguntas/minuto. Bloqueia uso automatizado/script.</li>
+    <li><strong>Account-level limit</strong>: teto geral somando todas as workspaces (ex. US$ 500/mês). Trava de segurança final.</li>
+    <li><strong>Alerta por email</strong>: configure notificação em 50% e 80% do limite — você descobre uso atípico antes de bater o teto.</li>
+  </ul>
+
+  <h2>6. Checklist de onboarding de cliente novo</h2>
+  <div class="box green">
+    <ol style="margin: 4px 0;">
+      <li>Criar workspace no console.anthropic.com com o nome do cliente.</li>
+      <li>Definir <em>spend limit</em> da workspace conforme tier (Light/Medium/Heavy).</li>
+      <li>Gerar chave de API e armazenar em local seguro (cofre de senhas).</li>
+      <li>Compartilhar a chave com o cliente via canal seguro (não email).</li>
+      <li>Configurar alerta em 80% do limite via console.</li>
+      <li>Registrar o cliente, tier e data de início no controle interno.</li>
+      <li>Revisar consumo no <strong>1º mês</strong> pra confirmar tier escolhido.</li>
+    </ol>
+  </div>
+
+  <h2>7. Observações importantes</h2>
+  <ul>
+    <li>Os valores em US$ são da tabela da Anthropic em maio/2026 — sujeitos a alteração pela própria Anthropic.</li>
+    <li>O câmbio R$ 5,50 é referência. Reavaliar mensalmente e repassar variação > 10% ao cliente.</li>
+    <li>O custo por pergunta varia conforme volume de dados do posto: posto pequeno (poucos abastecimentos) cobra menos tokens; posto grande, mais. Recomendado <strong>monitorar consumo real no 1º mês</strong> pra calibrar o tier.</li>
+    <li>O Visor360 NÃO armazena nem repassa a chave do cliente — a chave fica apenas no navegador do usuário (localStorage). Cada cliente é responsável pela própria chave.</li>
+  </ul>
+
+  <footer>
+    Visor360 · Documento interno · CCI Consultoria · Maio de 2026
+  </footer>
+
+</body>
+</html>

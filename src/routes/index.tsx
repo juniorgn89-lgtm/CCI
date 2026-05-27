@@ -26,6 +26,7 @@ const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
 const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
 const AdminApuracao = lazy(() => import('@/pages/Admin/Apuracao'))
+const AdminAssistente = lazy(() => import('@/pages/Admin/AssistenteConfig'))
 const SelecionarRede = lazy(() => import('@/pages/SelecionarRede'))
 
 // Frentista pages
@@ -86,6 +87,7 @@ const AppRoutes = () => {
           <Route path="/admin/usuarios" element={<Suspense fallback={<RouteFallback />}><AdminUsuarios /></Suspense>} />
           <Route path="/admin/redes" element={<Suspense fallback={<RouteFallback />}><AdminRedes /></Suspense>} />
           <Route path="/admin/apuracao" element={<Suspense fallback={<RouteFallback />}><AdminApuracao /></Suspense>} />
+          <Route path="/admin/assistente" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
           <Route path="/selecionar-rede" element={<Suspense fallback={<RouteFallback />}><SelecionarRede /></Suspense>} />
         </Route>
       </Route>

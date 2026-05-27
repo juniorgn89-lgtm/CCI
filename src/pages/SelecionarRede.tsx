@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Loader2, CheckCircle2, Power, Settings, UserCog, Database, Users } from 'lucide-react'
+import { Network, Loader2, CheckCircle2, Power, Settings, UserCog, Database, Users, Sparkles } from 'lucide-react'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
@@ -104,6 +104,14 @@ const SelecionarRede = () => {
         >
           <Database className="h-3.5 w-3.5" />
           Apuração
+        </button>
+        <button
+          onClick={() => navigate('/admin/assistente')}
+          title="Configurar Assistente IA por rede (tier, limite, contato)"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 px-3 py-1.5 text-xs font-medium text-purple-700 hover:from-purple-100 hover:to-blue-100 dark:border-purple-700/40 dark:from-purple-900/30 dark:to-blue-900/30 dark:text-purple-300 dark:hover:from-purple-900/50 dark:hover:to-blue-900/50"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Assistente IA
         </button>
       </div>
 

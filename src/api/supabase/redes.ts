@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { supabase } from '@/lib/supabase'
 
+export type AssistenteTier = 'light' | 'medium' | 'heavy' | 'custom'
+
 export interface RedeRow {
   id: string
   nome: string
@@ -9,6 +11,16 @@ export interface RedeRow {
   ativo: boolean
   created_at: string
   updated_at: string
+  /* ─── Assistente IA · configuração por rede (migration: supabase-assistente-config.sql) ─── */
+  assistente_habilitado?: boolean
+  assistente_tier?: AssistenteTier
+  assistente_limite_mensal_usd?: number | null
+  assistente_observacoes?: string | null
+  assistente_workspace_id?: string | null
+  assistente_contato_email?: string | null
+  assistente_atualizado_em?: string | null
+  /** Chave da Anthropic configurada pelo gerente (gestão central, não BYOK). */
+  assistente_chave_anthropic?: string | null
 }
 
 interface QualityEmpresasResponse {
@@ -72,7 +84,34 @@ interface UpdateRedeInput {
   chave?: string
   api_base_url?: string
   ativo?: boolean
+  assistente_habilitado?: boolean
+  assistente_tier?: AssistenteTier
+  assistente_limite_mensal_usd?: number | null
+  assistente_observacoes?: string | null
+  assistente_workspace_id?: string | null
+  assistente_contato_email?: string | null
+  assistente_atualizado_em?: string | null
+  assistente_chave_anthropic?: string | null
 }
+
+/**
+ * Atualiza apenas a configuração do Assistente IA de uma rede. Sempre carimba
+ * `assistente_atualizado_em = now()` pra rastrear quando foi a última mudança.
+ */
+export const updateAssistenteConfig = (
+  id: string,
+  patch: Pick<
+    UpdateRedeInput,
+    | 'assistente_habilitado'
+    | 'assistente_tier'
+    | 'assistente_limite_mensal_usd'
+    | 'assistente_observacoes'
+    | 'assistente_workspace_id'
+    | 'assistente_contato_email'
+    | 'assistente_chave_anthropic'
+  >,
+) =>
+  updateRede(id, { ...patch, assistente_atualizado_em: new Date().toISOString() })
 
 export const updateRede = async (id: string, patch: UpdateRedeInput): Promise<void> => {
   if (!supabase) throw new Error('Supabase não configurado')
