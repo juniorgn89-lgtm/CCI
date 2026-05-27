@@ -1,6 +1,7 @@
 import { fetchVendaResumo, fetchVendaItens } from '@/api/endpoints/vendas'
-import { fetchAbastecimentos } from '@/api/endpoints/combustiveis'
+import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos } from '@/api/endpoints/produtos'
+import type { Produto } from '@/api/types/produto'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -76,6 +77,34 @@ const getEmpresaMap = async (): Promise<Map<number, string>> => {
   }
   _empresaMapCache = { fetchedAt: Date.now(), map }
   return map
+}
+
+/** Cache do mapa codigo→Produto (com nome/fabricante/etc) — pagina TODOS os
+ * produtos da rede pra não cair em "Produto 12345" genérico quando o código
+ * está além das primeiras 1000 entradas. */
+let _produtoMapCache: { fetchedAt: number; map: Map<number, Produto> } | null = null
+const getProdutoMap = async (): Promise<Map<number, Produto>> => {
+  if (_produtoMapCache && Date.now() - _produtoMapCache.fetchedAt < TTL_MS) {
+    return _produtoMapCache.map
+  }
+  const all = await fetchAllPages<Produto>(
+    ({ ultimoCodigo, limite }) => fetchProdutos({ ultimoCodigo, limite }),
+    1000,
+    20, // até 20k produtos
+  )
+  const map = new Map<number, Produto>(all.map((p) => [p.produtoCodigo, p]))
+  _produtoMapCache = { fetchedAt: Date.now(), map }
+  return map
+}
+
+/** Resolve nome legível pro produto. Cai pra alternativas quando `nome` é vazio. */
+const produtoLabel = (p: Produto | undefined, codigo: number): string => {
+  if (!p) return `Produto ${codigo} (não cadastrado)`
+  const candidatos = [p.nome, p.descricaoFabricante, p.referenciaCodigo, p.produtoCodigoExterno]
+  for (const c of candidatos) {
+    if (typeof c === 'string' && c.trim()) return c.trim()
+  }
+  return `Produto ${codigo}`
 }
 
 /* ─── Tool 1: faturamento por período (com breakdown por posto) ─── */
@@ -164,10 +193,8 @@ const getVolumeCombustivel = async (
   const empresasSet = new Set(empresas)
   const empresaMap = await getEmpresaMap()
 
-  // Pra resolver nome do combustível precisamos do mapa de produtos
-  const produtosRes = await fetchProdutos({ limite: 1000 })
-  const produtos = produtosRes.resultados
-  const produtoNome = new Map<number, string>(produtos.map((p) => [p.produtoCodigo, p.nome ?? '']))
+  // Mapa completo de produtos (paginado + cacheado)
+  const produtoMap = await getProdutoMap()
 
   const abast = await fetchAllPages<Awaited<ReturnType<typeof fetchAbastecimentos>>['resultados'][number]>(
     ({ ultimoCodigo, limite }) =>
@@ -183,7 +210,7 @@ const getVolumeCombustivel = async (
   for (const a of abast) {
     // Filtro client-side por empresa — endpoint /ABASTECIMENTO não aceita esse filtro
     if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
-    const nome = produtoNome.get(a.codigoProduto) ?? `Produto ${a.codigoProduto}`
+    const nome = produtoLabel(produtoMap.get(a.codigoProduto), a.codigoProduto)
     if (filtroNome && !nome.toLowerCase().includes(filtroNome)) continue
     const cur = porProduto.get(a.codigoProduto) ?? { nome, litros: 0, faturamento: 0, qtd: 0 }
     cur.litros += a.quantidade
@@ -240,29 +267,35 @@ const getTopProdutos = async (
   const { dataInicial, dataFinal } = resolveDates(ctx, input.dataInicial, input.dataFinal)
   const empresas = resolveEmpresas(ctx, input.empresaCodigo)
   const empresasSet = new Set(empresas)
-  const empresaCodigo = empresas.length === 1 ? empresas[0] : undefined
   const limite = Math.min(input.limite ?? 10, 25)
 
-  const produtosRes = await fetchProdutos({ limite: 1000 })
-  const produtoMap = new Map(produtosRes.resultados.map((p) => [p.produtoCodigo, p]))
+  const produtoMap = await getProdutoMap()
 
-  const itens = await fetchAllPages<Awaited<ReturnType<typeof fetchVendaItens>>['resultados'][number]>(
-    ({ ultimoCodigo, limite }) =>
-      fetchVendaItens({ empresaCodigo, dataInicial, dataFinal, ultimoCodigo, limite }),
-    1000,
-    30,
+  // /VENDA_ITEM exige empresaCodigo no Quality API — sem ele o request crasha.
+  // Pra cobrir master (várias empresas) e usuário com 1 empresa, iteramos a lista.
+  // Se a lista estiver vazia (config inesperada), fallback pra fetch sem filtro.
+  const empresasToQuery: Array<number | undefined> = empresas.length > 0 ? empresas : [undefined]
+  const itensArrays = await Promise.all(
+    empresasToQuery.map((empCod) =>
+      fetchAllPages<Awaited<ReturnType<typeof fetchVendaItens>>['resultados'][number]>(
+        ({ ultimoCodigo, limite }) =>
+          fetchVendaItens({ empresaCodigo: empCod, dataInicial, dataFinal, ultimoCodigo, limite }),
+        1000,
+        30,
+      ),
+    ),
   )
+  const itens = itensArrays.flat()
 
   const por = new Map<number, { nome: string; qtd: number; faturamento: number; ehCombustivel: boolean }>()
   for (const i of itens) {
-    // Filtro defensivo: VendaItem tem empresaCodigo — quando passamos array
-    // a API pode ignorar e voltar todas. Filtramos aqui pra garantir.
+    // Filtro defensivo (em caso do fallback sem filtro ter retornado todas).
     if (empresas.length > 0 && !empresasSet.has(i.empresaCodigo)) continue
     const p = produtoMap.get(i.produtoCodigo)
     const ehComb = p?.combustivel === true
     if (input.categoria === 'combustivel' && !ehComb) continue
     if (input.categoria === 'conveniencia' && ehComb) continue
-    const nome = p?.nome ?? `Produto ${i.produtoCodigo}`
+    const nome = produtoLabel(p, i.produtoCodigo)
     const cur = por.get(i.produtoCodigo) ?? { nome, qtd: 0, faturamento: 0, ehCombustivel: ehComb }
     cur.qtd += i.quantidade
     cur.faturamento += i.totalVenda
@@ -347,7 +380,126 @@ const getTopFrentistas = async (
   }
 }
 
-/* ─── Tool 5: lista de empresas (postos) — útil pra resolver "qual posto" ─── */
+/* ─── Tool 5: última compra (entrada de combustível do fornecedor) por posto ─── */
+
+const getUltimaCompraCombustivel = async (
+  ctx: ToolContext,
+  input: { combustivelNome?: string; empresaCodigo?: number[]; diasAtras?: number },
+) => {
+  const empresas = resolveEmpresas(ctx, input.empresaCodigo)
+  const empresaMap = await getEmpresaMap()
+  const produtoMap = await getProdutoMap()
+
+  // Janela de busca — padrão 90 dias
+  const diasAtras = Math.min(Math.max(input.diasAtras ?? 90, 7), 365)
+  const hoje = new Date()
+  const inicio = new Date(hoje)
+  inicio.setDate(hoje.getDate() - diasAtras)
+  const dataInicial = inicio.toISOString().slice(0, 10)
+  const dataFinal = hoje.toISOString().slice(0, 10)
+
+  // Identifica os produtos que batem com a busca (ex: "gasolina comum")
+  const filtroNome = (input.combustivelNome ?? '').toLowerCase().trim()
+  const produtoCodigosMatching = new Set<number>()
+  for (const [code, p] of produtoMap) {
+    if (!p.combustivel) continue
+    if (!filtroNome) {
+      produtoCodigosMatching.add(code)
+      continue
+    }
+    const nome = produtoLabel(p, code).toLowerCase()
+    if (nome.includes(filtroNome)) produtoCodigosMatching.add(code)
+  }
+
+  if (produtoCodigosMatching.size === 0) {
+    return {
+      periodo_consultado: { dataInicial, dataFinal },
+      combustivel_buscado: filtroNome || 'todos',
+      erro: `Nenhum combustível com nome contendo "${filtroNome}" está cadastrado. Verifique o nome exato no Quality.`,
+    }
+  }
+
+  // Busca LMC do período (origem 'C' = compra)
+  const lmcs = await fetchAllPages<Awaited<ReturnType<typeof fetchLmc>>['resultados'][number]>(
+    ({ ultimoCodigo, limite }) =>
+      fetchLmc({
+        empresaCodigo: empresas.length > 0 ? empresas : undefined,
+        dataInicial,
+        dataFinal,
+        ultimoCodigo,
+        limite,
+      }),
+    1000,
+    30,
+  )
+
+  // Pra cada empresa, mantém apenas o LMC mais recente com entrada > 0 do produto buscado
+  interface UltimaCompra {
+    data: string
+    produtoCodigo: number
+    produtoNome: string
+    volumeLitros: number
+    custoUnitario: number
+    valorTotal: number
+    numeroNota: string
+    fornecedorCompraCodigo: number | null
+  }
+  const porEmpresa = new Map<number, UltimaCompra>()
+  for (const lmc of lmcs) {
+    if (lmc.entrada <= 0) continue
+    if (!lmc.lmcNota || lmc.lmcNota.length === 0) continue
+    const matchingProdCode = lmc.produtoCodigo?.find((c: number) => produtoCodigosMatching.has(c))
+    if (!matchingProdCode) continue
+
+    const cur = porEmpresa.get(lmc.empresaCodigo)
+    if (cur && cur.data >= lmc.dataMovimento) continue
+
+    const totalVol = lmc.lmcNota.reduce((s: number, n) => s + (n.volumeRecebido ?? 0), 0)
+    const ultimaNota = [...lmc.lmcNota].sort((a, b) =>
+      (b.dataEntrada ?? '').localeCompare(a.dataEntrada ?? ''),
+    )[0]
+    const volume = totalVol || lmc.entrada
+    const custoUnit = lmc.precoCusto ?? 0
+
+    porEmpresa.set(lmc.empresaCodigo, {
+      data: lmc.dataMovimento,
+      produtoCodigo: matchingProdCode,
+      produtoNome: produtoLabel(produtoMap.get(matchingProdCode), matchingProdCode),
+      volumeLitros: volume,
+      custoUnitario: custoUnit,
+      valorTotal: volume * custoUnit,
+      numeroNota: ultimaNota?.numeroNota ?? '',
+      fornecedorCompraCodigo: ultimaNota?.compraCodigo ?? null,
+    })
+  }
+
+  const por_empresa = Array.from(porEmpresa.entries())
+    .map(([empCod, info]) => ({
+      empresaCodigo: empCod,
+      empresaNome: empresaMap.get(empCod) ?? `Empresa ${empCod}`,
+      data: info.data,
+      produto: info.produtoNome,
+      volume_litros: Number(info.volumeLitros.toFixed(2)),
+      custo_unitario: Number(info.custoUnitario.toFixed(4)),
+      custo_unitario_brl: `R$ ${fmt(info.custoUnitario, 4)}`,
+      valor_total: Number(info.valorTotal.toFixed(2)),
+      valor_total_brl: `R$ ${fmt(info.valorTotal)}`,
+      numero_nota_fiscal: info.numeroNota || null,
+      compra_codigo: info.fornecedorCompraCodigo,
+    }))
+    .sort((a, b) => b.data.localeCompare(a.data))
+
+  return {
+    periodo_consultado: { dataInicial, dataFinal },
+    combustivel_buscado: filtroNome || 'todos',
+    quantidade_postos_com_compra: por_empresa.length,
+    por_empresa: por_empresa.length > 0
+      ? por_empresa
+      : `Nenhuma compra (entrada de combustível) encontrada no período. Tente aumentar diasAtras ou trocar combustivelNome.`,
+  }
+}
+
+/* ─── Tool 6: lista de empresas (postos) — útil pra resolver "qual posto" ─── */
 
 const getEmpresas = async () => {
   const res = await fetchEmpresas()
@@ -453,6 +605,29 @@ export const TOOL_DEFINITIONS: ClaudeToolDefinition[] = [
     },
   },
   {
+    name: 'get_ultima_compra_combustivel',
+    description:
+      'Retorna a ÚLTIMA COMPRA (entrada de combustível do fornecedor) por posto — quando chegou, quanto litros, custo unitário, valor total da nota fiscal. Use pra "qual o valor da última compra de gasolina?", "quando foi a última entrega de diesel?", "preço da última compra de etanol por posto". NÃO confundir com VENDAS — esta tool é sobre o que o posto COMPROU do fornecedor (entrada no tanque via /LMC). Janela default 90 dias.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        combustivelNome: {
+          type: 'string',
+          description: 'Nome (ou parte) do combustível. Ex: "gasolina comum", "diesel s10", "etanol". Omita pra ver todos.',
+        },
+        empresaCodigo: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Lista de empresas pra filtrar. Opcional.',
+        },
+        diasAtras: {
+          type: 'number',
+          description: 'Janela de busca em dias contados de hoje pra trás. Default 90 dias, máx 365.',
+        },
+      },
+    },
+  },
+  {
     name: 'get_empresas',
     description:
       'Lista todas as empresas (postos) cadastradas no sistema com seus códigos. Use quando o usuário mencionar um posto pelo nome e você precisar do código pra usar nas outras tools.',
@@ -476,6 +651,8 @@ export const executeTool = async (
       return getTopProdutos(ctx, input as Parameters<typeof getTopProdutos>[1])
     case 'get_top_frentistas':
       return getTopFrentistas(ctx, input as Parameters<typeof getTopFrentistas>[1])
+    case 'get_ultima_compra_combustivel':
+      return getUltimaCompraCombustivel(ctx, input as Parameters<typeof getUltimaCompraCombustivel>[1])
     case 'get_empresas':
       return getEmpresas()
     default:

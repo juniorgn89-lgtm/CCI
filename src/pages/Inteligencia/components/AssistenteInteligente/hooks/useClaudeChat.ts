@@ -112,11 +112,11 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
         if (m.text) baseHistory.push({ role: m.role, content: m.text })
       }
 
-      // Escopo de empresas pra esse turno: SEMPRE all-accessible (livre de filtros).
-      // Se whitelist do user existe → usa ela. Master/null → array vazio (no-filter).
-      const allowedCodigos = isMaster || allowedFromAuth === null
-        ? []
-        : accessiblePostos.map((p) => p.codigo)
+      // Escopo de empresas pra esse turno: SEMPRE a lista real de postos acessíveis.
+      // Antes passávamos [] pra master (sem filtro), mas alguns endpoints do Quality
+      // (ex: /VENDA_ITEM) crasham sem empresaCodigo. Passando explicitamente a lista
+      // funciona pros dois casos (master vê todas + whitelist vê só as permitidas).
+      const allowedCodigos = accessiblePostos.map((p) => p.codigo)
 
       const { dataInicial, dataFinal } = currentMonthRange()
       const ctx: ToolContext = { allowedEmpresaCodigos: allowedCodigos, dataInicial, dataFinal }
