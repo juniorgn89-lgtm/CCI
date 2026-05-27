@@ -62,7 +62,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
         <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
       </div>
     )
@@ -71,7 +71,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
   if (tanques.length === 0) return null
 
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">

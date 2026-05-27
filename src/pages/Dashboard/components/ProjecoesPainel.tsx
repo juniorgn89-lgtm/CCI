@@ -121,7 +121,7 @@ const ProjecoesPainel = () => {
         <SegmentCard
           label="Combustível"
           Icon={Droplets}
-          cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
+          cardBg="bg-white dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
           iconBg="bg-blue-100 dark:bg-blue-900/30"
           iconColor="text-blue-600 dark:text-blue-400"
           lucroBruto={segments.combustivel.lucroBruto}
@@ -133,7 +133,7 @@ const ProjecoesPainel = () => {
         <SegmentCard
           label="Automotivos"
           Icon={Wrench}
-          cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
+          cardBg="bg-white dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
           iconBg="bg-amber-100 dark:bg-amber-900/30"
           iconColor="text-amber-600 dark:text-amber-400"
           lucroBruto={segments.automotivos.lucroBruto}
@@ -145,7 +145,7 @@ const ProjecoesPainel = () => {
         <SegmentCard
           label="Conveniência"
           Icon={Store}
-          cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
+          cardBg="bg-white dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
           iconBg="bg-emerald-100 dark:bg-emerald-900/30"
           iconColor="text-emerald-600 dark:text-emerald-400"
           lucroBruto={segments.conveniencia.lucroBruto}
@@ -170,7 +170,7 @@ const ProjecoesPainel = () => {
         <button
           type="button"
           onClick={() => setOpenModal('projecao')}
-          className="flex flex-col rounded-xl border border-gray-200 bg-gradient-to-br from-slate-50/60 to-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-gray-700 dark:from-slate-900/40 dark:to-gray-900"
+          className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
         >
           <div className="flex items-start justify-between gap-2">
             <div>

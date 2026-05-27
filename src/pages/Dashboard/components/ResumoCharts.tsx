@@ -64,7 +64,7 @@ const ResumoCharts = ({ apuradoChartData, litrosChartData, isProjectable, projAp
   return (
     <>
       {/* Mini-gráfico: Apurado diário com projeção */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             <Wallet className="mr-1.5 inline h-4 w-4 text-blue-500" />
@@ -121,7 +121,7 @@ const ResumoCharts = ({ apuradoChartData, litrosChartData, isProjectable, projAp
       </div>
 
       {/* Mini-gráfico: Litros diário com projeção */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             <Droplets className="mr-1.5 inline h-4 w-4 text-blue-500" />

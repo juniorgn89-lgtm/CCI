@@ -143,7 +143,7 @@ const ReabastecimentoCard = () => {
   }
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

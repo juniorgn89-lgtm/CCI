@@ -242,18 +242,27 @@ const Sidebar = () => {
         expanded ? 'w-52' : 'w-14',
       )}
     >
-      {/* Logo */}
+      {/* Logo — badge navy com "V" + bolinha verde de status (padrão CCI Admin) */}
       <div className={cn('flex h-14 items-center', wide ? 'px-4' : 'justify-center')}>
         <Link
           to="/"
           aria-label="Página inicial"
           title="Visor360"
-          className={cn(
-            'font-bold tracking-wider text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200',
-            wide ? 'text-lg' : 'text-[13px]',
-          )}
+          className="group flex items-center gap-2.5"
         >
-          {wide ? 'Visor360' : 'V360'}
+          <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-base font-bold text-white shadow-sm transition-transform group-hover:scale-105">
+            V
+            <span
+              aria-hidden
+              className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#1e3a5f]"
+            />
+          </span>
+          {wide && (
+            <span className="flex flex-col leading-tight">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">Visor360</span>
+              <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
+            </span>
+          )}
         </Link>
       </div>
 
@@ -281,10 +290,18 @@ const Sidebar = () => {
                     className={cn(
                       'group relative flex h-9 items-center rounded-lg transition-colors',
                       isActive
-                        ? 'bg-[#1e3a5f]/10 text-[#1e3a5f] dark:bg-white/15 dark:text-white'
+                        ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-white'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
                     )}
                   >
+                    {/* Barra vertical indicando item ativo. Fica colada à esquerda
+                        do botão, encostando no texto (alinhada com o início da palavra). */}
+                    {isActive && (
+                      <span
+                        aria-hidden
+                        className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-sky-500 dark:bg-sky-400"
+                      />
+                    )}
                     {/* Coluna fixa do ícone — fica sempre na mesma posição quer
                         a sidebar esteja narrow ou wide. */}
                     <span className="flex h-9 w-10 shrink-0 items-center justify-center">
@@ -292,7 +309,7 @@ const Sidebar = () => {
                         className={cn(
                           'h-[17px] w-[17px]',
                           isActive
-                            ? 'text-[#1e3a5f] dark:text-white'
+                            ? 'text-sky-600 dark:text-sky-300'
                             : 'text-gray-400 dark:text-white/55',
                         )}
                       />

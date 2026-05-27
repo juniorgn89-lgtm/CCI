@@ -120,7 +120,7 @@ const MainKpiCard = ({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex flex-col gap-3 rounded-xl border border-gray-200 p-6 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700',
+        'flex flex-col gap-3 rounded-xl border border-gray-200 border-b-gray-100/70 p-6 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:border-b-gray-800/50',
         cardBg,
       )}
     >
@@ -147,14 +147,17 @@ const MainKpiCard = ({
       </div>
 
       {isProjectable && projetado > 0 && (
-        <>
-          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-800/40 dark:bg-blue-900/20">
-            <TrendingUp className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+        /* mt-auto empurra o bloco projeção+barra pro fundo do card.
+           Garante alinhamento entre cards com/sem submetric (Faturamento tem,
+           Total Apurado não — sem isso, as barras ficam em alturas diferentes). */
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/40">
+            <TrendingUp className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Projeção fim do período
               </p>
-              <p className="text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">
+              <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {formatter(projetado)}
               </p>
             </div>
@@ -170,12 +173,12 @@ const MainKpiCard = ({
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
               <div
-                className="h-1.5 rounded-full bg-blue-500 transition-all"
+                className="h-1.5 rounded-full bg-[#1e3a5f] transition-all"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {showFirst7 && (
@@ -443,9 +446,9 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           daysTotal={projection.daysTotal}
           daysRemaining={projection.daysRemaining}
           icon={DollarSign}
-          cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
-          iconBg="bg-emerald-100 dark:bg-emerald-900/30"
-          iconColor="text-emerald-600 dark:text-emerald-400"
+          cardBg="bg-white dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
+          iconBg="bg-gray-100 dark:bg-gray-800"
+          iconColor="text-gray-500 dark:text-gray-400"
           formatter={formatCurrency}
           submetric={
             totalLitros > 0
@@ -465,9 +468,9 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           daysTotal={projection.daysTotal}
           daysRemaining={projection.daysRemaining}
           icon={Wallet}
-          cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
-          iconBg="bg-blue-100 dark:bg-blue-900/30"
-          iconColor="text-blue-600 dark:text-blue-400"
+          cardBg="bg-white dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
+          iconBg="bg-gray-100 dark:bg-gray-800"
+          iconColor="text-gray-500 dark:text-gray-400"
           formatter={formatCurrency}
           periodLabel={periodLabel}
           onClick={() => navigate('/caixas-turnos')}
@@ -495,7 +498,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           <button
             type="button"
             onClick={() => navigate('/financeiro')}
-            className="rounded-xl border border-gray-200 bg-gradient-to-br from-cyan-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-cyan-950/20 dark:to-gray-900"
+            className="rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
           >
             <div className="flex items-center justify-between">
               <div className="min-w-0">
@@ -505,8 +508,8 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
                   {periodLabel}
                 </p>
               </div>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
-                <Receipt className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                <Receipt className="h-5 w-5 text-gray-500 dark:text-gray-400" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
@@ -531,7 +534,7 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
           <button
             type="button"
             onClick={() => navigate('/financeiro')}
-            className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900"
+            className="rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
           >
             <div className="flex items-center justify-between">
               <div className="min-w-0">
@@ -541,8 +544,8 @@ const ResumoOperacao = ({ empresaNome }: { empresaNome: string }) => {
                   {periodLabel}
                 </p>
               </div>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                <CreditCard className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                <CreditCard className="h-5 w-5 text-gray-500 dark:text-gray-400" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">

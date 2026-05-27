@@ -79,7 +79,16 @@ const ComercialVendas = () => {
   const currentTab = TABS.find((t) => t.id === activeTab) ?? TABS[0]
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      {/* Teste: gradiente azul claro de fundo apenas na aba Visão Geral.
+          Overlay com z-index negativo + pointer-events-none não bloqueia interação.
+          Sai do span normal usando inset negativo pra cobrir a área do AppLayout. */}
+      {activeTab === 'visao' && hasEmpresa && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-x-6 -inset-y-6 -z-10 bg-gradient-to-br from-sky-100 via-blue-50 to-white dark:from-sky-950/30 dark:via-blue-950/20 dark:to-gray-950"
+        />
+      )}
       <PageHeaderTitle>
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
