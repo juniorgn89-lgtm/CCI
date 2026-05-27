@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from 'recharts'
 import { ArrowDown, ArrowUp, Download, FileText, Printer } from 'lucide-react'
 import {
@@ -36,11 +37,18 @@ type ChartView = 'fluxo' | 'acumulado'
 
 const csvExportColumns: ExportColumn<CashFlowRow>[] = [
   { header: 'Data', accessor: (r) => r.data },
-  { header: 'Entradas', accessor: (r) => r.entradas },
-  { header: 'Saídas', accessor: (r) => r.saidas },
+  { header: 'Entradas Realizadas', accessor: (r) => r.entradas },
+  { header: 'Saídas Realizadas', accessor: (r) => r.saidas },
+  { header: 'Entradas Previstas', accessor: (r) => r.entradasPrevistas },
+  { header: 'Saídas Previstas', accessor: (r) => r.saidasPrevistas },
   { header: 'Saldo Diário', accessor: (r) => r.saldo },
   { header: 'Saldo Acumulado', accessor: (r) => r.saldoAcumulado },
 ]
+
+const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const MIN_DAYS_FOR_LINE_CHART = 5
 
@@ -278,8 +286,11 @@ const CashFlowChart = ({ data, totals, prevTotals }: CashFlowChartProps) => {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="entradas" name="Entradas" fill={COLORS.positive} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saidas" name="Saídas" fill={COLORS.negative} radius={[4, 4, 0, 0]} />
+                <ReferenceLine x={todayISO()} stroke={tickColor} strokeDasharray="4 4" />
+                <Bar dataKey="entradas" name="Entradas realizadas" fill={COLORS.positive} stackId="pos" />
+                <Bar dataKey="entradasPrevistas" name="Entradas previstas" fill={COLORS.positive} fillOpacity={0.35} stackId="pos" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="saidas" name="Saídas realizadas" fill={COLORS.negative} stackId="neg" />
+                <Bar dataKey="saidasPrevistas" name="Saídas previstas" fill={COLORS.negative} fillOpacity={0.35} stackId="neg" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </>
@@ -310,24 +321,57 @@ const CashFlowChart = ({ data, totals, prevTotals }: CashFlowChartProps) => {
                   }}
                 />
                 <Legend />
+                {/* Linha vertical pontilhada marcando "hoje" — separa realizado de projeção */}
+                <ReferenceLine
+                  x={todayISO()}
+                  stroke={tickColor}
+                  strokeDasharray="4 4"
+                  label={{ value: 'Hoje', position: 'top', fontSize: 10, fill: tickColor }}
+                />
+                {/* Realizadas (stack=positive) com cor sólida */}
                 <Bar
                   dataKey="entradas"
-                  name="Entradas"
+                  name="Entradas realizadas"
                   fill={COLORS.positive}
-                  fillOpacity={0.8}
-                  radius={[4, 4, 0, 0]}
+                  fillOpacity={0.85}
+                  stackId="positivo"
+                  radius={[0, 0, 0, 0]}
                 />
                 <Bar
+                  dataKey="entradasPrevistas"
+                  name="Entradas previstas"
+                  fill={COLORS.positive}
+                  fillOpacity={0.35}
+                  stroke={COLORS.positive}
+                  strokeWidth={1}
+                  strokeDasharray="3 2"
+                  stackId="positivo"
+                  radius={[4, 4, 0, 0]}
+                />
+                {/* Realizadas (stack=negative) com cor sólida */}
+                <Bar
                   dataKey="saidas"
-                  name="Saídas"
+                  name="Saídas realizadas"
                   fill={COLORS.negative}
-                  fillOpacity={0.8}
+                  fillOpacity={0.85}
+                  stackId="negativo"
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar
+                  dataKey="saidasPrevistas"
+                  name="Saídas previstas"
+                  fill={COLORS.negative}
+                  fillOpacity={0.35}
+                  stroke={COLORS.negative}
+                  strokeWidth={1}
+                  strokeDasharray="3 2"
+                  stackId="negativo"
                   radius={[4, 4, 0, 0]}
                 />
                 <Line
                   type="monotone"
-                  dataKey="saldo"
-                  name="Saldo Diário"
+                  dataKey="saldoAcumulado"
+                  name="Saldo acumulado"
                   stroke={COLORS.accent}
                   strokeWidth={2}
                   dot={{ r: 3 }}
@@ -358,6 +402,12 @@ const CashFlowChart = ({ data, totals, prevTotals }: CashFlowChartProps) => {
                   }}
                 />
                 <Legend />
+                <ReferenceLine
+                  x={todayISO()}
+                  stroke={tickColor}
+                  strokeDasharray="4 4"
+                  label={{ value: 'Hoje', position: 'top', fontSize: 10, fill: tickColor }}
+                />
                 <Bar
                   dataKey="saldo"
                   name="Saldo Diário"

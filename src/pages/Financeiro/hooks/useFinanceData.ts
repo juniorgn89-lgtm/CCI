@@ -63,10 +63,19 @@ export interface PayableRow {
 
 export interface CashFlowRow {
   data: string
+  /** Entradas REALIZADAS (movimento_conta) — passado/presente. */
   entradas: number
+  /** Saídas REALIZADAS (movimento_conta) — passado/presente. */
   saidas: number
+  /** Entradas PROJETADAS (titulos a receber pendentes com vencimento neste dia). */
+  entradasPrevistas: number
+  /** Saídas PROJETADAS (titulos a pagar pendentes com vencimento neste dia). */
+  saidasPrevistas: number
   saldo: number
+  /** Saldo acumulado incluindo previstas — mostra trajetória do caixa. */
   saldoAcumulado: number
+  /** True quando o dia é >= hoje (mostra projeção). Front usa pra estilo tracejado. */
+  isFuturo: boolean
 }
 
 export interface CashFlowTotals {
@@ -284,11 +293,39 @@ const useFinanceData = () => {
       byDay.set(day, prev)
     }
 
-    // Enumera TODOS os dias do período (dataInicial → dataFinal) e preenche
-    // dias sem movimento com 0/0. Sem isso o chart só mostra dias que tiveram
+    // --- Projeção: títulos PENDENTES agrupados pela data de vencimento ---
+    // Receber pendente → entrada prevista naquele dia.
+    // Pagar pendente   → saída prevista naquele dia.
+    // Considera só vencimentos >= hoje (atrasados ficam fora — já são histórico).
+    const previstoPorDia = new Map<string, { entradas: number; saidas: number }>()
+    for (const t of titulosReceber) {
+      if (!t.pendente) continue
+      const dia = (t.dataVencimento ?? '').split('T')[0]
+      if (!dia || dia < hoje) continue
+      const cur = previstoPorDia.get(dia) ?? { entradas: 0, saidas: 0 }
+      cur.entradas += t.valor
+      previstoPorDia.set(dia, cur)
+    }
+    for (const t of titulosPagar) {
+      if (t.situacao === 'PAGO' || t.situacao === 'CANCELADO') continue
+      const dia = (t.vencimento ?? '').split('T')[0]
+      if (!dia || dia < hoje) continue
+      const cur = previstoPorDia.get(dia) ?? { entradas: 0, saidas: 0 }
+      cur.saidas += Math.max(0, t.valor - (t.valorPago ?? 0))
+      previstoPorDia.set(dia, cur)
+    }
+
+    // Última data com projeção — extende o eixo X pra cobrir todo o pipeline futuro.
+    const latestVencimento = Array.from(previstoPorDia.keys()).reduce(
+      (max, d) => (d > max ? d : max),
+      dataFinal ?? hoje,
+    )
+
+    // Enumera TODOS os dias do período (dataInicial → MAX(dataFinal, latestVencimento)).
+    // Preenche dias sem movimento com 0. Sem isso o chart só mostra dias que tiveram
     // transação, dando a impressão de período curto.
     const allDays: string[] = []
-    if (dataInicial && dataFinal) {
+    if (dataInicial) {
       const addDays = (yyyymmdd: string, n: number): string => {
         const [y, m, d] = yyyymmdd.split('-').map(Number)
         const date = new Date(y, m - 1, d + n)
@@ -297,9 +334,10 @@ const useFinanceData = () => {
         const dd = String(date.getDate()).padStart(2, '0')
         return `${yy}-${mm}-${dd}`
       }
+      const fim = latestVencimento > (dataFinal ?? hoje) ? latestVencimento : dataFinal ?? hoje
       let cursor = dataInicial
       // Safety cap: 3 anos pra evitar loop infinito em range malformado
-      for (let i = 0; i < 1100 && cursor <= dataFinal; i++) {
+      for (let i = 0; i < 1100 && cursor <= fim; i++) {
         allDays.push(cursor)
         cursor = addDays(cursor, 1)
       }
@@ -309,13 +347,18 @@ const useFinanceData = () => {
     const cashFlowData: CashFlowRow[] = allDays.reduce<{ rows: CashFlowRow[]; acum: number }>(
       (acc, data) => {
         const values = byDay.get(data) ?? { entradas: 0, saidas: 0 }
-        const acum = acc.acum + values.entradas - values.saidas
+        const proj = previstoPorDia.get(data) ?? { entradas: 0, saidas: 0 }
+        // Saldo acumulado considera real + projetado, dando a trajetória futura.
+        const acum = acc.acum + values.entradas - values.saidas + proj.entradas - proj.saidas
         acc.rows.push({
           data,
           entradas: values.entradas,
           saidas: values.saidas,
-          saldo: values.entradas - values.saidas,
+          entradasPrevistas: proj.entradas,
+          saidasPrevistas: proj.saidas,
+          saldo: values.entradas - values.saidas + proj.entradas - proj.saidas,
           saldoAcumulado: acum,
+          isFuturo: data >= hoje,
         })
         return { rows: acc.rows, acum }
       },

@@ -69,7 +69,10 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; chip: str
 const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedded = false }: IssueSectionProps) => {
   const totalIssues = issues.reduce((s, i) => s + i.count, 0)
   const issuesAtivas = issues.filter((i) => i.count > 0)
-  const [open, setOpen] = useState(true)
+  // Default colapsado — usuário expande só o que quiser inspecionar.
+  // Sherlock (fora desse componente, em index.tsx) já é sempre visível porque
+  // é o sinal mais crítico.
+  const [open, setOpen] = useState(false)
 
   const Wrapper = embedded ? 'div' : 'section'
   const wrapperClass = embedded
