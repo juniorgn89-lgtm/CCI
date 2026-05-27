@@ -199,8 +199,8 @@ const Inicio = () => {
       {combustiveis.length > 0 && (
         <div className="rounded-lg border border-gray-200/60 bg-white shadow-sm dark:border-gray-700/60 dark:bg-gray-900">
           <div className="flex items-center gap-2.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-900/30">
-              <Fuel className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]/10">
+              <Fuel className="h-3.5 w-3.5 text-[#1e3a5f] dark:text-blue-400" />
             </div>
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Combustíveis</span>
           </div>
@@ -240,8 +240,8 @@ const Inicio = () => {
       {frentistaRanking.length > 0 && (
         <div className="rounded-lg border border-gray-200/60 bg-white shadow-sm dark:border-gray-700/60 dark:bg-gray-900">
           <div className="flex items-center gap-2.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-900/30">
-              <Medal className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]/10">
+              <Medal className="h-3.5 w-3.5 text-[#1e3a5f] dark:text-blue-400" />
             </div>
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Top Frentistas</span>
           </div>

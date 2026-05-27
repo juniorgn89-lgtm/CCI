@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
@@ -46,13 +46,37 @@ const useValidationCache = create<ValidationCache>((set) => ({
 }))
 
 const fetchRedeConfig = async (redeId: string): Promise<RedeRow | null> => {
-  if (!supabase) return null
+  if (!supabase) {
+    // eslint-disable-next-line no-console
+    console.warn('[useRedeAssistente] supabase client indisponível')
+    return null
+  }
+  // eslint-disable-next-line no-console
+  console.log('[useRedeAssistente] Buscando rede', redeId)
   const { data, error } = await supabase
     .from('redes')
-    .select('*')
+    .select(
+      'id, nome, chave, api_base_url, ativo, ' +
+        'assistente_habilitado, assistente_tier, assistente_limite_mensal_usd, ' +
+        'assistente_observacoes, assistente_workspace_id, assistente_contato_email, ' +
+        'assistente_atualizado_em, assistente_chave_anthropic',
+    )
     .eq('id', redeId)
-    .single()
-  if (error) throw error
+    .maybeSingle()
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[useRedeAssistente] Falha ao ler config da rede:', error)
+    throw new Error(
+      `${error.message}${error.details ? ` · ${error.details}` : ''}${error.code ? ` [${error.code}]` : ''}`,
+    )
+  }
+  // eslint-disable-next-line no-console
+  console.log('[useRedeAssistente] Rede carregada:', {
+    id: data?.id,
+    habilitado: data?.assistente_habilitado,
+    tier: data?.assistente_tier,
+    temChave: !!data?.assistente_chave_anthropic,
+  })
   return data as RedeRow | null
 }
 
@@ -60,32 +84,45 @@ export const useRedeAssistente = () => {
   const tenantRede = useTenantStore((s) => s.rede)
   const { byChave, setCache } = useValidationCache()
 
-  // Carrega a config completa da rede atual (com os campos do Assistente)
+  // Carrega a config completa da rede atual (com os campos do Assistente).
+  // queryKey v2 pra invalidar cache antigo de versões anteriores (que usava
+  // `select=*` e podia ter cacheado erro 400).
   const {
     data: redeConfig,
     isLoading: loadingConfig,
+    isFetching: fetchingConfig,
     error: configError,
     refetch,
   } = useQuery({
-    queryKey: ['rede-assistente-config', tenantRede?.id],
+    queryKey: ['rede-assistente-config-v2', tenantRede?.id],
     queryFn: () => (tenantRede?.id ? fetchRedeConfig(tenantRede.id) : Promise.resolve(null)),
     enabled: !!tenantRede?.id,
     staleTime: 60_000,
+    retry: false,
   })
 
   const chave = redeConfig?.assistente_chave_anthropic?.trim() || ''
   const habilitado = redeConfig?.assistente_habilitado ?? false
   const tier = (redeConfig?.assistente_tier ?? 'light') as AssistenteTier
+  const limiteUsd = redeConfig?.assistente_limite_mensal_usd ?? null
   const cached = chave ? byChave[chave] : undefined
 
-  // Quando a chave muda E ainda não foi validada nessa sessão → dispara validação
+  // Set de chaves em validação no momento. Usamos useRef porque um efeito
+  // self-cancelling (cleanup → cancelled=true) ignorava a resposta da Anthropic
+  // — agora rastreamos in-flight via ref e NÃO usamos flag cancelled.
+  const inFlight = useRef<Set<string>>(new Set())
+
   useEffect(() => {
     if (!chave || !habilitado) return
-    if (cached) return // já validado nessa sessão
-    let cancelled = false
-    setCache(chave, { status: 'validando', errorMessage: null, validatedAt: Date.now() })
+    if (cached) return // já validada (ativo/invalido) nessa sessão
+    if (inFlight.current.has(chave)) return // já em andamento
+    inFlight.current.add(chave)
+    // eslint-disable-next-line no-console
+    console.log('[useRedeAssistente] Validando chave na Anthropic…')
     validateApiKey(chave).then((result) => {
-      if (cancelled) return
+      inFlight.current.delete(chave)
+      // eslint-disable-next-line no-console
+      console.log('[useRedeAssistente] Resultado validação:', result)
       if (result.ok) {
         setCache(chave, { status: 'ativo', errorMessage: null, validatedAt: Date.now() })
       } else {
@@ -96,7 +133,6 @@ export const useRedeAssistente = () => {
         })
       }
     })
-    return () => { cancelled = true }
   }, [chave, habilitado, cached, setCache])
 
   // Computa status final
@@ -108,7 +144,7 @@ export const useRedeAssistente = () => {
   } else if (configError) {
     status = 'erro'
     errorMessage = (configError as Error).message
-  } else if (loadingConfig) {
+  } else if (loadingConfig || fetchingConfig) {
     status = 'validando'
   } else if (!habilitado) {
     status = 'desabilitado'
@@ -120,6 +156,18 @@ export const useRedeAssistente = () => {
   } else {
     status = 'validando'
   }
+
+  // Log diagnóstico — aparece a cada mudança de estado
+  // eslint-disable-next-line no-console
+  console.log('[useRedeAssistente] status:', status, {
+    tenantRedeId: tenantRede?.id,
+    loadingConfig,
+    fetchingConfig,
+    hasError: !!configError,
+    habilitado,
+    temChave: !!chave,
+    cachedStatus: cached?.status,
+  })
 
   const markInvalid = (msg?: string) => {
     if (!chave) return
@@ -140,6 +188,10 @@ export const useRedeAssistente = () => {
     isUsable: status === 'ativo',
     habilitado,
     tier,
+    /** Limite mensal em USD configurado pelo admin pra essa rede (null se não definido). */
+    limiteUsd,
+    /** ID da rede pra escopar usage tracker. */
+    redeId: tenantRede?.id ?? null,
     /** Nome da rede pra mostrar nas mensagens. */
     redeNome: tenantRede?.nome ?? null,
     /** Re-busca a config (útil depois que o admin edita). */

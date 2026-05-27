@@ -2,7 +2,9 @@ import { useCallback, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useTenantStore } from '@/store/tenant'
 import { sendToClaude, isAuthError } from '../ai/claudeClient'
+import { useUsageTracker } from '../ai/usageTracker'
 import { TOOL_DEFINITIONS, executeTool, type ToolContext } from '../ai/tools'
 import { buildSystemPrompt } from '../ai/systemPrompt'
 import { useToolCallLog } from '../ai/toolCallLog'
@@ -44,6 +46,8 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
   const allowedFromAuth = useAuthStore((s) => s.empresaCodigos)
   const isMaster = useAuthStore((s) => s.isMaster)
   const appendLog = useToolCallLog((s) => s.append)
+  const recordUsage = useUsageTracker((s) => s.recordUsage)
+  const redeId = useTenantStore((s) => s.rede?.id ?? null)
 
   // Lista das empresas reais da rede (pra system prompt e validação de escopo)
   const { data: empresasData } = useQuery({
@@ -120,6 +124,10 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
       const system = buildSystemPrompt(ctx, todayISO, accessiblePostos)
 
       const collectedToolCalls: UiChatMessage['toolCalls'] = []
+      // Acumula tokens de TODAS as iterações do tool_use loop pra contabilizar
+      // como UMA pergunta no usage tracker.
+      let totalInputTokens = 0
+      let totalOutputTokens = 0
 
       try {
         let conversation = baseHistory
@@ -134,6 +142,9 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
             tools: TOOL_DEFINITIONS,
             messages: conversation,
           })
+
+          totalInputTokens += response.usage?.input_tokens ?? 0
+          totalOutputTokens += response.usage?.output_tokens ?? 0
 
           if (response.stop_reason === 'end_turn') {
             const finalText = response.content
@@ -254,9 +265,14 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
         ])
       } finally {
         setLoading(false)
+        // Contabiliza o consumo no usage tracker (mesmo em erro — a Anthropic
+        // já cobrou pelos tokens enviados até o ponto que falhou).
+        if (redeId && (totalInputTokens > 0 || totalOutputTokens > 0)) {
+          recordUsage(redeId, totalInputTokens, totalOutputTokens)
+        }
       }
     },
-    [apiKey, loading, messages, allowedFromAuth, isMaster, accessiblePostos, appendLog, onAuthError],
+    [apiKey, loading, messages, allowedFromAuth, isMaster, accessiblePostos, appendLog, onAuthError, redeId, recordUsage],
   )
 
   return {

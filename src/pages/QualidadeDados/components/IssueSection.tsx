@@ -31,6 +31,12 @@ interface IssueSectionProps {
   issues: Issue[]
   /** Quando true, mostra skeletons no lugar dos issues (queries pendentes). */
   isLoading?: boolean
+  /**
+   * Quando true, omite o card-wrapper (border/shadow/bg) — usado quando a
+   * IssueSection está dentro de um container que já forneceu o cartão (ex:
+   * a seção destacada do Sherlock Holmes).
+   */
+  embedded?: boolean
 }
 
 const severityStyle: Record<IssueSeverity, { bg: string; text: string; chip: string; label: string }> = {
@@ -41,15 +47,15 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; chip: str
     label: 'Crítico',
   },
   medium: {
-    bg: 'bg-amber-50 dark:bg-amber-900/20',
-    text: 'text-amber-700 dark:text-amber-300',
-    chip: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    bg: 'bg-gray-50 dark:bg-gray-900/40',
+    text: 'text-gray-700 dark:text-gray-300',
+    chip: 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300',
     label: 'Atenção',
   },
   low: {
-    bg: 'bg-blue-50 dark:bg-blue-900/20',
-    text: 'text-blue-700 dark:text-blue-300',
-    chip: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    bg: 'bg-gray-50 dark:bg-gray-900/40',
+    text: 'text-gray-600 dark:text-gray-400',
+    chip: 'border border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
     label: 'Info',
   },
 }
@@ -60,63 +66,70 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; chip: str
  * dentro, uma lista de issues com chevron pra expandir o detalhe de cada
  * uma. Items com count = 0 mostram um ✓ verde discreto.
  */
-const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false }: IssueSectionProps) => {
+const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedded = false }: IssueSectionProps) => {
   const totalIssues = issues.reduce((s, i) => s + i.count, 0)
   const issuesAtivas = issues.filter((i) => i.count > 0)
   const [open, setOpen] = useState(true)
 
+  const Wrapper = embedded ? 'div' : 'section'
+  const wrapperClass = embedded
+    ? ''
+    : 'rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900'
+
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 dark:border-gray-800 dark:hover:bg-gray-800/30"
-        aria-expanded={open}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-lg',
-            isLoading
-              ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-              : totalIssues > 0
-                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-          )}>
-            {isLoading
-              ? <Icon className="h-5 w-5" />
-              : totalIssues > 0
+    <Wrapper className={wrapperClass}>
+      {!embedded && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 dark:border-gray-800 dark:hover:bg-gray-800/30"
+          aria-expanded={open}
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-lg',
+              isLoading
+                ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                : totalIssues > 0
+                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+            )}>
+              {isLoading
                 ? <Icon className="h-5 w-5" />
-                : <CheckCircle2 className="h-5 w-5" />}
+                : totalIssues > 0
+                  ? <Icon className="h-5 w-5" />
+                  : <CheckCircle2 className="h-5 w-5" />}
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">{subtitle}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">{subtitle}</p>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              {isLoading ? (
+                <Skeleton className="h-5 w-10" />
+              ) : (
+                <>
+                  <p className={cn(
+                    'text-lg font-bold tabular-nums',
+                    totalIssues > 0 ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400',
+                  )}>
+                    {totalIssues}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {totalIssues === 1 ? 'ocorrência' : 'ocorrências'}
+                  </p>
+                </>
+              )}
+            </div>
+            {open
+              ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-400" />
+              : <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            {isLoading ? (
-              <Skeleton className="h-5 w-10" />
-            ) : (
-              <>
-                <p className={cn(
-                  'text-lg font-bold tabular-nums',
-                  totalIssues > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300',
-                )}>
-                  {totalIssues}
-                </p>
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {totalIssues === 1 ? 'ocorrência' : 'ocorrências'}
-                </p>
-              </>
-            )}
-          </div>
-          {open
-            ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-400" />
-            : <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
-        </div>
-      </button>
-      {open && (
+        </button>
+      )}
+      {(embedded || open) && (
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {isLoading ? (
             <div className="space-y-2 px-5 py-4">
@@ -127,7 +140,7 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false }: Issu
           ) : issues.length === 0 ? (
             <div className="px-5 py-6 text-center text-xs text-gray-400">Sem detectores nesta categoria.</div>
           ) : issuesAtivas.length === 0 ? (
-            <div className="flex items-center gap-2 px-5 py-4 text-xs text-emerald-700 dark:text-emerald-400">
+            <div className="flex items-center gap-2 px-5 py-4 text-xs text-gray-600 dark:text-gray-400">
               <CheckCircle2 className="h-4 w-4" />
               Tudo limpo nesta categoria.
             </div>
@@ -136,7 +149,7 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false }: Issu
           )}
         </div>
       )}
-    </section>
+    </Wrapper>
   )
 }
 

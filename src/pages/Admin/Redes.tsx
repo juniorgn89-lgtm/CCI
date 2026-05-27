@@ -103,8 +103,8 @@ const Redes = () => {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-            <Network className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
+            <Network className="h-5 w-5 text-white" />
           </div>
           <div>
             <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Redes</h1>

@@ -12,26 +12,26 @@ const iconByTipo: Record<MockInsight['tipo'], typeof TrendingUp> = {
 
 const styleByTipo: Record<MockInsight['tipo'], { ring: string; iconBg: string; iconText: string; pill: string }> = {
   crescimento: {
-    ring: 'ring-emerald-200 dark:ring-emerald-500/20',
-    iconBg: 'bg-emerald-50 dark:bg-emerald-900/30',
-    iconText: 'text-emerald-600 dark:text-emerald-400',
+    ring: 'ring-gray-200 dark:ring-gray-700',
+    iconBg: 'bg-gray-100 dark:bg-gray-800',
+    iconText: 'text-gray-700 dark:text-gray-300',
     pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   },
   queda: {
-    ring: 'ring-red-200 dark:ring-red-500/20',
-    iconBg: 'bg-red-50 dark:bg-red-900/30',
-    iconText: 'text-red-600 dark:text-red-400',
+    ring: 'ring-gray-200 dark:ring-gray-700',
+    iconBg: 'bg-gray-100 dark:bg-gray-800',
+    iconText: 'text-gray-700 dark:text-gray-300',
     pill: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   },
   destaque: {
-    ring: 'ring-purple-200 dark:ring-purple-500/20',
-    iconBg: 'bg-purple-50 dark:bg-purple-900/30',
-    iconText: 'text-purple-600 dark:text-purple-400',
-    pill: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    ring: 'ring-gray-200 dark:ring-gray-700',
+    iconBg: 'bg-gray-100 dark:bg-gray-800',
+    iconText: 'text-gray-700 dark:text-gray-300',
+    pill: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   },
   alerta: {
-    ring: 'ring-amber-200 dark:ring-amber-500/20',
-    iconBg: 'bg-amber-50 dark:bg-amber-900/30',
+    ring: 'ring-amber-200 dark:ring-amber-700/40',
+    iconBg: 'bg-amber-50 dark:bg-amber-900/20',
     iconText: 'text-amber-600 dark:text-amber-400',
     pill: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
   },
@@ -50,7 +50,7 @@ const InsightsPanel = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 shadow-md shadow-purple-500/20">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f]">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
           <div>

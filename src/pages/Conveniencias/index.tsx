@@ -150,8 +150,8 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
         <>
           <PageHeaderTitle>
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-900/30">
-                <Store className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+                <Store className="h-4 w-4 text-white" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">

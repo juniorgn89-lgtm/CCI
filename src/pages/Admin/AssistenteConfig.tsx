@@ -50,7 +50,7 @@ const TIERS: TierConfig[] = [
   {
     key: 'light',
     label: 'Light',
-    perfil: 'Gerente consulta 1–2x/dia',
+    perfil: 'Uso pontual · gerente revisa principais KPIs',
     perguntasDia: '~20',
     limiteUsd: 15,
     margem3x: 240,
@@ -59,7 +59,7 @@ const TIERS: TierConfig[] = [
   {
     key: 'medium',
     label: 'Medium',
-    perfil: 'Operação ativa, múltiplos usuários',
+    perfil: 'Operação ativa · múltiplos usuários durante o dia',
     perguntasDia: '~50',
     limiteUsd: 40,
     margem3x: 660,
@@ -68,7 +68,7 @@ const TIERS: TierConfig[] = [
   {
     key: 'heavy',
     label: 'Heavy',
-    perfil: 'Multi-usuário, consulta constante',
+    perfil: 'Uso intenso · equipe inteira consultando o dia todo',
     perguntasDia: '100+',
     limiteUsd: 120,
     margem3x: 1950,
@@ -86,10 +86,10 @@ const TIERS: TierConfig[] = [
 ]
 
 const tierStyle: Record<AssistenteTier, string> = {
-  light: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40',
-  heavy: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700/40',
-  custom: 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
+  light: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
+  medium: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600',
+  heavy: 'bg-[#1e3a5f] text-white border-[#1e3a5f] dark:bg-slate-700 dark:text-gray-100 dark:border-slate-600',
+  custom: 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-700',
 }
 
 const fmtBRL = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`
@@ -146,7 +146,7 @@ const AssistenteConfig = () => {
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
           <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -161,7 +161,7 @@ const AssistenteConfig = () => {
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-purple-500" />
+            <TrendingUp className="h-4 w-4 text-gray-500" />
             <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Tiers de uso · Custos e sugestão de cobrança</h2>
           </div>
           <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -194,7 +194,7 @@ const AssistenteConfig = () => {
                   <td className="px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{fmtUSD(t.limiteUsd)}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs tabular-nums text-gray-700 dark:text-gray-300">{fmtBRL(t.limiteUsd * USD_BRL)}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{fmtBRL(t.margem3x)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{fmtBRL(t.margem5x)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{fmtBRL(t.margem5x)}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,7 +204,7 @@ const AssistenteConfig = () => {
           <p className="flex items-start gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
             <span>
-              Spend limit real é configurado no <a href="https://console.anthropic.com/settings/workspaces" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline dark:text-purple-400">console.anthropic.com/workspaces<ExternalLink className="ml-0.5 inline h-2.5 w-2.5" /></a>. Aqui é registro/planejamento.
+              Spend limit real é configurado no <a href="https://console.anthropic.com/settings/workspaces" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 underline hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100">console.anthropic.com/workspaces<ExternalLink className="ml-0.5 inline h-2.5 w-2.5" /></a>. Aqui é registro/planejamento.
             </span>
           </p>
         </div>
@@ -275,12 +275,12 @@ const AssistenteConfig = () => {
                             <span className="text-[11px] text-gray-400">—</span>
                           )}
                           {rede.assistente_chave_anthropic ? (
-                            <span title="Chave Anthropic configurada" className="inline-flex items-center gap-0.5 rounded-full bg-purple-50 px-1.5 py-0.5 text-[9px] font-bold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                            <span title="Chave Anthropic configurada" className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                               <KeyRound className="h-2 w-2" />
                               chave
                             </span>
                           ) : enabled && (
-                            <span title="Sem chave configurada" className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            <span title="Sem chave configurada" className="inline-flex items-center gap-0.5 rounded-full border border-red-300 bg-white px-1.5 py-0.5 text-[9px] font-bold text-red-700 dark:border-red-700/40 dark:bg-gray-900 dark:text-red-300">
                               sem chave
                             </span>
                           )}
@@ -318,12 +318,11 @@ const AssistenteConfig = () => {
       </section>
 
       {/* Aviso geral */}
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-700/40 dark:bg-blue-900/20">
-        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
-        <div className="text-[11px] text-blue-700 dark:text-blue-300">
-          <strong>Como funciona:</strong> esta tela registra a <em>política</em> de cada rede (tier escolhido, limite previsto, responsável).
-          O controle real de gasto é feito por <strong>workspaces na Anthropic</strong> (1 workspace por rede).
-          A chave de API continua sendo configurada pelo usuário final no próprio módulo do Assistente.
+      <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/40">
+        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
+        <div className="text-[11px] text-gray-600 dark:text-gray-400">
+          <strong className="text-gray-800 dark:text-gray-200">Como funciona:</strong> esta tela registra a <em>política</em> de cada rede (tier escolhido, limite previsto, responsável).
+          O controle real de gasto é feito por <strong className="text-gray-800 dark:text-gray-200">workspaces na Anthropic</strong> (1 workspace por rede).
         </div>
       </div>
 
@@ -423,7 +422,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-purple-500" />
+            <Sparkles className="h-4 w-4 text-gray-500" />
             Configurar Assistente — {rede.nome}
           </DialogTitle>
           <DialogDescription>
@@ -444,7 +443,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               type="checkbox"
               checked={habilitado}
               onChange={(e) => setHabilitado(e.target.checked)}
-              className="h-4 w-4 cursor-pointer accent-purple-500"
+              className="h-4 w-4 cursor-pointer accent-[#1e3a5f]"
             />
           </label>
 
@@ -461,7 +460,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
                   className={cn(
                     'rounded-lg border p-2 text-left text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50',
                     tier === t.key
-                      ? cn('ring-2 ring-purple-400 dark:ring-purple-500/60', tierStyle[t.key])
+                      ? cn('ring-2 ring-[#1e3a5f] dark:ring-slate-500', tierStyle[t.key])
                       : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900',
                   )}
                 >
@@ -476,12 +475,12 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
           </div>
 
           {/* Chave Anthropic */}
-          <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 dark:border-purple-700/40 dark:bg-purple-900/10">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-purple-900 dark:text-purple-200">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/40">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100">
               <KeyRound className="h-3 w-3" />
               Chave da Anthropic (gerenciada por você)
             </label>
-            <p className="mt-0.5 text-[10px] text-purple-700/80 dark:text-purple-300/80">
+            <p className="mt-0.5 text-[10px] text-gray-600 dark:text-gray-400">
               Esta chave fica armazenada por rede. Os usuários finais não a configuram — só usam.
             </p>
             <div className="mt-2 flex gap-2">
@@ -492,7 +491,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
                   onChange={(e) => { setChaveAnthropic(e.target.value); setResultadoTeste(null) }}
                   placeholder="sk-ant-api03-…"
                   disabled={!habilitado}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-9 font-mono text-xs focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-9 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                 />
                 <button
                   type="button"
@@ -507,7 +506,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
                 type="button"
                 onClick={testarChave}
                 disabled={!chaveAnthropic.trim() || testando || !habilitado}
-                className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-50 disabled:opacity-50 dark:border-purple-700/40 dark:bg-gray-900 dark:text-purple-300 dark:hover:bg-purple-900/20"
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
               >
                 {testando ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                 Testar
@@ -538,7 +537,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={limiteUsd}
               onChange={(e) => setLimiteUsd(e.target.value)}
               disabled={!habilitado}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:disabled:bg-gray-800"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:disabled:bg-gray-800"
             />
             <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
               Em R$ ≈ {fmtBRL((parseFloat(limiteUsd) || 0) * USD_BRL)} (câmbio referência R$ {USD_BRL}/USD)
@@ -555,7 +554,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={contato}
               onChange={(e) => setContato(e.target.value)}
               placeholder="contato@cliente.com.br"
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
 
@@ -569,7 +568,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
               placeholder="wrk_..."
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
             <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
               Pra rastrear qual workspace na Anthropic foi criado pra essa rede.
@@ -586,7 +585,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               onChange={(e) => setObservacoes(e.target.value)}
               rows={2}
               placeholder="Ex: cliente piloto, free trial até 30/06, etc."
-              className="mt-1 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
 
@@ -616,7 +615,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
             <button
               onClick={save}
               disabled={saving}
-              className="rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 px-4 py-2 text-sm font-medium text-white shadow-md shadow-purple-500/30 hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white hover:bg-[#162d4a] disabled:opacity-50"
             >
               {saving ? 'Salvando…' : 'Salvar'}
             </button>

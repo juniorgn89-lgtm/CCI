@@ -81,9 +81,9 @@ const DashboardPanel = () => {
   return (
     <div className="space-y-4">
       {/* Header com input de geração */}
-      <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-purple-50/60 to-blue-50/40 p-4 dark:border-gray-700 dark:from-purple-900/10 dark:to-blue-900/10">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 shadow-md shadow-purple-500/20">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f]">
             <Wand2 className="h-3.5 w-3.5 text-white" />
           </div>
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Dashboard gerado por IA</h3>
@@ -99,7 +99,7 @@ const DashboardPanel = () => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Ex: Evolução das vendas de gasolina nos últimos 6 meses"
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
           <button
             type="submit"
@@ -107,7 +107,7 @@ const DashboardPanel = () => {
             className={cn(
               'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               prompt.trim() && !generating
-                ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-md shadow-purple-500/30 hover:opacity-90'
+                ? 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]'
                 : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
             )}
           >
@@ -120,7 +120,7 @@ const DashboardPanel = () => {
             <button
               key={s}
               onClick={() => generate(s)}
-              className="rounded-full border border-gray-300 bg-white/60 px-2.5 py-1 text-[11px] text-gray-600 transition-colors hover:border-purple-300 hover:text-purple-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400 dark:hover:border-purple-500/40 dark:hover:text-purple-300"
+              className="rounded-full border border-gray-300 bg-white/60 px-2.5 py-1 text-[11px] text-gray-600 transition-colors hover:border-gray-500 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-100"
             >
               {s}
             </button>
@@ -140,7 +140,7 @@ const DashboardPanel = () => {
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <Icon className="h-3.5 w-3.5 text-purple-500" />
+                    <Icon className="h-3.5 w-3.5 text-gray-500" />
                     <h4 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{item.title}</h4>
                   </div>
                   <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">"{item.prompt}"</p>

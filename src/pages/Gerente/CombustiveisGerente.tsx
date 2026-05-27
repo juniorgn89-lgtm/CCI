@@ -48,8 +48,8 @@ const CombustiveisGerente = () => {
       {/* Summary strip */}
       <div className="flex items-center justify-between rounded-lg border border-gray-200/60 bg-white px-4 py-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-900">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-            <Fuel className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
+            <Fuel className="h-4 w-4 text-white" />
           </div>
           <div>
             <p className="text-sm font-bold text-gray-900 dark:text-gray-100">Combustíveis</p>

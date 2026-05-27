@@ -443,8 +443,8 @@ const Apuracao = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-            <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
+            <Database className="h-5 w-5 text-white" />
           </div>
           <div>
             <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Apuração</h1>

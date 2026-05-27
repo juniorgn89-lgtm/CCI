@@ -281,7 +281,7 @@ const Sidebar = () => {
                     className={cn(
                       'group relative flex h-9 items-center rounded-lg transition-colors',
                       isActive
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'
+                        ? 'bg-[#1e3a5f]/10 text-[#1e3a5f] dark:bg-white/15 dark:text-white'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
                     )}
                   >
@@ -292,7 +292,7 @@ const Sidebar = () => {
                         className={cn(
                           'h-[17px] w-[17px]',
                           isActive
-                            ? 'text-blue-600 dark:text-blue-300'
+                            ? 'text-[#1e3a5f] dark:text-white'
                             : 'text-gray-400 dark:text-white/55',
                         )}
                       />
@@ -370,7 +370,7 @@ const Sidebar = () => {
             aria-expanded={menuOpen}
             aria-label={`Conta de ${userName}`}
             title={userName}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
           >
             {initials}
           </button>

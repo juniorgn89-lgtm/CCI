@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ShieldAlert, Fuel, ShoppingCart, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
+import { ShieldAlert, Fuel, Search, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -1170,8 +1170,8 @@ const QualidadeDados = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-900/30">
-            <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+            <ShieldAlert className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -1209,7 +1209,7 @@ const QualidadeDados = () => {
               <ListChecks className="h-3.5 w-3.5" />
               Ativos
               {!data.isLoading && totalAtivo > 0 && (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-100 px-1 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-200">
                   {totalAtivo}
                 </span>
               )}
@@ -1274,15 +1274,15 @@ const QualidadeDados = () => {
                 />
               </div>
 
-              {/* Banner verde se tudo limpo */}
+              {/* Banner discreto quando tudo limpo */}
               {!data.isLoading && totalAtivo === 0 && (
-                <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-5 py-4 dark:border-emerald-900/50 dark:bg-emerald-900/20">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/40">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <div>
-                    <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                       Tudo limpo — sem inconsistências ativas no período
                     </p>
-                    <p className="mt-0.5 text-xs text-emerald-700 dark:text-emerald-300">
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                       {arquivamento.ativos.length > 0
                         ? `${arquivamento.ativos.length} arquivados — veja na aba ao lado.`
                         : 'Os 9 detectores rodaram e nada foi sinalizado.'}
@@ -1291,10 +1291,37 @@ const QualidadeDados = () => {
                 </div>
               )}
 
-              {/* Seções por categoria */}
+              {/* Sherlock — seção destacada de detecção de fraude (vai antes do resto) */}
+              <div className="rounded-xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
+                    <Search className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Sistema Sherlock Holmes</h2>
+                      <span className="rounded-full border border-gray-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-600 dark:border-gray-600 dark:text-gray-400">
+                        Anti-fraude
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Detecção de cupons "montados" e inconsistências no PDV — padrão associado a fraude em postos.
+                    </p>
+                  </div>
+                </div>
+                <IssueSection
+                  title="Vendas"
+                  subtitle="Cupons suspeitos e itens sem cadastro"
+                  Icon={Search}
+                  issues={vendasIssues}
+                  isLoading={data.isLoading}
+                  embedded
+                />
+              </div>
+
+              {/* Outras categorias de qualidade — checks rotineiros */}
               <div className="grid grid-cols-1 gap-4">
                 <IssueSection title="Abastecimentos" subtitle="Erros nos lançamentos de bomba" Icon={Fuel} issues={abastIssues} isLoading={data.isLoading} />
-                <IssueSection title="Vendas - Sistema Sherlock Holmes" subtitle="Inconsistências no PDV / itens vendidos" Icon={ShoppingCart} issues={vendasIssues} isLoading={data.isLoading} />
                 <IssueSection title="Caixa" subtitle="Fechamentos, diferenças e caixas pendurados" Icon={Wallet} issues={caixaIssues} isLoading={data.isLoading} />
                 <IssueSection title="Estoque" subtitle="Saldos negativos e divergências de inventário" Icon={Boxes} issues={estoqueIssues} isLoading={data.isLoading} />
                 <IssueSection title="Financeiro" subtitle="Títulos a receber e a pagar com problemas de cadastro" Icon={Landmark} issues={financeiroIssues} isLoading={data.isLoading} />
@@ -1327,7 +1354,7 @@ const QualidadeDados = () => {
             type="button"
             onClick={handleArquivar}
             disabled={arquivando}
-            className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#1e3a5f] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#162d4a] disabled:opacity-50"
           >
             <Archive className={cn('h-3.5 w-3.5', arquivando && 'animate-pulse')} />
             {arquivando ? 'Arquivando...' : `Arquivar ${selectedCount}`}
@@ -1356,15 +1383,17 @@ interface KpiQDProps {
 }
 
 const KpiQD = ({ label, value, hint, Icon, tone }: KpiQDProps) => {
+  // Só severidade crítica (high) mantém cor — outros viram cinza neutro pra não
+  // poluir visualmente. Os números ainda comunicam a urgência sozinhos.
   const map = {
-    high: { bg: 'bg-gradient-to-br from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900', iconBg: 'bg-red-100 dark:bg-red-900/30', iconColor: 'text-red-600 dark:text-red-400', valueColor: 'text-red-700 dark:text-red-300' },
-    medium: { bg: 'bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900', iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400', valueColor: 'text-amber-700 dark:text-amber-300' },
-    low: { bg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400', valueColor: 'text-blue-700 dark:text-blue-300' },
-    neutral: { bg: 'bg-gradient-to-br from-gray-50/60 to-white dark:from-gray-900/40 dark:to-gray-900', iconBg: 'bg-gray-200 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
+    high: { iconBg: 'bg-red-50 dark:bg-red-900/20', iconColor: 'text-red-600 dark:text-red-400', valueColor: 'text-red-700 dark:text-red-300' },
+    medium: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
+    low: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
+    neutral: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
   }
   const s = map[tone]
   return (
-    <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', s.bg)}>
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
         <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', s.iconBg)}>

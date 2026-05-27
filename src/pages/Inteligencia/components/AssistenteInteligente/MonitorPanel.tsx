@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Wrench, CheckCircle2, XCircle, Clock, Database, Shield, Search, Trash2 } from 'lucide-react'
+import { Wrench, CheckCircle2, XCircle, Clock, Database, Shield, Search, Trash2, DollarSign, AlertTriangle, RotateCcw, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToolCallLog } from './ai/toolCallLog'
+import { useUsageTracker, INPUT_PRICE_USD_PER_MTOK, OUTPUT_PRICE_USD_PER_MTOK } from './ai/usageTracker'
+import { useRedeAssistente } from './hooks/useRedeAssistente'
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -33,18 +35,21 @@ const MonitorPanel = () => {
   return (
     <div className="space-y-4">
       {/* Banner de segurança */}
-      <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-700/40 dark:bg-emerald-900/20">
-        <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/40">
+        <Shield className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
         <div>
-          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">
             Camada READ-ONLY
           </p>
-          <p className="mt-0.5 text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+          <p className="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
             A IA só pode invocar ferramentas que fazem GET no Quality API. Não há acesso direto a SQL nem operações de escrita
             (DELETE/UPDATE/DROP/ALTER) — a arquitetura do Visor360 não expõe esses caminhos.
           </p>
         </div>
       </div>
+
+      {/* Consumo do mês */}
+      <UsageCard />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -60,7 +65,7 @@ const MonitorPanel = () => {
             <CheckCircle2 className="h-3 w-3" />
             Sucesso
           </div>
-          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{okCalls}</p>
+          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{okCalls}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/60">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -86,7 +91,7 @@ const MonitorPanel = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por ferramenta ou pergunta…"
-            className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
         {entries.length > 0 && (
@@ -128,7 +133,7 @@ const MonitorPanel = () => {
                   </span>
                 </td>
                 <td className="px-3 py-2">
-                  <p className="font-mono text-xs font-semibold text-purple-700 dark:text-purple-300">{c.tool}</p>
+                  <p className="font-mono text-xs font-semibold text-gray-900 dark:text-gray-100">{c.tool}</p>
                   <p className="mt-0.5 break-all font-mono text-[10px] text-gray-500 dark:text-gray-400">
                     {Object.keys(c.args).length === 0
                       ? '(sem args)'
@@ -166,6 +171,144 @@ const MonitorPanel = () => {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+const fmtUSD = (n: number, dec = 2) =>
+  `US$ ${n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
+
+const fmtInt = (n: number) => n.toLocaleString('pt-BR')
+
+/**
+ * Card de consumo do mês — gasto local (deste navegador) versus limite
+ * configurado pelo admin pra essa rede. NÃO é o total real da workspace
+ * na Anthropic (outros usuários/navegadores não contam). É só um aviso
+ * preventivo pro usuário.
+ */
+const UsageCard = () => {
+  const { redeId, redeNome, limiteUsd, tier } = useRedeAssistente()
+  // Subscreve no version pra re-renderizar quando recordUsage rodar
+  const version = useUsageTracker((s) => s.version)
+  const getUsage = useUsageTracker((s) => s.getCurrentMonthUsage)
+  const resetMonth = useUsageTracker((s) => s.resetMonth)
+
+  if (!redeId) return null
+  // version usado só pra forçar dependency da subscription
+  void version
+  const usage = getUsage(redeId)
+  const pct = limiteUsd && limiteUsd > 0 ? (usage.costUsd / limiteUsd) * 100 : null
+
+  const tone: 'ok' | 'alerta' | 'critico' = pct == null
+    ? 'ok'
+    : pct >= 80 ? 'critico' : pct >= 50 ? 'alerta' : 'ok'
+
+  const barColor =
+    tone === 'critico' ? 'bg-red-500' : tone === 'alerta' ? 'bg-amber-500' : 'bg-[#1e3a5f] dark:bg-slate-500'
+
+  const tipoLabel = tier === 'custom' ? 'Custom' : tier.charAt(0).toUpperCase() + tier.slice(1)
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-gray-500" />
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+              Consumo deste mês {redeNome && <span className="font-normal text-gray-500">· {redeNome}</span>}
+            </h3>
+          </div>
+          <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+            Tier <strong>{tipoLabel}</strong> · Período {usage.month} · Rastreio local deste navegador
+          </p>
+        </div>
+        <button
+          onClick={() => resetMonth(redeId)}
+          className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-[10px] font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+          title="Zerar contador local (não afeta cobrança real na Anthropic)"
+        >
+          <RotateCcw className="h-2.5 w-2.5" />
+          Zerar local
+        </button>
+      </div>
+
+      {/* Barra + valores */}
+      <div className="mt-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="font-mono text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {fmtUSD(usage.costUsd, 3)}
+          </p>
+          {limiteUsd != null && (
+            <p className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">
+              de {fmtUSD(limiteUsd)} <span className={cn(
+                'ml-1 font-semibold',
+                tone === 'critico' ? 'text-red-600 dark:text-red-400'
+                  : tone === 'alerta' ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-gray-600 dark:text-gray-400',
+              )}>
+                ({pct?.toFixed(1)}%)
+              </span>
+            </p>
+          )}
+        </div>
+        {limiteUsd != null && pct != null && (
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+            <div
+              className={cn('h-full rounded-full transition-all', barColor)}
+              style={{ width: `${Math.min(pct, 100)}%` }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Stats secundárias */}
+      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-200 pt-3 text-xs dark:border-gray-700">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Perguntas</p>
+          <p className="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{fmtInt(usage.questionsCount)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Input</p>
+          <p className="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+            {fmtInt(usage.inputTokens)} <span className="text-[10px] font-normal text-gray-400">tok</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Output</p>
+          <p className="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+            {fmtInt(usage.outputTokens)} <span className="text-[10px] font-normal text-gray-400">tok</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Aviso */}
+      {tone === 'critico' && limiteUsd != null && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700/40 dark:bg-red-900/20">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />
+          <div className="text-[11px] text-red-700 dark:text-red-300">
+            <strong>Atenção:</strong> este navegador já consumiu {pct?.toFixed(0)}% do limite mensal de {fmtUSD(limiteUsd)}.
+            Quando bater 100%, a Anthropic bloqueia novas chamadas até o próximo mês.
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 flex items-start gap-1.5 text-[10px] text-gray-400">
+        <AlertTriangle className="mt-0.5 h-2.5 w-2.5 shrink-0" />
+        <span>
+          Rastreio local — outros usuários/navegadores da mesma rede consomem o mesmo limite mas não aparecem aqui.
+          Fonte oficial:{' '}
+          <a
+            href="https://console.anthropic.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-gray-600 underline hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+          >
+            console.anthropic.com → Analytics
+            <ExternalLink className="ml-0.5 inline h-2 w-2" />
+          </a>
+          {' '}· Preços: input {fmtUSD(INPUT_PRICE_USD_PER_MTOK)}/MTok · output {fmtUSD(OUTPUT_PRICE_USD_PER_MTOK)}/MTok
+        </span>
+      </p>
     </div>
   )
 }

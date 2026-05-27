@@ -55,8 +55,8 @@ const SelecionarRede = () => {
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-          <Network className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
+          <Network className="h-5 w-5 text-white" />
         </div>
         <div>
           <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Selecionar rede</h1>
@@ -108,7 +108,7 @@ const SelecionarRede = () => {
         <button
           onClick={() => navigate('/admin/assistente')}
           title="Configurar Assistente IA por rede (tier, limite, contato)"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 px-3 py-1.5 text-xs font-medium text-purple-700 hover:from-purple-100 hover:to-blue-100 dark:border-purple-700/40 dark:from-purple-900/30 dark:to-blue-900/30 dark:text-purple-300 dark:hover:from-purple-900/50 dark:hover:to-blue-900/50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Assistente IA

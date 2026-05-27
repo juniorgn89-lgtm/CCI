@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Star, RotateCcw, Trash2, Clock, User, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Star, RotateCcw, Trash2, Clock, User, Search, Trash } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MOCK_HISTORY, type MockHistoryItem } from './mockData'
 
@@ -12,6 +12,15 @@ const HistoricoPanel = () => {
   const [items, setItems] = useState<MockHistoryItem[]>(MOCK_HISTORY)
   const [query, setQuery] = useState('')
   const [onlyFav, setOnlyFav] = useState(false)
+  // Confirmação em 2 cliques pro "Limpar todas" — primeiro clique arma; segundo apaga.
+  // Volta ao estado normal sozinho depois de 4s se o usuário não confirmar.
+  const [confirmingClear, setConfirmingClear] = useState(false)
+
+  useEffect(() => {
+    if (!confirmingClear) return
+    const t = setTimeout(() => setConfirmingClear(false), 4000)
+    return () => clearTimeout(t)
+  }, [confirmingClear])
 
   const filtered = items.filter((i) => {
     if (onlyFav && !i.favorito) return false
@@ -24,6 +33,15 @@ const HistoricoPanel = () => {
 
   const remove = (id: string) => setItems((curr) => curr.filter((i) => i.id !== id))
 
+  const clearAll = () => {
+    if (!confirmingClear) {
+      setConfirmingClear(true)
+      return
+    }
+    setItems([])
+    setConfirmingClear(false)
+  }
+
   return (
     <div className="space-y-3">
       {/* Filtros */}
@@ -34,7 +52,7 @@ const HistoricoPanel = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar nas perguntas…"
-            className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
         <button
@@ -49,6 +67,21 @@ const HistoricoPanel = () => {
           <Star className={cn('h-3.5 w-3.5', onlyFav && 'fill-current')} />
           Favoritos
         </button>
+        {items.length > 0 && (
+          <button
+            onClick={clearAll}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+              confirmingClear
+                ? 'border-red-400 bg-red-500 text-white shadow-md shadow-red-500/30 hover:bg-red-600'
+                : 'border-gray-300 bg-white text-gray-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-red-700/40 dark:hover:bg-red-900/20 dark:hover:text-red-300',
+            )}
+            title={confirmingClear ? 'Clique de novo pra confirmar' : 'Apagar todo o histórico'}
+          >
+            <Trash className="h-3.5 w-3.5" />
+            {confirmingClear ? `Confirmar (apagar ${items.length})` : 'Limpar todas'}
+          </button>
+        )}
       </div>
 
       {/* Lista */}
@@ -95,7 +128,7 @@ const HistoricoPanel = () => {
                 <td className="px-3 py-2 text-right">
                   <div className="inline-flex items-center gap-1">
                     <button
-                      className="rounded-md p-1 text-gray-400 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/20 dark:hover:text-purple-400"
+                      className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                       title="Repetir pergunta"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />

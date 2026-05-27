@@ -24,18 +24,16 @@ const AssistenteInteligente = () => {
 
   return (
     <div className="space-y-4">
-      {/* Banner premium do módulo */}
-      <div className="relative overflow-hidden rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4 dark:border-purple-500/20 dark:from-purple-950/30 dark:via-gray-900 dark:to-blue-950/30">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-purple-400/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-blue-400/10 blur-3xl" />
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30">
+      {/* Banner do módulo */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1e3a5f]">
             <Sparkle className="h-5 w-5 text-white" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="flex flex-wrap items-center gap-2 text-base font-bold text-gray-900 dark:text-gray-100">
               Assistente Inteligente
-              <span className="rounded-full bg-gradient-to-r from-purple-500 to-blue-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+              <span className="rounded-full border border-gray-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-600 dark:border-gray-600 dark:text-gray-400">
                 Beta
               </span>
               <StatusBadge status={status} />
@@ -66,7 +64,7 @@ const AssistenteInteligente = () => {
               )}
               title={t.desc}
             >
-              <Icon className={cn('h-3.5 w-3.5', active && 'text-purple-500')} />
+              <Icon className={cn('h-3.5 w-3.5', active && 'text-[#1e3a5f] dark:text-gray-300')} />
               {t.label}
             </button>
           )
