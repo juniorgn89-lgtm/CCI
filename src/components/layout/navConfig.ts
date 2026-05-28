@@ -26,6 +26,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Geral',
     items: [
+      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
       { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
     ],
   },
@@ -43,7 +44,6 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
-      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
       { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
     ],

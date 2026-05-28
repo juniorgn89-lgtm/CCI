@@ -17,6 +17,8 @@ export interface ModuloInfo {
 }
 
 export const MODULOS: ModuloInfo[] = [
+  // Fechamentos é o módulo principal (landing page padrão em produção).
+  { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
   { id: 'comercial', label: 'Comercial · Vendas', path: '/comercial' },
   { id: 'bombas', label: 'Bombas', path: '/bombas' },
@@ -24,7 +26,6 @@ export const MODULOS: ModuloInfo[] = [
   { id: 'produtividade', label: 'Produtividade', path: '/produtividade' },
   { id: 'estoques', label: 'Estoques', path: '/estoques' },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
-  { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
   { id: 'qualidade-dados', label: 'Qualidade de Dados', path: '/qualidade-dados' },
   { id: 'pessoas', label: 'Pessoas', path: '/pessoas' },
   { id: 'inteligencia', label: 'Inteligência', path: '/inteligencia' },
@@ -60,7 +61,8 @@ export const firstAllowedPath = (
   isMaster: boolean,
 ): string => {
   if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) {
-    return '/dashboard'
+    // Fechamentos é a landing principal pra master / usuários sem restrição.
+    return '/fechamento-caixa'
   }
   const first = MODULOS.find((m) => modulosPermitidos.includes(m.id))
   return first?.path ?? '/configuracoes'
