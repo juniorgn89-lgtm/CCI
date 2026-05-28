@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useFilterStore } from '@/store/filters'
+import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
@@ -17,7 +17,17 @@ export interface ConvKpiData {
   qtdItens: number
   ticketMedio: number
   totalProdutos: number
+  // Mês anterior — base fixa do gráfico de evolução e dos insights (não muda com o toggle).
   prev: {
+    faturamento: number
+    margem: number
+    margemPct: number
+    ticketMedio: number
+    qtdItens: number
+  }
+  // Período comparativo — honra o toggle global. Igual a `prev` quando 'prevMonth'.
+  comparisonMode: ComparisonMode
+  cmp: {
     faturamento: number
     margem: number
     margemPct: number
@@ -163,9 +173,10 @@ export interface InsightItem {
 
 /* ── Helper: previous month range ────────────────────────── */
 
-const getPrevMonthRange = (dataInicial: string) => {
+// Mês cheio N meses antes do mês de `dataInicial` (1 = mês anterior, 12 = ano anterior).
+const getComparisonRange = (dataInicial: string, monthsBack: number) => {
   const d = new Date(dataInicial)
-  d.setMonth(d.getMonth() - 1)
+  d.setMonth(d.getMonth() - monthsBack)
   const y = d.getFullYear()
   const m = d.getMonth()
   const first = `${y}-${String(m + 1).padStart(2, '0')}-01`
@@ -190,16 +201,21 @@ const getEvolutionRange = (dataInicial: string, months: number) => {
 /* ── Hook ────────────────────────────────────────────────── */
 
 const useConvenienceData = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
-  const prevMonth = getPrevMonthRange(dataInicial)
+  const isPrevYear = comparisonMode === 'prevYear'
+  const prevMonth = getComparisonRange(dataInicial, 1)
+  // Período comparativo do toggle global. 'prevMonth' coincide com prevMonth acima
+  // (reaproveita o fetch); 'prevYear' usa o mesmo mês 12 meses atrás.
+  const cmp = isPrevYear ? getComparisonRange(dataInicial, 12) : prevMonth
   const evolutionRange = getEvolutionRange(dataInicial, 3) // last 3 months before current period
 
   // Cache de vendas (apuracao_vendas) pra current + prev + evolução.
   // HIT = pula fetch live; MISS = fetch live como antes (sem regressão).
   const vendasCacheCurrent = useVendasCache({ dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
   const vendasCachePrev = useVendasCache({ dataInicial: prevMonth.dataInicial, dataFinal: prevMonth.dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
+  const vendasCacheCmp = useVendasCache({ dataInicial: cmp.dataInicial, dataFinal: cmp.dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
   const vendasCacheEvo = useVendasCache({ dataInicial: evolutionRange.dataInicial, dataFinal: evolutionRange.dataFinal, empresaCodigo, empresasPermitidasCount: 1 })
 
   const filterParams = {
@@ -234,6 +250,24 @@ const useConvenienceData = () => {
       1000, 50
     ),
     enabled: hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking,
+  })
+
+  // Período comparativo (KPI deltas) — só fetcha quando 'vs ano ant.'; no modo
+  // 'mês ant.' o cmp coincide com o prevMonth e reaproveitamos prevMonthData.
+  const { data: cmpData } = useQuery({
+    queryKey: ['vendaItensAll', empresaCodigo, cmp.dataInicial, cmp.dataFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchVendaItens({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: cmp.dataInicial,
+        dataFinal: cmp.dataFinal,
+        usaProdutoLmc: false,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 50
+    ),
+    enabled: hasEmpresa && isPrevYear && !vendasCacheCmp.isCacheHit && !vendasCacheCmp.isChecking,
   })
 
   // Historical months for evolution chart (fills gap between prevMonth and current)
@@ -305,6 +339,12 @@ const useConvenienceData = () => {
     const prevAggs = vendasCachePrev.isCacheHit
       ? vendasCachePrev.vendas
       : aggregateItensToVendaAgg((prevMonthData ?? []).filter(filterEmpresa))
+    // Comparativo mode-aware — coincide com prevAggs quando 'mês ant.'
+    const cmpAggs = !isPrevYear
+      ? prevAggs
+      : (vendasCacheCmp.isCacheHit
+          ? vendasCacheCmp.vendas
+          : aggregateItensToVendaAgg((cmpData ?? []).filter(filterEmpresa)))
     const histAggs = vendasCacheEvo.isCacheHit
       ? vendasCacheEvo.vendas
       : aggregateItensToVendaAgg((evolutionData ?? []).filter(filterEmpresa))
@@ -343,6 +383,7 @@ const useConvenienceData = () => {
     // Filter aggregates to non-fuel only (produtoMap exclui combustível + PS-)
     const convAggs = vendaAggs.filter((a) => produtoMap.has(a.produtoCodigo))
     const convPrevAggs = prevAggs.filter((a) => produtoMap.has(a.produtoCodigo))
+    const convCmpAggs = cmpAggs.filter((a) => produtoMap.has(a.produtoCodigo))
 
     // ── Aggregate by product (current) ──
     // `count` soma `linhas` (nº de itens de venda) pra preservar o ticket médio.
@@ -384,6 +425,14 @@ const useConvenienceData = () => {
     const prevMargemPct = prevFat > 0 ? ((prevFat - prevCusto) / prevFat) * 100 : 0
     const prevTicket = prevLinhas > 0 ? prevFat / prevLinhas : 0
 
+    // Comparativo (mode-aware) — coincide com prev quando 'mês ant.'
+    const cmpFat = convCmpAggs.reduce((s, a) => s + a.totalVenda, 0)
+    const cmpCusto = convCmpAggs.reduce((s, a) => s + a.totalCusto, 0)
+    const cmpQtd = convCmpAggs.reduce((s, a) => s + a.quantidade, 0)
+    const cmpLinhas = convCmpAggs.reduce((s, a) => s + a.linhas, 0)
+    const cmpMargemPct = cmpFat > 0 ? ((cmpFat - cmpCusto) / cmpFat) * 100 : 0
+    const cmpTicket = cmpLinhas > 0 ? cmpFat / cmpLinhas : 0
+
     const kpis: ConvKpiData = {
       faturamento: totalFat,
       margem: totalMargem,
@@ -397,6 +446,14 @@ const useConvenienceData = () => {
         margemPct: prevMargemPct,
         ticketMedio: prevTicket,
         qtdItens: prevQtd,
+      },
+      comparisonMode,
+      cmp: {
+        faturamento: cmpFat,
+        margem: cmpFat - cmpCusto,
+        margemPct: cmpMargemPct,
+        ticketMedio: cmpTicket,
+        qtdItens: cmpQtd,
       },
     }
 
@@ -849,10 +906,11 @@ const useConvenienceData = () => {
       gruposList,
     }
   }, [
-    vendaItensData, prevMonthData, evolutionData, produtosData, gruposData, estoqueRaw, empresaCodigo,
-    dataInicial, dataFinal,
+    vendaItensData, prevMonthData, cmpData, evolutionData, produtosData, gruposData, estoqueRaw, empresaCodigo,
+    dataInicial, dataFinal, comparisonMode, isPrevYear,
     vendasCacheCurrent.isCacheHit, vendasCacheCurrent.vendas,
     vendasCachePrev.isCacheHit, vendasCachePrev.vendas,
+    vendasCacheCmp.isCacheHit, vendasCacheCmp.vendas,
     vendasCacheEvo.isCacheHit, vendasCacheEvo.vendas,
   ])
 

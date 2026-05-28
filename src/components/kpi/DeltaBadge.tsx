@@ -9,6 +9,8 @@ interface DeltaBadgeProps {
   formatter?: (v: number) => string
   /** Invert colors — useful for costs where lower is better */
   invertColors?: boolean
+  /** Texto do benchmark exibido após "vs" (ex.: "mês ant.", "ano ant."). Default "anterior". */
+  label?: string
   className?: string
 }
 
@@ -18,6 +20,7 @@ const DeltaBadge = ({
   showAbsolute,
   formatter,
   invertColors = false,
+  label = 'anterior',
   className,
 }: DeltaBadgeProps) => {
   if (!previous || previous === 0) return null
@@ -35,7 +38,7 @@ const DeltaBadge = ({
       )}>
         <Icon className="h-3 w-3 shrink-0" />
         <span className="text-[10px] font-semibold tabular-nums">
-          {isPositive ? '+' : ''}{pct.toFixed(1)}% vs anterior
+          {isPositive ? '+' : ''}{pct.toFixed(1)}% vs {label}
         </span>
       </div>
       {showAbsolute && formatter && (

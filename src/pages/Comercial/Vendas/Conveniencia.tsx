@@ -123,6 +123,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     hasEmpresa,
   } = useConvenienceData()
 
+  const cmpLabelFull = kpis?.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   return (
@@ -164,7 +165,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             <KpiCard
               label="Faturamento"
               value={!kpis ? '—' : formatCurrencyInt(kpis.faturamento)}
-              delta={kpis ? pctDelta(kpis.faturamento, kpis.prev.faturamento) : undefined}
+              delta={kpis ? pctDelta(kpis.faturamento, kpis.cmp.faturamento) : undefined}
               Icon={CircleDollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
               iconColor="text-emerald-600 dark:text-emerald-400"
@@ -174,9 +175,9 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>Mês anterior</span>
+                      <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatCurrencyInt(kpis.prev.faturamento)}
+                        {formatCurrencyInt(kpis.cmp.faturamento)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -192,7 +193,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             <KpiCard
               label="Lucro bruto"
               value={!kpis ? '—' : formatCurrencyInt(kpis.margem)}
-              delta={kpis ? pctDelta(kpis.margem, kpis.prev.margem) : undefined}
+              delta={kpis ? pctDelta(kpis.margem, kpis.cmp.margem) : undefined}
               Icon={DollarSign}
               iconBg="bg-blue-100 dark:bg-blue-900/30"
               iconColor="text-blue-600 dark:text-blue-400"
@@ -202,21 +203,21 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>Mês anterior</span>
+                      <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatCurrencyInt(kpis.prev.margem)}
+                        {formatCurrencyInt(kpis.cmp.margem)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span>Diferença</span>
                       <span className={cn(
                         'font-semibold',
-                        kpis.margem - kpis.prev.margem >= 0
+                        kpis.margem - kpis.cmp.margem >= 0
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-red-600 dark:text-red-400',
                       )}>
-                        {kpis.margem - kpis.prev.margem >= 0 ? '+' : ''}
-                        {formatCurrencyInt(kpis.margem - kpis.prev.margem)}
+                        {kpis.margem - kpis.cmp.margem >= 0 ? '+' : ''}
+                        {formatCurrencyInt(kpis.margem - kpis.cmp.margem)}
                       </span>
                     </div>
                   </div>
@@ -226,7 +227,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             <KpiCard
               label="Margem"
               value={!kpis ? '—' : `${kpis.margemPct.toFixed(2).replace('.', ',')}%`}
-              delta={kpis ? pctDelta(kpis.margemPct, kpis.prev.margemPct) : undefined}
+              delta={kpis ? pctDelta(kpis.margemPct, kpis.cmp.margemPct) : undefined}
               Icon={PieChart}
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               iconColor="text-amber-600 dark:text-amber-400"
@@ -236,21 +237,21 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>Mês anterior</span>
+                      <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {kpis.prev.margemPct.toFixed(2).replace('.', ',')}%
+                        {kpis.cmp.margemPct.toFixed(2).replace('.', ',')}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span>Diferença</span>
                       <span className={cn(
                         'font-semibold',
-                        kpis.margemPct - kpis.prev.margemPct >= 0
+                        kpis.margemPct - kpis.cmp.margemPct >= 0
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-red-600 dark:text-red-400',
                       )}>
-                        {kpis.margemPct - kpis.prev.margemPct >= 0 ? '+' : ''}
-                        {(kpis.margemPct - kpis.prev.margemPct).toFixed(2).replace('.', ',')}pp
+                        {kpis.margemPct - kpis.cmp.margemPct >= 0 ? '+' : ''}
+                        {(kpis.margemPct - kpis.cmp.margemPct).toFixed(2).replace('.', ',')}pp
                       </span>
                     </div>
                   </div>
@@ -260,7 +261,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             <KpiCard
               label="Ticket médio"
               value={!kpis ? '—' : formatCurrency(kpis.ticketMedio)}
-              delta={kpis ? pctDelta(kpis.ticketMedio, kpis.prev.ticketMedio) : undefined}
+              delta={kpis ? pctDelta(kpis.ticketMedio, kpis.cmp.ticketMedio) : undefined}
               Icon={Ticket}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
@@ -270,9 +271,9 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                 kpis && kpis.qtdItens > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>Mês anterior</span>
+                      <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatCurrency(kpis.prev.ticketMedio)}
+                        {formatCurrency(kpis.cmp.ticketMedio)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">

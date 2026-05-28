@@ -128,12 +128,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           {/* Filtros de escopo/comparação — escondidos em /inteligencia e nas
               telas de Admin (nível de rede, não de posto/período). */}
           {showDataFilters && <DataFilterModeSelect />}
-          {/* Comparativo (vs mês ant. / vs ano ant.) — hoje só o Dashboard
-              consome `comparisonMode` (via useProjecaoMes). Em outras telas
-              o botão era visualmente ativo mas não fazia nada — escondemos
-              pra não criar expectativa errada. Quando o resto dos hooks
-              honrar o modo, voltar a mostrar globalmente (ver memory note). */}
-          {showDataFilters && pathname === '/dashboard' && <ComparisonSelect />}
+          {/* Comparativo (vs mês ant. / vs ano ant.). Os KPIs de topo do Dashboard,
+              Combustível, Caixa do Posto e Conveniências honram o modo. Produtividade
+              e os gráficos de evolução seguem fixos em mês anterior. */}
+          {showDataFilters && <ComparisonSelect />}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
           <button
             onClick={handleRefresh}

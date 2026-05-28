@@ -447,7 +447,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {!kpis ? '—' : formatCurrency(kpis.totalApurado)}
           </p>
-          {kpis && <DeltaBadge current={kpis.totalApurado} previous={kpis.prevTotalApurado} />}
+          {kpis && <DeltaBadge current={kpis.totalApurado} previous={kpis.cmpTotalApurado} label={kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'} />}
         </div>
 
         <div className={cn(

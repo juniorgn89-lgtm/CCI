@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useFilterStore } from '@/store/filters'
+import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
@@ -24,13 +24,23 @@ export interface OperacaoKpiData {
   totalApurado: number
   /** Sobra (>0) / falta (<0) acumulada dos caixas fechados do período. */
   totalDiferenca: number
-  // Previous-period totals for DeltaBadge comparison
+  // Previous-period totals for DeltaBadge comparison (sempre mês anterior —
+  // base fixa do módulo Produtividade, não muda com o toggle de comparação)
   prevTotalAbastecimentos: number
   prevTotalLitros: number
   prevFaturamentoCombustivel: number
   prevTicketMedio: number
   prevTotalApurado: number
   prevTotalDiferenca: number
+  // Comparison-period totals — honram o toggle global (mês ant. OU ano ant.).
+  // Iguais aos prev* quando comparisonMode === 'prevMonth'.
+  comparisonMode: ComparisonMode
+  cmpTotalAbastecimentos: number
+  cmpTotalLitros: number
+  cmpFaturamentoCombustivel: number
+  cmpTicketMedio: number
+  cmpTotalApurado: number
+  cmpTotalDiferenca: number
 }
 
 export interface FrentistaRow {
@@ -171,18 +181,37 @@ const previousPeriod = (inicial: string, final: string): { inicial: string; fina
   return { inicial: fmtIsoDate(prevStart), final: fmtIsoDate(prevEnd) }
 }
 
+// Mesma faixa deslocada N meses pra trás — usado pro comparativo "vs ano ant." (12).
+const offsetMonths = (dateStr: string, monthsBack: number): string => {
+  if (!dateStr) return ''
+  const d = new Date(`${dateStr}T00:00:00`)
+  d.setMonth(d.getMonth() - monthsBack)
+  return fmtIsoDate(d)
+}
+
 /* ── Hook ────────────────────────────────────────────────── */
 
 const useOperacaoData = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+  const isPrevYear = comparisonMode === 'prevYear'
   // Captura "agora" uma vez por mount (lazy init) — usado pra filtrar
   // abastecimentos com data futura e pra fechamentoTs de caixas abertos.
   // Date.now() não pode ser chamado direto no render (regra de pureza).
   const [nowTs] = useState(() => Date.now())
 
   const prev = useMemo(() => previousPeriod(dataInicial, dataFinal), [dataInicial, dataFinal])
+
+  // Período comparativo do toggle global. 'prevMonth' → mesma faixa do `prev`
+  // (reaproveita o fetch, sem custo extra); 'prevYear' → mesma faixa 12 meses atrás.
+  const cmp = useMemo(
+    () =>
+      isPrevYear
+        ? { inicial: offsetMonths(dataInicial, 12), final: offsetMonths(dataFinal, 12) }
+        : prev,
+    [isPrevYear, dataInicial, dataFinal, prev],
+  )
 
   // Cache raw de abastecimentos pra current + prev. HIT = pula fetch live;
   // MISS = fetch live como antes (sem regressão pra meses não apurados).
@@ -198,6 +227,14 @@ const useOperacaoData = () => {
     empresaCodigo,
     empresasPermitidasCount: 1,
   })
+  // Cache do período comparativo. Quando 'prevMonth', as datas batem com o prev →
+  // mesma queryKey, React Query deduplica (sem fetch extra).
+  const abastCacheCmp = useAbastCache({
+    dataInicial: cmp.inicial,
+    dataFinal: cmp.final,
+    empresaCodigo,
+    empresasPermitidasCount: 1,
+  })
 
   // Cache de caixas + formas de pagamento. Mesma técnica.
   const caixasCacheCurrent = useCaixasCache({ dataInicial, dataFinal, empresaCodigo })
@@ -206,6 +243,7 @@ const useOperacaoData = () => {
     dataFinal: prev.final,
     empresaCodigo,
   })
+  const caixasCacheCmp = useCaixasCache({ dataInicial: cmp.inicial, dataFinal: cmp.final, empresaCodigo })
 
   // Abastecimentos — chunked by week to avoid 50k API limit
   // Live só quando o cache MISS (período não apurado ainda OU mês corrente
@@ -234,6 +272,26 @@ const useOperacaoData = () => {
       !!prev.final &&
       !caixasCachePrev.isCacheHit &&
       !caixasCachePrev.isChecking,
+  })
+
+  // Abastecimentos + caixas do período comparativo — só fetcham quando 'vs ano ant.'
+  // (no modo 'mês ant.' o cmp coincide com o prev e reaproveitamos aqueles dados).
+  const { data: abastCmpData } = useQuery({
+    queryKey: ['abastecimentos', cmp.inicial, cmp.final],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: cmp.inicial, dataFinal: cmp.final }),
+    enabled: hasEmpresa && isPrevYear && !!cmp.inicial && !!cmp.final && !abastCacheCmp.isCacheHit && !abastCacheCmp.isChecking,
+  })
+  const { data: caixasCmpRaw } = useQuery({
+    queryKey: ['caixas', empresaCodigo, cmp.inicial, cmp.final],
+    queryFn: () => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial: cmp.inicial, dataFinal: cmp.final, limite: 1000 }),
+    enabled:
+      hasEmpresa &&
+      empresaCodigo !== null &&
+      isPrevYear &&
+      !!cmp.inicial &&
+      !!cmp.final &&
+      !caixasCacheCmp.isCacheHit &&
+      !caixasCacheCmp.isChecking,
   })
 
   // Funcionários (direct call — small dataset)
@@ -857,6 +915,22 @@ const useOperacaoData = () => {
       .filter((c) => c.fechado)
       .reduce((s, c) => s + c.diferenca, 0)
 
+    // ── Comparison-period totals (mode-aware) ──
+    // 'prevMonth' reaproveita os números do prev; 'prevYear' usa o período 12m atrás.
+    const abastCmp = !isPrevYear
+      ? abastPrev
+      : (abastCacheCmp.isCacheHit
+          ? abastCacheCmp.abastecimentos
+          : (abastCmpData ?? []).filter((a) => !empresaCodigo || a.empresaCodigo === empresaCodigo)
+        ).filter(notFuture)
+    const cmpCaixas = !isPrevYear
+      ? prevCaixas
+      : (caixasCacheCmp.isCacheHit ? caixasCacheCmp.caixas : (caixasCmpRaw?.resultados ?? []))
+    const cmpTotalLitros = abastCmp.reduce((s, a) => s + a.quantidade, 0)
+    const cmpFaturamentoCombustivel = abastCmp.reduce((s, a) => s + a.valorTotal, 0)
+    const cmpTotalApurado = cmpCaixas.reduce((s, c) => s + c.apurado, 0)
+    const cmpTotalDiferenca = cmpCaixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0)
+
     // Per-frentista previous-period totals (para comparativos do módulo Produtividade)
     const frentistaPrevAgg = new Map<number, { litros: number; count: number; valor: number }>()
     for (const a of abastPrev) {
@@ -894,6 +968,13 @@ const useOperacaoData = () => {
       prevTicketMedio: abastPrev.length > 0 ? prevFaturamentoCombustivel / abastPrev.length : 0,
       prevTotalApurado,
       prevTotalDiferenca,
+      comparisonMode,
+      cmpTotalAbastecimentos: abastCmp.length,
+      cmpTotalLitros,
+      cmpFaturamentoCombustivel,
+      cmpTicketMedio: abastCmp.length > 0 ? cmpFaturamentoCombustivel / abastCmp.length : 0,
+      cmpTotalApurado,
+      cmpTotalDiferenca,
     }
 
     // Filter lists for UI
@@ -923,7 +1004,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, abastPrevData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas])
+  }, [abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,

@@ -140,9 +140,10 @@ interface KpiCardProps {
   loading: boolean
   current?: number
   previous?: number
+  comparisonLabel?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -158,7 +159,7 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
       </p>
     )}
     {current !== undefined && previous !== undefined && !loading && (
-      <DeltaBadge current={current} previous={previous} />
+      <DeltaBadge current={current} previous={previous} label={comparisonLabel} />
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
@@ -178,6 +179,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
+  const cmpLabel = kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const { rows, dailyData, fuelTypeData, lbLitroData, projectionMeta, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
 
@@ -543,7 +545,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
               loading={showSkeleton}
               current={kpis?.totalLitros}
-              previous={kpis?.prevTotalLitros}
+              previous={kpis?.cmpTotalLitros}
+              comparisonLabel={cmpLabel}
               extra={
                 kpis && kpis.totalLitros > 0 && fuelTypeData.length > 0 ? (
                   <>
@@ -577,7 +580,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={showSkeleton}
               current={kpis?.faturamentoCombustivel}
-              previous={kpis?.prevFaturamentoCombustivel}
+              previous={kpis?.cmpFaturamentoCombustivel}
+              comparisonLabel={cmpLabel}
               extra={
                 kpis && kpis.totalAbastecimentos > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -606,7 +610,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={showSkeleton}
               current={kpis?.ticketMedio}
-              previous={kpis?.prevTicketMedio}
+              previous={kpis?.cmpTicketMedio}
+              comparisonLabel={cmpLabel}
               extra={
                 kpis && kpis.totalAbastecimentos > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">

@@ -465,12 +465,12 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                       <span>vs. anterior</span>
                       <span className={cn(
                         'font-semibold',
-                        convKpis.ticketMedio >= convKpis.prev.ticketMedio
+                        convKpis.ticketMedio >= convKpis.cmp.ticketMedio
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-red-600 dark:text-red-400',
                       )}>
-                        {convKpis.prev.ticketMedio > 0
-                          ? `${convKpis.ticketMedio >= convKpis.prev.ticketMedio ? '+' : ''}${(((convKpis.ticketMedio - convKpis.prev.ticketMedio) / convKpis.prev.ticketMedio) * 100).toFixed(1).replace('.', ',')}%`
+                        {convKpis.cmp.ticketMedio > 0
+                          ? `${convKpis.ticketMedio >= convKpis.cmp.ticketMedio ? '+' : ''}${(((convKpis.ticketMedio - convKpis.cmp.ticketMedio) / convKpis.cmp.ticketMedio) * 100).toFixed(1).replace('.', ',')}%`
                           : '—'}
                       </span>
                     </div>
