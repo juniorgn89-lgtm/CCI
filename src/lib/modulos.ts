@@ -17,9 +17,9 @@ export interface ModuloInfo {
 }
 
 export const MODULOS: ModuloInfo[] = [
-  // Fechamentos é o módulo principal (landing page padrão em produção).
-  { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
+  // Fechamentos é a landing padrão em produção, mas vem após a Central no menu.
+  { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
   { id: 'comercial', label: 'Comercial · Vendas', path: '/comercial' },
   { id: 'bombas', label: 'Bombas', path: '/bombas' },
   { id: 'caixas-turnos', label: 'Caixas & Turnos', path: '/caixas-turnos' },

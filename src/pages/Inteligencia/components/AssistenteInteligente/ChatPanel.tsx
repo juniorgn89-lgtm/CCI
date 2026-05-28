@@ -130,7 +130,7 @@ const ChatPanel = () => {
   const isEmpty = messages.length === 0
 
   return (
-    <div className="flex h-[calc(100vh-340px)] min-h-[480px] flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]">
+    <div className="flex h-[calc(100vh-400px)] min-h-[400px] flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]">
       {/* Status bar — somente leitura, não há config aqui */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 dark:border-gray-700">
         <div
