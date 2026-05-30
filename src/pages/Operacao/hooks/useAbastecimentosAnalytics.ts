@@ -10,7 +10,7 @@ import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChu
 import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
-import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
+import { fetchApuracaoDiaria, fetchApuracaoFuelDiaria } from '@/api/supabase/apuracao'
 
 const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   const d = new Date(dateStr)
@@ -137,6 +137,11 @@ export interface LbLitroData {
   daily: LbLitroDaily[]
   byProduct: LbLitroProduct[]
   monthly: LbLitroMonthly[]
+  /** Séries mensais por combustível (do cache por produto) — pro filtro do
+   * gráfico "Últimos 12 meses". Chave = nome do combustível. */
+  monthlyByFuel: Record<string, LbLitroMonthly[]>
+  /** Combustíveis disponíveis nas séries mensais (pro dropdown do filtro). */
+  monthlyFuels: string[]
   prevMonthGlobal: number
   /** Lucro bruto do período de comparação (mês/ano ant. conforme o toggle),
    * sobre o volume com custo apurado. Base do delta do card "Lucro bruto". */
@@ -228,6 +233,21 @@ const useAbastecimentosAnalytics = () => {
     queryKey: ['apuracao-diaria-evolution', evolutionEmpresaCodigos.join(','), evolution12mInicialFirst, dataFinal],
     queryFn: () =>
       fetchApuracaoDiaria({
+        empresaCodigos: evolutionEmpresaCodigos,
+        dataInicial: evolution12mInicialFirst,
+        dataFinal,
+      }),
+    enabled: evolutionEmpresaCodigos.length > 0,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Quebra por produto (12m) — dá custo/margem + filtro por combustível no
+  // gráfico mensal. Fallback p/ evolutionDaily quando um mês ainda não tem essa
+  // quebra apurada.
+  const { data: fuelProdutoData = [] } = useQuery({
+    queryKey: ['apuracao-fuel-produto-evolution', evolutionEmpresaCodigos.join(','), evolution12mInicialFirst, dataFinal],
+    queryFn: () =>
+      fetchApuracaoFuelDiaria({
         empresaCodigos: evolutionEmpresaCodigos,
         dataInicial: evolution12mInicialFirst,
         dataFinal,
@@ -630,20 +650,10 @@ const useAbastecimentosAnalytics = () => {
       }))
       .sort((a, b) => b.lbPorLitro - a.lbPorLitro)
 
-    // Monthly evolution (12 meses) — consome `evolutionDaily` (apuracao_diaria),
-    // que já vem agregado por dia × empresa. Soma só por mês.
-    const byMonth = new Map<string, { litros: number; fat: number; custo: number }>()
-    for (const d of evolutionDaily) {
-      if (hasEmpresa && !matchEmpresa(d.empresa_codigo)) continue
-      const month = d.data.substring(0, 7)
-      const prev = byMonth.get(month) ?? { litros: 0, fat: 0, custo: 0 }
-      byMonth.set(month, {
-        litros: prev.litros + (d.fuel_litros ?? 0),
-        fat: prev.fat + (d.fuel_faturamento ?? 0),
-        custo: prev.custo + (d.fuel_custo ?? 0),
-      })
-    }
-    // Mês corrente (YYYY-MM) — usado pra projetar o end-of-month
+    // ── Evolução 12 meses ──
+    // Fonte primária: apuracao_fuel_diaria (quebra por produto, COM custo via
+    // CMV+LMC) → habilita custo/margem + filtro por combustível. Fallback p/
+    // meses ainda sem essa quebra: apuracao_diaria agregado (só litros/fat).
     const currentMonthStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}`
     const daysInCurrentMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0).getDate()
     // Se o último dado real está no mês corrente, usa o dia DELE como "dias decorridos"
@@ -653,54 +663,75 @@ const useAbastecimentosAnalytics = () => {
       : 0
     const daysElapsedInMonth = lastRealDayInCurrentMonth > 0 ? lastRealDayInCurrentMonth : todayDate.getDate()
 
-    const lbLitroMonthly: LbLitroMonthly[] = Array.from(byMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, v]) => {
-        const isCurrentMonth = mes === currentMonthStr
-        // Sem custo apurado no mês → L.B. = faturamento e margem = 100% (falso).
-        // Nesses meses não dá pra calcular lucro/margem: zera as séries (null) pro
-        // gráfico criar um gap em vez de plotar margem 100%.
-        const semCusto = v.custo <= 0
-        if (semCusto) {
-          return {
-            mes,
-            lbPorLitro: null,
-            litros: v.litros,
-            faturamento: v.fat,
-            lucroBruto: null,
-            margemPct: null,
-            isCurrentMonth,
-            lucroBrutoReal: null,
-            lucroBrutoProjetadoExtra: 0,
-            semCusto,
-          }
-        }
-        const lb = v.fat - v.custo
-        let lucroBrutoProjetadoExtra = 0
-        let litrosProjetados = v.litros
-        let lbPorLitroProjetado = v.litros > 0 ? lb / v.litros : 0
-        if (isCurrentMonth && daysElapsedInMonth > 0 && daysElapsedInMonth < daysInCurrentMonth) {
-          // Extrapolação linear: pace atual × dias restantes
-          const scale = daysInCurrentMonth / daysElapsedInMonth
-          litrosProjetados = v.litros * scale
-          const lucroProjetadoTotal = lb * scale
-          lucroBrutoProjetadoExtra = Math.max(0, lucroProjetadoTotal - lb)
-          // L.B./Litro projetado mantém a taxa atual (rate não cresce)
-          lbPorLitroProjetado = v.litros > 0 ? lb / v.litros : 0
-        }
-        return {
-          mes,
-          lbPorLitro: lbPorLitroProjetado,
-          litros: litrosProjetados,
-          faturamento: v.fat,
-          lucroBruto: lb,
-          margemPct: v.fat > 0 ? (lb / v.fat) * 100 : 0,
-          isCurrentMonth,
-          lucroBrutoReal: lb,
-          lucroBrutoProjetadoExtra,
-          semCusto,
-        }
-      })
+    interface MonthAgg { litros: number; fat: number; custo: number; semCusto: boolean }
+    // Constrói uma LbLitroMonthly a partir do agregado do mês (com projeção no
+    // mês corrente). semCusto → zera as séries de custo (gap no gráfico em vez
+    // de margem 100% falsa).
+    const makeMonthly = (mes: string, agg: MonthAgg): LbLitroMonthly => {
+      const isCurrentMonth = mes === currentMonthStr
+      if (agg.semCusto) {
+        return { mes, lbPorLitro: null, litros: agg.litros, faturamento: agg.fat, lucroBruto: null, margemPct: null, isCurrentMonth, lucroBrutoReal: null, lucroBrutoProjetadoExtra: 0, semCusto: true }
+      }
+      const lb = agg.fat - agg.custo
+      let lucroBrutoProjetadoExtra = 0
+      let litrosProjetados = agg.litros
+      const lbPorLitro = agg.litros > 0 ? lb / agg.litros : 0
+      if (isCurrentMonth && daysElapsedInMonth > 0 && daysElapsedInMonth < daysInCurrentMonth) {
+        const scale = daysInCurrentMonth / daysElapsedInMonth
+        litrosProjetados = agg.litros * scale
+        lucroBrutoProjetadoExtra = Math.max(0, lb * scale - lb)
+      }
+      return { mes, lbPorLitro, litros: litrosProjetados, faturamento: agg.fat, lucroBruto: lb, margemPct: agg.fat > 0 ? (lb / agg.fat) * 100 : 0, isCurrentMonth, lucroBrutoReal: lb, lucroBrutoProjetadoExtra, semCusto: false }
+    }
+
+    // Cache por produto: mês → nome do combustível → agregado.
+    const fpByMonth = new Map<string, Map<string, { litros: number; fat: number; custo: number }>>()
+    const fuelNamesSet = new Set<string>()
+    for (const r of fuelProdutoData) {
+      if (hasEmpresa && !matchEmpresa(r.empresa_codigo)) continue
+      const mes = r.data.substring(0, 7)
+      const nome = r.produto_nome ?? `Produto ${r.produto_codigo}`
+      fuelNamesSet.add(nome)
+      const m = fpByMonth.get(mes) ?? new Map<string, { litros: number; fat: number; custo: number }>()
+      const cur = m.get(nome) ?? { litros: 0, fat: 0, custo: 0 }
+      cur.litros += r.litros; cur.fat += r.faturamento; cur.custo += r.custo
+      m.set(nome, cur)
+      fpByMonth.set(mes, m)
+    }
+
+    // Agregado (apuracao_diaria) por mês — fallback p/ meses sem quebra.
+    const aggByMonth = new Map<string, { litros: number; fat: number }>()
+    for (const d of evolutionDaily) {
+      if (hasEmpresa && !matchEmpresa(d.empresa_codigo)) continue
+      const mes = d.data.substring(0, 7)
+      const prev = aggByMonth.get(mes) ?? { litros: 0, fat: 0 }
+      aggByMonth.set(mes, { litros: prev.litros + (d.fuel_litros ?? 0), fat: prev.fat + (d.fuel_faturamento ?? 0) })
+    }
+
+    const allMonths = Array.from(new Set([...fpByMonth.keys(), ...aggByMonth.keys()])).sort((a, b) => a.localeCompare(b))
+    const lbLitroMonthly: LbLitroMonthly[] = allMonths.map((mes) => {
+      const fp = fpByMonth.get(mes)
+      if (fp) {
+        let litros = 0, fat = 0, custo = 0
+        for (const v of fp.values()) { litros += v.litros; fat += v.fat; custo += v.custo }
+        return makeMonthly(mes, { litros, fat, custo, semCusto: custo <= 0 })
+      }
+      const a = aggByMonth.get(mes) ?? { litros: 0, fat: 0 }
+      return makeMonthly(mes, { litros: a.litros, fat: a.fat, custo: 0, semCusto: true })
+    })
+
+    // Séries por combustível (só meses com quebra por produto apurada).
+    const monthlyFuels = Array.from(fuelNamesSet).sort((a, b) => a.localeCompare(b))
+    const lbLitroMonthlyByFuel: Record<string, LbLitroMonthly[]> = {}
+    for (const nome of monthlyFuels) {
+      const serie: LbLitroMonthly[] = []
+      for (const mes of allMonths) {
+        const v = fpByMonth.get(mes)?.get(nome)
+        if (!v) continue
+        serie.push(makeMonthly(mes, { litros: v.litros, fat: v.fat, custo: v.custo, semCusto: v.custo <= 0 }))
+      }
+      lbLitroMonthlyByFuel[nome] = serie
+    }
 
     // L.B./Litro e margem global SÓ sobre o volume com custo apurado — combustível
     // sem custo (ex.: etanol sem entrada no LMC) entraria com margem ~100% e
@@ -717,6 +748,8 @@ const useAbastecimentosAnalytics = () => {
       daily: lbLitroDaily,
       byProduct: lbLitroByProduct,
       monthly: lbLitroMonthly,
+      monthlyByFuel: lbLitroMonthlyByFuel,
+      monthlyFuels,
       prevMonthGlobal: prevCoveredSum.litros > 0 ? prevCoveredSum.lucroBruto / prevCoveredSum.litros : 0,
       cmpLucro: prevCoveredSum.lucroBruto,
       cmpMargem: prevCoveredSum.faturamento > 0 ? (prevCoveredSum.lucroBruto / prevCoveredSum.faturamento) * 100 : 0,
@@ -758,7 +791,7 @@ const useAbastecimentosAnalytics = () => {
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, fuelProdutoData, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

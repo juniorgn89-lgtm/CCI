@@ -12,6 +12,8 @@ import {
   fetchApuracaoStatusByMonth,
   upsertApuracaoDiaria,
   computeApuracaoRows,
+  computeFuelProdutoRows,
+  upsertApuracaoFuelDiaria,
   upsertAbastecimentosCache,
   abastecimentoToCacheRow,
   buildCostMapFromLmc,
@@ -304,6 +306,18 @@ const Apuracao = () => {
         produtos,
       })
 
+      // Quebra por produto (custo CMV+LMC) — alimenta o gráfico "Últimos 12
+      // meses" com custo/margem e filtro por combustível.
+      const fuelRows = computeFuelProdutoRows({
+        redeId: rede.id,
+        dataInicial: start,
+        dataFinal: end,
+        abastecimentos: abast,
+        lmc,
+        produtos,
+        vendaItens,
+      })
+
       // Grava em paralelo as 4 tabelas do cache. CostMap (montado do LMC, com
       // aliases de produto) entra em cada abast row pra que o front dispense
       // LMC live na leitura — mesma resolução de custo da apuração diária.
@@ -316,6 +330,7 @@ const Apuracao = () => {
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
+        upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
         upsertAbastecimentosCache(abastRows),
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),

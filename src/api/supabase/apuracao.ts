@@ -451,6 +451,166 @@ export const cacheRowToAbastecimento = (r: AbastecimentoCacheRow): Abastecimento
 })
 
 // ═══════════════════════════════════════════════════════════════════════
+// Cache de COMBUSTÍVEL POR PRODUTO (apuracao_fuel_diaria)
+// 1 row por (rede, empresa, dia, produto). Dá ao gráfico "Últimos 12 meses"
+// a quebra por combustível + o CUSTO (que o apuracao_diaria agregado não tem
+// confiável). Custo resolvido igual ao front: CMV da venda > LMC (alias).
+// Veja docs/supabase-apuracao.sql.
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface ApuracaoFuelProdutoRow {
+  rede_id: string
+  empresa_codigo: number
+  data: string // yyyy-MM-dd
+  produto_codigo: number
+  produto_nome: string | null
+  litros: number
+  faturamento: number
+  custo: number
+  lucro_bruto: number
+  abast_count: number
+  computed_at: string
+  computed_by: string | null
+}
+
+export type ApuracaoFuelProdutoUpsert = Omit<ApuracaoFuelProdutoRow, 'computed_at' | 'computed_by'>
+
+/** Lê o cache de combustível por produto do período (RLS restringe à rede). */
+export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<ApuracaoFuelProdutoRow[]> => {
+  if (!supabase) return []
+  let query = supabase
+    .from('apuracao_fuel_diaria')
+    .select('*')
+    .gte('data', params.dataInicial)
+    .lte('data', params.dataFinal)
+  if (params.empresaCodigos.length > 0) {
+    query = query.in('empresa_codigo', params.empresaCodigos)
+  }
+  // Pode passar de 1000 rows (empresas × dias × produtos) — pagina manualmente.
+  const pageSize = 1000
+  let from = 0
+  const all: ApuracaoFuelProdutoRow[] = []
+  for (;;) {
+    const { data, error } = await query.range(from, from + pageSize - 1)
+    if (error) {
+      console.warn('[apuracao] fuel fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoFuelProdutoRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
+/** UPSERT em lote do cache de combustível por produto. */
+export const upsertApuracaoFuelDiaria = async (
+  rows: ApuracaoFuelProdutoUpsert[],
+  computedBy?: string,
+): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const now = new Date().toISOString()
+  const payload = rows.map((r) => ({
+    ...r,
+    computed_at: now,
+    ...(computedBy ? { computed_by: computedBy } : {}),
+  }))
+  const { error } = await supabase
+    .from('apuracao_fuel_diaria')
+    .upsert(payload, { onConflict: 'rede_id,empresa_codigo,data,produto_codigo' })
+  if (error) {
+    console.warn('[apuracao] fuel upsert error:', error.message)
+  }
+}
+
+/**
+ * CMV (custo médio por litro) por produto, alias-expandido, a partir dos itens
+ * de venda — MESMA fonte/lógica do useFuelVendaCost (que o BI usa). Indexado por
+ * produtoCodigo/produtoLmcCodigo/codigo pra casar com o código do abastecimento.
+ */
+const buildCmvMapFromVendaItens = (
+  vendaItens: VendaItem[],
+  produtos?: Produto[],
+): Map<number, number> => {
+  const aliasMap = produtos && produtos.length > 0 ? buildAliasMap(produtos) : null
+  const agg = new Map<number, { qty: number; custo: number }>()
+  for (const it of vendaItens) {
+    if (it.quantidade <= 0) continue
+    const cur = agg.get(it.produtoCodigo) ?? { qty: 0, custo: 0 }
+    cur.qty += it.quantidade
+    cur.custo += it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+    agg.set(it.produtoCodigo, cur)
+  }
+  const map = new Map<number, number>()
+  for (const [prod, v] of agg) {
+    const custoUnit = v.qty > 0 ? v.custo / v.qty : 0
+    if (custoUnit <= 0) continue
+    const keys = aliasMap?.get(prod) ?? [prod]
+    for (const k of keys) if (!map.has(k)) map.set(k, custoUnit)
+  }
+  return map
+}
+
+interface ComputeFuelProdutoInput {
+  redeId: string
+  dataInicial: string
+  dataFinal: string
+  abastecimentos: Abastecimento[]
+  lmc: LMC[]
+  produtos?: Produto[]
+  /** Itens de venda de combustível — fonte do CMV (preferido sobre o LMC). */
+  vendaItens?: VendaItem[]
+}
+
+/**
+ * Agrega abastecimentos por (empresa, dia, produto) com custo resolvido igual
+ * ao front: CMV da venda primeiro, LMC (alias) como fallback. Faturamento =
+ * Σ valorTotal (bruto) — mesma base do fuel_faturamento agregado, então os
+ * totais por mês batem com o gráfico atual.
+ */
+export const computeFuelProdutoRows = (input: ComputeFuelProdutoInput): ApuracaoFuelProdutoUpsert[] => {
+  const lmcCost = buildCostMapFromLmc(input.lmc, input.produtos)
+  const cmv = buildCmvMapFromVendaItens(input.vendaItens ?? [], input.produtos)
+  const nomePorProduto = new Map<number, string>()
+  for (const p of input.produtos ?? []) {
+    for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
+      if (typeof c === 'number' && c > 0 && !nomePorProduto.has(c)) nomePorProduto.set(c, p.nome)
+    }
+  }
+
+  interface Agg { empresa: number; data: string; produto: number; litros: number; fat: number; custo: number; count: number }
+  const byKey = new Map<string, Agg>()
+  for (const a of input.abastecimentos) {
+    const day = (a.dataFiscal || a.dataHoraAbastecimento?.slice(0, 10) || '').slice(0, 10)
+    if (!day || day < input.dataInicial || day > input.dataFinal) continue
+    const prod = Number(a.codigoProduto)
+    if (prod <= 0) continue
+    const unit = cmv.get(prod) ?? lmcCost.get(`${a.empresaCodigo}-${prod}`) ?? 0
+    const key = `${a.empresaCodigo}|${day}|${prod}`
+    const cur = byKey.get(key) ?? { empresa: a.empresaCodigo, data: day, produto: prod, litros: 0, fat: 0, custo: 0, count: 0 }
+    cur.litros += a.quantidade
+    cur.fat += a.valorTotal
+    cur.custo += unit * a.quantidade
+    cur.count += 1
+    byKey.set(key, cur)
+  }
+
+  return Array.from(byKey.values()).map((v) => ({
+    rede_id: input.redeId,
+    empresa_codigo: v.empresa,
+    data: v.data,
+    produto_codigo: v.produto,
+    produto_nome: nomePorProduto.get(v.produto) ?? null,
+    litros: Number(v.litros.toFixed(3)),
+    faturamento: Number(v.fat.toFixed(2)),
+    custo: Number(v.custo.toFixed(2)),
+    lucro_bruto: Number((v.fat - v.custo).toFixed(2)),
+    abast_count: v.count,
+  }))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Cache de CAIXAS (apuracao_caixas)
 // Alimenta tab "Caixa & Turnos" em /operacao + apuradoPorDia em ResumoOperacao.
 // ═══════════════════════════════════════════════════════════════════════

@@ -204,6 +204,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [selectedFuel, setSelectedFuel] = useState<FuelTypeRow | null>(null)
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
+  const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
   // (% sobre litros totais) calculado no hook.
@@ -423,8 +424,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   }, [rows])
 
   /* ─── Dados pra charts mensais (aba "Últimos 12 meses") ─── */
-  const monthlyChartData = useMemo(
-    () => lbLitroData.monthly.map((m) => ({
+  // Opções do filtro por combustível da aba "Últimos 12 meses" (vem do cache
+  // por produto). Vazio = ainda não há quebra por produto apurada.
+  const mesesFuelOptions = useMemo(
+    () => ['Todos', ...lbLitroData.monthlyFuels],
+    [lbLitroData.monthlyFuels],
+  )
+
+  const monthlyChartData = useMemo(() => {
+    const src = mesesFuelFilter === 'Todos'
+      ? lbLitroData.monthly
+      : (lbLitroData.monthlyByFuel[mesesFuelFilter] ?? [])
+    return src.map((m) => ({
       mes: formatMonth(m.mes),
       litros: m.litros,
       lbPorLitro: m.lbPorLitro,
@@ -433,9 +444,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       margemPct: m.margemPct,
       isCurrentMonth: m.isCurrentMonth,
       semCusto: m.semCusto,
-    })),
-    [lbLitroData.monthly],
-  )
+    }))
+  }, [lbLitroData.monthly, lbLitroData.monthlyByFuel, mesesFuelFilter])
 
   /** Meses sem custo apurado — L.B./margem não plotáveis (gap no gráfico). */
   const mesesSemCusto = useMemo(
@@ -676,18 +686,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="L.B./Litro"
-              value={
-                isLoadingAnalytics
-                  ? '—'
-                  : `${formatCurrency(lbLitroData.global)} · ${margemPctGlobal.toFixed(1).replace('.', ',')}%`
-              }
-              hint="Lucro bruto por litro e % de margem"
+              value={isLoadingAnalytics ? '—' : formatCurrency(lbLitroData.global)}
+              hint="Lucro bruto por litro"
               Icon={TrendingUp}
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingAnalytics}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? `${formatCurrency(projecaoCombustivel.projetadoLBLitro)} · ${projecaoCombustivel.projetadoMargem.toFixed(1).replace('.', ',')}%` : undefined}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
               extra={
                 (lbRanking || lbLitroData.coberturaCustoPct < 99.5) ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
@@ -1029,7 +1035,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       Sem dados mensais.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+                    <div className="p-4">
+                      {lbLitroData.monthlyFuels.length > 0 && (
+                        <div className="mb-4 flex items-center justify-end gap-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Combustível</span>
+                          <select
+                            value={mesesFuelFilter}
+                            onChange={(e) => setMesesFuelFilter(e.target.value)}
+                            className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          >
+                            {mesesFuelOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       {/* Chart 1: Litros (bar) + L.B./Litro (line) */}
                       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1121,6 +1142,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             />
                           </ComposedChart>
                         </ResponsiveContainer>
+                      </div>
                       </div>
                     </div>
                   )

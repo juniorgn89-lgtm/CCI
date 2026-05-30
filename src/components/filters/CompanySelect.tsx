@@ -48,7 +48,7 @@ const CompanySelect = () => {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 w-[200px] justify-between text-[11px] font-normal xl:w-[240px] xl:text-xs"
+          className="h-7 w-[200px] justify-between border-blue-200 bg-blue-50/50 text-[11px] font-normal hover:bg-blue-100/60 dark:border-blue-900/40 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 xl:w-[240px] xl:text-xs"
           disabled={isLoading}
         >
           <span className="flex items-center gap-1.5 truncate">
