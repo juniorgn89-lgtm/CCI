@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Abastecimento, LMC } from '@/api/types/combustivel'
+import type { Produto } from '@/api/types/produto'
 import type { VendaResumo, VendaFormaPagamento, VendaItem } from '@/api/types/venda'
 import type { Caixa } from '@/api/types/financeiro'
 
@@ -178,6 +179,10 @@ interface ComputeRowsInput {
   abastecimentos: Abastecimento[]
   lmc: LMC[]
   vendaResumo: VendaResumo[]
+  /** Catálogo de produtos — usado pra casar custo do LMC por aliases de código
+   *  (produtoCodigo / produtoLmcCodigo / codigo). Sem ele, combustível cujo
+   *  código no abastecimento difere do LMC entra com custo 0 (margem ~100%). */
+  produtos?: Produto[]
 }
 
 /**
@@ -188,19 +193,11 @@ interface ComputeRowsInput {
  * contagem (sem precisar de uma tabela paralela de "mês apurado").
  */
 export const computeApuracaoRows = (input: ComputeRowsInput): ApuracaoDiariaUpsert[] => {
-  // Mapa empresa+produto → preço de custo mais recente.
-  const costMap = new Map<string, number>()
-  const sortedLmc = [...input.lmc].sort(
-    (a, b) => b.dataMovimento.localeCompare(a.dataMovimento)
-  )
-  for (const lmc of sortedLmc) {
-    for (const prodCode of lmc.produtoCodigo) {
-      const key = `${lmc.empresaCodigo}-${prodCode}`
-      if (!costMap.has(key) && lmc.precoCusto > 0) {
-        costMap.set(key, lmc.precoCusto)
-      }
-    }
-  }
+  // Mapa empresa+produto → preço de custo mais recente, alias-expandido pelo
+  // catálogo de produtos (mesma ponte do front em useAbastecimentosAnalytics):
+  // o abastecimento e o LMC às vezes referenciam o combustível por códigos
+  // diferentes; sem ligar, o custo não casa e o litro entra como "sem custo".
+  const costMap = buildCostMapFromLmc(input.lmc, input.produtos)
 
   // Agrega combustível por empresa+dia.
   interface FuelAgg { litros: number; fat: number; custo: number; count: number }
@@ -358,18 +355,46 @@ export const upsertAbastecimentosCache = async (
 }
 
 /**
+ * Ponte entre os códigos do MESMO produto (produtoCodigo / produtoLmcCodigo /
+ * codigo). Espelha o `codeAliases` de useAbastecimentosAnalytics. Cada código
+ * mapeia pra lista de todos os aliases do produto.
+ */
+export const buildAliasMap = (produtos: Produto[]): Map<number, number[]> => {
+  const aliases = new Map<number, number[]>()
+  for (const p of produtos) {
+    const codes = [p.produtoCodigo, p.produtoLmcCodigo, p.codigo].filter(
+      (c): c is number => typeof c === 'number' && c > 0,
+    )
+    const uniq = [...new Set(codes)]
+    for (const c of codes) aliases.set(c, uniq)
+  }
+  return aliases
+}
+
+/**
  * Constrói o mapa empresa+produto → precoCusto mais recente a partir do LMC.
  * Mesmo algoritmo usado em `computeApuracaoRows`, extraído pra reuso pela
  * apuração ao gravar o `preco_custo` em cada row do cache de abast.
+ *
+ * Quando `produtos` é informado, o custo é gravado sob TODOS os aliases do
+ * produto — assim o lookup direto `${emp}-${codigoProduto}` casa mesmo quando o
+ * abastecimento usa um código diferente do LMC (senão margem ~100% falsa).
  */
-export const buildCostMapFromLmc = (lmc: import('@/api/types/combustivel').LMC[]): Map<string, number> => {
+export const buildCostMapFromLmc = (
+  lmc: import('@/api/types/combustivel').LMC[],
+  produtos?: Produto[],
+): Map<string, number> => {
+  const aliasMap = produtos && produtos.length > 0 ? buildAliasMap(produtos) : null
   const costMap = new Map<string, number>()
   const sortedLmc = [...lmc].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
   for (const l of sortedLmc) {
+    if (l.precoCusto <= 0) continue
     for (const prodCode of l.produtoCodigo) {
-      const key = `${l.empresaCodigo}-${prodCode}`
-      if (!costMap.has(key) && l.precoCusto > 0) {
-        costMap.set(key, l.precoCusto)
+      const codes = aliasMap?.get(prodCode) ?? [prodCode]
+      for (const c of codes) {
+        const key = `${l.empresaCodigo}-${c}`
+        // LMC já vem ordenado do mais recente → primeiro a gravar a chave vence.
+        if (!costMap.has(key)) costMap.set(key, l.precoCusto)
       }
     }
   }

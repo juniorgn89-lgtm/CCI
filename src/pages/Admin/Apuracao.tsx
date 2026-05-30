@@ -28,6 +28,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { cn } from '@/lib/utils'
@@ -275,7 +276,7 @@ const Apuracao = () => {
         return all
       }
 
-      const [abast, lmc, resumo, caixas, formasPgto, vendaItens] = await Promise.all([
+      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos] = await Promise.all([
         fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
         fetchAllPages(
           (p) => fetchLmc({
@@ -289,6 +290,7 @@ const Apuracao = () => {
         fetchCaixasAllEmpresas(),
         fetchFormasAllEmpresas(),
         fetchVendaItensAllEmpresas(),
+        fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
       ])
 
       const rows = computeApuracaoRows({
@@ -299,11 +301,13 @@ const Apuracao = () => {
         abastecimentos: abast,
         lmc,
         vendaResumo: resumo,
+        produtos,
       })
 
-      // Grava em paralelo as 4 tabelas do cache. CostMap (montado do LMC)
-      // entra em cada abast row pra que o front dispense LMC live na leitura.
-      const costMap = buildCostMapFromLmc(lmc)
+      // Grava em paralelo as 4 tabelas do cache. CostMap (montado do LMC, com
+      // aliases de produto) entra em cada abast row pra que o front dispense
+      // LMC live na leitura — mesma resolução de custo da apuração diária.
+      const costMap = buildCostMapFromLmc(lmc, produtos)
       const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
       const caixaRows = caixas
         .map((c) => caixaToCacheRow(c, rede.id))

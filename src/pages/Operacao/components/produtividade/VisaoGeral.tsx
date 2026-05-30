@@ -1,32 +1,48 @@
 import { useMemo, useState } from 'react'
-import { Target, Trophy, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Target, Trophy, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { useMetasStore } from '@/store/metas'
+import { SCORE_TOOLTIP, type FrentistaScore } from '@/lib/frentistaScore'
 import type { FrentistaProdRow, PeriodInfo } from '@/pages/Operacao/components/ProdutividadeTab'
 
 interface Props {
   frentistas: FrentistaProdRow[]
   periodInfo: PeriodInfo
+  /** Score 0–100 por frentista (funcionarioCodigo → score). Vazio enquanto o
+   * custo (lucro bruto) ainda carrega. */
+  scores?: Map<number, FrentistaScore>
 }
 
-type SortKey = 'nome' | 'litros' | 'faturamento' | 'gasolina' | 'etanol' | 'diesel' | 'combustivelTotal' | 'variacao' | 'meta' | 'progresso'
+type SortKey =
+  | 'nome'
+  | 'score'
+  | 'litros'
+  | 'automotivo'
+  | 'mixAditivada'
+  | 'abastecimentos'
+  | 'faturamento'
+  | 'lucroBruto'
+  | 'ticketMedio'
+  | 'ticketMedioAutomotivo'
+  | 'variacao'
+  | 'progresso'
 type SortDir = 'asc' | 'desc'
 
-type PrimarySort = 'litros' | 'faturamento' | 'combustivel' | 'progresso'
+type PrimarySort = 'score' | 'litros' | 'faturamento' | 'lucro'
 
 const PRIMARY_OPTIONS: { key: PrimarySort; label: string }[] = [
+  { key: 'score', label: 'Score' },
   { key: 'litros', label: 'Litros' },
   { key: 'faturamento', label: 'Faturamento' },
-  { key: 'combustivel', label: 'Combustível' },
-  { key: 'progresso', label: 'Progresso' },
+  { key: 'lucro', label: 'Lucro bruto' },
 ]
 
 const PRIMARY_TO_SORT_KEY: Record<PrimarySort, SortKey> = {
+  score: 'score',
   litros: 'litros',
   faturamento: 'faturamento',
-  combustivel: 'combustivelTotal',
-  progresso: 'progresso',
+  lucro: 'lucroBruto',
 }
 
 const computeMeta = (
@@ -40,10 +56,13 @@ const computeMeta = (
 // < -90%  → idem, ratio extremo mostra que comparativo não é confiável
 const isOutlierVariation = (pct: number) => pct > 150 || pct < -90
 
-const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
+const scoreBarColor = (s: number) =>
+  s >= 75 ? 'bg-green-500' : s >= 50 ? 'bg-blue-500' : s >= 25 ? 'bg-amber-500' : 'bg-red-500'
+
+const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
   const { manualMode, metas: manualMetas } = useMetasStore()
-  const [primarySort, setPrimarySort] = useState<PrimarySort>('litros')
-  const [sortKey, setSortKey] = useState<SortKey>('litros')
+  const [primarySort, setPrimarySort] = useState<PrimarySort>('score')
+  const [sortKey, setSortKey] = useState<SortKey>('score')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   // Linha destacada — útil pra comparar frentistas ao analisar a tabela
   const [selected, setSelected] = useState<number | null>(null)
@@ -51,15 +70,29 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
     setSelected((curr) => (curr === codigo ? null : codigo))
   }
 
+  const scoresReady = !!scores && scores.size > 0
+
   const enriched = useMemo(
     () =>
       frentistas.map((f) => {
         const meta = computeMeta(f, manualMode, manualMetas)
         const progresso = meta > 0 ? Math.min(1, f.litros / meta) : 0
-        const totalCombustivel = f.litrosGasolina + f.litrosEtanol + f.litrosDiesel
-        return { ...f, meta, progresso, totalCombustivel }
+        const s = scores?.get(f.funcionarioCodigo)
+        return {
+          ...f,
+          meta,
+          progresso,
+          scoreVal: s ? s.score : null,
+          automotivo: s?.automotivo ?? 0,
+          mixAditivadaPct: s?.mixAditivadaPct ?? 0,
+          abastecimentos: s?.abastecimentos ?? f.atendimentos,
+          lucroBruto: s ? s.lucroBruto : null,
+          ticketMedioVal: s?.ticketMedio ?? f.ticketMedio,
+          ticketMedioAutomotivo: s?.ticketMedioAutomotivo ?? 0,
+          coberturaCustoPct: s?.coberturaCustoPct ?? 0,
+        }
       }),
-    [frentistas, manualMode, manualMetas]
+    [frentistas, manualMode, manualMetas, scores]
   )
 
   // Atualizar ordenação primária reflete na chave de ordenação interna
@@ -73,7 +106,6 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
     const arr = [...enriched]
     arr.sort((a, b) => {
       // Ao ordenar por progresso, frentistas sem meta (Novo) sempre ficam no fim
-      // independente de asc/desc — o "0%" deles não compete com a % real dos demais.
       if (sortKey === 'progresso') {
         const aNoMeta = a.meta === 0
         const bNoMeta = b.meta === 0
@@ -87,37 +119,45 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
           av = a.nome
           bv = b.nome
           break
+        case 'score':
+          av = a.scoreVal ?? -Infinity
+          bv = b.scoreVal ?? -Infinity
+          break
         case 'litros':
           av = a.litros
           bv = b.litros
+          break
+        case 'automotivo':
+          av = a.automotivo
+          bv = b.automotivo
+          break
+        case 'mixAditivada':
+          av = a.mixAditivadaPct
+          bv = b.mixAditivadaPct
+          break
+        case 'abastecimentos':
+          av = a.abastecimentos
+          bv = b.abastecimentos
           break
         case 'faturamento':
           av = a.faturamento
           bv = b.faturamento
           break
-        case 'gasolina':
-          av = a.litrosGasolina
-          bv = b.litrosGasolina
+        case 'lucroBruto':
+          av = a.lucroBruto ?? -Infinity
+          bv = b.lucroBruto ?? -Infinity
           break
-        case 'etanol':
-          av = a.litrosEtanol
-          bv = b.litrosEtanol
+        case 'ticketMedio':
+          av = a.ticketMedioVal
+          bv = b.ticketMedioVal
           break
-        case 'diesel':
-          av = a.litrosDiesel
-          bv = b.litrosDiesel
-          break
-        case 'combustivelTotal':
-          av = a.totalCombustivel
-          bv = b.totalCombustivel
+        case 'ticketMedioAutomotivo':
+          av = a.ticketMedioAutomotivo
+          bv = b.ticketMedioAutomotivo
           break
         case 'variacao':
           av = a.varLitrosPct
           bv = b.varLitrosPct
-          break
-        case 'meta':
-          av = a.meta
-          bv = b.meta
           break
         case 'progresso':
           av = a.progresso
@@ -283,11 +323,20 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Comparativo de Frentistas
-            </h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Comparativo de Frentistas
+              </h3>
+              {/* "?" — explica como o score é calculado */}
+              <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label="Como o score é calculado">
+                <HelpCircle className="h-3.5 w-3.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200" />
+                <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
+                  {SCORE_TOOLTIP}
+                </span>
+              </span>
+            </div>
             <p className="mt-0.5 text-xs italic text-gray-400">
-              Meta: superar o volume do mês anterior por frentista
+              Score 0–100 ponderado · comparação de desempenho entre frentistas
             </p>
           </div>
           <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
@@ -311,29 +360,39 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
+              {/* Linha de grupos — agrupa as colunas por tema */}
+              <tr className="bg-gray-100/60 dark:bg-gray-800/60">
+                <th colSpan={3} className="px-4 py-1.5" />
+                <GroupTh label="Operação" colSpan={4} />
+                <GroupTh label="Financeiro" colSpan={2} />
+                <GroupTh label="Eficiência" colSpan={2} />
+                <GroupTh label="Comparativo" colSpan={2} />
+              </tr>
               <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <Th className="w-10">#</Th>
                 <ThSort label="Frentista" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />
-                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} />
-                <ThSort label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('faturamento')} />
-                <ThSort label="Gasolina" k="gasolina" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('gasolina')} />
-                <ThSort label="Etanol" k="etanol" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('etanol')} />
-                <ThSort label="Diesel" k="diesel" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('diesel')} />
-                <ThSort label="vs. Mês Anterior" k="variacao" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('variacao')} />
-                <ThSort label="Meta" k="meta" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('meta')} align="center" width="w-[140px]" />
+                <ThSort label="Score" k="score" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('score')} align="left" width="w-[120px]" />
+                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} groupStart />
+                <ThSort label="Automotivo" k="automotivo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('automotivo')} />
+                <ThSort label="Mix aditiv." k="mixAditivada" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('mixAditivada')} />
+                <ThSort label="Abastec." k="abastecimentos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('abastecimentos')} />
+                <ThSort label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('faturamento')} groupStart />
+                <ThSort label="Lucro bruto" k="lucroBruto" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('lucroBruto')} />
+                <ThSort label="Ticket méd." k="ticketMedio" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedio')} groupStart />
+                <ThSort label="Ticket aut." k="ticketMedioAutomotivo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedioAutomotivo')} />
+                <ThSort label="vs. Mês Ant." k="variacao" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('variacao')} groupStart />
                 <ThSort label="Progresso" k="progresso" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('progresso')} align="left" width="w-[120px]" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-sm text-gray-400">
+                  <td colSpan={13} className="py-8 text-center text-sm text-gray-400">
                     Sem dados de frentistas no período.
                   </td>
                 </tr>
               ) : (
                 sorted.map((f, idx) => {
-                  const metaStatus = f.meta === 0 ? 'na' : f.litros >= f.meta ? 'atingida' : f.litros >= f.meta * 0.7 ? 'parcial' : 'abaixo'
                   const rowSelected = selected === f.funcionarioCodigo
                   return (
                     <tr
@@ -349,13 +408,40 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
                     >
                       <td className="px-4 py-2.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                       <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{f.nome}</td>
-                      <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(f.litros)}</td>
-                      <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.faturamento)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatLiters(f.litrosGasolina)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatLiters(f.litrosEtanol)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatLiters(f.litrosDiesel)}</td>
+                      {/* Score */}
+                      <td className="w-[120px] whitespace-nowrap px-4 py-2.5">
+                        {!scoresReady || f.scoreVal === null ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                              <div
+                                className={cn('h-1.5 rounded-full transition-all', scoreBarColor(f.scoreVal))}
+                                style={{ width: `${Math.min(100, Math.max(0, f.scoreVal))}%` }}
+                              />
+                            </div>
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                              {f.scoreVal.toFixed(0)}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:border-gray-700 dark:text-gray-100">{formatLiters(f.litros)}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatLiters(f.automotivo)}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">
+                        {f.mixAditivadaPct > 0 ? `${f.mixAditivadaPct.toFixed(1).replace('.', ',')}%` : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatNumber(f.abastecimentos)}</td>
+                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{formatCurrency(f.faturamento)}</td>
+                      <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                        {f.lucroBruto === null ? <span className="text-gray-400">—</span> : formatCurrency(f.lucroBruto)}
+                      </td>
+                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-xs tabular-nums text-gray-500 dark:border-gray-700">{formatCurrency(f.ticketMedioVal)}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">
+                        {f.ticketMedioAutomotivo > 0 ? formatCurrency(f.ticketMedioAutomotivo) : '—'}
+                      </td>
                       <td className={cn(
-                        'px-4 py-2.5 text-right text-sm font-medium tabular-nums',
+                        'border-l border-gray-200 px-4 py-2.5 text-right text-sm font-medium tabular-nums dark:border-gray-700',
                         !f.hasPrev || isOutlierVariation(f.varLitrosPct)
                           ? 'text-gray-400'
                           : f.varLitrosPct >= 0
@@ -373,35 +459,6 @@ const VisaoGeral = ({ frentistas, periodInfo }: Props) => {
                         ) : (
                           `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(1)}%`
                         )}
-                      </td>
-                      <td className="w-[140px] whitespace-nowrap px-4 py-2.5 text-center">
-                        <span
-                          className="inline-flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300"
-                          title={
-                            metaStatus === 'atingida'
-                              ? 'Meta atingida — acima do mês anterior'
-                              : metaStatus === 'parcial'
-                              ? `Abaixo do mês anterior — ${((1 - f.progresso) * 100).toFixed(0)}% restante para atingir`
-                              : metaStatus === 'abaixo'
-                              ? 'Significativamente abaixo do mês anterior'
-                              : undefined
-                          }
-                        >
-                          <span
-                            className={cn(
-                              'inline-block h-2 w-2 shrink-0 rounded-full',
-                              metaStatus === 'atingida' && 'bg-green-500',
-                              metaStatus === 'parcial' && 'bg-amber-500',
-                              metaStatus === 'abaixo' && 'bg-red-500',
-                              metaStatus === 'na' && 'bg-gray-300 dark:bg-gray-600',
-                            )}
-                          />
-                          {metaStatus === 'atingida' && 'Atingida'}
-                          {metaStatus === 'parcial' && 'Parcial'}
-                          {metaStatus === 'abaixo' && 'Abaixo'}
-                          {metaStatus === 'na' && 'Sem ref.'}
-                          {f.meta > 0 && <span className="tabular-nums text-gray-500 dark:text-gray-400">{formatNumber(Math.round(f.meta))}L</span>}
-                        </span>
                       </td>
                       <td className="w-[120px] whitespace-nowrap px-4 py-2.5">
                         {f.meta === 0 ? (
@@ -444,6 +501,15 @@ const Th = ({ children, className }: ThProps) => (
   </th>
 )
 
+const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
+  <th
+    colSpan={colSpan}
+    className="border-l border-gray-200 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500"
+  >
+    {label}
+  </th>
+)
+
 interface ThSortProps {
   label: string
   k: SortKey
@@ -452,14 +518,17 @@ interface ThSortProps {
   onClick: () => void
   align?: 'left' | 'right' | 'center'
   width?: string
+  /** Marca o início de um grupo de colunas — desenha um divisor vertical sutil. */
+  groupStart?: boolean
 }
 
-const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', width }: ThSortProps) => {
+const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', width, groupStart }: ThSortProps) => {
   const isActive = sortKey === k
   return (
     <th className={cn(
       'whitespace-nowrap px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400',
       align === 'left' ? 'text-left' : align === 'center' ? 'text-center' : 'text-right',
+      groupStart && 'border-l border-gray-200 dark:border-gray-700',
       width
     )}>
       <button

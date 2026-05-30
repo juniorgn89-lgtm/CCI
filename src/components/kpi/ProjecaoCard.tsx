@@ -75,12 +75,7 @@ const ProjecaoCard = ({
       {loading ? (
         <Skeleton className="mt-2 h-8 w-32 bg-white/20" />
       ) : (
-        <p
-          className={cn(
-            'mt-2 text-2xl font-bold tabular-nums text-white',
-            !isProjetada && 'text-white/50 line-through decoration-white/60',
-          )}
-        >
+        <p className="mt-2 text-2xl font-bold tabular-nums text-white">
           {formatCurrency(projetadoFaturamento)}
         </p>
       )}
@@ -99,12 +94,7 @@ const ProjecaoCard = ({
         <div className="mt-3 border-t border-white/15 pt-2">
           <p className="text-[11px] text-white/70">Lucro bruto estimado</p>
           <div className="flex items-baseline justify-between gap-2">
-            <p
-              className={cn(
-                'text-base font-semibold tabular-nums text-white',
-                !isProjetada && 'text-white/50 line-through decoration-white/60',
-              )}
-            >
+            <p className="text-base font-semibold tabular-nums text-white">
               {formatCurrency(projetadoLucro)}
             </p>
             <p className="text-[11px] tabular-nums text-white/70">

@@ -10,6 +10,7 @@ import Projecoes from '@/pages/Operacao/components/produtividade/Projecoes'
 import Metas from '@/pages/Operacao/components/produtividade/Metas'
 import Destaques from '@/pages/Operacao/components/produtividade/Destaques'
 import type { FrentistaRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { FrentistaScore } from '@/lib/frentistaScore'
 
 /* ── Types compartilhados ───────────────────────────────── */
 
@@ -100,6 +101,9 @@ interface ProdutividadeTabProps {
     topFrentistaNome: string | null
     topFrentistaLitros: number
   }
+  /** Score 0–100 por frentista (funcionarioCodigo → score). Vazio enquanto o
+   * custo (lucro bruto) ainda carrega. */
+  frentistaScores?: Map<number, FrentistaScore>
 }
 
 /* ── Component ──────────────────────────────────────────── */
@@ -111,6 +115,7 @@ const ProdutividadeTab = ({
   abastecimentoRowsPrev,
   isLoading,
   topKpis,
+  frentistaScores,
 }: ProdutividadeTabProps) => {
   const [active, setActive] = useState<SubTab>('visao')
   const { dataInicial, dataFinal } = useFilterStore()
@@ -277,7 +282,7 @@ const ProdutividadeTab = ({
               </div>
             </div>
           )}
-          <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} />
+          <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} scores={frentistaScores} />
         </div>
       )}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}

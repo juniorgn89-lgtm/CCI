@@ -10,6 +10,7 @@ Consome a API REST da Quality Automação usando **exclusivamente GET** (exceç�
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Estrutura de diretórios e organização dos módulos |
 | [CODING-STANDARDS.md](CODING-STANDARDS.md) | Convenções de código, naming e TypeScript |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | Cores, tipografia, componentes e padrões visuais |
+| [TOPBAR.md](TOPBAR.md) | Padrão do cabeçalho consolidado (TopBar + filtros globais) |
 | [API-GUIDELINES.md](API-GUIDELINES.md) | Regra READ-ONLY, client HTTP e padrões de endpoint |
 | [STATE-MANAGEMENT.md](STATE-MANAGEMENT.md) | Zustand (filtros globais) e TanStack Query (data fetching) |
 | [PRD.md](PRD.md) | Product Requirement Document completo |

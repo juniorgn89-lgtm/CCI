@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import useDashboardData from './useDashboardData'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
-import { smoothedProjection } from '@/lib/projection'
+import { linearProjection } from '@/lib/projection'
 
 export interface ProjecaoValues {
   faturamento: number
@@ -101,7 +101,7 @@ const useProjecaoMes = (): ProjecaoMesData => {
       data: p.date,
       value: p.fuelRevenue + p.nonFuelRevenue,
     }))
-    const { projetado: projetadoFat } = smoothedProjection({
+    const { projetado: projetadoFat } = linearProjection({
       realizado: realizado.faturamento,
       dailySeries: dailyFat,
       diasRestantes,

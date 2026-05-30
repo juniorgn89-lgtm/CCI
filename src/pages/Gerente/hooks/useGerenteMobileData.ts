@@ -8,6 +8,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 
 const fmt = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -33,6 +34,8 @@ const prevPeriod = (ini: string, fin: string): { prevIni: string; prevFin: strin
 const useGerenteMobileData = () => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
+  // Custo médio (CMV) + desconto de combustível por produto, via /VENDA_ITEM.
+  const { vendaByProduct: fuelVenda } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const lmcDataInicial = threeMonthsBefore(dataInicial)
 
   const { data: resumoAtual = [], isLoading: isLoadingResumo } = useQuery({
@@ -121,7 +124,7 @@ const useGerenteMobileData = () => {
     const productNameMap = new Map<number, string>()
     for (const p of produtosData ?? []) productNameMap.set(p.produtoCodigo, p.nome)
 
-    // Cost map
+    // Cost map (LMC) — fallback. O custo principal vem do CMV (/VENDA_ITEM).
     const costMap = new Map<string, number>()
     const sortedLmc = [...lmcData].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento))
     for (const lmc of sortedLmc) {
@@ -130,6 +133,13 @@ const useGerenteMobileData = () => {
         if (!costMap.has(key) && lmc.precoCusto > 0) costMap.set(key, lmc.precoCusto)
       }
     }
+    // Custo médio (CMV) por litro do item de venda; cai no LMC se não casar.
+    const fuelCostUnit = (empCod: number, prodCod: number): number => {
+      const v = fuelVenda.get(prodCod)
+      return v && v.custoUnit > 0 ? v.custoUnit : (costMap.get(`${empCod}-${prodCod}`) ?? 0)
+    }
+    // Fator pra converter faturamento BRUTO em LÍQUIDO (1 − taxa de desconto).
+    const fuelNetRate = (prodCod: number): number => 1 - (fuelVenda.get(prodCod)?.descRate ?? 0)
 
     const filteredAbast = hasEmpresa
       ? abastecimentos.filter((a) => empresaCodigos.includes(a.empresaCodigo))
@@ -147,9 +157,9 @@ const useGerenteMobileData = () => {
     for (const a of filteredAbast) {
       const prodCode = Number(a.codigoProduto)
       if (prodCode <= 0) continue
-      const cost = costMap.get(`${a.empresaCodigo}-${prodCode}`) ?? 0
+      const cost = fuelCostUnit(a.empresaCodigo, prodCode)
       fuelLitros += a.quantidade
-      fuelFat += a.valorTotal
+      fuelFat += a.valorTotal * fuelNetRate(prodCode)
       fuelCusto += cost * a.quantidade
     }
     const fuelLB = fuelFat - fuelCusto
@@ -162,12 +172,12 @@ const useGerenteMobileData = () => {
     for (const a of filteredAbast) {
       const prodCode = Number(a.codigoProduto)
       if (prodCode <= 0) continue
-      const cost = costMap.get(`${a.empresaCodigo}-${prodCode}`) ?? 0
+      const cost = fuelCostUnit(a.empresaCodigo, prodCode)
       const prev = prodMap.get(prodCode) ?? { nome: productNameMap.get(prodCode) ?? `Produto ${prodCode}`, litros: 0, fat: 0, custo: 0 }
       prodMap.set(prodCode, {
         nome: prev.nome,
         litros: prev.litros + a.quantidade,
-        fat: prev.fat + a.valorTotal,
+        fat: prev.fat + a.valorTotal * fuelNetRate(prodCode),
         custo: prev.custo + cost * a.quantidade,
       })
     }
@@ -259,7 +269,7 @@ const useGerenteMobileData = () => {
       deltas,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, resumoPrev, abastecimentos, abastPrev, lmcData, empresas, empresaCodigos, funcionariosData, produtosData])
+  }, [resumoAtual, resumoPrev, abastecimentos, abastPrev, lmcData, fuelVenda, empresas, empresaCodigos, funcionariosData, produtosData])
 
   const isLoadingDeltas = isLoadingResumoPrev || isLoadingAbastPrev
 

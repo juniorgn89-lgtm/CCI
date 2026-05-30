@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
-import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
 import { navItems } from '@/components/layout/navConfig'
+import { useFocusMode } from '@/store/focusMode'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
-import CompanySelect from '@/components/filters/CompanySelect'
-import ComparisonSelect from '@/components/filters/ComparisonSelect'
-import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
-import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { showsGlobalFilters } from '@/lib/globalFilters'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 
 interface HeaderProps {
@@ -35,19 +31,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const { pathname } = useLocation()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
-
-  const showDataFilters = showsGlobalFilters(pathname)
-
-  // Mesma lógica do antigo GlobalFilterBar: esconde o seletor de posto quando
-  // o usuário só tem uma empresa permitida (não há o que escolher).
-  const { data: empresasData } = useQuery({
-    queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
-    staleTime: 10 * 60 * 1000,
-    enabled: showDataFilters,
-  })
-  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const showCompanySelect = showDataFilters && empresasPermitidas.length !== 1
+  // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
+  // pra trocar de módulo sem sair do foco.
+  const focusActive = useFocusMode((s) => s.active)
 
   const [lastRefreshLabel, setLastRefreshLabel] = useState('Atualizado agora')
   const [manualRefreshing, setManualRefreshing] = useState(false)
@@ -98,12 +84,17 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
   return (
     <header className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex h-14 items-center justify-between px-4 md:px-6">
+      <div className="flex h-12 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuOpen}
-            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 md:hidden"
-            aria-label="Abrir menu"
+            className={cn(
+              'rounded-md p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
+              // Mobile: sempre. Desktop: só no Modo Foco (sidebar escondida).
+              !focusActive && 'md:hidden',
+            )}
+            title={focusActive ? 'Selecionar módulo (sem sair do foco)' : 'Abrir menu'}
+            aria-label="Abrir menu de módulos"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -124,14 +115,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {showCompanySelect && <CompanySelect />}
-          {/* Filtros de escopo/comparação — escondidos em /inteligencia e nas
-              telas de Admin (nível de rede, não de posto/período). */}
-          {showDataFilters && <DataFilterModeSelect />}
-          {/* Comparativo (vs mês ant. / vs ano ant.). Os KPIs de topo do Dashboard,
-              Combustível, Caixa do Posto e Conveniências honram o modo. Produtividade
-              e os gráficos de evolução seguem fixos em mês anterior. */}
-          {showDataFilters && <ComparisonSelect />}
+          {/* Os filtros de posto/escopo/comparativo agora vivem na TopBar
+              consolidada (sub-bar do AppLayout), junto do período e do título. */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
           <button
             onClick={handleRefresh}

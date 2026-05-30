@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Brain,
   GitCompareArrows,
@@ -10,6 +11,7 @@ import {
   CalendarDays,
   Wallet,
   Sparkles,
+  Radar,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
@@ -19,6 +21,9 @@ import usePostoComparativo from './hooks/usePostoComparativo'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import CompanyPicker from './components/CompanyPicker'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
+import TopBar from '@/components/layout/TopBar'
+import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
+import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 
 // Conteúdo das abas em chunks separados: recharts (Comparação/Previsão) e
 // leaflet (Mapa, ~154 kB) só baixam quando a aba é aberta.
@@ -31,6 +36,8 @@ const SalesForecast = lazy(() => import('./components/SalesForecast'))
 const ControlCenter = lazy(() => import('./components/ControlCenter'))
 const FechamentoConsolidado = lazy(() => import('./components/FechamentoConsolidado'))
 const AssistenteInteligente = lazy(() => import('./components/AssistenteInteligente'))
+const RadarPrecos = lazy(() => import('./components/RadarPrecos'))
+const RadarComparativo = lazy(() => import('./components/RadarComparativo'))
 
 const TabFallback = () => (
   <div className="space-y-4">
@@ -49,13 +56,14 @@ const TabFallback = () => (
   </div>
 )
 
-type TabKey = 'comparativo' | 'comparacao' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle' | 'fechamento'
-type TopTab = 'analise' | 'assistente'
+type TabKey = 'comparativo' | 'comparacao' | 'radarcomp' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle' | 'fechamento'
+type TopTab = 'analise' | 'radar' | 'assistente'
 
 const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
   { key: 'fechamento', label: 'Fechamento', icon: Wallet },
   { key: 'comparacao', label: 'Comparação', icon: GitCompareArrows },
+  { key: 'radarcomp', label: 'Radar de Preços', icon: Radar },
   { key: 'mapa', label: 'Mapa da Rede', icon: Map },
   { key: 'analise', label: 'Análise Inteligente', icon: Lightbulb },
   { key: 'metas', label: 'Metas', icon: Target },
@@ -72,7 +80,17 @@ const singleTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
 ]
 
 const Inteligencia = () => {
-  const [topTab, setTopTab] = useState<TopTab>('analise')
+  // Abre direto no Cadu quando vem com ?tab=assistente (atalho do menu do admin).
+  const [searchParams] = useSearchParams()
+  const [topTab, setTopTab] = useState<TopTab>(
+    searchParams.get('tab') === 'assistente' ? 'assistente' : 'analise',
+  )
+  useEffect(() => {
+    if (searchParams.get('tab') === 'assistente') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTopTab('assistente')
+    }
+  }, [searchParams])
   const [activeTab, setActiveTab] = useState<TabKey>('comparativo')
   const [selectedEmpresas, setSelectedEmpresas] = useState<number[]>([])
 
@@ -105,60 +123,69 @@ const Inteligencia = () => {
   const hasEmpresa = selectedEmpresas.length > 0
   const showSkeleton = useShowSkeleton(isLoading, !!postos)
 
-  const TOP_TABS: { key: TopTab; label: string; icon: typeof Brain; desc: string }[] = [
-    { key: 'analise', label: 'Análise & Comparação', icon: GitCompareArrows, desc: 'KPIs, comparativos, mapa e previsões' },
-    { key: 'assistente', label: 'Assistente IA', icon: Sparkles, desc: 'Copiloto de IA para perguntas em linguagem natural' },
+  const TOP_TABS: { key: TopTab; label: string; short: string; icon: typeof Brain; desc: string }[] = [
+    { key: 'analise', label: 'Análise & Comparação', short: 'Análise', icon: GitCompareArrows, desc: 'KPIs, comparativos, mapa e previsões' },
+    { key: 'radar', label: 'Radar de Preços', short: 'Radar', icon: Radar, desc: 'Guerra de preço — margem, elasticidade e simulação até o fechamento' },
+    { key: 'assistente', label: 'Cadu IA', short: 'Cadu IA', icon: Sparkles, desc: 'Copiloto de IA para perguntas em linguagem natural' },
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-            <Brain className="h-4 w-4 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
+    <div className="space-y-3">
+      {/* MESMA TopBar das demais telas (título à esquerda + nav, filtros à
+          direita). Sticky full-bleed porque a Inteligência não usa a sub-bar
+          global do AppLayout (showsGlobalFilters = false). */}
+      <TopBar
+        className="sticky top-0 z-30 -mx-4 -mt-4 md:-mx-6 md:-mt-5"
+        title={
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Bloco de título idêntico ao <PageHeaderTitle> das outras telas */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+                <Brain className="h-4 w-4 text-white" />
+              </div>
               <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">
                 Inteligência da Rede
               </h1>
               <FocusModeToggle />
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              {topTab === 'assistente'
-                ? 'Copiloto de IA para análises em linguagem natural'
-                : isSingle
-                ? 'Análise temporal e comparativo de desempenho'
-                : 'Análise estratégica e comparação de desempenho entre postos'}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {/* Top-level tabs (Análise & Comparação · Assistente IA) */}
-      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-        {TOP_TABS.map((t) => {
-          const Icon = t.icon
-          const isActive = topTab === t.key
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTopTab(t.key)}
-              className={cn(
-                'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                isActive
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-              )}
-              title={t.desc}
-            >
-              <Icon className={cn('h-4 w-4', isActive && t.key === 'assistente' && 'text-purple-500')} />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+            {/* Nav (labels curtos) */}
+            <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+              {TOP_TABS.map((t) => {
+                const Icon = t.icon
+                const isActive = topTab === t.key
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setTopTab(t.key)}
+                    className={cn(
+                      'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
+                      isActive
+                        ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                    )}
+                    title={t.desc}
+                  >
+                    <Icon className={cn('h-3.5 w-3.5', isActive && t.key === 'assistente' && 'text-purple-500')} />
+                    {t.short}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        }
+        actions={
+          topTab === 'radar'
+            ? <GlobalFilterControls dateSlot={<DateRangeToolbar />} />
+            : undefined
+        }
+      />
+
+      {topTab === 'radar' && (
+        <Suspense fallback={<TabFallback />}>
+          <RadarPrecos />
+        </Suspense>
+      )}
 
       {/* Assistente IA — global, não exige selecionar posto (usa filtro global) */}
       {topTab === 'assistente' && (
@@ -232,6 +259,9 @@ const Inteligencia = () => {
                   )}
                   {activeTab === 'comparacao' && !isSingle && (
                     <PostoComparison postos={postos} networkAvg={networkAvg} />
+                  )}
+                  {activeTab === 'radarcomp' && !isSingle && (
+                    <RadarComparativo postos={postos} networkAvg={networkAvg} />
                   )}
                   {activeTab === 'mapa' && !isSingle && <NetworkMap postos={postos} />}
                   {activeTab === 'fechamento' && <FechamentoConsolidado postos={postos} />}

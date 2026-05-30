@@ -32,7 +32,7 @@ const AssistenteInteligente = () => {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="flex flex-wrap items-center gap-2 text-base font-bold text-gray-900 dark:text-gray-100">
-              Assistente Inteligente
+              Cadu
               <span className="rounded-full border border-gray-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-600 dark:border-gray-600 dark:text-gray-400">
                 Beta
               </span>
@@ -74,7 +74,7 @@ const AssistenteInteligente = () => {
       {/* Conteúdo */}
       <div>
         {sub === 'chat' && <ChatPanel />}
-        {sub === 'historico' && <HistoricoPanel />}
+        {sub === 'historico' && <HistoricoPanel onOpen={() => setSub('chat')} />}
         {sub === 'insights' && <InsightsPanel />}
         {sub === 'dashboard' && <DashboardPanel />}
         {sub === 'monitor' && <MonitorPanel />}

@@ -1,10 +1,14 @@
-import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import { Wallet, HandCoins, Scale, ClipboardCheck, ArrowUpRight, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import BarCell from '@/components/tables/BarCell'
+import DiferencaEncerrantes from '@/pages/FechamentoCaixa/components/DiferencaEncerrantes'
+import { useFilterStore } from '@/store/filters'
 import type { PostoData } from '@/pages/Inteligencia/hooks/useNetworkData'
+
+const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
 
 interface FechamentoConsolidadoProps {
   postos: PostoData[]
@@ -69,7 +73,9 @@ const mockFuncionarios: FuncionarioDiferenca[] = [
 ]
 
 const FechamentoConsolidado = ({ postos }: FechamentoConsolidadoProps) => {
-  const navigate = useNavigate()
+  const { dataInicial, dataFinal } = useFilterStore()
+  const [selectedPosto, setSelectedPosto] = useState<PostoFechamento | null>(null)
+  const periodoLabel = `Data Inicial: ${brDate(dataInicial)} · Data Final: ${brDate(dataFinal)}`
 
   const dados = useMemo(() => buildMock(postos), [postos])
 
@@ -162,7 +168,7 @@ const FechamentoConsolidado = ({ postos }: FechamentoConsolidadoProps) => {
             </p>
           </div>
           <span className="text-[11px] text-gray-400 dark:text-gray-500">
-            Clique num posto pra abrir o fechamento detalhado
+            Clique num posto pra ver a diferença de encerrantes
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -183,7 +189,7 @@ const FechamentoConsolidado = ({ postos }: FechamentoConsolidadoProps) => {
               {ranking.map((p) => (
                 <tr
                   key={p.empresaCodigo}
-                  onClick={() => navigate('/fechamento-caixa')}
+                  onClick={() => setSelectedPosto(p)}
                   className="cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-blue-900/20"
                 >
                   <td className="px-4 py-2 text-left font-medium">
@@ -284,6 +290,29 @@ const FechamentoConsolidado = ({ postos }: FechamentoConsolidadoProps) => {
           ))}
         </ul>
       </section>
+
+      {/* Detalhe de encerrantes do posto clicado */}
+      <Dialog open={selectedPosto !== null} onOpenChange={(o) => { if (!o) setSelectedPosto(null) }}>
+        <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Fechamento detalhado — {selectedPosto?.nome ?? ''}</DialogTitle>
+            <DialogDescription>
+              Conferência de encerrante × venda (litros) por combustível no período.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPosto && (
+            <div className="-mx-6 flex-1 overflow-auto px-6">
+              <DiferencaEncerrantes
+                fator={(selectedPosto.empresaCodigo % 7) + 3}
+                empresaNome={selectedPosto.nome}
+                empresaCnpj=""
+                diferencaLt={selectedPosto.encerrantesDif}
+                periodoLabel={periodoLabel}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

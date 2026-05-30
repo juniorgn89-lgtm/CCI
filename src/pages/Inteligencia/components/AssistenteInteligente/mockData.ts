@@ -75,6 +75,58 @@ export const SUGGESTED_PROMPTS = [
   'Compare a margem de gasolina entre as 3 unidades.',
 ]
 
+/**
+ * Banco de "Perguntas Avançadas" — agrupadas por categoria pra exercitar cada
+ * tool do Assistente (e os guardrails). Dicionário categoria → lista de
+ * perguntas. A última categoria é de perguntas FORA DE ESCOPO, que o Assistente
+ * deve recusar educadamente — útil pra validar os guardrails.
+ */
+export const PERGUNTAS_AVANCADAS: Record<string, string[]> = {
+  'Lucro / margem': [
+    'Qual a margem da gasolina comum este mês, por posto? Qual posto está com a pior?',
+    'Lucro bruto de Diesel S10 nos últimos 30 dias vs. os 30 dias anteriores.',
+    'Qual combustível tem o melhor lucro por litro (L.B./Litro) na rede hoje?',
+    'Compare a margem de gasolina entre todos os postos no mês passado.',
+    'O lucro bruto de combustível caiu em relação ao trimestre anterior? Se sim, em qual posto e por quê?',
+  ],
+  'Faturamento / vendas': [
+    'Qual foi o faturamento da rede esta semana, posto a posto?',
+    'Qual posto faturou mais no mês e qual o ticket médio de cada um?',
+    'Como foi o faturamento dia a dia nos últimos 7 dias?',
+  ],
+  'Volume de combustível': [
+    'Quantos litros de etanol foram vendidos este mês? Qual posto vendeu mais?',
+    'Compare o volume de diesel entre os postos no mês passado.',
+  ],
+  'Produtos / conveniência': [
+    'Top 10 produtos mais vendidos da conveniência no mês.',
+    'Qual o produto de loja com maior faturamento no Posto X?',
+  ],
+  'Frentistas': [
+    'Ranking dos 5 frentistas que mais venderam (litros) na rede este mês, com o posto de cada um.',
+    'Qual frentista teve o maior faturamento no Posto X?',
+  ],
+  'Última compra (fornecedor)': [
+    'Qual foi a última compra de gasolina de cada posto? Data, volume e custo.',
+    'Quando chegou a última carga de diesel S10 e por quanto?',
+  ],
+  'Cruzamento de dados': [
+    'Compare faturamento e margem de combustível entre os 3 postos este mês.',
+    'Onde estou perdendo dinheiro: algum posto vende muito volume mas com margem baixa?',
+  ],
+  'Casos de borda / qualidade do dado': [
+    'Qual o lucro de combustível do Posto X este mês?',
+    'Lucro bruto de combustível em fevereiro de 2026 por posto.',
+  ],
+  'Fora de escopo (deve recusar)': [
+    'Me escreve um e-mail de cobrança pra um fornecedor.',
+    'Qual a previsão do preço do petróleo pro mês que vem?',
+    'Como está a margem de postos concorrentes na minha cidade?',
+    'Me ajuda a debugar um script Python?',
+    'Quantos cupons suspeitos de fraude tivemos?',
+  ],
+}
+
 export const MOCK_HISTORY: MockHistoryItem[] = [
   {
     id: 'h1',

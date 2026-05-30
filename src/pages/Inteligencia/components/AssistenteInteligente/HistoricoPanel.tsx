@@ -1,159 +1,127 @@
-import { useEffect, useState } from 'react'
-import { Star, RotateCcw, Trash2, Clock, User, Search, Trash } from 'lucide-react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Clock, Trash2, Search, MessageSquare, Loader2, ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MOCK_HISTORY, type MockHistoryItem } from './mockData'
+import { useTenantStore } from '@/store/tenant'
+import { useAuthStore } from '@/store/auth'
+import { listCaduConversas, deleteCaduConversa, type CaduConversaRow } from '@/api/supabase/caduConversas'
+import { useCaduChat } from './caduChatStore'
 
 const formatRel = (iso: string) => {
   const d = new Date(iso)
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const HistoricoPanel = () => {
-  const [items, setItems] = useState<MockHistoryItem[]>(MOCK_HISTORY)
+interface HistoricoPanelProps {
+  /** Abre a conversa no Chat (troca pra aba Chat). */
+  onOpen: () => void
+}
+
+const HistoricoPanel = ({ onOpen }: HistoricoPanelProps) => {
+  const redeId = useTenantStore((s) => s.rede?.id ?? null)
+  const userId = useAuthStore((s) => s.user?.id ?? null)
+  const qc = useQueryClient()
   const [query, setQuery] = useState('')
-  const [onlyFav, setOnlyFav] = useState(false)
-  // Confirmação em 2 cliques pro "Limpar todas" — primeiro clique arma; segundo apaga.
-  // Volta ao estado normal sozinho depois de 4s se o usuário não confirmar.
-  const [confirmingClear, setConfirmingClear] = useState(false)
 
-  useEffect(() => {
-    if (!confirmingClear) return
-    const t = setTimeout(() => setConfirmingClear(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirmingClear])
+  const activeId = useCaduChat((s) => s.conversaId)
+  const loadConversa = useCaduChat((s) => s.loadConversa)
 
-  const filtered = items.filter((i) => {
-    if (onlyFav && !i.favorito) return false
-    if (query && !i.question.toLowerCase().includes(query.toLowerCase())) return false
-    return true
+  const { data: conversas = [], isLoading } = useQuery({
+    queryKey: ['cadu-conversas', redeId, userId],
+    queryFn: () => (redeId && userId ? listCaduConversas(redeId, userId) : Promise.resolve([])),
+    enabled: !!redeId && !!userId,
   })
 
-  const toggleFav = (id: string) =>
-    setItems((curr) => curr.map((i) => (i.id === id ? { ...i, favorito: !i.favorito } : i)))
+  const filtered = conversas.filter((c) =>
+    query ? c.titulo.toLowerCase().includes(query.toLowerCase()) : true,
+  )
 
-  const remove = (id: string) => setItems((curr) => curr.filter((i) => i.id !== id))
+  const abrir = (c: CaduConversaRow) => {
+    loadConversa(c.id, c.mensagens ?? [])
+    onOpen()
+  }
 
-  const clearAll = () => {
-    if (!confirmingClear) {
-      setConfirmingClear(true)
-      return
-    }
-    setItems([])
-    setConfirmingClear(false)
+  const excluir = async (id: string) => {
+    await deleteCaduConversa(id)
+    if (useCaduChat.getState().conversaId === id) useCaduChat.getState().newConversa()
+    void qc.invalidateQueries({ queryKey: ['cadu-conversas', redeId, userId] })
   }
 
   return (
     <div className="space-y-3">
-      {/* Filtros */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar nas perguntas…"
-            className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-          />
-        </div>
-        <button
-          onClick={() => setOnlyFav((v) => !v)}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
-            onlyFav
-              ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600/40 dark:bg-amber-900/20 dark:text-amber-300'
-              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
-          )}
-        >
-          <Star className={cn('h-3.5 w-3.5', onlyFav && 'fill-current')} />
-          Favoritos
-        </button>
-        {items.length > 0 && (
-          <button
-            onClick={clearAll}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
-              confirmingClear
-                ? 'border-red-400 bg-red-500 text-white shadow-md shadow-red-500/30 hover:bg-red-600'
-                : 'border-gray-300 bg-white text-gray-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-red-700/40 dark:hover:bg-red-900/20 dark:hover:text-red-300',
-            )}
-            title={confirmingClear ? 'Clique de novo pra confirmar' : 'Apagar todo o histórico'}
-          >
-            <Trash className="h-3.5 w-3.5" />
-            {confirmingClear ? `Confirmar (apagar ${items.length})` : 'Limpar todas'}
-          </button>
-        )}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar conversas…"
+          className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
       </div>
 
-      {/* Lista */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/60">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
-            <tr>
-              <th className="w-10 px-3 py-2"></th>
-              <th className="px-3 py-2 text-left font-medium">Pergunta</th>
-              <th className="px-3 py-2 text-left font-medium">Usuário</th>
-              <th className="px-3 py-2 text-left font-medium">Data / Hora</th>
-              <th className="px-3 py-2 text-right font-medium">Tempo</th>
-              <th className="px-3 py-2 text-right font-medium">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {filtered.map((i) => (
-              <tr key={i.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
-                <td className="px-3 py-2">
-                  <button
-                    onClick={() => toggleFav(i.id)}
-                    className="text-gray-300 transition-colors hover:text-amber-500 dark:text-gray-600 dark:hover:text-amber-400"
-                    title={i.favorito ? 'Desfavoritar' : 'Favoritar'}
-                  >
-                    <Star className={cn('h-4 w-4', i.favorito && 'fill-amber-400 text-amber-400')} />
-                  </button>
-                </td>
-                <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{i.question}</td>
-                <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
-                  <span className="inline-flex items-center gap-1 text-xs">
-                    <User className="h-3 w-3" />
-                    {i.userName}
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-10 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900/60">
+          <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversas…
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-900">
+          <MessageSquare className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {query ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa salva ainda.'}
+          </p>
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            As conversas com o Cadu são salvas automaticamente e aparecem aqui pra você retomar.
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900/60">
+          {filtered.map((c) => {
+            const isActive = c.id === activeId
+            const nMsgs = (c.mensagens ?? []).length
+            return (
+              <li
+                key={c.id}
+                className={cn(
+                  'group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                  isActive && 'bg-blue-50/60 dark:bg-blue-900/20',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => abrir(c)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  title="Abrir conversa"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <MessageSquare className="h-3.5 w-3.5" />
                   </span>
-                </td>
-                <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {formatRel(i.timestamp)}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {c.titulo}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                      <Clock className="h-3 w-3" />
+                      {formatRel(c.updated_at)}
+                      <span className="text-gray-300 dark:text-gray-600">·</span>
+                      {nMsgs} {nMsgs === 1 ? 'mensagem' : 'mensagens'}
+                      {isActive && <span className="text-blue-600 dark:text-blue-400">· aberta</span>}
+                    </span>
                   </span>
-                </td>
-                <td className="px-3 py-2 text-right font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                  {i.durationMs} ms
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <button
-                      className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                      title="Repetir pergunta"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => remove(i.id)}
-                      className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400">
-                  Nenhuma pergunta encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-600" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => excluir(c.id)}
+                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                  title="Excluir conversa"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

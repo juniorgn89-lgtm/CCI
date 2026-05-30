@@ -9,6 +9,7 @@ import {
   Database,
   PanelLeft,
   Check,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -168,6 +169,11 @@ const Sidebar = () => {
   const handleConfiguracoes = () => {
     setMenuOpen(false)
     navigate('/configuracoes')
+  }
+
+  const handleAssistente = () => {
+    setMenuOpen(false)
+    navigate('/inteligencia?tab=assistente')
   }
 
   const handleAdminFrentistas = () => {
@@ -437,6 +443,14 @@ const Sidebar = () => {
 
               {isMaster && (
                 <>
+                  <button
+                    role="menuitem"
+                    onClick={handleAssistente}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <Sparkles className="h-4 w-4 text-gray-500" />
+                    Cadu IA
+                  </button>
                   <button
                     role="menuitem"
                     onClick={handleAdminUsuarios}

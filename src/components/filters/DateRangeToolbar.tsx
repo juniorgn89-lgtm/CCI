@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CalendarRange, Eye } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Eye, Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import MonthRangeSelect from '@/components/filters/MonthRangeSelect'
 import { useFilters } from '@/hooks/useFilters'
@@ -38,10 +38,22 @@ const isAutoPeriod = (dataInicial: string, dataFinal: string): boolean => {
  * Visualizar (que invalida queries e dispara o refetch). Sincroniza com a
  * store global quando ela é alterada por fora (ex: troca de página).
  */
+/** Abre o calendário nativo do input de data (fallback: foca o campo). */
+const openCalendar = (ref: React.RefObject<HTMLInputElement | null>) => {
+  const el = ref.current
+  if (!el) return
+  if (typeof el.showPicker === 'function') {
+    try { el.showPicker(); return } catch { /* sem gesto válido — cai no focus */ }
+  }
+  el.focus()
+}
+
 const DateRangeToolbar = () => {
   const periodIni = useFilterStore((s) => s.dataInicial)
   const periodFim = useFilterStore((s) => s.dataFinal)
   const { setPeriodo } = useFilters()
+  const iniRef = useRef<HTMLInputElement>(null)
+  const fimRef = useRef<HTMLInputElement>(null)
 
   const [draftIni, setDraftIni] = useState(periodIni)
   const [draftFim, setDraftFim] = useState(periodFim)
@@ -63,60 +75,74 @@ const DateRangeToolbar = () => {
   // Azul = período automático; laranja = personalizado. Sempre reflete o draft
   // (o que o usuário está vendo nos inputs), não o que está commitado.
   const auto = isAutoPeriod(draftIni, draftFim)
+  // Datas: largura média. Sem labels empilhados (a barra inteira fica mais baixa)
+  // — o contexto vem do placeholder nativo + tooltip (title). pr-6 abre espaço
+  // pro botão de calendário; esconde o indicador nativo (usamos o nosso).
   const inputClass = cn(
-    'h-7 w-[120px] text-xs transition-colors',
+    'h-7 w-[118px] pr-6 text-xs transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0',
     auto
       ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
       : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
   )
 
   return (
-    <div className="flex flex-wrap items-end gap-2">
-      <CalendarRange className="mb-1.5 h-3.5 w-3.5 self-end text-gray-400" />
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
-          Mês
-        </label>
-        <MonthRangeSelect
-          draftIni={draftIni}
-          draftFim={draftFim}
-          onChange={(ini, fim) => {
-            setDraftIni(ini)
-            setDraftFim(fim)
-          }}
-        />
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
-          Inicial
-        </label>
+    <div className="flex items-center gap-1.5">
+      <MonthRangeSelect
+        draftIni={draftIni}
+        draftFim={draftFim}
+        onChange={(ini, fim) => {
+          setDraftIni(ini)
+          setDraftFim(fim)
+        }}
+      />
+      <div className="relative">
         <Input
+          ref={iniRef}
           type="date"
           value={draftIni}
           onChange={(e) => setDraftIni(e.target.value)}
           className={inputClass}
           aria-label="Data inicial"
+          title="Data inicial"
         />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => openCalendar(iniRef)}
+          aria-label="Abrir calendário (data inicial)"
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+        >
+          <Calendar className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <span className="mb-1.5 self-end text-xs text-gray-400">—</span>
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[9px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
-          Final
-        </label>
+      <span className="text-xs text-gray-400">—</span>
+      <div className="relative">
         <Input
+          ref={fimRef}
           type="date"
           value={draftFim}
           onChange={(e) => setDraftFim(e.target.value)}
           className={inputClass}
           aria-label="Data final"
+          title="Data final"
         />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => openCalendar(fimRef)}
+          aria-label="Abrir calendário (data final)"
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+        >
+          <Calendar className="h-3.5 w-3.5" />
+        </button>
       </div>
       <button
         type="button"
         onClick={handleVisualizar}
         disabled={!dirty}
+        title={dirty ? 'Aplicar o período selecionado' : 'Período já aplicado'}
         className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-all',
+          'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all',
           dirty
             ? 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162a44]'
             : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
@@ -124,12 +150,8 @@ const DateRangeToolbar = () => {
       >
         <Eye className="h-3.5 w-3.5" />
         Visualizar
+        {dirty && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="Alterações não aplicadas" />}
       </button>
-      {dirty && (
-        <span className="self-center text-[11px] text-orange-600 dark:text-orange-400">
-          Alterações não aplicadas
-        </span>
-      )}
     </div>
   )
 }

@@ -6,6 +6,10 @@ interface DiferencaEncerrantesProps {
   fator: number
   empresaNome: string
   empresaCnpj: string
+  /** Diferença total (Lt) a distribuir no 1º produto. Default 0 (encerrante == venda). */
+  diferencaLt?: number
+  /** Texto do período no cabeçalho. Default: intervalo mock. */
+  periodoLabel?: string
 }
 
 interface EncerranteRow {
@@ -22,7 +26,13 @@ const baseRows: EncerranteRow[] = [
   { ref: '000004', produto: 'GASOLINA ADITIVADA', encerrante: 387.36, venda: 387.36 },
 ]
 
-const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEncerrantesProps) => {
+const DiferencaEncerrantes = ({
+  fator,
+  empresaNome,
+  empresaCnpj,
+  diferencaLt = 0,
+  periodoLabel = 'Data Inicial: 19/05/2026 · Data Final: 19/05/2026',
+}: DiferencaEncerrantesProps) => {
   // Linha destacada — útil pra comparar encerrante x venda entre produtos
   const [selected, setSelected] = useState<string | null>(null)
   const toggleSelected = (ref: string) => {
@@ -30,12 +40,14 @@ const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEnce
   }
   const rows = useMemo(
     () =>
-      baseRows.map((r) => {
-        const encerrante = r.encerrante * fator
+      baseRows.map((r, i) => {
         const venda = r.venda * fator
+        // A diferença total (Lt) é aplicada no 1º produto pra bater com o
+        // indicador agregado de quem chama (ex.: ranking da rede).
+        const encerrante = r.encerrante * fator + (i === 0 ? diferencaLt : 0)
         return { ...r, encerrante, venda, diferenca: encerrante - venda }
       }),
-    [fator],
+    [fator, diferencaLt],
   )
 
   return (
@@ -46,7 +58,7 @@ const DiferencaEncerrantes = ({ fator, empresaNome, empresaCnpj }: DiferencaEnce
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Diferença Encerrantes</h2>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-              Data Inicial: 19/05/2026 · Data Final: 19/05/2026
+              {periodoLabel}
             </p>
           </div>
         </div>

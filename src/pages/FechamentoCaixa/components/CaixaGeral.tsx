@@ -1,8 +1,13 @@
 import { useState } from 'react'
+import { CreditCard } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { fmt } from './formatters'
 import GrupoProdutosModal, { type GrupoProduto } from './GrupoProdutosModal'
+import CartaoDetalheModal from './CartaoDetalheModal'
+
+/** Linha de Saídas que abre o detalhamento por bandeira (cartão). */
+const isCartaoLabel = (label: string) => label.toLowerCase().startsWith('cart')
 
 interface GrupoRow {
   grupo: string
@@ -42,6 +47,8 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
   // Linhas destacadas em Entradas / Saídas — útil pra fixar visualmente um item ao comparar
   const [selectedEntrada, setSelectedEntrada] = useState<string | null>(null)
   const [selectedSaida, setSelectedSaida] = useState<string | null>(null)
+  const [cartaoOpen, setCartaoOpen] = useState(false)
+  const cartaoValor = dados.saidas.find((s) => isCartaoLabel(s.label))?.valor ?? 0
   const toggleEntrada = (label: string) => setSelectedEntrada((curr) => (curr === label ? null : label))
   const toggleSaida = (label: string) => setSelectedSaida((curr) => (curr === label ? null : label))
   const produtos = selectedGroup ? (dados.produtosPorGrupo[selectedGroup] ?? []) : []
@@ -173,12 +180,14 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
             <table className="w-full text-sm">
               <tbody>
                 {dados.saidas.map((row) => {
+                  const cartao = isCartaoLabel(row.label)
                   const rowSelected = selectedSaida === row.label
                   return (
                   <tr
                     key={row.label}
-                    onClick={() => toggleSaida(row.label)}
+                    onClick={() => (cartao ? setCartaoOpen(true) : toggleSaida(row.label))}
                     aria-selected={rowSelected}
+                    title={cartao ? 'Ver detalhamento por bandeira' : undefined}
                     className={cn(
                       'cursor-pointer border-b border-gray-100 text-gray-800 transition-colors last:border-b-0 dark:border-gray-800 dark:text-gray-200',
                       rowSelected
@@ -186,7 +195,12 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
                         : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
                     )}
                   >
-                    <td className="px-4 py-2 text-left">{row.label}</td>
+                    <td className="px-4 py-2 text-left">
+                      <span className="inline-flex items-center gap-1.5">
+                        {row.label}
+                        {cartao && <CreditCard className="h-3.5 w-3.5 text-blue-500" />}
+                      </span>
+                    </td>
                     <td className="px-2 py-1.5">
                       <BarCell value={row.valor} max={dados.maxSaida} formatted={fmt(row.valor)} color="green" align="near" />
                     </td>
@@ -208,6 +222,12 @@ const CaixaGeral = ({ dados, metaLine, empresaNome, empresaCnpj }: CaixaGeralPro
         onClose={() => setSelectedGroup(null)}
         grupo={selectedGroup}
         produtos={produtos}
+      />
+
+      <CartaoDetalheModal
+        open={cartaoOpen}
+        onClose={() => setCartaoOpen(false)}
+        total={cartaoValor}
       />
     </div>
   )

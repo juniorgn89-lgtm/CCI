@@ -5,7 +5,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { smoothedProjection, movingAverageDailyRate } from '@/lib/projection'
+import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import useVendasCache, { aggregateItensToVendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -834,32 +834,27 @@ const useConvenienceData = () => {
     // realizado. Compara com o faturamento do mês anterior.
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    let diasRestantes = 0
-    if (dataInicial <= todayISO && todayISO <= dataFinal) {
-      const end = new Date(`${dataFinal}T00:00:00`)
-      const t = new Date(`${todayISO}T00:00:00`)
-      diasRestantes = Math.max(0, Math.round((end.getTime() - t.getTime()) / 86400000))
-    }
-    const projetadoFat = smoothedProjection({
-      realizado: totalFat,
+    // Projeta SEMPRE até o fim do mês (apurados + dias faltantes, hoje incluso
+    // como faltante) — independe do escopo Apurado/Em andamento/Completo.
+    const monthEnd = fimDoMesIso(dataInicial || todayISO)
+    const projFat = projecaoAvancada({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
-      diasRestantes,
       today: todayISO,
-    }).projetado
-    // Lucro bruto projetado — mesma técnica, série diária de margemRs (LB absoluto)
-    const totalLucro = dailyData.reduce((s, d) => s + d.margemRs, 0)
-    const projetadoLucro = smoothedProjection({
-      realizado: totalLucro,
+      dataFinal: monthEnd,
+    })
+    const projLucro = projecaoAvancada({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.margemRs })),
-      diasRestantes,
       today: todayISO,
-    }).projetado
+      dataFinal: monthEnd,
+    })
+    const projetadoFat = projFat.esperado
+    const projetadoLucro = projLucro.esperado
     const projecao: ProjecaoVendas = {
       faturamento: projetadoFat,
       lucroBruto: projetadoLucro,
       comparativo: prevFat,
       variacao: prevFat > 0 ? ((projetadoFat - prevFat) / prevFat) * 100 : 0,
-      isProjetada: diasRestantes > 0,
+      isProjetada: projFat.diasRestantes > 0,
     }
 
     // ── Série diária do gráfico (real + projeção dos dias futuros) ──
@@ -888,6 +883,8 @@ const useConvenienceData = () => {
     return {
       kpis,
       projecao,
+      /** Resultado completo da projeção de FATURAMENTO (cenários/sparkline/etc) pro card executivo. */
+      projecaoFat: projFat,
       dailyData,
       dailyChartData,
       salesByDay,

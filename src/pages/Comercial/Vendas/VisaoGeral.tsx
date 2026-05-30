@@ -14,7 +14,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { smoothedProjection } from '@/lib/projection'
+import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -24,7 +24,7 @@ import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
-import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import ProjecaoExecutiva from './ProjecaoExecutiva'
 
 /* ─── Configuração dos segmentos ─── */
 
@@ -78,9 +78,12 @@ interface KpiCardProps {
   iconColor: string
   cardBg: string
   loading: boolean
+  /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
+   * período é projetável (tem dias futuros). */
+  projecao?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -92,6 +95,12 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
       <Skeleton className="mt-2 h-8 w-32" />
     ) : (
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    )}
+    {projecao && !loading && (
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+        <TrendingUp className="h-3 w-3 shrink-0" />
+        <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
+      </p>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
@@ -113,10 +122,10 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
 
   // ── Fonte 1: Combustível (cache compartilhada com /operacao e /abastecimentos)
   const { kpis: opKpis, isLoading: isLoadingOp } = useOperacaoData()
-  const { fuelTypeData, dailyData: combDaily, projectionMeta } = useAbastecimentosAnalytics()
+  const { fuelTypeData, dailyData: combDaily } = useAbastecimentosAnalytics()
 
   // ── Fonte 2: Conveniência (cache compartilhada com a tab Conveniência)
-  const { kpis: convKpis, projecao: convProjecao, isLoading: isLoadingConv } = useConvenienceData()
+  const { kpis: convKpis, projecao: convProjecao, dailyData: convDaily, isLoading: isLoadingConv } = useConvenienceData()
 
   // ── Fonte 3: Pista — precisa de vendaItens + produtos + grupos pra
   // filtrar produtos PS-. Mesma queryKey da tela /comercial/vendas/pista
@@ -219,25 +228,15 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
   const projecoes = useMemo(() => {
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const dias = projectionMeta?.daysRemaining ?? 0
+    // Projeta SEMPRE até o fim do mês (apurados + dias faltantes, hoje incluso
+    // como faltante) — independe do escopo Apurado/Em andamento/Completo.
+    const monthEnd = fimDoMesIso(dataInicial || todayISO)
 
-    // Combustível — série já vem agregada do useAbastecimentosAnalytics.
-    // dailyData tem faturamento E lucroBruto por dia.
-    const combFat = smoothedProjection({
-      realizado: segmentos.combustivel.faturamento,
-      dailySeries: combDaily.map((d) => ({ data: d.data, value: d.faturamento })),
-      diasRestantes: dias,
-      today: todayISO,
-    }).projetado
-    const combLucro = smoothedProjection({
-      realizado: segmentos.combustivel.lucro,
-      dailySeries: combDaily.map((d) => ({ data: d.data, value: d.lucroBruto })),
-      diasRestantes: dias,
-      today: todayISO,
-    }).projetado
+    // Combustível — série já vem agregada (faturamento E lucroBruto por dia).
+    const comb = projecaoAvancada({ dailySeries: combDaily.map((d) => ({ data: d.data, value: d.faturamento })), today: todayISO, dataFinal: monthEnd })
+    const combL = projecaoAvancada({ dailySeries: combDaily.map((d) => ({ data: d.data, value: d.lucroBruto })), today: todayISO, dataFinal: monthEnd })
 
-    // Pista — agrega vendaItens por dia (filtrando PS-) tanto pra fat
-    // quanto pra lucro bruto (= totalVenda - totalCusto).
+    // Pista — agrega vendaItens por dia (filtrando PS-) pra fat e lucro bruto.
     const pistaFatDaily = new Map<string, number>()
     const pistaLucroDaily = new Map<string, number>()
     if (produtosData && gruposData) {
@@ -255,32 +254,42 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
         }
       }
     }
-    const pistaFat = smoothedProjection({
-      realizado: segmentos.pista.faturamento,
-      dailySeries: Array.from(pistaFatDaily.entries()).map(([data, value]) => ({ data, value })),
-      diasRestantes: dias,
-      today: todayISO,
-    }).projetado
-    const pistaLucro = smoothedProjection({
-      realizado: segmentos.pista.lucro,
-      dailySeries: Array.from(pistaLucroDaily.entries()).map(([data, value]) => ({ data, value })),
-      diasRestantes: dias,
-      today: todayISO,
-    }).projetado
+    const pista = projecaoAvancada({ dailySeries: Array.from(pistaFatDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
+    const pistaL = projecaoAvancada({ dailySeries: Array.from(pistaLucroDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
 
-    // Conveniência — fat e lucro já calculados pelo useConvenienceData.
+    // Conveniência — fat e lucro já projetados até o fim do mês pelo useConvenienceData.
     const convFat = convProjecao?.faturamento ?? 0
     const convLucro = convProjecao?.lucroBruto ?? 0
 
+    // Série diária COMBINADA (comb + pista + conv) → projeção total com
+    // cenários/sparkline/tendência reais do conjunto (card executivo do topo).
+    const fatDaily = new Map<string, number>()
+    const lucroDaily = new Map<string, number>()
+    const addFat = (data: string, v: number) => fatDaily.set(data, (fatDaily.get(data) ?? 0) + v)
+    const addLucro = (data: string, v: number) => lucroDaily.set(data, (lucroDaily.get(data) ?? 0) + v)
+    for (const d of combDaily) { addFat(d.data, d.faturamento); addLucro(d.data, d.lucroBruto) }
+    for (const [data, v] of pistaFatDaily) addFat(data, v)
+    for (const [data, v] of pistaLucroDaily) addLucro(data, v)
+    for (const d of convDaily) { addFat(d.data, d.faturamento); addLucro(d.data, d.margemRs) }
+    const fatTotal = projecaoAvancada({ dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
+    const lucroTotal = projecaoAvancada({ dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
+
+    // Ticket médio projetado da conveniência = faturamento conv projetado ÷
+    // atendimentos (qtdItens) projetados — o ticket é uma média, então projeta
+    // numerador e denominador separadamente.
+    const convQtd = projecaoAvancada({ dailySeries: convDaily.map((d) => ({ data: d.data, value: d.qtdItens })), today: todayISO, dataFinal: monthEnd })
+
     return {
-      combustivel: { faturamento: combFat, lucro: combLucro },
-      pista: { faturamento: pistaFat, lucro: pistaLucro },
+      combustivel: { faturamento: comb.esperado, lucro: combL.esperado },
+      pista: { faturamento: pista.esperado, lucro: pistaL.esperado },
       conveniencia: { faturamento: convFat, lucro: convLucro },
-      totalFaturamento: combFat + pistaFat + convFat,
-      totalLucro: combLucro + pistaLucro + convLucro,
-      isProjetada: dias > 0,
+      fat: fatTotal,
+      projetadoLucroTotal: lucroTotal.esperado,
+      projetadoMargem: fatTotal.esperado > 0 ? (lucroTotal.esperado / fatTotal.esperado) * 100 : 0,
+      projetadoTicket: convQtd.esperado > 0 ? convFat / convQtd.esperado : 0,
+      dataFinalProjecao: monthEnd,
     }
-  }, [segmentos, combDaily, vendaItens, produtosData, gruposData, projectionMeta, convProjecao])
+  }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convProjecao, convDaily])
 
   const isLoading = isLoadingOp || isLoadingConv || isLoadingVendas
 
@@ -350,6 +359,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoading}
+              projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? formatCurrency(projecoes.fat.esperado) : undefined}
               extra={
                 total.faturamento > 0 ? (
                   <>
@@ -391,6 +401,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               iconColor="text-blue-600 dark:text-blue-400"
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={isLoading}
+              projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? formatCurrency(projecoes.projetadoLucroTotal) : undefined}
               extra={
                 total.lucro > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -418,6 +429,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoading}
+              projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? `${projecoes.projetadoMargem.toFixed(1).replace('.', ',')}%` : undefined}
               extra={
                 margemRanking.melhor && margemRanking.pior && margemRanking.melhor.id !== margemRanking.pior.id ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
@@ -452,6 +464,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={isLoading}
+              projecao={projecoes.fat.diasRestantes > 0 && !isLoading && projecoes.projetadoTicket > 0 ? formatCurrency(projecoes.projetadoTicket) : undefined}
               extra={
                 convKpis && convKpis.qtdItens > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -479,13 +492,10 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               }
             />
 
-            <ProjecaoCard
-              realizadoFaturamento={total.faturamento}
-              projetadoFaturamento={projecoes.totalFaturamento}
-              realizadoLucro={total.lucro}
-              projetadoLucro={projecoes.totalLucro}
-              dataFinal={dataFinal}
-              isProjetada={projecoes.isProjetada}
+            <ProjecaoExecutiva
+              fat={projecoes.fat}
+              projetadoLucro={projecoes.projetadoLucroTotal}
+              dataFinal={projecoes.dataFinalProjecao}
               loading={isLoading}
             />
           </div>
@@ -542,23 +552,13 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                           <LineChartIcon className="h-3 w-3" style={{ color: s.cor }} />
                           Projeção faturamento
                         </span>
-                        <span
-                          className={cn(
-                            'font-semibold tabular-nums text-gray-700 dark:text-gray-300',
-                            !projecoes.isProjetada && 'text-gray-400 line-through dark:text-gray-500',
-                          )}
-                        >
+                        <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-300">
                           {formatCurrency(proj.faturamento)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-500 dark:text-gray-400">Projeção lucro</span>
-                        <span
-                          className={cn(
-                            'font-semibold tabular-nums text-gray-700 dark:text-gray-300',
-                            !projecoes.isProjetada && 'text-gray-400 line-through dark:text-gray-500',
-                          )}
-                        >
+                        <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-300">
                           {formatCurrency(proj.lucro)}
                         </span>
                       </div>

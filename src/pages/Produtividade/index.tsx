@@ -8,8 +8,10 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
+import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
+import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
 
@@ -48,6 +50,15 @@ const Produtividade = () => {
   } = useOperacaoData()
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+
+  // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
+  // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
+  // os custos chegarem, sem travar o resto da aba.
+  const { rows: abastComCusto } = useAbastecimentosAnalytics()
+  const frentistaScores = useMemo(
+    () => computeScores(buildScoreInputs(abastComCusto)),
+    [abastComCusto],
+  )
 
   const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
   const ritmoPrev = useMemo(() => ritmoPorHoraAtiva(abastecimentoRowsPrev), [abastecimentoRowsPrev])
@@ -110,6 +121,7 @@ const Produtividade = () => {
               abastecimentoRowsPrev={abastecimentoRowsPrev}
               isLoading={isLoading}
               topKpis={topKpis}
+              frentistaScores={frentistaScores}
             />
           </Suspense>
         )

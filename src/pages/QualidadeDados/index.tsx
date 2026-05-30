@@ -92,6 +92,7 @@ const adaptPrecoSuspeito = (r: AbastecimentoPrecoSuspeito, qi: QualidadeIssue): 
       { label: 'Data', value: formatDate(day) },
       { label: 'Bomba / Bico', value: r.bombaDescricao },
       { label: 'Frentista', value: r.frentistaNome },
+      { label: 'Placa', value: r.placa },
       { label: 'Litros', value: formatLiters(r.litros), numeric: true },
       { label: 'Valor total', value: formatCurrency(r.valorTotal), numeric: true },
     ],
@@ -477,7 +478,7 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
                   {a.produtoNome}
                 </p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  Bico {a.bicoCodigo} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
+                  {a.bombaDescricao} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
                 </p>
               </div>
               <div className="flex shrink-0 items-baseline gap-2">

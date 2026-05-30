@@ -62,6 +62,8 @@ export interface CupomMultiAbast {
     precoVenda: number
     totalVenda: number
     bicoCodigo: number
+    /** Descrição "BOMBA X - Bico Y" resolvida via abastRows; cai pra "Bico {cod}". */
+    bombaDescricao: string
     /** Hora REAL do abastecimento na bomba (de /ABASTECIMENTO via vendaItemCodigo).
      * Usada pra detectar fraude: itens "montados" no mesmo cupom mas com
      * timestamps espalhados ao longo do turno. */
@@ -351,6 +353,9 @@ const useQualidadeDados = (): QualidadeData => {
       date: string,
     ) =>
       `${empresa}|${bico}|${produto}|${qty.toFixed(3)}|${date.slice(0, 10)}`
+    // Bico → descrição da bomba ("BOMBA X - Bico Y"), resolvida pelos abastRows
+    // (que já trazem bombaDescricao). O VendaItem só tem bicoCodigo cru.
+    const bombaByBico = new Map<number, string>()
     for (const r of abastRows) {
       if (r.vendaItemCodigo) {
         abastDataHoraByVendaItem.set(r.vendaItemCodigo, r.dataHora)
@@ -358,6 +363,9 @@ const useQualidadeDados = (): QualidadeData => {
       if (r.dataHora) {
         const k = naturalKey(r.empresaCodigo, r.bicoCodigo, r.produtoCodigo, r.litros, r.dataHora)
         abastDataHoraByNaturalKey.set(k, r.dataHora)
+      }
+      if (r.bicoCodigo && r.bombaDescricao && !bombaByBico.has(r.bicoCodigo)) {
+        bombaByBico.set(r.bicoCodigo, r.bombaDescricao)
       }
     }
 
@@ -399,6 +407,7 @@ const useQualidadeDados = (): QualidadeData => {
           precoVenda: i.precoVenda,
           totalVenda: i.totalVenda,
           bicoCodigo: i.bicoCodigo,
+          bombaDescricao: bombaByBico.get(i.bicoCodigo) ?? `Bico ${i.bicoCodigo}`,
           dataHoraAbastecimento: dataHoraAbast,
         }
       })

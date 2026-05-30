@@ -7,6 +7,7 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
+import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
@@ -20,6 +21,11 @@ const offsetPeriod = (dateStr: string, monthsBack: number): string => {
 export interface AbastecimentoRow {
   codigo: number
   dataHora: string
+  /** Data fiscal (dia do movimento, yyyy-MM-dd) — é por ela que o filtro e os
+   * KPIs operam. Pode diferir do dia de `dataHora` em abastecimentos de
+   * madrugada (posto que fecha o caixa após a meia-noite). Agrupamentos
+   * "por dia" devem usar esta, não `dataHora`. */
+  dataFiscal: string
   empresaNome: string
   empresaCodigo: number
   bombaDescricao: string
@@ -30,7 +36,12 @@ export interface AbastecimentoRow {
   produtoCodigo: number
   litros: number
   valorUnitario: number
+  /** Faturamento LÍQUIDO da linha (bruto − desconto), quando o item de venda
+   * casa; senão é o valorTotal bruto do abastecimento. */
   valorTotal: number
+  /** Desconto (R$) da linha, vindo do item de venda (0 quando não casa). */
+  desconto: number
+  /** Custo unitário — CMV do item de venda quando casa; senão custo do LMC. */
   precoCusto: number
   lucroBruto: number
   margem: number
@@ -94,26 +105,44 @@ export interface LbLitroProduct {
 
 export interface LbLitroMonthly {
   mes: string
-  lbPorLitro: number
+  /** null quando o mês não tem custo apurado (senão margem ~100% falsa). */
+  lbPorLitro: number | null
   litros: number
   faturamento: number
-  lucroBruto: number
-  /** Margem % do mês (lucroBruto / faturamento × 100). */
-  margemPct: number
+  /** null quando o mês não tem custo apurado. */
+  lucroBruto: number | null
+  /** Margem % do mês (lucroBruto / faturamento × 100). null sem custo apurado. */
+  margemPct: number | null
   /** True quando este é o mês corrente (tem projeção no end-of-month) */
   isCurrentMonth: boolean
   /** Lucro bruto realizado até o momento do mês corrente; igual a lucroBruto pra meses fechados */
-  lucroBrutoReal: number
+  lucroBrutoReal: number | null
   /** Lucro bruto adicional que falta pra completar o mês (estimativa). Sempre 0 em meses fechados. */
   lucroBrutoProjetadoExtra: number
+  /** True quando o mês não tem custo apurado — L.B./margem não calculáveis. */
+  semCusto: boolean
 }
 
 export interface LbLitroData {
+  /** L.B./Litro global — calculado SÓ sobre o volume que tem custo apurado
+   * (combustível sem custo entraria com margem ~100% e inflaria o número). */
   global: number
+  /** Margem % global, também só sobre o volume com custo. */
+  margemGlobal: number
+  /** Lucro bruto global (R$), sobre o volume com custo apurado. */
+  lucroGlobal: number
+  /** % dos litros do período que têm custo apurado (cobertura). < 100 = parte
+   * dos litros ficou de fora do cálculo de L.B./margem (custo faltante). */
+  coberturaCustoPct: number
   daily: LbLitroDaily[]
   byProduct: LbLitroProduct[]
   monthly: LbLitroMonthly[]
   prevMonthGlobal: number
+  /** Lucro bruto do período de comparação (mês/ano ant. conforme o toggle),
+   * sobre o volume com custo apurado. Base do delta do card "Lucro bruto". */
+  cmpLucro: number
+  /** Margem % do período de comparação (mesmo volume com custo). */
+  cmpMargem: number
 }
 
 export interface ProjectionMeta {
@@ -130,12 +159,14 @@ export interface ProjectionMeta {
 }
 
 const useAbastecimentosAnalytics = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const empresaCodigoSingle = empresaCodigos.length === 1 ? empresaCodigos[0] : null
 
-  const prevMonthInicial = offsetPeriod(dataInicial, 1)
-  const prevMonthFinal = offsetPeriod(dataFinal, 1)
+  // Período de comparação honra o toggle global (vs mês ant. / vs ano ant.).
+  const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  const prevMonthInicial = offsetPeriod(dataInicial, cmpOffset)
+  const prevMonthFinal = offsetPeriod(dataFinal, cmpOffset)
   const lmcDataInicial = offsetPeriod(dataInicial, 3)
   const evolution12mInicial = offsetPeriod(dataFinal, 11)
   const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01'
@@ -240,6 +271,10 @@ const useAbastecimentosAnalytics = () => {
     enabled: !abastCacheCurrent.isChecking && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
+
+  // Custo médio (CMV) + desconto por produto, do /VENDA_ITEM (mesma fonte do BI).
+  // Substitui o custo do LMC; quando o produto não casa, cai no LMC (fallback).
+  const { vendaByProduct } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
   const { data: produtosData } = useQuery({
@@ -290,6 +325,20 @@ const useAbastecimentosAnalytics = () => {
       productMap.set(p.codigo, p.nome)
     }
 
+    // Ponte entre os códigos do MESMO produto (produtoCodigo / produtoLmcCodigo /
+    // codigo). O abastecimento e o LMC às vezes referenciam o combustível por
+    // códigos diferentes; sem ligar, o custo (ex.: etanol) não casa e o litro
+    // entra como "sem custo", inflando o L.B./margem. Mesma ponte do nome.
+    const codeAliases = new Map<number, number[]>()
+    for (const p of produtosData ?? []) {
+      const codes = [p.produtoCodigo, p.produtoLmcCodigo, p.codigo].filter(
+        (c): c is number => typeof c === 'number' && c > 0,
+      )
+      const uniq = [...new Set(codes)]
+      for (const c of codes) codeAliases.set(c, uniq)
+    }
+    const aliasesOf = (code: number): number[] => codeAliases.get(code) ?? [code]
+
     const bicoProdutoMap = new Map<number, number>()
     const bicoDescMap = new Map<number, string>()
     for (const bico of bicosData ?? []) {
@@ -334,7 +383,32 @@ const useAbastecimentosAnalytics = () => {
         }
       }
     }
-    const getCost = (emp: number, prod: number) => costMap.get(`${emp}-${prod}`) ?? 0
+    // Tenta o código direto e os aliases do mesmo produto — assim o custo do
+    // LMC casa mesmo quando o abastecimento usa um código diferente.
+    const getCost = (emp: number, prod: number): number => {
+      for (const alias of aliasesOf(prod)) {
+        const v = costMap.get(`${emp}-${alias}`)
+        if (typeof v === 'number' && v > 0) return v
+      }
+      return 0
+    }
+
+    // `vendaByProduct` (do useFuelVendaCost) já é alias-expandido (custo médio
+    // CMV + taxa de desconto por produto). Custo unitário: CMV do item de venda;
+    // cai no LMC se o produto não casar.
+    const costOf = (a: { empresaCodigo: number; codigoProduto: number }): number => {
+      const v = vendaByProduct.get(a.codigoProduto)
+      if (v && v.custoUnit > 0) return v.custoUnit
+      return getCost(a.empresaCodigo, a.codigoProduto)
+    }
+    // Desconto da linha (R$) = valor bruto × taxa de desconto do produto.
+    const descOf = (a: { codigoProduto: number; valorTotal: number }): number => {
+      const v = vendaByProduct.get(a.codigoProduto)
+      return v ? a.valorTotal * v.descRate : 0
+    }
+    // Faturamento LÍQUIDO da linha = bruto − desconto (igual ao BI).
+    const netFatOf = (a: { codigoProduto: number; valorTotal: number }): number =>
+      a.valorTotal - descOf(a)
 
     const matchEmpresa = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
     const validProduct = (a: { codigoProduto: number }) => Number(a.codigoProduto) > 0
@@ -362,12 +436,15 @@ const useAbastecimentosAnalytics = () => {
       .filter((a) => !isFuture(a))
 
     const rows: AbastecimentoRow[] = filtered.map((a) => {
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
+      const cost = costOf(a)
       const custoTotal = cost * a.quantidade
-      const lb = a.valorTotal - custoTotal
+      const desconto = descOf(a)
+      const fatLiq = netFatOf(a)
+      const lb = fatLiq - custoTotal
       return {
         codigo: a.codigo,
         dataHora: a.dataHoraAbastecimento,
+        dataFiscal: (a.dataFiscal || a.dataHoraAbastecimento || '').slice(0, 10),
         empresaNome: empresaMap.get(a.empresaCodigo) ?? `Empresa ${a.empresaCodigo}`,
         empresaCodigo: a.empresaCodigo,
         bombaDescricao: bicoDescMap.get(a.codigoBico) ?? `Bico ${a.codigoBico}`,
@@ -378,10 +455,11 @@ const useAbastecimentosAnalytics = () => {
         produtoCodigo: a.codigoProduto,
         litros: a.quantidade,
         valorUnitario: a.valorUnitario,
-        valorTotal: a.valorTotal,
+        valorTotal: fatLiq,
+        desconto,
         precoCusto: cost,
         lucroBruto: lb,
-        margem: a.valorTotal > 0 ? (lb / a.valorTotal) * 100 : 0,
+        margem: fatLiq > 0 ? (lb / fatLiq) * 100 : 0,
         placa: a.placa || '—',
         vendaItemCodigo: a.vendaItemCodigo,
       }
@@ -391,8 +469,8 @@ const useAbastecimentosAnalytics = () => {
       let litros = 0, fat = 0, custo = 0
       for (const a of list) {
         litros += a.quantidade
-        fat += a.valorTotal
-        custo += getCost(a.empresaCodigo, a.codigoProduto) * a.quantidade
+        fat += netFatOf(a)
+        custo += costOf(a) * a.quantidade
       }
       return { litros, faturamento: fat, lucroBruto: fat - custo }
     }
@@ -404,8 +482,8 @@ const useAbastecimentosAnalytics = () => {
     for (const a of filtered) {
       const day = a.dataHoraAbastecimento.split('T')[0]
       const prev = byDay.get(day) ?? { litros: 0, fat: 0, custo: 0, count: 0 }
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
-      byDay.set(day, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade, count: prev.count + 1 })
+      const cost = costOf(a)
+      byDay.set(day, { litros: prev.litros + a.quantidade, fat: prev.fat + netFatOf(a), custo: prev.custo + cost * a.quantidade, count: prev.count + 1 })
     }
     const dailyData: DailyRow[] = Array.from(byDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -428,8 +506,8 @@ const useAbastecimentosAnalytics = () => {
     for (const a of filtered) {
       const nome = getProductName(a.codigoProduto, a.codigoBico)
       const prev = byFuelName.get(nome) ?? { litros: 0, fat: 0, custo: 0, produtoCodigo: a.codigoProduto }
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
-      byFuelName.set(nome, { litros: prev.litros + a.quantidade, fat: prev.fat + a.valorTotal, custo: prev.custo + cost * a.quantidade, produtoCodigo: prev.produtoCodigo })
+      const cost = costOf(a)
+      byFuelName.set(nome, { litros: prev.litros + a.quantidade, fat: prev.fat + netFatOf(a), custo: prev.custo + cost * a.quantidade, produtoCodigo: prev.produtoCodigo })
     }
     const fuelTypeData: FuelTypeRow[] = Array.from(byFuelName.entries())
       .map(([nome, v]) => {
@@ -578,8 +656,26 @@ const useAbastecimentosAnalytics = () => {
     const lbLitroMonthly: LbLitroMonthly[] = Array.from(byMonth.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([mes, v]) => {
-        const lb = v.fat - v.custo
         const isCurrentMonth = mes === currentMonthStr
+        // Sem custo apurado no mês → L.B. = faturamento e margem = 100% (falso).
+        // Nesses meses não dá pra calcular lucro/margem: zera as séries (null) pro
+        // gráfico criar um gap em vez de plotar margem 100%.
+        const semCusto = v.custo <= 0
+        if (semCusto) {
+          return {
+            mes,
+            lbPorLitro: null,
+            litros: v.litros,
+            faturamento: v.fat,
+            lucroBruto: null,
+            margemPct: null,
+            isCurrentMonth,
+            lucroBrutoReal: null,
+            lucroBrutoProjetadoExtra: 0,
+            semCusto,
+          }
+        }
+        const lb = v.fat - v.custo
         let lucroBrutoProjetadoExtra = 0
         let litrosProjetados = v.litros
         let lbPorLitroProjetado = v.litros > 0 ? lb / v.litros : 0
@@ -602,16 +698,28 @@ const useAbastecimentosAnalytics = () => {
           isCurrentMonth,
           lucroBrutoReal: lb,
           lucroBrutoProjetadoExtra,
+          semCusto,
         }
       })
 
-    const prevMonthSum = sumAbast(filteredPrevMonth)
+    // L.B./Litro e margem global SÓ sobre o volume com custo apurado — combustível
+    // sem custo (ex.: etanol sem entrada no LMC) entraria com margem ~100% e
+    // inflaria o número. A cobertura sinaliza quanto ficou de fora.
+    const hasCost = (a: { empresaCodigo: number; codigoProduto: number }) =>
+      costOf(a) > 0
+    const coveredSum = sumAbast(filtered.filter(hasCost))
+    const prevCoveredSum = sumAbast(filteredPrevMonth.filter(hasCost))
     const lbLitroData: LbLitroData = {
-      global: current.litros > 0 ? current.lucroBruto / current.litros : 0,
+      global: coveredSum.litros > 0 ? coveredSum.lucroBruto / coveredSum.litros : 0,
+      margemGlobal: coveredSum.faturamento > 0 ? (coveredSum.lucroBruto / coveredSum.faturamento) * 100 : 0,
+      lucroGlobal: coveredSum.lucroBruto,
+      coberturaCustoPct: current.litros > 0 ? (coveredSum.litros / current.litros) * 100 : 0,
       daily: lbLitroDaily,
       byProduct: lbLitroByProduct,
       monthly: lbLitroMonthly,
-      prevMonthGlobal: prevMonthSum.litros > 0 ? prevMonthSum.lucroBruto / prevMonthSum.litros : 0,
+      prevMonthGlobal: prevCoveredSum.litros > 0 ? prevCoveredSum.lucroBruto / prevCoveredSum.litros : 0,
+      cmpLucro: prevCoveredSum.lucroBruto,
+      cmpMargem: prevCoveredSum.faturamento > 0 ? (prevCoveredSum.lucroBruto / prevCoveredSum.faturamento) * 100 : 0,
     }
 
     const combustiveis = [...new Set(rows.map((r) => r.combustivelNome))].sort()
@@ -620,12 +728,15 @@ const useAbastecimentosAnalytics = () => {
     // erro de digitação no Quality. Reaproveita o mesmo enriquecimento
     // (nomes de empresa/frentista/produto/bico) usado em `rows`.
     const inconsistenciasFuturas: AbastecimentoRow[] = futurosCru.map((a) => {
-      const cost = getCost(a.empresaCodigo, a.codigoProduto)
+      const cost = costOf(a)
       const custoTotal = cost * a.quantidade
-      const lb = a.valorTotal - custoTotal
+      const desconto = descOf(a)
+      const fatLiq = netFatOf(a)
+      const lb = fatLiq - custoTotal
       return {
         codigo: a.codigo,
         dataHora: a.dataHoraAbastecimento || a.dataFiscal || '',
+        dataFiscal: (a.dataFiscal || a.dataHoraAbastecimento || '').slice(0, 10),
         empresaNome: empresaMap.get(a.empresaCodigo) ?? `Empresa ${a.empresaCodigo}`,
         empresaCodigo: a.empresaCodigo,
         bombaDescricao: bicoDescMap.get(a.codigoBico) ?? `Bico ${a.codigoBico}`,
@@ -636,17 +747,18 @@ const useAbastecimentosAnalytics = () => {
         produtoCodigo: a.codigoProduto,
         litros: a.quantidade,
         valorUnitario: a.valorUnitario,
-        valorTotal: a.valorTotal,
+        valorTotal: fatLiq,
+        desconto,
         precoCusto: cost,
         lucroBruto: lb,
-        margem: a.valorTotal > 0 ? (lb / a.valorTotal) * 100 : 0,
+        margem: fatLiq > 0 ? (lb / fatLiq) * 100 : 0,
         placa: a.placa || '—',
         vendaItemCodigo: a.vendaItemCodigo,
       }
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

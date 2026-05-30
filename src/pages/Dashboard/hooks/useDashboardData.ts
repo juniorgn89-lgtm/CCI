@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
+import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
@@ -134,6 +135,9 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   const dataFinal = options.period?.dataFinal ?? filter.dataFinal
 
   const hasEmpresa = empresaCodigos.length > 0
+  // Custo médio (CMV) + desconto de combustível por produto, via /VENDA_ITEM
+  // (mesma fonte do BI). Substitui o custo do LMC no lucro/margem de combustível.
+  const { vendaByProduct: fuelVenda } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const rede = useTenantStore((s) => s.rede)
 
   // LMC lookback: fetch from 3 months before to capture most recent cost data
@@ -351,6 +355,13 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     const getCost = (empresaCod: number, produtoCod: number): number => {
       return costMap.get(`${empresaCod}-${produtoCod}`) ?? 0
     }
+    // Custo médio (CMV) por litro do item de venda; cai no LMC se não casar.
+    const fuelCostUnit = (empresaCod: number, produtoCod: number): number => {
+      const v = fuelVenda.get(produtoCod)
+      return v && v.custoUnit > 0 ? v.custoUnit : getCost(empresaCod, produtoCod)
+    }
+    // Fator pra converter faturamento BRUTO em LÍQUIDO (1 − taxa de desconto).
+    const fuelNetRate = (produtoCod: number): number => 1 - (fuelVenda.get(produtoCod)?.descRate ?? 0)
 
     // ─── Agregados dos períodos comparativos (prev month / prev year) ───
     // v2.5: usa cache do Supabase quando disponível, fallback pra abast+lmc
@@ -407,6 +418,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
             abastecimentos,
             lmc: lmcData,
             vendaResumo: resumoAtual,
+            produtos: produtosData,
           })
         : []
       const unifiedRows = [...cache.rows, ...todayRows]
@@ -652,9 +664,10 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     let fuelCusto = 0
     for (const [key, agg] of fuelByEmpProd.entries()) {
       const [empStr, prodStr] = key.split('-')
-      const cost = getCost(Number(empStr), Number(prodStr))
+      const prodCod = Number(prodStr)
+      const cost = fuelCostUnit(Number(empStr), prodCod)
       fuelLitros += agg.quantidade
-      fuelFaturamento += agg.valorTotal
+      fuelFaturamento += agg.valorTotal * fuelNetRate(prodCod)
       fuelCusto += cost * agg.quantidade
     }
     const fuelLucroBruto = fuelFaturamento - fuelCusto
@@ -754,23 +767,24 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         const [empStr, prodStr] = key.split('-')
         if (Number(empStr) !== empCodigo) continue
         const prodCode = Number(prodStr)
-        const cost = getCost(empCodigo, prodCode)
-        const lb = agg.valorTotal - cost * agg.quantidade
-        const pvPorLitro = agg.quantidade > 0 ? agg.valorTotal / agg.quantidade : 0
+        const cost = fuelCostUnit(empCodigo, prodCode)
+        const fatLiq = agg.valorTotal * fuelNetRate(prodCode)
+        const lb = fatLiq - cost * agg.quantidade
+        const pvPorLitro = agg.quantidade > 0 ? fatLiq / agg.quantidade : 0
 
         products.push({
           produtoCodigo: prodCode,
           nome: productMap.get(prodCode) ?? `Produto ${prodCode}`,
           litros: agg.quantidade,
           lucroBruto: lb,
-          margem: agg.valorTotal > 0 ? (lb / agg.valorTotal) * 100 : 0,
+          margem: fatLiq > 0 ? (lb / fatLiq) * 100 : 0,
           precoVenda: pvPorLitro,
           precoCusto: cost,
           lbPorLitro: agg.quantidade > 0 ? lb / agg.quantidade : 0,
         })
 
         empLitros += agg.quantidade
-        empFat += agg.valorTotal
+        empFat += fatLiq
         empCusto += cost * agg.quantidade
       }
 
@@ -965,7 +979,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
     return { sectorKpis, globalKpi, projectionData, sectorDetails, comparison, quickStats, salesEvolution, frentistaRanking }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, produtosData, empresas, empresaCodigos, funcionariosData, cache.isCacheHit, cache.rows, cachePrevMonth.isCacheHit, cachePrevMonth.rows, cachePrevYear.isCacheHit, cachePrevYear.rows])
+  }, [resumoAtual, resumoPrevMonth, resumoPrevYear, abastecimentos, abastPrevMonth, abastPrevYear, lmcData, fuelVenda, produtosData, empresas, empresaCodigos, funcionariosData, cache.isCacheHit, cache.rows, cachePrevMonth.isCacheHit, cachePrevMonth.rows, cachePrevYear.isCacheHit, cachePrevYear.rows])
 
   // Após carregar live com sucesso em mês fechado elegível, popula o cache em
   // background. Próxima visita lê do Supabase instantâneamente. Idempotente
@@ -993,12 +1007,13 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       abastecimentos,
       lmc: lmcData,
       vendaResumo: resumoAtual,
+      produtos: produtosData,
     })
     upsertApuracaoDiaria(rows).catch(() => { /* não bloqueia UX se falhar */ })
   }, [
     cache.isEligible, cache.isCacheHit, cache.isChecking, cache.split.closedDays,
     rede?.id,
-    abastecimentos, resumoAtual, lmcData,
+    abastecimentos, resumoAtual, lmcData, produtosData,
     isLoadingAbast, isLoadingResumo, isLoadingLmc,
     empresasPermitidasCodes,
   ])

@@ -10,6 +10,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
@@ -319,7 +320,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
               projetadoFaturamento={projecao.faturamento}
               realizadoLucro={kpis?.margem ?? 0}
               projetadoLucro={projecao.lucroBruto}
-              dataFinal={dataFinal}
+              dataFinal={fimDoMesIso(dataFinal)}
               isProjetada={projecao.isProjetada}
               loading={showSkeleton}
               onClick={() => setActiveTab('vendas')}

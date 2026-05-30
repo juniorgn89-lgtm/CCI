@@ -25,6 +25,18 @@ export interface PostoData {
   produtosVendidos: number
   score: number
   performance: 'above' | 'average' | 'below'
+  /** Faturamento de combustível (Σ valorTotal dos abastecimentos). */
+  fatCombustivel: number
+  /** Preço médio de venda por litro (faturamento combustível ÷ litros). */
+  precoLitro: number
+  /** Custo médio por litro — só sobre o volume que tem custo apurado (pode ser 0). */
+  custoLitro: number
+  /** Lucro bruto por litro (preço − custo); 0 quando não há custo apurado. */
+  lbLitro: number
+  /** Margem % por litro; 0 quando não há custo apurado. */
+  margem: number
+  /** % dos litros com custo apurado (cobertura) — sinaliza confiabilidade de custo/margem. */
+  comCustoPct: number
 }
 
 export interface NetworkInsight {
@@ -125,9 +137,18 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
     // Aggregate abastecimentos by empresa
     const litrosByEmpresa = new Map<number, number>()
     const abastByEmpresa = new Map<number, number>()
+    const fatCombByEmpresa = new Map<number, number>()
+    const custoByEmpresa = new Map<number, number>()
+    const litrosComCustoByEmpresa = new Map<number, number>()
     for (const a of abastecimentosData ?? []) {
       litrosByEmpresa.set(a.empresaCodigo, (litrosByEmpresa.get(a.empresaCodigo) ?? 0) + a.quantidade)
       abastByEmpresa.set(a.empresaCodigo, (abastByEmpresa.get(a.empresaCodigo) ?? 0) + 1)
+      fatCombByEmpresa.set(a.empresaCodigo, (fatCombByEmpresa.get(a.empresaCodigo) ?? 0) + a.valorTotal)
+      // Custo só quando apurado (precoCusto presente — vem do cache; ausente no live).
+      if (a.precoCusto != null && a.precoCusto > 0) {
+        custoByEmpresa.set(a.empresaCodigo, (custoByEmpresa.get(a.empresaCodigo) ?? 0) + a.precoCusto * a.quantidade)
+        litrosComCustoByEmpresa.set(a.empresaCodigo, (litrosComCustoByEmpresa.get(a.empresaCodigo) ?? 0) + a.quantidade)
+      }
     }
 
     // Aggregate vendas (notas) by empresa for conversion calculation
@@ -150,6 +171,15 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
       const ticketMedio = abastecimentos > 0 ? receita / abastecimentos : 0
       const conversao = abastecimentos > 0 ? (produtosVendidos / abastecimentos) * 100 : 0
 
+      const fatCombustivel = fatCombByEmpresa.get(codigo) ?? 0
+      const litrosComCusto = litrosComCustoByEmpresa.get(codigo) ?? 0
+      const custoTotal = custoByEmpresa.get(codigo) ?? 0
+      const precoLitro = litros > 0 ? fatCombustivel / litros : 0
+      const custoLitro = litrosComCusto > 0 ? custoTotal / litrosComCusto : 0
+      const lbLitro = custoLitro > 0 ? precoLitro - custoLitro : 0
+      const margem = precoLitro > 0 && custoLitro > 0 ? (lbLitro / precoLitro) * 100 : 0
+      const comCustoPct = litros > 0 ? (litrosComCusto / litros) * 100 : 0
+
       postos.push({
         empresaCodigo: codigo,
         nome: empresa.razao,
@@ -166,6 +196,12 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
         produtosVendidos,
         score: 0,
         performance: 'average',
+        fatCombustivel,
+        precoLitro,
+        custoLitro,
+        lbLitro,
+        margem,
+        comCustoPct,
       })
     }
 
@@ -200,12 +236,16 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
     postos.sort((a, b) => b.score - a.score)
 
     // Network averages
+    const totLitrosRede = postos.reduce((s, p) => s + p.litros, 0)
+    const totFatCombRede = postos.reduce((s, p) => s + p.fatCombustivel, 0)
     const networkAvg = {
       receita: postos.length > 0 ? postos.reduce((s, p) => s + p.receita, 0) / postos.length : 0,
-      litros: postos.length > 0 ? postos.reduce((s, p) => s + p.litros, 0) / postos.length : 0,
+      litros: postos.length > 0 ? totLitrosRede / postos.length : 0,
       abastecimentos: postos.length > 0 ? postos.reduce((s, p) => s + p.abastecimentos, 0) / postos.length : 0,
       ticketMedio: postos.length > 0 ? postos.reduce((s, p) => s + p.ticketMedio, 0) / postos.length : 0,
       conversao: postos.length > 0 ? postos.reduce((s, p) => s + p.conversao, 0) / postos.length : 0,
+      // Preço médio/litro da rede — ponderado pelo volume (não média simples).
+      precoLitro: totLitrosRede > 0 ? totFatCombRede / totLitrosRede : 0,
     }
 
     // Network totals

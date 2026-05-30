@@ -17,9 +17,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
-import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import ProjecaoExecutiva from './ProjecaoExecutiva'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import { smoothedProjection, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
+import { smoothedProjection, projecaoAvancada, fimDoMesIso, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -501,7 +501,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const projecaoPista = useMemo(() => {
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const dias = projectionMeta?.daysRemaining ?? 0
+    // Projeta SEMPRE até o fim do mês (apurados + dias faltantes, hoje incluso).
+    const monthEnd = fimDoMesIso(dataInicial || todayISO)
     const realizadoFat = computed?.kpis.faturamento ?? 0
     const realizadoLucro = computed?.kpis.margem ?? 0
 
@@ -522,26 +523,26 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         }
       }
     }
-    const projetadoFat = smoothedProjection({
-      realizado: realizadoFat,
+    const pf = projecaoAvancada({
       dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
-      diasRestantes: dias,
       today: todayISO,
-    }).projetado
-    const projetadoLucro = smoothedProjection({
-      realizado: realizadoLucro,
+      dataFinal: monthEnd,
+    })
+    const pl = projecaoAvancada({
       dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
-      diasRestantes: dias,
       today: todayISO,
-    }).projetado
+      dataFinal: monthEnd,
+    })
     return {
+      fat: pf,
       realizadoFat,
       realizadoLucro,
-      projetadoFat,
-      projetadoLucro,
-      isProjetada: dias > 0,
+      projetadoFat: pf.esperado,
+      projetadoLucro: pl.esperado,
+      isProjetada: pf.diasRestantes > 0,
+      dataFinalProjecao: monthEnd,
     }
-  }, [computed, vendaItens, produtosData, gruposData, projectionMeta])
+  }, [computed, vendaItens, produtosData, gruposData, dataInicial])
 
   return (
     <div className="space-y-6">
@@ -706,13 +707,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
             />
-            <ProjecaoCard
-              realizadoFaturamento={projecaoPista.realizadoFat}
-              projetadoFaturamento={projecaoPista.projetadoFat}
-              realizadoLucro={projecaoPista.realizadoLucro}
+            <ProjecaoExecutiva
+              fat={projecaoPista.fat}
               projetadoLucro={projecaoPista.projetadoLucro}
-              dataFinal={dataFinal}
-              isProjetada={projecaoPista.isProjetada}
+              dataFinal={projecaoPista.dataFinalProjecao}
               loading={isLoadingVendas}
             />
           </div>

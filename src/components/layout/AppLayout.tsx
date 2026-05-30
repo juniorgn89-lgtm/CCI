@@ -19,6 +19,8 @@ import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 import { showsGlobalFilters } from '@/lib/globalFilters'
+import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
+import TopBar from '@/components/layout/TopBar'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -37,11 +39,15 @@ const AppLayout = () => {
   useAutoSelectSinglePosto()
   useFiltersUrlSync()
   const [mobileOpen, setMobileOpen] = useState(false)
+  // Sombra reforçada na TopBar quando o conteúdo já rolou (feedback de "fixo").
+  const [scrolled, setScrolled] = useState(false)
   const focusActive = useFocusMode((s) => s.active)
   const setFocus = useFocusMode((s) => s.set)
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
+
+  const showFilters = showsGlobalFilters(pathname)
 
   // ESC sai do modo foco (UX padrão pra reading mode).
   useEffect(() => {
@@ -53,18 +59,9 @@ const AppLayout = () => {
     return () => document.removeEventListener('keydown', onKey)
   }, [focusActive, setFocus])
 
-  // Sair do modo foco automaticamente ao mudar de MÓDULO top-level
-  // (Comercial → Operação, etc.). Navegação dentro do mesmo módulo
-  // (ex.: tabs do Comercial · Vendas: Visão Geral → Combustível → Pista)
-  // preserva o foco — não faz sentido derrubar a cada clique de aba.
-  // Fallback: rotas fora do catálogo (admin, configurações) usam o próprio
-  // pathname como id, mantendo o comportamento legado.
-  const currentModuloId = MODULOS.find(
-    (m) => pathname === m.path || pathname.startsWith(m.path + '/'),
-  )?.id ?? pathname
-  useEffect(() => {
-    setFocus(false)
-  }, [currentModuloId, setFocus])
+  // O Modo Foco PERSISTE ao trocar de módulo — o hambúrguer do Header (visível
+  // no foco) deixa o usuário navegar entre módulos sem sair do foco. Pra sair:
+  // ESC, o botão Modo Foco, ou sair do fullscreen nativo.
 
   // Sincroniza o modo foco com o fullscreen nativo do browser.
   // Entrar: requestFullscreen (precisa de gesto do usuário — o click no botão
@@ -139,9 +136,10 @@ const AppLayout = () => {
     return items
   })()
 
-  // Scroll to top on route change
+  // Scroll to top on route change (e reseta a sombra da TopBar).
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
+    setScrolled(false)
   }, [pathname])
 
   return (
@@ -194,21 +192,26 @@ const AppLayout = () => {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
-        {/* Sub-bar — gradient suave do Header pra página com slot do título
-            (esquerda) e slot de ações (direita). Os filtros antes globais
-            (posto, período, datas) foram movidos: posto subiu pro Header,
-            datas viraram filtros locais por tela. */}
-        {showsGlobalFilters(pathname) && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-b from-white to-gray-50 px-4 pb-3 pt-3 dark:border-gray-800 dark:from-gray-900 dark:to-gray-950 md:px-6 md:pb-4 md:pt-4">
-            <div id={PAGE_HEADER_TITLE_SLOT_ID} className="min-w-0 flex-1" />
-            <div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="shrink-0" />
-          </div>
+        {/* TopBar consolidada — título (slot-portal por página) + cluster único de
+            filtros. Fica fixa no topo (irmã do <main> que rola). O período
+            (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
+        {showFilters && (
+          <TopBar
+            scrolled={scrolled}
+            title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
+            actions={
+              <GlobalFilterControls
+                dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
+              />
+            }
+          />
         )}
 
         <main
           ref={mainRef}
           role="main"
-          className="flex-1 overflow-y-auto px-4 pb-4 pt-5 md:px-6 md:pb-6 md:pt-7"
+          onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
+          className="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5"
         >
           <LoadingOverlay />
           <ErrorBoundary key={pathname}>

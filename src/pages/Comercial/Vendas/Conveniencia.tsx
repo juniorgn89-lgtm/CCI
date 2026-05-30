@@ -8,7 +8,8 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { Skeleton } from '@/components/ui/skeleton'
-import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import ProjecaoExecutiva from './ProjecaoExecutiva'
+import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
@@ -114,6 +115,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   const {
     kpis,
     projecao,
+    projecaoFat,
     catalogProducts,
     gruposList,
     groupTable,
@@ -287,13 +289,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               }
             />
 
-            <ProjecaoCard
-              realizadoFaturamento={kpis?.faturamento ?? 0}
-              projetadoFaturamento={projecao.faturamento}
-              realizadoLucro={kpis?.margem ?? 0}
+            <ProjecaoExecutiva
+              fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}
-              dataFinal={dataFinal}
-              isProjetada={projecao.isProjetada}
+              dataFinal={fimDoMesIso(dataInicial)}
               loading={showSkeleton}
             />
           </div>

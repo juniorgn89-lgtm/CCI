@@ -1,20 +1,12 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { Receipt, ChevronDown, FileText, HandCoins, Scale, Fuel, HelpCircle, DollarSign, TrendingUp, LayoutDashboard } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+import { Receipt, FileText, HandCoins, Scale, Fuel, HelpCircle, LayoutDashboard } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import CaixaSelect, { type CaixaOption } from '@/pages/FechamentoCaixa/components/CaixaSelect'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaAtual } from '@/hooks/useEmpresaAtual'
 import { cn } from '@/lib/utils'
@@ -34,6 +26,10 @@ interface Caixa {
   fechamento: string
   /** Caixa fechado pelo operador. Abertos não aparecem no relatório de fechamento. */
   fechado: boolean
+  /** Código do caixa (no Quality) — exibido no seletor (mock). */
+  caixaCodigo: number
+  /** Operador responsável pelo caixa (mock). */
+  funcionario: string
 }
 
 interface GrupoRow {
@@ -48,27 +44,30 @@ interface MovimentacaoRow {
   valor: number
 }
 
+const CONV = 'CRISTIELE MAURICIO ALVES'
+const PISTA = 'JEAN REIS'
+
 const caixas: Caixa[] = [
   // 19/05/2026 — turnos do dia "corrente" ainda abertos (sem fechamento ainda)
-  { id: '20260519-1-conv', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59', fechado: false },
-  { id: '20260519-2-conv', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59', fechado: false },
-  { id: '20260519-1-pista', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55', fechado: false },
-  { id: '20260519-2-pista', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55', fechado: false },
+  { id: '20260519-1-conv', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59', fechado: false, caixaCodigo: 4467072, funcionario: CONV },
+  { id: '20260519-2-conv', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:18', fechamento: '23:59', fechado: false, caixaCodigo: 4467073, funcionario: CONV },
+  { id: '20260519-1-pista', data: '19/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55', fechado: false, caixaCodigo: 4467109, funcionario: PISTA },
+  { id: '20260519-2-pista', data: '19/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:05', fechamento: '23:55', fechado: false, caixaCodigo: 4467110, funcionario: PISTA },
   // 18/05/2026 — todos fechados
-  { id: '20260518-1-conv', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58', fechado: true },
-  { id: '20260518-2-conv', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58', fechado: true },
-  { id: '20260518-1-pista', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55', fechado: true },
-  { id: '20260518-2-pista', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55', fechado: true },
+  { id: '20260518-1-conv', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58', fechado: true, caixaCodigo: 4466820, funcionario: CONV },
+  { id: '20260518-2-conv', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:14', fechamento: '23:58', fechado: true, caixaCodigo: 4466821, funcionario: CONV },
+  { id: '20260518-1-pista', data: '18/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55', fechado: true, caixaCodigo: 4466857, funcionario: PISTA },
+  { id: '20260518-2-pista', data: '18/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:00', fechamento: '23:55', fechado: true, caixaCodigo: 4466858, funcionario: PISTA },
   // 17/05/2026 — todos fechados
-  { id: '20260517-1-conv', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57', fechado: true },
-  { id: '20260517-2-conv', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57', fechado: true },
-  { id: '20260517-1-pista', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58', fechado: true },
-  { id: '20260517-2-pista', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58', fechado: true },
+  { id: '20260517-1-conv', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57', fechado: true, caixaCodigo: 4466570, funcionario: CONV },
+  { id: '20260517-2-conv', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:10', fechamento: '23:57', fechado: true, caixaCodigo: 4466571, funcionario: CONV },
+  { id: '20260517-1-pista', data: '17/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58', fechado: true, caixaCodigo: 4466607, funcionario: PISTA },
+  { id: '20260517-2-pista', data: '17/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:02', fechamento: '23:58', fechado: true, caixaCodigo: 4466608, funcionario: PISTA },
   // 16/05/2026 — todos fechados
-  { id: '20260516-1-conv', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55', fechado: true },
-  { id: '20260516-2-conv', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55', fechado: true },
-  { id: '20260516-1-pista', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50', fechado: true },
-  { id: '20260516-2-pista', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50', fechado: true },
+  { id: '20260516-1-conv', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55', fechado: true, caixaCodigo: 4466320, funcionario: CONV },
+  { id: '20260516-2-conv', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV CONVENIÊNCIA', abertura: '00:20', fechamento: '23:55', fechado: true, caixaCodigo: 4466321, funcionario: CONV },
+  { id: '20260516-1-pista', data: '16/05/2026', turno: '1º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50', fechado: true, caixaCodigo: 4466357, funcionario: PISTA },
+  { id: '20260516-2-pista', data: '16/05/2026', turno: '2º TURNO', pdv: 'PDV PISTA', abertura: '00:08', fechamento: '23:50', fechado: true, caixaCodigo: 4466358, funcionario: PISTA },
 ]
 
 // Mock — fator de escala por caixa. Quando o backend chegar, vira fetch real.
@@ -199,40 +198,25 @@ const baseProdutosPorGrupo: Record<string, Array<{ nome: string; quantidade: num
 }
 
 const formatCaixaFull = (c: Caixa) =>
-  `${c.data} ${c.turno} ${c.pdv} A: ${c.abertura} F: ${c.fechamento}`
-
-const formatCaixaShort = (c: Caixa) =>
-  `${c.data} · ${c.turno} · ${c.pdv}`
+  `${c.data} ${c.turno} Caixa #${c.caixaCodigo} (${c.funcionario})`
 
 // Indicadores-resumo de cada caixa, para preview rápido no dropdown.
 // Valores-base escalados pelo caixaFator (mesma lógica das tabelas).
 const baseResumoCaixa = {
-  vendas: 3920.69,
-  sangria: 8231.0,
+  apurado: 3920.69,
   diferenca: -68.44,
 }
 
 const resumoCaixa = (id: string) => {
   const f = caixaFator[id] ?? 0
   return {
-    vendas: baseResumoCaixa.vendas * f,
-    sangria: baseResumoCaixa.sangria * f,
+    apurado: baseResumoCaixa.apurado * f,
     diferenca: baseResumoCaixa.diferenca * f,
   }
 }
 
-const fmtMoney = (value: number): string => {
-  const abs = Math.abs(value)
-  const sign = value < 0 ? '-' : ''
-  if (abs >= 1000) {
-    const k = (abs / 1000).toFixed(1).replace('.', ',')
-    return `${sign}R$ ${k}K`
-  }
-  return `${sign}R$ ${abs.toFixed(0)}`
-}
-
-// dd/mm/yyyy → 'yyyymmdd' para ordenar
-const dataKey = (data: string) => data.split('/').reverse().join('')
+// dd/mm/yyyy → yyyy-MM-dd (ISO) pra ordenar/agrupar no seletor.
+const toIsoDate = (data: string) => data.split('/').reverse().join('-')
 
 /**
  * Mock — todos os 16 caixas (4 dias × 4 turnos/PDV) disponíveis pra cada
@@ -244,17 +228,6 @@ const dataKey = (data: string) => data.split('/').reverse().join('')
 const caixasPorEmpresa = (empresaCodigo: number | null | undefined): Caixa[] => {
   if (empresaCodigo == null) return []
   return caixas
-}
-
-const agruparCaixasPorData = (lista: Caixa[]): { data: string; lista: Caixa[] }[] => {
-  const map = new Map<string, Caixa[]>()
-  for (const c of lista) {
-    if (!map.has(c.data)) map.set(c.data, [])
-    map.get(c.data)!.push(c)
-  }
-  return [...map.entries()]
-    .sort((a, b) => dataKey(b[0]).localeCompare(dataKey(a[0])))
-    .map(([data, lista]) => ({ data, lista }))
 }
 
 type TabId = 'visao' | 'geral' | 'sangria' | 'sobras' | 'encerrantes'
@@ -296,7 +269,27 @@ const FechamentoCaixa = () => {
     const all = caixasPorEmpresa(empresaCodigos[0])
     return includeAbertos ? all : all.filter((c) => c.fechado)
   }, [empresaCodigos, includeAbertos])
-  const caixasPorData = useMemo(() => agruparCaixasPorData(caixasDoPosto), [caixasDoPosto])
+
+  // Opções normalizadas pro seletor compartilhado (mesmo dropdown da Visão Geral).
+  const caixaOptions: CaixaOption[] = useMemo(
+    () =>
+      caixasDoPosto.map((c) => {
+        const r = resumoCaixa(c.id)
+        return {
+          key: c.id,
+          dataIso: toIsoDate(c.data),
+          dataLabel: c.data,
+          turno: c.turno,
+          turnoCodigo: c.turno.startsWith('2') ? 2 : 1,
+          caixaLabel: `Caixa #${c.caixaCodigo}`,
+          subLabel: `${c.funcionario} · A: ${c.abertura} F: ${c.fechamento}`,
+          fechado: c.fechado,
+          apurado: r.apurado,
+          diferenca: r.diferenca,
+        }
+      }),
+    [caixasDoPosto],
+  )
 
   // Quando desliga "incluir abertos", deseleciona caixas abertos.
   // Padrão "store info from previous renders".
@@ -317,22 +310,7 @@ const FechamentoCaixa = () => {
   }
 
   const selectedCaixas = caixasDoPosto.filter((c) => selectedIds.includes(c.id))
-  const allSelected = caixasDoPosto.length > 0 && selectedIds.length === caixasDoPosto.length
   const noneSelected = selectedIds.length === 0
-
-  const toggleCaixa = (id: string) =>
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-
-  const selectAll = () => setSelectedIds(caixasDoPosto.map((c) => c.id))
-  const clearAll = () => setSelectedIds([])
-
-  const triggerLabel = noneSelected
-    ? 'Selecione um caixa'
-    : allSelected
-      ? `Todos os caixas (${caixasDoPosto.length})`
-      : selectedIds.length === 1
-        ? formatCaixaShort(selectedCaixas[0])
-        : `${selectedIds.length} caixas selecionados`
 
   const metaLine = noneSelected
     ? 'Nenhum caixa selecionado'
@@ -463,149 +441,27 @@ const FechamentoCaixa = () => {
           </div>
 
           {activeTab !== 'visao' && (
-          <>
-          {/* Filtro de caixas */}
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Caixas
-            </label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'inline-flex h-9 min-w-[280px] items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    'dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800',
-                  )}
+            <CaixaSelect
+              options={caixaOptions}
+              selectedKeys={selectedIds}
+              onChange={setSelectedIds}
+              includeAbertos={includeAbertos}
+              onIncludeAbertosChange={setIncludeAbertos}
+              rightSlot={
+                <span
+                  className="group relative inline-flex cursor-help"
+                  tabIndex={0}
+                  aria-label="Por que alguns caixas não aparecem aqui?"
                 >
-                  <span className="truncate">{triggerLabel}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-[70vh] w-[340px] overflow-y-auto">
-                <DropdownMenuLabel className="flex items-center justify-between gap-3 text-xs">
-                  <span>Selecionar caixas</span>
-                  <div className="flex items-center gap-2 text-[11px] font-normal">
-                    <button
-                      type="button"
-                      onClick={selectAll}
-                      className="text-blue-600 hover:underline dark:text-blue-400"
-                    >
-                      Todos
-                    </button>
-                    <span className="text-gray-300 dark:text-gray-600">|</span>
-                    <button
-                      type="button"
-                      onClick={clearAll}
-                      className="text-gray-500 hover:underline dark:text-gray-400"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {caixasPorData.map(({ data, lista }, gi) => {
-                  const allDaySelected = lista.every((c) => selectedIds.includes(c.id))
-                  const toggleDay = () => {
-                    const dayIds = lista.map((c) => c.id)
-                    setSelectedIds((prev) =>
-                      allDaySelected
-                        ? prev.filter((id) => !dayIds.includes(id))
-                        : [...new Set([...prev, ...dayIds])],
-                    )
-                  }
-                  return (
-                    <div key={data} className={cn(gi > 0 && 'mt-1 border-t border-gray-100 pt-1 dark:border-gray-800')}>
-                      <div className="flex items-center justify-between px-2 py-1.5">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                          {data}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={toggleDay}
-                          className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
-                        >
-                          {allDaySelected ? 'Desmarcar dia' : 'Selecionar dia'}
-                        </button>
-                      </div>
-                      {lista.map((c) => {
-                        const r = resumoCaixa(c.id)
-                        return (
-                          <DropdownMenuCheckboxItem
-                            key={c.id}
-                            checked={selectedIds.includes(c.id)}
-                            onCheckedChange={() => toggleCaixa(c.id)}
-                            onSelect={(e) => e.preventDefault()}
-                            className={cn(
-                              'text-xs',
-                              !c.fechado && 'border-l-2 border-amber-400 bg-amber-50/40 dark:border-amber-500/70 dark:bg-amber-900/10',
-                            )}
-                          >
-                            <div className="flex w-full flex-col gap-1">
-                              <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
-                                <span>{c.turno} · {c.pdv}</span>
-                                {!c.fechado && (
-                                  <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                    Em aberto
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                A: {c.abertura} F: {c.fechamento}
-                              </span>
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                  <span className="opacity-70">Vendas</span>
-                                  <span className="tabular-nums">{fmtMoney(r.vendas)}</span>
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                  <span className="opacity-70">Sangria</span>
-                                  <span className="tabular-nums">{fmtMoney(r.sangria)}</span>
-                                </span>
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                    r.diferenca < 0
-                                      ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-                                  )}
-                                >
-                                  <span className="opacity-70">Dif.</span>
-                                  <span className="tabular-nums">{fmtMoney(r.diferenca)}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </DropdownMenuCheckboxItem>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-              <input
-                type="checkbox"
-                checked={includeAbertos}
-                onChange={(e) => setIncludeAbertos(e.target.checked)}
-                className="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
-              />
-              Incluir caixas abertos
-            </label>
-            <span
-              className="group relative inline-flex cursor-help"
-              tabIndex={0}
-              aria-label="Por que alguns caixas não aparecem aqui?"
-            >
-              <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-              <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 w-72 -translate-y-1/2 rounded-md bg-gray-900 px-3 py-2 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-gray-700">
-                Por padrão, só <strong>caixas fechados</strong> aparecem aqui. Turnos ainda
-                abertos (em andamento) só entram no relatório depois que o operador encerra o caixa.
-                Marque "Incluir abertos" pra ver os dois tipos.
-              </span>
-            </span>
-          </div>
-          </>
+                  <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                  <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 w-72 -translate-y-1/2 rounded-md bg-gray-900 px-3 py-2 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-gray-700">
+                    Por padrão, só <strong>caixas fechados</strong> aparecem aqui. Turnos ainda
+                    abertos (em andamento) só entram no relatório depois que o operador encerra o caixa.
+                    Marque "Incluir abertos" pra ver os dois tipos.
+                  </span>
+                </span>
+              }
+            />
           )}
 
           {/* Tab content */}

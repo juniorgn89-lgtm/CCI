@@ -1,22 +1,15 @@
 import { useMemo, useState } from 'react'
 import {
-  Receipt, ChevronDown, Banknote, CreditCard, Smartphone, Wallet,
+  Receipt, Banknote, CreditCard, Smartphone, Wallet,
   DollarSign, Scale, TrendingUp, Users, AlertTriangle,
 } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import CaixaSelect, { type CaixaOption } from './CaixaSelect'
 
 /* ─── Helpers ──────────────────────────────────────────── */
 
@@ -94,23 +87,28 @@ const VisaoGeral = () => {
       })
   }, [turnoRows, includeAbertos])
 
-  const caixasPorData = useMemo(() => {
-    const map = new Map<string, typeof caixasFiltrados>()
-    for (const c of caixasFiltrados) {
-      const day = c.dataMovimento.substring(0, 10)
-      if (!map.has(day)) map.set(day, [])
-      map.get(day)!.push(c)
-    }
-    return Array.from(map.entries()).map(([data, lista]) => ({ data, lista }))
-  }, [caixasFiltrados])
+  const caixaOptions: CaixaOption[] = useMemo(
+    () =>
+      caixasFiltrados.map((c) => ({
+        key: caixaKey(c),
+        dataIso: c.dataMovimento.substring(0, 10),
+        dataLabel: fmtBRDate(c.dataMovimento.substring(0, 10)),
+        turno: c.turno,
+        turnoCodigo: c.turnoCodigo,
+        caixaLabel: `Caixa #${c.caixaCodigo}`,
+        subLabel: `${c.funcionarioNome} · A: ${formatIsoTime(c.abertura)} F: ${formatIsoTime(c.fechamento)}`,
+        fechado: c.fechado,
+        apurado: c.apurado,
+        diferenca: c.diferenca,
+      })),
+    [caixasFiltrados],
+  )
 
   const selectedCaixas = useMemo(
     () => caixasFiltrados.filter((c) => selectedKeys.includes(caixaKey(c))),
     [caixasFiltrados, selectedKeys],
   )
 
-  const allSelected =
-    caixasFiltrados.length > 0 && selectedKeys.length === caixasFiltrados.length
   const noneSelected = selectedKeys.length === 0
 
   const agregados = useMemo(() => {
@@ -159,149 +157,23 @@ const VisaoGeral = () => {
     [selectedCaixas],
   )
 
-  const toggleCaixa = (k: string) =>
-    setSelectedKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
-  const selectAll = () => setSelectedKeys(caixasFiltrados.map(caixaKey))
-  const clearAll = () => setSelectedKeys([])
-
-  const triggerLabel = noneSelected
-    ? 'Selecione um caixa'
-    : allSelected
-    ? `Todos os caixas (${caixasFiltrados.length})`
-    : selectedKeys.length === 1
-    ? `${selectedCaixas[0].turno} · ${fmtBRDate(selectedCaixas[0].dataMovimento)}`
-    : `${selectedKeys.length} caixas selecionados`
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Caixas
-        </label>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                'inline-flex h-9 min-w-[280px] items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500',
-                'dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800',
-              )}
-            >
-              <span className="truncate">{triggerLabel}</span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-[70vh] w-[360px] overflow-y-auto">
-            <DropdownMenuLabel className="flex items-center justify-between gap-3 text-xs">
-              <span>Selecionar caixas</span>
-              <div className="flex items-center gap-2 text-[11px] font-normal">
-                <button type="button" onClick={selectAll} className="text-blue-600 hover:underline dark:text-blue-400">
-                  Todos
-                </button>
-                <span className="text-gray-300 dark:text-gray-600">|</span>
-                <button type="button" onClick={clearAll} className="text-gray-500 hover:underline dark:text-gray-400">
-                  Limpar
-                </button>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {caixasFiltrados.length === 0 ? (
-              <p className="px-3 py-6 text-center text-xs text-gray-400">
-                {showSkeleton ? 'Carregando...' : 'Nenhum caixa no período.'}
-              </p>
-            ) : (
-              caixasPorData.map(({ data, lista }, gi) => {
-                const allDaySelected = lista.every((c) => selectedKeys.includes(caixaKey(c)))
-                const toggleDay = () => {
-                  const dayKeys = lista.map(caixaKey)
-                  setSelectedKeys((prev) =>
-                    allDaySelected
-                      ? prev.filter((k) => !dayKeys.includes(k))
-                      : [...new Set([...prev, ...dayKeys])],
-                  )
-                }
-                return (
-                  <div key={data} className={cn(gi > 0 && 'mt-1 border-t border-gray-100 pt-1 dark:border-gray-800')}>
-                    <div className="flex items-center justify-between px-2 py-1.5">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {fmtBRDate(data)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={toggleDay}
-                        className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        {allDaySelected ? 'Desmarcar dia' : 'Selecionar dia'}
-                      </button>
-                    </div>
-                    {lista.map((c) => {
-                      const key = caixaKey(c)
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={key}
-                          checked={selectedKeys.includes(key)}
-                          onCheckedChange={() => toggleCaixa(key)}
-                          onSelect={(e) => e.preventDefault()}
-                          className={cn(
-                            'text-xs',
-                            !c.fechado && 'border-l-2 border-amber-400 bg-amber-50/40 dark:border-amber-500/70 dark:bg-amber-900/10',
-                          )}
-                        >
-                          <div className="flex w-full flex-col gap-1">
-                            <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
-                              <span>{c.turno} · Caixa #{c.caixaCodigo}</span>
-                              {!c.fechado && (
-                                <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                  Em aberto
-                                </span>
-                              )}
-                            </span>
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                              {c.funcionarioNome} · A: {formatIsoTime(c.abertura)} F: {formatIsoTime(c.fechamento)}
-                            </span>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                <span className="opacity-70">Apurado</span>
-                                <span className="tabular-nums">{formatCurrency(c.apurado)}</span>
-                              </span>
-                              {c.fechado && Math.abs(c.diferenca) > 0.005 && (
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums',
-                                    c.diferenca > 0
-                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                      : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-                                  )}
-                                >
-                                  {c.diferenca > 0 ? '+' : ''}{formatCurrency(c.diferenca)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </DropdownMenuCheckboxItem>
-                      )
-                    })}
-                  </div>
-                )
-              })
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-          <input
-            type="checkbox"
-            checked={includeAbertos}
-            onChange={(e) => setIncludeAbertos(e.target.checked)}
-            className="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
-          />
-          Incluir caixas abertos
-        </label>
-        {selectedKeys.length > 0 && (
-          <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
-            {selectedKeys.length} de {caixasFiltrados.length} caixas selecionados
-          </span>
-        )}
-      </div>
+      <CaixaSelect
+        options={caixaOptions}
+        selectedKeys={selectedKeys}
+        onChange={setSelectedKeys}
+        includeAbertos={includeAbertos}
+        onIncludeAbertosChange={setIncludeAbertos}
+        loading={showSkeleton}
+        rightSlot={
+          selectedKeys.length > 0 ? (
+            <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
+              {selectedKeys.length} de {caixasFiltrados.length} caixas selecionados
+            </span>
+          ) : undefined
+        }
+      />
 
       {showSkeleton ? (
         <ContentSkeleton />

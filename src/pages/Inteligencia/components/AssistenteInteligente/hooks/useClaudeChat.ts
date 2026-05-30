@@ -3,11 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useTenantStore } from '@/store/tenant'
+import { saveCaduConversa } from '@/api/supabase/caduConversas'
 import { sendToClaude, isAuthError } from '../ai/claudeClient'
 import { useUsageTracker } from '../ai/usageTracker'
 import { TOOL_DEFINITIONS, executeTool, type ToolContext } from '../ai/tools'
 import { buildSystemPrompt } from '../ai/systemPrompt'
 import { useToolCallLog } from '../ai/toolCallLog'
+import { useCaduChat } from '../caduChatStore'
 import type { ClaudeContentBlock, ClaudeMessage, UiChatMessage } from '../ai/types'
 
 const MAX_TOOL_ITERATIONS = 6
@@ -48,6 +50,7 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
   const appendLog = useToolCallLog((s) => s.append)
   const recordUsage = useUsageTracker((s) => s.recordUsage)
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
+  const userId = useAuthStore((s) => s.user?.id ?? null)
 
   // Lista das empresas reais da rede (pra system prompt e validação de escopo)
   const { data: empresasData } = useQuery({
@@ -77,14 +80,36 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
       }))
   })()
 
-  const [messages, setMessages] = useState<UiChatMessage[]>([])
+  // Conversa fica no store (sobrevive à troca de abas + permite carregar do Histórico).
+  const messages = useCaduChat((s) => s.messages)
+  const setMessages = useCaduChat((s) => s.setMessages)
+  const newConversa = useCaduChat((s) => s.newConversa)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reset = useCallback(() => {
-    setMessages([])
+    newConversa()
     setError(null)
-  }, [])
+  }, [newConversa])
+
+  // Salva a conversa no Supabase (best-effort). Cria na 1ª vez, atualiza depois.
+  const persistConversa = useCallback(
+    async (msgs: UiChatMessage[]) => {
+      if (!redeId || !userId || msgs.length === 0) return
+      const firstUser = msgs.find((m) => m.role === 'user')
+      const titulo = (firstUser?.text ?? 'Conversa').slice(0, 80)
+      const currentId = useCaduChat.getState().conversaId
+      const savedId = await saveCaduConversa({
+        id: currentId ?? undefined,
+        redeId,
+        userId,
+        titulo,
+        mensagens: msgs,
+      })
+      if (!currentId && savedId) useCaduChat.getState().setConversaId(savedId)
+    },
+    [redeId, userId],
+  )
 
   const ask = useCallback(
     async (text: string) => {
@@ -160,6 +185,8 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
               toolCalls: collectedToolCalls.length > 0 ? collectedToolCalls : undefined,
             }
             setMessages((curr) => [...curr, assistantMsg])
+            // Persiste a conversa completa (pergunta + resposta) pra retomar depois.
+            void persistConversa([...priorMessages, assistantMsg])
             return
           }
 
@@ -272,7 +299,7 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
         }
       }
     },
-    [apiKey, loading, messages, allowedFromAuth, isMaster, accessiblePostos, appendLog, onAuthError, redeId, recordUsage],
+    [apiKey, loading, messages, setMessages, accessiblePostos, appendLog, onAuthError, redeId, recordUsage, persistConversa],
   )
 
   return {

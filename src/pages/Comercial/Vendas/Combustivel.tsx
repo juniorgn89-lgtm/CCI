@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, Receipt, TrendingUp, TrendingDown, Minus, Info, HelpCircle, Trophy } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, HelpCircle, Trophy } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -12,7 +12,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
@@ -22,9 +22,8 @@ import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
-import ProjecaoCard from '@/components/kpi/ProjecaoCard'
-import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
-import { diasEntreDatas } from '@/components/badges/cobertura'
+import ProjecaoExecutiva from './ProjecaoExecutiva'
+import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
 import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
@@ -141,10 +140,13 @@ interface KpiCardProps {
   current?: number
   previous?: number
   comparisonLabel?: string
+  /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
+   * período é projetável (tem dias futuros). */
+  projecao?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel }: KpiCardProps) => (
-  <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao }: KpiCardProps) => (
+  <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
@@ -158,11 +160,25 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
         {value}
       </p>
     )}
-    {current !== undefined && previous !== undefined && !loading && (
-      <DeltaBadge current={current} previous={previous} label={comparisonLabel} />
+    {/* Slot reservado pra comparação — mantém a linha de projeção alinhada
+        entre todos os cards, tenham eles DeltaBadge ou não. */}
+    {!loading && (
+      <div className="min-h-[1.25rem]">
+        {current !== undefined && previous !== undefined && (
+          <DeltaBadge current={current} previous={previous} label={comparisonLabel} />
+        )}
+      </div>
+    )}
+    {projecao && !loading && (
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+        <TrendingUp className="h-3 w-3 shrink-0" />
+        <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
+      </p>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
-    {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
+    {/* mt-auto ancora o detalhe no rodapé — todas as seções "extra" alinham
+        na base do card (alturas iguais via grid). */}
+    {extra && !loading && <div className="mt-auto border-t border-gray-200/60 pt-2.5 dark:border-gray-700/60">{extra}</div>}
   </div>
 )
 
@@ -180,13 +196,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
   const cmpLabel = kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-  const { rows, dailyData, fuelTypeData, lbLitroData, projectionMeta, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
+  const { rows, dailyData, fuelTypeData, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
   const [selectedFuel, setSelectedFuel] = useState<FuelTypeRow | null>(null)
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
+  const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
   // (% sobre litros totais) calculado no hook.
@@ -195,18 +212,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     [fuelTypeData],
   )
 
-  // Margem % global (lucro bruto / faturamento).
-  const margemPctGlobal = useMemo(() => {
-    if (!kpis || kpis.faturamentoCombustivel <= 0) return 0
-    const lb = fuelTypeData.reduce((s, f) => s + f.lucroBruto, 0)
-    return (lb / kpis.faturamentoCombustivel) * 100
-  }, [fuelTypeData, kpis])
+  // Margem % global — vem do hook, calculada SÓ sobre o volume com custo apurado
+  // (combustível sem custo inflaria a margem). `coberturaCustoPct` sinaliza o gap.
+  const margemPctGlobal = lbLitroData.margemGlobal
 
   /* ─── Detalhamento DIA A DIA ───
-   * Agrupa `rows` por dia (yyyy-mm-dd) e dentro de cada dia por combustivelNome.
-   * Variação semanal = compara litros do dia com mesmo dia 7 dias antes
-   * dentro da janela atual. Acréscimos/Descontos ficam zerados — a API
-   * /ABASTECIMENTO não traz esses campos (precisa de integração futura).
+   * Agrupa `rows` por data fiscal e, dentro do dia, por combustivelNome.
+   * Faturamento, custo (CMV) e desconto vêm do item de venda (via `rows`,
+   * que casa o /VENDA_ITEM). Acréscimos ficam zerados (raros em combustível).
+   * Variação semanal = litros do dia vs mesmo dia 7 dias antes na janela.
    */
   const detalheDiaADia = useMemo(() => {
     interface FuelLine {
@@ -215,6 +229,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       faturamento: number
       lucroBruto: number
       custo: number
+      descontos: number
     }
     interface DayLine {
       data: string
@@ -229,14 +244,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       fuels: FuelLine[]
     }
 
+    const src = diaFuelFilter === 'Todos' ? rows : rows.filter((r) => r.combustivelNome === diaFuelFilter)
     const byDay = new Map<string, { fuels: Map<string, FuelLine>; totals: Omit<FuelLine, 'nome'> }>()
-    for (const r of rows) {
-      const date = r.dataHora.substring(0, 10)
+    for (const r of src) {
+      // Agrupa por DATA FISCAL (dia do movimento) — não pela hora real. Senão um
+      // abastecimento de madrugada (fiscal no dia anterior) vira uma linha extra
+      // fora do período filtrado.
+      const date = (r.dataFiscal || r.dataHora).substring(0, 10)
       if (!date) continue
       if (!byDay.has(date)) {
         byDay.set(date, {
           fuels: new Map(),
-          totals: { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0 },
+          totals: { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0, descontos: 0 },
         })
       }
       const day = byDay.get(date)!
@@ -245,17 +264,20 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       day.totals.faturamento += r.valorTotal
       day.totals.lucroBruto += r.lucroBruto
       day.totals.custo += custoLinha
+      day.totals.descontos += r.desconto
       const prev = day.fuels.get(r.combustivelNome) ?? {
         nome: r.combustivelNome,
         litros: 0,
         faturamento: 0,
         lucroBruto: 0,
         custo: 0,
+        descontos: 0,
       }
       prev.litros += r.litros
       prev.faturamento += r.valorTotal
       prev.lucroBruto += r.lucroBruto
       prev.custo += custoLinha
+      prev.descontos += r.desconto
       day.fuels.set(r.combustivelNome, prev)
     }
 
@@ -278,7 +300,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
           lucroBruto: v.totals.lucroBruto,
           custo: v.totals.custo,
           acrescimos: 0,
-          descontos: 0,
+          descontos: v.totals.descontos,
           variacaoSemanal,
           fuels: Array.from(v.fuels.values()).sort((a, b) => b.faturamento - a.faturamento),
         }
@@ -302,7 +324,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       return diasVal.reduce((s, d) => s + (d.variacaoSemanal ?? 0), 0) / diasVal.length
     })()
     return { days, total, variacaoTotal }
-  }, [rows])
+  }, [rows, diaFuelFilter])
 
   /* ─── Análise SEMANAL ───
    * Dois charts/tabelas:
@@ -410,50 +432,65 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       lucroBruto: m.lucroBruto,
       margemPct: m.margemPct,
       isCurrentMonth: m.isCurrentMonth,
+      semCusto: m.semCusto,
     })),
     [lbLitroData.monthly],
   )
 
-  const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
+  /** Meses sem custo apurado — L.B./margem não plotáveis (gap no gráfico). */
+  const mesesSemCusto = useMemo(
+    () => monthlyChartData.filter((m) => m.semCusto).map((m) => m.mes),
+    [monthlyChartData],
+  )
 
-  /* ─── Projeção (faturamento + lucro) ── usa smoothedProjection sobre a
-   * série diária do useAbastecimentosAnalytics (dailyData tem ambos os
-   * campos) e `projectionMeta.daysRemaining`. */
+  /* ─── Projeção EXECUTIVA (faturamento + lucro) ── projecaoAvancada sobre a
+   * série diária de faturamento (tendência + sazonalidade + cenários +
+   * confiabilidade); o lucro projetado cresce proporcional ao faturamento. */
   const projecaoCombustivel = useMemo(() => {
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const dias = projectionMeta?.daysRemaining ?? 0
-    const realizadoFat = kpis?.faturamentoCombustivel ?? 0
-    const realizadoLucro = fuelTypeData.reduce((s, f) => s + f.lucroBruto, 0)
-    const projetadoFat = smoothedProjection({
-      realizado: realizadoFat,
+    // Projeta SEMPRE até o fim do mês do período (independe do escopo
+    // Apurado/Em andamento/Completo). O dia corrente entra como faltante.
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const lastDay = new Date(yy, mm, 0).getDate()
+    const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const fat = projecaoAvancada({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
-      diasRestantes: dias,
       today: todayISO,
-    }).projetado
-    const projetadoLucro = smoothedProjection({
-      realizado: realizadoLucro,
+      dataFinal: monthEnd,
+    })
+    const lucro = projecaoAvancada({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })),
-      diasRestantes: dias,
       today: todayISO,
-    }).projetado
+      dataFinal: monthEnd,
+    })
+    const litros = projecaoAvancada({
+      dailySeries: dailyData.map((d) => ({ data: d.data, value: d.litros })),
+      today: todayISO,
+      dataFinal: monthEnd,
+    })
     return {
-      realizadoFat,
-      realizadoLucro,
-      projetadoFat,
-      projetadoLucro,
-      isProjetada: dias > 0,
+      fat,
+      projetadoLucro: lucro.esperado,
+      projetadoLitros: litros.esperado,
+      projetadoMargem: fat.esperado > 0 ? (lucro.esperado / fat.esperado) * 100 : 0,
+      projetadoLBLitro: litros.esperado > 0 ? lucro.esperado / litros.esperado : 0,
+      dataFinalProjecao: monthEnd,
     }
-  }, [kpis, fuelTypeData, dailyData, projectionMeta])
+  }, [dailyData, dataInicial])
 
   /* ─── Projeção POR COMBUSTÍVEL ───
    * Agrega `rows` (abastecimentos brutos) por combustivelNome + dia e aplica
-   * smoothedProjection em cada um. Reusa `projectionMeta.daysRemaining`. */
+   * `projecaoAvancada` em cada um — SEMPRE projetando até o fim do mês do período
+   * (mesma metodologia do card executivo), pra não zerar quando o período termina
+   * antes de hoje. Usa `.esperado` (cenário central). */
   const projecaoPorFuel = useMemo<Map<string, number>>(() => {
     const out = new Map<string, number>()
-    const dias = projectionMeta?.daysRemaining ?? 0
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const lastDay = new Date(yy, mm, 0).getDate()
+    const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
     const serieByFuel = new Map<string, Map<string, number>>()
     for (const r of rows) {
@@ -466,16 +503,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
 
     for (const f of fuelTypeData) {
       const serie = serieByFuel.get(f.nome) ?? new Map<string, number>()
-      const projetado = smoothedProjection({
-        realizado: f.faturamento,
+      const projetado = projecaoAvancada({
         dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
-        diasRestantes: dias,
         today: todayISO,
-      }).projetado
+        dataFinal: monthEnd,
+      }).esperado
       out.set(f.nome, projetado)
     }
     return out
-  }, [rows, fuelTypeData, projectionMeta])
+  }, [rows, fuelTypeData, dataInicial])
 
   /* ─── Máximos por coluna (Power BI Data Bars) ─── */
   const colMax = useMemo(() => {
@@ -494,8 +530,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
 
   /* ─── Ranking maior/menor L.B./Litro entre os combustíveis ─── */
   const lbRanking = useMemo(() => {
-    if (fuelTypeData.length < 2) return null
-    const sorted = [...fuelTypeData].sort((a, b) => b.lbPorLitro - a.lbPorLitro)
+    // Só combustíveis COM custo apurado — sem custo o L.B./litro = preço cheio
+    // (margem ~100%) e poluiria o "Maior".
+    const comCusto = fuelTypeData.filter((f) => f.custo > 0)
+    if (comCusto.length < 2) return null
+    const sorted = [...comCusto].sort((a, b) => b.lbPorLitro - a.lbPorLitro)
     return { maior: sorted[0], menor: sorted[sorted.length - 1] }
   }, [fuelTypeData])
 
@@ -534,8 +573,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       {hasEmpresa && (
         <>
           {/* KPIs principais — 4 cards + Projeção (5º) ocupando a largura
-              toda. Em mobile/tablet empilha em 2 ou 3 cols. */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              toda. Em mobile/tablet empilha em 2 ou 3 cols. `items-stretch`
+              (default) iguala a altura dos 5 cards. */}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+            {/* Os 4 KPIs num sub-grid próprio: esticam entre si (altura igual)
+               e o sub-grid estica até a altura da coluna da projeção. */}
+            <div className="grid grid-cols-2 gap-3 lg:col-span-4 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
               value={showSkeleton || !kpis ? '—' : formatLiters(kpis.totalLitros)}
@@ -547,6 +590,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               current={kpis?.totalLitros}
               previous={kpis?.cmpTotalLitros}
               comparisonLabel={cmpLabel}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatLiters(projecaoCombustivel.projetadoLitros) : undefined}
               extra={
                 kpis && kpis.totalLitros > 0 && fuelTypeData.length > 0 ? (
                   <>
@@ -572,59 +616,58 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               }
             />
             <KpiCard
-              label="Faturamento"
-              value={showSkeleton || !kpis ? '—' : formatCurrency(kpis.faturamentoCombustivel)}
+              label="Lucro bruto"
+              value={isLoadingAnalytics ? '—' : formatCurrency(lbLitroData.lucroGlobal)}
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
-              loading={showSkeleton}
-              current={kpis?.faturamentoCombustivel}
-              previous={kpis?.cmpFaturamentoCombustivel}
+              loading={isLoadingAnalytics}
+              current={lbLitroData.lucroGlobal}
+              previous={lbLitroData.cmpLucro > 0 ? lbLitroData.cmpLucro : undefined}
               comparisonLabel={cmpLabel}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLucro) : undefined}
               extra={
-                kpis && kpis.totalAbastecimentos > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Abastecimentos</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatNumber(kpis.totalAbastecimentos)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Média / dia</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatCurrency(kpis.faturamentoCombustivel / diasPeriodo)}
-                      </span>
-                    </div>
+                !isLoadingAnalytics && lbLitroData.cmpLucro > 0 ? (
+                  <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {formatCurrency(lbLitroData.cmpLucro)}
+                    </span>
                   </div>
                 ) : null
               }
             />
             <KpiCard
-              label="Ticket Médio"
-              value={showSkeleton || !kpis ? '—' : formatCurrency(kpis.ticketMedio)}
-              Icon={Receipt}
+              label="Margem"
+              value={isLoadingAnalytics ? '—' : `${margemPctGlobal.toFixed(2).replace('.', ',')}%`}
+              Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
-              loading={showSkeleton}
-              current={kpis?.ticketMedio}
-              previous={kpis?.cmpTicketMedio}
-              comparisonLabel={cmpLabel}
+              loading={isLoadingAnalytics}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
               extra={
-                kpis && kpis.totalAbastecimentos > 0 ? (
+                !isLoadingAnalytics && lbLitroData.cmpMargem > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>L / abastecimento</span>
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatNumber(kpis.totalLitros / kpis.totalAbastecimentos)} L
+                        {margemPctGlobal === 0 ? '—' : `${lbLitroData.cmpMargem.toFixed(2).replace('.', ',')}%`}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span>Abastec. / dia</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatNumber(Math.round(kpis.totalAbastecimentos / diasPeriodo))}
+                      <span>Variação</span>
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          margemPctGlobal - lbLitroData.cmpMargem >= 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-red-600 dark:text-red-400',
+                        )}
+                      >
+                        {margemPctGlobal - lbLitroData.cmpMargem >= 0 ? '+' : ''}
+                        {(margemPctGlobal - lbLitroData.cmpMargem).toFixed(2).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -644,38 +687,49 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingAnalytics}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? `${formatCurrency(projecaoCombustivel.projetadoLBLitro)} · ${projecaoCombustivel.projetadoMargem.toFixed(1).replace('.', ',')}%` : undefined}
               extra={
-                lbRanking ? (
+                (lbRanking || lbLitroData.coberturaCustoPct < 99.5) ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                        <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.maior.nome))} />
-                        Maior · {lbRanking.maior.nome}
-                      </span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(lbRanking.maior.lbPorLitro)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                        <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.menor.nome))} />
-                        Menor · {lbRanking.menor.nome}
-                      </span>
-                      <span className="font-semibold text-red-600 dark:text-red-400">
-                        {formatCurrency(lbRanking.menor.lbPorLitro)}
-                      </span>
-                    </div>
+                    {lbRanking && (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                            <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.maior.nome))} />
+                            Maior · {lbRanking.maior.nome}
+                          </span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(lbRanking.maior.lbPorLitro)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                            <span className={cn('h-2 w-2 rounded-sm', fuelColor(lbRanking.menor.nome))} />
+                            Menor · {lbRanking.menor.nome}
+                          </span>
+                          <span className="font-semibold text-red-600 dark:text-red-400">
+                            {formatCurrency(lbRanking.menor.lbPorLitro)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {lbLitroData.coberturaCustoPct < 99.5 && (
+                      <div className="mt-1 flex items-start gap-1 rounded bg-amber-50 px-1.5 py-1 text-[10px] normal-case text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                        <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>
+                          {lbLitroData.coberturaCustoPct.toFixed(0)}% dos litros têm custo apurado — L.B./margem só sobre eles. Reapure pra incluir o resto.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ) : null
               }
             />
-            <ProjecaoCard
-              realizadoFaturamento={projecaoCombustivel.realizadoFat}
-              projetadoFaturamento={projecaoCombustivel.projetadoFat}
-              realizadoLucro={projecaoCombustivel.realizadoLucro}
+            </div>
+            <ProjecaoExecutiva
+              fat={projecaoCombustivel.fat}
               projetadoLucro={projecaoCombustivel.projetadoLucro}
-              dataFinal={dataFinal}
-              isProjetada={projecaoCombustivel.isProjetada}
+              dataFinal={projecaoCombustivel.dataFinalProjecao}
               loading={isLoadingAnalytics || isLoadingKpis}
             />
           </div>
@@ -724,11 +778,24 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               <>
                 {/* ── Tab: Realizado dia a dia ── */}
                 {detalheTab === 'dia' && (
-                  detalheDiaADia.days.length === 0 ? (
-                    <div className="px-5 py-12 text-center text-sm text-gray-400">
-                      Sem vendas no período.
+                  <>
+                    <div className="flex flex-wrap items-center justify-end gap-2 px-4 pt-3">
+                      <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Combustível</span>
+                      <select
+                        value={diaFuelFilter}
+                        onChange={(e) => setDiaFuelFilter(e.target.value)}
+                        className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      >
+                        {fuelOptions.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
                     </div>
-                  ) : (
+                    {detalheDiaADia.days.length === 0 ? (
+                      <div className="px-5 py-12 text-center text-sm text-gray-400">
+                        Sem vendas no período.
+                      </div>
+                    ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
@@ -739,7 +806,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <th className="px-3 py-2 text-right font-medium">Var. semanal</th>
                             <th className="px-3 py-2 text-right font-medium">Faturamento</th>
                             <th className="px-3 py-2 text-right font-medium">Lucro bruto</th>
-                            <th className="px-3 py-2 text-right font-medium">Acréscimos</th>
                             <th className="px-3 py-2 text-right font-medium">Descontos</th>
                             <th className="px-3 py-2 text-right font-medium">Margem</th>
                             <th className="px-3 py-2 text-right font-medium">Preço venda</th>
@@ -783,9 +849,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(d.lucroBruto)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                  {formatCurrency(d.acrescimos)}
-                                </td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                   {formatCurrency(d.descontos)}
                                 </td>
                                 <td className="px-2 py-1">
@@ -819,7 +882,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.faturamento)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.lucroBruto)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.acrescimos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.total.faturamento > 0
@@ -841,7 +903,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         </tbody>
                       </table>
                     </div>
-                  )
+                    )}
+                  </>
                 )}
 
                 {/* ── Tab: Realizado - por combustível ── */}
@@ -861,7 +924,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <ThWithHelp label="Custo méd." help="Custo médio de aquisição por litro (vindo do LMC)." />
                             <ThWithHelp label="L.B./Litro" help="Lucro bruto por litro: preço médio − custo médio (R$/L)." />
                             <ThWithHelp label="Faturamento" help="Receita total da venda desse combustível (R$)." />
-                            <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
+                            <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP_EXECUTIVA} />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                             <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                             <ThWithHelp label="% vol" help="Participação no volume total de litros do período." />
@@ -887,7 +950,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             const totPrecoMed = totLitros > 0 ? totFat / totLitros : 0
                             const totCustoMed = totLitros > 0 ? totCusto / totLitros : 0
                             const totLbLitro = totLitros > 0 ? totLucroBruto / totLitros : 0
-                            const isProjetadaFuel = (projectionMeta?.daysRemaining ?? 0) > 0
+                            // Projeção ativa quando o mês ainda tem dias futuros —
+                            // mesma condição dos cards (projeta até o fim do mês).
+                            const isProjetadaFuel = projecaoCombustivel.fat.diasRestantes > 0
                             return (
                               <>
                                 {mix.map((f) => (
@@ -974,7 +1039,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
                             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(Math.round(v))} />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
@@ -984,14 +1049,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               tickFormatter={(v) => formatCurrency(v)}
                             />
                             <Tooltip
-                              formatter={((value: number, name: string) =>
-                                name === 'L.B./Litro' ? [formatCurrency(value), name] : [formatNumber(value), name]
+                              formatter={((value: number | null, name: string) =>
+                                value == null ? ['—', name]
+                                  : name === 'L.B./Litro' ? [formatCurrency(value), name]
+                                  : [formatNumber(Math.round(value)), name]
                               ) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                             <Bar yAxisId="left" dataKey="litros" name="Litros vendidos" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(v)) as never} style={{ fontSize: 10, fill: '#374151' }} />
+                              <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 10, fill: '#374151' }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1012,11 +1079,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                           Lucro bruto e Margem por mês
                         </h3>
+                        {mesesSemCusto.length > 0 && (
+                          <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                            Sem custo apurado em {mesesSemCusto.join(', ')} — L.B./margem omitidos nesses meses.
+                          </p>
+                        )}
                         <ResponsiveContainer width="100%" height={300}>
                           <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
                             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(v)} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrencyInt(v)} />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
@@ -1026,14 +1098,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               tickFormatter={(v) => `${v.toFixed(1)}%`}
                             />
                             <Tooltip
-                              formatter={((value: number, name: string) =>
-                                name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name] : [formatCurrency(value), name]
+                              formatter={((value: number | null, name: string) =>
+                                value == null ? ['—', name]
+                                  : name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name]
+                                  : [formatCurrencyInt(value), name]
                               ) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                             <Bar yAxisId="left" dataKey="lucroBruto" name="Lucro bruto" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="lucroBruto" position="top" formatter={((v: number) => formatCurrency(v)) as never} style={{ fontSize: 10, fill: '#374151' }} />
+                              <LabelList dataKey="lucroBruto" position="top" formatter={((v: number | null) => (v == null ? '' : formatCurrencyInt(v))) as never} style={{ fontSize: 10, fill: '#374151' }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1194,6 +1268,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     </div>
                   )
                 )}
+
               </>
             )}
           </section>

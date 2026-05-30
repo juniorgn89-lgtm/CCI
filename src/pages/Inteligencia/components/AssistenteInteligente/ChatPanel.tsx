@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, Sparkles, User, Bot, Wrench, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound } from 'lucide-react'
+import { Send, Sparkles, User, Bot, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRedeAssistente } from './hooks/useRedeAssistente'
 import { useClaudeChat } from './hooks/useClaudeChat'
 import { useUsageTracker } from './ai/usageTracker'
 import { SUGGESTED_PROMPTS } from './mockData'
-import type { UiChatMessage } from './ai/types'
 
 const renderInline = (text: string) => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
@@ -18,25 +17,6 @@ const renderInline = (text: string) => {
   )
 }
 
-const ToolCallsPill = ({ calls }: { calls: NonNullable<UiChatMessage['toolCalls']> }) => (
-  <div className="mt-2 flex flex-wrap gap-1.5">
-    {calls.map((c, i) => (
-      <span
-        key={i}
-        className={cn(
-          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium',
-          c.ok
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/20 dark:text-emerald-300'
-            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-700/40 dark:bg-red-900/20 dark:text-red-300',
-        )}
-        title={c.ok ? `${c.rowCount ?? '?'} registros · ${c.durationMs}ms` : c.error}
-      >
-        <Wrench className="h-2.5 w-2.5" />
-        {c.tool} · {c.durationMs}ms
-      </span>
-    ))}
-  </div>
-)
 
 /**
  * Mensagem fixa quando o Assistente não está disponível pra esta rede.
@@ -46,14 +26,14 @@ const UnavailableState = ({ status, errorMessage, redeNome }: { status: string; 
   const messages: Record<string, { title: string; body: string; icon: typeof ShieldOff }> = {
     'sem-rede': {
       title: 'Conecte uma rede primeiro',
-      body: 'O Assistente IA só funciona depois que você conectar a uma rede no painel "Selecionar rede".',
+      body: 'O Cadu só funciona depois que você conectar a uma rede no painel "Selecionar rede".',
       icon: ShieldOff,
     },
     desabilitado: {
       title: 'Assistente desabilitado pra esta rede',
       body: redeNome
-        ? `O Assistente IA não está habilitado para ${redeNome}. Fale com o administrador do Visor360 pra liberar.`
-        : 'O Assistente IA não está habilitado pra esta rede. Fale com o administrador do Visor360 pra liberar.',
+        ? `O Cadu não está habilitado para ${redeNome}. Fale com o administrador do Visor360 pra liberar.`
+        : 'O Cadu não está habilitado pra esta rede. Fale com o administrador do Visor360 pra liberar.',
       icon: ShieldOff,
     },
     'sem-chave': {
@@ -145,7 +125,7 @@ const ChatPanel = () => {
               : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600/40 dark:bg-amber-900/20 dark:text-amber-300',
           )}
         >
-          {status === 'ativo' && <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> Assistente ativo</>}
+          {status === 'ativo' && <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> Cadu ativo</>}
           {status === 'validando' && <><Loader2 className="h-3 w-3 animate-spin" /> Verificando…</>}
           {status === 'invalido' && <><AlertTriangle className="h-3 w-3" /> Chave inválida</>}
           {status === 'sem-chave' && <><KeyRound className="h-3 w-3" /> Aguardando configuração do admin</>}
@@ -243,7 +223,6 @@ const ChatPanel = () => {
                 >
                   {renderInline(m.text)}
                 </div>
-                {m.toolCalls && <ToolCallsPill calls={m.toolCalls} />}
               </div>
             </div>
           ))
@@ -301,7 +280,7 @@ const ChatPanel = () => {
           </button>
         </form>
         <p className="mt-1.5 text-center text-[10px] text-gray-400 dark:text-gray-500">
-          Powered by Claude · Configuração gerenciada pelo administrador do Visor360
+          Powered by CCI Consultoria · Configuração gerenciada pelo administrador do Visor360
         </p>
       </div>
     </div>

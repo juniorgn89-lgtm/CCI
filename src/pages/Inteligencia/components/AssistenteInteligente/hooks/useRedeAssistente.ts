@@ -70,14 +70,15 @@ const fetchRedeConfig = async (redeId: string): Promise<RedeRow | null> => {
       `${error.message}${error.details ? ` · ${error.details}` : ''}${error.code ? ` [${error.code}]` : ''}`,
     )
   }
+  const row = data as RedeRow | null
   // eslint-disable-next-line no-console
   console.log('[useRedeAssistente] Rede carregada:', {
-    id: data?.id,
-    habilitado: data?.assistente_habilitado,
-    tier: data?.assistente_tier,
-    temChave: !!data?.assistente_chave_anthropic,
+    id: row?.id,
+    habilitado: row?.assistente_habilitado,
+    tier: row?.assistente_tier,
+    temChave: !!row?.assistente_chave_anthropic,
   })
-  return data as RedeRow | null
+  return row
 }
 
 export const useRedeAssistente = () => {

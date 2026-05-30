@@ -6,7 +6,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
-import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
+import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
 import type { FuelTypeRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 interface FuelDetalheModalProps {
@@ -90,36 +90,43 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
       .map((s) => ({ hora: `${String(s.h).padStart(2, '0')}h`, litros: s.litros }))
   }, [filtered])
 
-  // Projeção de fechamento do combustível. Usa smoothedProjection com média
-  // móvel dos últimos dias fechados e os dias que ainda faltam até dataFinal.
+  // Projeção de fechamento do combustível. Usa `projecaoAvancada` projetando
+  // SEMPRE até o fim do mês do período (mesma metodologia dos cards de
+  // Combustível e da tabela), pra não zerar quando o período termina antes de hoje.
   const projecao = useMemo(() => {
     if (!fuel) return null
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const endTs = new Date(`${dataFinal}T00:00:00`).getTime()
-    const todayTs = new Date(`${todayISO}T00:00:00`).getTime()
-    const diasRestantes = Math.max(0, Math.floor((endTs - todayTs) / 86_400_000))
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const lastDay = new Date(yy, mm, 0).getDate()
+    const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-    // Série diária de faturamento dos abastecimentos deste combustível
-    const dailyMap = new Map<string, number>()
+    // Séries diárias de faturamento, litros e lucro bruto deste combustível
+    const fatMap = new Map<string, number>()
+    const litrosMap = new Map<string, number>()
+    const lucroMap = new Map<string, number>()
     for (const r of filtered) {
       const day = r.dataHora?.substring(0, 10)
       if (!day) continue
-      dailyMap.set(day, (dailyMap.get(day) ?? 0) + r.valorTotal)
+      fatMap.set(day, (fatMap.get(day) ?? 0) + r.valorTotal)
+      litrosMap.set(day, (litrosMap.get(day) ?? 0) + r.litros)
+      lucroMap.set(day, (lucroMap.get(day) ?? 0) + r.lucroBruto)
     }
-    const result = smoothedProjection({
-      realizado: fuel.faturamento,
-      dailySeries: Array.from(dailyMap.entries()).map(([data, value]) => ({ data, value })),
-      diasRestantes,
-      today: todayISO,
-    })
+    const toSeries = (m: Map<string, number>) =>
+      Array.from(m.entries()).map(([data, value]) => ({ data, value }))
+
+    const fatProj = projecaoAvancada({ dailySeries: toSeries(fatMap), today: todayISO, dataFinal: monthEnd })
+    const litrosProj = projecaoAvancada({ dailySeries: toSeries(litrosMap), today: todayISO, dataFinal: monthEnd })
+    const lucroProj = projecaoAvancada({ dailySeries: toSeries(lucroMap), today: todayISO, dataFinal: monthEnd })
     return {
-      projetado: result.projetado,
-      dailyRate: result.dailyRate,
-      isProjetada: diasRestantes > 0,
-      diasRestantes,
+      projetado: fatProj.esperado,
+      projetadoLitros: litrosProj.esperado,
+      projetadoLucro: lucroProj.esperado,
+      projetadoMargem: fatProj.esperado > 0 ? (lucroProj.esperado / fatProj.esperado) * 100 : 0,
+      isProjetada: fatProj.diasRestantes > 0,
+      diasRestantes: fatProj.diasRestantes,
     }
-  }, [fuel, filtered, dataFinal])
+  }, [fuel, filtered, dataInicial])
 
   if (!fuel) return null
 
@@ -170,14 +177,6 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
               <Kpi Icon={Droplets} label="Litros" value={formatNumber(fuel.litros)} />
               <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(fuel.faturamento)} />
-              <Kpi
-                Icon={LineChartIcon}
-                label={projecao?.isProjetada ? 'Projeção fim do mês' : 'Projeção'}
-                value={formatCurrency(projecao?.projetado ?? fuel.faturamento)}
-                tone={projecao?.isProjetada ? 'projecao' : undefined}
-                hint={projecao?.isProjetada ? `Faltam ${projecao.diasRestantes} dia${projecao.diasRestantes === 1 ? '' : 's'}` : undefined}
-                tooltip={PROJECAO_TOOLTIP}
-              />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(fuel.lucroBruto)} />
               <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(1).replace('.', ',')}%`} />
               <Kpi Icon={Receipt} label="Ticket / litro" value={formatCurrency(ticketPorLitro)} />
@@ -185,6 +184,25 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(fuel.precoCustoMedio)} />
             </div>
           </section>
+
+          {/* Projeção fim do mês — só quando o período ainda tem dias futuros */}
+          {projecao?.isProjetada && (
+            <section className="rounded-lg border border-blue-200 dark:border-blue-900/50" title={PROJECAO_TOOLTIP_EXECUTIVA}>
+              <div className="flex items-center gap-1.5 border-b border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+                <LineChartIcon className="h-3.5 w-3.5" />
+                Projeção fim do mês
+                <span className="ml-auto normal-case font-normal text-blue-600/80 dark:text-blue-400/70">
+                  Faltam {projecao.diasRestantes} dia{projecao.diasRestantes === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+                <Kpi Icon={Droplets} label="Litros" value={formatNumber(Math.round(projecao.projetadoLitros))} tone="projecao" />
+                <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(projecao.projetado)} tone="projecao" />
+                <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(projecao.projetadoLucro)} tone="projecao" />
+                <Kpi Icon={Percent} label="Margem" value={`${projecao.projetadoMargem.toFixed(1).replace('.', ',')}%`} tone="projecao" />
+              </div>
+            </section>
+          )}
 
           {/* Seções 2 e 3: Top frentistas + Top bombas (lado a lado em md+) */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
