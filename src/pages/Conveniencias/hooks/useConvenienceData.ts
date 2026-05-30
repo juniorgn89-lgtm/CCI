@@ -42,6 +42,8 @@ export interface ProjecaoVendas {
   faturamento: number
   /** Lucro bruto projetado pro fim do período (= realizado em meses fechados). */
   lucroBruto: number
+  /** Ticket médio projetado pro fim do período (faturamento ÷ linhas projetadas). */
+  ticketMedio: number
   /** Faturamento do mês anterior (base de comparação). */
   comparativo: number
   /** Variação % do projetado vs mês anterior. */
@@ -847,11 +849,19 @@ const useConvenienceData = () => {
       today: todayISO,
       dataFinal: monthEnd,
     })
+    // Ticket = faturamento ÷ linhas. Projeta as linhas (count) pra derivar o
+    // ticket projetado (faturamento projetado ÷ linhas projetadas).
+    const projCount = projecaoAvancada({
+      dailySeries: Array.from(byDay.entries()).map(([data, v]) => ({ data, value: v.count })),
+      today: todayISO,
+      dataFinal: monthEnd,
+    })
     const projetadoFat = projFat.esperado
     const projetadoLucro = projLucro.esperado
     const projecao: ProjecaoVendas = {
       faturamento: projetadoFat,
       lucroBruto: projetadoLucro,
+      ticketMedio: projCount.esperado > 0 ? projetadoFat / projCount.esperado : 0,
       comparativo: prevFat,
       variacao: prevFat > 0 ? ((projetadoFat - prevFat) / prevFat) * 100 : 0,
       isProjetada: projFat.diasRestantes > 0,

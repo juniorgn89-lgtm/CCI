@@ -129,9 +129,12 @@ interface KpiCardProps {
   iconColor: string
   cardBg: string
   loading: boolean
+  /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
+   * período é projetável (tem dias futuros). */
+  projecao?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -143,6 +146,12 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
       <Skeleton className="mt-2 h-8 w-32" />
     ) : (
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    )}
+    {projecao && !loading && (
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+        <TrendingUp className="h-3 w-3 shrink-0" />
+        <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
+      </p>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
@@ -533,12 +542,21 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       today: todayISO,
       dataFinal: monthEnd,
     })
+    // Ritmo (pace) do faturamento pra extrapolar métricas de volume (unidades,
+    // SKUs distintos) que não têm série diária dedicada. Aproximação "no ritmo
+    // atual" — coerente com a projeção de faturamento.
+    const scale = realizadoFat > 0 ? pf.esperado / realizadoFat : 1
+    const realizadoUnidades = computed?.kpis.unidadesVendidas ?? 0
+    const realizadoProdutos = computed?.kpis.produtosDistintos ?? 0
     return {
       fat: pf,
       realizadoFat,
       realizadoLucro,
       projetadoFat: pf.esperado,
       projetadoLucro: pl.esperado,
+      projetadoMargemPct: pf.esperado > 0 ? (pl.esperado / pf.esperado) * 100 : 0,
+      projetadoUnidades: Math.round(realizadoUnidades * scale),
+      projetadoProdutos: Math.round(realizadoProdutos * scale),
       isProjetada: pf.diasRestantes > 0,
       dataFinalProjecao: monthEnd,
     }
@@ -589,6 +607,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               iconColor="text-blue-600 dark:text-blue-400"
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              projecao={projecaoPista.isProjetada && computed ? formatNumber(projecaoPista.projetadoProdutos) : undefined}
               extra={
                 computed && computed.kpis.produtosDistintos > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -617,6 +636,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               iconColor="text-cyan-600 dark:text-cyan-400"
               cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              projecao={projecaoPista.isProjetada && computed ? formatNumber(projecaoPista.projetadoUnidades) : undefined}
               extra={
                 computed && computed.kpis.unidadesVendidas > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -645,6 +665,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              projecao={projecaoPista.isProjetada && computed ? formatCurrency(projecaoPista.projetadoFat) : undefined}
               extra={
                 computed && computed.kpis.faturamento > 0 && computed.categorias.length > 0 ? (
                   <>
@@ -706,6 +727,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               }
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              projecao={projecaoPista.isProjetada && computed ? `${formatCurrency(projecaoPista.projetadoLucro)} · ${projecaoPista.projetadoMargemPct.toFixed(1).replace('.', ',')}%` : undefined}
             />
             <ProjecaoExecutiva
               fat={projecaoPista.fat}

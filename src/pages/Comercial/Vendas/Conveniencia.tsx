@@ -61,9 +61,12 @@ interface KpiCardProps {
   iconColor: string
   cardBg: string
   loading?: boolean
+  /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
+   * período é projetável (tem dias futuros). */
+  projecao?: string
 }
 
-const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, loading }: KpiCardProps) => {
+const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => {
   if (loading) return <KpiSkeleton />
   return (
     <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
@@ -74,6 +77,12 @@ const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, 
         </div>
       </div>
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+      {projecao && (
+        <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+          <TrendingUp className="h-3 w-3 shrink-0" />
+          <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
+        </p>
+      )}
       {delta !== undefined && isFinite(delta) && delta !== 0 && (
         <div className="mt-1">
           <DeltaPill pct={delta} />
@@ -173,6 +182,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              projecao={projecao.isProjetada ? formatCurrencyInt(projecao.faturamento) : undefined}
               extra={
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -201,6 +211,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-blue-600 dark:text-blue-400"
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              projecao={projecao.isProjetada ? formatCurrencyInt(projecao.lucroBruto) : undefined}
               extra={
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -235,6 +246,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              projecao={projecao.isProjetada ? `${(projecao.faturamento > 0 ? (projecao.lucroBruto / projecao.faturamento) * 100 : 0).toFixed(2).replace('.', ',')}%` : undefined}
               extra={
                 kpis ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -269,6 +281,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              projecao={projecao.isProjetada ? formatCurrency(projecao.ticketMedio) : undefined}
               extra={
                 kpis && kpis.qtdItens > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">

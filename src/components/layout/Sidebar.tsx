@@ -10,6 +10,12 @@ import {
   PanelLeft,
   Check,
   Sparkles,
+  LayoutGrid,
+  Fuel,
+  Wrench,
+  Store,
+  GitCompareArrows,
+  Radar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -28,14 +34,14 @@ const getInitials = (name: string): string => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-type SidebarMode = 'expanded' | 'collapsed' | 'hover'
+type SidebarMode = 'expanded' | 'collapsed' | 'hover' | 'options'
 
 const SIDEBAR_MODE_KEY = 'sidebar_mode'
 
 const readMode = (): SidebarMode => {
   if (typeof window === 'undefined') return 'collapsed'
   const v = localStorage.getItem(SIDEBAR_MODE_KEY)
-  if (v === 'expanded' || v === 'collapsed' || v === 'hover') return v
+  if (v === 'expanded' || v === 'collapsed' || v === 'hover' || v === 'options') return v
   return 'collapsed'
 }
 
@@ -43,10 +49,32 @@ const modeOptions: { value: SidebarMode; label: string }[] = [
   { value: 'expanded', label: 'Expandido' },
   { value: 'collapsed', label: 'Recolhido' },
   { value: 'hover', label: 'Expandir ao passar o mouse' },
+  { value: 'options', label: 'Opções ao passar o mouse' },
 ]
 
+/** Sub-opções (abas deep-linkáveis) por módulo — usadas no flyout do modo
+ * "Opções ao passar o mouse". Só os módulos com abas navegáveis por URL. */
+interface SubOption {
+  label: string
+  to: string
+  Icon: typeof LayoutGrid
+}
+const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
+  '/comercial/vendas': [
+    { label: 'Visão Geral', to: '/comercial/vendas', Icon: LayoutGrid },
+    { label: 'Combustível', to: '/comercial/vendas?tab=combustivel', Icon: Fuel },
+    { label: 'Pista', to: '/comercial/vendas?tab=pista', Icon: Wrench },
+    { label: 'Conveniência', to: '/comercial/vendas?tab=conveniencia', Icon: Store },
+  ],
+  '/inteligencia': [
+    { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
+    { label: 'Radar', to: '/inteligencia?tab=radar', Icon: Radar },
+    { label: 'Cadu IA', to: '/inteligencia?tab=assistente', Icon: Sparkles },
+  ],
+}
+
 const Sidebar = () => {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
   const supabaseUser = useAuthStore((s) => s.user)
@@ -286,49 +314,87 @@ const Sidebar = () => {
               {group.items.map((item) => {
                 const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
                 const Icon = item.icon
+                const subOptions = MODULE_SUBOPTIONS[item.path]
+                // Flyout com as sub-opções: só no modo "Opções ao passar o mouse"
+                // e nos módulos que têm abas deep-linkáveis. Senão, tooltip normal.
+                const showFlyout = mode === 'options' && narrow && !!subOptions
 
                 return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    aria-label={item.label}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      'group relative flex h-9 items-center rounded-lg transition-colors',
-                      isActive
-                        ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-white'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
-                    )}
-                  >
-                    {/* Barra vertical indicando item ativo. Fica colada à esquerda
-                        do botão, encostando no texto (alinhada com o início da palavra). */}
-                    {isActive && (
-                      <span
-                        aria-hidden
-                        className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-sky-500 dark:bg-sky-400"
-                      />
-                    )}
-                    {/* Coluna fixa do ícone — fica sempre na mesma posição quer
-                        a sidebar esteja narrow ou wide. */}
-                    <span className="flex h-9 w-10 shrink-0 items-center justify-center">
-                      <Icon
-                        className={cn(
-                          'h-[17px] w-[17px]',
-                          isActive
-                            ? 'text-sky-600 dark:text-sky-300'
-                            : 'text-gray-400 dark:text-white/55',
-                        )}
-                      />
-                    </span>
-                    {wide && (
-                      <span className="text-[13px] font-medium">{item.label}</span>
-                    )}
-                    {narrow && (
-                      <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+                  <div key={item.path} className="group relative">
+                    <Link
+                      to={item.path}
+                      aria-label={item.label}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'relative flex h-9 items-center rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-white'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
+                      )}
+                    >
+                      {/* Barra vertical indicando item ativo. Fica colada à esquerda
+                          do botão, encostando no texto (alinhada com o início da palavra). */}
+                      {isActive && (
+                        <span
+                          aria-hidden
+                          className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-sky-500 dark:bg-sky-400"
+                        />
+                      )}
+                      {/* Coluna fixa do ícone — fica sempre na mesma posição quer
+                          a sidebar esteja narrow ou wide. */}
+                      <span className="flex h-9 w-10 shrink-0 items-center justify-center">
+                        <Icon
+                          className={cn(
+                            'h-[17px] w-[17px]',
+                            isActive
+                              ? 'text-sky-600 dark:text-sky-300'
+                              : 'text-gray-400 dark:text-white/55',
+                          )}
+                        />
+                      </span>
+                      {wide && (
+                        <span className="text-[13px] font-medium">{item.label}</span>
+                      )}
+                    </Link>
+
+                    {/* Tooltip simples (narrow, sem flyout) */}
+                    {narrow && !showFlyout && (
+                      <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
                         {item.label}
                       </span>
                     )}
-                  </Link>
+
+                    {/* Flyout com as sub-opções do módulo (modo "Opções ao passar
+                        o mouse"). O pl-2 cria uma "ponte" hover entre o ícone e o
+                        popover pra ele não fechar ao mover o cursor. */}
+                    {showFlyout && (
+                      <div className="invisible absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100">
+                        <div className="min-w-[12rem] rounded-xl border border-gray-200 bg-white py-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                            {item.label}
+                          </p>
+                          {subOptions.map((opt) => {
+                            const optActive = pathname + search === opt.to
+                            return (
+                              <Link
+                                key={opt.to}
+                                to={opt.to}
+                                className={cn(
+                                  'flex items-center gap-2 px-3 py-1.5 text-sm transition-colors',
+                                  optActive
+                                    ? 'bg-sky-50 font-medium text-sky-900 dark:bg-sky-500/15 dark:text-white'
+                                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800',
+                                )}
+                              >
+                                <opt.Icon className={cn('h-4 w-4 shrink-0', optActive ? 'text-sky-600 dark:text-sky-300' : 'text-gray-400 dark:text-gray-500')} />
+                                {opt.label}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>

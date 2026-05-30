@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Brain,
@@ -80,17 +80,30 @@ const singleTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
 ]
 
 const Inteligencia = () => {
-  // Abre direto no Cadu quando vem com ?tab=assistente (atalho do menu do admin).
-  const [searchParams] = useSearchParams()
-  const [topTab, setTopTab] = useState<TopTab>(
-    searchParams.get('tab') === 'assistente' ? 'assistente' : 'analise',
-  )
-  useEffect(() => {
-    if (searchParams.get('tab') === 'assistente') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTopTab('assistente')
-    }
-  }, [searchParams])
+  // Aba controlada pela URL (?tab=) — deep link do menu/atalhos e do flyout de
+  // sub-opções da sidebar. 'analise' é o default (sem ?tab=).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const isTopTab = (v: string | null): v is TopTab =>
+    v === 'analise' || v === 'radar' || v === 'assistente'
+  const queryTab = searchParams.get('tab')
+  const [topTab, setTopTab] = useState<TopTab>(isTopTab(queryTab) ? queryTab : 'analise')
+
+  // Sync state quando o ?tab= muda por fora (flyout da sidebar, deep link).
+  const [prevQueryTab, setPrevQueryTab] = useState(queryTab)
+  if (queryTab !== prevQueryTab) {
+    setPrevQueryTab(queryTab)
+    const next: TopTab = isTopTab(queryTab) ? queryTab : 'analise'
+    if (next !== topTab) setTopTab(next)
+  }
+
+  // Troca de aba via clique → reflete no ?tab= (pra deep-link e voltar do browser).
+  const handleSetTopTab = (tab: TopTab) => {
+    setTopTab(tab)
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'analise') next.delete('tab')
+    else next.set('tab', tab)
+    setSearchParams(next, { replace: true })
+  }
   const [activeTab, setActiveTab] = useState<TabKey>('comparativo')
   const [selectedEmpresas, setSelectedEmpresas] = useState<number[]>([])
 
@@ -135,7 +148,7 @@ const Inteligencia = () => {
           direita). Sticky full-bleed porque a Inteligência não usa a sub-bar
           global do AppLayout (showsGlobalFilters = false). */}
       <TopBar
-        className="sticky top-0 z-30 -mx-4 -mt-4 md:-mx-6 md:-mt-5"
+        className="sticky -top-4 z-30 -mx-4 -mt-4 md:-top-5 md:-mx-6 md:-mt-5"
         title={
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
             {/* Bloco de título idêntico ao <PageHeaderTitle> das outras telas */}
@@ -157,7 +170,7 @@ const Inteligencia = () => {
                 return (
                   <button
                     key={t.key}
-                    onClick={() => setTopTab(t.key)}
+                    onClick={() => handleSetTopTab(t.key)}
                     className={cn(
                       'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
                       isActive
