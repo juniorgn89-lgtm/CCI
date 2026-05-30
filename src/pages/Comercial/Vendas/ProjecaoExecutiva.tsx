@@ -13,6 +13,10 @@ interface ProjecaoExecutivaProps {
   projetadoLucro: number
   dataFinal: string
   loading?: boolean
+  /** Expansão controlada por fora (toggle global que também abre os detalhes
+   * por combustível nos KPIs). Se omitido, usa estado interno. */
+  expanded?: boolean
+  onToggleExpanded?: () => void
 }
 
 const CONFIA: Record<Confiabilidade, { label: string; cls: string }> = {
@@ -78,8 +82,12 @@ const ProjecaoExecutiva = ({
   projetadoLucro,
   dataFinal,
   loading = false,
+  expanded: expandedProp,
+  onToggleExpanded,
 }: ProjecaoExecutivaProps) => {
-  const [expanded, setExpanded] = useState(false)
+  const [internalExpanded, setInternalExpanded] = useState(false)
+  const expanded = expandedProp ?? internalExpanded
+  const toggleExpanded = onToggleExpanded ?? (() => setInternalExpanded((v) => !v))
   const isProjetada = fat.diasRestantes > 0
   const deltaFat = fat.esperado - fat.realizado
   const margemPct = fat.esperado > 0 ? (projetadoLucro / fat.esperado) * 100 : 0
@@ -221,7 +229,7 @@ const ProjecaoExecutiva = ({
           {/* Toggle ver mais / menos detalhes */}
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={toggleExpanded}
             className="mt-3 inline-flex items-center gap-1 self-start rounded-md px-1.5 py-1 text-[11px] font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
           >
             {expanded ? (

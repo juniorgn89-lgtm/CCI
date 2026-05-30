@@ -143,9 +143,13 @@ interface KpiCardProps {
   /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
    * período é projetável (tem dias futuros). */
   projecao?: string
+  /** Quebra da projeção por combustível (toggle global "Ver detalhes"). */
+  projDetalhe?: ReactNode
+  /** Se o detalhe por combustível deve aparecer (estado global expandido). */
+  mostrarProjDetalhe?: boolean
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe }: KpiCardProps) => (
   <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
@@ -174,6 +178,14 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
         <TrendingUp className="h-3 w-3 shrink-0" />
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
       </p>
+    )}
+    {mostrarProjDetalhe && projDetalhe && !loading && (
+      <div className="mt-2 rounded-lg bg-indigo-50/70 px-2.5 py-2 dark:bg-indigo-950/20">
+        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
+          Projeção por combustível
+        </p>
+        {projDetalhe}
+      </div>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {/* mt-auto ancora o detalhe no rodapé — todas as seções "extra" alinham
@@ -205,6 +217,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
   const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
+  // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
+  // projeção por combustível.
+  const [projDetalheAberto, setProjDetalheAberto] = useState(false)
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
   // (% sobre litros totais) calculado no hook.
@@ -523,6 +538,74 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     return out
   }, [rows, fuelTypeData, dataInicial])
 
+  /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
+   * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
+   * por combustível até o fim do mês (mesma engine do card executivo). */
+  interface ProjFuelDetalhe { litros: number; lucro: number; fat: number; margem: number; lbLitro: number }
+  const projDetalhePorFuel = useMemo<Map<string, ProjFuelDetalhe>>(() => {
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const lastDay = new Date(yy, mm, 0).getDate()
+    const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+    const litrosByFuel = new Map<string, Map<string, number>>()
+    const fatByFuel = new Map<string, Map<string, number>>()
+    const lucroByFuel = new Map<string, Map<string, number>>()
+    const add = (m: Map<string, Map<string, number>>, fuel: string, day: string, v: number) => {
+      const s = m.get(fuel) ?? new Map<string, number>()
+      s.set(day, (s.get(day) ?? 0) + v)
+      m.set(fuel, s)
+    }
+    for (const r of rows) {
+      const day = r.dataHora?.substring(0, 10)
+      if (!day || !r.combustivelNome) continue
+      add(litrosByFuel, r.combustivelNome, day, r.litros)
+      add(fatByFuel, r.combustivelNome, day, r.valorTotal)
+      add(lucroByFuel, r.combustivelNome, day, r.lucroBruto)
+    }
+    const proj = (s?: Map<string, number>) =>
+      projecaoAvancada({
+        dailySeries: Array.from((s ?? new Map<string, number>()).entries()).map(([data, value]) => ({ data, value })),
+        today: todayISO,
+        dataFinal: monthEnd,
+      }).esperado
+
+    const out = new Map<string, ProjFuelDetalhe>()
+    for (const f of fuelTypeData) {
+      const litros = proj(litrosByFuel.get(f.nome))
+      const fat = proj(fatByFuel.get(f.nome))
+      const lucro = proj(lucroByFuel.get(f.nome))
+      out.set(f.nome, {
+        litros,
+        lucro,
+        fat,
+        margem: fat > 0 ? (lucro / fat) * 100 : 0,
+        lbLitro: litros > 0 ? lucro / litros : 0,
+      })
+    }
+    return out
+  }, [rows, fuelTypeData, dataInicial])
+
+  /* Renderiza a lista de projeção por combustível pro card (formatador por métrica). */
+  const renderProjFuelList = (fmt: (d: ProjFuelDetalhe) => string) => (
+    <div className="space-y-1 text-[10px] tabular-nums">
+      {fuelTypeData.map((f) => {
+        const d = projDetalhePorFuel.get(f.nome)
+        if (!d) return null
+        return (
+          <div key={f.nome} className="flex items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-gray-500 dark:text-gray-400">
+              <span className={cn('h-2 w-2 shrink-0 rounded-sm', fuelColor(f.nome))} />
+              <span className="truncate">{f.nome}</span>
+            </span>
+            <span className="shrink-0 font-semibold text-indigo-600 dark:text-indigo-400">{fmt(d)}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+
   /* ─── Máximos por coluna (Power BI Data Bars) ─── */
   const colMax = useMemo(() => {
     const days = detalheDiaADia.days
@@ -601,6 +684,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               previous={kpis?.cmpTotalLitros}
               comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatLiters(projecaoCombustivel.projetadoLitros) : undefined}
+              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
+              projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
               extra={
                 kpis && kpis.totalLitros > 0 && fuelTypeData.length > 0 ? (
                   <>
@@ -637,6 +722,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               previous={lbLitroData.cmpLucro > 0 ? lbLitroData.cmpLucro : undefined}
               comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLucro) : undefined}
+              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
+              projDetalhe={renderProjFuelList((d) => formatCurrency(d.lucro))}
               extra={
                 !isLoadingAnalytics && lbLitroData.cmpLucro > 0 ? (
                   <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -657,6 +744,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={isLoadingAnalytics}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
+              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
+              projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(2).replace('.', ',')}%`)}
               extra={
                 !isLoadingAnalytics && lbLitroData.cmpMargem > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -694,6 +783,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingAnalytics}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
+              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
+              projDetalhe={renderProjFuelList((d) => formatCurrency(d.lbLitro))}
               extra={
                 (lbRanking || lbLitroData.coberturaCustoPct < 99.5) ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
@@ -736,6 +827,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               fat={projecaoCombustivel.fat}
               projetadoLucro={projecaoCombustivel.projetadoLucro}
               dataFinal={projecaoCombustivel.dataFinalProjecao}
+              expanded={projDetalheAberto}
+              onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingAnalytics || isLoadingKpis}
             />
           </div>
