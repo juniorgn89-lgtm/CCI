@@ -1,12 +1,14 @@
 import { lazy, Suspense, type ReactNode, useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Layers, Search, HelpCircle, Trophy, LayoutDashboard, BarChart3, ListOrdered } from 'lucide-react'
+import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Search, HelpCircle, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
+import DeltaBadge from '@/components/kpi/DeltaBadge'
+import { offsetPeriod } from '@/lib/period'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -24,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
+import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 // Lazy: 3 abas extras reusam os componentes da Conveniência
@@ -31,10 +34,11 @@ const ParetoAnalysis = lazy(() => import('@/pages/Conveniencias/components/Paret
 const CurvaABC = lazy(() => import('@/pages/Conveniencias/components/CurvaABC'))
 const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
 
-type TabId = 'visao' | 'pareto' | 'abc' | 'catalogo'
+type TabId = 'diadia' | 'grupo' | 'pareto' | 'abc' | 'catalogo'
 
 const TABS: { id: TabId; label: string; Icon: typeof LayoutDashboard }[] = [
-  { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
+  { id: 'diadia', label: 'Realizado dia a dia', Icon: CalendarDays },
+  { id: 'grupo', label: 'Realizado por grupo', Icon: LayoutDashboard },
   { id: 'pareto', label: 'Análise de Pareto', Icon: BarChart3 },
   { id: 'abc', label: 'Curva ABC', Icon: ListOrdered },
   { id: 'catalogo', label: 'Catálogo', Icon: Package },
@@ -132,10 +136,14 @@ interface KpiCardProps {
   /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
    * período é projetável (tem dias futuros). */
   projecao?: string
+  /** Comparação com o período anterior (DeltaBadge). */
+  current?: number
+  previous?: number
+  comparisonLabel?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
-  <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
+const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, current, previous, comparisonLabel }: KpiCardProps) => (
+  <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
@@ -147,6 +155,13 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
     ) : (
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
     )}
+    {!loading && (
+      <div className="min-h-[1.25rem]">
+        {current !== undefined && previous !== undefined && (
+          <DeltaBadge current={current} previous={previous} label={comparisonLabel} />
+        )}
+      </div>
+    )}
     {projecao && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
         <TrendingUp className="h-3 w-3 shrink-0" />
@@ -154,7 +169,7 @@ const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, l
       </p>
     )}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
-    {extra && !loading && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
+    {extra && !loading && <div className="mt-auto border-t border-gray-200/60 pt-2.5 dark:border-gray-700/60">{extra}</div>}
   </div>
 )
 
@@ -166,15 +181,21 @@ interface ComercialVendasPistaProps {
 }
 
 const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = {}) => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
+  const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+  const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  const prevInicial = offsetPeriod(dataInicial, cmpOffset)
+  const prevFinal = offsetPeriod(dataFinal, cmpOffset)
   // Cache compartilhada — só pra ler `projectionMeta.daysRemaining`.
   const { projectionMeta } = useAbastecimentosAnalytics()
 
   // Aba ativa (Visão Geral por padrão — mostra "Por categoria" + "Top 20 produtos")
-  const [activeTab, setActiveTab] = useState<TabId>('visao')
+  const [activeTab, setActiveTab] = useState<TabId>('diadia')
+  // Expansão da tabela "Realizado dia a dia" (dia → grupo → produto).
+  const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
 
   // Filtros da tabela de produtos
   const [searchProduto, setSearchProduto] = useState('')
@@ -227,6 +248,24 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         empresaCodigo: empresaCodigo!,
         dataInicial,
         dataFinal,
+        usaProdutoLmc: false,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 50,
+    ),
+    enabled: hasEmpresa && empresaCodigo !== null,
+  })
+
+  // Vendas do período ANTERIOR (mês/ano ant. conforme o comparativo) — base da
+  // comparação "vs ant." dos KPIs.
+  const { data: vendaItensPrev = [] } = useQuery({
+    queryKey: ['vendaItens-pista-prev', empresaCodigo, prevInicial, prevFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchVendaItens({
+        empresaCodigo: empresaCodigo!,
+        dataInicial: prevInicial,
+        dataFinal: prevFinal,
         usaProdutoLmc: false,
         ultimoCodigo: p.ultimoCodigo,
         limite: p.limite,
@@ -334,6 +373,106 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       },
     }
   }, [produtosData, gruposData, vendaItens])
+
+  /* KPIs de VALOR (cards no padrão do BI) — atual + período anterior, sobre os
+   * mesmos produtos PS- (pista/automotivo). Ticket = faturamento ÷ nº de vendas. */
+  const cmpKpis = useMemo(() => {
+    const pistaSet = new Set<number>()
+    if (produtosData && gruposData) {
+      const grupoMap = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      for (const p of produtosData) {
+        if (p.combustivel) continue
+        const gn = grupoMap.get(p.grupoCodigo)
+        if (gn && isPistaGroup(gn)) pistaSet.add(p.produtoCodigo)
+      }
+    }
+    const tot = (itens: typeof vendaItens) => {
+      let fat = 0, custo = 0
+      const vendas = new Set<number>()
+      for (const it of itens) {
+        if (!pistaSet.has(it.produtoCodigo)) continue
+        fat += it.totalVenda
+        custo += it.totalCusto
+        if (it.vendaCodigo) vendas.add(it.vendaCodigo)
+      }
+      const lucro = fat - custo
+      return {
+        faturamento: fat,
+        lucroBruto: lucro,
+        margemPct: fat > 0 ? (lucro / fat) * 100 : 0,
+        ticketMedio: vendas.size > 0 ? fat / vendas.size : 0,
+        qtdVendas: vendas.size,
+      }
+    }
+    return { atual: tot(vendaItens), prev: tot(vendaItensPrev) }
+  }, [produtosData, gruposData, vendaItens, vendaItensPrev])
+
+  /* Tabela "Realizado dia a dia" — hierárquica: dia → grupo (PS-) → produto.
+   * Colunas: Qtde, Faturamento, Custo, Lucro bruto, Margem, Preço/Custo/L.B. médio
+   * (médios = total ÷ Qtde). Igual ao relatório do BI. */
+  const realizadoDiaADia = useMemo(() => {
+    const info = new Map<number, { nome: string; grupoNome: string }>()
+    if (produtosData && gruposData) {
+      const grupoMap = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      for (const p of produtosData) {
+        if (p.combustivel) continue
+        const gn = grupoMap.get(p.grupoCodigo)
+        if (gn && isPistaGroup(gn)) info.set(p.produtoCodigo, { nome: p.nome, grupoNome: gn })
+      }
+    }
+    interface Prod { produtoCodigo: number; nome: string; qtd: number; fat: number; custo: number }
+    interface Grupo { nome: string; qtd: number; fat: number; custo: number; produtos: Map<number, Prod> }
+    interface Dia { data: string; qtd: number; fat: number; custo: number; grupos: Map<string, Grupo> }
+    const byDay = new Map<string, Dia>()
+    for (const it of vendaItens) {
+      const inf = info.get(it.produtoCodigo)
+      if (!inf || it.quantidade <= 0) continue
+      const day = it.dataMovimento?.slice(0, 10)
+      if (!day) continue
+      const d = byDay.get(day) ?? { data: day, qtd: 0, fat: 0, custo: 0, grupos: new Map() }
+      d.qtd += it.quantidade; d.fat += it.totalVenda; d.custo += it.totalCusto
+      const g = d.grupos.get(inf.grupoNome) ?? { nome: inf.grupoNome, qtd: 0, fat: 0, custo: 0, produtos: new Map() }
+      g.qtd += it.quantidade; g.fat += it.totalVenda; g.custo += it.totalCusto
+      const pr = g.produtos.get(it.produtoCodigo) ?? { produtoCodigo: it.produtoCodigo, nome: inf.nome, qtd: 0, fat: 0, custo: 0 }
+      pr.qtd += it.quantidade; pr.fat += it.totalVenda; pr.custo += it.totalCusto
+      g.produtos.set(it.produtoCodigo, pr)
+      d.grupos.set(inf.grupoNome, g)
+      byDay.set(day, d)
+    }
+    const days = Array.from(byDay.values())
+      .map((d) => ({
+        data: d.data,
+        qtd: d.qtd, fat: d.fat, custo: d.custo, lucro: d.fat - d.custo,
+        grupos: Array.from(d.grupos.values())
+          .map((g) => ({
+            nome: g.nome,
+            qtd: g.qtd, fat: g.fat, custo: g.custo, lucro: g.fat - g.custo,
+            produtos: Array.from(g.produtos.values())
+              .map((p) => ({ ...p, lucro: p.fat - p.custo }))
+              .sort((a, b) => b.fat - a.fat),
+          }))
+          .sort((a, b) => b.fat - a.fat),
+      }))
+      .sort((a, b) => b.data.localeCompare(a.data))
+    const total = days.reduce(
+      (acc, d) => ({ qtd: acc.qtd + d.qtd, fat: acc.fat + d.fat, custo: acc.custo + d.custo, lucro: acc.lucro + d.lucro }),
+      { qtd: 0, fat: 0, custo: 0, lucro: 0 },
+    )
+    return { days, total }
+  }, [vendaItens, produtosData, gruposData])
+
+  // Máximos por coluna pro heatmap (Data Bars) da tabela dia a dia — mesmo
+  // padrão da aba Combustível (maior valor da coluna = barra mais longa).
+  const diaColMax = useMemo(() => {
+    const days = realizadoDiaADia.days
+    return {
+      qtd: Math.max(...days.map((d) => d.qtd), 0),
+      fat: Math.max(...days.map((d) => d.fat), 0),
+      lucro: Math.max(...days.map((d) => d.lucro), 0),
+      margem: Math.max(...days.map((d) => (d.fat > 0 ? (d.lucro / d.fat) * 100 : 0)), 0),
+      lbMedio: Math.max(...days.map((d) => (d.qtd > 0 ? d.lucro / d.qtd : 0)), 0),
+    }
+  }, [realizadoDiaADia])
 
   // Mapa produtoCodigo → saldo de estoque (soma de saldoEstoque[].quantidade
   // ou saldo do produto). Usado pelo filtro de estoque, pelo modal e pela tabela.
@@ -444,21 +583,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     const codes = new Set(produtosDaCategoria.map((p) => p.produtoCodigo))
     return vendaItens.filter((v) => codes.has(v.produtoCodigo))
   }, [selectedCategoria, produtosDaCategoria, vendaItens])
-
-  /* Ranking categoria com maior/menor margem — usado no card "Margem" */
-  const categoriaMargemRanking = useMemo(() => {
-    if (!computed || computed.categorias.length < 2) return null
-    const ranked = computed.categorias
-      .filter((c) => c.faturamento > 0)
-      .map((c) => ({
-        nome: c.nome,
-        margemPct: c.faturamento > 0 ? ((c.faturamento - c.custo) / c.faturamento) * 100 : 0,
-      }))
-      .sort((a, b) => b.margemPct - a.margemPct)
-    return ranked.length >= 2
-      ? { maior: ranked[0], menor: ranked[ranked.length - 1] }
-      : null
-  }, [computed])
 
   /* ─── Projeção POR CATEGORIA ───
    * Aplica smoothedProjection no faturamento de cada categoria pra estimar
@@ -599,77 +723,20 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
           {/* KPIs principais — 4 cards ocupando a largura toda (estilo Combustível) */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard
-              label="Produtos vendidos"
-              value={computed ? formatNumber(computed.kpis.produtosDistintos) : '—'}
-              hint="SKUs distintos com venda > 0"
-              Icon={Package}
-              iconBg="bg-blue-100 dark:bg-blue-900/30"
-              iconColor="text-blue-600 dark:text-blue-400"
-              cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
-              loading={isLoadingVendas}
-              projecao={projecaoPista.isProjetada && computed ? formatNumber(projecaoPista.projetadoProdutos) : undefined}
-              extra={
-                computed && computed.kpis.produtosDistintos > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Categorias ativas</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {computed.categorias.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Ticket / SKU</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatCurrency(computed.kpis.faturamento / computed.kpis.produtosDistintos)}
-                      </span>
-                    </div>
-                  </div>
-                ) : null
-              }
-            />
-            <KpiCard
-              label="Unidades"
-              value={computed ? formatNumber(computed.kpis.unidadesVendidas) : '—'}
-              hint="Total de unidades vendidas"
-              Icon={Layers}
-              iconBg="bg-cyan-100 dark:bg-cyan-900/30"
-              iconColor="text-cyan-600 dark:text-cyan-400"
-              cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
-              loading={isLoadingVendas}
-              projecao={projecaoPista.isProjetada && computed ? formatNumber(projecaoPista.projetadoUnidades) : undefined}
-              extra={
-                computed && computed.kpis.unidadesVendidas > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Un / SKU</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {(computed.kpis.unidadesVendidas / computed.kpis.produtosDistintos).toFixed(1).replace('.', ',')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Un / dia</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {(computed.kpis.unidadesVendidas / diasPeriodo).toFixed(1).replace('.', ',')}
-                      </span>
-                    </div>
-                  </div>
-                ) : null
-              }
-            />
-            <KpiCard
               label="Faturamento"
-              value={computed ? formatCurrency(computed.kpis.faturamento) : '—'}
-              hint="Soma das vendas no período"
+              value={isLoadingVendas ? '—' : formatCurrencyInt(cmpKpis.atual.faturamento)}
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
-              projecao={projecaoPista.isProjetada && computed ? formatCurrency(projecaoPista.projetadoFat) : undefined}
+              current={cmpKpis.atual.faturamento}
+              previous={cmpKpis.prev.faturamento > 0 ? cmpKpis.prev.faturamento : undefined}
+              comparisonLabel={cmpLabel}
+              projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoFat) : undefined}
               extra={
                 computed && computed.kpis.faturamento > 0 && computed.categorias.length > 0 ? (
                   <>
-                    {/* Stacked bar com mix por categoria */}
                     <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                       {computed.categorias.map((c) => {
                         const pct = (c.faturamento / computed.kpis.faturamento) * 100
@@ -691,43 +758,87 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               }
             />
             <KpiCard
-              label="Margem"
-              value={
-                computed
-                  ? `${formatCurrency(computed.kpis.margem)} · ${computed.kpis.margemPct.toFixed(1).replace('.', ',')}%`
-                  : '—'
-              }
-              hint="Lucro bruto e % sobre faturamento"
-              Icon={TrendingUp}
-              iconBg="bg-amber-100 dark:bg-amber-900/30"
-              iconColor="text-amber-600 dark:text-amber-400"
+              label="Lucro bruto"
+              value={isLoadingVendas ? '—' : formatCurrencyInt(cmpKpis.atual.lucroBruto)}
+              Icon={DollarSign}
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+              cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
+              loading={isLoadingVendas}
+              current={cmpKpis.atual.lucroBruto}
+              previous={cmpKpis.prev.lucroBruto > 0 ? cmpKpis.prev.lucroBruto : undefined}
+              comparisonLabel={cmpLabel}
+              projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoLucro) : undefined}
               extra={
-                categoriaMargemRanking ? (
-                  <div className="space-y-1 text-[10px] tabular-nums">
+                !isLoadingVendas && cmpKpis.prev.lucroBruto > 0 ? (
+                  <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {formatCurrencyInt(cmpKpis.prev.lucroBruto)}
+                    </span>
+                  </div>
+                ) : null
+              }
+            />
+            <KpiCard
+              label="Margem"
+              value={isLoadingVendas ? '—' : `${cmpKpis.atual.margemPct.toFixed(2).replace('.', ',')}%`}
+              Icon={PieChart}
+              iconBg="bg-purple-100 dark:bg-purple-900/30"
+              iconColor="text-purple-600 dark:text-purple-400"
+              cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
+              loading={isLoadingVendas}
+              projecao={projecaoPista.isProjetada && computed ? `${projecaoPista.projetadoMargemPct.toFixed(2).replace('.', ',')}%` : undefined}
+              extra={
+                !isLoadingVendas && cmpKpis.prev.margemPct > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                        <span className={cn('h-2 w-2 rounded-sm', CATEGORIA_BAR_COLOR[categoriaMargemRanking.maior.nome] ?? 'bg-gray-400')} />
-                        Maior · {categoriaMargemRanking.maior.nome}
-                      </span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {categoriaMargemRanking.maior.margemPct.toFixed(1).replace('.', ',')}%
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {cmpKpis.prev.margemPct.toFixed(2).replace('.', ',')}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                        <span className={cn('h-2 w-2 rounded-sm', CATEGORIA_BAR_COLOR[categoriaMargemRanking.menor.nome] ?? 'bg-gray-400')} />
-                        Menor · {categoriaMargemRanking.menor.nome}
-                      </span>
-                      <span className="font-semibold text-red-600 dark:text-red-400">
-                        {categoriaMargemRanking.menor.margemPct.toFixed(1).replace('.', ',')}%
+                      <span>Variação</span>
+                      <span className={cn(
+                        'font-semibold',
+                        cmpKpis.atual.margemPct - cmpKpis.prev.margemPct >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400',
+                      )}>
+                        {cmpKpis.atual.margemPct - cmpKpis.prev.margemPct >= 0 ? '+' : ''}
+                        {(cmpKpis.atual.margemPct - cmpKpis.prev.margemPct).toFixed(2).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
                 ) : null
               }
+            />
+            <KpiCard
+              label="Ticket médio"
+              value={isLoadingVendas ? '—' : formatCurrency(cmpKpis.atual.ticketMedio)}
+              hint="Faturamento ÷ nº de vendas"
+              Icon={Receipt}
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
-              projecao={projecaoPista.isProjetada && computed ? `${formatCurrency(projecaoPista.projetadoLucro)} · ${projecaoPista.projetadoMargemPct.toFixed(1).replace('.', ',')}%` : undefined}
+              current={cmpKpis.atual.ticketMedio}
+              previous={cmpKpis.prev.ticketMedio > 0 ? cmpKpis.prev.ticketMedio : undefined}
+              comparisonLabel={cmpLabel}
+              projecao={projecaoPista.isProjetada && cmpKpis.atual.ticketMedio > 0 ? formatCurrency(cmpKpis.atual.ticketMedio) : undefined}
+              extra={
+                cmpKpis.atual.qtdVendas > 0 ? (
+                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Nº de vendas</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatNumber(cmpKpis.atual.qtdVendas)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              }
             />
             <ProjecaoExecutiva
               fat={projecaoPista.fat}
@@ -737,52 +848,139 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
           </div>
 
-          {/* Switcher de 4 abas */}
-          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-            {TABS.map((tab) => {
-              const Icon = tab.Icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
+          {/* Detalhamento de informações — UM card só (igual Combustível):
+              header + sub-menu no topo, conteúdo da aba ativa no corpo. */}
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Detalhamento de informações
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Aqui temos todas as vendas setorizadas com maior nível de detalhes
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {TABS.map((tab) => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors',
+                        isActive
+                          ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
+                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-          {/* Abas extras — Pareto / Curva ABC / Catálogo reusam componentes da Conveniência */}
-          {activeTab === 'pareto' && (
-            <Suspense fallback={<RouteFallback />}>
-              <ParetoAnalysis products={produtosAsCatalog} />
-            </Suspense>
-          )}
-          {activeTab === 'abc' && (
-            <Suspense fallback={<RouteFallback />}>
-              <CurvaABC products={produtosAsCatalog} />
-            </Suspense>
-          )}
-          {activeTab === 'catalogo' && (
-            <Suspense fallback={<RouteFallback />}>
-              <ProductCatalog products={produtosAsCatalog} gruposList={gruposListPista} />
-            </Suspense>
-          )}
+            {/* ── Aba: Realizado dia a dia (clique abre detalhe do dia) ── */}
+            {activeTab === 'diadia' && (
+              <>
+              {realizadoDiaADia.days.length === 0 ? (
+                <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Data</th>
+                        <th className="px-3 py-2 text-right font-medium">Qtde</th>
+                        <th className="px-3 py-2 text-right font-medium">Faturamento</th>
+                        <th className="px-3 py-2 text-right font-medium">Custo</th>
+                        <th className="px-3 py-2 text-right font-medium">Lucro Bruto</th>
+                        <th className="px-3 py-2 text-right font-medium">Margem</th>
+                        <th className="px-3 py-2 text-right font-medium">Preço médio</th>
+                        <th className="px-3 py-2 text-right font-medium">Custo médio</th>
+                        <th className="px-3 py-2 text-right font-medium">L.B. Médio</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {realizadoDiaADia.days.map((d) => (
+                        <tr
+                          key={d.data}
+                          className="cursor-pointer text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40"
+                          onClick={() => setSelectedDia({ data: d.data, qtd: d.qtd, fat: d.fat, custo: d.custo, lucro: d.lucro, grupos: d.grupos.map((g) => ({ nome: g.nome, qtd: g.qtd, fat: g.fat, custo: g.custo, lucro: g.lucro })) })}
+                        >
+                          <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                            <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
+                          </td>
+                          <td className="px-2 py-1">
+                            <BarCell value={d.qtd} max={diaColMax.qtd} formatted={formatNumber(Math.round(d.qtd))} color="blue" align="near" />
+                          </td>
+                          <td className="px-2 py-1">
+                            <BarCell value={d.fat} max={diaColMax.fat} formatted={formatCurrencyInt(d.fat)} color="green" align="near" />
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(d.custo)}</td>
+                          <td className="px-2 py-1">
+                            <BarCell value={d.lucro} max={diaColMax.lucro} formatted={formatCurrencyInt(d.lucro)} color="green" align="near" />
+                          </td>
+                          <td className="px-2 py-1">
+                            <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'} color="amber" align="near" />
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.fat / d.qtd) : '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.custo / d.qtd) : '—'}</td>
+                          <td className="px-2 py-1">
+                            <BarCell value={d.qtd > 0 ? d.lucro / d.qtd : 0} max={diaColMax.lbMedio} formatted={d.qtd > 0 ? formatCurrency(d.lucro / d.qtd) : '—'} color="amber" align="near" />
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Total */}
+                      <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                        <td className="px-3 py-2.5">Total</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(realizadoDiaADia.total.qtd))}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.fat)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.custo)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.lucro)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.fat > 0 ? `${((realizadoDiaADia.total.lucro / realizadoDiaADia.total.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.fat / realizadoDiaADia.total.qtd) : '—'}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.custo / realizadoDiaADia.total.qtd) : '—'}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.lucro / realizadoDiaADia.total.qtd) : '—'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              </>
+            )}
 
-          {/* Aba Visão Geral — conteúdo original (Por categoria + Top 20 produtos) */}
-          {activeTab === 'visao' && (
+            {/* Abas extras — Pareto / Curva ABC / Catálogo reusam componentes da Conveniência */}
+            {activeTab === 'pareto' && (
+              <div className="p-4">
+                <Suspense fallback={<RouteFallback />}>
+                  <ParetoAnalysis products={produtosAsCatalog} />
+                </Suspense>
+              </div>
+            )}
+            {activeTab === 'abc' && (
+              <div className="p-4">
+                <Suspense fallback={<RouteFallback />}>
+                  <CurvaABC products={produtosAsCatalog} />
+                </Suspense>
+              </div>
+            )}
+            {activeTab === 'catalogo' && (
+              <div className="p-4">
+                <Suspense fallback={<RouteFallback />}>
+                  <ProductCatalog products={produtosAsCatalog} gruposList={gruposListPista} />
+                </Suspense>
+              </div>
+            )}
+
+            {/* Aba Realizado por grupo — Por categoria + Top 20 produtos (flush no card) */}
+            {activeTab === 'grupo' && (
             <>
 
           {/* Por categoria — table com BarCells, tooltips, Trophy/Lanterna e Total */}
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div>
             <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por categoria</h2>
               <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -923,10 +1121,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 </table>
               </div>
             )}
-          </section>
+          </div>
 
           {/* Tabela de produtos com busca + filtro de categoria + BarCells */}
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="border-t border-gray-100 dark:border-gray-800">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1098,11 +1296,12 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 </table>
               </div>
             )}
-          </section>
+          </div>
 
           </>
           )}
-          {/* fim do activeTab === 'visao' */}
+          {/* fim do activeTab === 'grupo' */}
+          </section>
         </>
       )}
 
@@ -1122,6 +1321,12 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             ? CATEGORIA_COLOR[selectedCategoria.nome] ?? CATEGORIA_COLOR['Outros']
             : ''
         }
+      />
+
+      <PistaDiaModal
+        open={selectedDia !== null}
+        onClose={() => setSelectedDia(null)}
+        detail={selectedDia}
       />
     </div>
   )

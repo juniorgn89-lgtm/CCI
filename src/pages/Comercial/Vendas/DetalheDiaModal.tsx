@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import BarCell from '@/components/tables/BarCell'
 
 export interface FuelLineDetalhe {
@@ -106,9 +106,9 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
 
           {/* KPIs mini */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Kpi label="Litros" value={formatNumber(detail.litros)} />
-            <Kpi label="Faturamento" value={formatCurrency(detail.faturamento)} />
-            <Kpi label="Lucro bruto" value={formatCurrency(detail.lucroBruto)} />
+            <Kpi label="Litros" value={formatNumber(Math.round(detail.litros))} />
+            <Kpi label="Faturamento" value={formatCurrencyInt(detail.faturamento)} />
+            <Kpi label="Lucro bruto" value={formatCurrencyInt(detail.lucroBruto)} />
             <Kpi label="Margem" value={`${margemPct.toFixed(2).replace('.', ',')}%`} />
           </div>
 
@@ -160,13 +160,13 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
                           </span>
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
+                          <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(Math.round(f.litros))} color="blue" align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                          <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrencyInt(f.faturamento)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={f.lucroBruto} max={maxLb} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />
+                          <BarCell value={f.lucroBruto} max={maxLb} formatted={formatCurrencyInt(f.lucroBruto)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
                           <BarCell value={fLb} max={maxLbLitro} formatted={formatCurrency(fLb)} color="amber" align="near" />
@@ -178,13 +178,13 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
                 <tr className="border-t border-gray-200 bg-gray-50 font-bold dark:border-gray-600 dark:bg-gray-800">
                   <td className="px-4 py-2 text-left text-gray-900 dark:text-gray-100">Total</td>
                   <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">
-                    {formatNumber(detail.litros)}
+                    {formatNumber(Math.round(detail.litros))}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">
-                    {formatCurrency(detail.faturamento)}
+                    {formatCurrencyInt(detail.faturamento)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">
-                    {formatCurrency(detail.lucroBruto)}
+                    {formatCurrencyInt(detail.lucroBruto)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">
                     {formatCurrency(lbLitro)}

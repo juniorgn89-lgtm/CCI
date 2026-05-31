@@ -1,15 +1,15 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
+import TopBarTabs from '@/components/layout/TopBarTabs'
+import useTabParam from '@/hooks/useTabParam'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import { cn } from '@/lib/utils'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
 const FinanceiroIndicadores = lazy(() => import('@/pages/Financeiro/components/FinanceiroIndicadores'))
@@ -40,11 +40,15 @@ const TableSkeleton = () => (
 const Financeiro = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useFinanceiroLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'visao')
+  // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
+  // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível.
+  const [tabParam, setActiveTab] = useTabParam<string>(
+    'visao',
+    (v): v is string => v != null && layoutTabs.some((t) => t.id === v),
+  )
+  const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
 
-  const handleNavigate = (tab: string) => {
-    setActiveTab(tab)
-  }
+  const handleNavigate = (tab: string) => setActiveTab(tab)
 
   const {
     kpis,
@@ -56,32 +60,49 @@ const Financeiro = () => {
     isLoading,
     hasEmpresa,
   } = useFinanceData()
-  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
-
-  // Set-state durante render quando a aba persistida foi escondida via engrenagem.
-  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
-    setActiveTab(visibleTabs[0].id)
-  }
 
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-            <Landmark className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Financeiro{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+              <Landmark className="h-4 w-4 text-white" />
             </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Contas a receber, contas a pagar e fluxo de caixa
-            </p>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
+            <FocusModeToggle />
           </div>
+          {hasEmpresa && visibleTabs.length > 0 && (
+            <TopBarTabs
+              active={activeTab}
+              onChange={setActiveTab}
+              tabs={visibleTabs.map((t) => {
+                const overdue = t.id === 'receber'
+                  ? (kpis?.countVencidosReceber ?? 0)
+                  : t.id === 'pagar'
+                    ? (kpis?.countVencidosPagar ?? 0)
+                    : 0
+                const badgeTitle = t.id === 'receber'
+                  ? `${overdue} ${overdue === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'}`
+                  : `${overdue} ${overdue === 1 ? 'conta a pagar vencida' : 'contas a pagar vencidas'}`
+                return {
+                  id: t.id,
+                  label: t.label,
+                  Icon: TAB_ICONS[t.id] ?? Receipt,
+                  badge: overdue > 0 && activeTab !== t.id ? (
+                    <span
+                      title={badgeTitle}
+                      aria-label={badgeTitle}
+                      className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-100 px-1 text-[9px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400"
+                    >
+                      {overdue}
+                    </span>
+                  ) : undefined,
+                }
+              })}
+            />
+          )}
         </div>
       </PageHeaderTitle>
       <HeaderTray>
@@ -104,48 +125,7 @@ const Financeiro = () => {
             </div>
           ) : (
             <>
-              {/* Tabs */}
-              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-                {visibleTabs.map((tab) => {
-                  const Icon = TAB_ICONS[tab.id] ?? Receipt
-                  // Badge representa SÓ contas vencidas (não total nem a vencer hoje).
-                  // Cor vermelha + tooltip explícito para o usuário entender de cara.
-                  const overdueCount = tab.id === 'receber'
-                    ? (kpis?.countVencidosReceber ?? 0)
-                    : tab.id === 'pagar'
-                      ? (kpis?.countVencidosPagar ?? 0)
-                      : 0
-                  const badgeTitle = tab.id === 'receber'
-                    ? `${overdueCount} ${overdueCount === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'}`
-                    : `${overdueCount} ${overdueCount === 1 ? 'conta a pagar vencida' : 'contas a pagar vencidas'}`
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                        activeTab === tab.id
-                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                      {overdueCount > 0 && activeTab !== tab.id && (
-                        <span
-                          title={badgeTitle}
-                          aria-label={badgeTitle}
-                          className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600 dark:bg-red-900/50 dark:text-red-400"
-                        >
-                          {overdueCount}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Content */}
+              {/* Content (abas na TopBar) */}
               {showSkeleton ? (
                 <TableSkeleton />
               ) : (

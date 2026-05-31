@@ -5,14 +5,17 @@ import {
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
-import type { FuelTypeRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
 interface FuelDetalheModalProps {
   open: boolean
   onClose: () => void
-  fuel: FuelTypeRow | null
+  /** Resumo de VALOR do combustível (venda fiscal). O detalhe operacional
+   *  (frentistas/bombas/hora) vem dos abastecimentos em `rows`. */
+  fuel: FuelVendaFuelType | null
   /** Todos os abastecimentos do período — o modal filtra pelo `fuel.nome` internamente. */
   rows: AbastecimentoRow[]
   /** Data inicial do período (ISO yyyy-mm-dd) — exibida no header de contexto. */
@@ -175,9 +178,9 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               Indicadores
             </div>
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
-              <Kpi Icon={Droplets} label="Litros" value={formatNumber(fuel.litros)} />
-              <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(fuel.faturamento)} />
-              <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(fuel.lucroBruto)} />
+              <Kpi Icon={Droplets} label="Litros" value={formatNumber(Math.round(fuel.litros))} />
+              <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrencyInt(fuel.faturamento)} />
+              <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrencyInt(fuel.lucroBruto)} />
               <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(1).replace('.', ',')}%`} />
               <Kpi Icon={Receipt} label="Ticket / litro" value={formatCurrency(ticketPorLitro)} />
               <Kpi Icon={DollarSign} label="L.B./Litro" value={formatCurrency(fuel.lbPorLitro)} />
@@ -197,8 +200,8 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               </div>
               <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
                 <Kpi Icon={Droplets} label="Litros" value={formatNumber(Math.round(projecao.projetadoLitros))} tone="projecao" />
-                <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(projecao.projetado)} tone="projecao" />
-                <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(projecao.projetadoLucro)} tone="projecao" />
+                <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrencyInt(projecao.projetado)} tone="projecao" />
+                <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrencyInt(projecao.projetadoLucro)} tone="projecao" />
                 <Kpi Icon={Percent} label="Margem" value={`${projecao.projetadoMargem.toFixed(1).replace('.', ',')}%`} tone="projecao" />
               </div>
             </section>
@@ -224,14 +227,14 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                             {f.nome}
                           </span>
                           <span className="shrink-0 tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                            {formatNumber(f.litros)} L
+                            {formatNumber(Math.round(f.litros))} L
                           </span>
                         </div>
                         <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                           <div className="h-1 rounded-full bg-blue-400 dark:bg-blue-500" style={{ width: `${Math.max(2, barWidth)}%` }} />
                         </div>
                         <div className="mt-1 flex items-center justify-between text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                          <span>{formatCurrency(f.faturamento)}</span>
+                          <span>{formatCurrencyInt(f.faturamento)}</span>
                           <span>{f.abastecimentos} abastec.</span>
                         </div>
                       </li>
@@ -259,7 +262,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                             {b.nome}
                           </span>
                           <span className="shrink-0 tabular-nums font-semibold text-gray-900 dark:text-gray-100">
-                            {formatNumber(b.litros)} L
+                            {formatNumber(Math.round(b.litros))} L
                           </span>
                         </div>
                         <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">

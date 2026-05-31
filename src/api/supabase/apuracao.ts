@@ -853,6 +853,14 @@ export interface ApuracaoVendaRow {
   total_venda: number
   total_custo: number
   linhas: number
+  /**
+   * Nº de CUPONS (vendaCodigo distinto) da CONVENIÊNCIA naquele (empresa, dia).
+   * Valor de DIA — desnormalizado: todas as linhas de produto de conveniência
+   * do mesmo (empresa, dia) carregam o mesmo número. Pro ticket médio = fat ÷
+   * cupons (igual ao BI), o leitor deduplica por (empresa, dia) antes de somar.
+   * 0 em linhas não-conveniência (combustível/PS-) e em apurações antigas.
+   */
+  cupons: number
   computed_at: string
   computed_by: string | null
 }
@@ -911,14 +919,42 @@ export const upsertVendasCache = async (
 }
 
 /**
+ * Conta os CUPONS (vendaCodigo distinto) da conveniência por (empresa, dia).
+ * `convProdutoCodigos` = produtos elegíveis (não combustível, não PS-); cupons
+ * de outros itens não entram. Retorna mapa "empresa|dia" → nº de cupons.
+ */
+const cuponsConvByDay = (
+  itens: VendaItem[],
+  convProdutoCodigos: Set<number>,
+): Map<string, number> => {
+  const sets = new Map<string, Set<number>>()
+  for (const it of itens) {
+    if (!convProdutoCodigos.has(it.produtoCodigo)) continue
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data || it.vendaCodigo == null) continue
+    const k = `${it.empresaCodigo}|${data}`
+    let s = sets.get(k)
+    if (!s) { s = new Set(); sets.set(k, s) }
+    s.add(it.vendaCodigo)
+  }
+  const out = new Map<string, number>()
+  for (const [k, s] of sets) out.set(k, s.size)
+  return out
+}
+
+/**
  * Agrega itens de venda crus (VendaItem) em linhas do cache, somando por
- * (empresa, dia, produto). `linhas` conta o nº de itens de venda, pra
- * preservar o ticket médio (faturamento ÷ nº de itens) da Conveniência.
+ * (empresa, dia, produto). `linhas` conta o nº de itens de venda; `cupons`
+ * guarda o nº de cupons (vendaCodigo distinto) de CONVENIÊNCIA daquele
+ * (empresa, dia) — desnormalizado em cada linha de produto de conveniência,
+ * pro ticket médio bater com o BI (faturamento ÷ cupons).
  */
 export const aggregateVendaItensToCache = (
   itens: VendaItem[],
   redeId: string,
+  convProdutoCodigos: Set<number>,
 ): ApuracaoVendaUpsert[] => {
+  const cuponsByDay = cuponsConvByDay(itens, convProdutoCodigos)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
@@ -931,6 +967,7 @@ export const aggregateVendaItensToCache = (
       existing.total_custo += it.totalCusto ?? 0
       existing.linhas += 1
     } else {
+      const isConv = convProdutoCodigos.has(it.produtoCodigo)
       map.set(key, {
         rede_id: redeId,
         empresa_codigo: it.empresaCodigo,
@@ -940,6 +977,7 @@ export const aggregateVendaItensToCache = (
         total_venda: it.totalVenda ?? 0,
         total_custo: it.totalCusto ?? 0,
         linhas: 1,
+        cupons: isConv ? (cuponsByDay.get(`${it.empresaCodigo}|${data}`) ?? 0) : 0,
       })
     }
   }

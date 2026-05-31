@@ -1,4 +1,4 @@
-import { Activity, CheckCircle2, Layers } from 'lucide-react'
+import { CheckCircle2, Layers, HelpCircle } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 
@@ -36,12 +36,12 @@ const yesterdayOrFirst = (): string => {
 
 /* ─── Componente ─── */
 
-type Mode = 'em_andamento' | 'apurado' | 'completo'
+type Mode = 'apurado' | 'completo'
 
 interface Option {
   value: Mode
   label: string
-  Icon: typeof Activity
+  Icon: typeof Layers
   title: string
 }
 
@@ -50,19 +50,13 @@ const options: Option[] = [
     value: 'completo',
     label: 'Completo',
     Icon: Layers,
-    title: 'Mês inteiro (1º → último dia) — apurados + dia corrente',
-  },
-  {
-    value: 'em_andamento',
-    label: 'Em andamento',
-    Icon: Activity,
-    title: 'Hoje · só dados do dia corrente (sem cache)',
+    title: 'Mês inteiro (1º → último dia). O dia atual entra conforme o posto fecha/sincroniza — não é tempo real.',
   },
   {
     value: 'apurado',
     label: 'Apurado',
     Icon: CheckCircle2,
-    title: 'Só dias já fechados do mês (1º → ontem) — bate no cache, super rápido',
+    title: 'Só dias já fechados do mês (1º → ontem) — dados confiáveis, bate no cache.',
   },
 ]
 
@@ -89,18 +83,14 @@ const DataFilterModeSelect = () => {
   // corrente incluído) cai em "Completo". Comparar strings yyyy-MM-dd com
   // `<` funciona porque a ordem lexicográfica bate com a cronológica.
   const activeMode: Mode =
-    dataInicial === today && dataFinal === today
-      ? 'em_andamento'
-      : dataInicial === firstM && dataFinal === yesterday
+    dataInicial === firstM && dataFinal === yesterday
+      ? 'apurado'
+      : dataFinal < today
         ? 'apurado'
-        : dataFinal < today
-          ? 'apurado'
-          : 'completo'
+        : 'completo'
 
   const handleSelect = (mode: Mode) => {
-    if (mode === 'em_andamento') {
-      setPeriodo(today, today)
-    } else if (mode === 'apurado') {
+    if (mode === 'apurado') {
       setPeriodo(firstM, yesterday)
     } else {
       setPeriodo(firstM, lastM)
@@ -134,6 +124,13 @@ const DataFilterModeSelect = () => {
           </button>
         )
       })}
+      <span
+        title="As vendas do dia atual só aparecem depois que o posto fecha/sincroniza na Quality — não é tempo real. 'Apurado' mostra só dias fechados; 'Completo' inclui o dia corrente conforme ele sincroniza."
+        className="ml-0.5 inline-flex cursor-help items-center text-gray-400 dark:text-gray-500"
+        aria-label="Sobre os dados do dia atual"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </span>
     </div>
   )
 }

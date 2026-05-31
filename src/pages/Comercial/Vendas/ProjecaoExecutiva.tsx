@@ -3,7 +3,7 @@ import { LineChart, TrendingUp, TrendingDown, CalendarCheck, CalendarClock, Gaug
 import { ResponsiveContainer, ComposedChart, Area, Line } from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyInt, formatDate } from '@/lib/formatters'
+import { formatCurrencyInt, formatDate } from '@/lib/formatters'
 import { PROJECAO_TOOLTIP_EXECUTIVA, type ProjecaoAvancadaResult, type Confiabilidade } from '@/lib/projection'
 
 interface ProjecaoExecutivaProps {
@@ -130,11 +130,11 @@ const ProjecaoExecutiva = ({
         <>
           {/* Esperado (número grande) */}
           <p className="mt-1 text-2xl font-bold tabular-nums text-white">
-            {formatCurrency(fat.esperado)}
+            {formatCurrencyInt(fat.esperado)}
           </p>
           <p className="text-[11px] text-white/70">Faturamento estimado até {formatDate(dataFinal)}</p>
           {isProjetada && deltaFat > 0 && (
-            <p className="mt-0.5 text-[11px] tabular-nums text-emerald-300">+ {formatCurrency(deltaFat)} pra fechar</p>
+            <p className="mt-0.5 text-[11px] tabular-nums text-emerald-300">+ {formatCurrencyInt(deltaFat)} pra fechar</p>
           )}
 
           {/* ── Detalhes (só quando expandido) ── */}
@@ -212,7 +212,7 @@ const ProjecaoExecutiva = ({
             <p className="text-[11px] text-white/70">Lucro bruto estimado</p>
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-base font-semibold tabular-nums text-white">
-                {formatCurrency(projetadoLucro)}
+                {formatCurrencyInt(projetadoLucro)}
               </p>
               <p className="text-[11px] tabular-nums text-white/70">
                 {fat.esperado > 0 ? `${margemPct.toFixed(1).replace('.', ',')}% margem` : '—'}

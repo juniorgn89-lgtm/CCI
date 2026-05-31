@@ -13,6 +13,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useTenantStore } from '@/store/tenant'
 import useApuracaoCache from './useApuracaoCache'
 import { computeApuracaoRows, upsertApuracaoDiaria } from '@/api/supabase/apuracao'
+import { offsetPeriod } from '@/lib/period'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
 
@@ -114,14 +115,6 @@ const threeMonthsBefore = (dateStr: string): string => {
   return `${y}-${m}-${day}`
 }
 
-const offsetPeriod = (dateStr: string, monthsBack: number): string => {
-  const d = new Date(dateStr)
-  d.setMonth(d.getMonth() - monthsBack)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 interface UseDashboardDataOptions {
   /** Override de período — quando fornecido, ignora dataInicial/dataFinal do filter store */

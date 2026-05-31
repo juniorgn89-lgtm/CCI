@@ -6,8 +6,10 @@
 -- padrão de abastecimentos/caixas). Hoje continua sempre live.
 --
 -- Granularidade: 1 linha por (rede, empresa, data, produto). Guarda quantidade,
--- total de venda, total de custo e o nº de LINHAS de item (pro ticket médio,
--- que na Conveniência é faturamento ÷ nº de itens, não por transação).
+-- total de venda, total de custo, o nº de LINHAS de item e o nº de CUPONS
+-- (vendaCodigo distinto) de conveniência do dia (pro ticket médio = fat ÷
+-- cupons, igual ao BI). `cupons` é valor de DIA, desnormalizado em cada linha
+-- de conveniência do mesmo (empresa, data) — o leitor deduplica antes de somar.
 --
 -- Rode no SQL Editor do Supabase.
 
@@ -19,11 +21,15 @@ create table if not exists apuracao_vendas (
   quantidade     numeric not null default 0,  -- soma de item.quantidade
   total_venda    numeric not null default 0,  -- soma de item.totalVenda
   total_custo    numeric not null default 0,  -- soma de item.totalCusto
-  linhas         integer not null default 0,  -- nº de itens de venda (ticket médio)
+  linhas         integer not null default 0,  -- nº de itens de venda
+  cupons         integer not null default 0,  -- nº de cupons conveniência do dia (ticket médio)
   computed_at    timestamptz not null default now(),
   computed_by    uuid,
   primary key (rede_id, empresa_codigo, data, produto_codigo)
 );
+
+-- Migração (tabela já existente): adiciona a coluna de cupons.
+alter table apuracao_vendas add column if not exists cupons integer not null default 0;
 
 -- Índices pras leituras do front (rede_id sempre primeiro pra isolar tenant).
 create index if not exists idx_apuracao_vendas_rede_data

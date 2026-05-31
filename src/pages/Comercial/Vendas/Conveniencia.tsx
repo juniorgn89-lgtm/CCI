@@ -93,17 +93,6 @@ const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, 
   )
 }
 
-const ContentSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <Skeleton className="mb-4 h-5 w-48" />
-    <div className="space-y-3">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-full" />
-      ))}
-    </div>
-  </div>
-)
-
 /**
  * Comercial · Vendas · Conveniência — cara da Pista: header + KPIs no topo +
  * switcher de 3 abas (Análise de Pareto / Curva ABC / Catálogo). Cada aba
@@ -310,49 +299,65 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             />
           </div>
 
-          {/* Switcher de 3 abas */}
-          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-            {TABS.map((tab) => {
-              const Icon = tab.Icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
+          {/* Detalhamento de informações — UM card só (igual Pista/Combustível):
+              header + sub-menu no topo, conteúdo da aba ativa no corpo. */}
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Detalhamento de informações
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Aqui temos todas as vendas setorizadas com maior nível de detalhes
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {TABS.map((tab) => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors',
+                        isActive
+                          ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
+                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-          {/* Conteúdo */}
-          {showSkeleton ? (
-            <ContentSkeleton />
-          ) : (
-            <Suspense fallback={<RouteFallback />}>
-              {activeTab === 'visao' && (
-                <ConvenienciaVisaoGeral
-                  catalogProducts={catalogProducts}
-                  groupTable={groupTable}
-                  salesByDay={salesByDay}
-                  vendaItens={vendaItens}
-                  dataInicial={dataInicial}
-                  dataFinal={dataFinal}
-                />
-              )}
-              {activeTab === 'pareto' && <ParetoAnalysis products={catalogProducts} />}
-              {activeTab === 'abc' && <CurvaABC products={catalogProducts} />}
-              {activeTab === 'catalogo' && <ProductCatalog products={catalogProducts} gruposList={gruposList} />}
-            </Suspense>
-          )}
+            {/* Conteúdo da aba ativa (flush no card) */}
+            {showSkeleton ? (
+              <div className="space-y-3 p-5">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : (
+              <Suspense fallback={<div className="p-4"><RouteFallback /></div>}>
+                {activeTab === 'visao' && (
+                  <ConvenienciaVisaoGeral
+                    catalogProducts={catalogProducts}
+                    groupTable={groupTable}
+                    salesByDay={salesByDay}
+                    vendaItens={vendaItens}
+                    dataInicial={dataInicial}
+                    dataFinal={dataFinal}
+                  />
+                )}
+                {activeTab === 'pareto' && <div className="p-4"><ParetoAnalysis products={catalogProducts} /></div>}
+                {activeTab === 'abc' && <div className="p-4"><CurvaABC products={catalogProducts} /></div>}
+                {activeTab === 'catalogo' && <div className="p-4"><ProductCatalog products={catalogProducts} gruposList={gruposList} /></div>}
+              </Suspense>
+            )}
+          </section>
         </>
       )}
     </div>

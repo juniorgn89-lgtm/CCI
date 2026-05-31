@@ -18,7 +18,6 @@ export interface ModuloInfo {
 
 export const MODULOS: ModuloInfo[] = [
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
-  // Fechamentos é a landing padrão em produção, mas vem após a Central no menu.
   { id: 'fechamento-caixa', label: 'Fechamentos', path: '/fechamento-caixa' },
   { id: 'comercial', label: 'Comercial · Vendas', path: '/comercial' },
   { id: 'bombas', label: 'Bombas', path: '/bombas' },
@@ -61,8 +60,8 @@ export const firstAllowedPath = (
   isMaster: boolean,
 ): string => {
   if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) {
-    // Fechamentos é a landing principal pra master / usuários sem restrição.
-    return '/fechamento-caixa'
+    // Central da Rede é a tela inicial pra master / usuários sem restrição.
+    return '/dashboard'
   }
   const first = MODULOS.find((m) => modulosPermitidos.includes(m.id))
   return first?.path ?? '/configuracoes'

@@ -17,6 +17,7 @@ import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
@@ -24,7 +25,7 @@ import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import BarCell from '@/components/tables/BarCell'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
-import type { FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
 
@@ -208,12 +209,17 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
   const cmpLabel = kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-  const { rows, dailyData, fuelTypeData, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
+  // ABASTECIMENTO continua só pro operacional: `rows` (modal de frentistas/
+  // bombas/hora) e `lbLitroData` (gráfico 12 meses — migra na fase do cache).
+  const { rows, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
+  // VENDA fiscal (igual ao WebPosto) — fonte das métricas de VALOR: KPIs,
+  // mix, ranking, projeção, tabela dia a dia e por combustível.
+  const { rows: vendaRows, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp } = useFuelVendaAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
-  const [selectedFuel, setSelectedFuel] = useState<FuelTypeRow | null>(null)
+  const [selectedFuel, setSelectedFuel] = useState<FuelVendaFuelType | null>(null)
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
   const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
@@ -230,7 +236,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
 
   // Margem % global — vem do hook, calculada SÓ sobre o volume com custo apurado
   // (combustível sem custo inflaria a margem). `coberturaCustoPct` sinaliza o gap.
-  const margemPctGlobal = lbLitroData.margemGlobal
+  const margemPctGlobal = vendaKpis.margemPct
 
   /* ─── Detalhamento DIA A DIA ───
    * Agrupa `rows` por data fiscal e, dentro do dia, por combustivelNome.
@@ -260,13 +266,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       fuels: FuelLine[]
     }
 
-    const src = diaFuelFilter === 'Todos' ? rows : rows.filter((r) => r.combustivelNome === diaFuelFilter)
+    // Fonte: VENDA fiscal (igual ao WebPosto). Agrupa pela data de movimento
+    // (já travada no período), faturamento BRUTO (totalVenda) e CMV (totalCusto).
+    const src = diaFuelFilter === 'Todos' ? vendaRows : vendaRows.filter((r) => r.combustivelNome === diaFuelFilter)
     const byDay = new Map<string, { fuels: Map<string, FuelLine>; totals: Omit<FuelLine, 'nome'> }>()
     for (const r of src) {
-      // Agrupa por DATA FISCAL (dia do movimento) — não pela hora real. Senão um
-      // abastecimento de madrugada (fiscal no dia anterior) vira uma linha extra
-      // fora do período filtrado.
-      const date = (r.dataFiscal || r.dataHora).substring(0, 10)
+      const date = r.data
       if (!date) continue
       if (!byDay.has(date)) {
         byDay.set(date, {
@@ -275,11 +280,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         })
       }
       const day = byDay.get(date)!
-      const custoLinha = r.precoCusto * r.litros
       day.totals.litros += r.litros
-      day.totals.faturamento += r.valorTotal
+      day.totals.faturamento += r.faturamento
       day.totals.lucroBruto += r.lucroBruto
-      day.totals.custo += custoLinha
+      day.totals.custo += r.custo
       day.totals.descontos += r.desconto
       const prev = day.fuels.get(r.combustivelNome) ?? {
         nome: r.combustivelNome,
@@ -290,9 +294,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         descontos: 0,
       }
       prev.litros += r.litros
-      prev.faturamento += r.valorTotal
+      prev.faturamento += r.faturamento
       prev.lucroBruto += r.lucroBruto
-      prev.custo += custoLinha
+      prev.custo += r.custo
       prev.descontos += r.desconto
       day.fuels.set(r.combustivelNome, prev)
     }
@@ -340,7 +344,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       return diasVal.reduce((s, d) => s + (d.variacaoSemanal ?? 0), 0) / diasVal.length
     })()
     return { days, total, variacaoTotal }
-  }, [rows, diaFuelFilter])
+  }, [vendaRows, diaFuelFilter])
 
   /* ─── Análise SEMANAL ───
    * Dois charts/tabelas:
@@ -351,22 +355,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
    * dia da semana (assim Segunda divide pelo nº de segundas do período).
    */
   const fuelOptions = useMemo(() => {
-    const set = new Set(rows.map((r) => r.combustivelNome).filter(Boolean))
+    const set = new Set(vendaRows.map((r) => r.combustivelNome).filter(Boolean))
     return ['Todos', ...Array.from(set).sort()]
-  }, [rows])
+  }, [vendaRows])
 
   const semanalDaily = useMemo(() => {
     const byDate = new Map<string, number>()
-    for (const r of rows) {
+    for (const r of vendaRows) {
       if (semanalFuelFilter !== 'Todos' && r.combustivelNome !== semanalFuelFilter) continue
-      const date = r.dataHora.substring(0, 10)
+      const date = r.data
       if (!date) continue
       byDate.set(date, (byDate.get(date) ?? 0) + r.litros)
     }
     return Array.from(byDate.entries())
       .map(([data, litros]) => ({ data, dataFmt: formatDate(data), litros }))
       .sort((a, b) => a.data.localeCompare(b.data))
-  }, [rows, semanalFuelFilter])
+  }, [vendaRows, semanalFuelFilter])
 
   const semanalMatrix = useMemo(() => {
     // ordem segunda..domingo (JS getDay: 0=dom..6=sáb)
@@ -378,8 +382,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     // soma de litros por fuel × dia-da-semana
     const fuelDowSum = new Map<string, Map<number, number>>()
 
-    for (const r of rows) {
-      const date = r.dataHora.substring(0, 10)
+    for (const r of vendaRows) {
+      const date = r.data
       if (!date) continue
       const dow = new Date(`${date}T00:00:00`).getDay()
       const dateSet = datesByDow.get(dow) ?? new Set<string>()
@@ -436,7 +440,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       grandTotal: grandDays > 0 ? grandSum / grandDays : 0,
       matrixMax,
     }
-  }, [rows])
+  }, [vendaRows])
 
   /* ─── Dados pra charts mensais (aba "Últimos 12 meses") ─── */
   // Opções do filtro por combustível da aba "Últimos 12 meses" (vem do cache
@@ -518,11 +522,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
     const serieByFuel = new Map<string, Map<string, number>>()
-    for (const r of rows) {
-      const day = r.dataHora?.substring(0, 10)
+    for (const r of vendaRows) {
+      const day = r.data
       if (!day || !r.combustivelNome) continue
       const serie = serieByFuel.get(r.combustivelNome) ?? new Map<string, number>()
-      serie.set(day, (serie.get(day) ?? 0) + r.valorTotal)
+      serie.set(day, (serie.get(day) ?? 0) + r.faturamento)
       serieByFuel.set(r.combustivelNome, serie)
     }
 
@@ -536,7 +540,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       out.set(f.nome, projetado)
     }
     return out
-  }, [rows, fuelTypeData, dataInicial])
+  }, [vendaRows, fuelTypeData, dataInicial])
 
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
    * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
@@ -557,11 +561,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       s.set(day, (s.get(day) ?? 0) + v)
       m.set(fuel, s)
     }
-    for (const r of rows) {
-      const day = r.dataHora?.substring(0, 10)
+    for (const r of vendaRows) {
+      const day = r.data
       if (!day || !r.combustivelNome) continue
       add(litrosByFuel, r.combustivelNome, day, r.litros)
-      add(fatByFuel, r.combustivelNome, day, r.valorTotal)
+      add(fatByFuel, r.combustivelNome, day, r.faturamento)
       add(lucroByFuel, r.combustivelNome, day, r.lucroBruto)
     }
     const proj = (s?: Map<string, number>) =>
@@ -585,7 +589,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       })
     }
     return out
-  }, [rows, fuelTypeData, dataInicial])
+  }, [vendaRows, fuelTypeData, dataInicial])
 
   /* Renderiza a lista de projeção por combustível pro card (formatador por métrica). */
   const renderProjFuelList = (fmt: (d: ProjFuelDetalhe) => string) => (
@@ -674,25 +678,25 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             <div className="grid grid-cols-2 gap-3 lg:col-span-4 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
-              value={showSkeleton || !kpis ? '—' : formatLiters(kpis.totalLitros)}
+              value={showSkeleton ? '—' : formatLiters(vendaKpis.litros)}
               Icon={Droplets}
               iconBg="bg-cyan-100 dark:bg-cyan-900/30"
               iconColor="text-cyan-600 dark:text-cyan-400"
               cardBg="bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-gray-900"
               loading={showSkeleton}
-              current={kpis?.totalLitros}
-              previous={kpis?.cmpTotalLitros}
+              current={vendaKpis.litros}
+              previous={vendaCmp.litros > 0 ? vendaCmp.litros : undefined}
               comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatLiters(projecaoCombustivel.projetadoLitros) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
               extra={
-                kpis && kpis.totalLitros > 0 && fuelTypeData.length > 0 ? (
+                vendaKpis.litros > 0 && fuelTypeData.length > 0 ? (
                   <>
                     {/* Stacked bar com a composição por tipo de combustível */}
                     <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                       {fuelTypeData.map((f) => {
-                        const pct = (f.litros / kpis.totalLitros) * 100
+                        const pct = (f.litros / vendaKpis.litros) * 100
                         return pct > 0 ? (
                           <span
                             key={f.produtoCodigo}
@@ -712,24 +716,24 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="Lucro bruto"
-              value={isLoadingAnalytics ? '—' : formatCurrency(lbLitroData.lucroGlobal)}
+              value={showSkeleton ? '—' : formatCurrencyInt(vendaKpis.lucroBruto)}
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
-              loading={isLoadingAnalytics}
-              current={lbLitroData.lucroGlobal}
-              previous={lbLitroData.cmpLucro > 0 ? lbLitroData.cmpLucro : undefined}
+              loading={showSkeleton}
+              current={vendaKpis.lucroBruto}
+              previous={vendaCmp.lucroBruto > 0 ? vendaCmp.lucroBruto : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLucro) : undefined}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatCurrencyInt(projecaoCombustivel.projetadoLucro) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
-              projDetalhe={renderProjFuelList((d) => formatCurrency(d.lucro))}
+              projDetalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))}
               extra={
-                !isLoadingAnalytics && lbLitroData.cmpLucro > 0 ? (
+                !showSkeleton && vendaCmp.lucroBruto > 0 ? (
                   <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      {formatCurrency(lbLitroData.cmpLucro)}
+                      {formatCurrencyInt(vendaCmp.lucroBruto)}
                     </span>
                   </div>
                 ) : null
@@ -737,22 +741,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="Margem"
-              value={isLoadingAnalytics ? '—' : `${margemPctGlobal.toFixed(2).replace('.', ',')}%`}
+              value={showSkeleton ? '—' : `${margemPctGlobal.toFixed(2).replace('.', ',')}%`}
               Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
-              loading={isLoadingAnalytics}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
+              loading={showSkeleton}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(2).replace('.', ',')}%`)}
               extra={
-                !isLoadingAnalytics && lbLitroData.cmpMargem > 0 ? (
+                !showSkeleton && vendaCmp.margemPct > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {margemPctGlobal === 0 ? '—' : `${lbLitroData.cmpMargem.toFixed(2).replace('.', ',')}%`}
+                        {`${vendaCmp.margemPct.toFixed(2).replace('.', ',')}%`}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -760,13 +764,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       <span
                         className={cn(
                           'font-semibold',
-                          margemPctGlobal - lbLitroData.cmpMargem >= 0
+                          margemPctGlobal - vendaCmp.margemPct >= 0
                             ? 'text-emerald-600 dark:text-emerald-400'
                             : 'text-red-600 dark:text-red-400',
                         )}
                       >
-                        {margemPctGlobal - lbLitroData.cmpMargem >= 0 ? '+' : ''}
-                        {(margemPctGlobal - lbLitroData.cmpMargem).toFixed(2).replace('.', ',')} pp
+                        {margemPctGlobal - vendaCmp.margemPct >= 0 ? '+' : ''}
+                        {(margemPctGlobal - vendaCmp.margemPct).toFixed(2).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -775,18 +779,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="L.B./Litro"
-              value={isLoadingAnalytics ? '—' : formatCurrency(lbLitroData.global)}
+              value={showSkeleton ? '—' : formatCurrency(vendaKpis.lbPorLitro)}
               hint="Lucro bruto por litro"
               Icon={TrendingUp}
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
-              loading={isLoadingAnalytics}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !isLoadingAnalytics ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
+              loading={showSkeleton}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatCurrency(d.lbLitro))}
               extra={
-                (lbRanking || lbLitroData.coberturaCustoPct < 99.5) ? (
+                lbRanking ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
                     {lbRanking && (
                       <>
@@ -809,14 +813,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           </span>
                         </div>
                       </>
-                    )}
-                    {lbLitroData.coberturaCustoPct < 99.5 && (
-                      <div className="mt-1 flex items-start gap-1 rounded bg-amber-50 px-1.5 py-1 text-[10px] normal-case text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                        <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span>
-                          {lbLitroData.coberturaCustoPct.toFixed(0)}% dos litros têm custo apurado — L.B./margem só sobre eles. Reapure pra incluir o resto.
-                        </span>
-                      </div>
                     )}
                   </div>
                 ) : null
@@ -878,17 +874,27 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                 {/* ── Tab: Realizado dia a dia ── */}
                 {detalheTab === 'dia' && (
                   <>
-                    <div className="flex flex-wrap items-center justify-end gap-2 px-4 pt-3">
-                      <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Combustível</span>
-                      <select
-                        value={diaFuelFilter}
-                        onChange={(e) => setDiaFuelFilter(e.target.value)}
-                        className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                      >
-                        {fuelOptions.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                    <div className="flex justify-center px-4 pt-3">
+                      <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                        {fuelOptions.map((opt) => {
+                          const isActive = diaFuelFilter === opt
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => setDiaFuelFilter(opt)}
+                              className={cn(
+                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                isActive
+                                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                     {detalheDiaADia.days.length === 0 ? (
                       <div className="px-5 py-12 text-center text-sm text-gray-400">
@@ -929,7 +935,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{d.dayOfWeek}</td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={d.litros} max={colMax.litros} formatted={formatNumber(d.litros)} color="blue" align="near" />
+                                  <BarCell value={d.litros} max={colMax.litros} formatted={formatNumber(Math.round(d.litros))} color="blue" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums">
                                   {d.variacaoSemanal === null ? (
@@ -942,10 +948,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   )}
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={d.faturamento} max={colMax.faturamento} formatted={formatCurrency(d.faturamento)} color="green" align="near" />
+                                  <BarCell value={d.faturamento} max={colMax.faturamento} formatted={formatCurrencyInt(d.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(d.lucroBruto)} color="green" align="near" />
+                                  <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrencyInt(d.lucroBruto)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                   {formatCurrency(d.descontos)}
@@ -969,7 +975,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-3 py-2.5">Total</td>
                             <td className="px-3 py-2.5" />
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(detalheDiaADia.total.litros)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(detalheDiaADia.total.litros))}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.variacaoTotal === null
                                 ? '—'
@@ -979,8 +985,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   </span>
                                 )}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.faturamento)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.lucroBruto)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.faturamento)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.lucroBruto)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.total.faturamento > 0
@@ -997,7 +1003,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 ? formatCurrency(detalheDiaADia.total.custo / detalheDiaADia.total.litros)
                                 : '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(lbLitroData.global)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(vendaKpis.lbPorLitro)}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1067,7 +1073,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                       </span>
                                     </td>
                                     <td className="px-2 py-1">
-                                      <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(f.litros)} color="blue" align="near" />
+                                      <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(Math.round(f.litros))} color="blue" align="near" />
                                     </td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
@@ -1075,16 +1081,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                       <BarCell value={f.lbPorLitro} max={maxLb} formatted={formatCurrency(f.lbPorLitro)} color="amber" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
-                                      <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                                      <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrencyInt(f.faturamento)} color="green" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
                                       {(() => {
                                         const proj = projecaoPorFuel.get(f.nome) ?? f.faturamento
-                                        return <BarCell value={proj} max={maxProj} formatted={formatCurrency(proj)} color={isProjetadaFuel ? 'blue' : 'green'} align="near" />
+                                        return <BarCell value={proj} max={maxProj} formatted={formatCurrencyInt(proj)} color={isProjetadaFuel ? 'blue' : 'green'} align="near" />
                                       })()}
                                     </td>
                                     <td className="px-2 py-1">
-                                      <BarCell value={f.lucroBruto} max={maxLucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />
+                                      <BarCell value={f.lucroBruto} max={maxLucroBruto} formatted={formatCurrencyInt(f.lucroBruto)} color="green" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
                                       <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
@@ -1097,18 +1103,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 {/* Linha Total */}
                                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                                   <td className="px-4 py-2.5">Total</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totLitros)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totLitros))}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totPrecoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLbLitro)}</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
                                   <td className={cn(
                                     'px-4 py-2.5 text-right tabular-nums',
                                     isProjetadaFuel && 'text-blue-700 dark:text-blue-400',
                                   )}>
-                                    {formatCurrency(totProj)}
+                                    {formatCurrencyInt(totProj)}
                                   </td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucroBruto)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucroBruto)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
                                 </tr>
@@ -1130,17 +1136,27 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                   ) : (
                     <div className="p-4">
                       {lbLitroData.monthlyFuels.length > 0 && (
-                        <div className="mb-4 flex items-center justify-end gap-2">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">Combustível</span>
-                          <select
-                            value={mesesFuelFilter}
-                            onChange={(e) => setMesesFuelFilter(e.target.value)}
-                            className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          >
-                            {mesesFuelOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                        <div className="mb-4 flex justify-center">
+                          <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                            {mesesFuelOptions.map((opt) => {
+                              const isActive = mesesFuelFilter === opt
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setMesesFuelFilter(opt)}
+                                  className={cn(
+                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                    isActive
+                                      ? 'bg-[#1e3a5f] text-white shadow-sm'
+                                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+                                  )}
+                                >
+                                  {opt}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -1179,9 +1195,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               type="monotone"
                               dataKey="lbPorLitro"
                               name="L.B./Litro"
-                              stroke="#facc15"
+                              stroke="#d97706"
                               strokeWidth={2.5}
-                              dot={{ r: 4, fill: '#facc15', stroke: '#a16207', strokeWidth: 1 }}
+                              dot={{ r: 4, fill: '#d97706', stroke: '#92400e', strokeWidth: 1 }}
                               activeDot={{ r: 5 }}
                             />
                           </ComposedChart>
@@ -1228,9 +1244,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               type="monotone"
                               dataKey="margemPct"
                               name="Margem"
-                              stroke="#facc15"
+                              stroke="#d97706"
                               strokeWidth={2.5}
-                              dot={{ r: 4, fill: '#facc15', stroke: '#a16207', strokeWidth: 1 }}
+                              dot={{ r: 4, fill: '#d97706', stroke: '#92400e', strokeWidth: 1 }}
                               activeDot={{ r: 5 }}
                             />
                           </ComposedChart>
@@ -1262,23 +1278,36 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
-                      {/* Left: chart "Litros vendidos por dia" com filtro por combustível */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                            Litros vendidos por dia
-                          </h3>
-                          <select
-                            value={semanalFuelFilter}
-                            onChange={(e) => setSemanalFuelFilter(e.target.value)}
-                            className="h-7 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          >
-                            {fuelOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                    <div className="p-4">
+                      {/* Filtro de combustível — pílula centralizada (padrão das demais abas) */}
+                      <div className="mb-4 flex justify-center">
+                        <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+                          {fuelOptions.map((opt) => {
+                            const isActive = semanalFuelFilter === opt
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setSemanalFuelFilter(opt)}
+                                className={cn(
+                                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                  isActive
+                                    ? 'bg-[#1e3a5f] text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            )
+                          })}
                         </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {/* Left: chart "Litros vendidos por dia" */}
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          Litros vendidos por dia
+                        </h3>
                         <ResponsiveContainer width="100%" height={320}>
                           <LineChart data={semanalDaily} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
@@ -1379,6 +1408,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             </tbody>
                           </table>
                         </div>
+                      </div>
                       </div>
                     </div>
                   )

@@ -16,6 +16,22 @@ import {
   Store,
   GitCompareArrows,
   Radar,
+  LayoutDashboard,
+  FileText,
+  HandCoins,
+  Scale,
+  Wallet,
+  TrendingUp,
+  Target,
+  Award,
+  Package,
+  RefreshCw,
+  Boxes,
+  ShoppingCart,
+  ClipboardList,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Activity,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -70,6 +86,37 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
     { label: 'Radar', to: '/inteligencia?tab=radar', Icon: Radar },
     { label: 'Cadu IA', to: '/inteligencia?tab=assistente', Icon: Sparkles },
+  ],
+  '/fechamento-caixa': [
+    { label: 'Visão Geral', to: '/fechamento-caixa', Icon: LayoutDashboard },
+    { label: 'Caixa Geral', to: '/fechamento-caixa?tab=geral', Icon: FileText },
+    { label: 'Sangria', to: '/fechamento-caixa?tab=sangria', Icon: HandCoins },
+    { label: 'Sobras e Faltas', to: '/fechamento-caixa?tab=sobras', Icon: Scale },
+    { label: 'Diferença Encerrantes', to: '/fechamento-caixa?tab=encerrantes', Icon: Fuel },
+  ],
+  '/caixas-turnos': [
+    { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
+    { label: 'Turnos de Caixa', to: '/caixas-turnos?tab=turnos', Icon: Wallet },
+  ],
+  '/produtividade': [
+    { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
+    { label: 'Projeções', to: '/produtividade?tab=projecoes', Icon: TrendingUp },
+    { label: 'Metas', to: '/produtividade?tab=metas', Icon: Target },
+    { label: 'Destaques', to: '/produtividade?tab=destaques', Icon: Award },
+  ],
+  '/estoques': [
+    { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },
+    { label: 'Estoque geral', to: '/estoques?tab=geral', Icon: Package },
+    { label: 'Giro', to: '/estoques?tab=giro', Icon: RefreshCw },
+    { label: 'Estoque médio', to: '/estoques?tab=estoqueMedio', Icon: Boxes },
+    { label: 'Média de venda (6m)', to: '/estoques?tab=mediaVendas', Icon: ShoppingCart },
+    { label: 'Necessidade', to: '/estoques?tab=necessidade', Icon: ClipboardList },
+  ],
+  '/financeiro': [
+    { label: 'Visão Geral', to: '/financeiro', Icon: LayoutDashboard },
+    { label: 'Receber', to: '/financeiro?tab=receber', Icon: ArrowDownCircle },
+    { label: 'Pagar', to: '/financeiro?tab=pagar', Icon: ArrowUpCircle },
+    { label: 'Fluxo de Caixa', to: '/financeiro?tab=fluxo', Icon: Activity },
   ],
 }
 

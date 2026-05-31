@@ -26,10 +26,40 @@ export interface VendaAgg {
   totalVenda: number
   totalCusto: number
   linhas: number
+  /**
+   * Nº de cupons (vendaCodigo distinto) de CONVENIÊNCIA naquele (empresa, dia),
+   * desnormalizado em cada linha de conveniência (mesmo valor por empresa+dia).
+   * Pro ticket médio (fat ÷ cupons), o leitor deduplica por (empresa, dia). 0
+   * em linhas não-conveniência e quando o set de conveniência não é informado.
+   */
+  cupons: number
 }
 
-/** Agrega itens crus de venda em VendaAgg[] (mesma chave do cache). */
-export const aggregateItensToVendaAgg = (itens: VendaItem[]): VendaAgg[] => {
+/** Cupons de conveniência (vendaCodigo distinto) por "empresa|dia". */
+const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>): Map<string, number> => {
+  if (!convProdutoCodigos) return new Map()
+  const sets = new Map<string, Set<number>>()
+  for (const it of itens) {
+    if (!convProdutoCodigos.has(it.produtoCodigo)) continue
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data || it.vendaCodigo == null) continue
+    const k = `${it.empresaCodigo}|${data}`
+    let s = sets.get(k)
+    if (!s) { s = new Set(); sets.set(k, s) }
+    s.add(it.vendaCodigo)
+  }
+  const out = new Map<string, number>()
+  for (const [k, s] of sets) out.set(k, s.size)
+  return out
+}
+
+/**
+ * Agrega itens crus de venda em VendaAgg[] (mesma chave do cache). Quando
+ * `convProdutoCodigos` é informado, calcula `cupons` por (empresa, dia) escopado
+ * à conveniência (igual à apuração); senão, `cupons` = 0.
+ */
+export const aggregateItensToVendaAgg = (itens: VendaItem[], convProdutoCodigos?: Set<number>): VendaAgg[] => {
+  const cuponsByDay = convCuponsByDay(itens, convProdutoCodigos)
   const map = new Map<string, VendaAgg>()
   for (const it of itens) {
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
@@ -42,6 +72,7 @@ export const aggregateItensToVendaAgg = (itens: VendaItem[]): VendaAgg[] => {
       e.totalCusto += it.totalCusto ?? 0
       e.linhas += 1
     } else {
+      const isConv = convProdutoCodigos?.has(it.produtoCodigo) ?? false
       map.set(key, {
         empresaCodigo: it.empresaCodigo,
         data,
@@ -50,6 +81,7 @@ export const aggregateItensToVendaAgg = (itens: VendaItem[]): VendaAgg[] => {
         totalVenda: it.totalVenda ?? 0,
         totalCusto: it.totalCusto ?? 0,
         linhas: 1,
+        cupons: isConv ? (cuponsByDay.get(`${it.empresaCodigo}|${data}`) ?? 0) : 0,
       })
     }
   }
@@ -64,6 +96,7 @@ const cacheRowToVendaAgg = (r: ApuracaoVendaRow): VendaAgg => ({
   totalVenda: r.total_venda,
   totalCusto: r.total_custo,
   linhas: r.linhas,
+  cupons: r.cupons ?? 0,
 })
 
 interface UseVendasCacheInput {
@@ -74,6 +107,9 @@ interface UseVendasCacheInput {
   empresaCodigo: number | null
   /** Nº de empresas permitidas na rede (usado p/ HIT quando empresaCodigo=null). */
   empresasPermitidasCount: number
+  /** Produtos de conveniência — escopa a contagem de cupons (ticket médio) no
+   * agregado de HOJE (live). Estável (memoizado no chamador). */
+  convProdutoCodigos?: Set<number>
 }
 
 export interface UseVendasCacheResult {
@@ -93,7 +129,7 @@ export interface UseVendasCacheResult {
  */
 const useVendasCache = (input: UseVendasCacheInput): UseVendasCacheResult => {
   const rede = useTenantStore((s) => s.rede)
-  const { dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount } = input
+  const { dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount, convProdutoCodigos } = input
 
   const split = useMemo(
     () => splitPeriodAtToday(dataInicial, dataFinal),
@@ -196,9 +232,10 @@ const useVendasCache = (input: UseVendasCacheInput): UseVendasCacheResult => {
     const fromCache = rows.map(cacheRowToVendaAgg)
     const fromToday = aggregateItensToVendaAgg(
       todayItens.filter((i) => empresaCodigo == null || i.empresaCodigo === empresaCodigo),
+      convProdutoCodigos,
     )
     return [...fromCache, ...fromToday]
-  }, [rows, todayItens, empresaCodigo])
+  }, [rows, todayItens, empresaCodigo, convProdutoCodigos])
 
   return {
     isEligible,

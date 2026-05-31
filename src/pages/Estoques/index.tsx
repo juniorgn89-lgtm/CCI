@@ -5,11 +5,11 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
+import TopBarTabs from '@/components/layout/TopBarTabs'
+import useTabParam from '@/hooks/useTabParam'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import { cn } from '@/lib/utils'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useEstoquesLayout } from '@/store/moduleLayout'
 import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
@@ -43,38 +43,37 @@ const TableSkeleton = () => (
 const Estoques = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useEstoquesLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'geral')
+  // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
+  // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível
+  // (sem mutar estado/URL no render).
+  const [tabParam, setActiveTab] = useTabParam<string>(
+    'visao',
+    (v): v is string => v != null && layoutTabs.some((t) => t.id === v),
+  )
+  const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
   const [coberturaDias, setCoberturaDias] = useState(30)
 
   const { productAnalytics, kpis, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
-  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, productAnalytics.length > 0)
-
-  // Se o usuário escondeu a aba ativa via engrenagem, ajusta pra primeira
-  // visível direto no render (padrão da doc do React pra "store info from
-  // previous renders", mais limpo que useEffect + setState).
-  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
-    setActiveTab(visibleTabs[0].id)
-  }
 
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-            <Warehouse className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Estoque{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+              <Warehouse className="h-4 w-4 text-white" />
             </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Giro, médias, vendas e necessidade de compra dos últimos 6 meses
-            </p>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+            <FocusModeToggle />
           </div>
+          {hasEmpresa && visibleTabs.length > 0 && (
+            <TopBarTabs
+              tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: TAB_ICONS[t.id] ?? Warehouse }))}
+              active={activeTab}
+              onChange={setActiveTab}
+            />
+          )}
         </div>
       </PageHeaderTitle>
       <HeaderTray>
@@ -96,28 +95,7 @@ const Estoques = () => {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-                {visibleTabs.map((tab) => {
-                  const Icon = TAB_ICONS[tab.id] ?? Warehouse
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                        activeTab === tab.id
-                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Content */}
+              {/* Content (abas na TopBar) */}
               {showSkeleton ? (
                 <TableSkeleton />
               ) : (

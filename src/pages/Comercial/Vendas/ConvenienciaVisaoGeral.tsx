@@ -179,9 +179,9 @@ const ConvenienciaVisaoGeral = ({
   const produtosExibidos = hasProductFilter ? produtosFiltrados : produtosFiltrados.slice(0, 20)
 
   return (
-    <div className="space-y-6">
-      {/* ── Por categoria ── */}
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <>
+      {/* ── Por categoria ── (flush dentro do card "Detalhamento") */}
+      <div>
         <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por categoria</h2>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -309,10 +309,10 @@ const ConvenienciaVisaoGeral = ({
             </table>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* ── Top 20 produtos ── */}
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      {/* ── Top 20 produtos ── (flush, separado por linha) */}
+      <div className="border-t border-gray-100 dark:border-gray-800">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -386,8 +386,11 @@ const ConvenienciaVisaoGeral = ({
                   const maxProjProd = Math.max(...produtosExibidos.map((p) => p.projetado ?? p.faturamento), 0)
                   const maxLucro = Math.max(...produtosExibidos.map((p) => (p.precoMedioVenda - p.custoMedio) * p.qtdVendida), 0)
                   const maxMargem = Math.max(...produtosExibidos.map((p) => p.margemPct), 0)
-                  // Cor azul quando há período projetando — pra ficar consistente com a categoria
-                  const isProjetadaProd = produtosExibidos.some((p) => (p.projetado ?? 0) > p.faturamento)
+                  // Cor azul quando o período ainda tem dias futuros — mesma
+                  // condição do Combustível e da tabela "Por categoria" (não a
+                  // heurística "projetado > faturamento", que escondia a cor em
+                  // segmentos de venda estável).
+                  const isProjetadaProd = isProjetada
                   return produtosExibidos.map((p) => {
                     const lucro = (p.precoMedioVenda - p.custoMedio) * p.qtdVendida
                     const colorCls = grupoColorMap.get(p.grupoCodigo) ?? GROUP_COLORS[0]
@@ -433,7 +436,7 @@ const ConvenienciaVisaoGeral = ({
             </table>
           </div>
         )}
-      </section>
+      </div>
 
       {/* Modal de detalhe da categoria — mesmo componente usado na Pista. */}
       {(() => {
@@ -470,7 +473,7 @@ const ConvenienciaVisaoGeral = ({
           />
         )
       })()}
-    </div>
+    </>
   )
 }
 

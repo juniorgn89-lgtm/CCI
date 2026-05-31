@@ -11,12 +11,7 @@ import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import { fetchApuracaoDiaria, fetchApuracaoFuelDiaria } from '@/api/supabase/apuracao'
-
-const offsetPeriod = (dateStr: string, monthsBack: number): string => {
-  const d = new Date(dateStr)
-  d.setMonth(d.getMonth() - monthsBack)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { offsetPeriod } from '@/lib/period'
 
 export interface AbastecimentoRow {
   codigo: number

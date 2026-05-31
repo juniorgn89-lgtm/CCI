@@ -30,7 +30,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
-import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { cn } from '@/lib/utils'
@@ -278,7 +278,7 @@ const Apuracao = () => {
         return all
       }
 
-      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos] = await Promise.all([
+      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos] = await Promise.all([
         fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
         fetchAllPages(
           (p) => fetchLmc({
@@ -293,6 +293,7 @@ const Apuracao = () => {
         fetchFormasAllEmpresas(),
         fetchVendaItensAllEmpresas(),
         fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
+        fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
       ])
 
       const rows = computeApuracaoRows({
@@ -327,7 +328,17 @@ const Apuracao = () => {
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
       const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
-      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id)
+      // Produtos de conveniência = não combustível e fora dos grupos PS- (pista).
+      // Escopa a contagem de cupons do ticket médio (igual à tela Conveniência).
+      const grupoNomePorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
+      const convProdutoCodigos = new Set<number>()
+      for (const p of produtos) {
+        if (p.combustivel) continue
+        const gn = grupoNomePorCodigo.get(p.grupoCodigo) ?? ''
+        if (gn.startsWith('PS -')) continue
+        convProdutoCodigos.add(p.produtoCodigo)
+      }
+      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, convProdutoCodigos)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),

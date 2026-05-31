@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Search, TrendingUp, Scale, Clock, CheckCircle2, HelpCircle, Filter, LayoutDashboard } from 'lucide-react'
+import { Wallet, Banknote, CreditCard, Smartphone, ChevronDown, Search, TrendingUp, Scale, Clock, CheckCircle2, HelpCircle, Filter } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import {
   ResponsiveContainer,
@@ -28,6 +28,8 @@ interface CaixaPostoProps {
   pagamentoBreakdown: PagamentoBreakdown[]
   turnoGroups: TurnoGroup[]
   apuradoPorDia: ApuradoPorDia[]
+  /** Aba ativa — controlada pelo parent (as abas vivem na TopBar). */
+  activeTab?: 'visao' | 'turnos'
 }
 
 const DONUT_COLORS = [
@@ -89,7 +91,7 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
   )
 }
 
-const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apuradoPorDia }: CaixaPostoProps) => {
+const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apuradoPorDia, activeTab: activeTabProp }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
   // Em período passado não faz sentido mostrar "ao vivo" — todos os caixas já
   // foram fechados (em teoria). Esconde indicadores e força filtro pra 'todos'.
@@ -102,7 +104,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
   // Estar nesse Set inverte o default daquele dia.
   const [dayOverrides, setDayOverrides] = useState<Set<string>>(new Set())
   // Aba ativa — espelha o padrão de tabs do módulo Vendas.
-  const [activeTab, setActiveTab] = useState<'visao' | 'turnos'>('visao')
+  const activeTab = activeTabProp ?? 'visao'
   const totalPagamentos = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
@@ -393,45 +395,8 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     }
   }, [filteredGroups])
 
-  const TABS: { id: 'visao' | 'turnos'; label: string; Icon: typeof Wallet; count?: number }[] = [
-    { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
-    { id: 'turnos', label: 'Turnos de Caixa', Icon: Wallet, count: turnoGroups.length },
-  ]
-
   return (
     <div className="space-y-4">
-      {/* Switcher de abas — espelha o padrão do módulo Vendas */}
-      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all',
-                isActive
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-              )}
-            >
-              <tab.Icon className="h-4 w-4" />
-              {tab.label}
-              {typeof tab.count === 'number' && (
-                <span className={cn(
-                  'ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                  isActive
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                    : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                )}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
 
       {activeTab === 'visao' && (
       <>

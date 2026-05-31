@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
-import { LayoutDashboard, TrendingUp, Target, Award, Users, Zap, Fuel, Trophy } from 'lucide-react'
+import { useMemo } from 'react'
+import { Users, Zap, Fuel, Trophy } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
+import type { SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import VisaoGeral from '@/pages/Operacao/components/produtividade/VisaoGeral'
 import Projecoes from '@/pages/Operacao/components/produtividade/Projecoes'
@@ -59,17 +60,6 @@ const categorizeFuel = (nome: string): 'gasolina' | 'etanol' | 'diesel' | 'outro
   return 'outros'
 }
 
-/* ── Sub-tabs ───────────────────────────────────────────── */
-
-type SubTab = 'visao' | 'projecoes' | 'metas' | 'destaques'
-
-const subTabs: { key: SubTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { key: 'visao', label: 'Visão Geral', icon: LayoutDashboard },
-  { key: 'projecoes', label: 'Projeções', icon: TrendingUp },
-  { key: 'metas', label: 'Metas', icon: Target },
-  { key: 'destaques', label: 'Destaques', icon: Award },
-]
-
 /* ── Skeleton ───────────────────────────────────────────── */
 
 const ProdSkeleton = () => (
@@ -104,6 +94,8 @@ interface ProdutividadeTabProps {
   /** Score 0–100 por frentista (funcionarioCodigo → score). Vazio enquanto o
    * custo (lucro bruto) ainda carrega. */
   frentistaScores?: Map<number, FrentistaScore>
+  /** Aba ativa — controlada pelo parent (as sub-abas vivem na TopBar). */
+  active?: SubTab
 }
 
 /* ── Component ──────────────────────────────────────────── */
@@ -116,8 +108,9 @@ const ProdutividadeTab = ({
   isLoading,
   topKpis,
   frentistaScores,
+  active: activeProp,
 }: ProdutividadeTabProps) => {
-  const [active, setActive] = useState<SubTab>('visao')
+  const active = activeProp ?? 'visao'
   const { dataInicial, dataFinal } = useFilterStore()
 
   const periodInfo: PeriodInfo = useMemo(() => {
@@ -195,27 +188,6 @@ const ProdutividadeTab = ({
 
   return (
     <div className="space-y-5">
-      <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
-        {subTabs.map((tab) => {
-          const Icon = tab.icon
-          const isActive = active === tab.key
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActive(tab.key)}
-              className={cn(
-                'flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm transition-all',
-                isActive
-                  ? 'border border-gray-200 bg-white font-medium text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
-                  : 'border border-transparent bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
 
       {active === 'visao' && (
         <div className="space-y-4">

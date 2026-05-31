@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react'
+import useTabParam from '@/hooks/useTabParam'
 import { BarChart3 } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -6,7 +7,8 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
+import TopBarTabs from '@/components/layout/TopBarTabs'
+import { subTabs, type SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -48,8 +50,11 @@ const Produtividade = () => {
     isLoading,
     hasEmpresa,
   } = useOperacaoData()
-  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+  const [prodTab, setProdTab] = useTabParam<SubTab>(
+    'visao',
+    (v): v is SubTab => v === 'visao' || v === 'projecoes' || v === 'metas' || v === 'destaques',
+  )
 
   // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
   // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
@@ -86,21 +91,21 @@ const Produtividade = () => {
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-            <BarChart3 className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Produtividade{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
+              <BarChart3 className="h-4 w-4 text-white" />
             </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Performance dos frentistas, ritmo e metas
-            </p>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+            <FocusModeToggle />
           </div>
+          {hasEmpresa && (
+            <TopBarTabs
+              active={prodTab}
+              onChange={(id) => setProdTab(id as SubTab)}
+              tabs={subTabs.map((t) => ({ id: t.key, label: t.label, Icon: t.icon }))}
+            />
+          )}
         </div>
       </PageHeaderTitle>
       <PageHeaderActions>
@@ -122,6 +127,7 @@ const Produtividade = () => {
               isLoading={isLoading}
               topKpis={topKpis}
               frentistaScores={frentistaScores}
+              active={prodTab}
             />
           </Suspense>
         )
