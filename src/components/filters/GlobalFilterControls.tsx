@@ -14,6 +14,8 @@ interface GlobalFilterControlsProps {
    */
   dateSlot?: React.ReactNode
   className?: string
+  /** Esconde o seletor de posto (ex.: na Central da Rede, que é sempre rede-wide). */
+  hideCompanySelect?: boolean
 }
 
 /**
@@ -26,14 +28,14 @@ interface GlobalFilterControlsProps {
  * o que escolher). A query de empresas é cacheada (queryKey ['empresas']), então
  * múltiplas instâncias deduplicam.
  */
-const GlobalFilterControls = ({ dateSlot, className }: GlobalFilterControlsProps) => {
+const GlobalFilterControls = ({ dateSlot, className, hideCompanySelect }: GlobalFilterControlsProps) => {
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas(),
     staleTime: 10 * 60 * 1000,
   })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const showCompanySelect = empresasPermitidas.length !== 1
+  const showCompanySelect = !hideCompanySelect && empresasPermitidas.length !== 1
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>

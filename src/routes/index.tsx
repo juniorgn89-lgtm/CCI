@@ -15,6 +15,7 @@ const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
 const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Bombas = lazy(() => import('@/pages/Bombas'))
+const Reabastecimento = lazy(() => import('@/pages/Reabastecimento'))
 const CaixasTurnos = lazy(() => import('@/pages/CaixasTurnos'))
 const Produtividade = lazy(() => import('@/pages/Produtividade'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
@@ -60,7 +61,7 @@ const AppRoutes = () => {
           <Route path="/produtos" element={<Navigate to="/comercial/vendas?tab=conveniencia" replace />} />
           <Route path="/conveniencias" element={<Navigate to="/comercial/vendas?tab=conveniencia" replace />} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
-          <Route path="/reabastecimento" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/reabastecimento" element={<Suspense fallback={<RouteFallback />}><Reabastecimento /></Suspense>} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
           <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />

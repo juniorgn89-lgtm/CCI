@@ -34,7 +34,7 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
     { label: 'OK', bg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' }
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
+    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900">
       {/* Header: tanque + produto + badge */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">

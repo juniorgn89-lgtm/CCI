@@ -1,6 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Gauge, Wallet, Receipt,
-  Network, LineChart, ShieldAlert, UsersRound,
+  Network, LineChart, ShieldAlert, UsersRound, Fuel,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -27,7 +27,6 @@ export const navGroups: NavGroup[] = [
     title: 'Geral',
     items: [
       { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
-      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
     ],
   },
   {
@@ -35,6 +34,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
       { label: 'Bombas', path: '/bombas', icon: Gauge },
+      { label: 'Reabastecimento', path: '/reabastecimento', icon: Fuel },
       { label: 'Caixas & Turnos', path: '/caixas-turnos', icon: Wallet },
       { label: 'Produtividade', path: '/produtividade', icon: BarChart3 },
     ],
@@ -42,6 +42,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Gestão',
     items: [
+      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
