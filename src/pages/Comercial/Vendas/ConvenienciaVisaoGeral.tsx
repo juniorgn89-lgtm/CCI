@@ -4,7 +4,7 @@ import BarCell from '@/components/tables/BarCell'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import { smoothedProjection, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
 import type { VendaItem } from '@/api/types/venda'
@@ -198,11 +198,13 @@ const ConvenienciaVisaoGeral = ({
               <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                 <tr>
                   <ThWithHelp align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
-                  <ThWithHelp label="SKUs" help="Quantidade de produtos distintos com venda na categoria." />
                   <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
                   <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
                   <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
+                  <ThWithHelp label="Custo" help="Custo total da categoria (R$)." />
                   <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                  <ThWithHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
+                  <ThWithHelp label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
                   <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                   <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da conveniência." />
                 </tr>
@@ -210,7 +212,6 @@ const ConvenienciaVisaoGeral = ({
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {(() => {
                   const cats = groupTable
-                  const maxSKUs = Math.max(...cats.map((c) => skusPorGrupo.get(c.grupoCodigo) ?? 0), 0)
                   const maxUnidades = Math.max(...cats.map((c) => c.quantidade), 0)
                   const maxFat = Math.max(...cats.map((c) => c.faturamento), 0)
                   const maxProj = Math.max(...cats.map((c) => projecaoPorGrupo.get(c.grupoCodigo) ?? 0), 0)
@@ -219,8 +220,8 @@ const ConvenienciaVisaoGeral = ({
                   const totFat = cats.reduce((s, c) => s + c.faturamento, 0)
                   const totProj = cats.reduce((s, c) => s + (projecaoPorGrupo.get(c.grupoCodigo) ?? 0), 0)
                   const totUnid = cats.reduce((s, c) => s + c.quantidade, 0)
-                  const totSKUs = cats.reduce((s, c) => s + (skusPorGrupo.get(c.grupoCodigo) ?? 0), 0)
                   const totLucro = cats.reduce((s, c) => s + c.margemTotal, 0)
+                  const totCusto = cats.reduce((s, c) => s + (c.faturamento - c.margemTotal), 0)
                   const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
                   const maxMix = totFat > 0 ? Math.max(...cats.map((c) => (c.faturamento / totFat) * 100)) : 0
                   return (
@@ -263,19 +264,25 @@ const ConvenienciaVisaoGeral = ({
                               </span>
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={skus} max={maxSKUs} formatted={formatNumber(skus)} color="blue" align="near" />
+                              <BarCell value={c.quantidade} max={maxUnidades} formatted={formatNumber(Math.round(c.quantidade))} color="blue" align="near" />
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={c.quantidade} max={maxUnidades} formatted={formatNumber(c.quantidade)} color="blue" align="near" />
+                              <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrencyInt(c.faturamento)} color="green" align="near" />
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrency(c.faturamento)} color="green" align="near" />
+                              <BarCell value={projetado} max={maxProj} formatted={formatCurrencyInt(projetado)} color="blue" align="near" />
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                              {formatCurrencyInt(c.faturamento - c.margemTotal)}
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={projetado} max={maxProj} formatted={formatCurrency(projetado)} color={isProjetada ? 'blue' : 'green'} align="near" />
+                              <BarCell value={c.margemTotal} max={maxLucro} formatted={formatCurrencyInt(c.margemTotal)} color="green" align="near" />
                             </td>
-                            <td className="px-2 py-1">
-                              <BarCell value={c.margemTotal} max={maxLucro} formatted={formatCurrency(c.margemTotal)} color="green" align="near" />
+                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                              {c.quantidade > 0 ? formatCurrency(c.faturamento / c.quantidade) : '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                              {c.quantidade > 0 ? formatCurrency((c.faturamento - c.margemTotal) / c.quantidade) : '—'}
                             </td>
                             <td className="px-2 py-1">
                               <BarCell value={c.margemPct} max={maxMargem} formatted={`${c.margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
@@ -289,16 +296,15 @@ const ConvenienciaVisaoGeral = ({
                       {/* Total */}
                       <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                         <td className="px-4 py-2.5">Total</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totSKUs)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
-                        <td className={cn(
-                          'px-4 py-2.5 text-right tabular-nums',
-                          isProjetada && 'text-blue-700 dark:text-blue-400',
-                        )}>
-                          {formatCurrency(totProj)}
+                        <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totUnid))}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-blue-700 dark:text-blue-400">
+                          {formatCurrencyInt(totProj)}
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(totCusto)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{totUnid > 0 ? formatCurrency(totCusto / totUnid) : '—'}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
                         <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
                       </tr>
@@ -406,7 +412,7 @@ const ConvenienciaVisaoGeral = ({
                           </span>
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={p.qtdVendida} max={maxUnidades} formatted={formatNumber(p.qtdVendida)} color="blue" align="near" />
+                          <BarCell value={p.qtdVendida} max={maxUnidades} formatted={formatNumber(Math.round(p.qtdVendida))} color="blue" align="near" />
                         </td>
                         <td className="px-4 py-2.5">
                           <CoberturaBadge
@@ -417,13 +423,13 @@ const ConvenienciaVisaoGeral = ({
                           />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />
+                          <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrencyInt(p.faturamento)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={projetado} max={maxProjProd} formatted={formatCurrency(projetado)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
+                          <BarCell value={projetado} max={maxProjProd} formatted={formatCurrencyInt(projetado)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
+                          <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
                           <BarCell value={p.margemPct} max={maxMargem} formatted={`${p.margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />

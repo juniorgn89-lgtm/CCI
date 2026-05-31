@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
-import { Store, CircleDollarSign, DollarSign, PieChart, Ticket, TrendingUp, TrendingDown, Package, BarChart3, ListOrdered, LayoutDashboard } from 'lucide-react'
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
+import { Store, CircleDollarSign, DollarSign, PieChart, Ticket, TrendingUp, TrendingDown, Package, BarChart3, ListOrdered, LayoutDashboard, CalendarDays } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -8,26 +8,29 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { Skeleton } from '@/components/ui/skeleton'
+import BarCell from '@/components/tables/BarCell'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
+import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
 import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
-import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
-// Lazy: 4 abas, cada uma é seu próprio chunk
+// Lazy: abas de análise, cada uma é seu próprio chunk
 const ConvenienciaVisaoGeral = lazy(() => import('@/pages/Comercial/Vendas/ConvenienciaVisaoGeral'))
 const ParetoAnalysis = lazy(() => import('@/pages/Conveniencias/components/ParetoAnalysis'))
 const CurvaABC = lazy(() => import('@/pages/Conveniencias/components/CurvaABC'))
 const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
 
-type TabId = 'visao' | 'pareto' | 'abc' | 'catalogo'
+type TabId = 'diadia' | 'grupo' | 'pareto' | 'abc' | 'catalogo'
 
 const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
-  { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
+  { id: 'diadia', label: 'Realizado Dia a Dia', Icon: CalendarDays },
+  { id: 'grupo', label: 'Realizado por Grupo', Icon: LayoutDashboard },
   { id: 'pareto', label: 'Análise de Pareto', Icon: BarChart3 },
   { id: 'abc', label: 'Curva ABC', Icon: ListOrdered },
   { id: 'catalogo', label: 'Catálogo', Icon: Package },
@@ -107,7 +110,8 @@ interface ComercialVendasConvenienciaProps {
 const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConvenienciaProps = {}) => {
   const empresaNome = useEmpresaNome()
   const { dataFinal } = useFilterStore()
-  const [activeTab, setActiveTab] = useState<TabId>('visao')
+  const [activeTab, setActiveTab] = useState<TabId>('diadia')
+  const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
   const { dataInicial } = useFilterStore()
 
   const {
@@ -125,6 +129,42 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
 
   const cmpLabelFull = kpis?.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+
+  // Realizado dia a dia — agrega salesByDay (produtos por dia) em dia → grupos.
+  // Mesma estrutura/visão da Pista; clique no dia abre o detalhe por grupo.
+  const realizadoDiaADia = useMemo(() => {
+    const days = Object.entries(salesByDay).map(([data, prods]) => {
+      const grupoMap = new Map<string, { nome: string; qtd: number; fat: number; custo: number }>()
+      let qtd = 0, fat = 0, custo = 0
+      for (const p of prods) {
+        qtd += p.quantidade; fat += p.faturamento; custo += p.custo
+        const g = grupoMap.get(p.grupo) ?? { nome: p.grupo, qtd: 0, fat: 0, custo: 0 }
+        g.qtd += p.quantidade; g.fat += p.faturamento; g.custo += p.custo
+        grupoMap.set(p.grupo, g)
+      }
+      const grupos = Array.from(grupoMap.values())
+        .map((g) => ({ ...g, lucro: g.fat - g.custo }))
+        .sort((a, b) => b.fat - a.fat)
+      return { data, qtd, fat, custo, lucro: fat - custo, grupos }
+    }).sort((a, b) => b.data.localeCompare(a.data))
+    const total = days.reduce(
+      (acc, d) => ({ qtd: acc.qtd + d.qtd, fat: acc.fat + d.fat, custo: acc.custo + d.custo, lucro: acc.lucro + d.lucro }),
+      { qtd: 0, fat: 0, custo: 0, lucro: 0 },
+    )
+    return { days, total }
+  }, [salesByDay])
+
+  // Máximos por coluna pro heatmap da tabela dia a dia (igual Pista/Combustível).
+  const diaColMax = useMemo(() => {
+    const days = realizadoDiaADia.days
+    return {
+      qtd: Math.max(...days.map((d) => d.qtd), 0),
+      fat: Math.max(...days.map((d) => d.fat), 0),
+      lucro: Math.max(...days.map((d) => d.lucro), 0),
+      margem: Math.max(...days.map((d) => (d.fat > 0 ? (d.lucro / d.fat) * 100 : 0)), 0),
+      lbMedio: Math.max(...days.map((d) => (d.qtd > 0 ? d.lucro / d.qtd : 0)), 0),
+    }
+  }, [realizadoDiaADia])
 
   return (
     <div className="space-y-6">
@@ -342,7 +382,73 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               </div>
             ) : (
               <Suspense fallback={<div className="p-4"><RouteFallback /></div>}>
-                {activeTab === 'visao' && (
+                {activeTab === 'diadia' && (
+                  realizadoDiaADia.days.length === 0 ? (
+                    <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Data</th>
+                            <th className="px-3 py-2 text-right font-medium">Qtde</th>
+                            <th className="px-3 py-2 text-right font-medium">Faturamento</th>
+                            <th className="px-3 py-2 text-right font-medium">Custo</th>
+                            <th className="px-3 py-2 text-right font-medium">Lucro Bruto</th>
+                            <th className="px-3 py-2 text-right font-medium">Margem</th>
+                            <th className="px-3 py-2 text-right font-medium">Preço médio</th>
+                            <th className="px-3 py-2 text-right font-medium">Custo médio</th>
+                            <th className="px-3 py-2 text-right font-medium">L.B. Médio</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {realizadoDiaADia.days.map((d) => (
+                            <tr
+                              key={d.data}
+                              className="cursor-pointer text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40"
+                              onClick={() => setSelectedDia(d)}
+                            >
+                              <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                                <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
+                              </td>
+                              <td className="px-2 py-1">
+                                <BarCell value={d.qtd} max={diaColMax.qtd} formatted={formatNumber(Math.round(d.qtd))} color="blue" align="near" />
+                              </td>
+                              <td className="px-2 py-1">
+                                <BarCell value={d.fat} max={diaColMax.fat} formatted={formatCurrencyInt(d.fat)} color="green" align="near" />
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(d.custo)}</td>
+                              <td className="px-2 py-1">
+                                <BarCell value={d.lucro} max={diaColMax.lucro} formatted={formatCurrencyInt(d.lucro)} color="green" align="near" />
+                              </td>
+                              <td className="px-2 py-1">
+                                <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'} color="amber" align="near" />
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.fat / d.qtd) : '—'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.custo / d.qtd) : '—'}</td>
+                              <td className="px-2 py-1">
+                                <BarCell value={d.qtd > 0 ? d.lucro / d.qtd : 0} max={diaColMax.lbMedio} formatted={d.qtd > 0 ? formatCurrency(d.lucro / d.qtd) : '—'} color="amber" align="near" />
+                              </td>
+                            </tr>
+                          ))}
+                          {/* Total */}
+                          <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                            <td className="px-3 py-2.5">Total</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(realizadoDiaADia.total.qtd))}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.fat)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.custo)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.lucro)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.fat > 0 ? `${((realizadoDiaADia.total.lucro / realizadoDiaADia.total.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.fat / realizadoDiaADia.total.qtd) : '—'}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.custo / realizadoDiaADia.total.qtd) : '—'}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.lucro / realizadoDiaADia.total.qtd) : '—'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+                {activeTab === 'grupo' && (
                   <ConvenienciaVisaoGeral
                     catalogProducts={catalogProducts}
                     groupTable={groupTable}
@@ -358,6 +464,13 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               </Suspense>
             )}
           </section>
+
+          <PistaDiaModal
+            open={selectedDia !== null}
+            onClose={() => setSelectedDia(null)}
+            detail={selectedDia}
+            subtitle="Vendas da loja (conveniência)"
+          />
         </>
       )}
     </div>

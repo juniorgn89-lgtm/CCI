@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { useMemo } from 'react'
+import { ChevronDown, Info } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -38,12 +38,9 @@ interface MonthRangeSelectProps {
  * isso quando o usuário pula meses.
  */
 const MonthRangeSelect = ({ draftIni, draftFim, onChange }: MonthRangeSelectProps) => {
-  // Ano "ativo" no painel: deriva da draftIni, ou ano corrente se vazio.
-  const initialYear = (() => {
-    if (draftIni) return Number(draftIni.slice(0, 4))
-    return new Date().getFullYear()
-  })()
-  const [year, setYear] = useState<number>(initialYear)
+  // Ano do painel: deriva direto da draftIni (controlado pelo seletor de ano da
+  // barra). Não há navegação de ano aqui — evita controle duplicado/confuso.
+  const year = draftIni ? Number(draftIni.slice(0, 4)) : new Date().getFullYear()
 
   // Meses selecionados = aqueles cujo intervalo [dia 1, último dia] está
   // 100% contido no draft. Só funciona se o draft cobre meses inteiros.
@@ -102,27 +99,9 @@ const MonthRangeSelect = ({ draftIni, draftFim, onChange }: MonthRangeSelectProp
       <DropdownMenuContent align="start" className="w-[260px]">
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span className="text-xs">Selecionar meses</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setYear((y) => y - 1)}
-              className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-              aria-label="Ano anterior"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-[40px] text-center text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-200">
-              {year}
-            </span>
-            <button
-              type="button"
-              onClick={() => setYear((y) => y + 1)}
-              className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-              aria-label="Próximo ano"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <span className="text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-200">
+            {year}
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="grid grid-cols-3 gap-0.5 p-1">

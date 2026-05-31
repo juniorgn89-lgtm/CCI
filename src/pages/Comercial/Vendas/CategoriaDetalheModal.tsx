@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, Clock, LineChart as LineChartIcon } from 'lucide-react'
+import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, Clock, LineChart as LineChartIcon, HelpCircle } from 'lucide-react'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, LabelList, ReferenceLine, Legend,
 } from 'recharts'
@@ -153,12 +153,15 @@ const CategoriaDetalheModal = ({
 
           {/* Indicadores */}
           <section className="rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               Indicadores
+              <span title="Resumo da categoria no período: volume, receita, projeção de fechamento, lucro, margem e médias por unidade." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <HelpCircle className="h-3 w-3" />
+              </span>
             </div>
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
-              <Kpi Icon={Layers} label="Unidades" value={formatNumber(categoria.qtdVendida)} />
-              <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(categoria.faturamento)} />
+              <Kpi Icon={Layers} label="Unidades" value={formatNumber(categoria.qtdVendida)} tooltip="Total de unidades vendidas na categoria no período." />
+              <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrency(categoria.faturamento)} tooltip="Receita total da categoria no período (R$)." />
               <Kpi
                 Icon={LineChartIcon}
                 label={projecao?.isProjetada ? 'Projeção fim do mês' : 'Projeção'}
@@ -167,11 +170,11 @@ const CategoriaDetalheModal = ({
                 hint={projecao?.isProjetada ? `Faltam ${projecao.diasRestantes} dia${projecao.diasRestantes === 1 ? '' : 's'}` : undefined}
                 tooltip={PROJECAO_TOOLTIP}
               />
-              <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(lucro)} />
-              <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(1).replace('.', ',')}%`} />
-              <Kpi Icon={Receipt} label="Ticket / unid." value={formatCurrency(ticketMedio)} />
-              <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(precoMedioCusto)} />
-              <Kpi Icon={Package} label="SKUs ativos" value={formatNumber(categoria.qtdProdutos)} />
+              <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(lucro)} tooltip="Lucro bruto total: faturamento − custo (R$)." />
+              <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(1).replace('.', ',')}%`} tooltip="(Lucro bruto ÷ faturamento) × 100." />
+              <Kpi Icon={Receipt} label="Ticket / unid." value={formatCurrency(ticketMedio)} tooltip="Faturamento ÷ unidades vendidas (R$ por unidade)." />
+              <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(precoMedioCusto)} tooltip="Custo total ÷ unidades vendidas (R$ por unidade)." />
+              <Kpi Icon={Package} label="SKUs ativos" value={formatNumber(categoria.qtdProdutos)} tooltip="Quantidade de produtos distintos com venda no período." />
             </div>
           </section>
 
@@ -180,6 +183,9 @@ const CategoriaDetalheModal = ({
             <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               <Package className="h-3.5 w-3.5" />
               Top produtos da categoria
+              <span title="Top 5 produtos por faturamento. Por item: unidades, margem, custo total, preço médio (R$/un) e custo médio (R$/un); à direita, a cobertura de estoque (dias restantes)." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <HelpCircle className="h-3 w-3" />
+              </span>
             </div>
             {topProdutos.length === 0 ? (
               <p className="px-3 py-6 text-center text-xs text-gray-400">Sem produtos no período.</p>
@@ -188,6 +194,8 @@ const CategoriaDetalheModal = ({
                 {topProdutos.map((p) => {
                   const barWidth = maxFat > 0 ? (p.faturamento / maxFat) * 100 : 0
                   const margemP = p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0
+                  const precoMedio = p.quantidade > 0 ? p.faturamento / p.quantidade : 0
+                  const custoMedio = p.quantidade > 0 ? p.custo / p.quantidade : 0
                   return (
                     <li key={p.produtoCodigo} className="px-3 py-2">
                       <div className="flex items-center justify-between gap-2 text-xs">
@@ -201,10 +209,13 @@ const CategoriaDetalheModal = ({
                       <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                         <div className="h-1 rounded-full bg-amber-400 dark:bg-amber-500" style={{ width: `${Math.max(2, barWidth)}%` }} />
                       </div>
-                      <div className="mt-1 flex items-center justify-between text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span>{formatNumber(p.quantidade)} unid.</span>
+                      <div className="mt-1 flex items-start justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span>{formatNumber(Math.round(p.quantidade))} unid.</span>
                           <span>margem {margemP.toFixed(1).replace('.', ',')}%</span>
+                          <span>custo <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(p.custo)}</span></span>
+                          <span>preço méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(precoMedio)}</span></span>
+                          <span>custo méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(custoMedio)}</span></span>
                         </span>
                         <CoberturaBadge
                           saldo={estoquePorProduto.get(p.produtoCodigo)}
@@ -227,6 +238,9 @@ const CategoriaDetalheModal = ({
                 <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
                   <Clock className="h-3.5 w-3.5" />
                   Faturamento diário da categoria
+                  <span title="Faturamento (R$) por dia no período. A linha tracejada azul indica o ritmo médio projetado pros dias restantes do mês." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <HelpCircle className="h-3 w-3" />
+                  </span>
                 </span>
                 {projecao?.isProjetada && projecao.dailyRate > 0 && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 dark:text-blue-400">
@@ -312,11 +326,16 @@ const Kpi = ({
     <div className="flex items-center justify-between">
       <p
         className={cn(
-          'text-[10px] font-semibold uppercase tracking-wider',
+          'inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider',
           tone === 'projecao' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400',
         )}
       >
         {label}
+        {tooltip && (
+          <span title={tooltip} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <HelpCircle className="h-3 w-3" />
+          </span>
+        )}
       </p>
       <Icon className={cn('h-3.5 w-3.5', tone === 'projecao' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400')} />
     </div>

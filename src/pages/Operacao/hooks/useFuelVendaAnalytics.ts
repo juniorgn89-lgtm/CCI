@@ -7,6 +7,14 @@ import { useFilterStore } from '@/store/filters'
 import type { VendaItem } from '@/api/types/venda'
 import { offsetPeriod } from '@/lib/period'
 
+/** Desloca uma data ISO (yyyy-MM-dd) em N dias (negativo = passado), local. */
+const shiftDays = (dateStr: string, days: number): string => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + days)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
+}
+
 /**
  * Analytics de COMBUSTÍVEL baseado na VENDA fiscal (VENDA_ITEM) — a MESMA fonte
  * do relatório "Vendas, Custo e Lucratividade" do WebPosto. Substitui o cálculo
@@ -53,6 +61,8 @@ export interface FuelVendaFuelType {
   lbPorLitro: number
   margem: number
   participacao: number
+  /** Variação % de litros vs período comparativo (mês/ano ant.). null = sem base. */
+  variacao: number | null
 }
 
 export interface FuelVendaDaily {
@@ -83,6 +93,11 @@ const useFuelVendaAnalytics = () => {
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
   const prevFinal = offsetPeriod(dataFinal, cmpOffset)
+  // Semana anterior = MESMO intervalo deslocado 7 dias atrás. Base da coluna
+  // "Variação semanal" da tabela por combustível (igual ao BI), independente do
+  // toggle de comparação (que controla os cards de KPI).
+  const semanaAntInicial = shiftDays(dataInicial, -7)
+  const semanaAntFinal = shiftDays(dataFinal, -7)
 
   const matchEmpresa = (code: number) => !hasEmpresa || empresaCodigos.includes(code)
 
@@ -124,6 +139,14 @@ const useFuelVendaAnalytics = () => {
   const { data: vendaItensPrev = [] } = useQuery({
     queryKey: ['fuel-venda-analytics-prev', empresaCodigos.join(','), prevInicial, prevFinal],
     queryFn: fetchFuelVendaItens(prevInicial, prevFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
+  const { data: vendaItensSemanaAnt = [] } = useQuery({
+    queryKey: ['fuel-venda-analytics-semana', empresaCodigos.join(','), semanaAntInicial, semanaAntFinal],
+    queryFn: fetchFuelVendaItens(semanaAntInicial, semanaAntFinal),
     enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -172,6 +195,44 @@ const useFuelVendaAnalytics = () => {
       })
     }
 
+    // Período anterior (comparação dos cards de KPI) — totais.
+    let pLitros = 0, pFat = 0, pCusto = 0
+    for (const it of vendaItensPrev) {
+      if (!matchEmpresa(it.empresaCodigo)) continue
+      if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
+      if (!inPeriod(it.dataMovimento, prevInicial, prevFinal)) continue
+      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      pLitros += it.quantidade; pFat += it.totalVenda; pCusto += custo
+    }
+
+    // Semana anterior (−7 dias) — linhas, litros por combustível e total. Base
+    // da coluna "Variação semanal" (tabela por combustível E tabela dia a dia).
+    let semanaAntLitros = 0
+    const semanaLitrosByFuel = new Map<string, number>()
+    const rowsSemanaAnt: FuelVendaRow[] = []
+    for (const it of vendaItensSemanaAnt) {
+      if (!matchEmpresa(it.empresaCodigo)) continue
+      if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
+      if (!inPeriod(it.dataMovimento, semanaAntInicial, semanaAntFinal)) continue
+      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      const nome = nomePorCodigo.get(it.produtoCodigo) ?? `Produto ${it.produtoCodigo}`
+      semanaAntLitros += it.quantidade
+      semanaLitrosByFuel.set(nome, (semanaLitrosByFuel.get(nome) ?? 0) + it.quantidade)
+      rowsSemanaAnt.push({
+        data: day(it.dataMovimento),
+        produtoCodigo: it.produtoCodigo,
+        combustivelNome: nome,
+        litros: it.quantidade,
+        faturamento: it.totalVenda,
+        desconto: it.totalDesconto,
+        acrescimo: it.totalAcrescimo,
+        custo,
+        lucroBruto: it.totalVenda - custo,
+        funcionarioCodigo: it.funcionarioCodigo,
+        bicoCodigo: it.bicoCodigo,
+      })
+    }
+
     // Agregado por combustível.
     const byFuel = new Map<string, FuelVendaFuelType>()
     let totLitros = 0, totFat = 0, totCusto = 0, totDesc = 0, totAcre = 0, totCount = 0
@@ -181,20 +242,24 @@ const useFuelVendaAnalytics = () => {
       const f = byFuel.get(r.combustivelNome) ?? {
         produtoCodigo: r.produtoCodigo, nome: r.combustivelNome,
         litros: 0, faturamento: 0, desconto: 0, acrescimo: 0, custo: 0, lucroBruto: 0,
-        precoMedioVenda: 0, precoCustoMedio: 0, lbPorLitro: 0, margem: 0, participacao: 0,
+        precoMedioVenda: 0, precoCustoMedio: 0, lbPorLitro: 0, margem: 0, participacao: 0, variacao: null,
       }
       f.litros += r.litros; f.faturamento += r.faturamento; f.custo += r.custo
       f.desconto += r.desconto; f.acrescimo += r.acrescimo; f.lucroBruto += r.lucroBruto
       byFuel.set(r.combustivelNome, f)
     }
-    const fuelTypeData: FuelVendaFuelType[] = Array.from(byFuel.values()).map((f) => ({
-      ...f,
-      precoMedioVenda: f.litros > 0 ? f.faturamento / f.litros : 0,
-      precoCustoMedio: f.litros > 0 ? f.custo / f.litros : 0,
-      lbPorLitro: f.litros > 0 ? f.lucroBruto / f.litros : 0,
-      margem: f.faturamento > 0 ? (f.lucroBruto / f.faturamento) * 100 : 0,
-      participacao: totLitros > 0 ? (f.litros / totLitros) * 100 : 0,
-    })).sort((a, b) => b.faturamento - a.faturamento)
+    const fuelTypeData: FuelVendaFuelType[] = Array.from(byFuel.values()).map((f) => {
+      const semL = semanaLitrosByFuel.get(f.nome) ?? 0
+      return {
+        ...f,
+        precoMedioVenda: f.litros > 0 ? f.faturamento / f.litros : 0,
+        precoCustoMedio: f.litros > 0 ? f.custo / f.litros : 0,
+        lbPorLitro: f.litros > 0 ? f.lucroBruto / f.litros : 0,
+        margem: f.faturamento > 0 ? (f.lucroBruto / f.faturamento) * 100 : 0,
+        participacao: totLitros > 0 ? (f.litros / totLitros) * 100 : 0,
+        variacao: semL > 0 ? ((f.litros - semL) / semL) * 100 : null,
+      }
+    }).sort((a, b) => b.faturamento - a.faturamento)
 
     // Agregado por dia.
     const byDay = new Map<string, FuelVendaDaily>()
@@ -220,14 +285,6 @@ const useFuelVendaAnalytics = () => {
       count: totCount,
     }
 
-    let pLitros = 0, pFat = 0, pCusto = 0
-    for (const it of vendaItensPrev) {
-      if (!matchEmpresa(it.empresaCodigo)) continue
-      if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
-      if (!inPeriod(it.dataMovimento, prevInicial, prevFinal)) continue
-      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
-      pLitros += it.quantidade; pFat += it.totalVenda; pCusto += custo
-    }
     const cmp = {
       litros: pLitros,
       faturamento: pFat,
@@ -236,9 +293,9 @@ const useFuelVendaAnalytics = () => {
       lbPorLitro: pLitros > 0 ? (pFat - pCusto) / pLitros : 0,
     }
 
-    return { rows, dailyData, fuelTypeData, kpis, cmp, hasEmpresa, isLoading }
+    return { rows, rowsSemanaAnt, dailyData, fuelTypeData, kpis, cmp, semanaAntLitros, hasEmpresa, isLoading }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendaItens, vendaItensPrev, produtosData, empresaCodigos, hasEmpresa, dataInicial, dataFinal, prevInicial, prevFinal, isLoading])
+  }, [vendaItens, vendaItensPrev, vendaItensSemanaAnt, produtosData, empresaCodigos, hasEmpresa, dataInicial, dataFinal, prevInicial, prevFinal, semanaAntInicial, semanaAntFinal, isLoading])
 }
 
 export default useFuelVendaAnalytics

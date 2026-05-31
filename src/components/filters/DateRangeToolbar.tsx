@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
-import { Eye, Calendar } from 'lucide-react'
+import { Eye, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import MonthRangeSelect from '@/components/filters/MonthRangeSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
+import { offsetPeriod } from '@/lib/period'
 import { cn } from '@/lib/utils'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -72,6 +73,15 @@ const DateRangeToolbar = () => {
   const dirty = draftIni !== periodIni || draftFim !== periodFim
   const handleVisualizar = () => setPeriodo(draftIni, draftFim)
 
+  // Desloca o período inteiro em ±1 ano, preservando mês e dia (clampa fim de
+  // mês via offsetPeriod). Útil pra comparar o MESMO intervalo no ano anterior.
+  // years: -1 = ano anterior, +1 = próximo ano. Só altera o draft → Visualizar aplica.
+  const shiftYear = (years: number) => {
+    const monthsBack = -years * 12
+    setDraftIni(offsetPeriod(draftIni, monthsBack))
+    setDraftFim(offsetPeriod(draftFim, monthsBack))
+  }
+
   // Azul = período automático; laranja = personalizado. Sempre reflete o draft
   // (o que o usuário está vendo nos inputs), não o que está commitado.
   const auto = isAutoPeriod(draftIni, draftFim)
@@ -134,6 +144,34 @@ const DateRangeToolbar = () => {
           className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200"
         >
           <Calendar className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {/* Seletor de ano — desloca o período inteiro mantendo mês/dia, pra
+          comparar o mesmo intervalo em outro ano. */}
+      <div className="inline-flex h-7 items-center rounded-md border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <button
+          type="button"
+          onClick={() => shiftYear(-1)}
+          aria-label="Ano anterior (mantém os mesmos dias)"
+          title="Mesmo período, 1 ano antes"
+          className="flex h-full items-center rounded-l-md px-1.5 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className="px-1.5 text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300"
+          title="Ano do período — use as setas pra trocar só o ano, mantendo os dias filtrados"
+        >
+          {draftIni.slice(0, 4)}
+        </span>
+        <button
+          type="button"
+          onClick={() => shiftYear(1)}
+          aria-label="Próximo ano (mantém os mesmos dias)"
+          title="Mesmo período, 1 ano depois"
+          className="flex h-full items-center rounded-r-md px-1.5 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
       <button

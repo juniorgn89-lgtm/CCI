@@ -21,7 +21,7 @@ import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import { smoothedProjection, projecaoAvancada, fimDoMesIso, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
+import { smoothedProjection, projecaoAvancada, fimDoMesIso, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -584,50 +584,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     return vendaItens.filter((v) => codes.has(v.produtoCodigo))
   }, [selectedCategoria, produtosDaCategoria, vendaItens])
 
-  /* ─── Projeção POR CATEGORIA ───
-   * Aplica smoothedProjection no faturamento de cada categoria pra estimar
-   * o fechamento do mês. Reusa o `projectionMeta.daysRemaining`. */
-  const projecaoPorCategoria = useMemo<Map<string, number>>(() => {
-    const out = new Map<string, number>()
-    if (!computed || !produtosData || !gruposData) return out
-    const dias = projectionMeta?.daysRemaining ?? 0
-    const now = new Date()
-    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-
-    // produtoCodigo → categoria (precisa pra agrupar vendaItens)
-    const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
-    const produtoCategoria = new Map<number, string>()
-    for (const p of produtosData) {
-      if (p.combustivel) continue
-      const grupoNome = grupoNomes.get(p.grupoCodigo) ?? ''
-      if (!grupoNome.startsWith('PS -')) continue
-      produtoCategoria.set(p.produtoCodigo, categoriaDoGrupo(grupoNome))
-    }
-
-    // Série diária de faturamento por categoria
-    const serieByCat = new Map<string, Map<string, number>>()
-    for (const item of vendaItens) {
-      const cat = produtoCategoria.get(item.produtoCodigo)
-      if (!cat || !item.dataMovimento) continue
-      const date = item.dataMovimento.substring(0, 10)
-      const serie = serieByCat.get(cat) ?? new Map<string, number>()
-      serie.set(date, (serie.get(date) ?? 0) + item.totalVenda)
-      serieByCat.set(cat, serie)
-    }
-
-    for (const c of computed.categorias) {
-      const serie = serieByCat.get(c.nome) ?? new Map<string, number>()
-      const projetado = smoothedProjection({
-        realizado: c.faturamento,
-        dailySeries: Array.from(serie.entries()).map(([data, value]) => ({ data, value })),
-        diasRestantes: dias,
-        today: todayISO,
-      }).projetado
-      out.set(c.nome, projetado)
-    }
-    return out
-  }, [computed, vendaItens, produtosData, gruposData, projectionMeta])
-
   /* ─── Projeção (faturamento + lucro) ───
    * Agrega vendaItens dos produtos PS- por dia e aplica smoothedProjection
    * com `projectionMeta.daysRemaining`. Mesma técnica da Visão Geral. */
@@ -1003,38 +959,34 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
                       <ThWithHelp align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
-                      <ThWithHelp label="SKUs" help="Quantidade de produtos distintos vendidos na categoria." />
-                      <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
+                      <ThWithHelp label="Qtde" help="Total de unidades vendidas na categoria." />
                       <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
-                      <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
-                      <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
-                      <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
-                      <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da pista." />
+                      <ThWithHelp label="Custo" help="Custo total da categoria (R$)." />
+                      <ThWithHelp label="Lucro Bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                      <ThWithHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+                      <ThWithHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
+                      <ThWithHelp label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
+                      <ThWithHelp label="L.B. Médio" help="Lucro bruto médio por unidade: lucro ÷ unidades." />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {(() => {
                       const cats = computed.categorias
-                      const maxSKUs = Math.max(...cats.map((c) => c.qtdProdutos), 0)
-                      const maxUnidades = Math.max(...cats.map((c) => c.qtdVendida), 0)
+                      const maxQtd = Math.max(...cats.map((c) => c.qtdVendida), 0)
                       const maxFat = Math.max(...cats.map((c) => c.faturamento), 0)
-                      const maxProj = Math.max(...cats.map((c) => projecaoPorCategoria.get(c.nome) ?? 0), 0)
                       const maxLucro = Math.max(...cats.map((c) => c.faturamento - c.custo), 0)
                       const maxMargem = Math.max(...cats.map((c) => (c.faturamento > 0 ? ((c.faturamento - c.custo) / c.faturamento) * 100 : 0)), 0)
+                      const maxLbMedio = Math.max(...cats.map((c) => (c.qtdVendida > 0 ? (c.faturamento - c.custo) / c.qtdVendida : 0)), 0)
                       const totFat = cats.reduce((s, c) => s + c.faturamento, 0)
-                      const totProj = cats.reduce((s, c) => s + (projecaoPorCategoria.get(c.nome) ?? 0), 0)
                       const totUnid = cats.reduce((s, c) => s + c.qtdVendida, 0)
-                      const totSKUs = cats.reduce((s, c) => s + c.qtdProdutos, 0)
+                      const totCusto = cats.reduce((s, c) => s + c.custo, 0)
                       const totLucro = cats.reduce((s, c) => s + (c.faturamento - c.custo), 0)
                       const totMargemPct = totFat > 0 ? (totLucro / totFat) * 100 : 0
-                      const maxMix = totFat > 0 ? Math.max(...cats.map((c) => (c.faturamento / totFat) * 100)) : 0
-                      const isProjetada = (projectionMeta?.daysRemaining ?? 0) > 0
                       return (
                         <>
                           {cats.map((c, idx) => {
                             const lucro = c.faturamento - c.custo
                             const margemPct = c.faturamento > 0 ? (lucro / c.faturamento) * 100 : 0
-                            const mixPct = totFat > 0 ? (c.faturamento / totFat) * 100 : 0
                             return (
                               <tr
                                 key={c.nome}
@@ -1072,28 +1024,22 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   </span>
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={c.qtdProdutos} max={maxSKUs} formatted={formatNumber(c.qtdProdutos)} color="blue" align="near" />
+                                  <BarCell value={c.qtdVendida} max={maxQtd} formatted={formatNumber(Math.round(c.qtdVendida))} color="blue" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={c.qtdVendida} max={maxUnidades} formatted={formatNumber(c.qtdVendida)} color="blue" align="near" />
+                                  <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrencyInt(c.faturamento)} color="green" align="near" />
+                                </td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(c.custo)}</td>
+                                <td className="px-2 py-1">
+                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrency(c.faturamento)} color="green" align="near" />
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.faturamento / c.qtdVendida) : '—'}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.custo / c.qtdVendida) : '—'}</td>
                                 <td className="px-2 py-1">
-                                  {(() => {
-                                    const proj = projecaoPorCategoria.get(c.nome) ?? c.faturamento
-                                    return <BarCell value={proj} max={maxProj} formatted={formatCurrency(proj)} color={isProjetada ? 'blue' : 'green'} align="near" />
-                                  })()}
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <BarCell value={mixPct} max={maxMix} formatted={`${mixPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={c.qtdVendida > 0 ? lucro / c.qtdVendida : 0} max={maxLbMedio} formatted={c.qtdVendida > 0 ? formatCurrency(lucro / c.qtdVendida) : '—'} color="amber" align="near" />
                                 </td>
                               </tr>
                             )
@@ -1101,18 +1047,14 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                           {/* Linha Total */}
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-4 py-2.5">Total</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totSKUs)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
-                            <td className={cn(
-                              'px-4 py-2.5 text-right tabular-nums',
-                              isProjetada && 'text-blue-700 dark:text-blue-400',
-                            )}>
-                              {formatCurrency(totProj)}
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totUnid))}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totCusto)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(2).replace('.', ',')}%</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totCusto / totUnid) : '—'}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totLucro / totUnid) : '—'}</td>
                           </tr>
                         </>
                       )

@@ -25,9 +25,11 @@ interface PistaDiaModalProps {
   open: boolean
   onClose: () => void
   detail: PistaDiaData | null
+  /** Subtítulo do modal (default: pista). Permite reuso na Conveniência. */
+  subtitle?: string
 }
 
-const PistaDiaModal = ({ open, onClose, detail }: PistaDiaModalProps) => {
+const PistaDiaModal = ({ open, onClose, detail, subtitle = 'Vendas de pista (loja)' }: PistaDiaModalProps) => {
   if (!detail) return null
 
   const margemPct = detail.fat > 0 ? (detail.lucro / detail.fat) * 100 : 0
@@ -40,7 +42,7 @@ const PistaDiaModal = ({ open, onClose, detail }: PistaDiaModalProps) => {
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{formatDate(detail.data)}</DialogTitle>
-          <DialogDescription>Vendas de pista (loja)</DialogDescription>
+          <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-auto">
