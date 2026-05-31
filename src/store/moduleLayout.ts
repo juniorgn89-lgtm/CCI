@@ -54,17 +54,24 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 8,
+        version: 9,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
           const knownIds = defaultTabs.map((t) => t.id)
+          const labelById = new Map(defaultTabs.map((t) => [t.id, t.label]))
           const existingIds = new Set(state.tabs.map((t) => t.id))
           const merged = [...state.tabs]
           for (const def of defaultTabs) {
             if (!existingIds.has(def.id)) merged.push(def)
           }
-          return { tabs: merged.filter((t) => knownIds.includes(t.id)) }
+          return {
+            tabs: merged
+              .filter((t) => knownIds.includes(t.id))
+              // Labels não são editáveis pelo usuário → re-sincroniza com os
+              // defaults (preserva ordem/visibilidade que o user customizou).
+              .map((t) => ({ ...t, label: labelById.get(t.id) ?? t.label })),
+          }
         },
       }
     )
@@ -73,7 +80,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 /* ─── Module stores ─── */
 
 export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-layout', [
-  { id: 'setor', label: 'Por Setor', visible: true },
+  { id: 'setor', label: 'Visão Geral', visible: true },
   { id: 'aovivo', label: 'Ao Vivo Rede', visible: true },
   { id: 'reabastecimento', label: 'Reabastecimento', visible: true },
 ])

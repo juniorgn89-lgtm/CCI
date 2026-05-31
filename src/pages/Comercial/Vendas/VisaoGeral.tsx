@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList,
 } from 'recharts'
-import { LayoutGrid, Fuel, Wrench, Store, DollarSign, TrendingUp, Percent, Receipt, ArrowRight, LineChart as LineChartIcon } from 'lucide-react'
+import { LayoutGrid, Fuel, Wrench, Store, Globe, DollarSign, TrendingUp, Percent, Receipt, HelpCircle } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -13,15 +13,14 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
-import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
@@ -48,7 +47,7 @@ const SEGMENTS: SegmentInfo[] = [
     cardBg: 'bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
   },
   {
-    id: 'pista', nome: 'Pista', to: '/comercial/vendas/pista', Icon: Wrench,
+    id: 'pista', nome: 'Automotivos', to: '/comercial/vendas/pista', Icon: Wrench,
     cor: '#f59e0b',
     iconBg: 'bg-amber-100 dark:bg-amber-900/30',
     iconColor: 'text-amber-600 dark:text-amber-400',
@@ -63,12 +62,85 @@ const SEGMENTS: SegmentInfo[] = [
   },
 ]
 
+/* ─── Ajuda "?" (tooltip nativo) — afforda explicação sem ocupar espaço.
+ * `onClick` neutraliza navegação quando usado dentro de um <Link>. ─── */
+const HelpDot = ({ text }: { text: string }) => (
+  <span
+    title={text}
+    onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+    className="inline-flex cursor-help text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+  >
+    <HelpCircle className="h-3 w-3" />
+  </span>
+)
+
+const fmtPct2 = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
+
+/* ─── Card de segmento (formato do BI): Lucro bruto em destaque + 2 métricas
+ * secundárias (Margem / Faturamento / L.B. por litro). Clicável quando `to`. ─── */
+interface SegmentCardProps {
+  label: string
+  Icon: typeof Fuel
+  iconBg: string
+  iconColor: string
+  cardBg: string
+  lucroBruto: number
+  primary: { label: string; value: string }
+  secondary: { label: string; value: string }
+  to?: string
+  tooltip: string
+  loading: boolean
+}
+
+const SegmentCard = ({ label, Icon, iconBg, iconColor, cardBg, lucroBruto, primary, secondary, to, tooltip, loading }: SegmentCardProps) => {
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {label}
+            <HelpDot text={tooltip} />
+          </p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">Lucro bruto</p>
+        </div>
+        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+          <Icon className={cn('h-5 w-5', iconColor)} />
+        </div>
+      </div>
+      {loading ? (
+        <Skeleton className="mt-3 h-7 w-28" />
+      ) : (
+        <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+        <div>
+          <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-gray-100">{primary.value}</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">{primary.label}</p>
+        </div>
+        <div>
+          <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-gray-100">{secondary.value}</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">{secondary.label}</p>
+        </div>
+      </div>
+      {to && <p className="mt-2 text-right text-[10px] text-gray-400 dark:text-gray-500">Ver detalhes →</p>}
+    </>
+  )
+  const cls = cn(
+    'block rounded-xl border border-gray-200 p-5 shadow-sm transition-all dark:border-gray-700',
+    to && 'hover:-translate-y-0.5 hover:shadow-md',
+    cardBg,
+  )
+  return to ? <Link to={to} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>
+}
+
 /* ─── KPI card top-level ─── */
 
 interface KpiCardProps {
   label: string
   value: string
   hint?: string
+  /** Texto de ajuda no "?" ao lado do título. */
+  tooltip?: string
   /** Bloco rico opcional logo abaixo do hint — usado pra enriquecer os
    * cards principais (stacked bar, breakdown por segmento, etc.) e
    * equilibrar visualmente com o card de Projeção (mais denso). */
@@ -83,10 +155,13 @@ interface KpiCardProps {
   projecao?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
+const KpiCard = ({ label, value, hint, tooltip, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
   <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+        {label}
+        {tooltip && <HelpDot text={tooltip} />}
+      </p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-5 w-5', iconColor)} />
       </div>
@@ -120,9 +195,9 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
 
-  // ── Fonte 1: Combustível (cache compartilhada com /operacao e /abastecimentos)
-  const { kpis: opKpis, isLoading: isLoadingOp } = useOperacaoData()
-  const { fuelTypeData, dailyData: combDaily } = useAbastecimentosAnalytics()
+  // ── Fonte 1: Combustível — VENDA fiscal (mesma fonte do BI e da aba
+  // Combustível), não abastecimento. Garante que lucro/margem/litros batam.
+  const { kpis: vendaKpis, dailyData: combDaily, isLoading: isLoadingComb } = useFuelVendaAnalytics()
 
   // ── Fonte 2: Conveniência (cache compartilhada com a tab Conveniência)
   const { kpis: convKpis, projecao: convProjecao, dailyData: convDaily, isLoading: isLoadingConv } = useConvenienceData()
@@ -165,8 +240,8 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
   // ── Agrega faturamento + lucro por segmento ──
   const segmentos = useMemo(() => {
     // Combustível
-    const combFat = opKpis?.faturamentoCombustivel ?? 0
-    const combLucro = fuelTypeData.reduce((s, f) => s + f.lucroBruto, 0)
+    const combFat = vendaKpis.faturamento
+    const combLucro = vendaKpis.lucroBruto
 
     // Conveniência (margem = lucro bruto absoluto no hook)
     const convFat = convKpis?.faturamento ?? 0
@@ -195,6 +270,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
       combustivel: {
         faturamento: combFat,
         lucro: combLucro,
+        litros: vendaKpis.litros,
         margem: combFat > 0 ? (combLucro / combFat) * 100 : 0,
       },
       pista: {
@@ -208,7 +284,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
         margem: convFat > 0 ? (convLucro / convFat) * 100 : 0,
       },
     }
-  }, [opKpis, fuelTypeData, convKpis, produtosData, gruposData, vendaItens])
+  }, [vendaKpis, convKpis, produtosData, gruposData, vendaItens])
 
   const total = useMemo(() => {
     const fat = segmentos.combustivel.faturamento + segmentos.pista.faturamento + segmentos.conveniencia.faturamento
@@ -274,11 +350,6 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
     const fatTotal = projecaoAvancada({ dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
     const lucroTotal = projecaoAvancada({ dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })), today: todayISO, dataFinal: monthEnd })
 
-    // Ticket médio projetado da conveniência = faturamento conv projetado ÷
-    // atendimentos (qtdItens) projetados — o ticket é uma média, então projeta
-    // numerador e denominador separadamente.
-    const convQtd = projecaoAvancada({ dailySeries: convDaily.map((d) => ({ data: d.data, value: d.qtdItens })), today: todayISO, dataFinal: monthEnd })
-
     return {
       combustivel: { faturamento: comb.esperado, lucro: combL.esperado },
       pista: { faturamento: pista.esperado, lucro: pistaL.esperado },
@@ -286,12 +357,14 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
       fat: fatTotal,
       projetadoLucroTotal: lucroTotal.esperado,
       projetadoMargem: fatTotal.esperado > 0 ? (lucroTotal.esperado / fatTotal.esperado) * 100 : 0,
-      projetadoTicket: convQtd.esperado > 0 ? convFat / convQtd.esperado : 0,
+      // Ticket médio projetado = projeção cupons-based do próprio hook da
+      // conveniência (mesma base do realizado: faturamento ÷ cupons).
+      projetadoTicket: convProjecao?.ticketMedio ?? 0,
       dataFinalProjecao: monthEnd,
     }
   }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convProjecao, convDaily])
 
-  const isLoading = isLoadingOp || isLoadingConv || isLoadingVendas
+  const isLoading = isLoadingComb || isLoadingConv || isLoadingVendas
 
   // Melhor e pior segmento por margem — usado no card "Margem média"
   // pra dar contexto de qual segmento puxa a média pra cima/baixo.
@@ -354,6 +427,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               label="Faturamento total"
               value={formatCurrency(total.faturamento)}
               hint="Combustível + Pista + Conveniência"
+              tooltip="Receita bruta total do posto no período = soma do faturamento de Combustível, Pista e Conveniência. 'Proj. fim do mês' estima o fechamento pelo ritmo dos últimos dias."
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
               iconColor="text-emerald-600 dark:text-emerald-400"
@@ -396,6 +470,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               label="Lucro bruto total"
               value={formatCurrency(total.lucro)}
               hint="Soma dos 3 segmentos"
+              tooltip="Lucro bruto = faturamento − custo (CMV), somando os 3 segmentos. Não inclui despesas operacionais. O detalhe lista o lucro de cada segmento."
               Icon={TrendingUp}
               iconBg="bg-blue-100 dark:bg-blue-900/30"
               iconColor="text-blue-600 dark:text-blue-400"
@@ -424,6 +499,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               label="Margem média"
               value={`${total.margem.toFixed(1).replace('.', ',')}%`}
               hint="Lucro bruto ÷ faturamento × 100"
+              tooltip="Margem bruta consolidada = (lucro bruto total ÷ faturamento total) × 100. O detalhe mostra o segmento de maior e menor margem."
               Icon={Percent}
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               iconColor="text-amber-600 dark:text-amber-400"
@@ -459,6 +535,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               label="Ticket médio"
               value={convKpis ? formatCurrency(convKpis.ticketMedio) : '—'}
               hint="Ticket médio da conveniência"
+              tooltip="Ticket médio da CONVENIÊNCIA = faturamento da loja ÷ nº de cupons (atendimentos). Não inclui combustível nem pista. 'Atendimentos' é o nº de cupons no período."
               Icon={Receipt}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
@@ -466,12 +543,12 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               loading={isLoading}
               projecao={projecoes.fat.diasRestantes > 0 && !isLoading && projecoes.projetadoTicket > 0 ? formatCurrency(projecoes.projetadoTicket) : undefined}
               extra={
-                convKpis && convKpis.qtdItens > 0 ? (
+                convKpis && convKpis.qtdCupons > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>Atendimentos</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {convKpis.qtdItens.toLocaleString('pt-BR')}
+                        {convKpis.qtdCupons.toLocaleString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -500,81 +577,69 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
             />
           </div>
 
-          {/* Cards por segmento — cada um clicável */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {SEGMENTS.map((s) => {
-              const data = segmentos[s.id]
-              const Icon = s.Icon
-              const pct = total.faturamento > 0 ? (data.faturamento / total.faturamento) * 100 : 0
-              const proj = projecoes[s.id]
-              return (
-                <Link
-                  key={s.id}
-                  to={s.to}
-                  className={cn(
-                    'group rounded-xl border border-gray-200 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700',
-                    s.cardBg,
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', s.iconBg)}>
-                        <Icon className={cn('h-5 w-5', s.iconColor)} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{s.nome}</p>
-                        <p className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
-                          {pct.toFixed(1).replace('.', ',')}% do mix
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-gray-300 transition-colors group-hover:text-gray-600 dark:text-gray-600 dark:group-hover:text-gray-300" />
-                  </div>
-                  {isLoading ? (
-                    <Skeleton className="mt-3 h-7 w-32" />
-                  ) : (
-                    <p className="mt-3 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                      {formatCurrency(data.faturamento)}
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center justify-between text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <span>Lucro {formatCurrency(data.lucro)}</span>
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      margem {data.margem.toFixed(1).replace('.', ',')}%
-                    </span>
-                  </div>
-                  {/* Projeção mini — faturamento + lucro estimados pro fim do
-                      período. Riscada quando não há dias futuros (= realizado). */}
-                  {!isLoading && (proj.faturamento > 0 || proj.lucro > 0) && (
-                    <div className="mt-3 space-y-1 border-t border-gray-200/70 pt-2 text-[11px] dark:border-gray-700/70">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                          <LineChartIcon className="h-3 w-3" style={{ color: s.cor }} />
-                          Projeção faturamento
-                        </span>
-                        <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatCurrency(proj.faturamento)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-500 dark:text-gray-400">Projeção lucro</span>
-                        <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatCurrency(proj.lucro)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </Link>
-              )
-            })}
+          {/* Cards por segmento — formato BI: Lucro bruto + 2 métricas (Combustível,
+              Automotivos, Conveniência) + card Global consolidado. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SegmentCard
+              label="Combustível"
+              Icon={Fuel}
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+              cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
+              lucroBruto={segmentos.combustivel.lucro}
+              primary={{ label: 'Margem', value: fmtPct2(segmentos.combustivel.margem) }}
+              secondary={{ label: 'L. bruto / litro', value: formatCurrency(segmentos.combustivel.litros > 0 ? segmentos.combustivel.lucro / segmentos.combustivel.litros : 0) }}
+              to="/comercial/vendas/combustivel"
+              loading={isLoading}
+              tooltip="Lucro bruto do combustível (faturamento − CMV) no período. Margem = lucro ÷ faturamento; L. bruto/litro = lucro ÷ litros vendidos. Clique pra abrir o detalhe."
+            />
+            <SegmentCard
+              label="Automotivos"
+              Icon={Wrench}
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-600 dark:text-amber-400"
+              cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
+              lucroBruto={segmentos.pista.lucro}
+              primary={{ label: 'Faturamento', value: formatCurrencyInt(segmentos.pista.faturamento) }}
+              secondary={{ label: 'Margem', value: fmtPct2(segmentos.pista.margem) }}
+              to="/comercial/vendas/pista"
+              loading={isLoading}
+              tooltip="Produtos automotivos da pista (grupos PS-): lucro bruto, faturamento e margem no período. Clique pra abrir o detalhe."
+            />
+            <SegmentCard
+              label="Conveniência"
+              Icon={Store}
+              iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              iconColor="text-emerald-600 dark:text-emerald-400"
+              cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
+              lucroBruto={segmentos.conveniencia.lucro}
+              primary={{ label: 'Faturamento', value: formatCurrencyInt(segmentos.conveniencia.faturamento) }}
+              secondary={{ label: 'Margem', value: fmtPct2(segmentos.conveniencia.margem) }}
+              to="/comercial/vendas/conveniencia"
+              loading={isLoading}
+              tooltip="Loja de conveniência: lucro bruto, faturamento e margem no período. Clique pra abrir o detalhe."
+            />
+            <SegmentCard
+              label="Global"
+              Icon={Globe}
+              iconBg="bg-violet-100 dark:bg-violet-900/30"
+              iconColor="text-violet-600 dark:text-violet-400"
+              cardBg="bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900"
+              lucroBruto={total.lucro}
+              primary={{ label: 'Faturamento', value: formatCurrencyInt(total.faturamento) }}
+              secondary={{ label: 'Margem', value: fmtPct2(total.margem) }}
+              loading={isLoading}
+              tooltip="Consolidado do posto = Combustível + Automotivos + Conveniência. Lucro bruto, faturamento e margem totais do período."
+            />
           </div>
 
           {/* Charts: donut do mix + bar horizontal de margem */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Donut */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Participação no faturamento
+                <HelpDot text="Quanto cada segmento (Combustível, Pista, Conveniência) representa do faturamento total do período. Passe o mouse nas fatias pra ver o valor em R$." />
               </h3>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                 Quanto cada segmento representa do total
@@ -637,8 +702,9 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
 
             {/* Bar chart de margem */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Margem por segmento
+                <HelpDot text="Margem bruta (%) de cada segmento = lucro bruto ÷ faturamento do segmento. Compara a rentabilidade entre Combustível, Pista e Conveniência." />
               </h3>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                 Combustível costuma ter margem menor; pista/conveniência puxam o LB

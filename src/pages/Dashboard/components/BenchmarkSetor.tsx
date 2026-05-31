@@ -1,8 +1,9 @@
 import { Fragment, useMemo, useState } from 'react'
-import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy } from 'lucide-react'
+import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy, HelpCircle } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 
 type SetorId = 'combustiveis' | 'automotivos' | 'conveniencias'
 
@@ -31,93 +32,6 @@ interface SetorData {
   postos: PostoRow[]
 }
 
-/* ─── Mock — números do print pra Combustíveis ─── */
-const mockData: Record<SetorId, SetorData> = {
-  combustiveis: {
-    unidadeLabel: 'Litros',
-    lbLabel: 'L.B. por litro',
-    postos: [
-      {
-        posto: 'POSTO TREVISO',
-        produtos: [
-          { produto: 'GASOLINA COMUM',              qtd: 131003, qtdAnoAnterior: 128400, lucroBruto: 110358, lucroBrutoAnoAnterior: 108200, margem: 13.47, acrescimos: 0, descontos: 8806.18, precoVenda: 6.26, precoCusto: 5.41, lbPorUnidade: 0.84 },
-          { produto: 'GASOLINA ADITIVADA',          qtd: 390,    qtdAnoAnterior: 410,    lucroBruto: 391,    lucroBrutoAnoAnterior: 420,    margem: 15.27, acrescimos: 0, descontos: 8.34,    precoVenda: 6.56, precoCusto: 5.56, lbPorUnidade: 1.00 },
-          { produto: 'ETANOL ADITIVADO IPIMAX',     qtd: 25234,  qtdAnoAnterior: 24800,  lucroBruto: 9966,   lucroBrutoAnoAnterior: 9500,   margem: 8.76,  acrescimos: 0, descontos: 2044.01, precoVenda: 4.51, precoCusto: 4.11, lbPorUnidade: 0.39 },
-          { produto: 'DIESEL S-10 ADITIVADO IPIMAX', qtd: 21323, qtdAnoAnterior: 22500,  lucroBruto: 7721,   lucroBrutoAnoAnterior: 8100,   margem: 6.06,  acrescimos: 0, descontos: 0,       precoVenda: 5.98, precoCusto: 5.62, lbPorUnidade: 0.36 },
-        ],
-      },
-      {
-        posto: 'POSTO ITAPOA',
-        produtos: [
-          { produto: 'GASOLINA COMUM',     qtd: 122193, qtdAnoAnterior: 120000, lucroBruto: 99085,  lucroBrutoAnoAnterior: 95400,  margem: 13.03, acrescimos: 0, descontos: 14837.86, precoVenda: 6.22, precoCusto: 5.41, lbPorUnidade: 0.81 },
-          { produto: 'GASOLINA ADITIVADA', qtd: 10597,  qtdAnoAnterior: 10100,  lucroBruto: 10172,  lucroBrutoAnoAnterior: 9700,   margem: 14.74, acrescimos: 0, descontos: 1006.14,  precoVenda: 6.51, precoCusto: 5.55, lbPorUnidade: 0.96 },
-          { produto: 'ETANOL COMUM.',      qtd: 33616,  qtdAnoAnterior: 32000,  lucroBruto: 10801,  lucroBrutoAnoAnterior: 10200,  margem: 7.25,  acrescimos: 0, descontos: 5211.41,  precoVenda: 4.43, precoCusto: 4.11, lbPorUnidade: 0.32 },
-          { produto: 'DIESEL S-10',        qtd: 16388,  qtdAnoAnterior: 17500,  lucroBruto: 5949,   lucroBrutoAnoAnterior: 6300,   margem: 6.07,  acrescimos: 0, descontos: 14.74,    precoVenda: 5.98, precoCusto: 5.62, lbPorUnidade: 0.36 },
-        ],
-      },
-      {
-        posto: 'POSTO DIVINO',
-        produtos: [
-          { produto: 'GASOLINA COMUM', qtd: 123462, qtdAnoAnterior: 121000, lucroBruto: 101584, lucroBrutoAnoAnterior: 97800, margem: 13.19, acrescimos: 0, descontos: 6474.41, precoVenda: 6.24, precoCusto: 5.41, lbPorUnidade: 0.82 },
-        ],
-      },
-    ],
-  },
-  automotivos: {
-    unidadeLabel: 'Quantidade',
-    lbLabel: 'L.B. por unidade',
-    postos: [
-      {
-        posto: 'POSTO TREVISO',
-        produtos: [
-          { produto: 'LUBRIFICANTE 1L',           qtd: 120, qtdAnoAnterior: 110, lucroBruto: 3840,  lucroBrutoAnoAnterior: 3500, margem: 58.20, acrescimos: 0, descontos: 0, precoVenda: 55.00, precoCusto: 23.00, lbPorUnidade: 32.00 },
-          { produto: 'ADITIVO RADIADOR',          qtd: 85,  qtdAnoAnterior: 80,  lucroBruto: 2210,  lucroBrutoAnoAnterior: 2050, margem: 65.00, acrescimos: 0, descontos: 0, precoVenda: 40.00, precoCusto: 14.00, lbPorUnidade: 26.00 },
-          { produto: 'PALHETA LIMPADOR',          qtd: 42,  qtdAnoAnterior: 38,  lucroBruto: 1260,  lucroBrutoAnoAnterior: 1100, margem: 60.00, acrescimos: 0, descontos: 0, precoVenda: 50.00, precoCusto: 20.00, lbPorUnidade: 30.00 },
-        ],
-      },
-      {
-        posto: 'POSTO ITAPOA',
-        produtos: [
-          { produto: 'LUBRIFICANTE 1L',           qtd: 95,  qtdAnoAnterior: 92,  lucroBruto: 3040,  lucroBrutoAnoAnterior: 2900, margem: 58.20, acrescimos: 0, descontos: 0, precoVenda: 55.00, precoCusto: 23.00, lbPorUnidade: 32.00 },
-          { produto: 'ARLA 32',                   qtd: 60,  qtdAnoAnterior: 55,  lucroBruto: 1800,  lucroBrutoAnoAnterior: 1600, margem: 62.00, acrescimos: 0, descontos: 0, precoVenda: 48.00, precoCusto: 18.00, lbPorUnidade: 30.00 },
-        ],
-      },
-      {
-        posto: 'POSTO DIVINO',
-        produtos: [
-          { produto: 'LUBRIFICANTE SINTÉTICO 1L', qtd: 70,  qtdAnoAnterior: 65,  lucroBruto: 3500,  lucroBrutoAnoAnterior: 3200, margem: 64.81, acrescimos: 0, descontos: 0, precoVenda: 77.00, precoCusto: 27.00, lbPorUnidade: 50.00 },
-        ],
-      },
-    ],
-  },
-  conveniencias: {
-    unidadeLabel: 'Quantidade',
-    lbLabel: 'L.B. por unidade',
-    postos: [
-      {
-        posto: 'POSTO TREVISO',
-        produtos: [
-          { produto: 'COCA COLA 600ML', qtd: 220, qtdAnoAnterior: 210, lucroBruto: 1320, lucroBrutoAnoAnterior: 1240, margem: 49.50, acrescimos: 0, descontos: 0, precoVenda: 12.00, precoCusto: 6.06, lbPorUnidade: 6.00 },
-          { produto: 'CIGARRO MARLBORO', qtd: 180, qtdAnoAnterior: 175, lucroBruto: 1620, lucroBrutoAnoAnterior: 1530, margem: 30.00, acrescimos: 0, descontos: 0, precoVenda: 30.00, precoCusto: 21.00, lbPorUnidade: 9.00 },
-        ],
-      },
-      {
-        posto: 'POSTO ITAPOA',
-        produtos: [
-          { produto: 'CERVEJA LATA',  qtd: 320, qtdAnoAnterior: 300, lucroBruto: 1920, lucroBrutoAnoAnterior: 1780, margem: 50.00, acrescimos: 0, descontos: 0, precoVenda: 12.00, precoCusto: 6.00, lbPorUnidade: 6.00 },
-          { produto: 'SANDUICHE NAT', qtd: 90,  qtdAnoAnterior: 80,  lucroBruto: 720,  lucroBrutoAnoAnterior: 640,  margem: 53.33, acrescimos: 0, descontos: 0, precoVenda: 15.00, precoCusto: 7.00, lbPorUnidade: 8.00 },
-        ],
-      },
-      {
-        posto: 'POSTO DIVINO',
-        produtos: [
-          { produto: 'CAFÉ EXPRESSO', qtd: 280, qtdAnoAnterior: 260, lucroBruto: 1400, lucroBrutoAnoAnterior: 1290, margem: 55.55, acrescimos: 0, descontos: 0, precoVenda: 9.00,  precoCusto: 4.00,  lbPorUnidade: 5.00 },
-        ],
-      },
-    ],
-  },
-}
-
 const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
   { id: 'combustiveis', label: 'COMBUSTÍVEIS', Icon: Fuel },
   { id: 'automotivos', label: 'AUTOMOTIVOS', Icon: Wrench },
@@ -125,6 +39,18 @@ const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
 ]
 
 const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
+
+/** Cabeçalho de coluna com "?" (tooltip nativo). */
+const ThHelp = ({ label, help, align = 'right' }: { label: string; help: string; align?: 'left' | 'right' }) => (
+  <th className={cn('px-3 py-2', align === 'right' ? 'text-right' : 'text-left')}>
+    <span className={cn('inline-flex items-center gap-1', align === 'right' && 'justify-end')}>
+      {label}
+      <span title={help} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <HelpCircle className="h-3 w-3" />
+      </span>
+    </span>
+  </th>
+)
 
 const variacaoPct = (atual: number, anterior: number): number =>
   anterior > 0 ? ((atual - anterior) / anterior) * 100 : 0
@@ -148,7 +74,8 @@ const VariacaoBadge = ({ value }: { value: number }) => {
 
 const BenchmarkSetor = () => {
   const [setor, setSetor] = useState<SetorId>('combustiveis')
-  const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set(mockData.combustiveis.postos.map((p) => p.posto)))
+  // Postos EXPANDIDOS (default = todos minimizados; abre ao clicar no posto).
+  const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set())
   // Linha destacada — uma única por vez. Útil pra comparar visualmente
   // valores entre colunas sem perder de vista qual é a linha de interesse.
   const [selected, setSelected] = useState<string | null>(null)
@@ -157,7 +84,13 @@ const BenchmarkSetor = () => {
     setSelected((curr) => (curr === key ? null : key))
   }
 
-  const data = mockData[setor]
+  const rede = useRedeSetores()
+  const setorReal = setor === 'combustiveis' ? rede.combustivel : setor === 'automotivos' ? rede.automotivos : rede.conveniencia
+  const data = useMemo<SetorData>(() => ({
+    unidadeLabel: setorReal.unidadeLabel,
+    lbLabel: setorReal.lbLabel,
+    postos: setorReal.postos.map((p) => ({ posto: p.posto, produtos: p.produtos })),
+  }), [setorReal])
 
   // Agrega cada posto e o total geral.
   const aggregated = useMemo(() => {
@@ -211,11 +144,15 @@ const BenchmarkSetor = () => {
     return top && top.lucroBruto > 0 ? top.posto : null
   }, [aggregated])
 
-  // Máximos pra calibrar barras
+  // Máximos pra calibrar barras — produtos (linhas filhas) e postos (agrupadores)
+  // têm escalas próprias (totais de posto >> valores por produto).
   const allRows = aggregated.postos.flatMap((p) => p.produtos)
   const maxQtd = allRows.reduce((m, r) => Math.max(m, r.qtd), 0)
   const maxLucro = allRows.reduce((m, r) => Math.max(m, r.lucroBruto), 0)
   const maxMargem = Math.max(...allRows.map((r) => r.margem), 0)
+  const maxQtdPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.qtd), 0)
+  const maxLucroPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.lucroBruto), 0)
+  const maxMargemPosto = Math.max(...aggregated.postos.map((p) => p.margem), 0)
 
   const togglePosto = (posto: string) => {
     setExpandidos((prev) => {
@@ -232,8 +169,11 @@ const BenchmarkSetor = () => {
         <div>
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-gray-500" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Detalhamento de informações por setor
+              <span title="Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus produtos. Clique no posto pra expandir. Compara com o mesmo período do ano anterior." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <HelpCircle className="h-3.5 w-3.5" />
+              </span>
             </h3>
           </div>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -267,19 +207,19 @@ const BenchmarkSetor = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-              <th className="px-3 py-2 text-left">Empresa</th>
-              <th className="px-3 py-2 text-right">{data.unidadeLabel}</th>
-              <th className="px-3 py-2 text-right">Ano anterior</th>
-              <th className="px-3 py-2 text-right">Variação</th>
-              <th className="px-3 py-2 text-right">Lucro Bruto</th>
-              <th className="px-3 py-2 text-right">Ano anterior</th>
-              <th className="px-3 py-2 text-right">Variação</th>
-              <th className="px-3 py-2 text-right">Margem</th>
-              <th className="px-3 py-2 text-right">Acréscimos</th>
-              <th className="px-3 py-2 text-right">Descontos</th>
-              <th className="px-3 py-2 text-right">Preço venda</th>
-              <th className="px-3 py-2 text-right">Preço custo</th>
-              <th className="px-3 py-2 text-right">{data.lbLabel}</th>
+              <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os produtos do setor." />
+              <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              <ThHelp label="Ano anterior" help="Mesmo período do ano anterior (volume)." />
+              <ThHelp label="Variação" help="Variação % do volume vs o ano anterior." />
+              <ThHelp label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
+              <ThHelp label="Ano anterior" help="Lucro bruto no mesmo período do ano anterior (R$)." />
+              <ThHelp label="Variação" help="Variação % do lucro bruto vs o ano anterior." />
+              <ThHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+              <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />
+              <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />
+              <ThHelp label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+              <ThHelp label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
+              <ThHelp label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
             </tr>
           </thead>
           <tbody>
@@ -316,13 +256,19 @@ const BenchmarkSetor = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatNumber(p.qtd)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(p.qtdAnoAnterior)}</td>
+                    <td className="px-2 py-1">
+                      <BarCell value={p.qtd} max={maxQtdPosto} formatted={formatNumber(Math.round(p.qtd))} color="blue" align="near" />
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(Math.round(p.qtdAnoAnterior))}</td>
                     <td className="px-3 py-2 text-right"><VariacaoBadge value={qtdVar} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.lucroBruto)}</td>
+                    <td className="px-2 py-1">
+                      <BarCell value={p.lucroBruto} max={maxLucroPosto} formatted={formatCurrency(p.lucroBruto)} color="green" align="near" />
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.lucroBrutoAnoAnterior)}</td>
                     <td className="px-3 py-2 text-right"><VariacaoBadge value={lucroVar} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmtPct(p.margem)}</td>
+                    <td className="px-2 py-1">
+                      <BarCell value={p.margem} max={maxMargemPosto} formatted={fmtPct(p.margem)} color="red" align="near" />
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.acrescimos)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.descontos)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
@@ -348,9 +294,9 @@ const BenchmarkSetor = () => {
                       >
                         <td className="px-3 py-1.5 pl-9 text-left text-xs">{prod.produto}</td>
                         <td className="px-2 py-1">
-                          <BarCell value={prod.qtd} max={maxQtd} formatted={formatNumber(prod.qtd)} color="blue" align="near" maxWidthPct={60} />
+                          <BarCell value={prod.qtd} max={maxQtd} formatted={formatNumber(Math.round(prod.qtd))} color="blue" align="near" maxWidthPct={60} />
                         </td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatNumber(prod.qtdAnoAnterior)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatNumber(Math.round(prod.qtdAnoAnterior))}</td>
                         <td className="px-3 py-1.5 text-right"><VariacaoBadge value={qVar} /></td>
                         <td className="px-2 py-1">
                           <BarCell value={prod.lucroBruto} max={maxLucro} formatted={formatCurrency(prod.lucroBruto)} color="green" align="near" maxWidthPct={60} />
@@ -373,8 +319,8 @@ const BenchmarkSetor = () => {
             })}
             <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
               <td className="px-3 py-2 text-left">Total</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatNumber(aggregated.totals.qtd)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(aggregated.totals.qtdAnoAnterior)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Math.round(aggregated.totals.qtd))}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(Math.round(aggregated.totals.qtdAnoAnterior))}</td>
               <td className="px-3 py-2 text-right"><VariacaoBadge value={variacaoPct(aggregated.totals.qtd, aggregated.totals.qtdAnoAnterior)} /></td>
               <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lucroBruto)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.lucroBrutoAnoAnterior)}</td>

@@ -16,6 +16,8 @@ export interface ConvKpiData {
   margem: number
   margemPct: number
   qtdItens: number
+  /** Nº de cupons (atendimentos) — denominador do ticket médio. */
+  qtdCupons: number
   ticketMedio: number
   totalProdutos: number
   // Mês anterior — base fixa do gráfico de evolução e dos insights (não muda com o toggle).
@@ -464,6 +466,7 @@ const useConvenienceData = () => {
       margem: totalMargem,
       margemPct,
       qtdItens: totalQtd,
+      qtdCupons: totalCupons,
       ticketMedio,
       totalProdutos: byProduct.size,
       prev: {

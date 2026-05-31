@@ -323,7 +323,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     <div className="flex items-center justify-between gap-2">
                       <span>Atendimentos</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {kpis.qtdItens.toLocaleString('pt-BR')}
+                        {kpis.qtdCupons.toLocaleString('pt-BR')}
                       </span>
                     </div>
                   </div>

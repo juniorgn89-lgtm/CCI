@@ -117,6 +117,10 @@ export const fetchApuracaoStatusByMonth = async (
       .eq('rede_id', redeId)
       .gte('data', `${year}-01-01`)
       .lte('data', `${year}-12-31`)
+      // Ordem TOTAL (PK) pra paginação estável — sem isso o count do status
+      // pode pular linhas nas fronteiras de 1000 e mostrar "parcial" falso.
+      .order('data', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
     if (error) {
       console.warn('[apuracao] status error:', error.message)
@@ -483,6 +487,10 @@ export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<Apur
     .select('*')
     .gte('data', params.dataInicial)
     .lte('data', params.dataFinal)
+    // Ordem TOTAL (PK) pra paginação estável — ver nota em fetchVendasCache.
+    .order('data', { ascending: true })
+    .order('empresa_codigo', { ascending: true })
+    .order('produto_codigo', { ascending: true })
   if (params.empresaCodigos.length > 0) {
     query = query.in('empresa_codigo', params.empresaCodigos)
   }
@@ -655,7 +663,11 @@ export const fetchCaixasCache = async (params: FetchCaixasCacheParams): Promise<
       .select('*')
       .gte('data_movimento', params.dataInicial)
       .lte('data_movimento', params.dataFinal)
+      // Ordem TOTAL (PK) pra paginação estável — ver nota em fetchVendasCache.
       .order('data_movimento', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('caixa_codigo', { ascending: true })
+      .order('turno_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
@@ -765,7 +777,11 @@ export const fetchFormasPagamentoCache = async (
       .select('*')
       .gte('data_movimento', params.dataInicial)
       .lte('data_movimento', params.dataFinal)
+      // Ordem TOTAL (PK) pra paginação estável — ver nota em fetchVendasCache.
       .order('data_movimento', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('venda_codigo', { ascending: true })
+      .order('venda_prazo_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
@@ -844,14 +860,25 @@ export const cacheRowToFormaPagamento = (r: FormaPagamentoCacheRow): VendaFormaP
 // preservar a contagem de linhas, não só os somatórios.
 // Veja docs/supabase-apuracao-vendas.sql para o schema completo.
 
+/** Setor do produto, congelado na apuração (evita re-classificação ao vivo). */
+export type SetorVenda = 'combustivel' | 'automotivos' | 'conveniencia'
+
 export interface ApuracaoVendaRow {
   rede_id: string
   empresa_codigo: number
   data: string // yyyy-MM-dd
   produto_codigo: number
+  /** Setor carimbado no momento da apuração (combustivel/automotivos/conveniencia). */
+  setor: string
+  /** Nome do produto no momento da apuração. */
+  produto_nome: string
   quantidade: number
   total_venda: number
   total_custo: number
+  /** Σ totalAcrescimo dos itens (R$). */
+  acrescimos: number
+  /** Σ totalDesconto dos itens (R$). */
+  descontos: number
   linhas: number
   /**
    * Nº de CUPONS (vendaCodigo distinto) da CONVENIÊNCIA naquele (empresa, dia).
@@ -881,7 +908,12 @@ export const fetchVendasCache = async (
       .select('*')
       .gte('data', params.dataInicial)
       .lte('data', params.dataFinal)
+      // Ordem TOTAL (PK inteira) — sem isso, linhas empatadas em `data` têm
+      // ordem indefinida entre páginas e o .range() pula linhas nas fronteiras
+      // de 1000 (undercount silencioso). PK: empresa_codigo, data, produto_codigo.
       .order('data', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('produto_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
@@ -896,7 +928,16 @@ export const fetchVendasCache = async (
     if (rows.length < pageSize) break
     from += pageSize
   }
-  return all
+  // Dedup defensivo por (rede, empresa, dia, produto) — se a tabela perdeu a
+  // unique constraint, re-apurações podem ter inserido linhas duplicadas (somam
+  // em vez de sobrescrever, inflando o posto). Mantém a apuração mais recente.
+  const byKey = new Map<string, ApuracaoVendaRow>()
+  for (const r of all) {
+    const k = `${r.rede_id}|${r.empresa_codigo}|${r.data}|${r.produto_codigo}`
+    const prev = byKey.get(k)
+    if (!prev || (r.computed_at ?? '') > (prev.computed_at ?? '')) byKey.set(k, r)
+  }
+  return Array.from(byKey.values())
 }
 
 export const upsertVendasCache = async (
@@ -918,18 +959,20 @@ export const upsertVendasCache = async (
   }
 }
 
+/** Classificação + nome do produto pra carimbar na apuração. */
+export interface ProdutoInfo { setor: SetorVenda; nome: string }
+
 /**
  * Conta os CUPONS (vendaCodigo distinto) da conveniência por (empresa, dia).
- * `convProdutoCodigos` = produtos elegíveis (não combustível, não PS-); cupons
- * de outros itens não entram. Retorna mapa "empresa|dia" → nº de cupons.
+ * Conveniência = produtos cujo setor === 'conveniencia'. Retorna "empresa|dia" → nº.
  */
 const cuponsConvByDay = (
   itens: VendaItem[],
-  convProdutoCodigos: Set<number>,
+  produtoInfo: Map<number, ProdutoInfo>,
 ): Map<string, number> => {
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
-    if (!convProdutoCodigos.has(it.produtoCodigo)) continue
+    if (produtoInfo.get(it.produtoCodigo)?.setor !== 'conveniencia') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
     const k = `${it.empresaCodigo}|${data}`
@@ -944,17 +987,16 @@ const cuponsConvByDay = (
 
 /**
  * Agrega itens de venda crus (VendaItem) em linhas do cache, somando por
- * (empresa, dia, produto). `linhas` conta o nº de itens de venda; `cupons`
- * guarda o nº de cupons (vendaCodigo distinto) de CONVENIÊNCIA daquele
- * (empresa, dia) — desnormalizado em cada linha de produto de conveniência,
- * pro ticket médio bater com o BI (faturamento ÷ cupons).
+ * (empresa, dia, produto). Carimba `setor` e `produto_nome` (a partir de
+ * `produtoInfo`) pra a leitura não depender do catálogo ao vivo nem sofrer
+ * deriva de classificação. `cupons` = nº de cupons de CONVENIÊNCIA do dia.
  */
 export const aggregateVendaItensToCache = (
   itens: VendaItem[],
   redeId: string,
-  convProdutoCodigos: Set<number>,
+  produtoInfo: Map<number, ProdutoInfo>,
 ): ApuracaoVendaUpsert[] => {
-  const cuponsByDay = cuponsConvByDay(itens, convProdutoCodigos)
+  const cuponsByDay = cuponsConvByDay(itens, produtoInfo)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
@@ -965,19 +1007,26 @@ export const aggregateVendaItensToCache = (
       existing.quantidade += it.quantidade ?? 0
       existing.total_venda += it.totalVenda ?? 0
       existing.total_custo += it.totalCusto ?? 0
+      existing.acrescimos += it.totalAcrescimo ?? 0
+      existing.descontos += it.totalDesconto ?? 0
       existing.linhas += 1
     } else {
-      const isConv = convProdutoCodigos.has(it.produtoCodigo)
+      const info = produtoInfo.get(it.produtoCodigo)
+      const setor: SetorVenda = info?.setor ?? 'conveniencia'
       map.set(key, {
         rede_id: redeId,
         empresa_codigo: it.empresaCodigo,
         data,
         produto_codigo: it.produtoCodigo,
+        setor,
+        produto_nome: info?.nome ?? `Produto ${it.produtoCodigo}`,
         quantidade: it.quantidade ?? 0,
         total_venda: it.totalVenda ?? 0,
         total_custo: it.totalCusto ?? 0,
+        acrescimos: it.totalAcrescimo ?? 0,
+        descontos: it.totalDesconto ?? 0,
         linhas: 1,
-        cupons: isConv ? (cuponsByDay.get(`${it.empresaCodigo}|${data}`) ?? 0) : 0,
+        cupons: setor === 'conveniencia' ? (cuponsByDay.get(`${it.empresaCodigo}|${data}`) ?? 0) : 0,
       })
     }
   }

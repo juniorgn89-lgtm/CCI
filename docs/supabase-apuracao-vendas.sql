@@ -21,6 +21,10 @@ create table if not exists apuracao_vendas (
   quantidade     numeric not null default 0,  -- soma de item.quantidade
   total_venda    numeric not null default 0,  -- soma de item.totalVenda
   total_custo    numeric not null default 0,  -- soma de item.totalCusto
+  acrescimos     numeric not null default 0,  -- soma de item.totalAcrescimo
+  descontos      numeric not null default 0,  -- soma de item.totalDesconto
+  setor          text,                         -- combustivel/automotivos/conveniencia (congelado na apuração)
+  produto_nome   text,                         -- nome do produto no momento da apuração
   linhas         integer not null default 0,  -- nº de itens de venda
   cupons         integer not null default 0,  -- nº de cupons conveniência do dia (ticket médio)
   computed_at    timestamptz not null default now(),
@@ -28,8 +32,12 @@ create table if not exists apuracao_vendas (
   primary key (rede_id, empresa_codigo, data, produto_codigo)
 );
 
--- Migração (tabela já existente): adiciona a coluna de cupons.
-alter table apuracao_vendas add column if not exists cupons integer not null default 0;
+-- Migração (tabela já existente): adiciona colunas novas.
+alter table apuracao_vendas add column if not exists cupons       integer not null default 0;
+alter table apuracao_vendas add column if not exists acrescimos   numeric not null default 0;
+alter table apuracao_vendas add column if not exists descontos    numeric not null default 0;
+alter table apuracao_vendas add column if not exists setor        text;
+alter table apuracao_vendas add column if not exists produto_nome text;
 
 -- Índices pras leituras do front (rede_id sempre primeiro pra isolar tenant).
 create index if not exists idx_apuracao_vendas_rede_data

@@ -25,6 +25,8 @@ import {
   aggregateVendaItensToCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
+  type ProdutoInfo,
+  type SetorVenda,
 } from '@/api/supabase/apuracao'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
@@ -328,17 +330,17 @@ const Apuracao = () => {
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
       const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
-      // Produtos de conveniência = não combustível e fora dos grupos PS- (pista).
-      // Escopa a contagem de cupons do ticket médio (igual à tela Conveniência).
+      // Carimba setor + nome de cada produto na apuração (congela a classificação:
+      // combustível = flag; automotivos = grupo "PS -"; conveniência = restante).
+      // Assim a Central lê o setor do cache, sem re-classificar com o catálogo ao vivo.
       const grupoNomePorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
-      const convProdutoCodigos = new Set<number>()
+      const produtoInfo = new Map<number, ProdutoInfo>()
       for (const p of produtos) {
-        if (p.combustivel) continue
         const gn = grupoNomePorCodigo.get(p.grupoCodigo) ?? ''
-        if (gn.startsWith('PS -')) continue
-        convProdutoCodigos.add(p.produtoCodigo)
+        const setor: SetorVenda = p.combustivel ? 'combustivel' : gn.startsWith('PS -') ? 'automotivos' : 'conveniencia'
+        produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
-      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, convProdutoCodigos)
+      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
@@ -359,7 +361,10 @@ const Apuracao = () => {
     setRunning(true)
     await apurarMes(month)
     await refetchStatus()
-    queryClient.invalidateQueries({ queryKey: ['apuracao-cache'] })
+    // Re-apurar reescreve TODAS as tabelas de cache; invalida o React Query
+    // inteiro pra que Central, Conveniência, Dashboard etc. releiam na hora
+    // (as chaves rede-vendas-* da Central não casavam com 'apuracao-cache').
+    queryClient.invalidateQueries()
     setProgress((prev) => {
       const next = new Map(prev)
       next.delete(month)
@@ -383,9 +388,9 @@ const Apuracao = () => {
       // Pausa entre meses pra evitar storm na API
       if (m < maxMonth) await sleep(800)
     }
-    queryClient.invalidateQueries({ queryKey: ['apuracao-cache'] })
-    queryClient.invalidateQueries({ queryKey: ['apuracao-abast-probe'] })
-    queryClient.invalidateQueries({ queryKey: ['apuracao-diaria-probe'] })
+    // Invalida o React Query inteiro — re-apurar reescreveu todas as tabelas
+    // de cache e cada tela lê com chaves próprias (rede-vendas-*, apuracao-*…).
+    queryClient.invalidateQueries()
     setProgress(new Map())
     setRunning(false)
   }
