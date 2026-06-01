@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Visor360 — Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: #eceef1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+  }
+  body.v360-page-dark { background: #0c0c0c; }
+
+  /* ── Design tokens — light ─────────────────────────────────── */
+  .v360 {
+    --bg: #f9fafb;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --border-soft: #eef0f3;
+    --border-strong: #d1d5db;
+    --track: #f3f4f6;
+    --track-strong: #cbd0d8;
+    --text: #111827;
+    --text-2: #6b7280;
+    --text-3: #9ca3af;
+    --navy: #1e3a5f;
+    --bar: #1e3a5f;
+    --header: #1e3a5f;
+    --header-border: rgba(255,255,255,0.08);
+    --navy-soft: rgba(30,58,95,0.10);
+    --navy-ico: #1e3a5f;
+    --accent: #2563eb;
+    --accent-soft: rgba(37,99,235,0.07);
+    --accent-soft2: rgba(37,99,235,0.14);
+    --accent-border: rgba(37,99,235,0.22);
+    --pos: #059669;
+    --neg: #dc2626;
+    --warn: #d97706;
+    --amber-soft: #fffbeb;
+    --amber-border: #fde68a;
+    --zebra: rgba(249,250,251,0.75);
+    --shadow-sm: 0 1px 2px rgba(16,24,40,0.05);
+    --c1: #1e3a5f; --c2: #2563eb; --c3: #3b82f6; --c4: #60a5fa; --c5: #93c5fd;
+    --safe-top: 50px;
+    --safe-bot: 24px;
+  }
+  /* ── Design tokens — dark (VSCode Dark Modern, per app) ────── */
+  .v360.v360-dark {
+    --bg: #1c1c1c;
+    --surface: #242424;
+    --border: #3a3a3a;
+    --border-soft: #303030;
+    --border-strong: #4a4a4a;
+    --track: #2e2e2e;
+    --track-strong: #4a4a4a;
+    --text: #e0e0e0;
+    --text-2: #9e9e9e;
+    --text-3: #767676;
+    --navy: #1e3a5f;
+    --bar: #3b82f6;
+    --header: #131316;
+    --header-border: #2a2a2a;
+    --navy-soft: rgba(96,165,250,0.12);
+    --navy-ico: #60a5fa;
+    --accent: #60a5fa;
+    --accent-soft: rgba(96,165,250,0.10);
+    --accent-soft2: rgba(96,165,250,0.18);
+    --accent-border: rgba(96,165,250,0.30);
+    --pos: #34d399;
+    --neg: #f87171;
+    --warn: #fbbf24;
+    --amber-soft: rgba(245,158,11,0.10);
+    --amber-border: rgba(245,158,11,0.26);
+    --zebra: rgba(255,255,255,0.025);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+    --c1: #60a5fa; --c2: #3b82f6; --c3: #2563eb; --c4: #93c5fd; --c5: #1e3a5f;
+  }
+
+  .v360 ::-webkit-scrollbar { width: 0; height: 0; }
+  .v360 select, .v360 input, .v360 button { font-family: inherit; }
+  .v360 input[type="date"] { color-scheme: light; }
+  .v360.v360-dark input[type="date"] { color-scheme: dark; }
+
+  @keyframes v360-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.8); } }
+  .v360-pulse { animation: v360-pulse 1.8s ease-in-out infinite; }
+  @keyframes v360-spin { to { transform: rotate(360deg); } }
+  .v360-spin { animation: v360-spin 1s linear infinite; }
+  @keyframes v360-shimmer { 0% { background-position: -300px 0; } 100% { background-position: 300px 0; } }
+  .v360-skel {
+    background: var(--track);
+    background-image: linear-gradient(90deg, var(--track) 0px, var(--border-soft) 60px, var(--track) 120px);
+    background-size: 300px 100%;
+    animation: v360-shimmer 1.3s linear infinite;
+  }
+  @keyframes v360-fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+  /* ── Microinterações ─────────────────────────────────── */
+  .v360 button { -webkit-tap-highlight-color: transparent; transition: transform .13s ease, background .15s ease, color .15s ease, box-shadow .15s ease; }
+  .v360 button:active { transform: scale(0.972); }
+  .v360 nav button:active { transform: none; }
+  .v360-screen { animation: v360-fade .3s ease both; }
+  @keyframes v360-pop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .v360-navdot { transition: opacity .22s ease, transform .26s cubic-bezier(.32,.72,0,1); }
+  .v360-navico { transition: transform .22s cubic-bezier(.34,1.56,.64,1); }
+
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" rx="22" fill="#1e3a5f"/>
+      <rect x="30" y="20" width="40" height="60" rx="7" fill="#fff"/>
+      <rect x="36" y="30" width="28" height="8" rx="2" fill="#2563eb"/>
+      <rect x="36" y="43" width="13" height="13" rx="2" fill="#60a5fa"/>
+      <rect x="51" y="43" width="13" height="13" rx="2" fill="#93c5fd"/>
+      <rect x="36" y="61" width="28" height="6" rx="2" fill="#e5e7eb"/>
+    </svg>
+  </template>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="frames/ios-frame.jsx"></script>
+  <script type="text/babel" src="app/icons.jsx"></script>
+  <script type="text/babel" src="app/data.jsx"></script>
+  <script type="text/babel" src="app/ui.jsx"></script>
+  <script type="text/babel" src="app/shell.jsx"></script>
+  <script type="text/babel" src="app/screen-central.jsx"></script>
+  <script type="text/babel" src="app/screen-fechamentos.jsx"></script>
+  <script type="text/babel" src="app/screen-vendas.jsx"></script>
+  <script type="text/babel" src="app/screen-misc.jsx"></script>
+  <script type="text/babel" src="app/screen-modulos.jsx"></script>
+  <script type="text/babel" src="app/screen-modulos2.jsx"></script>
+  <script type="text/babel" src="app/app.jsx"></script>
+
+  <script>
+    // keep page bg in sync with in-app dark toggle for nice letterboxing
+    (function () {
+      const sync = () => {
+        const el = document.querySelector('.v360');
+        document.body.classList.toggle('v360-page-dark', !!(el && el.classList.contains('v360-dark')));
+      };
+      new MutationObserver(sync).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      setInterval(sync, 600);
+    })();
+  </script>
+</body>
+</html>
