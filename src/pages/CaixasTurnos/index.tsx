@@ -11,6 +11,8 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import useIsMobile from '@/hooks/useIsMobile'
+import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
 const CaixaPosto = lazy(() => import('@/pages/Operacao/components/CaixaPosto'))
 
@@ -39,6 +41,10 @@ const CaixasTurnos = () => {
     'visao',
     (v): v is 'visao' | 'turnos' => v === 'visao' || v === 'turnos',
   )
+  const isMobile = useIsMobile()
+
+  // Mobile: tela própria (abas Visão Geral + Turnos), reusa o mesmo hook.
+  if (isMobile) return <CaixasMobile />
 
   return (
     <div className="space-y-6">
