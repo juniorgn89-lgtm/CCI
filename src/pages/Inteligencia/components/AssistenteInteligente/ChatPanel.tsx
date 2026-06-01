@@ -84,7 +84,12 @@ const UnavailableState = ({ status, errorMessage, redeNome }: { status: string; 
   )
 }
 
-const ChatPanel = () => {
+interface ChatPanelProps {
+  /** Override do tamanho do container (mobile usa altura própria pra caber no shell). */
+  heightClass?: string
+}
+
+const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]' }: ChatPanelProps) => {
   const { apiKey, status, errorMessage, isUsable, redeNome, redeId, limiteUsd, markInvalid } = useRedeAssistente()
   const { messages, loading, error, ask, reset } = useClaudeChat(apiKey, markInvalid)
   const [input, setInput] = useState('')
@@ -111,7 +116,7 @@ const ChatPanel = () => {
   const isEmpty = messages.length === 0
 
   return (
-    <div className="flex h-[calc(100vh-400px)] min-h-[400px] flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]">
+    <div className={cn('flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]', heightClass)}>
       {/* Status bar — somente leitura, não há config aqui */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 dark:border-gray-700">
         <div
