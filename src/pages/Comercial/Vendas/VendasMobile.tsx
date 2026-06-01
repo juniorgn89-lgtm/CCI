@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Droplet, TrendingUp, Percent, Coins, ChevronDown } from 'lucide-react'
+import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
+import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import { useFilterStore } from '@/store/filters'
 import { fimDoMesIso, projecaoAvancada } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
+import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import { ScrollTabs, KpiCard, Section, MarginPill } from '@/components/mobile/primitives'
+import { ScrollTabs, KpiCard, Section, MarginPill, ProgressBar, Badge } from '@/components/mobile/primitives'
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { BarChartMobile, AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard, NoCostNote } from '@/components/mobile/states'
@@ -116,9 +118,90 @@ const CombustivelTab = () => {
   )
 }
 
+/* ── Aba Conveniência ── */
+const ConvenienciaTab = () => {
+  const conv = useConvenienceData()
+  const { dataInicial, dataFinal } = useFilterStore()
+  const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
+  const cmpLabel = conv.kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+
+  if (conv.isLoading) return <LoadingScreen message="Carregando conveniência…" />
+  if (!conv.hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os dados de conveniência." />
+  const k = conv.kpis
+  if (!k || k.faturamento <= 0) return <EmptyCard />
+
+  const { projecao, dailyData, groupTable, topSellers } = conv
+  const dailyChart = dailyData.map((d) => ({ label: d.data.slice(8, 10), fat: d.faturamento }))
+  const maxGrupo = Math.max(...groupTable.map((g) => g.faturamento), 0)
+
+  const projMetrics: ProjMetric[] = [
+    { label: 'Faturamento', realizado: k.faturamento, proj: projecao.faturamento, fmt: brlShort },
+    { label: 'Lucro bruto', realizado: k.margem, proj: projecao.lucroBruto, fmt: brlShort },
+    { label: 'Ticket médio', realizado: k.ticketMedio, proj: projecao.ticketMedio, fmt: (n) => brl(n), ratio: true },
+  ]
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <KpiCard span2 big label="Faturamento" tone="teal" Icon={Store}
+          value={brlShort(k.faturamento)} delta={variacaoPct(k.faturamento, k.cmp.faturamento)} deltaLabel={cmpLabel} />
+        <KpiCard label="Margem" tone="emerald" Icon={Percent} value={pct(k.margemPct)} sub={brlShort(k.margem)} />
+        <KpiCard label="Ticket médio" tone="violet" Icon={Ticket} value={brl(k.ticketMedio)} />
+        <KpiCard label="Itens vendidos" tone="blue" Icon={ShoppingBag} value={formatNumber(k.qtdItens)} sub={`${formatNumber(k.qtdCupons)} cupons`} />
+        <KpiCard label="Produtos" tone="indigo" Icon={Layers} value={formatNumber(k.totalProdutos)} />
+      </div>
+
+      <ProjecaoSection metrics={projMetrics} periodo={periodo} />
+
+      {dailyChart.length > 0 && (
+        <Section Icon={Store} title="Vendas por dia" accent="teal">
+          <BarChartMobile data={dailyChart} valueKey="fat" labelKey="label" />
+        </Section>
+      )}
+
+      {groupTable.length > 0 && (
+        <Section Icon={Layers} title="Por grupo" flush>
+          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            {groupTable.slice(0, 8).map((g) => (
+              <div key={g.grupoCodigo} className="px-3.5 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">{g.nome}</span>
+                  <span className="shrink-0 text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(g.faturamento)}</span>
+                  <MarginPill value={g.margemPct} />
+                </div>
+                <div className="mt-1.5"><ProgressBar pct={maxGrupo > 0 ? (g.faturamento / maxGrupo) * 100 : 0} color="#0d9488" /></div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {topSellers.length > 0 && (
+        <Section Icon={Trophy} title="Top produtos" flush>
+          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            {topSellers.slice(0, 8).map((p, i) => (
+              <div key={p.produtoCodigo} className="flex items-center gap-2 px-3.5 py-2.5">
+                <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{p.nome}</p>
+                  <p className="text-[10.5px] text-gray-400 dark:text-gray-500">{formatNumber(p.quantidade)} un · {p.grupo}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.faturamento)}</span>
+                  <Badge tone="teal">{pct(p.participacaoPct)}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
+  )
+}
+
 /**
- * Vendas — versão mobile, abas roláveis. Aba Combustível pronta; demais entram
- * nas próximas fases (placeholder por enquanto).
+ * Vendas — versão mobile, abas roláveis. Combustível e Conveniência prontas;
+ * Visão Geral e Pista entram nas próximas atualizações (placeholder).
  */
 const VendasMobile = () => {
   const [tab, setTab] = useState('combustivel')
@@ -128,6 +211,8 @@ const VendasMobile = () => {
       <ScrollTabs tabs={TABS} value={tab} onChange={setTab} />
       {tab === 'combustivel' ? (
         <CombustivelTab />
+      ) : tab === 'conveniencia' ? (
+        <ConvenienciaTab />
       ) : (
         <div className="py-8">
           <EmptyCard title={`${TABS.find((t) => t.id === tab)?.label} em breve`} desc="Esta aba mobile chega nas próximas atualizações." />
