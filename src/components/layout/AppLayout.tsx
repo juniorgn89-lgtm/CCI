@@ -21,6 +21,8 @@ import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 import { showsGlobalFilters } from '@/lib/globalFilters'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import TopBar from '@/components/layout/TopBar'
+import useIsMobile from '@/hooks/useIsMobile'
+import MobileShell from '@/components/mobile/MobileShell'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -48,6 +50,7 @@ const AppLayout = () => {
   const mainRef = useRef<HTMLElement>(null)
 
   const showFilters = showsGlobalFilters(pathname)
+  const isMobile = useIsMobile()
 
   // ESC sai do modo foco (UX padrão pra reading mode).
   useEffect(() => {
@@ -141,6 +144,20 @@ const AppLayout = () => {
     mainRef.current?.scrollTo(0, 0)
     setScrolled(false)
   }, [pathname])
+
+  // Shell MOBILE (<768px): header navy + bottom-nav + sheet de filtros, no lugar
+  // da sidebar/TopBar do desktop. Reusa os mesmos guards/efeitos (rodam acima) e
+  // renderiza o MESMO <Outlet> — as telas mobile-específicas entram por fase.
+  if (isMobile) {
+    return (
+      <MobileShell items={visibleNavItems} showFilters={showFilters}>
+        <LoadingOverlay />
+        <ErrorBoundary key={pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </MobileShell>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
