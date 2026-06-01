@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
+import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
 import { useFilterStore } from '@/store/filters'
 import { fimDoMesIso, projecaoAvancada } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
@@ -213,6 +214,8 @@ const VendasMobile = () => {
         <CombustivelTab />
       ) : tab === 'conveniencia' ? (
         <ConvenienciaTab />
+      ) : tab === 'pista' ? (
+        <PistaTabMobile />
       ) : (
         <div className="py-8">
           <EmptyCard title={`${TABS.find((t) => t.id === tab)?.label} em breve`} desc="Esta aba mobile chega nas próximas atualizações." />
