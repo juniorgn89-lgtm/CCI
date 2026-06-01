@@ -4,8 +4,9 @@ import { Wrench, Percent, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-rea
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
+import { classifySetor } from '@/lib/setorClassification'
 import { useFilterStore } from '@/store/filters'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { formatNumber } from '@/lib/formatters'
@@ -65,6 +66,9 @@ const PistaTabMobile = () => {
     queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial: prevInicial, dataFinal: prevFinal, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
     enabled: hasEmpresa && empresaCodigo !== null,
   })
+  // Cruzamento /VENDA (situacao='A') — exclui cancelados (VENDA_ITEM não tem o flag).
+  const { autorizados, isLoading: isLoadingAut } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
+  const { autorizados: autorizadosPrev } = useVendaCodigosAutorizados(empresaCodigos, prevInicial, prevFinal, hasEmpresa)
 
   const data = useMemo(() => {
     if (!produtosData || !gruposData) return null
@@ -83,7 +87,7 @@ const PistaTabMobile = () => {
     const lucroDaily = new Map<string, number>()
     const vendasSet = new Set<number>()
     for (const it of vendaItens) {
-      if (isVendaCancelada(it)) continue
+      if (!autorizados.has(it.vendaCodigo)) continue
       const pista = pistaProdutos.get(it.produtoCodigo)
       if (!pista) continue
       const prev = porProduto.get(it.produtoCodigo) ?? { nome: pista.nome, categoria: pista.categoria, quantidade: 0, faturamento: 0, custo: 0 }
@@ -125,7 +129,7 @@ const PistaTabMobile = () => {
     const prevSet = new Set([...pistaProdutos.keys()])
     let prevFat = 0
     for (const it of vendaItensPrev) {
-      if (isVendaCancelada(it)) continue
+      if (!autorizadosPrev.has(it.vendaCodigo)) continue
       if (prevSet.has(it.produtoCodigo)) prevFat += it.totalVenda
     }
 
@@ -157,10 +161,10 @@ const PistaTabMobile = () => {
       },
       maxCategoria: Math.max(...categorias.map((c) => c.faturamento), 0),
     }
-  }, [produtosData, gruposData, vendaItens, vendaItensPrev, dataInicial])
+  }, [produtosData, gruposData, vendaItens, vendaItensPrev, autorizados, autorizadosPrev, dataInicial])
 
   if (!hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os dados de pista." />
-  if (isLoading || !data) return <LoadingScreen message="Carregando pista…" />
+  if (isLoading || isLoadingAut || !data) return <LoadingScreen message="Carregando pista…" />
   const { kpis: k } = data
   if (k.faturamento <= 0) return <EmptyCard title="Sem vendas de pista" desc="Não há vendas de automotivos (pista) no período e posto selecionados." />
 

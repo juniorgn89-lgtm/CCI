@@ -37,11 +37,11 @@ export interface VendaAgg {
 }
 
 /** Cupons de conveniência (vendaCodigo distinto) por "empresa|dia". */
-const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>): Map<string, number> => {
+const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>, autorizados?: Set<number>): Map<string, number> => {
   if (!convProdutoCodigos) return new Map()
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
-    if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas (BI)
     if (!convProdutoCodigos.has(it.produtoCodigo)) continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
@@ -60,11 +60,11 @@ const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>): 
  * `convProdutoCodigos` é informado, calcula `cupons` por (empresa, dia) escopado
  * à conveniência (igual à apuração); senão, `cupons` = 0.
  */
-export const aggregateItensToVendaAgg = (itens: VendaItem[], convProdutoCodigos?: Set<number>): VendaAgg[] => {
-  const cuponsByDay = convCuponsByDay(itens, convProdutoCodigos)
+export const aggregateItensToVendaAgg = (itens: VendaItem[], convProdutoCodigos?: Set<number>, autorizados?: Set<number>): VendaAgg[] => {
+  const cuponsByDay = convCuponsByDay(itens, convProdutoCodigos, autorizados)
   const map = new Map<string, VendaAgg>()
   for (const it of itens) {
-    if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas (BI)
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
     const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`

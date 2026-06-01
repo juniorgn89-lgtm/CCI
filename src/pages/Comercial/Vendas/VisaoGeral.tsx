@@ -22,7 +22,8 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
-import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
+import { classifySetor } from '@/lib/setorClassification'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 
@@ -238,6 +239,9 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
     enabled: hasEmpresa && empresaCodigo !== null,
   })
 
+  // Cruzamento /VENDA (situacao='A') — exclui cancelados da parte de pista.
+  const { autorizados } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
+
   // ── Agrega faturamento + lucro por segmento ──
   const segmentos = useMemo(() => {
     // Combustível
@@ -259,7 +263,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
-        if (isVendaCancelada(item)) continue
+        if (!autorizados.has(item.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
         if (psCodigos.has(item.produtoCodigo)) {
           pistaFat += item.totalVenda
           pistaCusto += item.totalCusto
@@ -286,7 +290,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
         margem: convFat > 0 ? (convLucro / convFat) * 100 : 0,
       },
     }
-  }, [vendaKpis, convKpis, produtosData, gruposData, vendaItens])
+  }, [vendaKpis, convKpis, produtosData, gruposData, vendaItens, autorizados])
 
   const total = useMemo(() => {
     const fat = segmentos.combustivel.faturamento + segmentos.pista.faturamento + segmentos.conveniencia.faturamento
@@ -325,7 +329,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
-        if (isVendaCancelada(item)) continue
+        if (!autorizados.has(item.vendaCodigo)) continue
         if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
           const date = item.dataMovimento.substring(0, 10)
           pistaFatDaily.set(date, (pistaFatDaily.get(date) ?? 0) + item.totalVenda)
@@ -365,7 +369,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
       projetadoTicket: convProjecao?.ticketMedio ?? 0,
       dataFinalProjecao: monthEnd,
     }
-  }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convProjecao, convDaily])
+  }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convProjecao, convDaily, autorizados])
 
   const isLoading = isLoadingComb || isLoadingConv || isLoadingVendas
 

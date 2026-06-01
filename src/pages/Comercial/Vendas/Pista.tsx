@@ -9,7 +9,8 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { offsetPeriod, todayLocal } from '@/lib/period'
-import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
+import { classifySetor } from '@/lib/setorClassification'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -277,6 +278,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     enabled: hasEmpresa && empresaCodigo !== null,
   })
 
+  // Cruzamento /VENDA (situacao='A') — exclui cancelados (VENDA_ITEM não traz o flag).
+  const { autorizados } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
+  const { autorizados: autorizadosPrev } = useVendaCodigosAutorizados(empresaCodigos, prevInicial, prevFinal, hasEmpresa)
+
   // Cruza tudo: pista produtos + vendas, agrupado por categoria
   const computed = useMemo(() => {
     if (!produtosData || !gruposData) return null
@@ -310,7 +315,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     }
     const porProduto = new Map<number, ProdutoAgg>()
     for (const item of vendaItens) {
-      if (isVendaCancelada(item)) continue  // BI conta só cancelada="N"
+      if (!autorizados.has(item.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const pista = pistaProdutos.get(item.produtoCodigo)
       if (!pista) continue
       const prev = porProduto.get(item.produtoCodigo) ?? {
@@ -387,11 +392,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos') pistaSet.add(p.produtoCodigo)
       }
     }
-    const tot = (itens: typeof vendaItens) => {
+    const tot = (itens: typeof vendaItens, aut: Set<number>) => {
       let fat = 0, custo = 0
       const vendas = new Set<number>()
       for (const it of itens) {
-        if (isVendaCancelada(it)) continue
+        if (!aut.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
         if (!pistaSet.has(it.produtoCodigo)) continue
         fat += it.totalVenda
         custo += it.totalCusto
@@ -406,8 +411,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         qtdVendas: vendas.size,
       }
     }
-    return { atual: tot(vendaItens), prev: tot(vendaItensPrev) }
-  }, [produtosData, gruposData, vendaItens, vendaItensPrev])
+    return { atual: tot(vendaItens, autorizados), prev: tot(vendaItensPrev, autorizadosPrev) }
+  }, [produtosData, gruposData, vendaItens, vendaItensPrev, autorizados, autorizadosPrev])
 
   /* Tabela "Realizado dia a dia" — hierárquica: dia → grupo (PS-) → produto.
    * Colunas: Qtde, Faturamento, Custo, Lucro bruto, Margem, Preço/Custo/L.B. médio
@@ -427,7 +432,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     interface Dia { data: string; qtd: number; fat: number; custo: number; grupos: Map<string, Grupo> }
     const byDay = new Map<string, Dia>()
     for (const it of vendaItens) {
-      if (isVendaCancelada(it)) continue
+      if (!autorizados.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const inf = info.get(it.produtoCodigo)
       if (!inf || it.quantidade <= 0) continue
       const day = it.dataMovimento?.slice(0, 10)
@@ -462,7 +467,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       { qtd: 0, fat: 0, custo: 0, lucro: 0 },
     )
     return { days, total }
-  }, [vendaItens, produtosData, gruposData])
+  }, [vendaItens, produtosData, gruposData, autorizados])
 
   // Máximos por coluna pro heatmap (Data Bars) da tabela dia a dia — mesmo
   // padrão da aba Combustível (maior valor da coluna = barra mais longa).
@@ -608,7 +613,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
-        if (isVendaCancelada(item)) continue
+        if (!autorizados.has(item.vendaCodigo)) continue
         if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
           const date = item.dataMovimento.substring(0, 10)
           fatDaily.set(date, (fatDaily.get(date) ?? 0) + item.totalVenda)
@@ -644,7 +649,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       isProjetada: pf.diasRestantes > 0,
       dataFinalProjecao: monthEnd,
     }
-  }, [computed, vendaItens, produtosData, gruposData, dataInicial])
+  }, [computed, vendaItens, produtosData, gruposData, dataInicial, autorizados])
 
   return (
     <div className="space-y-6">

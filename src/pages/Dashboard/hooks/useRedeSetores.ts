@@ -7,6 +7,7 @@ import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import { fetchVendasCache, splitPeriodAtToday } from '@/api/supabase/apuracao'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 
@@ -189,6 +190,10 @@ const useRedeSetores = (): RedeSetoresData => {
     staleTime: 60 * 1000,
   })
 
+  // Cruzamento /VENDA (situacao='A') do "hoje" live — exclui cancelados
+  // (VENDA_ITEM não traz o flag). O cache fechado já vem filtrado da apuração.
+  const { autorizados: autToday } = useVendaCodigosAutorizados(codes, todayIni, todayEnd, hasRede && !!split.todayPart)
+
   // Ano anterior (cache — período fechado).
   const { data: anoAntRows = [], isLoading: lPrev } = useQuery({
     queryKey: ['rede-vendas-anoant', rede?.id, codes.join(','), anoAntIni, anoAntFim],
@@ -239,7 +244,7 @@ const useRedeSetores = (): RedeSetoresData => {
       }))
     for (const it of todayItens) {
       if (it.quantidade <= 0) continue
-      if (it.cancelada === 'S') continue  // BI conta só cancelada="N"
+      if (!autToday.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const setor = classify(it.produtoCodigo, isFuel, isPista)
       // Combustível: custo = precoCusto × qtd (igual ao BI). Demais: totalCusto.
       const custo = setor === 'combustivel'
@@ -385,7 +390,7 @@ const useRedeSetores = (): RedeSetoresData => {
       isLoading,
       hasRede,
     }
-  }, [closedRows, todayItens, anoAntRows, produtosData, gruposData, nomePorEmpresa, hasRede, lProd, lGrp, lClosed, lToday, lPrev])
+  }, [closedRows, todayItens, autToday, anoAntRows, produtosData, gruposData, nomePorEmpresa, hasRede, lProd, lGrp, lClosed, lToday, lPrev])
 }
 
 export default useRedeSetores

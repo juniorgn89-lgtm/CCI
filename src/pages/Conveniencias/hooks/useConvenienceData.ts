@@ -9,6 +9,7 @@ import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRa
 import useVendasCache, { aggregateItensToVendaAgg, type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -335,6 +336,14 @@ const useConvenienceData = () => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Cruzamento /VENDA (situacao='A') por janela — exclui cancelados no live
+  // (cache MISS). Gateado por MISS pra não buscar /VENDA quando o cache serve.
+  const empresasAut = empresaCodigo != null ? [empresaCodigo] : []
+  const { autorizados: autCurrent } = useVendaCodigosAutorizados(empresasAut, dataInicial, dataFinal, hasEmpresa && !vendasCacheCurrent.isCacheHit && !vendasCacheCurrent.isChecking)
+  const { autorizados: autPrev } = useVendaCodigosAutorizados(empresasAut, prevMonth.dataInicial, prevMonth.dataFinal, hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking)
+  const { autorizados: autCmp } = useVendaCodigosAutorizados(empresasAut, cmp.dataInicial, cmp.dataFinal, hasEmpresa && isPrevYear && !vendasCacheCmp.isCacheHit && !vendasCacheCmp.isChecking)
+  const { autorizados: autEvo } = useVendaCodigosAutorizados(empresasAut, evolutionRange.dataInicial, evolutionRange.dataFinal, hasEmpresa && !vendasCacheEvo.isCacheHit && !vendasCacheEvo.isChecking)
+
   const isLoading =
     (l1 && !vendasCacheCurrent.isCacheHit) ||
     (l2 && !vendasCachePrev.isCacheHit) ||
@@ -350,19 +359,19 @@ const useConvenienceData = () => {
       empresaCodigo == null || i.empresaCodigo === empresaCodigo
     const vendaAggs = vendasCacheCurrent.isCacheHit
       ? vendasCacheCurrent.vendas
-      : aggregateItensToVendaAgg((vendaItensData ?? []).filter(filterEmpresa), convProdutoCodigos)
+      : aggregateItensToVendaAgg((vendaItensData ?? []).filter(filterEmpresa), convProdutoCodigos, autCurrent)
     const prevAggs = vendasCachePrev.isCacheHit
       ? vendasCachePrev.vendas
-      : aggregateItensToVendaAgg((prevMonthData ?? []).filter(filterEmpresa), convProdutoCodigos)
+      : aggregateItensToVendaAgg((prevMonthData ?? []).filter(filterEmpresa), convProdutoCodigos, autPrev)
     // Comparativo mode-aware — coincide com prevAggs quando 'mês ant.'
     const cmpAggs = !isPrevYear
       ? prevAggs
       : (vendasCacheCmp.isCacheHit
           ? vendasCacheCmp.vendas
-          : aggregateItensToVendaAgg((cmpData ?? []).filter(filterEmpresa), convProdutoCodigos))
+          : aggregateItensToVendaAgg((cmpData ?? []).filter(filterEmpresa), convProdutoCodigos, autCmp))
     const histAggs = vendasCacheEvo.isCacheHit
       ? vendasCacheEvo.vendas
-      : aggregateItensToVendaAgg((evolutionData ?? []).filter(filterEmpresa), convProdutoCodigos)
+      : aggregateItensToVendaAgg((evolutionData ?? []).filter(filterEmpresa), convProdutoCodigos, autEvo)
     const produtos = produtosData ?? []
     const grupos = gruposData ?? []
     const estoque = estoqueRaw?.resultados ?? []
@@ -956,6 +965,7 @@ const useConvenienceData = () => {
     vendasCachePrev.isCacheHit, vendasCachePrev.vendas,
     vendasCacheCmp.isCacheHit, vendasCacheCmp.vendas,
     vendasCacheEvo.isCacheHit, vendasCacheEvo.vendas,
+    autCurrent, autPrev, autCmp, autEvo,
   ])
 
   return {

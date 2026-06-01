@@ -6,8 +6,9 @@ import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
+import { classifySetor } from '@/lib/setorClassification'
 import { useFilterStore } from '@/store/filters'
+import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import { todayLocal } from '@/lib/period'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { KpiCard, Section, MarginPill, ProgressBar } from '@/components/mobile/primitives'
@@ -51,6 +52,8 @@ const VisaoGeralTabMobile = () => {
     queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
     enabled: hasEmpresa && empresaCodigo !== null,
   })
+  // Cruzamento /VENDA (situacao='A') — exclui cancelados da parte de pista.
+  const { autorizados, isLoading: isLoadingAut } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
 
   const segmentos = useMemo(() => {
     const combFat = vendaKpis.faturamento
@@ -63,7 +66,7 @@ const VisaoGeralTabMobile = () => {
       const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const psCodigos = new Set(produtosData.filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos').map((p) => p.produtoCodigo))
       for (const item of vendaItens) {
-        if (isVendaCancelada(item)) continue
+        if (!autorizados.has(item.vendaCodigo)) continue
         if (psCodigos.has(item.produtoCodigo)) { pistaFat += item.totalVenda; pistaCusto += item.totalCusto }
       }
     }
@@ -73,7 +76,7 @@ const VisaoGeralTabMobile = () => {
       pista: { faturamento: pistaFat, lucro: pistaLucro, margem: pistaFat > 0 ? (pistaLucro / pistaFat) * 100 : 0 },
       conveniencia: { faturamento: convFat, lucro: convLucro, margem: convFat > 0 ? (convLucro / convFat) * 100 : 0 },
     }
-  }, [vendaKpis, convKpis, produtosData, gruposData, vendaItens])
+  }, [vendaKpis, convKpis, produtosData, gruposData, vendaItens, autorizados])
 
   const total = useMemo(() => {
     const fat = segmentos.combustivel.faturamento + segmentos.pista.faturamento + segmentos.conveniencia.faturamento
@@ -90,7 +93,7 @@ const VisaoGeralTabMobile = () => {
       const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const psCodigos = new Set(produtosData.filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos').map((p) => p.produtoCodigo))
       for (const item of vendaItens) {
-        if (isVendaCancelada(item)) continue
+        if (!autorizados.has(item.vendaCodigo)) continue
         if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
           const d = item.dataMovimento.substring(0, 10)
           pistaFatDaily.set(d, (pistaFatDaily.get(d) ?? 0) + item.totalVenda)
@@ -114,9 +117,9 @@ const VisaoGeralTabMobile = () => {
       lucro: lucroTotal.esperado,
       margem: fatTotal.esperado > 0 ? (lucroTotal.esperado / fatTotal.esperado) * 100 : 0,
     }
-  }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convDaily])
+  }, [combDaily, vendaItens, produtosData, gruposData, dataInicial, convDaily, autorizados])
 
-  const isLoading = isLoadingComb || isLoadingConv || isLoadingVendas
+  const isLoading = isLoadingComb || isLoadingConv || isLoadingVendas || isLoadingAut
 
   if (!hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver o mix consolidado." />
   if (isLoading) return <LoadingScreen message="Carregando visão geral…" />
