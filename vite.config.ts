@@ -67,22 +67,21 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Separa os vendors pesados em chunks próprios. Vantagens:
-        //  - download em paralelo (HTTP/2) e entry menor no primeiro paint
-        //  - cache de longo prazo: vendor muda raramente, então revisitas e
-        //    deploys que só mexem no app não rebaixam os chunks de lib.
-        // Ordem importa: pacotes cujo nome contém "react" (react-router,
-        // lucide-react, react-leaflet) são capturados ANTES do react base.
+        // Só separamos libs PESADAS e carregadas sob demanda (lazy) — elas
+        // entram DEPOIS do vendor/react, então nunca pegam o React indefinido.
+        //
+        // ⚠️ NÃO separar o React (nem react-dom/scheduler) num chunk próprio:
+        // libs como `use-sync-external-store` (zustand/react-query) acessam
+        // `React.useLayoutEffect` na INICIALIZAÇÃO do módulo. Se ficarem num
+        // chunk diferente do React e forem avaliadas antes, dá
+        // "Cannot read properties of undefined (reading 'useLayoutEffect')".
+        // Por isso react + router + query + radix + icons + zustand + resto
+        // ficam TODOS juntos no `vendor` (avaliação ordenada dentro do chunk).
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory-vendor') || id.includes('internmap')) return 'charts'
           if (id.includes('leaflet')) return 'maps'
           if (id.includes('@supabase')) return 'supabase'
-          if (id.includes('@tanstack')) return 'query'
-          if (id.includes('react-router') || id.includes('@remix-run')) return 'router'
-          if (id.includes('@radix-ui')) return 'radix'
-          if (id.includes('lucide-react')) return 'icons'
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react-vendor'
           return 'vendor'
         },
       },
