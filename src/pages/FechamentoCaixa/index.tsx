@@ -7,6 +7,8 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
+import useIsMobile from '@/hooks/useIsMobile'
+import FechamentosMobile from '@/pages/FechamentoCaixa/FechamentosMobile'
 
 // Só a Visão Geral usa dados REAIS (useOperacaoData → caixas/turnos do Supabase
 // + live). As abas legadas (Caixa Geral, Sangria, Sobras/Faltas, Diferença
@@ -28,6 +30,10 @@ const TabSkeleton = () => (
 const FechamentoCaixa = () => {
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const hasEmpresa = empresaCodigos.length > 0
+  const isMobile = useIsMobile()
+
+  // Mobile: tela própria (picker de caixas + relatório agregado).
+  if (isMobile) return <FechamentosMobile />
 
   return (
     <div className="space-y-6">
