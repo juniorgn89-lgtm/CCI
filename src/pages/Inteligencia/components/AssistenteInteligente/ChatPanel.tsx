@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, Sparkles, User, Bot, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound } from 'lucide-react'
+import { Send, User, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import CaduAvatar from './CaduAvatar'
 import { useRedeAssistente } from './hooks/useRedeAssistente'
 import { useClaudeChat } from './hooks/useClaudeChat'
 import { useUsageTracker } from './ai/usageTracker'
@@ -177,9 +178,7 @@ const ChatPanel = () => {
           <UnavailableState status={status} errorMessage={errorMessage} redeNome={redeNome} />
         ) : isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-              <Sparkles className="h-6 w-6 text-[#1e3a5f] dark:text-gray-300" />
-            </div>
+            <CaduAvatar className="mb-4 h-16 w-16 rounded-2xl" iconClassName="h-8 w-8" />
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Como posso te ajudar?</h3>
             <p className="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
               Pergunte sobre <strong>faturamento, combustível, frentistas, produtos e operação</strong> da sua rede. Consulto os dados em tempo real.
@@ -202,16 +201,13 @@ const ChatPanel = () => {
         ) : (
           messages.map((m) => (
             <div key={m.id} className={cn('flex gap-3', m.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
-              <div
-                className={cn(
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-                  m.role === 'user'
-                    ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-                    : 'bg-[#1e3a5f] text-white',
-                )}
-              >
-                {m.role === 'user' ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
-              </div>
+              {m.role === 'user' ? (
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                  <User className="h-3.5 w-3.5" />
+                </div>
+              ) : (
+                <CaduAvatar className="h-7 w-7 rounded-full" />
+              )}
               <div className={cn('flex max-w-[85%] flex-col', m.role === 'user' ? 'items-end' : 'items-start')}>
                 <div
                   className={cn(
@@ -229,9 +225,7 @@ const ChatPanel = () => {
         )}
         {loading && (
           <div className="flex gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e3a5f] text-white">
-              <Bot className="h-3.5 w-3.5" />
-            </div>
+            <CaduAvatar className="h-7 w-7 rounded-full" />
             <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-400">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Analisando os dados…

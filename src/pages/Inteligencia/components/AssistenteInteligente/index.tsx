@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { MessageSquare, Clock, Sparkles, LayoutDashboard, Activity, Sparkle, ShieldCheck, ShieldOff, AlertTriangle, Loader2 } from 'lucide-react'
+import { MessageSquare, Clock, Sparkles, LayoutDashboard, Activity, ShieldCheck, ShieldOff, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import CaduAvatar from './CaduAvatar'
 import ChatPanel from './ChatPanel'
 import HistoricoPanel from './HistoricoPanel'
 import InsightsPanel from './InsightsPanel'
@@ -27,9 +28,7 @@ const AssistenteInteligente = () => {
       {/* Banner do módulo */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1e3a5f]">
-            <Sparkle className="h-5 w-5 text-white" />
-          </div>
+          <CaduAvatar className="h-10 w-10 rounded-lg" iconClassName="h-5 w-5" />
           <div className="min-w-0 flex-1">
             <h2 className="flex flex-wrap items-center gap-2 text-base font-bold text-gray-900 dark:text-gray-100">
               Cadu
