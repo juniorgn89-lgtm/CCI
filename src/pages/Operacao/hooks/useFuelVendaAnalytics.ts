@@ -5,7 +5,8 @@ import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { useFilterStore } from '@/store/filters'
 import type { VendaItem } from '@/api/types/venda'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
+import { isVendaCancelada } from '@/lib/setorClassification'
 
 /** Desloca uma data ISO (yyyy-MM-dd) em N dias (negativo = passado), local. */
 const shiftDays = (dateStr: string, days: number): string => {
@@ -91,8 +92,12 @@ const useFuelVendaAnalytics = () => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes
+  // de deslocar, pra mês corrente parcial não comparar contra período cheio do passado.
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
-  const prevFinal = offsetPeriod(dataFinal, cmpOffset)
+  const prevFinal = offsetPeriod(fimEfetivo, cmpOffset)
   // Semana anterior = MESMO intervalo deslocado 7 dias atrás. Base da coluna
   // "Variação semanal" da tabela por combustível (igual ao BI), independente do
   // toggle de comparação (que controla os cards de KPI).
@@ -157,7 +162,7 @@ const useFuelVendaAnalytics = () => {
     const fuelCodes = new Set<number>()
     const nomePorCodigo = new Map<number, string>()
     for (const p of produtosData ?? []) {
-      if (!p.combustivel) continue
+      if (p.tipoProduto !== 'C') continue  // BI: combustível = tipoProduto "C"
       for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
         if (typeof c === 'number' && c > 0) {
           fuelCodes.add(c)
@@ -176,10 +181,11 @@ const useFuelVendaAnalytics = () => {
     const rows: FuelVendaRow[] = []
     for (const it of vendaItens) {
       if (!matchEmpresa(it.empresaCodigo)) continue
+      if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
       if (it.quantidade <= 0) continue
       if (!isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, dataInicial, dataFinal)) continue
-      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      const custo = it.precoCusto * it.quantidade  // BI: Custo Combustiveis = Σ precoCusto × qtd
       rows.push({
         data: day(it.dataMovimento),
         produtoCodigo: it.produtoCodigo,
@@ -199,9 +205,10 @@ const useFuelVendaAnalytics = () => {
     let pLitros = 0, pFat = 0, pCusto = 0
     for (const it of vendaItensPrev) {
       if (!matchEmpresa(it.empresaCodigo)) continue
+      if (isVendaCancelada(it)) continue
       if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, prevInicial, prevFinal)) continue
-      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      const custo = it.precoCusto * it.quantidade
       pLitros += it.quantidade; pFat += it.totalVenda; pCusto += custo
     }
 
@@ -212,9 +219,10 @@ const useFuelVendaAnalytics = () => {
     const rowsSemanaAnt: FuelVendaRow[] = []
     for (const it of vendaItensSemanaAnt) {
       if (!matchEmpresa(it.empresaCodigo)) continue
+      if (isVendaCancelada(it)) continue
       if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, semanaAntInicial, semanaAntFinal)) continue
-      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      const custo = it.precoCusto * it.quantidade
       const nome = nomePorCodigo.get(it.produtoCodigo) ?? `Produto ${it.produtoCodigo}`
       semanaAntLitros += it.quantidade
       semanaLitrosByFuel.set(nome, (semanaLitrosByFuel.get(nome) ?? 0) + it.quantidade)

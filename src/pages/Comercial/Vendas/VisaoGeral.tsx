@@ -22,6 +22,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
+import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 
@@ -251,13 +252,14 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
     let pistaFat = 0
     let pistaCusto = 0
     if (produtosData && gruposData) {
-      const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const psCodigos = new Set(
         produtosData
-          .filter((p) => !p.combustivel && (grupoNomes.get(p.grupoCodigo) ?? '').startsWith('PS -'))
+          .filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos')
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
+        if (isVendaCancelada(item)) continue
         if (psCodigos.has(item.produtoCodigo)) {
           pistaFat += item.totalVenda
           pistaCusto += item.totalCusto
@@ -316,13 +318,14 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
     const pistaFatDaily = new Map<string, number>()
     const pistaLucroDaily = new Map<string, number>()
     if (produtosData && gruposData) {
-      const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const psCodigos = new Set(
         produtosData
-          .filter((p) => !p.combustivel && (grupoNomes.get(p.grupoCodigo) ?? '').startsWith('PS -'))
+          .filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos')
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
+        if (isVendaCancelada(item)) continue
         if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
           const date = item.dataMovimento.substring(0, 10)
           pistaFatDaily.set(date, (pistaFatDaily.get(date) ?? 0) + item.totalVenda)

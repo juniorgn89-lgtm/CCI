@@ -10,6 +10,7 @@ import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import useCaixasCache from '@/pages/Operacao/hooks/useCaixasCache'
+import { todayLocal } from '@/lib/period'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -205,13 +206,13 @@ const useOperacaoData = () => {
 
   // Período comparativo do toggle global. 'prevMonth' → mesma faixa do `prev`
   // (reaproveita o fetch, sem custo extra); 'prevYear' → mesma faixa 12 meses atrás.
-  const cmp = useMemo(
-    () =>
-      isPrevYear
-        ? { inicial: offsetMonths(dataInicial, 12), final: offsetMonths(dataFinal, 12) }
-        : prev,
-    [isPrevYear, dataInicial, dataFinal, prev],
-  )
+  const cmp = useMemo(() => {
+    if (!isPrevYear) return prev
+    // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+    const hoje = todayLocal()
+    const fim = dataFinal > hoje ? hoje : dataFinal
+    return { inicial: offsetMonths(dataInicial, 12), final: offsetMonths(fim, 12) }
+  }, [isPrevYear, dataInicial, dataFinal, prev])
 
   // Cache raw de abastecimentos pra current + prev. HIT = pula fetch live;
   // MISS = fetch live como antes (sem regressão pra meses não apurados).

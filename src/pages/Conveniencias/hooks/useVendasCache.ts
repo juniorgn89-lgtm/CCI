@@ -11,6 +11,7 @@ import {
 } from '@/api/supabase/apuracao'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { isVendaCancelada } from '@/lib/setorClassification'
 import type { VendaItem } from '@/api/types/venda'
 
 /**
@@ -40,6 +41,7 @@ const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>): 
   if (!convProdutoCodigos) return new Map()
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
+    if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
     if (!convProdutoCodigos.has(it.produtoCodigo)) continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
@@ -62,6 +64,7 @@ export const aggregateItensToVendaAgg = (itens: VendaItem[], convProdutoCodigos?
   const cuponsByDay = convCuponsByDay(itens, convProdutoCodigos)
   const map = new Map<string, VendaAgg>()
   for (const it of itens) {
+    if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
     const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`

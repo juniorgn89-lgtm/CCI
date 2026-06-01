@@ -8,7 +8,8 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
+import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -45,8 +46,6 @@ const TABS: { id: TabId; label: string; Icon: typeof LayoutDashboard }[] = [
 ]
 
 /* ─── Helpers ─── */
-
-const isPistaGroup = (nome: string): boolean => nome.startsWith('PS -')
 
 /**
  * Categoriza um grupo PS- em uma "família" simplificada pro consultor:
@@ -187,8 +186,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje.
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
-  const prevFinal = offsetPeriod(dataFinal, cmpOffset)
+  const prevFinal = offsetPeriod(fimEfetivo, cmpOffset)
   // Cache compartilhada — só pra ler `projectionMeta.daysRemaining`.
   const { projectionMeta } = useAbastecimentosAnalytics()
 
@@ -279,16 +281,16 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const computed = useMemo(() => {
     if (!produtosData || !gruposData) return null
 
-    // Mapa grupoCodigo → nome
+    // Mapa grupoCodigo → nome / tipoGrupo
     const grupoMap = new Map<number, string>()
-    for (const g of gruposData) grupoMap.set(g.grupoCodigo, g.nome)
+    const grupoTipo = new Map<number, string>()
+    for (const g of gruposData) { grupoMap.set(g.grupoCodigo, g.nome); grupoTipo.set(g.grupoCodigo, g.tipoGrupo) }
 
-    // Set de produtoCodigo PS- (não combustível + grupo PS-)
+    // Produtos de automotivos — régua BI: tipoGrupo "Pista" e tipoProduto ≠ "C".
     const pistaProdutos = new Map<number, { nome: string; grupoNome: string; categoria: string }>()
     for (const p of produtosData) {
-      if (p.combustivel) continue
-      const grupoNome = grupoMap.get(p.grupoCodigo)
-      if (!grupoNome || !isPistaGroup(grupoNome)) continue
+      if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'automotivos') continue
+      const grupoNome = grupoMap.get(p.grupoCodigo) ?? ''
       pistaProdutos.set(p.produtoCodigo, {
         nome: p.nome,
         grupoNome,
@@ -308,6 +310,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     }
     const porProduto = new Map<number, ProdutoAgg>()
     for (const item of vendaItens) {
+      if (isVendaCancelada(item)) continue  // BI conta só cancelada="N"
       const pista = pistaProdutos.get(item.produtoCodigo)
       if (!pista) continue
       const prev = porProduto.get(item.produtoCodigo) ?? {
@@ -379,17 +382,16 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const cmpKpis = useMemo(() => {
     const pistaSet = new Set<number>()
     if (produtosData && gruposData) {
-      const grupoMap = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       for (const p of produtosData) {
-        if (p.combustivel) continue
-        const gn = grupoMap.get(p.grupoCodigo)
-        if (gn && isPistaGroup(gn)) pistaSet.add(p.produtoCodigo)
+        if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos') pistaSet.add(p.produtoCodigo)
       }
     }
     const tot = (itens: typeof vendaItens) => {
       let fat = 0, custo = 0
       const vendas = new Set<number>()
       for (const it of itens) {
+        if (isVendaCancelada(it)) continue
         if (!pistaSet.has(it.produtoCodigo)) continue
         fat += it.totalVenda
         custo += it.totalCusto
@@ -414,10 +416,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     const info = new Map<number, { nome: string; grupoNome: string }>()
     if (produtosData && gruposData) {
       const grupoMap = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       for (const p of produtosData) {
-        if (p.combustivel) continue
-        const gn = grupoMap.get(p.grupoCodigo)
-        if (gn && isPistaGroup(gn)) info.set(p.produtoCodigo, { nome: p.nome, grupoNome: gn })
+        if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'automotivos') continue
+        info.set(p.produtoCodigo, { nome: p.nome, grupoNome: grupoMap.get(p.grupoCodigo) ?? '' })
       }
     }
     interface Prod { produtoCodigo: number; nome: string; qtd: number; fat: number; custo: number }
@@ -425,6 +427,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     interface Dia { data: string; qtd: number; fat: number; custo: number; grupos: Map<string, Grupo> }
     const byDay = new Map<string, Dia>()
     for (const it of vendaItens) {
+      if (isVendaCancelada(it)) continue
       const inf = info.get(it.produtoCodigo)
       if (!inf || it.quantidade <= 0) continue
       const day = it.dataMovimento?.slice(0, 10)
@@ -598,13 +601,14 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     const fatDaily = new Map<string, number>()
     const lucroDaily = new Map<string, number>()
     if (computed && produtosData && gruposData) {
-      const grupoNomes = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const psCodigos = new Set(
         produtosData
-          .filter((p) => !p.combustivel && (grupoNomes.get(p.grupoCodigo) ?? '').startsWith('PS -'))
+          .filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos')
           .map((p) => p.produtoCodigo),
       )
       for (const item of vendaItens) {
+        if (isVendaCancelada(item)) continue
         if (psCodigos.has(item.produtoCodigo) && item.dataMovimento) {
           const date = item.dataMovimento.substring(0, 10)
           fatDaily.set(date, (fatDaily.get(date) ?? 0) + item.totalVenda)

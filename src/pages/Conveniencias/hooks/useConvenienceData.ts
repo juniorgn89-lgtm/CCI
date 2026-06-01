@@ -7,7 +7,8 @@ import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import useVendasCache, { aggregateItensToVendaAgg, type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
+import { classifySetor } from '@/lib/setorClassification'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -200,11 +201,15 @@ const useConvenienceData = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const isPrevYear = comparisonMode === 'prevYear'
-  const prevMonth = { dataInicial: offsetPeriod(dataInicial, 1), dataFinal: offsetPeriod(dataFinal, 1) }
+  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes
+  // de deslocar, pra mês corrente parcial não comparar contra período cheio do passado.
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
+  const prevMonth = { dataInicial: offsetPeriod(dataInicial, 1), dataFinal: offsetPeriod(fimEfetivo, 1) }
   // Período comparativo do toggle global. 'prevMonth' coincide com prevMonth acima
   // (reaproveita o fetch); 'prevYear' usa o mesmo span 12 meses atrás.
   const cmp = isPrevYear
-    ? { dataInicial: offsetPeriod(dataInicial, 12), dataFinal: offsetPeriod(dataFinal, 12) }
+    ? { dataInicial: offsetPeriod(dataInicial, 12), dataFinal: offsetPeriod(fimEfetivo, 12) }
     : prevMonth
   const evolutionRange = getEvolutionRange(dataInicial, 3) // last 3 months before current period
 
@@ -234,12 +239,10 @@ const useConvenienceData = () => {
   const convProdutoCodigos = useMemo(() => {
     const set = new Set<number>()
     if (!produtosData || !gruposData) return set
-    const grupoNome = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+    const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
     for (const p of produtosData) {
-      if (p.combustivel) continue
-      const gn = grupoNome.get(p.grupoCodigo) ?? ''
-      if (gn.startsWith('PS -')) continue
-      set.add(p.produtoCodigo)
+      // Régua BI: conveniência = tipoGrupo "Conveniência" (exclui combustível, pista e "outros").
+      if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'conveniencia') set.add(p.produtoCodigo)
     }
     return set
   }, [produtosData, gruposData])
@@ -365,18 +368,15 @@ const useConvenienceData = () => {
     const estoque = estoqueRaw?.resultados ?? []
 
     // ── Maps ──
-    // grupoMap construído PRIMEIRO porque produtoMap filtra pelo nome
-    // do grupo pra excluir produtos da pista (PS-) — esses vivem em
-    // /comercial/vendas/pista, não em Conveniências.
+    // grupoMap (nome p/ exibição) + grupoTipo (classificação BI por tipoGrupo).
     const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
+    const grupoTipo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
 
     const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string }>()
     for (const p of produtos) {
-      // Skip combustível — Conveniência é só loja
-      if (p.combustivel) continue
-      // Skip produtos da pista (PS-) — vivem em /comercial/vendas/pista
-      const grupoNome = grupoMap.get(p.grupoCodigo) ?? ''
-      if (grupoNome.startsWith('PS -')) continue
+      // Régua BI: conveniência = tipoGrupo "Conveniência" (exclui combustível,
+      // pista e "outros"). Antes era "não combustível e não PS-".
+      if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'conveniencia') continue
       produtoMap.set(p.produtoCodigo, {
         nome: p.nome,
         grupoCodigo: p.grupoCodigo,

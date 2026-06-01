@@ -11,7 +11,7 @@ import useFuelVendaCost from '@/pages/Operacao/hooks/useFuelVendaCost'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import { fetchApuracaoDiaria, fetchApuracaoFuelDiaria } from '@/api/supabase/apuracao'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
 
 export interface AbastecimentoRow {
   codigo: number
@@ -165,8 +165,11 @@ const useAbastecimentosAnalytics = () => {
 
   // Período de comparação honra o toggle global (vs mês ant. / vs ano ant.).
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+  const hojeCmp = todayLocal()
+  const fimCmp = dataFinal > hojeCmp ? hojeCmp : dataFinal
   const prevMonthInicial = offsetPeriod(dataInicial, cmpOffset)
-  const prevMonthFinal = offsetPeriod(dataFinal, cmpOffset)
+  const prevMonthFinal = offsetPeriod(fimCmp, cmpOffset)
   const lmcDataInicial = offsetPeriod(dataInicial, 3)
   const evolution12mInicial = offsetPeriod(dataFinal, 11)
   const evolution12mInicialFirst = evolution12mInicial.substring(0, 7) + '-01'
