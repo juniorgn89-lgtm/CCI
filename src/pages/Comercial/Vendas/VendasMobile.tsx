@@ -3,6 +3,7 @@ import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, Shoppi
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
+import VisaoGeralTabMobile from '@/pages/Comercial/Vendas/VisaoGeralTabMobile'
 import { useFilterStore } from '@/store/filters'
 import { fimDoMesIso, projecaoAvancada } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
@@ -201,25 +202,23 @@ const ConvenienciaTab = () => {
 }
 
 /**
- * Vendas — versão mobile, abas roláveis. Combustível e Conveniência prontas;
- * Visão Geral e Pista entram nas próximas atualizações (placeholder).
+ * Vendas — versão mobile, abas roláveis. Todas as abas prontas: Visão Geral
+ * (mix), Combustível, Pista e Conveniência.
  */
 const VendasMobile = () => {
-  const [tab, setTab] = useState('combustivel')
+  const [tab, setTab] = useState('geral')
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Vendas</h1>
       <ScrollTabs tabs={TABS} value={tab} onChange={setTab} />
-      {tab === 'combustivel' ? (
+      {tab === 'geral' ? (
+        <VisaoGeralTabMobile />
+      ) : tab === 'combustivel' ? (
         <CombustivelTab />
-      ) : tab === 'conveniencia' ? (
-        <ConvenienciaTab />
       ) : tab === 'pista' ? (
         <PistaTabMobile />
       ) : (
-        <div className="py-8">
-          <EmptyCard title={`${TABS.find((t) => t.id === tab)?.label} em breve`} desc="Esta aba mobile chega nas próximas atualizações." />
-        </div>
+        <ConvenienciaTab />
       )}
     </div>
   )
