@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchVendaItens } from '@/api/endpoints/vendas'
+import { fetchVendaItens, fetchVendaCodigosAutorizados } from '@/api/endpoints/vendas'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { useFilterStore } from '@/store/filters'
 import type { VendaItem } from '@/api/types/venda'
 import { offsetPeriod, todayLocal } from '@/lib/period'
-import { isVendaCancelada } from '@/lib/setorClassification'
+
+/** Ref estável p/ default das queries de set (evita novo Set por render). */
+const EMPTY_SET: Set<number> = new Set()
 
 /** Desloca uma data ISO (yyyy-MM-dd) em N dias (negativo = passado), local. */
 const shiftDays = (dateStr: string, days: number): string => {
@@ -133,13 +135,51 @@ const useFuelVendaAnalytics = () => {
     return perEmpresa.flat()
   }
 
-  const { data: vendaItens = [], isLoading } = useQuery({
+  const { data: vendaItens = [], isLoading: isLoadingItens } = useQuery({
     queryKey: ['fuel-venda-analytics', empresaCodigos.join(','), dataInicial, dataFinal],
     queryFn: fetchFuelVendaItens(dataInicial, dataFinal),
     enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   })
+
+  // vendaCodigo AUTORIZADOS por janela (cruzamento com /VENDA situacao='A'). O
+  // VENDA_ITEM não traz `cancelada`, então sem isto canceladas vazariam pros
+  // KPIs (divergência vs BI). Mantemos só itens cuja venda está autorizada.
+  const fetchAutorizados = (di: string, df: string) => async (): Promise<Set<number>> => {
+    const sets = await Promise.all(
+      empresaCodigos.map((emp) => fetchVendaCodigosAutorizados({ empresaCodigo: emp, dataInicial: di, dataFinal: df })),
+    )
+    const all = new Set<number>()
+    for (const s of sets) for (const c of s) all.add(c)
+    return all
+  }
+
+  const { data: autorizados = EMPTY_SET, isLoading: isLoadingAut } = useQuery({
+    queryKey: ['fuel-venda-autorizados', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryFn: fetchAutorizados(dataInicial, dataFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+  const { data: autorizadosPrev = EMPTY_SET } = useQuery({
+    queryKey: ['fuel-venda-autorizados-prev', empresaCodigos.join(','), prevInicial, prevFinal],
+    queryFn: fetchAutorizados(prevInicial, prevFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+  const { data: autorizadosSemana = EMPTY_SET } = useQuery({
+    queryKey: ['fuel-venda-autorizados-semana', empresaCodigos.join(','), semanaAntInicial, semanaAntFinal],
+    queryFn: fetchAutorizados(semanaAntInicial, semanaAntFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
+  // Gate: não renderiza os KPIs até o set de autorizados do período corrente
+  // chegar (senão a tela pisca com canceladas incluídas / vazia).
+  const isLoading = isLoadingItens || isLoadingAut
 
   const { data: vendaItensPrev = [] } = useQuery({
     queryKey: ['fuel-venda-analytics-prev', empresaCodigos.join(','), prevInicial, prevFinal],
@@ -181,7 +221,7 @@ const useFuelVendaAnalytics = () => {
     const rows: FuelVendaRow[] = []
     for (const it of vendaItens) {
       if (!matchEmpresa(it.empresaCodigo)) continue
-      if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
+      if (!autorizados.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       if (it.quantidade <= 0) continue
       if (!isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, dataInicial, dataFinal)) continue
@@ -205,7 +245,7 @@ const useFuelVendaAnalytics = () => {
     let pLitros = 0, pFat = 0, pCusto = 0
     for (const it of vendaItensPrev) {
       if (!matchEmpresa(it.empresaCodigo)) continue
-      if (isVendaCancelada(it)) continue
+      if (!autorizadosPrev.has(it.vendaCodigo)) continue
       if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, prevInicial, prevFinal)) continue
       const custo = it.precoCusto * it.quantidade
@@ -219,7 +259,7 @@ const useFuelVendaAnalytics = () => {
     const rowsSemanaAnt: FuelVendaRow[] = []
     for (const it of vendaItensSemanaAnt) {
       if (!matchEmpresa(it.empresaCodigo)) continue
-      if (isVendaCancelada(it)) continue
+      if (!autorizadosSemana.has(it.vendaCodigo)) continue
       if (it.quantidade <= 0 || !isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, semanaAntInicial, semanaAntFinal)) continue
       const custo = it.precoCusto * it.quantidade
@@ -303,7 +343,7 @@ const useFuelVendaAnalytics = () => {
 
     return { rows, rowsSemanaAnt, dailyData, fuelTypeData, kpis, cmp, semanaAntLitros, hasEmpresa, isLoading }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendaItens, vendaItensPrev, vendaItensSemanaAnt, produtosData, empresaCodigos, hasEmpresa, dataInicial, dataFinal, prevInicial, prevFinal, semanaAntInicial, semanaAntFinal, isLoading])
+  }, [vendaItens, vendaItensPrev, vendaItensSemanaAnt, autorizados, autorizadosPrev, autorizadosSemana, produtosData, empresaCodigos, hasEmpresa, dataInicial, dataFinal, prevInicial, prevFinal, semanaAntInicial, semanaAntFinal, isLoading])
 }
 
 export default useFuelVendaAnalytics
