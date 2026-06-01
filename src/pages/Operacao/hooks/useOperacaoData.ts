@@ -332,7 +332,7 @@ const useOperacaoData = () => {
   // Caixas (direct call). Gateado por cache HIT.
   const { data: caixasRaw, isLoading: l6 } = useQuery({
     queryKey: ['caixas', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, limite: 1000 }),
+    queryFn: () => fetchAllPages((p) => fetchCaixas({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
     enabled:
       hasEmpresa &&
       empresaCodigo !== null &&
@@ -341,9 +341,10 @@ const useOperacaoData = () => {
   })
 
   // Formas de pagamento. Gateado por cache HIT (mesmo cache de caixas — gravados juntos).
+  // Paginado: um posto movimentado passa de 1000 formas no período (undercount silencioso).
   const { data: formasPgtoRaw, isLoading: l7 } = useQuery({
     queryKey: ['vendaFormasPgto', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchVendaFormasPagamento({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, limite: 1000 }),
+    queryFn: () => fetchAllPages((p) => fetchVendaFormasPagamento({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
     enabled:
       hasEmpresa &&
       empresaCodigo !== null &&
@@ -399,10 +400,10 @@ const useOperacaoData = () => {
     // Caixas e formas vêm do cache Supabase quando HIT; senão, live.
     const caixas = caixasCacheCurrent.isCacheHit
       ? caixasCacheCurrent.caixas
-      : (caixasRaw?.resultados ?? [])
+      : (caixasRaw ?? [])
     const formasPgto = caixasCacheCurrent.isCacheHit
       ? caixasCacheCurrent.formasPagamento
-      : (formasPgtoRaw?.resultados ?? [])
+      : (formasPgtoRaw ?? [])
 
     // ── Maps ──
     const funcMap = new Map<number, { nome: string; ativo: boolean }>()

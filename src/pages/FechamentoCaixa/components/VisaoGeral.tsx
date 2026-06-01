@@ -117,8 +117,16 @@ const VisaoGeral = () => {
       .filter((c) => c.fechado)
       .reduce((s, c) => s + c.diferenca, 0)
 
+    // Formas de pagamento vêm do balde do DIA inteiro (não dá pra atribuir a um
+    // caixa específico — a forma não tem caixaCodigo). Cada caixa do mesmo dia
+    // carrega o MESMO balde, então contamos uma vez POR DIA pra não duplicar
+    // quando o usuário seleciona vários caixas do mesmo dia.
     const pgtoMap = new Map<string, { tipo: string; nome: string; valor: number; quantidade: number }>()
+    const diasContados = new Set<string>()
     for (const c of selectedCaixas) {
+      const dia = c.dataMovimento?.slice(0, 10) ?? String(c.caixaCodigo)
+      if (diasContados.has(dia)) continue
+      diasContados.add(dia)
       for (const p of c.pagamentos) {
         const prev = pgtoMap.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
         prev.valor += p.valor

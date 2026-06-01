@@ -73,10 +73,10 @@ const MonthRangeSelect = ({ draftIni, draftFim, onChange }: MonthRangeSelectProp
 
   const triggerLabel = (() => {
     if (selectedMonths.length === 0) return 'Personalizado'
-    if (selectedMonths.length === 1) return `${months[selectedMonths[0] - 1]} ${year}`
+    if (selectedMonths.length === 1) return months[selectedMonths[0] - 1]
     const min = selectedMonths[0]
     const max = selectedMonths[selectedMonths.length - 1]
-    return `${monthsShort[min - 1]} - ${monthsShort[max - 1]} ${year}`
+    return `${monthsShort[min - 1]} - ${monthsShort[max - 1]}`
   })()
 
   // Há "gaps" se os meses selecionados não são contínuos.

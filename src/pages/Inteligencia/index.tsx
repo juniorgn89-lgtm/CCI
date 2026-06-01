@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Activity,
   CalendarDays,
-  Wallet,
   Sparkles,
   Radar,
 } from 'lucide-react'
@@ -34,7 +33,6 @@ const SmartAnalysis = lazy(() => import('./components/SmartAnalysis'))
 const PostoGoals = lazy(() => import('./components/PostoGoals'))
 const SalesForecast = lazy(() => import('./components/SalesForecast'))
 const ControlCenter = lazy(() => import('./components/ControlCenter'))
-const FechamentoConsolidado = lazy(() => import('./components/FechamentoConsolidado'))
 const AssistenteInteligente = lazy(() => import('./components/AssistenteInteligente'))
 const RadarPrecos = lazy(() => import('./components/RadarPrecos'))
 const RadarComparativo = lazy(() => import('./components/RadarComparativo'))
@@ -56,12 +54,11 @@ const TabFallback = () => (
   </div>
 )
 
-type TabKey = 'comparativo' | 'comparacao' | 'radarcomp' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle' | 'fechamento'
+type TabKey = 'comparativo' | 'comparacao' | 'radarcomp' | 'mapa' | 'analise' | 'metas' | 'previsao' | 'controle'
 type TopTab = 'analise' | 'radar' | 'assistente'
 
 const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
-  { key: 'fechamento', label: 'Fechamento', icon: Wallet },
   { key: 'comparacao', label: 'Comparação', icon: GitCompareArrows },
   { key: 'radarcomp', label: 'Radar de Preços', icon: Radar },
   { key: 'mapa', label: 'Mapa da Rede', icon: Map },
@@ -73,7 +70,6 @@ const multiTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
 const singleTabs: { key: TabKey; label: string; icon: typeof Brain }[] = [
   { key: 'comparativo', label: 'Comparativo', icon: CalendarDays },
   { key: 'controle', label: 'Centro de Controle', icon: Activity },
-  { key: 'fechamento', label: 'Fechamento', icon: Wallet },
   { key: 'analise', label: 'Análise Inteligente', icon: Lightbulb },
   { key: 'metas', label: 'Metas', icon: Target },
   { key: 'previsao', label: 'Previsão', icon: TrendingUp },
@@ -277,7 +273,6 @@ const Inteligencia = () => {
                     <RadarComparativo postos={postos} networkAvg={networkAvg} />
                   )}
                   {activeTab === 'mapa' && !isSingle && <NetworkMap postos={postos} />}
-                  {activeTab === 'fechamento' && <FechamentoConsolidado postos={postos} />}
                   {activeTab === 'analise' && <SmartAnalysis insights={insights} />}
                   {activeTab === 'metas' && <PostoGoals goals={goals} />}
                   {activeTab === 'previsao' && <SalesForecast forecastData={forecastData} />}

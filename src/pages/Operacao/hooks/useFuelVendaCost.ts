@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { isVendaCancelada } from '@/lib/setorClassification'
 
 export interface FuelVendaCost {
   /** Custo médio (CMV) por litro do produto, vindo do item de venda. */
@@ -74,6 +75,7 @@ const useFuelVendaCost = (
     // Agrega os itens por produtoCodigo.
     const agg = new Map<number, { qty: number; custo: number; venda: number; desconto: number }>()
     for (const it of vendaItens) {
+      if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
       if (it.quantidade <= 0) continue
       const cur = agg.get(it.produtoCodigo) ?? { qty: 0, custo: 0, venda: 0, desconto: 0 }
       cur.qty += it.quantidade

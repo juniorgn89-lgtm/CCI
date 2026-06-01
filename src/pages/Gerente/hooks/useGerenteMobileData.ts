@@ -138,9 +138,6 @@ const useGerenteMobileData = () => {
       const v = fuelVenda.get(prodCod)
       return v && v.custoUnit > 0 ? v.custoUnit : (costMap.get(`${empCod}-${prodCod}`) ?? 0)
     }
-    // Fator pra converter faturamento BRUTO em LÍQUIDO (1 − taxa de desconto).
-    const fuelNetRate = (prodCod: number): number => 1 - (fuelVenda.get(prodCod)?.descRate ?? 0)
-
     const filteredAbast = hasEmpresa
       ? abastecimentos.filter((a) => empresaCodigos.includes(a.empresaCodigo))
       : abastecimentos
@@ -159,7 +156,7 @@ const useGerenteMobileData = () => {
       if (prodCode <= 0) continue
       const cost = fuelCostUnit(a.empresaCodigo, prodCode)
       fuelLitros += a.quantidade
-      fuelFat += a.valorTotal * fuelNetRate(prodCode)
+      fuelFat += a.valorTotal  // faturamento BRUTO (= BI; Σ valorTotal, sem desconto)
       fuelCusto += cost * a.quantidade
     }
     const fuelLB = fuelFat - fuelCusto
@@ -177,7 +174,7 @@ const useGerenteMobileData = () => {
       prodMap.set(prodCode, {
         nome: prev.nome,
         litros: prev.litros + a.quantidade,
-        fat: prev.fat + a.valorTotal * fuelNetRate(prodCode),
+        fat: prev.fat + a.valorTotal,
         custo: prev.custo + cost * a.quantidade,
       })
     }

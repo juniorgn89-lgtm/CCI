@@ -4,6 +4,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { todayLocal } from '@/lib/period'
 
 export interface PeriodMetrics {
   label: string
@@ -45,10 +46,13 @@ const usePostoComparativo = (empresaCodigo: number | null) => {
   const { dataInicial, dataFinal } = useFilterStore()
   const enabled = !!empresaCodigo
 
+  // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevMonthInicial = offsetPeriod(dataInicial, 1)
-  const prevMonthFinal = offsetPeriod(dataFinal, 1)
+  const prevMonthFinal = offsetPeriod(fimEfetivo, 1)
   const prevYearInicial = offsetPeriod(dataInicial, 12)
-  const prevYearFinal = offsetPeriod(dataFinal, 12)
+  const prevYearFinal = offsetPeriod(fimEfetivo, 12)
 
   // Empresa name
   const { data: empresasRaw } = useQuery({

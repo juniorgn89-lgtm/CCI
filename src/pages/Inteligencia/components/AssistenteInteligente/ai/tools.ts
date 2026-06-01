@@ -2,8 +2,9 @@ import { fetchVendaResumo, fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchTitulosPagar, fetchTitulosReceber, fetchMovimentosConta } from '@/api/endpoints/financeiro'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosCache, splitPeriodAtToday, buildCostMapFromLmc } from '@/api/supabase/apuracao'
-import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import type { Produto } from '@/api/types/produto'
+import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -96,6 +97,23 @@ const getProdutoMap = async (): Promise<Map<number, Produto>> => {
   )
   const map = new Map<number, Produto>(all.map((p) => [p.produtoCodigo, p]))
   _produtoMapCache = { fetchedAt: Date.now(), map }
+  return map
+}
+
+/** Cache do mapa grupoCodigo→tipoGrupo — pra classificar setor (régua do BI:
+ * combustível=tipoProduto "C", automotivos="Pista", conveniência="Conveniência"). */
+let _grupoTipoCache: { fetchedAt: number; map: Map<number, string> } | null = null
+const getGrupoTipoMap = async (): Promise<Map<number, string>> => {
+  if (_grupoTipoCache && Date.now() - _grupoTipoCache.fetchedAt < TTL_MS) {
+    return _grupoTipoCache.map
+  }
+  const all = await fetchAllPages(
+    ({ ultimoCodigo, limite }) => fetchGrupos({ ultimoCodigo, limite }),
+    1000,
+    20,
+  )
+  const map = new Map<number, string>(all.map((g) => [g.grupoCodigo, g.tipoGrupo]))
+  _grupoTipoCache = { fetchedAt: Date.now(), map }
   return map
 }
 
@@ -287,6 +305,7 @@ const getTopProdutos = async (
   const limite = Math.min(input.limite ?? 10, 25)
 
   const produtoMap = await getProdutoMap()
+  const grupoTipo = await getGrupoTipoMap()
 
   // /VENDA_ITEM exige empresaCodigo no Quality API — sem ele o request crasha.
   // Pra cobrir master (várias empresas) e usuário com 1 empresa, iteramos a lista.
@@ -304,16 +323,18 @@ const getTopProdutos = async (
   )
   const itens = itensArrays.flat()
 
-  const por = new Map<number, { produtoCodigo: number; nome: string; qtd: number; faturamento: number; ehCombustivel: boolean }>()
+  const por = new Map<number, { produtoCodigo: number; nome: string; qtd: number; faturamento: number; setor: string }>()
   for (const i of itens) {
+    if (isVendaCancelada(i)) continue  // BI conta só cancelada="N"
     // Filtro defensivo (em caso do fallback sem filtro ter retornado todas).
     if (empresas.length > 0 && !empresasSet.has(i.empresaCodigo)) continue
     const p = produtoMap.get(i.produtoCodigo)
-    const ehComb = p?.combustivel === true
-    if (input.categoria === 'combustivel' && !ehComb) continue
-    if (input.categoria === 'conveniencia' && ehComb) continue
+    // Régua BI: combustível=tipoProduto "C"; conveniência=tipoGrupo "Conveniência".
+    const setor = classifySetor(p?.tipoProduto, p ? grupoTipo.get(p.grupoCodigo) : undefined)
+    if (input.categoria === 'combustivel' && setor !== 'combustivel') continue
+    if (input.categoria === 'conveniencia' && setor !== 'conveniencia') continue
     const nome = produtoLabel(p, i.produtoCodigo)
-    const cur = por.get(i.produtoCodigo) ?? { produtoCodigo: i.produtoCodigo, nome, qtd: 0, faturamento: 0, ehCombustivel: ehComb }
+    const cur = por.get(i.produtoCodigo) ?? { produtoCodigo: i.produtoCodigo, nome, qtd: 0, faturamento: 0, setor }
     cur.qtd += i.quantidade
     cur.faturamento += i.totalVenda
     por.set(i.produtoCodigo, cur)
@@ -329,7 +350,7 @@ const getTopProdutos = async (
         produto_codigo: x.produtoCodigo,
         codigo_barras: barras.principal,
         codigos_barras: barras.todos,
-        categoria: x.ehCombustivel ? 'combustivel' : 'conveniencia',
+        categoria: x.setor,
         quantidade: Number(x.qtd.toFixed(3)),
         faturamento: Number(x.faturamento.toFixed(2)),
         faturamento_brl: `R$ ${fmt(x.faturamento)}`,

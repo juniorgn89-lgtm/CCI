@@ -3,8 +3,11 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendaResumo } from '@/api/endpoints/vendas'
-import { fetchAbastecimentos } from '@/api/endpoints/combustiveis'
+import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { buildCostMapFromLmc } from '@/api/supabase/apuracao'
+import { offsetPeriod } from '@/lib/period'
 import type { Empresa } from '@/api/types/empresa'
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -118,7 +121,34 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
     staleTime: 5 * 60 * 1000,
   })
 
-  // vendaItensData removed - using resumoData for conversion calculation
+  // LMC (entrada de combustível) — custo por litro por produto. Lookback de 3
+  // meses pra pegar a última compra. Sem isso a margem dos postos sai ZERADA: o
+  // abastecimento live não traz precoCusto (só o cache traz). Mesma fonte de
+  // custo que a apuração usa (buildCostMapFromLmc).
+  const { data: lmcData } = useQuery({
+    queryKey: ['network-lmc', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchLmc({
+        empresaCodigo: empresaCodigos,
+        dataInicial: offsetPeriod(dataInicial, 3),
+        dataFinal,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 50,
+    ),
+    enabled: hasEmpresa,
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Catálogo de produtos — alias-expande o custo do LMC (produtoCodigo /
+  // produtoLmcCodigo / codigo) pra casar com o código do abastecimento.
+  const { data: produtosData } = useQuery({
+    queryKey: ['produtos'],
+    queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
+    staleTime: 30 * 60 * 1000,
+  })
 
   /* ── Computed data ─────────────────────────────────────── */
 
@@ -134,6 +164,9 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
       receitaByEmpresa.set(r.codigoEmpresa, (receitaByEmpresa.get(r.codigoEmpresa) ?? 0) + r.total)
     }
 
+    // Custo por litro via LMC (entrada), alias-expandido — chave `${emp}-${prod}`.
+    const costMap = buildCostMapFromLmc(lmcData ?? [], produtosData ?? [])
+
     // Aggregate abastecimentos by empresa
     const litrosByEmpresa = new Map<number, number>()
     const abastByEmpresa = new Map<number, number>()
@@ -144,9 +177,11 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
       litrosByEmpresa.set(a.empresaCodigo, (litrosByEmpresa.get(a.empresaCodigo) ?? 0) + a.quantidade)
       abastByEmpresa.set(a.empresaCodigo, (abastByEmpresa.get(a.empresaCodigo) ?? 0) + 1)
       fatCombByEmpresa.set(a.empresaCodigo, (fatCombByEmpresa.get(a.empresaCodigo) ?? 0) + a.valorTotal)
-      // Custo só quando apurado (precoCusto presente — vem do cache; ausente no live).
-      if (a.precoCusto != null && a.precoCusto > 0) {
-        custoByEmpresa.set(a.empresaCodigo, (custoByEmpresa.get(a.empresaCodigo) ?? 0) + a.precoCusto * a.quantidade)
+      // Custo: LMC (custoMap) primeiro; cai pro precoCusto do cache se presente.
+      const custoUnit = costMap.get(`${a.empresaCodigo}-${a.codigoProduto}`)
+        ?? (a.precoCusto != null && a.precoCusto > 0 ? a.precoCusto : 0)
+      if (custoUnit > 0) {
+        custoByEmpresa.set(a.empresaCodigo, (custoByEmpresa.get(a.empresaCodigo) ?? 0) + custoUnit * a.quantidade)
         litrosComCustoByEmpresa.set(a.empresaCodigo, (litrosComCustoByEmpresa.get(a.empresaCodigo) ?? 0) + a.quantidade)
       }
     }
@@ -426,7 +461,7 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
       alerts,
       empresaMap,
     }
-  }, [empresaCodigos, empresasData, resumoData, abastecimentosData])
+  }, [empresaCodigos, empresasData, resumoData, abastecimentosData, lmcData, produtosData])
 
   const isLoading = !resumoData || !abastecimentosData
 

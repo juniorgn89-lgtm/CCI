@@ -566,6 +566,7 @@ const buildCmvMapFromVendaItens = (
   const aliasMap = produtos && produtos.length > 0 ? buildAliasMap(produtos) : null
   const agg = new Map<number, { qty: number; custo: number }>()
   for (const it of vendaItens) {
+    if (it.cancelada === 'S') continue  // BI conta só cancelada="N"
     if (it.quantidade <= 0) continue
     const cur = agg.get(it.produtoCodigo) ?? { qty: 0, custo: 0 }
     cur.qty += it.quantidade

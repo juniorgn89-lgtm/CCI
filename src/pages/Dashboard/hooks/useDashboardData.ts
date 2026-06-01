@@ -13,7 +13,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useTenantStore } from '@/store/tenant'
 import useApuracaoCache from './useApuracaoCache'
 import { computeApuracaoRows, upsertApuracaoDiaria } from '@/api/supabase/apuracao'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
 
 export type Setor = 'combustivel' | 'automotivos' | 'conveniencia'
 
@@ -136,11 +136,15 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
   // LMC lookback: fetch from 3 months before to capture most recent cost data
   const lmcDataInicial = threeMonthsBefore(dataInicial)
 
-  // Comparison periods
+  // Comparison periods — "mesmos dias decorridos" (igual ao BI): corta o fim em
+  // hoje antes de deslocar, pra mês corrente parcial não comparar contra período
+  // cheio do passado.
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevMonthInicial = offsetPeriod(dataInicial, 1)
-  const prevMonthFinal = offsetPeriod(dataFinal, 1)
+  const prevMonthFinal = offsetPeriod(fimEfetivo, 1)
   const prevYearInicial = offsetPeriod(dataInicial, 12)
-  const prevYearFinal = offsetPeriod(dataFinal, 12)
+  const prevYearFinal = offsetPeriod(fimEfetivo, 12)
 
   // Empresas declaradas antes do cache check pra fornecer a lista permitida
   // ao useApuracaoCache (que precisa saber as empresas pra estimar cobertura).
