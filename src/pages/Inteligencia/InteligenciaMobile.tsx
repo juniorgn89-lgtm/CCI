@@ -5,13 +5,13 @@ import RadarMobile from '@/pages/Inteligencia/RadarMobile'
 
 const TABS = [
   { id: 'radar', label: 'Radar de Preços' },
-  { id: 'analise', label: 'Análise' },
   { id: 'assistente', label: 'Cadu IA' },
 ]
 
 /**
  * Inteligência da Rede — versão mobile. Radar de Preços pronto (flagship);
- * Análise & Comparação e Cadu IA chegam numa próxima fase (placeholder).
+ * Cadu IA chega numa próxima fase (placeholder). Análise & Comparação NÃO entra
+ * no mobile (decisão do produto).
  */
 const InteligenciaMobile = () => {
   const [tab, setTab] = useState('radar')
