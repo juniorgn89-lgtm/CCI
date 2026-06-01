@@ -17,9 +17,6 @@ import {
   GitCompareArrows,
   Radar,
   LayoutDashboard,
-  FileText,
-  HandCoins,
-  Scale,
   Wallet,
   TrendingUp,
   Target,
@@ -86,13 +83,6 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
     { label: 'Radar', to: '/inteligencia?tab=radar', Icon: Radar },
     { label: 'Cadu IA', to: '/inteligencia?tab=assistente', Icon: Sparkles },
-  ],
-  '/fechamento-caixa': [
-    { label: 'Visão Geral', to: '/fechamento-caixa', Icon: LayoutDashboard },
-    { label: 'Caixa Geral', to: '/fechamento-caixa?tab=geral', Icon: FileText },
-    { label: 'Sangria', to: '/fechamento-caixa?tab=sangria', Icon: HandCoins },
-    { label: 'Sobras e Faltas', to: '/fechamento-caixa?tab=sobras', Icon: Scale },
-    { label: 'Diferença Encerrantes', to: '/fechamento-caixa?tab=encerrantes', Icon: Fuel },
   ],
   '/caixas-turnos': [
     { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
