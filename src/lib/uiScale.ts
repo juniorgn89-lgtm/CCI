@@ -1,33 +1,55 @@
 /**
- * Auto-escala da interface em telas "desktop antigo" (1024–1440px).
+ * Escala da interface — automática (ajusta ao tamanho da tela) ou manual
+ * (o usuário fixa 100/90/80/75% nas Configurações, por máquina).
  *
- * O layout desktop foi desenhado pra ~1440px; abaixo disso ele tenta encaixar as
- * mesmas colunas/tabelas em menos espaço e fica "apertado" (textos colados). Em
- * vez de espremer, encolhemos a interface inteira via CSS `zoom` proporcional —
- * reproduzindo o MESMO layout de 1440px, só que menor e cabendo na tela.
+ * O layout desktop foi desenhado pra ~1440px; abaixo disso ele fica "apertado"
+ * (textos colados). Em vez de espremer, encolhemos a interface inteira via CSS
+ * `zoom` — reproduzindo o MESMO layout de 1440px, só que menor e cabendo na tela.
  *
  * Detalhes:
- * - Telas grandes (≥ DESIGN_WIDTH) → zoom 1 (nada muda).
- * - Shell mobile (largura real < MOBILE_BP) → zoom 1; o swap <768px cuida.
- * - `zoom` (não `transform: scale`) porque ele REFLUI o layout — sem overflow nem
- *   barra horizontal. Suportado em Chromium/Edge (e Firefox recente).
- * - Estável: a largura REAL = innerWidth × zoomAtual é INVARIANTE ao zoom, então
- *   não há loop de feedback com media queries nem com o matchMedia do useIsMobile
- *   (o boundary mobile/desktop continua em 768px de largura real).
- * - Desligável: localStorage `visor360.uiscale = 'off'`.
+ * - `zoom` (não `transform: scale`) porque reflui o layout → sem barra horizontal.
+ * - Shell mobile (largura real < MOBILE_BP) nunca é escalado; o swap <768px cuida.
+ * - Estável: largura REAL = innerWidth × zoomAtual é invariante ao zoom, então não
+ *   há loop de feedback nem flip indevido do breakpoint mobile (boundary = 768px real).
+ * - Persistido em localStorage `visor360.uiscale` (por máquina/navegador).
+ * - Requer Chromium/Edge ou Firefox recente (suporte a CSS `zoom`).
  */
 
+export type UiScaleMode = 'auto' | 100 | 90 | 80 | 75
+
+export const UI_SCALE_OPTIONS: { value: UiScaleMode; label: string; hint: string }[] = [
+  { value: 'auto', label: 'Automático', hint: 'Ajusta ao tamanho da tela (recomendado)' },
+  { value: 100, label: '100%', hint: 'Tamanho original' },
+  { value: 90, label: '90%', hint: 'Um pouco menor' },
+  { value: 80, label: '80%', hint: 'Telas antigas / apertadas' },
+  { value: 75, label: '75%', hint: 'Telas bem pequenas' },
+]
+
+const STORAGE_KEY = 'visor360.uiscale'
 const DESIGN_WIDTH = 1440 // largura-alvo do layout desktop
-const MIN_ZOOM = 0.8 // piso (em 1024px → efetivo 1280; texto a 80%)
+const MIN_ZOOM = 0.75 // piso do modo automático
 const MOBILE_BP = 768 // abaixo disso o shell mobile assume
 
+let mode: UiScaleMode = 'auto'
 let current = 1
 let raf = 0
-let enabled = true
+
+const readMode = (): UiScaleMode => {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY)
+    if (v === '100' || v === 'off') return 100
+    if (v === '90') return 90
+    if (v === '80') return 80
+    if (v === '75') return 75
+    return 'auto'
+  } catch {
+    return 'auto'
+  }
+}
 
 const pickZoom = (realWidth: number): number => {
-  if (!enabled) return 1
-  if (realWidth < MOBILE_BP) return 1 // deixa o shell mobile cuidar
+  if (realWidth < MOBILE_BP) return 1 // shell mobile — nunca escala
+  if (mode !== 'auto') return mode / 100 // manual fixo
   if (realWidth >= DESIGN_WIDTH) return 1
   return Math.max(MIN_ZOOM, realWidth / DESIGN_WIDTH)
 }
@@ -49,16 +71,25 @@ const schedule = (): void => {
   raf = window.requestAnimationFrame(apply)
 }
 
-/** Liga o auto-scale e o listener de resize. Chamar uma vez no boot. */
+/** Liga a escala e o listener de resize. Chamar uma vez no boot. */
 export const initUiScale = (): void => {
   if (typeof window === 'undefined') return
-  try {
-    enabled = localStorage.getItem('visor360.uiscale') !== 'off'
-  } catch {
-    enabled = true
-  }
+  mode = readMode()
   apply()
   window.addEventListener('resize', schedule, { passive: true })
+}
+
+export const getUiScaleMode = (): UiScaleMode => mode
+
+/** Troca o modo (Configurações), persiste e re-aplica na hora. */
+export const setUiScaleMode = (m: UiScaleMode): void => {
+  mode = m
+  try {
+    localStorage.setItem(STORAGE_KEY, m === 'auto' ? 'auto' : String(m))
+  } catch {
+    /* noop */
+  }
+  apply()
 }
 
 export default initUiScale

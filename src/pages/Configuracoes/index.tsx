@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
+import { getUiScaleMode, setUiScaleMode, UI_SCALE_OPTIONS, type UiScaleMode } from '@/lib/uiScale'
 import { useAuthStore } from '@/store/auth'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
@@ -287,6 +288,11 @@ const ManutencaoBombasSection = () => {
 
 const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
+  const [scaleMode, setScaleMode] = useState<UiScaleMode>(() => getUiScaleMode())
+  const handleScaleChange = (m: UiScaleMode) => {
+    setScaleMode(m)
+    setUiScaleMode(m)
+  }
   const location = useLocation()
   const supabaseUser = useAuthStore((s) => s.user)
 
@@ -358,6 +364,39 @@ const Configuracoes = () => {
                   >
                     {opt.label}
                   </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Tamanho da interface (zoom) — útil em telas/monitores antigos */}
+        <div className="pt-2">
+          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Tamanho da interface</p>
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            Em telas antigas ou pequenas, reduza para caber tudo sem apertar. Aplica-se só a este computador.
+          </p>
+          <div role="radiogroup" aria-label="Tamanho da interface" className="flex flex-wrap gap-2">
+            {UI_SCALE_OPTIONS.map((opt) => {
+              const active = scaleMode === opt.value
+              return (
+                <button
+                  key={String(opt.value)}
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => handleScaleChange(opt.value)}
+                  title={opt.hint}
+                  className={cn(
+                    'flex min-w-[84px] flex-col items-center rounded-xl border-2 px-3 py-2 transition-all',
+                    active
+                      ? 'border-blue-500 bg-blue-50/60 shadow-sm ring-2 ring-blue-500/20 dark:bg-blue-900/20'
+                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600',
+                  )}
+                >
+                  <span className={cn('text-sm', active ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300')}>
+                    {opt.label}
+                  </span>
+                  <span className="mt-0.5 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">{opt.hint}</span>
                 </button>
               )
             })}
