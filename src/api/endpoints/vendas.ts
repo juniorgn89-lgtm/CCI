@@ -59,24 +59,24 @@ export const fetchVendaItens = (params?: FetchVendaItensParams) =>
   client.get<PaginatedResponse<VendaItem>>('/VENDA_ITEM', { params }).then((res) => res.data)
 
 /**
- * Conjunto de `vendaCodigo` CANCELADOS no período (situacao='C').
+ * Conjunto de `vendaCodigo` AUTORIZADOS no período (`/VENDA` com `situacao='A'`).
  *
  * O `/VENDA_ITEM` NÃO retorna o flag `cancelada` (nem aceita `situacao`), então
- * filtrar item por `it.cancelada` é no-op e os cancelados vazam pros totais —
- * divergência vs BI, que conta só `cancelada="N"`. Cruzamos com o `/VENDA`
- * (que sabe a situação da venda) e excluímos os itens cujo `vendaCodigo` está
- * neste set. Cancelados são subconjunto pequeno, então o custo é baixo.
+ * filtrar item por `it.cancelada` é no-op. Pra bater com o BI (que conta só
+ * vendas válidas), cruzamos `venda_item.vendaCodigo = venda.vendaCodigo` e
+ * mantemos APENAS os itens cuja venda está autorizada (situacao='A') — assim
+ * cancelados E quaisquer outras situações não-'A' ficam de fora.
  */
-export const fetchVendaCodigosCancelados = async (params: {
+export const fetchVendaCodigosAutorizados = async (params: {
   empresaCodigo?: number
   dataInicial?: string
   dataFinal?: string
   tipoData?: 'EMISSAO' | 'ENTRADA'
 }): Promise<Set<number>> => {
   const vendas = await fetchAllPages(
-    (p) => fetchVendas({ ...params, situacao: 'C', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+    (p) => fetchVendas({ ...params, situacao: 'A', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
     1000,
-    200,
+    2000,
   )
   const set = new Set<number>()
   for (const v of vendas) if (v.vendaCodigo != null) set.add(v.vendaCodigo)

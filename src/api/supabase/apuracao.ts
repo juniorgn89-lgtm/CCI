@@ -562,12 +562,14 @@ export const upsertApuracaoFuelDiaria = async (
 const buildCmvMapFromVendaItens = (
   vendaItens: VendaItem[],
   produtos?: Produto[],
-  cancelados?: Set<number>,
+  autorizados?: Set<number>,
 ): Map<number, number> => {
   const aliasMap = produtos && produtos.length > 0 ? buildAliasMap(produtos) : null
   const agg = new Map<number, { qty: number; custo: number }>()
   for (const it of vendaItens) {
-    if (it.cancelada === 'S' || cancelados?.has(it.vendaCodigo)) continue  // BI conta só cancelada="N"
+    // Só vendas autorizadas (cruzamento com /VENDA situacao='A'); fallback ao
+    // flag `cancelada` quando o set não foi fornecido.
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
     if (it.quantidade <= 0) continue
     const cur = agg.get(it.produtoCodigo) ?? { qty: 0, custo: 0 }
     cur.qty += it.quantidade
@@ -593,8 +595,8 @@ interface ComputeFuelProdutoInput {
   produtos?: Produto[]
   /** Itens de venda de combustível — fonte do CMV (preferido sobre o LMC). */
   vendaItens?: VendaItem[]
-  /** vendaCodigo cancelados (cruzamento com /VENDA) — excluídos do CMV. */
-  cancelados?: Set<number>
+  /** vendaCodigo autorizados (/VENDA situacao='A') — só estes entram no CMV. */
+  autorizados?: Set<number>
 }
 
 /**
@@ -605,7 +607,7 @@ interface ComputeFuelProdutoInput {
  */
 export const computeFuelProdutoRows = (input: ComputeFuelProdutoInput): ApuracaoFuelProdutoUpsert[] => {
   const lmcCost = buildCostMapFromLmc(input.lmc, input.produtos)
-  const cmv = buildCmvMapFromVendaItens(input.vendaItens ?? [], input.produtos, input.cancelados)
+  const cmv = buildCmvMapFromVendaItens(input.vendaItens ?? [], input.produtos, input.autorizados)
   const nomePorProduto = new Map<number, string>()
   for (const p of input.produtos ?? []) {
     for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
@@ -997,11 +999,11 @@ export interface ProdutoInfo { setor: SetorVenda; nome: string }
 const cuponsConvByDay = (
   itens: VendaItem[],
   produtoInfo: Map<number, ProdutoInfo>,
-  cancelados?: Set<number>,
+  autorizados?: Set<number>,
 ): Map<string, number> => {
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
-    if (it.cancelada === 'S' || cancelados?.has(it.vendaCodigo)) continue  // BI conta só cancelada="N"
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
     if (produtoInfo.get(it.produtoCodigo)?.setor !== 'conveniencia') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
@@ -1025,12 +1027,12 @@ export const aggregateVendaItensToCache = (
   itens: VendaItem[],
   redeId: string,
   produtoInfo: Map<number, ProdutoInfo>,
-  cancelados?: Set<number>,
+  autorizados?: Set<number>,
 ): ApuracaoVendaUpsert[] => {
-  const cuponsByDay = cuponsConvByDay(itens, produtoInfo, cancelados)
+  const cuponsByDay = cuponsConvByDay(itens, produtoInfo, autorizados)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
-    if (it.cancelada === 'S' || cancelados?.has(it.vendaCodigo)) continue  // BI conta só cancelada="N"
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
     const info = produtoInfo.get(it.produtoCodigo)
