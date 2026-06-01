@@ -33,7 +33,7 @@ import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChu
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
-import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens } from '@/api/endpoints/vendas'
+import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens, fetchVendaCodigosCancelados } from '@/api/endpoints/vendas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { cn } from '@/lib/utils'
 
@@ -279,8 +279,18 @@ const Apuracao = () => {
         }
         return all
       }
+      // vendaCodigo cancelados (por empresa) — o /VENDA_ITEM não traz `cancelada`,
+      // então cruzamos com o /VENDA (situacao='C') pra excluir como o BI.
+      const fetchCanceladosAllEmpresas = async () => {
+        const set = new Set<number>()
+        for (const ec of empresasCodes) {
+          const s = await fetchVendaCodigosCancelados({ empresaCodigo: ec, dataInicial: start, dataFinal: end })
+          for (const c of s) set.add(c)
+        }
+        return set
+      }
 
-      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos] = await Promise.all([
+      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos, cancelados] = await Promise.all([
         fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
         fetchAllPages(
           (p) => fetchLmc({
@@ -296,6 +306,7 @@ const Apuracao = () => {
         fetchVendaItensAllEmpresas(),
         fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
         fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
+        fetchCanceladosAllEmpresas(),
       ])
 
       const rows = computeApuracaoRows({
@@ -319,6 +330,7 @@ const Apuracao = () => {
         lmc,
         produtos,
         vendaItens,
+        cancelados,
       })
 
       // Grava em paralelo as 4 tabelas do cache. CostMap (montado do LMC, com
@@ -347,7 +359,7 @@ const Apuracao = () => {
                 : 'outros'
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
-      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo)
+      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, cancelados)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
