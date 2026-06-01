@@ -14,6 +14,8 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
+import useIsMobile from '@/hooks/useIsMobile'
+import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
 
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
 
@@ -51,6 +53,7 @@ const Produtividade = () => {
     hasEmpresa,
   } = useOperacaoData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+  const isMobile = useIsMobile()
   const [prodTab, setProdTab] = useTabParam<SubTab>(
     'visao',
     (v): v is SubTab => v === 'visao' || v === 'projecoes' || v === 'metas' || v === 'destaques',
@@ -87,6 +90,9 @@ const Produtividade = () => {
       : undefined,
     [kpis, ritmo, ritmoPrev, topFrentista],
   )
+
+  // Mobile: tela própria (KPIs + ranking de frentistas).
+  if (isMobile) return <ProdutividadeMobile />
 
   return (
     <div className="space-y-6">
