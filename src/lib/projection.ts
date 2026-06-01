@@ -271,7 +271,7 @@ export const projecaoAvancada = ({
  * a projeção fica igual ao realizado.
  */
 export const PROJECAO_TOOLTIP =
-  'Projeção pro fim do período: realizado até agora + (média diária dos últimos 7 dias fechados × dias restantes). Em períodos fechados, é igual ao Faturamento.'
+  'Estimativa (não é valor fechado): projeção pro fim do período = realizado até agora + média diária dos últimos 7 dias fechados × dias restantes. É uma previsão pelo ritmo recente — pode diferir de uma projeção linear simples. Em períodos fechados, é igual ao Faturamento.'
 
 /**
  * Tooltip da projeção LINEAR (ritmo de todos os dias fechados × dias restantes).
