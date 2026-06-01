@@ -23,6 +23,8 @@ import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBar from '@/components/layout/TopBar'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
+import useIsMobile from '@/hooks/useIsMobile'
+import InteligenciaMobile from './InteligenciaMobile'
 
 // Conteúdo das abas em chunks separados: recharts (Comparação/Previsão) e
 // leaflet (Mapa, ~154 kB) só baixam quando a aba é aberta.
@@ -131,6 +133,10 @@ const Inteligencia = () => {
 
   const hasEmpresa = selectedEmpresas.length > 0
   const showSkeleton = useShowSkeleton(isLoading, !!postos)
+  const isMobile = useIsMobile()
+
+  // Mobile: shell próprio (Radar de Preços pronto; Análise/Cadu IA na próxima fase).
+  if (isMobile) return <InteligenciaMobile />
 
   const TOP_TABS: { key: TopTab; label: string; short: string; icon: typeof Brain; desc: string }[] = [
     { key: 'analise', label: 'Análise & Comparação', short: 'Análise', icon: GitCompareArrows, desc: 'KPIs, comparativos, mapa e previsões' },
