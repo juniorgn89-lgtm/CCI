@@ -5,6 +5,8 @@ import { useFilterStore } from '@/store/filters'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
+import useIsMobile from '@/hooks/useIsMobile'
+import CentralMobile from '@/pages/Dashboard/CentralMobile'
 import { useAuthStore } from '@/store/auth'
 import { isPastPeriod } from '@/lib/utils'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -42,6 +44,7 @@ const TabSkeleton = () => (
 const Dashboard = () => {
   const { dataFinal } = useFilterStore()
   useDashboardData() // dispara prefetch (cache de apuração + dependências)
+  const isMobile = useIsMobile()
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
 
   // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
@@ -63,6 +66,9 @@ const Dashboard = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
   }
+
+  // Mobile: tela própria (KPIs + projeção + setores + ranking), no shell mobile.
+  if (isMobile) return <CentralMobile />
 
   return (
     <div className="space-y-4">
