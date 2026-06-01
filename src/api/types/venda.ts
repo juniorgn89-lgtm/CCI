@@ -17,6 +17,9 @@ export interface VendaItem {
   totalVenda: number
   totalDesconto: number
   totalAcrescimo: number
+  /** "N" = válida, "S" = cancelada. O BI exclui canceladas (fVendas[cancelada]="N").
+   *  Opcional porque nem todo payload/contexto traz — ausente = tratado como válida. */
+  cancelada?: string
   bicoCodigo: number
   tanqueCodigo: number
   produtoLmcCodigo: number

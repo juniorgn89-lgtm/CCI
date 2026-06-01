@@ -13,6 +13,7 @@ interface ProdutoRow {
   qtdAnoAnterior: number
   lucroBruto: number
   lucroBrutoAnoAnterior: number
+  faturamentoAnoAnterior: number
   margem: number
   acrescimos: number
   descontos: number
@@ -100,9 +101,10 @@ const BenchmarkSetor = () => {
         qtdAnoAnterior: acc.qtdAnoAnterior + prod.qtdAnoAnterior,
         lucroBruto: acc.lucroBruto + prod.lucroBruto,
         lucroBrutoAnoAnterior: acc.lucroBrutoAnoAnterior + prod.lucroBrutoAnoAnterior,
+        faturamentoAnoAnterior: acc.faturamentoAnoAnterior + prod.faturamentoAnoAnterior,
         acrescimos: acc.acrescimos + prod.acrescimos,
         descontos: acc.descontos + prod.descontos,
-      }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, acrescimos: 0, descontos: 0 })
+      }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0 })
 
       // Médias ponderadas pra preço venda/custo/L.B.
       const precoVenda = agg.qtd > 0
@@ -114,7 +116,7 @@ const BenchmarkSetor = () => {
       const totalVenda = p.produtos.reduce((s, prod) => s + prod.precoVenda * prod.qtd, 0)
       const margem = totalVenda > 0 ? (agg.lucroBruto / totalVenda) * 100 : 0
       const lbPorUnidade = agg.qtd > 0 ? agg.lucroBruto / agg.qtd : 0
-      return { ...p, ...agg, precoVenda, precoCusto, margem, lbPorUnidade }
+      return { ...p, ...agg, precoVenda, precoCusto, margem, lbPorUnidade, faturamento: totalVenda }
     })
 
     const totals = postos.reduce((acc, p) => ({
@@ -122,10 +124,11 @@ const BenchmarkSetor = () => {
       qtdAnoAnterior: acc.qtdAnoAnterior + p.qtdAnoAnterior,
       lucroBruto: acc.lucroBruto + p.lucroBruto,
       lucroBrutoAnoAnterior: acc.lucroBrutoAnoAnterior + p.lucroBrutoAnoAnterior,
+      faturamentoAnoAnterior: acc.faturamentoAnoAnterior + p.faturamentoAnoAnterior,
       acrescimos: acc.acrescimos + p.acrescimos,
       descontos: acc.descontos + p.descontos,
       totalVenda: acc.totalVenda + p.precoVenda * p.qtd,
-    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, acrescimos: 0, descontos: 0, totalVenda: 0 })
+    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0, totalVenda: 0 })
 
     const totalMargem = totals.totalVenda > 0 ? (totals.lucroBruto / totals.totalVenda) * 100 : 0
     const totalPrecoVenda = totals.qtd > 0 ? totals.totalVenda / totals.qtd : 0
@@ -153,6 +156,12 @@ const BenchmarkSetor = () => {
   const maxQtdPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.qtd), 0)
   const maxLucroPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.lucroBruto), 0)
   const maxMargemPosto = Math.max(...aggregated.postos.map((p) => p.margem), 0)
+  // Coluna Faturamento (igual ao BI) só em Automotivos/Conveniências — Combustíveis
+  // já tem Litros como métrica de volume e o BI não mostra faturamento lá.
+  const showFaturamento = setor !== 'combustiveis'
+  const fatProd = (r: { precoVenda: number; qtd: number }) => r.precoVenda * r.qtd
+  const maxFat = allRows.reduce((m, r) => Math.max(m, fatProd(r)), 0)
+  const maxFatPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.faturamento), 0)
 
   const togglePosto = (posto: string) => {
     setExpandidos((prev) => {
@@ -209,8 +218,11 @@ const BenchmarkSetor = () => {
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
               <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os produtos do setor." />
               <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
-              <ThHelp label="Ano anterior" help="Mesmo período do ano anterior (volume)." />
-              <ThHelp label="Variação" help="Variação % do volume vs o ano anterior." />
+              {showFaturamento && (
+                <ThHelp label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
+              )}
+              <ThHelp label="Ano anterior" help={showFaturamento ? 'Faturamento no mesmo período do ano anterior (R$).' : 'Mesmo período do ano anterior (volume).'} />
+              <ThHelp label="Variação" help={showFaturamento ? 'Variação % do faturamento vs o ano anterior.' : 'Variação % do volume vs o ano anterior.'} />
               <ThHelp label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
               <ThHelp label="Ano anterior" help="Lucro bruto no mesmo período do ano anterior (R$)." />
               <ThHelp label="Variação" help="Variação % do lucro bruto vs o ano anterior." />
@@ -226,6 +238,7 @@ const BenchmarkSetor = () => {
             {aggregated.postos.map((p) => {
               const expanded = expandidos.has(p.posto)
               const qtdVar = variacaoPct(p.qtd, p.qtdAnoAnterior)
+              const fatVar = variacaoPct(p.faturamento, p.faturamentoAnoAnterior)
               const lucroVar = variacaoPct(p.lucroBruto, p.lucroBrutoAnoAnterior)
               const postoKey = `posto:${p.posto}`
               const postoSelected = selected === postoKey
@@ -259,8 +272,13 @@ const BenchmarkSetor = () => {
                     <td className="px-2 py-1">
                       <BarCell value={p.qtd} max={maxQtdPosto} formatted={formatNumber(Math.round(p.qtd))} color="blue" align="near" />
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(Math.round(p.qtdAnoAnterior))}</td>
-                    <td className="px-3 py-2 text-right"><VariacaoBadge value={qtdVar} /></td>
+                    {showFaturamento && (
+                      <td className="px-2 py-1">
+                        <BarCell value={p.faturamento} max={maxFatPosto} formatted={formatCurrency(p.faturamento)} color="blue" align="near" />
+                      </td>
+                    )}
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{showFaturamento ? formatCurrency(p.faturamentoAnoAnterior) : formatNumber(Math.round(p.qtdAnoAnterior))}</td>
+                    <td className="px-3 py-2 text-right"><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
                     <td className="px-2 py-1">
                       <BarCell value={p.lucroBruto} max={maxLucroPosto} formatted={formatCurrency(p.lucroBruto)} color="green" align="near" />
                     </td>
@@ -277,6 +295,7 @@ const BenchmarkSetor = () => {
                   </tr>
                   {expanded && p.produtos.map((prod) => {
                     const qVar = variacaoPct(prod.qtd, prod.qtdAnoAnterior)
+                    const fVar = variacaoPct(fatProd(prod), prod.faturamentoAnoAnterior)
                     const lVar = variacaoPct(prod.lucroBruto, prod.lucroBrutoAnoAnterior)
                     const prodKey = `prod:${p.posto}:${prod.produto}`
                     const prodSelected = selected === prodKey
@@ -296,8 +315,13 @@ const BenchmarkSetor = () => {
                         <td className="px-2 py-1">
                           <BarCell value={prod.qtd} max={maxQtd} formatted={formatNumber(Math.round(prod.qtd))} color="blue" align="near" maxWidthPct={60} />
                         </td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatNumber(Math.round(prod.qtdAnoAnterior))}</td>
-                        <td className="px-3 py-1.5 text-right"><VariacaoBadge value={qVar} /></td>
+                        {showFaturamento && (
+                          <td className="px-2 py-1">
+                            <BarCell value={fatProd(prod)} max={maxFat} formatted={formatCurrency(fatProd(prod))} color="blue" align="near" maxWidthPct={60} />
+                          </td>
+                        )}
+                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{showFaturamento ? formatCurrency(prod.faturamentoAnoAnterior) : formatNumber(Math.round(prod.qtdAnoAnterior))}</td>
+                        <td className="px-3 py-1.5 text-right"><VariacaoBadge value={showFaturamento ? fVar : qVar} /></td>
                         <td className="px-2 py-1">
                           <BarCell value={prod.lucroBruto} max={maxLucro} formatted={formatCurrency(prod.lucroBruto)} color="green" align="near" maxWidthPct={60} />
                         </td>
@@ -320,8 +344,11 @@ const BenchmarkSetor = () => {
             <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
               <td className="px-3 py-2 text-left">Total</td>
               <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Math.round(aggregated.totals.qtd))}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatNumber(Math.round(aggregated.totals.qtdAnoAnterior))}</td>
-              <td className="px-3 py-2 text-right"><VariacaoBadge value={variacaoPct(aggregated.totals.qtd, aggregated.totals.qtdAnoAnterior)} /></td>
+              {showFaturamento && (
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.totalVenda)}</td>
+              )}
+              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{showFaturamento ? formatCurrency(aggregated.totals.faturamentoAnoAnterior) : formatNumber(Math.round(aggregated.totals.qtdAnoAnterior))}</td>
+              <td className="px-3 py-2 text-right"><VariacaoBadge value={showFaturamento ? variacaoPct(aggregated.totals.totalVenda, aggregated.totals.faturamentoAnoAnterior) : variacaoPct(aggregated.totals.qtd, aggregated.totals.qtdAnoAnterior)} /></td>
               <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lucroBruto)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.lucroBrutoAnoAnterior)}</td>
               <td className="px-3 py-2 text-right"><VariacaoBadge value={variacaoPct(aggregated.totals.lucroBruto, aggregated.totals.lucroBrutoAnoAnterior)} /></td>

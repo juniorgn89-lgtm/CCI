@@ -8,7 +8,7 @@ import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchVendasCache, splitPeriodAtToday } from '@/api/supabase/apuracao'
-import { offsetPeriod } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
 
 /**
  * Dados REDE-WIDE por setor (Combustível / Automotivos / Conveniência) pra a
@@ -39,6 +39,7 @@ export interface RedeProdutoRow {
   qtdAnoAnterior: number
   lucroBruto: number
   lucroBrutoAnoAnterior: number
+  faturamentoAnoAnterior: number
   margem: number
   acrescimos: number
   descontos: number
@@ -53,6 +54,7 @@ export interface RedePostoRow {
   qtd: number
   qtdAnoAnterior: number
   faturamento: number
+  faturamentoAnoAnterior: number
   lucroBruto: number
   lucroBrutoAnoAnterior: number
   margem: number
@@ -126,8 +128,15 @@ const useRedeSetores = (): RedeSetoresData => {
   const closedEnd = split.closedDays?.dataFinal ?? ''
   const todayIni = split.todayPart?.dataInicial ?? ''
   const todayEnd = split.todayPart?.dataFinal ?? ''
+  // AA "mesmos dias decorridos" (igual ao BI): corta o ano anterior no mesmo
+  // ponto que o período atual tem dados. Sem isso, um mês corrente parcial
+  // compara X dias contra um mês CHEIO do ano passado (queda enganosa). O teto
+  // é hoje (proxy do "LastSale" do BI) — só morde quando o fim selecionado é
+  // futuro (ex.: mês corrente inteiro escolhido no meio do mês).
+  const hoje = todayLocal()
+  const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const anoAntIni = offsetPeriod(dataInicial, 12)
-  const anoAntFim = offsetPeriod(dataFinal, 12)
+  const anoAntFim = offsetPeriod(fimEfetivo, 12)
 
   // Empresas (postos) da rede + nomes.
   const { data: empresasData } = useQuery({
@@ -196,17 +205,19 @@ const useRedeSetores = (): RedeSetoresData => {
     const isPista = new Set<number>()
     const nomeProduto = new Map<number, string>()
     if (produtosData && gruposData) {
-      const grupoNome = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      // Mesma classificação do BI: combustível = tipoProduto "C"; automotivos =
+      // grupo "Pista" (não-C); conveniência = grupo "Conveniência" (o resto cai
+      // em conveniência só no fallback live de "hoje", impacto desprezível).
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       for (const p of produtosData) {
         nomeProduto.set(p.produtoCodigo, p.nome)
-        if (p.combustivel) {
+        if (p.tipoProduto === 'C') {
           for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
             if (typeof c === 'number' && c > 0) isFuel.add(c)
           }
           continue
         }
-        const gn = grupoNome.get(p.grupoCodigo) ?? ''
-        if (gn.startsWith('PS -')) isPista.add(p.produtoCodigo)
+        if ((grupoTipo.get(p.grupoCodigo) ?? '') === 'Pista') isPista.add(p.produtoCodigo)
       }
     }
 
@@ -218,17 +229,24 @@ const useRedeSetores = (): RedeSetoresData => {
     const nomeDe = (cacheNome: string | null | undefined, pc: number): string =>
       cacheNome || nomeProduto.get(pc) || `Produto ${pc}`
 
-    const curr: VendaAgg[] = closedRows.map((r) => ({
-      empresaCodigo: r.empresa_codigo, produtoCodigo: r.produto_codigo,
-      setor: setorOf(r.setor, r.produto_codigo), nome: nomeDe(r.produto_nome, r.produto_codigo),
-      quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo,
-      acrescimos: r.acrescimos ?? 0, descontos: r.descontos ?? 0,
-    }))
+    const curr: VendaAgg[] = closedRows
+      .filter((r) => r.setor !== 'outros')  // 'outros' fica fora dos setores (igual ao BI)
+      .map((r) => ({
+        empresaCodigo: r.empresa_codigo, produtoCodigo: r.produto_codigo,
+        setor: setorOf(r.setor, r.produto_codigo), nome: nomeDe(r.produto_nome, r.produto_codigo),
+        quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo,
+        acrescimos: r.acrescimos ?? 0, descontos: r.descontos ?? 0,
+      }))
     for (const it of todayItens) {
       if (it.quantidade <= 0) continue
-      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
+      if (it.cancelada === 'S') continue  // BI conta só cancelada="N"
+      const setor = classify(it.produtoCodigo, isFuel, isPista)
+      // Combustível: custo = precoCusto × qtd (igual ao BI). Demais: totalCusto.
+      const custo = setor === 'combustivel'
+        ? it.precoCusto * it.quantidade
+        : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
       curr.push({ empresaCodigo: it.empresaCodigo, produtoCodigo: it.produtoCodigo,
-        setor: classify(it.produtoCodigo, isFuel, isPista), nome: nomeDe(null, it.produtoCodigo),
+        setor, nome: nomeDe(null, it.produtoCodigo),
         quantidade: it.quantidade, totalVenda: it.totalVenda, totalCusto: custo,
         acrescimos: it.totalAcrescimo ?? 0, descontos: it.totalDesconto ?? 0 })
     }
@@ -237,15 +255,17 @@ const useRedeSetores = (): RedeSetoresData => {
     // por produto permite incluir itens que venderam SÓ no ano passado (senão o
     // total do ano anterior fica subestimado).
     const seKey = (s: SetorId, e: number) => `${s}|${e}`
-    const prevBySE = new Map<string, Map<number, { qtd: number; lucro: number; nome: string }>>()
+    const prevBySE = new Map<string, Map<number, { qtd: number; lucro: number; fat: number; nome: string }>>()
     for (const r of anoAntRows) {
+      if (r.setor === 'outros') continue  // 'outros' fica fora dos setores
       const s = setorOf(r.setor, r.produto_codigo)
       const k = seKey(s, r.empresa_codigo)
       let m = prevBySE.get(k)
       if (!m) { m = new Map(); prevBySE.set(k, m) }
-      const prev = m.get(r.produto_codigo) ?? { qtd: 0, lucro: 0, nome: nomeDe(r.produto_nome, r.produto_codigo) }
+      const prev = m.get(r.produto_codigo) ?? { qtd: 0, lucro: 0, fat: 0, nome: nomeDe(r.produto_nome, r.produto_codigo) }
       prev.qtd += r.quantidade
       prev.lucro += r.total_venda - r.total_custo
+      prev.fat += r.total_venda
       m.set(r.produto_codigo, prev)
     }
 
@@ -271,12 +291,12 @@ const useRedeSetores = (): RedeSetoresData => {
       const postoMap = setores[id]
       for (const [empresaCodigo, posto] of postoMap) {
         const produtos: RedeProdutoRow[] = []
-        let pQtdAnt = 0, pLucroAnt = 0
-        const prevMap = prevBySE.get(seKey(id, empresaCodigo)) ?? new Map<number, { qtd: number; lucro: number; nome: string }>()
+        let pQtdAnt = 0, pLucroAnt = 0, pFatAnt = 0
+        const prevMap = prevBySE.get(seKey(id, empresaCodigo)) ?? new Map<number, { qtd: number; lucro: number; fat: number; nome: string }>()
         for (const prod of posto.produtos.values()) {
           const lucro = prod.fat - prod.custo
-          const ant = prevMap.get(prod.produtoCodigo) ?? { qtd: 0, lucro: 0 }
-          pQtdAnt += ant.qtd; pLucroAnt += ant.lucro
+          const ant = prevMap.get(prod.produtoCodigo) ?? { qtd: 0, lucro: 0, fat: 0 }
+          pQtdAnt += ant.qtd; pLucroAnt += ant.lucro; pFatAnt += ant.fat
           produtos.push({
             produtoCodigo: prod.produtoCodigo,
             produto: prod.nome,
@@ -284,6 +304,7 @@ const useRedeSetores = (): RedeSetoresData => {
             qtdAnoAnterior: ant.qtd,
             lucroBruto: lucro,
             lucroBrutoAnoAnterior: ant.lucro,
+            faturamentoAnoAnterior: ant.fat,
             margem: prod.fat > 0 ? (lucro / prod.fat) * 100 : 0,
             acrescimos: prod.acr,
             descontos: prod.desc,
@@ -295,7 +316,7 @@ const useRedeSetores = (): RedeSetoresData => {
         // Produtos que venderam SÓ no ano anterior (sem venda no período atual).
         for (const [pc, ant] of prevMap) {
           if (posto.produtos.has(pc)) continue
-          pQtdAnt += ant.qtd; pLucroAnt += ant.lucro
+          pQtdAnt += ant.qtd; pLucroAnt += ant.lucro; pFatAnt += ant.fat
           produtos.push({
             produtoCodigo: pc,
             produto: ant.nome,
@@ -303,6 +324,7 @@ const useRedeSetores = (): RedeSetoresData => {
             qtdAnoAnterior: ant.qtd,
             lucroBruto: 0,
             lucroBrutoAnoAnterior: ant.lucro,
+            faturamentoAnoAnterior: ant.fat,
             margem: 0,
             acrescimos: 0,
             descontos: 0,
@@ -319,6 +341,7 @@ const useRedeSetores = (): RedeSetoresData => {
           qtd: posto.qtd,
           qtdAnoAnterior: pQtdAnt,
           faturamento: posto.fat,
+          faturamentoAnoAnterior: pFatAnt,
           lucroBruto: lucro,
           lucroBrutoAnoAnterior: pLucroAnt,
           margem: posto.fat > 0 ? (lucro / posto.fat) * 100 : 0,

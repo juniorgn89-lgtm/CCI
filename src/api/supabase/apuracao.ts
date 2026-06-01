@@ -149,6 +149,28 @@ export const fetchApuracaoStatusByMonth = async (
 }
 
 /**
+ * Data/hora (ISO) da última apuração desta rede — o `computed_at` mais recente
+ * em `apuracao_diaria`. Serve de referência de frescor na Central ("Apurado em
+ * DD/MM às HH:MM", igual ao "Atualizado em…" do BI). Retorna null se nunca
+ * apurado / sem rede.
+ */
+export const fetchUltimaApuracao = async (redeId: string): Promise<string | null> => {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('apuracao_diaria')
+    .select('computed_at')
+    .eq('rede_id', redeId)
+    .order('computed_at', { ascending: false })
+    .limit(1)
+  if (error) {
+    console.warn('[apuracao] fetchUltimaApuracao error:', error.message)
+    return null
+  }
+  const row = (data ?? [])[0] as { computed_at: string } | undefined
+  return row?.computed_at ?? null
+}
+
+/**
  * Resolve user_ids → nomes/emails via profiles. Respeita RLS — usuários que
  * o caller não pode ler simplesmente não aparecem no mapa retornado, e a UI
  * mostra '—' como fallback.
@@ -861,7 +883,9 @@ export const cacheRowToFormaPagamento = (r: FormaPagamentoCacheRow): VendaFormaP
 // Veja docs/supabase-apuracao-vendas.sql para o schema completo.
 
 /** Setor do produto, congelado na apuração (evita re-classificação ao vivo). */
-export type SetorVenda = 'combustivel' | 'automotivos' | 'conveniencia'
+// 'outros' = produto fora dos 3 setores do BI (nem tipoProduto "C", nem grupo
+// "Pista", nem "Conveniência") — fica de fora dos totais (igual ao BI).
+export type SetorVenda = 'combustivel' | 'automotivos' | 'conveniencia' | 'outros'
 
 export interface ApuracaoVendaRow {
   rede_id: string
@@ -972,6 +996,7 @@ const cuponsConvByDay = (
 ): Map<string, number> => {
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
+    if (it.cancelada === 'S') continue  // BI conta só cancelada="N"
     if (produtoInfo.get(it.produtoCodigo)?.setor !== 'conveniencia') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
@@ -999,20 +1024,26 @@ export const aggregateVendaItensToCache = (
   const cuponsByDay = cuponsConvByDay(itens, produtoInfo)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
+    if (it.cancelada === 'S') continue  // BI conta só cancelada="N"
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
+    const info = produtoInfo.get(it.produtoCodigo)
+    const setor: SetorVenda = info?.setor ?? 'conveniencia'
+    if (setor === 'outros') continue  // fora dos 3 setores do BI
+    // Combustível: custo = precoCusto × qtd (igual ao BI). Demais: totalCusto.
+    const custo = setor === 'combustivel'
+      ? (it.precoCusto ?? 0) * (it.quantidade ?? 0)
+      : (it.totalCusto ?? 0)
     const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
     const existing = map.get(key)
     if (existing) {
       existing.quantidade += it.quantidade ?? 0
       existing.total_venda += it.totalVenda ?? 0
-      existing.total_custo += it.totalCusto ?? 0
+      existing.total_custo += custo
       existing.acrescimos += it.totalAcrescimo ?? 0
       existing.descontos += it.totalDesconto ?? 0
       existing.linhas += 1
     } else {
-      const info = produtoInfo.get(it.produtoCodigo)
-      const setor: SetorVenda = info?.setor ?? 'conveniencia'
       map.set(key, {
         rede_id: redeId,
         empresa_codigo: it.empresaCodigo,
@@ -1022,7 +1053,7 @@ export const aggregateVendaItensToCache = (
         produto_nome: info?.nome ?? `Produto ${it.produtoCodigo}`,
         quantidade: it.quantidade ?? 0,
         total_venda: it.totalVenda ?? 0,
-        total_custo: it.totalCusto ?? 0,
+        total_custo: custo,
         acrescimos: it.totalAcrescimo ?? 0,
         descontos: it.totalDesconto ?? 0,
         linhas: 1,

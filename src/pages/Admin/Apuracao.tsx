@@ -330,14 +330,21 @@ const Apuracao = () => {
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
       const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
-      // Carimba setor + nome de cada produto na apuração (congela a classificação:
-      // combustível = flag; automotivos = grupo "PS -"; conveniência = restante).
-      // Assim a Central lê o setor do cache, sem re-classificar com o catálogo ao vivo.
-      const grupoNomePorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
+      // Carimba setor + nome de cada produto na apuração (congela a classificação).
+      // Espelha EXATAMENTE as medidas do BI de referência:
+      //   combustível  = tipoProduto "C"            (qualquer grupo)
+      //   automotivos  = tipoGrupo "Pista" e ≠ "C"
+      //   conveniência = tipoGrupo "Conveniência"
+      //   resto        = "outros" (fora dos setores, igual ao BI)
+      const grupoTipoPorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const produtoInfo = new Map<number, ProdutoInfo>()
       for (const p of produtos) {
-        const gn = grupoNomePorCodigo.get(p.grupoCodigo) ?? ''
-        const setor: SetorVenda = p.combustivel ? 'combustivel' : gn.startsWith('PS -') ? 'automotivos' : 'conveniencia'
+        const tipoGrupo = grupoTipoPorCodigo.get(p.grupoCodigo) ?? ''
+        const setor: SetorVenda =
+          p.tipoProduto === 'C' ? 'combustivel'
+            : tipoGrupo === 'Pista' ? 'automotivos'
+              : tipoGrupo === 'Conveniência' ? 'conveniencia'
+                : 'outros'
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo)
