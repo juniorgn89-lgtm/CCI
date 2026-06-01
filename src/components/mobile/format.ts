@@ -1,4 +1,17 @@
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { todayLocal } from '@/lib/period'
+
+/** Período do mês pra projeção: dia decorrido / dias do mês / fração (0–1). */
+export const periodoMes = (dataInicial: string, dataFinal: string): { dia: number; dias: number; frac: number } => {
+  const today = todayLocal()
+  const fim = dataFinal > today ? today : dataFinal
+  const [y, m, d1] = dataInicial.split('-').map(Number)
+  const dias = new Date(y, m, 0).getDate()
+  const f = fim.split('-').map(Number)
+  const sameMonth = f[0] === y && f[1] === m
+  const dia = Math.min(sameMonth ? Math.max(1, f[2] - (d1 - 1)) : dias, dias)
+  return { dia, dias, frac: dias > 0 ? dia / dias : 1 }
+}
 
 /** Percentual com vírgula (1 casa por padrão). */
 export const pct = (n: number, dec = 1): string => `${n.toFixed(dec).replace('.', ',')}%`

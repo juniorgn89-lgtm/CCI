@@ -9,6 +9,8 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
+import useIsMobile from '@/hooks/useIsMobile'
+import VendasMobile from '@/pages/Comercial/Vendas/VendasMobile'
 
 const VisaoGeral = lazy(() => import('@/pages/Comercial/Vendas/VisaoGeral'))
 const Combustivel = lazy(() => import('@/pages/Comercial/Vendas/Combustivel'))
@@ -73,6 +75,10 @@ const ComercialVendas = () => {
 
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const hasEmpresa = empresaCodigos.length > 0
+  const isMobile = useIsMobile()
+
+  // Mobile: tela própria com abas roláveis (aba Combustível pronta).
+  if (isMobile) return <VendasMobile />
 
   return (
     <div className="relative space-y-6">
