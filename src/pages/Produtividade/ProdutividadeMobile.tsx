@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Users, Receipt, Gauge, Trophy } from 'lucide-react'
+import { Users, Receipt, Gauge, Trophy, Target } from 'lucide-react'
 import useOperacaoData, { type AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import { useMetasStore } from '@/store/metas'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import { KpiCard, Section, Segmented, Badge, ProgressBar } from '@/components/mobile/primitives'
+import { KpiCard, Section, ScrollTabs, Segmented, Badge, ProgressBar, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brl, brlShort, liters, variacaoPct } from '@/components/mobile/format'
 
@@ -20,18 +21,23 @@ const ritmoPorHoraAtiva = (rows: AbastecimentoRow[]): number => {
   return horas.size === 0 ? 0 : rows.length / horas.size
 }
 
-const scoreTone = (s: number) => (s >= 70 ? 'emerald' : s >= 40 ? 'amber' : 'rose')
+const scoreTone = (s: number): Tone => (s >= 70 ? 'emerald' : s >= 40 ? 'amber' : 'rose')
+const metaTone = (pct: number): Tone => (pct >= 100 ? 'emerald' : pct >= 70 ? 'amber' : 'rose')
 
 type SortKey = 'litros' | 'score' | 'faturamento'
 
+const TABS = [{ id: 'ranking', label: 'Ranking' }, { id: 'metas', label: 'Metas' }]
+
 /**
- * Produtividade — versão mobile. Reusa useOperacaoData (frentistaRows) +
- * useAbastecimentosAnalytics (custo p/ score). KPIs + ranking de frentistas
- * ordenável (litros / score / faturamento). Mesmos números do desktop.
+ * Produtividade — versão mobile. Reusa useOperacaoData + useAbastecimentosAnalytics
+ * (score) + useMetasStore. Abas: Ranking (frentistas ordenáveis) e Metas (meta vs
+ * realizado por frentista — mês anterior ou manual). Mesmos números do desktop.
  */
 const ProdutividadeMobile = () => {
-  const { kpis, frentistaRows, abastecimentoRows, isLoading, hasEmpresa } = useOperacaoData()
+  const { kpis, frentistaRows, frentistaRowsPrev, abastecimentoRows, isLoading, hasEmpresa } = useOperacaoData()
   const { rows: abastComCusto } = useAbastecimentosAnalytics()
+  const { manualMode, metas, setManualMode, setMeta } = useMetasStore()
+  const [tab, setTab] = useState('ranking')
   const [sort, setSort] = useState<SortKey>('litros')
 
   const scores = useMemo(() => computeScores(buildScoreInputs(abastComCusto)), [abastComCusto])
@@ -58,6 +64,25 @@ const ProdutividadeMobile = () => {
     return rows
   }, [frentistaRows, scores, sort])
 
+  // Metas: meta = mês anterior (auto) ou manual (store). pct = realizado ÷ meta.
+  const prevByCodigo = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const f of frentistaRowsPrev) m.set(f.funcionarioCodigo, f.litrosVendidos)
+    return m
+  }, [frentistaRowsPrev])
+
+  const metasRows = useMemo(() => {
+    return frentistaRows
+      .filter((f) => f.ativo && (f.litrosVendidos > 0 || (prevByCodigo.get(f.funcionarioCodigo) ?? 0) > 0))
+      .map((f) => {
+        const metaAuto = prevByCodigo.get(f.funcionarioCodigo) ?? 0
+        const metaAtual = manualMode ? (metas[f.funcionarioCodigo] ?? 0) : metaAuto
+        const pct = metaAtual > 0 ? (f.litrosVendidos / metaAtual) * 100 : 0
+        return { codigo: f.funcionarioCodigo, nome: f.nome, litros: f.litrosVendidos, metaAuto, metaAtual, pct }
+      })
+      .sort((a, b) => b.litros - a.litros)
+  }, [frentistaRows, prevByCodigo, manualMode, metas])
+
   if (!hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver a produtividade dos frentistas." />
   if (isLoading || !kpis) return <LoadingScreen message="Carregando produtividade…" />
   if (ranking.length === 0) return <EmptyCard title="Sem abastecimentos" desc="Não há abastecimentos no período e posto selecionados." />
@@ -74,57 +99,109 @@ const ProdutividadeMobile = () => {
         <KpiCard label="Abastecimentos" tone="navy" Icon={Receipt}
           value={formatNumber(kpis.totalAbastecimentos)} delta={variacaoPct(kpis.totalAbastecimentos, kpis.prevTotalAbastecimentos)} deltaLabel="mês ant." />
         <KpiCard label="Ritmo (abast/h ativa)" tone="violet" Icon={Gauge} value={ritmo.toFixed(1).replace('.', ',')} />
-        <KpiCard label="Top frentista" tone="amber" Icon={Trophy}
-          value={top ? liters(top.litros) : '—'} sub={top?.nome} />
+        <KpiCard label="Top frentista" tone="amber" Icon={Trophy} value={top ? liters(top.litros) : '—'} sub={top?.nome} />
       </div>
 
-      <Section
-        Icon={Trophy}
-        title="Ranking de frentistas"
-        right={<Badge tone="navy">{ranking.length}</Badge>}
-      >
-        <Segmented
-          value={sort}
-          onChange={(v) => setSort(v as SortKey)}
-          options={[
-            { value: 'litros', label: 'Litros' },
-            { value: 'faturamento', label: 'Faturamento' },
-            { value: 'score', label: 'Score' },
-          ]}
-        />
-      </Section>
+      <ScrollTabs tabs={TABS} value={tab} onChange={setTab} />
 
-      <Section Icon={Users} title="Frentistas" flush>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
-          {ranking.map((f, i) => (
-            <div key={f.codigo} className="px-3.5 py-2.5">
-              <div className="flex items-center gap-2">
-                <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                    <span className="truncate">{f.nome}</span>
-                    {!f.ativo && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[8.5px] font-semibold uppercase text-gray-400 dark:bg-[#303030] dark:text-gray-500">inativo</span>}
-                  </p>
-                  <p className="text-[10.5px] tabular-nums text-gray-400 dark:text-gray-500">
-                    {formatNumber(f.atendimentos)} abast. · {brlShort(f.faturamento)} · tkt {brl(f.ticket)}
-                  </p>
+      {tab === 'ranking' ? (
+        <>
+          <Section Icon={Trophy} title="Ranking de frentistas" right={<Badge tone="navy">{ranking.length}</Badge>}>
+            <Segmented
+              value={sort}
+              onChange={(v) => setSort(v as SortKey)}
+              options={[
+                { value: 'litros', label: 'Litros' },
+                { value: 'faturamento', label: 'Faturamento' },
+                { value: 'score', label: 'Score' },
+              ]}
+            />
+          </Section>
+
+          <Section Icon={Users} title="Frentistas" flush>
+            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+              {ranking.map((f, i) => (
+                <div key={f.codigo} className="px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                        <span className="truncate">{f.nome}</span>
+                        {!f.ativo && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[8.5px] font-semibold uppercase text-gray-400 dark:bg-[#303030] dark:text-gray-500">inativo</span>}
+                      </p>
+                      <p className="text-[10.5px] tabular-nums text-gray-400 dark:text-gray-500">
+                        {formatNumber(f.atendimentos)} abast. · {brlShort(f.faturamento)} · tkt {brl(f.ticket)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{liters(f.litros)}</span>
+                      {f.score != null && <Badge tone={scoreTone(f.score)}>{Math.round(f.score)}</Badge>}
+                    </div>
+                  </div>
+                  <div className={cn('mt-1.5', sort !== 'litros' && 'opacity-60')}>
+                    <ProgressBar pct={maxLitros > 0 ? (f.litros / maxLitros) * 100 : 0} />
+                  </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-0.5">
-                  <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{liters(f.litros)}</span>
-                  {f.score != null && <Badge tone={scoreTone(f.score)}>{Math.round(f.score)}</Badge>}
-                </div>
-              </div>
-              <div className={cn('mt-1.5', sort !== 'litros' && 'opacity-60')}>
-                <ProgressBar pct={maxLitros > 0 ? (f.litros / maxLitros) * 100 : 0} />
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Section>
+          </Section>
 
-      <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
-        Score 0–100 combina lucro, automotivo, mix aditivada, ticket e nº de abastecimentos do período.
-      </p>
+          <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
+            Score 0–100 combina lucro, automotivo, mix aditivada, ticket e nº de abastecimentos do período.
+          </p>
+        </>
+      ) : (
+        <>
+          <Section Icon={Target} title="Origem das metas">
+            <Segmented
+              value={manualMode ? 'manual' : 'auto'}
+              onChange={(v) => setManualMode(v === 'manual')}
+              options={[
+                { value: 'auto', label: 'Mês anterior' },
+                { value: 'manual', label: 'Manual' },
+              ]}
+            />
+            <p className="mt-2 text-[10.5px] text-gray-400 dark:text-gray-500">
+              {manualMode ? 'Defina a meta de litros de cada frentista (salva neste aparelho).' : 'Meta = litros do mês anterior de cada frentista.'}
+            </p>
+          </Section>
+
+          <Section Icon={Users} title="Metas por frentista" flush>
+            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+              {metasRows.map((m) => (
+                <div key={m.codigo} className="px-3.5 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{m.nome}</span>
+                    {m.metaAtual > 0 ? <Badge tone={metaTone(m.pct)}>{m.pct.toFixed(0)}%</Badge> : <span className="text-[10px] text-gray-400">sem meta</span>}
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <span>realizado <strong className="text-gray-900 dark:text-gray-100">{liters(m.litros)}</strong></span>
+                    {manualMode ? (
+                      <span className="inline-flex items-center gap-1">
+                        meta
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={metas[m.codigo] ?? ''}
+                          onChange={(e) => setMeta(m.codigo, Number(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-right text-[12px] text-gray-900 focus:border-[#2563eb] focus:outline-none dark:border-[#3a3a3a] dark:bg-[#242424] dark:text-gray-100"
+                        />
+                        L
+                      </span>
+                    ) : (
+                      <span>meta <strong className="text-gray-900 dark:text-gray-100">{m.metaAuto > 0 ? liters(m.metaAuto) : '—'}</strong></span>
+                    )}
+                  </div>
+                  {m.metaAtual > 0 && (
+                    <div className="mt-1.5"><ProgressBar pct={Math.min(100, m.pct)} color={m.pct >= 100 ? '#059669' : m.pct >= 70 ? '#d97706' : '#e11d48'} /></div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Section>
+        </>
+      )}
     </div>
   )
 }
