@@ -36,6 +36,8 @@ const classify = (
 export interface RedeProdutoRow {
   produtoCodigo: number
   produto: string
+  /** Nome do grupo (tipo de produto, ex.: "PS - LUBRIFICANTES") — p/ agrupar na Central. */
+  grupo: string
   qtd: number
   qtdAnoAnterior: number
   lucroBruto: number
@@ -218,6 +220,12 @@ const useRedeSetores = (): RedeSetoresData => {
     const isFuel = new Set<number>()
     const isPista = new Set<number>()
     const nomeProduto = new Map<number, string>()
+    // produtoCodigo → nome do grupo (tipo de produto), p/ agrupar na Central.
+    const grupoNomePorProduto = new Map<number, string>()
+    if (produtosData && gruposData) {
+      const grupoNome = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
+      for (const p of produtosData) grupoNomePorProduto.set(p.produtoCodigo, grupoNome.get(p.grupoCodigo) ?? 'Sem grupo')
+    }
     if (produtosData && gruposData) {
       // Mesma classificação do BI: combustível = tipoProduto "C"; automotivos =
       // grupo "Pista" (não-C); conveniência = grupo "Conveniência" (o resto cai
@@ -342,6 +350,7 @@ const useRedeSetores = (): RedeSetoresData => {
           produtos.push({
             produtoCodigo: prod.produtoCodigo,
             produto: prod.nome,
+            grupo: grupoNomePorProduto.get(prod.produtoCodigo) ?? 'Sem grupo',
             qtd: prod.qtd,
             qtdAnoAnterior: ant.qtd,
             lucroBruto: lucro,
@@ -362,6 +371,7 @@ const useRedeSetores = (): RedeSetoresData => {
           produtos.push({
             produtoCodigo: pc,
             produto: ant.nome,
+            grupo: grupoNomePorProduto.get(pc) ?? 'Sem grupo',
             qtd: 0,
             qtdAnoAnterior: ant.qtd,
             lucroBruto: 0,

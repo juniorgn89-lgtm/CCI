@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy, HelpCircle } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ type SetorId = 'combustiveis' | 'automotivos' | 'conveniencias'
 
 interface ProdutoRow {
   produto: string
+  grupo: string
   qtd: number
   qtdAnoAnterior: number
   lucroBruto: number
@@ -75,16 +76,126 @@ const VariacaoBadge = ({ value }: { value: number }) => {
   )
 }
 
+/** Métricas agregadas comuns a posto/grupo/produto (sem o nº de cupons). */
+interface RowVals {
+  qtd: number
+  qtdAnoAnterior: number
+  faturamento: number
+  faturamentoAnoAnterior: number
+  lucroBruto: number
+  lucroBrutoAnoAnterior: number
+  margem: number
+  acrescimos: number
+  descontos: number
+  precoVenda: number
+  precoCusto: number
+  lbPorUnidade: number
+}
+
+interface Maxes { qtd: number; fat: number; lucro: number; margem: number }
+
+/** Linha de dados (posto/grupo/produto) — células de métricas + trailing por setor. */
+const DataRow = ({
+  label, vals, isComb, showFaturamento, maxes, barPct, ticket, small, plain, onClick, selected, rowClass,
+}: {
+  label: ReactNode
+  vals: RowVals
+  isComb: boolean
+  showFaturamento: boolean
+  maxes: Maxes
+  barPct?: number
+  /** Ticket médio (posto). null → "—" (grupo/produto não têm cupons próprios). */
+  ticket: number | null
+  small?: boolean
+  /** Total: números puros, sem barra (igual ao BI). */
+  plain?: boolean
+  onClick?: (e: React.MouseEvent) => void
+  selected?: boolean
+  rowClass?: string
+}) => {
+  const qtdVar = variacaoPct(vals.qtd, vals.qtdAnoAnterior)
+  const fatVar = variacaoPct(vals.faturamento, vals.faturamentoAnoAnterior)
+  const lucroVar = variacaoPct(vals.lucroBruto, vals.lucroBrutoAnoAnterior)
+  const txt = small ? 'text-xs ' : ''
+  const pad = small ? 'py-1.5' : 'py-2'
+  const antCls = cn('px-3 text-right tabular-nums', pad, small ? 'text-xs text-gray-400' : 'text-gray-500')
+  const trailCls = cn('px-3 text-right tabular-nums', pad, txt)
+  const numCls = cn('px-3 text-right tabular-nums', pad)
+  return (
+    <tr onClick={onClick} aria-selected={selected} className={rowClass}>
+      {label}
+      {plain
+        ? <td className={numCls}>{formatNumber(Math.round(vals.qtd))}</td>
+        : <td className="px-2 py-1"><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
+      {showFaturamento && (plain
+        ? <td className={numCls}>{formatCurrency(vals.faturamento)}</td>
+        : <td className="px-2 py-1"><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrency(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
+      <td className={antCls}>{showFaturamento ? formatCurrency(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
+      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
+      {plain
+        ? <td className={numCls}>{formatCurrency(vals.lucroBruto)}</td>
+        : <td className="px-2 py-1"><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrency(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
+      <td className={antCls}>{formatCurrency(vals.lucroBrutoAnoAnterior)}</td>
+      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
+      {plain
+        ? <td className={numCls}>{fmtPct(vals.margem)}</td>
+        : <td className="px-2 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
+      {isComb ? (
+        <>
+          <td className={cn(antCls)}>{formatCurrency(vals.acrescimos)}</td>
+          <td className={cn(antCls)}>{formatCurrency(vals.descontos)}</td>
+          <td className={trailCls}>{formatCurrency(vals.precoVenda)}</td>
+          <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
+          <td className={trailCls}>{formatCurrency(vals.lbPorUnidade)}</td>
+        </>
+      ) : (
+        <>
+          <td className={trailCls}>{formatCurrency(vals.precoVenda)}</td>
+          <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
+          <td className={cn(trailCls, ticket == null && 'text-gray-400')}>{ticket != null && ticket > 0 ? formatCurrency(ticket) : '—'}</td>
+        </>
+      )}
+    </tr>
+  )
+}
+
+/** Agrega uma lista de produtos numa linha (posto ou grupo). */
+const aggProdutos = (prods: ProdutoRow[]): RowVals => {
+  const a = prods.reduce((acc, p) => ({
+    qtd: acc.qtd + p.qtd,
+    qtdAnoAnterior: acc.qtdAnoAnterior + p.qtdAnoAnterior,
+    lucroBruto: acc.lucroBruto + p.lucroBruto,
+    lucroBrutoAnoAnterior: acc.lucroBrutoAnoAnterior + p.lucroBrutoAnoAnterior,
+    faturamentoAnoAnterior: acc.faturamentoAnoAnterior + p.faturamentoAnoAnterior,
+    acrescimos: acc.acrescimos + p.acrescimos,
+    descontos: acc.descontos + p.descontos,
+  }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0 })
+  const faturamento = prods.reduce((s, p) => s + p.precoVenda * p.qtd, 0)
+  const custoTotal = prods.reduce((s, p) => s + p.precoCusto * p.qtd, 0)
+  return {
+    ...a,
+    faturamento,
+    margem: faturamento > 0 ? (a.lucroBruto / faturamento) * 100 : 0,
+    precoVenda: a.qtd > 0 ? faturamento / a.qtd : 0,
+    precoCusto: a.qtd > 0 ? custoTotal / a.qtd : 0,
+    lbPorUnidade: a.qtd > 0 ? a.lucroBruto / a.qtd : 0,
+  }
+}
+
 const BenchmarkSetor = () => {
   const [setor, setSetor] = useState<SetorId>('combustiveis')
-  // Postos EXPANDIDOS (default = todos minimizados; abre ao clicar no posto).
+  // Chaves expandidas: `posto:NOME` e `grupo:POSTO:GRUPO`.
   const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set())
-  // Linha destacada — uma única por vez. Útil pra comparar visualmente
-  // valores entre colunas sem perder de vista qual é a linha de interesse.
   const [selected, setSelected] = useState<string | null>(null)
 
-  const toggleSelected = (key: string) => {
-    setSelected((curr) => (curr === key ? null : key))
+  const toggleSelected = (key: string) => setSelected((curr) => (curr === key ? null : key))
+  const toggleExpand = (key: string) => {
+    setExpandidos((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   const rede = useRedeSetores()
@@ -95,30 +206,22 @@ const BenchmarkSetor = () => {
     postos: setorReal.postos.map((p) => ({ posto: p.posto, cupons: p.cupons, ticketMedio: p.ticketMedio, produtos: p.produtos })),
   }), [setorReal])
 
-  // Agrega cada posto e o total geral.
+  // Agrega cada posto, seus grupos (tipo de produto) e o total geral.
   const aggregated = useMemo(() => {
     const postos = data.postos.map((p) => {
-      const agg = p.produtos.reduce((acc, prod) => ({
-        qtd: acc.qtd + prod.qtd,
-        qtdAnoAnterior: acc.qtdAnoAnterior + prod.qtdAnoAnterior,
-        lucroBruto: acc.lucroBruto + prod.lucroBruto,
-        lucroBrutoAnoAnterior: acc.lucroBrutoAnoAnterior + prod.lucroBrutoAnoAnterior,
-        faturamentoAnoAnterior: acc.faturamentoAnoAnterior + prod.faturamentoAnoAnterior,
-        acrescimos: acc.acrescimos + prod.acrescimos,
-        descontos: acc.descontos + prod.descontos,
-      }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0 })
-
-      // Médias ponderadas pra preço venda/custo/L.B.
-      const precoVenda = agg.qtd > 0
-        ? p.produtos.reduce((s, prod) => s + prod.precoVenda * prod.qtd, 0) / agg.qtd
-        : 0
-      const precoCusto = agg.qtd > 0
-        ? p.produtos.reduce((s, prod) => s + prod.precoCusto * prod.qtd, 0) / agg.qtd
-        : 0
-      const totalVenda = p.produtos.reduce((s, prod) => s + prod.precoVenda * prod.qtd, 0)
-      const margem = totalVenda > 0 ? (agg.lucroBruto / totalVenda) * 100 : 0
-      const lbPorUnidade = agg.qtd > 0 ? agg.lucroBruto / agg.qtd : 0
-      return { ...p, ...agg, precoVenda, precoCusto, margem, lbPorUnidade, faturamento: totalVenda }
+      const totals = aggProdutos(p.produtos)
+      // Grupos (tipo de produto) dentro do posto — nível intermediário (igual ao BI).
+      const byGrupo = new Map<string, ProdutoRow[]>()
+      for (const prod of p.produtos) {
+        const g = prod.grupo || 'Sem grupo'
+        const list = byGrupo.get(g)
+        if (list) list.push(prod)
+        else byGrupo.set(g, [prod])
+      }
+      const grupos = Array.from(byGrupo.entries())
+        .map(([grupo, produtos]) => ({ grupo, produtos, ...aggProdutos(produtos) }))
+        .sort((a, b) => b.faturamento - a.faturamento)
+      return { ...p, ...totals, grupos }
     })
 
     const totals = postos.reduce((acc, p) => ({
@@ -129,57 +232,73 @@ const BenchmarkSetor = () => {
       faturamentoAnoAnterior: acc.faturamentoAnoAnterior + p.faturamentoAnoAnterior,
       acrescimos: acc.acrescimos + p.acrescimos,
       descontos: acc.descontos + p.descontos,
-      totalVenda: acc.totalVenda + p.precoVenda * p.qtd,
+      faturamento: acc.faturamento + p.faturamento,
       cupons: acc.cupons + p.cupons,
-    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0, totalVenda: 0, cupons: 0 })
+    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0, faturamento: 0, cupons: 0 })
 
-    const totalMargem = totals.totalVenda > 0 ? (totals.lucroBruto / totals.totalVenda) * 100 : 0
-    const totalPrecoVenda = totals.qtd > 0 ? totals.totalVenda / totals.qtd : 0
-    const totalPrecoCusto = totals.qtd > 0 ? (totals.totalVenda - totals.lucroBruto) / totals.qtd : 0
-    const totalLb = totals.qtd > 0 ? totals.lucroBruto / totals.qtd : 0
-    const totalTicket = totals.cupons > 0 ? totals.totalVenda / totals.cupons : 0
+    const totalVals: RowVals = {
+      ...totals,
+      margem: totals.faturamento > 0 ? (totals.lucroBruto / totals.faturamento) * 100 : 0,
+      precoVenda: totals.qtd > 0 ? totals.faturamento / totals.qtd : 0,
+      precoCusto: totals.qtd > 0 ? (totals.faturamento - totals.lucroBruto) / totals.qtd : 0,
+      lbPorUnidade: totals.qtd > 0 ? totals.lucroBruto / totals.qtd : 0,
+    }
+    const ticketMedio = totals.cupons > 0 ? totals.faturamento / totals.cupons : 0
 
-    return { postos, totals: { ...totals, margem: totalMargem, precoVenda: totalPrecoVenda, precoCusto: totalPrecoCusto, lbPorUnidade: totalLb, ticketMedio: totalTicket } }
+    return { postos, totals: totalVals, ticketMedio }
   }, [data])
 
-  // Posto que está "se destacando" no setor ativo — maior Lucro Bruto absoluto.
-  // Só destaca se houver mais de 1 posto e o vencedor tiver lucro > 0 (evita
-  // troféu inútil quando todos zerados ou só tem 1 posto pra comparar).
+  // Posto que está "se destacando" — maior Lucro Bruto absoluto (≥ 2 postos).
   const postoDestaque = useMemo(() => {
     if (aggregated.postos.length < 2) return null
     const top = [...aggregated.postos].sort((a, b) => b.lucroBruto - a.lucroBruto)[0]
     return top && top.lucroBruto > 0 ? top.posto : null
   }, [aggregated])
 
-  // Máximos pra calibrar barras — produtos (linhas filhas) e postos (agrupadores)
-  // têm escalas próprias (totais de posto >> valores por produto).
-  const allRows = aggregated.postos.flatMap((p) => p.produtos)
-  const maxQtd = allRows.reduce((m, r) => Math.max(m, r.qtd), 0)
-  const maxLucro = allRows.reduce((m, r) => Math.max(m, r.lucroBruto), 0)
-  const maxMargem = Math.max(...allRows.map((r) => r.margem), 0)
-  const maxQtdPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.qtd), 0)
-  const maxLucroPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.lucroBruto), 0)
-  const maxMargemPosto = Math.max(...aggregated.postos.map((p) => p.margem), 0)
-  // Coluna Faturamento (igual ao BI) só em Automotivos/Conveniências — Combustíveis
-  // já tem Litros como métrica de volume e o BI não mostra faturamento lá.
   const showFaturamento = setor !== 'combustiveis'
-  // Combustíveis mantém colunas próprias (Acréscimos/Descontos/Preço venda/custo/
-  // L.B. por litro). Automotivos/Conveniências espelham o BI: Preço médio /
-  // Custo médio / Ticket médio (sem acréscimos/descontos/L.B. por unidade).
+  // Combustíveis mantém colunas próprias; Automotivos/Conveniências espelham o BI.
   const isComb = setor === 'combustiveis'
-  const fatProd = (r: { precoVenda: number; qtd: number }) => r.precoVenda * r.qtd
-  const maxFat = allRows.reduce((m, r) => Math.max(m, fatProd(r)), 0)
-  const maxFatPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.faturamento), 0)
 
-  const togglePosto = (posto: string) => {
-    setExpandidos((prev) => {
-      const next = new Set(prev)
-      if (next.has(posto)) next.delete(posto)
-      else next.add(posto)
-      return next
-    })
+  // Máximos pra calibrar as barras em cada nível (escalas próprias).
+  const allProds = aggregated.postos.flatMap((p) => p.produtos)
+  const allGrupos = aggregated.postos.flatMap((p) => p.grupos)
+  const fatProd = (r: { precoVenda: number; qtd: number }) => r.precoVenda * r.qtd
+  const maxPosto: Maxes = {
+    qtd: aggregated.postos.reduce((m, p) => Math.max(m, p.qtd), 0),
+    fat: aggregated.postos.reduce((m, p) => Math.max(m, p.faturamento), 0),
+    lucro: aggregated.postos.reduce((m, p) => Math.max(m, p.lucroBruto), 0),
+    margem: Math.max(...aggregated.postos.map((p) => p.margem), 0),
+  }
+  const maxGrupo: Maxes = {
+    qtd: allGrupos.reduce((m, g) => Math.max(m, g.qtd), 0),
+    fat: allGrupos.reduce((m, g) => Math.max(m, g.faturamento), 0),
+    lucro: allGrupos.reduce((m, g) => Math.max(m, g.lucroBruto), 0),
+    margem: Math.max(...allGrupos.map((g) => g.margem), 0),
+  }
+  const maxProd: Maxes = {
+    qtd: allProds.reduce((m, r) => Math.max(m, r.qtd), 0),
+    fat: allProds.reduce((m, r) => Math.max(m, fatProd(r)), 0),
+    lucro: allProds.reduce((m, r) => Math.max(m, r.lucroBruto), 0),
+    margem: Math.max(...allProds.map((r) => r.margem), 0),
   }
 
+  // Converte um ProdutoRow no shape de RowVals (faturamento = preço × qtd).
+  const prodVals = (prod: ProdutoRow): RowVals => ({
+    qtd: prod.qtd,
+    qtdAnoAnterior: prod.qtdAnoAnterior,
+    faturamento: fatProd(prod),
+    faturamentoAnoAnterior: prod.faturamentoAnoAnterior,
+    lucroBruto: prod.lucroBruto,
+    lucroBrutoAnoAnterior: prod.lucroBrutoAnoAnterior,
+    margem: prod.margem,
+    acrescimos: prod.acrescimos,
+    descontos: prod.descontos,
+    precoVenda: prod.precoVenda,
+    precoCusto: prod.precoCusto,
+    lbPorUnidade: prod.lbPorUnidade,
+  })
+
+  // Nº de colunas (pra colspan de eventuais estados vazios) — não usado, mantido simples.
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
       <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
@@ -188,7 +307,7 @@ const BenchmarkSetor = () => {
             <Layers className="h-4 w-4 text-gray-500" />
             <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Detalhamento de informações por setor
-              <span title="Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus produtos. Clique no posto pra expandir. Compara com o mesmo período do ano anterior." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <span title="Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ano anterior." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <HelpCircle className="h-3.5 w-3.5" />
               </span>
             </h3>
@@ -224,7 +343,7 @@ const BenchmarkSetor = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-              <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os produtos do setor." />
+              <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
               <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
               {showFaturamento && (
                 <ThHelp label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
@@ -247,166 +366,140 @@ const BenchmarkSetor = () => {
                 <>
                   <ThHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
                   <ThHelp label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI." />
+                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI. Disponível no nível do posto/total." />
                 </>
               )}
             </tr>
           </thead>
           <tbody>
             {aggregated.postos.map((p) => {
-              const expanded = expandidos.has(p.posto)
-              const qtdVar = variacaoPct(p.qtd, p.qtdAnoAnterior)
-              const fatVar = variacaoPct(p.faturamento, p.faturamentoAnoAnterior)
-              const lucroVar = variacaoPct(p.lucroBruto, p.lucroBrutoAnoAnterior)
               const postoKey = `posto:${p.posto}`
-              const postoSelected = selected === postoKey
+              const expanded = expandidos.has(postoKey)
+              const postoLabel = (
+                <td className="px-3 py-2 text-left">
+                  <span className="inline-flex items-center gap-1.5">
+                    {expanded ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
+                    {p.posto}
+                    {postoDestaque === p.posto && (
+                      <span
+                        title={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                      >
+                        <Trophy className="h-3 w-3" />
+                        Destaque
+                      </span>
+                    )}
+                  </span>
+                </td>
+              )
               return (
                 <Fragment key={p.posto}>
-                  <tr
-                    onClick={() => { togglePosto(p.posto); toggleSelected(postoKey) }}
-                    aria-selected={postoSelected}
-                    className={cn(
+                  <DataRow
+                    label={postoLabel}
+                    vals={p}
+                    isComb={isComb}
+                    showFaturamento={showFaturamento}
+                    maxes={maxPosto}
+                    ticket={isComb ? null : p.ticketMedio}
+                    onClick={() => { toggleExpand(postoKey); toggleSelected(postoKey) }}
+                    selected={selected === postoKey}
+                    rowClass={cn(
                       'cursor-pointer border-b border-gray-100 font-semibold text-gray-900 transition-colors dark:border-gray-800 dark:text-gray-100',
-                      postoSelected
+                      selected === postoKey
                         ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/40 dark:hover:bg-amber-900/50'
                         : 'bg-gray-50/40 hover:bg-blue-50/60 dark:bg-gray-800/30 dark:hover:bg-blue-900/20',
                     )}
-                  >
-                    <td className="px-3 py-2 text-left">
-                      <span className="inline-flex items-center gap-1.5">
-                        {expanded ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
-                        {p.posto}
-                        {postoDestaque === p.posto && (
-                          <span
-                            title={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`}
-                            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                          >
-                            <Trophy className="h-3 w-3" />
-                            Destaque
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1">
-                      <BarCell value={p.qtd} max={maxQtdPosto} formatted={formatNumber(Math.round(p.qtd))} color="blue" align="near" />
-                    </td>
-                    {showFaturamento && (
-                      <td className="px-2 py-1">
-                        <BarCell value={p.faturamento} max={maxFatPosto} formatted={formatCurrency(p.faturamento)} color="blue" align="near" />
+                  />
+
+                  {/* Combustíveis: posto → produtos. Demais: posto → grupos → produtos. */}
+                  {expanded && isComb && p.produtos.map((prod) => (
+                    <DataRow
+                      key={`${p.posto}-${prod.produto}`}
+                      small
+                      label={<td className="px-3 py-1.5 pl-9 text-left text-xs">{prod.produto}</td>}
+                      vals={prodVals(prod)}
+                      isComb={isComb}
+                      showFaturamento={showFaturamento}
+                      maxes={maxProd}
+                      barPct={60}
+                      ticket={null}
+                      onClick={(e) => { e.stopPropagation(); toggleSelected(`prod:${p.posto}:${prod.produto}`) }}
+                      selected={selected === `prod:${p.posto}:${prod.produto}`}
+                      rowClass={cn(
+                        'cursor-pointer border-b border-gray-100 text-gray-700 transition-colors dark:border-gray-800 dark:text-gray-300',
+                        selected === `prod:${p.posto}:${prod.produto}`
+                          ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                      )}
+                    />
+                  ))}
+
+                  {expanded && !isComb && p.grupos.map((g) => {
+                    const grupoKey = `grupo:${p.posto}:${g.grupo}`
+                    const gExpanded = expandidos.has(grupoKey)
+                    const grupoLabel = (
+                      <td className="px-3 py-1.5 pl-7 text-left text-[13px]">
+                        <span className="inline-flex items-center gap-1.5">
+                          {gExpanded ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
+                          {g.grupo}
+                        </span>
                       </td>
-                    )}
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{showFaturamento ? formatCurrency(p.faturamentoAnoAnterior) : formatNumber(Math.round(p.qtdAnoAnterior))}</td>
-                    <td className="px-3 py-2 text-right"><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
-                    <td className="px-2 py-1">
-                      <BarCell value={p.lucroBruto} max={maxLucroPosto} formatted={formatCurrency(p.lucroBruto)} color="green" align="near" />
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.lucroBrutoAnoAnterior)}</td>
-                    <td className="px-3 py-2 text-right"><VariacaoBadge value={lucroVar} /></td>
-                    <td className="px-2 py-1">
-                      <BarCell value={p.margem} max={maxMargemPosto} formatted={fmtPct(p.margem)} color="red" align="near" />
-                    </td>
-                    {isComb ? (
-                      <>
-                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.acrescimos)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.descontos)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoCusto)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.lbPorUnidade)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoCusto)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{p.ticketMedio > 0 ? formatCurrency(p.ticketMedio) : '—'}</td>
-                      </>
-                    )}
-                  </tr>
-                  {expanded && p.produtos.map((prod) => {
-                    const qVar = variacaoPct(prod.qtd, prod.qtdAnoAnterior)
-                    const fVar = variacaoPct(fatProd(prod), prod.faturamentoAnoAnterior)
-                    const lVar = variacaoPct(prod.lucroBruto, prod.lucroBrutoAnoAnterior)
-                    const prodKey = `prod:${p.posto}:${prod.produto}`
-                    const prodSelected = selected === prodKey
+                    )
                     return (
-                      <tr
-                        key={`${p.posto}-${prod.produto}`}
-                        onClick={(e) => { e.stopPropagation(); toggleSelected(prodKey) }}
-                        aria-selected={prodSelected}
-                        className={cn(
-                          'cursor-pointer border-b border-gray-100 text-gray-700 transition-colors dark:border-gray-800 dark:text-gray-300',
-                          prodSelected
-                            ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
-                        )}
-                      >
-                        <td className="px-3 py-1.5 pl-9 text-left text-xs">{prod.produto}</td>
-                        <td className="px-2 py-1">
-                          <BarCell value={prod.qtd} max={maxQtd} formatted={formatNumber(Math.round(prod.qtd))} color="blue" align="near" maxWidthPct={60} />
-                        </td>
-                        {showFaturamento && (
-                          <td className="px-2 py-1">
-                            <BarCell value={fatProd(prod)} max={maxFat} formatted={formatCurrency(fatProd(prod))} color="blue" align="near" maxWidthPct={60} />
-                          </td>
-                        )}
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{showFaturamento ? formatCurrency(prod.faturamentoAnoAnterior) : formatNumber(Math.round(prod.qtdAnoAnterior))}</td>
-                        <td className="px-3 py-1.5 text-right"><VariacaoBadge value={showFaturamento ? fVar : qVar} /></td>
-                        <td className="px-2 py-1">
-                          <BarCell value={prod.lucroBruto} max={maxLucro} formatted={formatCurrency(prod.lucroBruto)} color="green" align="near" maxWidthPct={60} />
-                        </td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.lucroBrutoAnoAnterior)}</td>
-                        <td className="px-3 py-1.5 text-right"><VariacaoBadge value={lVar} /></td>
-                        <td className="px-2 py-1">
-                          <BarCell value={prod.margem} max={maxMargem} formatted={fmtPct(prod.margem)} color="red" align="near" maxWidthPct={60} />
-                        </td>
-                        {isComb ? (
-                          <>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.acrescimos)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.descontos)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoVenda)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoCusto)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.lbPorUnidade)}</td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoVenda)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoCusto)}</td>
-                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">—</td>
-                          </>
-                        )}
-                      </tr>
+                      <Fragment key={grupoKey}>
+                        <DataRow
+                          label={grupoLabel}
+                          vals={g}
+                          isComb={isComb}
+                          showFaturamento={showFaturamento}
+                          maxes={maxGrupo}
+                          ticket={null}
+                          onClick={() => { toggleExpand(grupoKey); toggleSelected(grupoKey) }}
+                          selected={selected === grupoKey}
+                          rowClass={cn(
+                            'cursor-pointer border-b border-gray-100 font-medium text-gray-800 transition-colors dark:border-gray-800 dark:text-gray-200',
+                            selected === grupoKey
+                              ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/25 dark:hover:bg-amber-900/35'
+                              : 'bg-gray-50/30 hover:bg-blue-50/40 dark:bg-gray-800/20 dark:hover:bg-blue-900/15',
+                          )}
+                        />
+                        {gExpanded && g.produtos.map((prod) => (
+                          <DataRow
+                            key={`${grupoKey}-${prod.produto}`}
+                            small
+                            label={<td className="px-3 py-1.5 pl-[3.25rem] text-left text-xs text-gray-500 dark:text-gray-400">{prod.produto}</td>}
+                            vals={prodVals(prod)}
+                            isComb={isComb}
+                            showFaturamento={showFaturamento}
+                            maxes={maxProd}
+                            barPct={55}
+                            ticket={null}
+                            onClick={(e) => { e.stopPropagation(); toggleSelected(`prod:${p.posto}:${prod.produto}`) }}
+                            selected={selected === `prod:${p.posto}:${prod.produto}`}
+                            rowClass={cn(
+                              'cursor-pointer border-b border-gray-100 text-gray-600 transition-colors dark:border-gray-800 dark:text-gray-400',
+                              selected === `prod:${p.posto}:${prod.produto}`
+                                ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                            )}
+                          />
+                        ))}
+                      </Fragment>
                     )
                   })}
                 </Fragment>
               )
             })}
-            <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-              <td className="px-3 py-2 text-left">Total</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Math.round(aggregated.totals.qtd))}</td>
-              {showFaturamento && (
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.totalVenda)}</td>
-              )}
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{showFaturamento ? formatCurrency(aggregated.totals.faturamentoAnoAnterior) : formatNumber(Math.round(aggregated.totals.qtdAnoAnterior))}</td>
-              <td className="px-3 py-2 text-right"><VariacaoBadge value={showFaturamento ? variacaoPct(aggregated.totals.totalVenda, aggregated.totals.faturamentoAnoAnterior) : variacaoPct(aggregated.totals.qtd, aggregated.totals.qtdAnoAnterior)} /></td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lucroBruto)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.lucroBrutoAnoAnterior)}</td>
-              <td className="px-3 py-2 text-right"><VariacaoBadge value={variacaoPct(aggregated.totals.lucroBruto, aggregated.totals.lucroBrutoAnoAnterior)} /></td>
-              <td className="px-3 py-2 text-right tabular-nums">{fmtPct(aggregated.totals.margem)}</td>
-              {isComb ? (
-                <>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.acrescimos)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.descontos)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoVenda)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoCusto)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lbPorUnidade)}</td>
-                </>
-              ) : (
-                <>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoVenda)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoCusto)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{aggregated.totals.ticketMedio > 0 ? formatCurrency(aggregated.totals.ticketMedio) : '—'}</td>
-                </>
-              )}
-            </tr>
+            <DataRow
+              label={<td className="px-3 py-2 text-left">Total</td>}
+              vals={aggregated.totals}
+              isComb={isComb}
+              showFaturamento={showFaturamento}
+              maxes={maxPosto}
+              ticket={isComb ? null : aggregated.ticketMedio}
+              plain
+              rowClass="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            />
           </tbody>
         </table>
       </div>
