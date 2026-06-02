@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy, CalendarRange } from 'lucide-react'
+import { Droplet, TrendingUp, Percent, Gauge, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy, CalendarRange } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
@@ -86,9 +86,9 @@ const CombustivelTab = () => {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <KpiCard label="Litros" tone="blue" Icon={Droplet} value={litersShort(k.litros)} delta={variacaoPct(k.litros, fuel.cmp.litros)} deltaLabel={cmpLabel} />
-        <KpiCard label="Lucro bruto" tone="emerald" Icon={TrendingUp} value={brlShort(k.lucroBruto)} delta={variacaoPct(k.lucroBruto, fuel.cmp.lucroBruto)} deltaLabel={cmpLabel} />
-        <KpiCard label="Margem" tone="violet" Icon={Percent} value={pct(k.margemPct)} />
-        <KpiCard label="L.B./litro" tone="amber" Icon={Coins} value={brl(k.lbPorLitro)} />
+        <KpiCard label="Lucro bruto" tone="teal" Icon={TrendingUp} value={brlShort(k.lucroBruto)} delta={variacaoPct(k.lucroBruto, fuel.cmp.lucroBruto)} deltaLabel={cmpLabel} />
+        <KpiCard label="Margem" tone="rose" Icon={Percent} value={pct(k.margemPct)} delta={fuel.cmp.margemPct > 0 ? k.margemPct - fuel.cmp.margemPct : null} deltaLabel={cmpLabel} />
+        <KpiCard label="L.B./litro" tone="indigo" Icon={Gauge} value={brl(k.lbPorLitro)} delta={variacaoPct(k.lbPorLitro, fuel.cmp.lbPorLitro)} deltaLabel={cmpLabel} />
       </div>
 
       {semCusto && <NoCostNote />}
