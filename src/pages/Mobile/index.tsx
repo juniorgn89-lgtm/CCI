@@ -67,7 +67,7 @@ const Mobile = () => {
   const totalInativos = funcionarios.filter((f) => !f.ativo).length
 
   const [busca, setBusca] = useState('')
-  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'ativo' | 'inativo'>('todos')
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'ativo' | 'inativo'>('ativo')
   const funcionariosFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase()
     return funcionarios.filter((f) => {
