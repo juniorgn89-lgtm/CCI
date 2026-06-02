@@ -25,8 +25,7 @@ import {
   deleteVendasCachePeriodo,
   deleteCachePeriodo,
   fetchVendasCache,
-  aggregateVendaItensToCache,
-  aggregateVendaItensToFuncionarioCache,
+  aggregateVendaCache,
   upsertVendasFuncionarioCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
@@ -366,10 +365,9 @@ const Apuracao = () => {
                 : 'outros'
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome, grupo: grupoNomePorCodigo.get(p.grupoCodigo) ?? 'Sem grupo' })
       }
-      const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, autorizados)
-      // Produtividade de vendedores da loja (apuracao_vendas_funcionario):
-      // agrega por (empresa, dia, funcionario, setor) — só conveniência/pista.
-      const vendaFuncRows = aggregateVendaItensToFuncionarioCache(vendaItens, rede.id, produtoInfo, autorizados)
+      // Uma só agregação (2 passagens) produz vendas (por produto) + vendedores
+      // (apuracao_vendas_funcionario, por empresa/dia/funcionario/setor de loja).
+      const { vendaRows, funcRows: vendaFuncRows } = aggregateVendaCache(vendaItens, rede.id, produtoInfo, autorizados)
       // Remove ÓRFÃOS (chaves que existiam no cache mas sumiram do cálculo — ex.:
       // venda cancelada depois de uma apuração anterior). Duas camadas:
       //  1) DELETE do período (best-effort; pode ser no-op por RLS de DELETE).

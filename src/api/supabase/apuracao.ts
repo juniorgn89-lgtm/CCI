@@ -1044,46 +1044,54 @@ export const upsertVendasCache = async (
 export interface ProdutoInfo { setor: SetorVenda; nome: string; grupo?: string }
 
 /**
- * Agrega itens de venda crus (VendaItem) em linhas do cache, somando por
- * (empresa, dia, produto). Carimba `setor` e `produto_nome` (a partir de
- * `produtoInfo`) pra a leitura não depender do catálogo ao vivo nem sofrer
- * deriva de classificação. `cupons` = nº de cupons de CONVENIÊNCIA do dia.
+ * Agrega itens de venda crus (VendaItem) em DUAS estruturas, numa ÚNICA dupla de
+ * passagens sobre os itens (perf: antes eram 2 funções × 2 passagens = 4×):
+ *  - `vendaRows`: por (empresa, dia, produto) → cache `apuracao_vendas`, com
+ *    cupons por setor/grupo/produto pro ticket médio (igual ao BI).
+ *  - `funcRows`: por (empresa, dia, funcionario, setor de loja) → cache
+ *    `apuracao_vendas_funcionario` (produtividade de vendedores).
+ * Só vendas autorizadas (situacao='A'); 'outros' fica de fora (igual ao BI).
+ * Carimba `setor`/`produto_nome` pra leitura não depender do catálogo ao vivo.
  */
-export const aggregateVendaItensToCache = (
+export const aggregateVendaCache = (
   itens: VendaItem[],
   redeId: string,
   produtoInfo: Map<number, ProdutoInfo>,
   autorizados?: Set<number>,
-): ApuracaoVendaUpsert[] => {
-  // Pré-passagem ÚNICA sobre os itens: cupons distintos por SETOR
-  // (empresa|dia|setor) e — só pra loja (automotivos/conveniência) — por GRUPO e
-  // por PRODUTO. Base do ticket médio (= faturamento ÷ cupons, igual ao BI).
+): { vendaRows: ApuracaoVendaUpsert[]; funcRows: ApuracaoVendaFuncionarioUpsert[] } => {
+  const aut = (it: VendaItem) => (autorizados ? autorizados.has(it.vendaCodigo) : it.cancelada !== 'S')
+  // ── Pré-passagem ÚNICA: cupons distintos por setor (empresa|dia|setor) e, só
+  // pra loja (automotivos/conveniência), por grupo, produto e funcionário. ──
   const setorSets = new Map<string, Set<number>>()
   const grupoSets = new Map<string, Set<number>>()
   const produtoSets = new Map<string, Set<number>>()
+  const funcSets = new Map<string, Set<number>>()
+  const add = (m: Map<string, Set<number>>, k: string, v: number) => {
+    let s = m.get(k); if (!s) { s = new Set(); m.set(k, s) }
+    s.add(v)
+  }
   for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
-    const setor = produtoInfo.get(it.produtoCodigo)?.setor
+    if (!aut(it)) continue
+    const info = produtoInfo.get(it.produtoCodigo)
+    const setor = info?.setor
     if (!setor || setor === 'outros') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
-    const sk = `${it.empresaCodigo}|${data}|${setor}`
-    let ss = setorSets.get(sk); if (!ss) { ss = new Set(); setorSets.set(sk, ss) }
-    ss.add(it.vendaCodigo)
+    add(setorSets, `${it.empresaCodigo}|${data}|${setor}`, it.vendaCodigo)
     if (setor !== 'combustivel') {
-      const gk = `${it.empresaCodigo}|${data}|${produtoInfo.get(it.produtoCodigo)?.grupo || 'Sem grupo'}`
-      let gs = grupoSets.get(gk); if (!gs) { gs = new Set(); grupoSets.set(gk, gs) }
-      gs.add(it.vendaCodigo)
-      const pk = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
-      let ps = produtoSets.get(pk); if (!ps) { ps = new Set(); produtoSets.set(pk, ps) }
-      ps.add(it.vendaCodigo)
+      add(grupoSets, `${it.empresaCodigo}|${data}|${info?.grupo || 'Sem grupo'}`, it.vendaCodigo)
+      add(produtoSets, `${it.empresaCodigo}|${data}|${it.produtoCodigo}`, it.vendaCodigo)
+      if (it.funcionarioCodigo) add(funcSets, `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`, it.vendaCodigo)
     }
   }
   const cuponsByDay = new Map<string, number>()
   for (const [k, s] of setorSets) cuponsByDay.set(k, s.size)
-  const map = new Map<string, ApuracaoVendaUpsert>()
+
+  // ── Passagem principal: monta vendaRows (por produto) + funcRows (por vendedor). ──
+  const vmap = new Map<string, ApuracaoVendaUpsert>()
+  const fmap = new Map<string, ApuracaoVendaFuncionarioUpsert>()
   for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
+    if (!aut(it)) continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
     const info = produtoInfo.get(it.produtoCodigo)
@@ -1093,17 +1101,17 @@ export const aggregateVendaItensToCache = (
     const custo = setor === 'combustivel'
       ? (it.precoCusto ?? 0) * (it.quantidade ?? 0)
       : (it.totalCusto ?? 0)
-    const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
-    const existing = map.get(key)
-    if (existing) {
-      existing.quantidade += it.quantidade ?? 0
-      existing.total_venda += it.totalVenda ?? 0
-      existing.total_custo += custo
-      existing.acrescimos += it.totalAcrescimo ?? 0
-      existing.descontos += it.totalDesconto ?? 0
-      existing.linhas += 1
+    const vkey = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
+    const ev = vmap.get(vkey)
+    if (ev) {
+      ev.quantidade += it.quantidade ?? 0
+      ev.total_venda += it.totalVenda ?? 0
+      ev.total_custo += custo
+      ev.acrescimos += it.totalAcrescimo ?? 0
+      ev.descontos += it.totalDesconto ?? 0
+      ev.linhas += 1
     } else {
-      map.set(key, {
+      vmap.set(vkey, {
         rede_id: redeId,
         empresa_codigo: it.empresaCodigo,
         data,
@@ -1121,8 +1129,36 @@ export const aggregateVendaItensToCache = (
         cupons_produto: setor === 'combustivel' ? 0 : (produtoSets.get(`${it.empresaCodigo}|${data}|${it.produtoCodigo}`)?.size ?? 0),
       })
     }
+    // funcRows — só loja (automotivos/conveniência) e com funcionário.
+    if (setor !== 'combustivel' && it.funcionarioCodigo) {
+      const fkey = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
+      const ef = fmap.get(fkey)
+      if (ef) {
+        ef.faturamento += it.totalVenda ?? 0
+        ef.custo += it.totalCusto ?? 0
+        ef.quantidade += it.quantidade ?? 0
+        ef.acrescimos += it.totalAcrescimo ?? 0
+        ef.descontos += it.totalDesconto ?? 0
+        ef.linhas += 1
+      } else {
+        fmap.set(fkey, {
+          rede_id: redeId,
+          empresa_codigo: it.empresaCodigo,
+          data,
+          funcionario_codigo: it.funcionarioCodigo,
+          setor,
+          faturamento: it.totalVenda ?? 0,
+          custo: it.totalCusto ?? 0,
+          quantidade: it.quantidade ?? 0,
+          acrescimos: it.totalAcrescimo ?? 0,
+          descontos: it.totalDesconto ?? 0,
+          linhas: 1,
+          cupons: funcSets.get(fkey)?.size ?? 0,
+        })
+      }
+    }
   }
-  return Array.from(map.values())
+  return { vendaRows: Array.from(vmap.values()), funcRows: Array.from(fmap.values()) }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1132,9 +1168,7 @@ export const aggregateVendaItensToCache = (
 // (automotivos/conveniencia). O vendedor é o `funcionarioCodigo` de cada item
 // de venda, que o cache por produto (apuracao_vendas) descarta. Base da aba
 // "Vendedores" da Produtividade. Veja docs/supabase-apuracao-vendas-funcionario.sql.
-
-/** Setores de loja considerados "venda de balcão" (combustível = frentista). */
-const SETORES_LOJA: SetorVenda[] = ['automotivos', 'conveniencia']
+// As linhas (`funcRows`) são produzidas junto com as de venda em aggregateVendaCache.
 
 export interface ApuracaoVendaFuncionarioRow {
   rede_id: string
@@ -1197,70 +1231,6 @@ export const fetchVendasFuncionarioCache = async (
     if (!prev || (r.computed_at ?? '') > (prev.computed_at ?? '')) byKey.set(k, r)
   }
   return Array.from(byKey.values())
-}
-
-/**
- * Agrega itens de venda crus por (empresa, dia, funcionario, setor) — só loja
- * (automotivos/conveniencia) e só vendas autorizadas (situacao='A'). `cupons` =
- * vendaCodigo distinto do funcionário naquele setor/dia (ticket médio = fat ÷ cupons).
- */
-export const aggregateVendaItensToFuncionarioCache = (
-  itens: VendaItem[],
-  redeId: string,
-  produtoInfo: Map<number, ProdutoInfo>,
-  autorizados?: Set<number>,
-): ApuracaoVendaFuncionarioUpsert[] => {
-  const isLoja = (it: VendaItem): SetorVenda | null => {
-    const setor = produtoInfo.get(it.produtoCodigo)?.setor
-    return setor && SETORES_LOJA.includes(setor) ? setor : null
-  }
-  // Cupons (vendaCodigo distinto) por empresa|dia|funcionario|setor.
-  const cupomSets = new Map<string, Set<number>>()
-  for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
-    const setor = isLoja(it)
-    if (!setor || !it.funcionarioCodigo) continue
-    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
-    if (!data || it.vendaCodigo == null) continue
-    const k = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
-    let s = cupomSets.get(k)
-    if (!s) { s = new Set(); cupomSets.set(k, s) }
-    s.add(it.vendaCodigo)
-  }
-  const map = new Map<string, ApuracaoVendaFuncionarioUpsert>()
-  for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
-    const setor = isLoja(it)
-    if (!setor || !it.funcionarioCodigo) continue
-    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
-    if (!data) continue
-    const key = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
-    const existing = map.get(key)
-    if (existing) {
-      existing.faturamento += it.totalVenda ?? 0
-      existing.custo += it.totalCusto ?? 0
-      existing.quantidade += it.quantidade ?? 0
-      existing.acrescimos += it.totalAcrescimo ?? 0
-      existing.descontos += it.totalDesconto ?? 0
-      existing.linhas += 1
-    } else {
-      map.set(key, {
-        rede_id: redeId,
-        empresa_codigo: it.empresaCodigo,
-        data,
-        funcionario_codigo: it.funcionarioCodigo,
-        setor,
-        faturamento: it.totalVenda ?? 0,
-        custo: it.totalCusto ?? 0,
-        quantidade: it.quantidade ?? 0,
-        acrescimos: it.totalAcrescimo ?? 0,
-        descontos: it.totalDesconto ?? 0,
-        linhas: 1,
-        cupons: cupomSets.get(key)?.size ?? 0,
-      })
-    }
-  }
-  return Array.from(map.values())
 }
 
 export const upsertVendasFuncionarioCache = async (
