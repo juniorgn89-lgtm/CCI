@@ -68,6 +68,8 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
           type="button"
           onClick={() => openMais(false)}
           onContextMenu={(e) => { e.preventDefault(); openMais(true) }}
+          aria-label="Mais módulos"
+          aria-haspopup="dialog"
           className="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-gray-500 transition-transform active:scale-95 dark:text-gray-400"
         >
           <MoreHorizontal className="h-5 w-5" />
@@ -91,7 +93,7 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
           {edit && (
             <div className="mt-1 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
               <span>Fixe até 4 módulos na barra ({bar.length}/4).</span>
-              <button type="button" onClick={reset} className="inline-flex items-center gap-1 font-semibold">
+              <button type="button" onClick={reset} aria-label="Restaurar barra padrão" className="inline-flex items-center gap-1 font-semibold">
                 <RotateCcw className="h-3 w-3" /> Padrão
               </button>
             </div>
@@ -117,8 +119,9 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
                             setMaisOpen(false)
                             navigate(item.path)
                           }}
+                          aria-current={isActive(item.path) ? 'page' : undefined}
                           className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors active:bg-gray-100 dark:active:bg-white/10',
                             isActive(item.path)
                               ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-white/10 dark:text-white'
                               : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5',
