@@ -417,19 +417,30 @@ const Sidebar = () => {
 
                 return (
                   <div key={item.path} className="group relative" data-module-options={optionsMode ? '' : undefined}>
-                    {/* O clique SEMPRE navega pro módulo; no modo "options", além
-                        de abrir o módulo, revela o menu de opções (abas). */}
-                    <Link
-                      to={item.path}
-                      onClick={optionsMode ? () => setOpenOptions(item.path) : undefined}
-                      aria-label={item.label}
-                      aria-current={isActive ? 'page' : undefined}
-                      aria-haspopup={optionsMode ? 'menu' : undefined}
-                      aria-expanded={optionsMode ? optionsOpen : undefined}
-                      className={baseCls}
-                    >
-                      {inner}
-                    </Link>
+                    {/* Modo "options": o clique abre o menu de abas (NÃO navega) —
+                        a navegação acontece ao escolher uma aba. Os demais módulos
+                        (sem abas) navegam direto. */}
+                    {optionsMode ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenOptions((p) => (p === item.path ? null : item.path))}
+                        aria-label={item.label}
+                        aria-haspopup="menu"
+                        aria-expanded={optionsOpen}
+                        className={cn(baseCls, 'text-left')}
+                      >
+                        {inner}
+                      </button>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        aria-label={item.label}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={baseCls}
+                      >
+                        {inner}
+                      </Link>
+                    )}
 
                     {/* Tooltip com o NOME do módulo (narrow). Escondido enquanto o
                         menu de opções desse módulo estiver aberto. */}
