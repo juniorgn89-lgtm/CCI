@@ -9,6 +9,8 @@ import { fetchFrentistas } from '@/api/supabase/frentistas'
 import { fetchRedes } from '@/api/supabase/redes'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
+import useIsMobile from '@/hooks/useIsMobile'
+import PessoaMobile from '@/pages/Pessoas/PessoaMobile'
 
 type Cargo = 'Gerente Geral' | 'Supervisor' | 'Gerente' | 'Frentista'
 
@@ -154,6 +156,9 @@ const Pessoas = () => {
     }
     return counts
   }, [pessoas])
+
+  const isMobile = useIsMobile()
+  if (isMobile) return <PessoaMobile />
 
   return (
     <div className="space-y-6">
