@@ -12,6 +12,8 @@ import { formatLiters, formatNumber } from '@/lib/formatters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import useIsMobile from '@/hooks/useIsMobile'
+import BombaMobile from '@/pages/Bombas/BombaMobile'
 
 const ControleBombas = lazy(() => import('@/pages/Operacao/components/ControleBombas'))
 
@@ -25,6 +27,7 @@ const Bombas = () => {
   const { kpis, bombaRows, bombaRowsPrev, isLoading, hasEmpresa } = useOperacaoData()
   const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+  const isMobile = useIsMobile()
 
   const stats = useMemo(() => {
     const ativas = bombaRows.filter((b) => b.abastecimentos > 0)
@@ -36,6 +39,9 @@ const Bombas = () => {
     const totalAbastPrev = bombaRowsPrev.reduce((s, b) => s + b.abastecimentos, 0)
     return { top, totalLitros, totalAbast, totalLitrosPrev, totalAbastPrev }
   }, [bombaRows, bombaRowsPrev])
+
+  // Mobile: tela própria (KPIs + ranking de bombas).
+  if (isMobile) return <BombaMobile />
 
   return (
     <div className="space-y-6">
