@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
-import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Droplet, TrendingUp, Percent, Coins, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy, CalendarRange } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
 import VisaoGeralTabMobile from '@/pages/Comercial/Vendas/VisaoGeralTabMobile'
+import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 import { useFilterStore } from '@/store/filters'
 import { fimDoMesIso, projecaoAvancada } from '@/lib/projection'
-import { todayLocal } from '@/lib/period'
+import { offsetPeriod, todayLocal } from '@/lib/period'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { ScrollTabs, KpiCard, Section, MarginPill, ProgressBar, Badge } from '@/components/mobile/primitives'
@@ -31,10 +33,24 @@ const Detail = ({ label, value }: { label: string; value: string }) => (
 
 const CombustivelTab = () => {
   const fuel = useFuelVendaAnalytics()
-  const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
   const [expanded, setExpanded] = useState<number | null>(null)
+
+  // Evolução mensal (12m) — volume de combustível por mês (apuracao_diaria).
+  const evoIni = useMemo(() => `${offsetPeriod(dataFinal, 11).substring(0, 7)}-01`, [dataFinal])
+  const { data: evoRows = [] } = useQuery({
+    queryKey: ['comb-evol', empresaCodigos.join(','), evoIni, dataFinal],
+    queryFn: () => fetchApuracaoDiaria({ empresaCodigos, dataInicial: evoIni, dataFinal }),
+    enabled: empresaCodigos.length > 0,
+    staleTime: 10 * 60 * 1000,
+  })
+  const evolucao = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of evoRows) m.set(r.data.slice(0, 7), (m.get(r.data.slice(0, 7)) ?? 0) + (r.fuel_litros ?? 0))
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mes, litros]) => ({ label: `${mes.slice(5, 7)}/${mes.slice(2, 4)}`, litros }))
+  }, [evoRows])
 
   // Projeção pela NOSSA fórmula (projecaoAvancada — média móvel), igual ao desktop.
   const proj = useMemo(() => {
@@ -86,6 +102,12 @@ const CombustivelTab = () => {
         <AreaChartMobile data={dailyChart} valueKey="margem" labelKey="label" />
       </Section>
 
+      {evolucao.length > 1 && (
+        <Section Icon={CalendarRange} title="Volume mensal" accent="blue" right={<span className="text-[10.5px] text-gray-400">litros · 12m</span>}>
+          <BarChartMobile data={evolucao} valueKey="litros" labelKey="label" />
+        </Section>
+      )}
+
       <Section Icon={Droplet} title="Por combustível" flush>
         <div className="divide-y divide-gray-100 dark:divide-[#303030]">
           {fuel.fuelTypeData.map((f) => {
@@ -132,7 +154,8 @@ const ConvenienciaTab = () => {
   const k = conv.kpis
   if (!k || k.faturamento <= 0) return <EmptyCard />
 
-  const { projecao, dailyData, groupTable, topSellers } = conv
+  const { projecao, dailyData, groupTable, topSellers, revenueData } = conv
+  const evolucao = revenueData.map((r) => ({ label: r.mes, fat: r.faturamento }))
   const dailyChart = dailyData.map((d) => ({ label: d.data.slice(8, 10), fat: d.faturamento }))
   const maxGrupo = Math.max(...groupTable.map((g) => g.faturamento), 0)
 
@@ -158,6 +181,12 @@ const ConvenienciaTab = () => {
       {dailyChart.length > 0 && (
         <Section Icon={Store} title="Vendas por dia" accent="teal">
           <BarChartMobile data={dailyChart} valueKey="fat" labelKey="label" />
+        </Section>
+      )}
+
+      {evolucao.length > 1 && (
+        <Section Icon={CalendarRange} title="Evolução mensal" accent="teal" right={<span className="text-[10.5px] text-gray-400">faturamento</span>}>
+          <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={150} />
         </Section>
       )}
 
