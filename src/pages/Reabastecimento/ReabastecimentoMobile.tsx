@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { Fuel, AlertTriangle, Clock, TrendingDown } from 'lucide-react'
+import { Fuel, AlertTriangle, Clock, Droplet, DollarSign } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import useReabastecimento, { type ReabastNivel } from '@/pages/Dashboard/hooks/useReabastecimento'
 import { formatNumber } from '@/lib/formatters'
 import { KpiCard, Section, ProgressBar, Badge, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { liters, litersShort } from '@/components/mobile/format'
+import { brlShort, liters, litersShort } from '@/components/mobile/format'
 
 const NIVEL: Record<ReabastNivel, { tone: Tone; label: string; bar: string }> = {
   critico: { tone: 'rose', label: 'Crítico', bar: '#e11d48' },
@@ -27,14 +27,21 @@ const ReabastecimentoMobile = () => {
   const { tanques, isLoading } = useReabastecimento({ empresaCodigo, includeDetalhes: true })
 
   const resumo = useMemo(() => {
-    let critico = 0, alerta = 0, ok = 0, necessidade = 0
+    let critico = 0, alerta = 0, ok = 0, necessidade = 0, volume = 0, valor = 0
+    let somaDias = 0, comDias = 0
     for (const t of tanques) {
       if (t.nivel === 'critico') critico++
       else if (t.nivel === 'alerta') alerta++
       else ok++
       necessidade += t.necessidadeFimDoMes
+      volume += t.estoqueAtual
+      if (t.diasRestantes != null) { somaDias += t.diasRestantes; comDias++ }
+      // Valor estimado = estoque atual × custo unitário da última compra.
+      if (t.ultimaCompra && t.ultimaCompra.volume > 0) {
+        valor += t.estoqueAtual * (t.ultimaCompra.valorEstimado / t.ultimaCompra.volume)
+      }
     }
-    return { critico, alerta, ok, necessidade }
+    return { critico, alerta, ok, necessidade, volume, valor, coberturaMedia: comDias > 0 ? somaDias / comDias : 0 }
   }, [tanques])
 
   if (!hasEmpresa || empresaCodigo === null) {
@@ -53,13 +60,20 @@ const ReabastecimentoMobile = () => {
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Reabastecimento</h1>
 
       <div className="grid grid-cols-2 gap-2">
-        <KpiCard label="Tanques" tone="navy" Icon={Fuel} value={formatNumber(tanques.length)} sub={`${resumo.ok} ok`} />
-        <KpiCard label="A comprar" tone="blue" Icon={TrendingDown} value={litersShort(resumo.necessidade)} sub="até o fim do mês" />
-        <KpiCard label="Críticos" tone="rose" Icon={AlertTriangle} value={formatNumber(resumo.critico)} sub="< 20% do tanque" />
-        <KpiCard label="Alerta" tone="amber" Icon={Clock} value={formatNumber(resumo.alerta)} sub="< 30% do tanque" />
+        <KpiCard label="Volume em tanque" tone="blue" Icon={Droplet} value={litersShort(resumo.volume)} sub={`${formatNumber(tanques.length)} tanques`} />
+        <KpiCard label="Cobertura média" tone="teal" Icon={Clock} value={`${resumo.coberturaMedia.toFixed(1).replace('.', ',')} dias`} sub="no ritmo atual" />
+        <KpiCard label="Tanques em alerta" tone="rose" Icon={AlertTriangle} value={formatNumber(resumo.critico + resumo.alerta)} sub={`de ${formatNumber(tanques.length)}`} />
+        <KpiCard label="Valor em estoque" tone="navy" Icon={DollarSign} value={brlShort(resumo.valor)} sub="custo da última compra" />
       </div>
 
-      <Section Icon={Fuel} title="Tanques" right={<Badge tone="navy">{tanques.length}</Badge>} flush>
+      {resumo.critico > 0 && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span><span className="font-semibold">{resumo.critico} tanque{resumo.critico > 1 ? 's' : ''}</span> em nível crítico (&lt; 20% da capacidade). Reposição sugerida abaixo.</span>
+        </div>
+      )}
+
+      <Section Icon={Fuel} title="Níveis de tanque" right={<Badge tone="navy">{tanques.length}</Badge>} flush>
         <div className="divide-y divide-gray-100 dark:divide-[#303030]">
           {tanques.map((t) => {
             const cfg = NIVEL[t.nivel]
