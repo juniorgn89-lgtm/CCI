@@ -23,6 +23,7 @@ import {
   formaPagamentoToCacheRow,
   upsertVendasCache,
   deleteVendasCachePeriodo,
+  fetchVendasCache,
   aggregateVendaItensToCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
@@ -362,17 +363,29 @@ const Apuracao = () => {
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, autorizados)
-      // Limpa o período antes de regravar — remove ÓRFÃOS (vendas que sumiram,
-      // ex.: canceladas depois de uma apuração anterior). Upsert sozinho não
-      // apaga chaves ausentes, então a Central continuaria somando linhas mortas.
+      // Remove ÓRFÃOS (chaves que existiam no cache mas sumiram do cálculo — ex.:
+      // venda cancelada depois de uma apuração anterior). Duas camadas:
+      //  1) DELETE do período (best-effort; pode ser no-op por RLS de DELETE).
+      //  2) TOMBSTONE: lê o que sobrou, e regrava com ZERO as chaves ausentes do
+      //     novo cálculo (UPDATE via upsert — funciona mesmo sem permissão de
+      //     DELETE). Sem isso a Central continua somando linhas mortas.
       await deleteVendasCachePeriodo(rede.id, start, end)
+      const existentesVendas = await fetchVendasCache({ empresaCodigos: empresasCodes, dataInicial: start, dataFinal: end })
+      const novasKeys = new Set(vendaRows.map((r) => `${r.empresa_codigo}|${r.data}|${r.produto_codigo}`))
+      const tombstones = existentesVendas
+        .filter((r) => !novasKeys.has(`${r.empresa_codigo}|${r.data}|${r.produto_codigo}`))
+        .map((r) => ({
+          rede_id: rede.id, empresa_codigo: r.empresa_codigo, data: r.data, produto_codigo: r.produto_codigo,
+          setor: r.setor as SetorVenda, produto_nome: r.produto_nome,
+          quantidade: 0, total_venda: 0, total_custo: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
+        }))
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
         upsertAbastecimentosCache(abastRows),
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),
-        upsertVendasCache(vendaRows, currentUser?.id),
+        upsertVendasCache([...vendaRows, ...tombstones], currentUser?.id),
       ])
       return { ok: true, rows: rows.length }
     } catch (e) {
