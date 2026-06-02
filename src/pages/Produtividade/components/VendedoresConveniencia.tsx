@@ -4,17 +4,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort, formatNumber, formatPercent } from '@/lib/formatters'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import BarCell from '@/components/tables/BarCell'
 import useVendedoresConveniencia, { type VendedorRow } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
 
 type SortKey = 'faturamento' | 'lucroBruto' | 'margemPct' | 'itens' | 'cupons' | 'ticketMedio'
+type BarColor = 'blue' | 'green' | 'amber'
 
-const COLS: { key: SortKey; label: string; fmt: (r: VendedorRow) => string }[] = [
-  { key: 'faturamento', label: 'Faturamento', fmt: (r) => formatCurrency(r.faturamento) },
-  { key: 'lucroBruto', label: 'Lucro bruto', fmt: (r) => formatCurrency(r.lucroBruto) },
-  { key: 'margemPct', label: 'Margem', fmt: (r) => formatPercent(r.margemPct) },
-  { key: 'itens', label: 'Itens', fmt: (r) => formatNumber(r.itens) },
-  { key: 'cupons', label: 'Cupons', fmt: (r) => formatNumber(r.cupons) },
-  { key: 'ticketMedio', label: 'Ticket médio', fmt: (r) => formatCurrency(r.ticketMedio) },
+const COLS: { key: SortKey; label: string; color: BarColor; val: (r: VendedorRow) => number; fmt: (r: VendedorRow) => string }[] = [
+  { key: 'faturamento', label: 'Faturamento', color: 'green', val: (r) => r.faturamento, fmt: (r) => formatCurrency(r.faturamento) },
+  { key: 'lucroBruto', label: 'Lucro bruto', color: 'green', val: (r) => r.lucroBruto, fmt: (r) => formatCurrency(r.lucroBruto) },
+  { key: 'margemPct', label: 'Margem', color: 'amber', val: (r) => r.margemPct, fmt: (r) => formatPercent(r.margemPct) },
+  { key: 'itens', label: 'Itens', color: 'blue', val: (r) => r.itens, fmt: (r) => formatNumber(r.itens) },
+  { key: 'cupons', label: 'Cupons', color: 'blue', val: (r) => r.cupons, fmt: (r) => formatNumber(r.cupons) },
+  { key: 'ticketMedio', label: 'Ticket médio', color: 'amber', val: (r) => r.ticketMedio, fmt: (r) => formatCurrency(r.ticketMedio) },
 ]
 
 const KpiCard = ({ icon: Icon, label, value, sub, tint }: {
@@ -66,7 +68,7 @@ const VendedoresConveniencia = () => {
 
   const ticketMedioGeral = totalCupons > 0 ? totalFaturamento / totalCupons : 0
   const sorted = [...rows].sort((a, b) => (b[sort] as number) - (a[sort] as number))
-  const maxFat = Math.max(...rows.map((r) => r.faturamento), 0)
+  const colMax = Object.fromEntries(COLS.map((c) => [c.key, Math.max(...rows.map((r) => c.val(r)), 0)])) as Record<SortKey, number>
 
   return (
     <div className="space-y-3">
@@ -116,14 +118,10 @@ const VendedoresConveniencia = () => {
                       <span className="font-medium text-gray-900 dark:text-gray-100">{r.nome}</span>
                       {!r.ativo && <span className="rounded bg-gray-100 px-1.5 text-[10px] text-gray-400 dark:bg-gray-800">inativo</span>}
                     </div>
-                    {/* Barra proporcional ao faturamento (referência visual). */}
-                    <div className="mt-1 h-1 w-full max-w-[160px] overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div className="h-full rounded-full bg-emerald-400 dark:bg-emerald-500" style={{ width: `${maxFat > 0 ? (r.faturamento / maxFat) * 100 : 0}%` }} />
-                    </div>
                   </td>
                   {COLS.map((c) => (
-                    <td key={c.key} className={cn('px-3 py-2.5 text-right tabular-nums', c.key === sort ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300')}>
-                      {c.fmt(r)}
+                    <td key={c.key} className="px-2 py-2.5">
+                      <BarCell value={c.val(r)} max={colMax[c.key]} formatted={c.fmt(r)} color={c.color} align="near" />
                     </td>
                   ))}
                 </tr>

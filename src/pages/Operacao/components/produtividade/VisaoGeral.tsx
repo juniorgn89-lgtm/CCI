@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { useMetasStore } from '@/store/metas'
 import { SCORE_TOOLTIP, type FrentistaScore } from '@/lib/frentistaScore'
+import BarCell from '@/components/tables/BarCell'
 import type { FrentistaProdRow, PeriodInfo } from '@/pages/Operacao/components/ProdutividadeTab'
 
 interface Props {
@@ -171,6 +172,17 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
     })
     return arr
   }, [enriched, sortKey, sortDir])
+
+  // Máximos por coluna pra escala das barras (data bars estilo Power BI).
+  const colMax = useMemo(() => ({
+    litros: Math.max(...enriched.map((f) => f.litros), 0),
+    automotivo: Math.max(...enriched.map((f) => f.automotivo), 0),
+    abastecimentos: Math.max(...enriched.map((f) => f.abastecimentos), 0),
+    faturamento: Math.max(...enriched.map((f) => f.faturamento), 0),
+    lucroBruto: Math.max(...enriched.map((f) => f.lucroBruto ?? 0), 0),
+    ticketMedio: Math.max(...enriched.map((f) => f.ticketMedioVal), 0),
+    ticketAut: Math.max(...enriched.map((f) => f.ticketMedioAutomotivo), 0),
+  }), [enriched])
 
   const handleColumnSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -426,19 +438,33 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                           </div>
                         )}
                       </td>
-                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:border-gray-700 dark:text-gray-100">{formatLiters(f.litros)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatLiters(f.automotivo)}</td>
+                      <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
+                        <BarCell value={f.litros} max={colMax.litros} formatted={formatLiters(f.litros)} color="blue" align="near" />
+                      </td>
+                      <td className="px-2 py-2.5">
+                        <BarCell value={f.automotivo} max={colMax.automotivo} formatted={formatLiters(f.automotivo)} color="blue" align="near" />
+                      </td>
                       <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">
                         {f.mixAditivadaPct > 0 ? `${f.mixAditivadaPct.toFixed(1).replace('.', ',')}%` : '—'}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">{formatNumber(f.abastecimentos)}</td>
-                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{formatCurrency(f.faturamento)}</td>
-                      <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                        {f.lucroBruto === null ? <span className="text-gray-400">—</span> : formatCurrency(f.lucroBruto)}
+                      <td className="px-2 py-2.5">
+                        <BarCell value={f.abastecimentos} max={colMax.abastecimentos} formatted={formatNumber(f.abastecimentos)} color="blue" align="near" />
                       </td>
-                      <td className="border-l border-gray-200 px-4 py-2.5 text-right text-xs tabular-nums text-gray-500 dark:border-gray-700">{formatCurrency(f.ticketMedioVal)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">
-                        {f.ticketMedioAutomotivo > 0 ? formatCurrency(f.ticketMedioAutomotivo) : '—'}
+                      <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
+                        <BarCell value={f.faturamento} max={colMax.faturamento} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                      </td>
+                      <td className="px-2 py-2.5">
+                        {f.lucroBruto === null
+                          ? <div className="text-right text-sm text-gray-400">—</div>
+                          : <BarCell value={f.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />}
+                      </td>
+                      <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
+                        <BarCell value={f.ticketMedioVal} max={colMax.ticketMedio} formatted={formatCurrency(f.ticketMedioVal)} color="amber" align="near" />
+                      </td>
+                      <td className="px-2 py-2.5">
+                        {f.ticketMedioAutomotivo > 0
+                          ? <BarCell value={f.ticketMedioAutomotivo} max={colMax.ticketAut} formatted={formatCurrency(f.ticketMedioAutomotivo)} color="amber" align="near" />
+                          : <div className="text-right text-sm text-gray-400">—</div>}
                       </td>
                       <td className={cn(
                         'border-l border-gray-200 px-4 py-2.5 text-right text-sm font-medium tabular-nums dark:border-gray-700',
