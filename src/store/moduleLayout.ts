@@ -109,3 +109,28 @@ export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-
   { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
 ])
 
+export const useVendasLayout = createModuleLayoutStore('visor360-vendas-layout', [
+  { id: 'visao', label: 'Visão Geral', visible: true },
+  { id: 'combustivel', label: 'Combustível', visible: true },
+  { id: 'pista', label: 'Pista', visible: true },
+  { id: 'conveniencia', label: 'Conveniência', visible: true },
+])
+
+export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout', [
+  { id: 'visao', label: 'Visão Geral', visible: true },
+  { id: 'turnos', label: 'Turnos de Caixa', visible: true },
+])
+
+export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtividade-layout', [
+  { id: 'visao', label: 'Visão Geral', visible: true },
+  { id: 'projecoes', label: 'Projeções', visible: true },
+  { id: 'metas', label: 'Metas', visible: true },
+  { id: 'destaques', label: 'Destaques', visible: true },
+])
+
+export const useInteligenciaLayout = createModuleLayoutStore('visor360-inteligencia-layout', [
+  { id: 'analise', label: 'Análise & Comparação', visible: true },
+  { id: 'radar', label: 'Radar de Preços', visible: true },
+  { id: 'assistente', label: 'Cadu IA', visible: true },
+])
+

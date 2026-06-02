@@ -8,6 +8,9 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
+import HeaderTray from '@/components/layout/HeaderTray'
+import ModuleSettings from '@/components/layout/ModuleSettings'
+import { useCaixasLayout } from '@/store/moduleLayout'
 import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -41,7 +44,19 @@ const CaixasTurnos = () => {
     'visao',
     (v): v is 'visao' | 'turnos' => v === 'visao' || v === 'turnos',
   )
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useCaixasLayout()
   const isMobile = useIsMobile()
+
+  // Ícone/badge por aba — o resto (ordem/visibilidade) vem do store de layout.
+  const TAB_META: Record<string, { Icon: typeof Wallet }> = {
+    visao: { Icon: LayoutDashboard },
+    turnos: { Icon: Wallet },
+  }
+  const visibleTabs = layoutTabs.filter((t) => t.visible)
+  // Se a aba ativa foi ocultada, cai pra primeira visível.
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === caixaTab)) {
+    setCaixaTab(visibleTabs[0].id as 'visao' | 'turnos')
+  }
 
   // Mobile: tela própria (abas Visão Geral + Turnos), reusa o mesmo hook.
   if (isMobile) return <CaixasMobile />
@@ -57,28 +72,25 @@ const CaixasTurnos = () => {
             <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Caixas &amp; Turnos</h1>
             <FocusModeToggle />
           </div>
-          {hasEmpresa && (
+          {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
               active={caixaTab}
               onChange={(id) => setCaixaTab(id as 'visao' | 'turnos')}
-              tabs={[
-                { id: 'visao', label: 'Visão Geral', Icon: LayoutDashboard },
-                {
-                  id: 'turnos',
-                  label: 'Turnos de Caixa',
-                  Icon: Wallet,
-                  badge: (
-                    <span className={cn(
-                      'rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
-                      caixaTab === 'turnos'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                    )}>
-                      {turnoGroups.length}
-                    </span>
-                  ),
-                },
-              ]}
+              tabs={visibleTabs.map((t) => ({
+                id: t.id,
+                label: t.label,
+                Icon: TAB_META[t.id]?.Icon ?? Wallet,
+                badge: t.id === 'turnos' ? (
+                  <span className={cn(
+                    'rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
+                    caixaTab === 'turnos'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                  )}>
+                    {turnoGroups.length}
+                  </span>
+                ) : undefined,
+              }))}
             />
           )}
         </div>
@@ -86,6 +98,18 @@ const CaixasTurnos = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
+      {hasEmpresa && (
+        <HeaderTray>
+          <ModuleSettings
+            title="Caixas & Turnos"
+            tabs={layoutTabs}
+            toggleVisibility={toggleVisibility}
+            moveUp={moveUp}
+            moveDown={moveDown}
+            reset={reset}
+          />
+        </HeaderTray>
+      )}
 
       {!hasEmpresa && <SelectCompanyState />}
 

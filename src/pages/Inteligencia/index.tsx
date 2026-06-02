@@ -21,6 +21,8 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import CompanyPicker from './components/CompanyPicker'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBar from '@/components/layout/TopBar'
+import ModuleSettings from '@/components/layout/ModuleSettings'
+import { useInteligenciaLayout } from '@/store/moduleLayout'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import useIsMobile from '@/hooks/useIsMobile'
@@ -102,6 +104,13 @@ const Inteligencia = () => {
     else next.set('tab', tab)
     setSearchParams(next, { replace: true })
   }
+
+  // Layout das top-tabs (Análise / Radar / Cadu IA) — engrenagem reordena/oculta.
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useInteligenciaLayout()
+  const visibleTopTabs = layoutTabs.filter((t) => t.visible)
+  if (visibleTopTabs.length > 0 && !visibleTopTabs.some((t) => t.id === topTab)) {
+    setTopTab(visibleTopTabs[0].id as TopTab)
+  }
   const [activeTab, setActiveTab] = useState<TabKey>('comparativo')
   const [selectedEmpresas, setSelectedEmpresas] = useState<number[]>([])
 
@@ -164,9 +173,11 @@ const Inteligencia = () => {
               <FocusModeToggle />
             </div>
 
-            {/* Nav (labels curtos) */}
+            {/* Nav (labels curtos) — ordem/visibilidade vêm do store de layout. */}
             <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {TOP_TABS.map((t) => {
+              {visibleTopTabs.map((vt) => {
+                const t = TOP_TABS.find((x) => x.key === vt.id)
+                if (!t) return null
                 const Icon = t.icon
                 const isActive = topTab === t.key
                 return (
@@ -190,9 +201,17 @@ const Inteligencia = () => {
           </div>
         }
         actions={
-          topTab === 'radar'
-            ? <GlobalFilterControls dateSlot={<DateRangeToolbar />} />
-            : undefined
+          <div className="flex items-center gap-1">
+            {topTab === 'radar' && <GlobalFilterControls dateSlot={<DateRangeToolbar />} />}
+            <ModuleSettings
+              title="Inteligência da Rede"
+              tabs={layoutTabs}
+              toggleVisibility={toggleVisibility}
+              moveUp={moveUp}
+              moveDown={moveDown}
+              reset={reset}
+            />
+          </div>
         }
       />
 

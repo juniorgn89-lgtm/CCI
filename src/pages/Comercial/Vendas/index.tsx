@@ -4,6 +4,9 @@ import { LayoutGrid, Fuel, Wrench, Store } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
+import HeaderTray from '@/components/layout/HeaderTray'
+import ModuleSettings from '@/components/layout/ModuleSettings'
+import { useVendasLayout } from '@/store/moduleLayout'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -77,6 +80,15 @@ const ComercialVendas = () => {
   const hasEmpresa = empresaCodigos.length > 0
   const isMobile = useIsMobile()
 
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useVendasLayout()
+  const TAB_META = new Map(TABS.map((t) => [t.id, t]))
+  const visibleTabs = layoutTabs.filter((t) => t.visible)
+  // Se a aba ativa foi ocultada, cai pra primeira visível (só estado; a URL
+  // se ajusta no próximo clique de aba).
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+    setActiveTab(visibleTabs[0].id as TabId)
+  }
+
   // Mobile: tela própria com abas roláveis (aba Combustível pronta).
   if (isMobile) return <VendasMobile />
 
@@ -94,25 +106,27 @@ const ComercialVendas = () => {
           </div>
 
           {/* Abas dentro da TopBar (consolidadas, sem barra separada) */}
-          {hasEmpresa && (
+          {hasEmpresa && visibleTabs.length > 0 && (
             <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {TABS.map((tab) => {
-                const isActive = activeTab === tab.id
+              {visibleTabs.map((t) => {
+                const meta = TAB_META.get(t.id as TabId)
+                const Icon = meta?.Icon ?? LayoutGrid
+                const isActive = activeTab === t.id
                 return (
                   <button
-                    key={tab.id}
+                    key={t.id}
                     type="button"
-                    onClick={() => handleSetTab(tab.id)}
+                    onClick={() => handleSetTab(t.id as TabId)}
                     className={cn(
                       'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
                       isActive
                         ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
                     )}
-                    title={tab.subtitle}
+                    title={meta?.subtitle}
                   >
-                    <tab.Icon className="h-3.5 w-3.5" />
-                    {tab.label}
+                    <Icon className="h-3.5 w-3.5" />
+                    {t.label}
                   </button>
                 )
               })}
@@ -123,6 +137,18 @@ const ComercialVendas = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
+      {hasEmpresa && (
+        <HeaderTray>
+          <ModuleSettings
+            title="Vendas"
+            tabs={layoutTabs}
+            toggleVisibility={toggleVisibility}
+            moveUp={moveUp}
+            moveDown={moveDown}
+            reset={reset}
+          />
+        </HeaderTray>
+      )}
 
       {!hasEmpresa && <SelectCompanyState />}
 

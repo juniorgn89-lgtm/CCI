@@ -8,6 +8,9 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
+import HeaderTray from '@/components/layout/HeaderTray'
+import ModuleSettings from '@/components/layout/ModuleSettings'
+import { useProdutividadeLayout } from '@/store/moduleLayout'
 import { subTabs, type SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
@@ -58,6 +61,13 @@ const Produtividade = () => {
     'visao',
     (v): v is SubTab => v === 'visao' || v === 'projecoes' || v === 'metas' || v === 'destaques',
   )
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useProdutividadeLayout()
+  const subTabByKey = useMemo(() => new Map(subTabs.map((t) => [t.key, t])), [])
+  const visibleTabs = layoutTabs.filter((t) => t.visible)
+  // Se a aba ativa foi ocultada, cai pra primeira visível.
+  if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
+    setProdTab(visibleTabs[0].id as SubTab)
+  }
 
   // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
   // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
@@ -105,11 +115,11 @@ const Produtividade = () => {
             <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
             <FocusModeToggle />
           </div>
-          {hasEmpresa && (
+          {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
               active={prodTab}
               onChange={(id) => setProdTab(id as SubTab)}
-              tabs={subTabs.map((t) => ({ id: t.key, label: t.label, Icon: t.icon }))}
+              tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3 }))}
             />
           )}
         </div>
@@ -117,6 +127,18 @@ const Produtividade = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
+      {hasEmpresa && (
+        <HeaderTray>
+          <ModuleSettings
+            title="Produtividade"
+            tabs={layoutTabs}
+            toggleVisibility={toggleVisibility}
+            moveUp={moveUp}
+            moveDown={moveDown}
+            reset={reset}
+          />
+        </HeaderTray>
+      )}
 
       {!hasEmpresa && <SelectCompanyState />}
 
