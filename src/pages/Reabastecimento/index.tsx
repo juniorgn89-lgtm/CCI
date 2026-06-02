@@ -7,6 +7,8 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
+import useIsMobile from '@/hooks/useIsMobile'
+import ReabastecimentoMobile from '@/pages/Reabastecimento/ReabastecimentoMobile'
 
 /**
  * Módulo Reabastecimento (grupo Posto) — nível dos tanques do posto, última
@@ -18,6 +20,9 @@ const Reabastecimento = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
+  const isMobile = useIsMobile()
+
+  if (isMobile) return <ReabastecimentoMobile />
 
   return (
     <div className="space-y-6">
