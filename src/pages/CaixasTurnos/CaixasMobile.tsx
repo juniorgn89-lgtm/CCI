@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Wallet, Scale, Clock, CheckCircle2, TrendingUp, CreditCard,
+  Wallet, Scale, Clock, Flame, TrendingUp, CreditCard,
   Banknote, Smartphone, Users, ChevronDown,
 } from 'lucide-react'
 import useOperacaoData, {
@@ -11,10 +11,9 @@ import { todayLocal } from '@/lib/period'
 import { isPastPeriod, cn } from '@/lib/utils'
 import { formatNumber, formatLiters } from '@/lib/formatters'
 import { KpiCard, Section, ScrollTabs, Segmented, Badge } from '@/components/mobile/primitives'
-import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { BarChartMobile, DonutMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { brl, brlShort, pct, periodoMes } from '@/components/mobile/format'
+import { brl, brlShort, pct } from '@/components/mobile/format'
 
 const TABS = [
   { id: 'visao', label: 'Visão Geral' },
@@ -171,10 +170,6 @@ interface VisaoGeralTabProps {
   apuradoPorDia: ApuradoPorDia[]
 }
 const VisaoGeralTab = ({ kpis, caixaResumo, pagamentoBreakdown, apuradoPorDia }: VisaoGeralTabProps) => {
-  const { dataInicial, dataFinal } = useFilterStore()
-  const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
-  const cmpLabel = kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-
   // Projeção do apurado — média dos últimos 7 dias × dias restantes (= método desktop).
   const projData = useMemo(() => {
     const todayStr = todayLocal()
@@ -187,6 +182,7 @@ const VisaoGeralTab = ({ kpis, caixaResumo, pagamentoBreakdown, apuradoPorDia }:
       realSum,
       monthProj: realSum + last7Avg * futureCount,
       showProjection: futureCount > 0 && last7Avg > 0,
+      decorridoPct: apuradoPorDia.length > 0 ? Math.round((realPast.length / apuradoPorDia.length) * 100) : 100,
       chart: realPast.map((d) => ({ label: d.data.slice(8, 10), v: d.apurado })),
     }
   }, [apuradoPorDia])
@@ -195,6 +191,7 @@ const VisaoGeralTab = ({ kpis, caixaResumo, pagamentoBreakdown, apuradoPorDia }:
 
   const dif = kpis.totalDiferenca
   const difTone = dif < -0.005 ? 'rose' : dif > 0.005 ? 'amber' : 'navy'
+  const totalTurnos = caixaResumo.caixasAbertos + caixaResumo.caixasFechados
   const donut = (() => {
     const top = pagamentoBreakdown.slice(0, 5).map((p) => ({ nome: p.nome, valor: p.valor }))
     const resto = pagamentoBreakdown.slice(5).reduce((s, p) => s + p.valor, 0)
@@ -204,28 +201,20 @@ const VisaoGeralTab = ({ kpis, caixaResumo, pagamentoBreakdown, apuradoPorDia }:
   const totalPgto = pagamentoBreakdown.reduce((s, p) => s + p.valor, 0)
   const totalTransacoes = pagamentoBreakdown.reduce((s, p) => s + p.quantidade, 0)
 
-  const projMetrics: ProjMetric[] = [
-    { label: 'Apurado', realizado: projData.realSum, proj: projData.monthProj, fmt: brlShort },
-  ]
-
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <KpiCard span2 big label="Total apurado" tone="emerald" Icon={TrendingUp}
-          value={brlShort(kpis.totalApurado)} delta={kpis.cmpTotalApurado > 0 ? ((kpis.totalApurado - kpis.cmpTotalApurado) / kpis.cmpTotalApurado) * 100 : null} deltaLabel={cmpLabel} />
-        <KpiCard label="Diferença de caixa" tone={difTone} Icon={Scale}
-          value={`${dif > 0 ? '+' : ''}${brlShort(dif)}`}
-          sub={dif < -0.005 ? 'Falta acumulada' : dif > 0.005 ? 'Sobra acumulada' : 'Caixas fechados'} />
-        <KpiCard label="Abertos" tone="amber" Icon={Clock}
-          value={formatNumber(caixaResumo.caixasAbertos)} sub="pendentes" />
-        <KpiCard label="Fechados" tone="teal" Icon={CheckCircle2}
-          value={formatNumber(caixaResumo.caixasFechados)} sub="conferidos" />
+        <KpiCard span2 big label="Total apurado" tone="navy" Icon={Wallet}
+          value={brlShort(kpis.totalApurado)} sub={`${formatNumber(totalTurnos)} turnos`} />
+        {projData.showProjection && (
+          <KpiCard span2 label="Projeção do período" tone="amber" Icon={Flame}
+            value={brlShort(projData.monthProj)} sub={`fim do mês · ~${projData.decorridoPct}% decorrido`} />
+        )}
+        <KpiCard label="Diferença" tone={difTone} Icon={Scale}
+          value={`${dif > 0 ? '+' : ''}${brlShort(dif)}`} sub="conferido vs sistema" />
+        <KpiCard label="Turnos abertos" tone="blue" Icon={Clock}
+          value={formatNumber(caixaResumo.caixasAbertos)} sub={`de ${formatNumber(totalTurnos)}`} />
       </div>
-
-      {projData.showProjection && (
-        <ProjecaoSection title="Projeção do apurado" metrics={projMetrics} periodo={periodo}
-          subtitle="Média dos últimos 7 dias" />
-      )}
 
       {donut.length > 0 && (
         <Section Icon={CreditCard} title="Formas de pagamento" accent="blue">
