@@ -49,6 +49,12 @@ export interface RedeProdutoRow {
   precoVenda: number
   precoCusto: number
   lbPorUnidade: number
+  /** Cupons (vendaCodigo distinto) do PRODUTO — denominador do ticket médio. */
+  cupons: number
+  /** Cupons distintos do GRUPO do produto (igual p/ todos os produtos do grupo). */
+  cuponsGrupo: number
+  /** Ticket médio do produto = faturamento ÷ cupons. 0 quando sem cupons. */
+  ticketMedio: number
 }
 
 export interface RedePostoRow {
@@ -339,6 +345,43 @@ const useRedeSetores = (): RedeSetoresData => {
       for (const [esk, set] of todaySets) cuponsByES.set(esk, (cuponsByES.get(esk) ?? 0) + set.size)
     }
 
+    // Cupons por PRODUTO (empresa|produto) e por GRUPO (empresa|grupo) — ticket
+    // médio por produto/grupo (automotivos/conveniência; combustível não usa).
+    // Cache: cupons_produto é único por (empresa,dia,produto) → soma direta;
+    // cupons_grupo é desnormalizado por (empresa,dia,grupo) → dedup por dia.
+    // Hoje (live): distinto direto dos itens.
+    const cuponsByEP = new Map<string, number>()
+    const cuponsByEG = new Map<string, number>()
+    {
+      const seenG = new Set<string>()
+      for (const r of closedRows) {
+        if (r.setor === 'outros' || r.setor === 'combustivel') continue
+        const pk = `${r.empresa_codigo}|${r.produto_codigo}`
+        cuponsByEP.set(pk, (cuponsByEP.get(pk) ?? 0) + (r.cupons_produto ?? 0))
+        const grupo = grupoNomePorProduto.get(r.produto_codigo) ?? 'Sem grupo'
+        const dayKey = `${r.empresa_codigo}|${r.data}|${grupo}`
+        if (seenG.has(dayKey)) continue
+        seenG.add(dayKey)
+        const egk = `${r.empresa_codigo}|${grupo}`
+        cuponsByEG.set(egk, (cuponsByEG.get(egk) ?? 0) + (r.cupons_grupo ?? 0))
+      }
+      const pSets = new Map<string, Set<number>>()
+      const gSets = new Map<string, Set<number>>()
+      for (const it of todayItens) {
+        if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
+        if (classify(it.produtoCodigo, isFuel, isPista) === 'combustivel') continue
+        const pk = `${it.empresaCodigo}|${it.produtoCodigo}`
+        let pset = pSets.get(pk); if (!pset) { pset = new Set(); pSets.set(pk, pset) }
+        pset.add(it.vendaCodigo)
+        const grupo = grupoNomePorProduto.get(it.produtoCodigo) ?? 'Sem grupo'
+        const gk = `${it.empresaCodigo}|${grupo}`
+        let gset = gSets.get(gk); if (!gset) { gset = new Set(); gSets.set(gk, gset) }
+        gset.add(it.vendaCodigo)
+      }
+      for (const [pk, set] of pSets) cuponsByEP.set(pk, (cuponsByEP.get(pk) ?? 0) + set.size)
+      for (const [gk, set] of gSets) cuponsByEG.set(gk, (cuponsByEG.get(gk) ?? 0) + set.size)
+    }
+
     const buildSetor = (id: SetorId): RedeSetor => {
       const isComb = id === 'combustivel'
       const setor = emptySetor(id, isComb ? 'Litros' : 'Quantidade', isComb ? 'L.B. por litro' : 'L.B. por unidade')
@@ -351,10 +394,12 @@ const useRedeSetores = (): RedeSetoresData => {
           const lucro = prod.fat - prod.custo
           const ant = prevMap.get(prod.produtoCodigo) ?? { qtd: 0, lucro: 0, fat: 0 }
           pQtdAnt += ant.qtd; pLucroAnt += ant.lucro; pFatAnt += ant.fat
+          const grupoNome = grupoNomePorProduto.get(prod.produtoCodigo) ?? 'Sem grupo'
+          const prodCupons = cuponsByEP.get(`${empresaCodigo}|${prod.produtoCodigo}`) ?? 0
           produtos.push({
             produtoCodigo: prod.produtoCodigo,
             produto: prod.nome,
-            grupo: grupoNomePorProduto.get(prod.produtoCodigo) ?? 'Sem grupo',
+            grupo: grupoNome,
             qtd: prod.qtd,
             qtdAnoAnterior: ant.qtd,
             lucroBruto: lucro,
@@ -366,6 +411,9 @@ const useRedeSetores = (): RedeSetoresData => {
             precoVenda: prod.qtd > 0 ? prod.fat / prod.qtd : 0,
             precoCusto: prod.qtd > 0 ? prod.custo / prod.qtd : 0,
             lbPorUnidade: prod.qtd > 0 ? lucro / prod.qtd : 0,
+            cupons: prodCupons,
+            cuponsGrupo: cuponsByEG.get(`${empresaCodigo}|${grupoNome}`) ?? 0,
+            ticketMedio: prodCupons > 0 ? prod.fat / prodCupons : 0,
           })
         }
         // Produtos que venderam SÓ no ano anterior (sem venda no período atual).
@@ -387,6 +435,9 @@ const useRedeSetores = (): RedeSetoresData => {
             precoVenda: 0,
             precoCusto: 0,
             lbPorUnidade: 0,
+            cupons: 0,
+            cuponsGrupo: cuponsByEG.get(`${empresaCodigo}|${grupoNomePorProduto.get(pc) ?? 'Sem grupo'}`) ?? 0,
+            ticketMedio: 0,
           })
         }
         produtos.sort((a, b) => b.lucroBruto - a.lucroBruto)

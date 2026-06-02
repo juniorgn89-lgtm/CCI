@@ -356,6 +356,7 @@ const Apuracao = () => {
       //   conveniência = tipoGrupo "Conveniência"
       //   resto        = "outros" (fora dos setores, igual ao BI)
       const grupoTipoPorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
+      const grupoNomePorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
       const produtoInfo = new Map<number, ProdutoInfo>()
       for (const p of produtos) {
         const tipoGrupo = grupoTipoPorCodigo.get(p.grupoCodigo) ?? ''
@@ -364,7 +365,7 @@ const Apuracao = () => {
             : tipoGrupo === 'Pista' ? 'automotivos'
               : tipoGrupo === 'Conveniência' ? 'conveniencia'
                 : 'outros'
-        produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
+        produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome, grupo: grupoNomePorCodigo.get(p.grupoCodigo) ?? 'Sem grupo' })
       }
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, autorizados)
       // Produtividade de vendedores da loja (apuracao_vendas_funcionario):
@@ -385,6 +386,7 @@ const Apuracao = () => {
           rede_id: rede.id, empresa_codigo: r.empresa_codigo, data: r.data, produto_codigo: r.produto_codigo,
           setor: r.setor as SetorVenda, produto_nome: r.produto_nome,
           quantidade: 0, total_venda: 0, total_custo: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
+          cupons_grupo: 0, cupons_produto: 0,
         }))
       // Tombstone das linhas de vendedor que sumiram do novo cálculo (mesmo
       // motivo das vendas — zera chaves ausentes via upsert).

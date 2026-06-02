@@ -26,18 +26,22 @@ create table if not exists apuracao_vendas (
   setor          text,                         -- combustivel/automotivos/conveniencia (congelado na apuração)
   produto_nome   text,                         -- nome do produto no momento da apuração
   linhas         integer not null default 0,  -- nº de itens de venda
-  cupons         integer not null default 0,  -- nº de cupons conveniência do dia (ticket médio)
+  cupons         integer not null default 0,  -- nº de cupons do setor no dia (ticket médio posto/total)
+  cupons_grupo   integer not null default 0,  -- cupons distintos do GRUPO no dia (ticket médio por grupo)
+  cupons_produto integer not null default 0,  -- cupons distintos do PRODUTO no dia (ticket médio por produto)
   computed_at    timestamptz not null default now(),
   computed_by    uuid,
   primary key (rede_id, empresa_codigo, data, produto_codigo)
 );
 
 -- Migração (tabela já existente): adiciona colunas novas.
-alter table apuracao_vendas add column if not exists cupons       integer not null default 0;
-alter table apuracao_vendas add column if not exists acrescimos   numeric not null default 0;
-alter table apuracao_vendas add column if not exists descontos    numeric not null default 0;
-alter table apuracao_vendas add column if not exists setor        text;
-alter table apuracao_vendas add column if not exists produto_nome text;
+alter table apuracao_vendas add column if not exists cupons         integer not null default 0;
+alter table apuracao_vendas add column if not exists cupons_grupo   integer not null default 0;
+alter table apuracao_vendas add column if not exists cupons_produto integer not null default 0;
+alter table apuracao_vendas add column if not exists acrescimos     numeric not null default 0;
+alter table apuracao_vendas add column if not exists descontos      numeric not null default 0;
+alter table apuracao_vendas add column if not exists setor          text;
+alter table apuracao_vendas add column if not exists produto_nome   text;
 
 -- Índices pras leituras do front (rede_id sempre primeiro pra isolar tenant).
 create index if not exists idx_apuracao_vendas_rede_data

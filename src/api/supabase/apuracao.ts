@@ -918,6 +918,11 @@ export interface ApuracaoVendaRow {
    * 0 em linhas não-conveniência (combustível/PS-) e em apurações antigas.
    */
   cupons: number
+  /** Cupons distintos do GRUPO no (empresa, dia) — desnormalizado em cada linha
+   * do grupo. Ticket médio por grupo = fat ÷ cupons (dedup por dia antes de somar). */
+  cupons_grupo: number
+  /** Cupons distintos do PRODUTO no (empresa, dia). Ticket médio por produto. */
+  cupons_produto: number
   computed_at: string
   computed_by: string | null
 }
@@ -1036,7 +1041,7 @@ export const upsertVendasCache = async (
 }
 
 /** Classificação + nome do produto pra carimbar na apuração. */
-export interface ProdutoInfo { setor: SetorVenda; nome: string }
+export interface ProdutoInfo { setor: SetorVenda; nome: string; grupo?: string }
 
 /**
  * Conta os CUPONS (vendaCodigo distinto) da conveniência por (empresa, dia).
@@ -1083,6 +1088,24 @@ export const aggregateVendaItensToCache = (
   autorizados?: Set<number>,
 ): ApuracaoVendaUpsert[] => {
   const cuponsByDay = cuponsByDaySetor(itens, produtoInfo, autorizados)
+  // Cupons distintos por GRUPO e por PRODUTO (empresa|dia|chave) — base do ticket
+  // médio por grupo/produto (automotivos/conveniência). Combustível não usa.
+  const grupoSets = new Map<string, Set<number>>()
+  const produtoSets = new Map<string, Set<number>>()
+  for (const it of itens) {
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
+    const setor = produtoInfo.get(it.produtoCodigo)?.setor
+    if (!setor || setor === 'outros' || setor === 'combustivel') continue
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data || it.vendaCodigo == null) continue
+    const grupo = produtoInfo.get(it.produtoCodigo)?.grupo || 'Sem grupo'
+    const gk = `${it.empresaCodigo}|${data}|${grupo}`
+    let gs = grupoSets.get(gk); if (!gs) { gs = new Set(); grupoSets.set(gk, gs) }
+    gs.add(it.vendaCodigo)
+    const pk = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
+    let ps = produtoSets.get(pk); if (!ps) { ps = new Set(); produtoSets.set(pk, ps) }
+    ps.add(it.vendaCodigo)
+  }
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
     if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
@@ -1119,6 +1142,8 @@ export const aggregateVendaItensToCache = (
         descontos: it.totalDesconto ?? 0,
         linhas: 1,
         cupons: cuponsByDay.get(`${it.empresaCodigo}|${data}|${setor}`) ?? 0,
+        cupons_grupo: setor === 'combustivel' ? 0 : (grupoSets.get(`${it.empresaCodigo}|${data}|${info?.grupo || 'Sem grupo'}`)?.size ?? 0),
+        cupons_produto: setor === 'combustivel' ? 0 : (produtoSets.get(`${it.empresaCodigo}|${data}|${it.produtoCodigo}`)?.size ?? 0),
       })
     }
   }

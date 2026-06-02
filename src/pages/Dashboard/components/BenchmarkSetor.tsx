@@ -21,6 +21,9 @@ interface ProdutoRow {
   precoVenda: number
   precoCusto: number
   lbPorUnidade: number
+  cupons: number
+  cuponsGrupo: number
+  ticketMedio: number
 }
 
 interface PostoRow {
@@ -219,7 +222,12 @@ const BenchmarkSetor = () => {
         else byGrupo.set(g, [prod])
       }
       const grupos = Array.from(byGrupo.entries())
-        .map(([grupo, produtos]) => ({ grupo, produtos, ...aggProdutos(produtos) }))
+        .map(([grupo, produtos]) => {
+          const agg = aggProdutos(produtos)
+          // Cupons do grupo são iguais em todos os produtos do grupo (desnormalizado).
+          const cuponsGrupo = produtos[0]?.cuponsGrupo ?? 0
+          return { grupo, produtos, ...agg, ticketMedio: cuponsGrupo > 0 ? agg.faturamento / cuponsGrupo : 0 }
+        })
         .sort((a, b) => b.faturamento - a.faturamento)
       return { ...p, ...totals, grupos }
     })
@@ -453,7 +461,7 @@ const BenchmarkSetor = () => {
                           isComb={isComb}
                           showFaturamento={showFaturamento}
                           maxes={maxGrupo}
-                          ticket={null}
+                          ticket={isComb ? null : g.ticketMedio}
                           onClick={() => { toggleExpand(grupoKey); toggleSelected(grupoKey) }}
                           selected={selected === grupoKey}
                           rowClass={cn(
@@ -473,7 +481,7 @@ const BenchmarkSetor = () => {
                             showFaturamento={showFaturamento}
                             maxes={maxProd}
                             barPct={55}
-                            ticket={null}
+                            ticket={isComb ? null : prod.ticketMedio}
                             onClick={(e) => { e.stopPropagation(); toggleSelected(`prod:${p.posto}:${prod.produto}`) }}
                             selected={selected === `prod:${p.posto}:${prod.produto}`}
                             rowClass={cn(
