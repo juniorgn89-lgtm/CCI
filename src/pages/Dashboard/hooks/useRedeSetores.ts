@@ -105,6 +105,10 @@ export interface RedeSetoresData {
     margem: number
     faturamentoAnoAnterior: number
     lucroBrutoAnoAnterior: number
+    /** Soma dos cupons dos 3 setores (cupons cross-setor podem somar 2×). */
+    cupons: number
+    /** Ticket médio rede = faturamento ÷ cupons (aproximado pelo soma de setores). */
+    ticketMedio: number
   }
   isLoading: boolean
   hasRede: boolean
@@ -428,6 +432,7 @@ const useRedeSetores = (): RedeSetoresData => {
     const gCusto = combustivel.custo + automotivos.custo + conveniencia.custo
     const gLucro = gFat - gCusto
     const gLucroAnt = combustivel.lucroBrutoAnoAnterior + automotivos.lucroBrutoAnoAnterior + conveniencia.lucroBrutoAnoAnterior
+    const gCupons = combustivel.cupons + automotivos.cupons + conveniencia.cupons
 
     return {
       combustivel, automotivos, conveniencia,
@@ -438,6 +443,8 @@ const useRedeSetores = (): RedeSetoresData => {
         margem: gFat > 0 ? (gLucro / gFat) * 100 : 0,
         faturamentoAnoAnterior: 0,
         lucroBrutoAnoAnterior: gLucroAnt,
+        cupons: gCupons,
+        ticketMedio: gCupons > 0 ? gFat / gCupons : 0,
       },
       isLoading,
       hasRede,

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, Droplet, Percent, TrendingUp, Layers, Trophy, Fuel, Wrench, Store, CreditCard } from 'lucide-react'
+import { DollarSign, Droplet, Percent, TrendingUp, Layers, Trophy, Fuel, Wrench, Store, CreditCard, Receipt } from 'lucide-react'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -11,7 +11,7 @@ import { KpiCard, Section, MarginPill, ProgressBar, DeltaBadge } from '@/compone
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { DonutMobile, AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { brlShort, litersShort, liters, pct, variacaoPct } from '@/components/mobile/format'
+import { brl, brlShort, litersShort, liters, pct, variacaoPct } from '@/components/mobile/format'
 
 /**
  * Central da Rede — versão mobile. Rede-wide, venda fiscal (useRedeSetores, já
@@ -104,6 +104,9 @@ const CentralMobile = () => {
   if (!rede.hasRede || rede.global.faturamento <= 0) return <EmptyCard />
 
   const { global, combustivel, automotivos, conveniencia } = rede
+  // Margem ano-anterior (pp) a partir do lucro/faturamento do ano anterior agregado por posto.
+  const margemAnoAnterior = agg.fatAA > 0 ? (global.lucroBrutoAnoAnterior / agg.fatAA) * 100 : 0
+  const margemDeltaPp = margemAnoAnterior > 0 ? global.margem - margemAnoAnterior : null
   const frac = periodo.frac || 1
   const projMetrics: ProjMetric[] = [
     { label: 'Faturamento', realizado: global.faturamento, proj: global.faturamento / frac, fmt: brlShort },
@@ -123,14 +126,16 @@ const CentralMobile = () => {
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
 
       <div className="grid grid-cols-2 gap-2">
-        <KpiCard span2 big label="Faturamento" tone="navy" Icon={DollarSign}
-          value={brlShort(global.faturamento)} delta={variacaoPct(global.faturamento, agg.fatAA)} deltaLabel={cmpLabel} />
-        <KpiCard label="Lucro bruto" tone="emerald" Icon={TrendingUp}
-          value={brlShort(global.lucroBruto)} delta={variacaoPct(global.lucroBruto, global.lucroBrutoAnoAnterior)} deltaLabel={cmpLabel} />
-        <KpiCard label="Margem" tone="violet" Icon={Percent} value={pct(global.margem)} />
-        <KpiCard label="Litros (comb.)" tone="blue" Icon={Droplet}
+        <KpiCard span2 big label="Faturamento da Rede" tone="emerald" Icon={DollarSign}
+          value={brlShort(global.faturamento)} delta={variacaoPct(global.faturamento, agg.fatAA)} deltaLabel={cmpLabel}
+          sub={`${agg.postos.length} postos · ${brl(global.faturamento)}`} />
+        <KpiCard label="Litros" tone="blue" Icon={Droplet}
           value={litersShort(combustivel.qtd)} delta={variacaoPct(combustivel.qtd, combustivel.qtdAnoAnterior)} deltaLabel={cmpLabel} />
-        <KpiCard label="Lucro conv." tone="teal" Icon={Store} value={brlShort(conveniencia.lucroBruto)} sub={`Margem ${pct(conveniencia.margem)}`} />
+        <KpiCard label="Margem" tone="rose" Icon={Percent}
+          value={pct(global.margem)} delta={margemDeltaPp} deltaLabel={cmpLabel} />
+        <KpiCard label="Lucro Bruto" tone="teal" Icon={TrendingUp}
+          value={brlShort(global.lucroBruto)} delta={variacaoPct(global.lucroBruto, global.lucroBrutoAnoAnterior)} deltaLabel={cmpLabel} />
+        <KpiCard label="Ticket Médio" tone="amber" Icon={Receipt} value={brl(global.ticketMedio)} />
       </div>
 
       <ProjecaoSection metrics={projMetrics} periodo={periodo} />
