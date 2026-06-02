@@ -145,11 +145,18 @@ const Produtividade = () => {
             </div>
           )}
 
-          {hasEmpresa && modo === 'frentistas' && visibleTabs.length > 0 && (
+          {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
-              active={prodTab}
-              onChange={(id) => setProdTab(id as SubTab)}
-              tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3 }))}
+              active={modo === 'vendedores' ? 'visao' : prodTab}
+              onChange={(id) => { if (modo === 'frentistas') setProdTab(id as SubTab) }}
+              tabs={visibleTabs.map((t) => ({
+                id: t.id,
+                label: t.label,
+                Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3,
+                // No modo Vendedores só "Visão Geral" se aplica — as demais ficam
+                // visíveis porém desabilitadas (ainda não há projeção/meta de loja).
+                disabled: modo === 'vendedores' && t.id !== 'visao',
+              }))}
             />
           )}
         </div>
