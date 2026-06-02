@@ -22,6 +22,7 @@ import {
   upsertFormasPagamentoCache,
   formaPagamentoToCacheRow,
   upsertVendasCache,
+  deleteVendasCachePeriodo,
   aggregateVendaItensToCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
@@ -361,6 +362,10 @@ const Apuracao = () => {
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, autorizados)
+      // Limpa o período antes de regravar — remove ÓRFÃOS (vendas que sumiram,
+      // ex.: canceladas depois de uma apuração anterior). Upsert sozinho não
+      // apaga chaves ausentes, então a Central continuaria somando linhas mortas.
+      await deleteVendasCachePeriodo(rede.id, start, end)
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),

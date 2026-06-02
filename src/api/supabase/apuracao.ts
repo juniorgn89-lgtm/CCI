@@ -970,6 +970,28 @@ export const fetchVendasCache = async (
   return Array.from(byKey.values())
 }
 
+/**
+ * Apaga as linhas de venda do cache no período (rede) — chamar ANTES do upsert.
+ * Sem isso, vendas que deixaram de existir (ex.: canceladas depois de uma
+ * apuração anterior) viram ÓRFÃS: o upsert só atualiza/insere chaves presentes,
+ * nunca remove as ausentes, então (empresa,dia,produto) que só aquela venda
+ * gerava persistem no cache e a Central continua somando.
+ */
+export const deleteVendasCachePeriodo = async (
+  redeId: string,
+  dataInicial: string,
+  dataFinal: string,
+): Promise<void> => {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('apuracao_vendas')
+    .delete()
+    .eq('rede_id', redeId)
+    .gte('data', dataInicial)
+    .lte('data', dataFinal)
+  if (error) console.warn('[apuracao_vendas] delete period error:', error.message)
+}
+
 export const upsertVendasCache = async (
   rows: ApuracaoVendaUpsert[],
   computedBy?: string | null,
