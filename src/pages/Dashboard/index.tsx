@@ -1,5 +1,6 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { LayoutDashboard, Activity, Fuel, Layers } from 'lucide-react'
+import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
@@ -61,7 +62,12 @@ const Dashboard = () => {
     return true
   })
   const visibleTabs = knownTabs.filter((t) => t.visible)
-  const [activeTab, setActiveTab] = useState<TabId>((visibleTabs[0]?.id ?? 'setor') as TabId)
+  // Aba controlada pela URL (?tab=) — permite deep-link das sub-opções da sidebar
+  // (Visão Geral / Ao Vivo Rede / Reabastecimento). 'setor' é o default (sem ?tab=).
+  const [activeTab, setActiveTab] = useTabParam<TabId>(
+    'setor',
+    (v): v is TabId => v === 'setor' || v === 'aovivo' || v === 'reabastecimento',
+  )
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)

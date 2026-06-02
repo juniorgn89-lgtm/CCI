@@ -73,6 +73,11 @@ interface SubOption {
   Icon: typeof LayoutGrid
 }
 const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
+  '/dashboard': [
+    { label: 'Visão Geral', to: '/dashboard', Icon: LayoutGrid },
+    { label: 'Ao Vivo Rede', to: '/dashboard?tab=aovivo', Icon: Activity },
+    { label: 'Reabastecimento', to: '/dashboard?tab=reabastecimento', Icon: Fuel },
+  ],
   '/comercial/vendas': [
     { label: 'Visão Geral', to: '/comercial/vendas', Icon: LayoutGrid },
     { label: 'Combustível', to: '/comercial/vendas?tab=combustivel', Icon: Fuel },
