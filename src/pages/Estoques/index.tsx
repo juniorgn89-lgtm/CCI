@@ -19,6 +19,8 @@ import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
 import NecessidadeEstoque from '@/pages/Estoques/components/abas/NecessidadeEstoque'
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import useIsMobile from '@/hooks/useIsMobile'
+import EstoqueMobile from '@/pages/Estoques/EstoqueMobile'
 
 const TAB_ICONS: Record<string, typeof Warehouse> = {
   visao: LayoutDashboard,
@@ -55,6 +57,10 @@ const Estoques = () => {
 
   const { productAnalytics, kpis, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
   const showSkeleton = useShowSkeleton(isLoading, productAnalytics.length > 0)
+  const isMobile = useIsMobile()
+
+  // Mobile: tela própria (Reposição / Estoque / Giro).
+  if (isMobile) return <EstoqueMobile />
 
   return (
     <div className="space-y-6">
