@@ -10,7 +10,7 @@ import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import { Section } from '@/components/mobile/primitives'
+import { Section, ProgressBar, Badge } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 
 /* ─── Referências de saúde de margem (mesmas do desktop) ─── */
@@ -196,10 +196,10 @@ const RadarMobile = () => {
 
   // Cortes de preço (dias com queda vs anterior).
   const cortes = useMemo(() => {
-    const out: { data: string; queda: number; varLitros: number }[] = []
+    const out: { data: string; queda: number; novoPreco: number; varLitros: number }[] = []
     for (let i = 1; i < serie.length; i++) {
       const queda = serie[i].precoVenda - serie[i - 1].precoVenda
-      if (queda < -0.005) out.push({ data: serie[i].data, queda, varLitros: serie[i - 1].litros > 0 ? serie[i].litros / serie[i - 1].litros - 1 : 0 })
+      if (queda < -0.005) out.push({ data: serie[i].data, queda, novoPreco: serie[i].precoVenda, varLitros: serie[i - 1].litros > 0 ? serie[i].litros / serie[i - 1].litros - 1 : 0 })
     }
     return out
   }, [serie])
@@ -213,6 +213,19 @@ const RadarMobile = () => {
     }
     return den > 0 ? num / den : null
   }, [cortes])
+
+  // Curva de elasticidade — pra cada corte, % de volume necessário pra empatar
+  // o lucro (break-even) e o % estimado pela elasticidade observada.
+  const elasticData = useMemo(() => {
+    const cuts = [0.03, 0.05, 0.08, 0.1, 0.13, 0.15, 0.2]
+    return cuts
+      .filter((c) => agg.lbLitro - c > 0.001)
+      .map((c) => ({
+        label: `-${moneyLraw(c).slice(0, 4)}`,
+        necessario: (agg.lbLitro / (agg.lbLitro - c) - 1) * 100,
+        esperado: elasticidade != null ? Math.max(0, elasticidade * c) * 100 : null,
+      }))
+  }, [agg.lbLitro, elasticidade])
 
   const margemTone: Tone = agg.margem >= MARGEM_SAUDAVEL ? 'emerald' : agg.margem >= MARGEM_ATENCAO ? 'amber' : 'red'
   const margemLabel = margemTone === 'emerald' ? 'Saudável' : margemTone === 'amber' ? 'Atenção' : 'Crítica'
@@ -494,6 +507,52 @@ const RadarMobile = () => {
               Análise baseada nos dados da própria rede. Preços de concorrentes não estão integrados.
             </p>
           </Section>
+
+          {/* Curva de elasticidade */}
+          {elasticData.length > 0 && (
+            <Section Icon={Zap} title="Curva de elasticidade" accent="amber">
+              <p className="mb-2 text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">
+                Volume a mais necessário pra bancar cada corte (break-even){elasticidade != null && ' · "est." = crescimento previsto pela elasticidade observada'}.
+              </p>
+              <div className="space-y-2">
+                {elasticData.map((d) => {
+                  const cor = d.necessario > 20 ? '#ef4444' : d.necessario > 10 ? '#f59e0b' : '#10b981'
+                  return (
+                    <div key={d.label}>
+                      <div className="mb-1 flex items-baseline justify-between text-[11px]">
+                        <span className="font-medium text-gray-600 dark:text-gray-300">corte {d.label}/L</span>
+                        <span className="tabular-nums">
+                          <span className="font-semibold" style={{ color: cor }}>+{d.necessario.toFixed(1).replace('.', ',')}%</span>
+                          {d.esperado != null && <span className="ml-1.5 text-[10px] text-blue-600 dark:text-blue-400">est. +{d.esperado.toFixed(1).replace('.', ',')}%</span>}
+                        </span>
+                      </div>
+                      <ProgressBar pct={Math.min(100, d.necessario)} color={cor} height={5} />
+                    </div>
+                  )
+                })}
+              </div>
+            </Section>
+          )}
+
+          {/* Cortes de preço no período */}
+          {cortes.length > 0 && (
+            <Section Icon={TrendingDown} title="Cortes de preço no período" right={<Badge tone="rose">{cortes.length}</Badge>} flush>
+              <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+                {[...cortes].reverse().map((c) => (
+                  <div key={c.data} className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{c.data.slice(8, 10)}/{c.data.slice(5, 7)}</p>
+                      <p className="text-[10.5px] text-gray-400 dark:text-gray-500">novo preço {moneyL(c.novoPreco)}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <span className="text-[12px] font-bold tabular-nums text-red-600 dark:text-red-400">{moneyL(c.queda)}</span>
+                      <Delta value={c.varLitros} goodWhenUp label="vol." />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
         </>
       )}
     </div>
