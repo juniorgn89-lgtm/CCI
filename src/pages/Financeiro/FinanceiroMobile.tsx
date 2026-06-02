@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownCircle, ArrowUpCircle, Scale, AlertTriangle, TrendingUp, Landmark } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, AlertTriangle, TrendingUp, Landmark } from 'lucide-react'
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
-import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, Segmented, Badge, type Tone } from '@/components/mobile/primitives'
 import { AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { brl, brlShort, pct } from '@/components/mobile/format'
+import { brl, brlShort, variacaoPct } from '@/components/mobile/format'
 
 const TABS = [
   { id: 'geral', label: 'Visão Geral' },
@@ -93,7 +92,7 @@ const TitulosList = <T extends { statusTag: string; diasAtraso: number }>({
  * vencidos + fluxo resumido), A Receber, A Pagar (listas filtráveis) e Fluxo.
  */
 const FinanceiroMobile = () => {
-  const { kpis, receivablesData, payablesData, cashFlowData, cashFlowTotals, isLoading, hasEmpresa } = useFinanceData()
+  const { kpis, receivablesData, payablesData, cashFlowData, cashFlowTotals, cashFlowPrevTotals, isLoading, hasEmpresa } = useFinanceData()
   const [tab, setTab] = useState('geral')
 
   const fluxoChart = useMemo(
@@ -111,7 +110,7 @@ const FinanceiroMobile = () => {
   }
   if (isLoading || !kpis) return <LoadingScreen message="Carregando financeiro…" />
 
-  const saldoTone: Tone = kpis.saldoLiquido < 0 ? 'rose' : 'emerald'
+  const resultadoTone: Tone = cashFlowTotals.saldo < 0 ? 'rose' : 'emerald'
 
   return (
     <div className="space-y-3 pb-2">
@@ -137,10 +136,14 @@ const FinanceiroMobile = () => {
       {tab === 'geral' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <KpiCard label="A receber" tone="emerald" Icon={ArrowDownCircle} value={brlShort(kpis.totalReceber)} sub={`${formatNumber(kpis.countReceber)} títulos`} />
-            <KpiCard label="A pagar" tone="rose" Icon={ArrowUpCircle} value={brlShort(kpis.totalPagar)} sub={`${formatNumber(kpis.countPagar)} títulos`} />
-            <KpiCard span2 big label="Saldo líquido" tone={saldoTone} Icon={Scale} value={brl(kpis.saldoLiquido)} sub="A receber − a pagar" />
-            <KpiCard span2 label="Inadimplência" tone="amber" Icon={AlertTriangle} value={pct(kpis.inadimplenciaPercent)} sub={`${brlShort(kpis.inadimplencia)} vencidos a receber`} />
+            <KpiCard span2 big label="Saldo líquido" tone="navy" Icon={Landmark}
+              value={brl(kpis.saldoLiquido)} sub="A receber − a pagar" />
+            <KpiCard label="A receber" tone="emerald" Icon={ArrowDownCircle}
+              value={brlShort(kpis.totalReceber)} sub={`${brlShort(kpis.totalVencidosReceber)} vencido`} />
+            <KpiCard label="A pagar" tone="rose" Icon={ArrowUpCircle}
+              value={brlShort(kpis.totalPagar)} sub={kpis.totalVencidosPagar > 0 ? `${brlShort(kpis.totalVencidosPagar)} vencido` : 'em dia'} />
+            <KpiCard span2 label="Resultado do período" tone={resultadoTone} Icon={TrendingUp}
+              value={brl(cashFlowTotals.saldo)} delta={variacaoPct(cashFlowTotals.saldo, cashFlowPrevTotals.saldo)} deltaLabel="período ant." />
           </div>
 
           <Section Icon={AlertTriangle} title="Vencidos" accent="rose">
