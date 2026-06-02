@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import {
@@ -10,9 +10,11 @@ import {
   Users,
   UserCheck,
   UserX,
+  Search,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -63,6 +65,18 @@ const Mobile = () => {
   const funcionarios = funcionariosData?.resultados ?? []
   const totalAtivos = funcionarios.filter((f) => f.ativo).length
   const totalInativos = funcionarios.filter((f) => !f.ativo).length
+
+  const [busca, setBusca] = useState('')
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'ativo' | 'inativo'>('todos')
+  const funcionariosFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase()
+    return funcionarios.filter((f) => {
+      if (statusFiltro === 'ativo' && !f.ativo) return false
+      if (statusFiltro === 'inativo' && f.ativo) return false
+      if (q && !f.nome.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [funcionarios, busca, statusFiltro])
 
   const handleCopyInstall = async () => {
     try {
@@ -183,7 +197,7 @@ const Mobile = () => {
             iconColor="text-blue-600"
             iconBg="bg-blue-100 dark:bg-blue-900/50"
             title="Funcionarios"
-            subtitle={`${funcionarios.length} registros encontrados`}
+            subtitle={`${funcionariosFiltrados.length} de ${funcionarios.length} registros`}
             metrics={[
               {
                 label: 'Total',
@@ -201,6 +215,40 @@ const Mobile = () => {
               },
             ]}
           />
+
+          {/* Busca + filtro de status */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Pesquisar por nome…"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex shrink-0 gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800/50">
+              {([
+                { v: 'todos', label: 'Todos' },
+                { v: 'ativo', label: 'Ativos' },
+                { v: 'inativo', label: 'Inativos' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setStatusFiltro(opt.v)}
+                  className={cn(
+                    'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                    statusFiltro === opt.v
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <Card className="overflow-hidden border-gray-200 shadow-sm dark:border-gray-700">
             <div className="overflow-x-auto">
@@ -225,7 +273,7 @@ const Mobile = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {funcionarios.length === 0 ? (
+                  {funcionariosFiltrados.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={5}
@@ -235,7 +283,7 @@ const Mobile = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    funcionarios.map((func, idx) => {
+                    funcionariosFiltrados.map((func, idx) => {
                       const code = func.codigoExterno || String(func.funcionarioCodigo)
                       const funcaoNome = funcaoMap.get(func.funcaoCodigo) ?? `Funcao ${func.funcaoCodigo}`
 
