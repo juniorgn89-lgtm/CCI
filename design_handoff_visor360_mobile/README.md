@@ -189,4 +189,4 @@ Arquivos de design neste pacote (referência):
 ### Como abrir a referência
 Abrir `Visor360 Mobile.html` em um navegador. Os arquivos `app/*.jsx` são transpilados via Babel no navegador (apenas para a referência rodar standalone — não refletem a arquitetura de build do produto).
 
-> **Visuais:** este pacote não inclui screenshots estáticos — abra o `Visor360 Mobile.html` para ver as telas ao vivo (com light/dark, navegação, filtros e estados de loading/vazio via o painel de Tweaks). É a forma mais fiel de inspecionar cores, espaçamento e interações reais.
+> **Visuais:** veja a pasta `screenshots/` (10 capturas em alta resolução, light + dark, com índice em `screenshots/README.md`). Para inspeção 100% fiel — incluindo estados de loading/vazio, navegação e interações — abra o `Visor360 Mobile.html` para ver as telas ao vivo. É a forma mais fiel de inspecionar cores, espaçamento e interações reais.
