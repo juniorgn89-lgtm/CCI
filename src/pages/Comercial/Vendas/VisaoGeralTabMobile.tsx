@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingUp, Percent, Droplet, Fuel, Wrench, Store, Layers, PieChart } from 'lucide-react'
+import { DollarSign, Percent, Droplet, Receipt, Fuel, Wrench, Store, Layers, PieChart } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -9,13 +9,13 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { classifySetor } from '@/lib/setorClassification'
 import { useFilterStore } from '@/store/filters'
 import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
-import { todayLocal } from '@/lib/period'
+import { todayLocal, offsetPeriod } from '@/lib/period'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { KpiCard, Section, MarginPill, ProgressBar } from '@/components/mobile/primitives'
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { DonutMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { brl, brlShort, litersShort, pct, periodoMes } from '@/components/mobile/format'
+import { brl, brlShort, litersShort, pct, periodoMes, variacaoPct } from '@/components/mobile/format'
 
 const SEG_META = [
   { id: 'combustivel' as const, nome: 'Combustível', Icon: Fuel, color: '#1e3a5f' },
@@ -29,13 +29,21 @@ const SEG_META = [
  * pista (venda itens PS-, mesma régua BI). Mesmos números das abas individuais.
  */
 const VisaoGeralTabMobile = () => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
+  const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
 
-  const { kpis: vendaKpis, dailyData: combDaily, isLoading: isLoadingComb } = useFuelVendaAnalytics()
+  // Período anterior (mesma janela de dias decorridos) pra comparar a PISTA.
+  const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  const fimEfetivo = useMemo(() => { const t = todayLocal(); return dataFinal > t ? t : dataFinal }, [dataFinal])
+  const prevInicial = useMemo(() => offsetPeriod(dataInicial, cmpOffset), [dataInicial, cmpOffset])
+  const prevFinal = useMemo(() => offsetPeriod(fimEfetivo, cmpOffset), [fimEfetivo, cmpOffset])
+
+  const { kpis: vendaKpis, cmp: fuelCmp, dailyData: combDaily, isLoading: isLoadingComb } = useFuelVendaAnalytics()
   const { kpis: convKpis, dailyData: convDaily, isLoading: isLoadingConv } = useConvenienceData()
+  const convCmp = convKpis?.cmp ?? { faturamento: 0, margem: 0, margemPct: 0, ticketMedio: 0, qtdItens: 0 }
 
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
@@ -54,6 +62,14 @@ const VisaoGeralTabMobile = () => {
   })
   // Cruzamento /VENDA (situacao='A') — exclui cancelados da parte de pista.
   const { autorizados, isLoading: isLoadingAut } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
+
+  // Pista do período anterior (pra delta consolidado do faturamento/margem).
+  const { data: vendaItensPrev = [] } = useQuery({
+    queryKey: ['vendaItens-pista-prev', empresaCodigo, prevInicial, prevFinal],
+    queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial: prevInicial, dataFinal: prevFinal, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    enabled: hasEmpresa && empresaCodigo !== null,
+  })
+  const { autorizados: autorizadosPrev } = useVendaCodigosAutorizados(empresaCodigos, prevInicial, prevFinal, hasEmpresa)
 
   const segmentos = useMemo(() => {
     const combFat = vendaKpis.faturamento
@@ -83,6 +99,30 @@ const VisaoGeralTabMobile = () => {
     const lucro = segmentos.combustivel.lucro + segmentos.pista.lucro + segmentos.conveniencia.lucro
     return { faturamento: fat, lucro, margem: fat > 0 ? (lucro / fat) * 100 : 0 }
   }, [segmentos])
+
+  // Cupons (vendas distintas autorizadas) do período → ticket médio consolidado.
+  const ticketMedio = useMemo(() => {
+    const cupons = new Set<number>()
+    for (const it of vendaItens) if (autorizados.has(it.vendaCodigo)) cupons.add(it.vendaCodigo)
+    return cupons.size > 0 ? total.faturamento / cupons.size : 0
+  }, [vendaItens, autorizados, total.faturamento])
+
+  // Comparação consolidada (comb.cmp + conv.cmp + pista do período anterior).
+  const cmpTotal = useMemo(() => {
+    let pistaFat = 0, pistaCusto = 0
+    if (produtosData && gruposData) {
+      const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
+      const psCodigos = new Set(produtosData.filter((p) => classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'automotivos').map((p) => p.produtoCodigo))
+      for (const item of vendaItensPrev) {
+        if (!autorizadosPrev.has(item.vendaCodigo)) continue
+        if (psCodigos.has(item.produtoCodigo)) { pistaFat += item.totalVenda; pistaCusto += item.totalCusto }
+      }
+    }
+    const fat = fuelCmp.faturamento + convCmp.faturamento + pistaFat
+    const lucro = fuelCmp.lucroBruto + convCmp.margem + (pistaFat - pistaCusto)
+    return { faturamento: fat, lucro, margem: fat > 0 ? (lucro / fat) * 100 : 0 }
+  }, [vendaItensPrev, autorizadosPrev, produtosData, gruposData, fuelCmp, convCmp])
+  const margemDeltaPp = cmpTotal.margem > 0 ? total.margem - cmpTotal.margem : null
 
   const proj = useMemo(() => {
     const today = todayLocal()
@@ -137,10 +177,15 @@ const VisaoGeralTabMobile = () => {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <KpiCard span2 big label="Faturamento total" tone="navy" Icon={DollarSign} value={brlShort(total.faturamento)} sub="Combustível + pista + conveniência" />
-        <KpiCard label="Lucro bruto" tone="emerald" Icon={TrendingUp} value={brlShort(total.lucro)} />
-        <KpiCard label="Margem média" tone="violet" Icon={Percent} value={pct(total.margem)} />
-        <KpiCard span2 label="Litros (comb.)" tone="blue" Icon={Droplet} value={litersShort(vendaKpis.litros)} sub={`Combustível ${brlShort(segmentos.combustivel.faturamento)}`} />
+        <KpiCard span2 big label="Faturamento total" tone="emerald" Icon={DollarSign}
+          value={brlShort(total.faturamento)} delta={variacaoPct(total.faturamento, cmpTotal.faturamento)} deltaLabel={cmpLabel}
+          sub={brl(total.faturamento)} />
+        <KpiCard label="Litros" tone="blue" Icon={Droplet}
+          value={litersShort(vendaKpis.litros)} delta={variacaoPct(vendaKpis.litros, fuelCmp.litros)} deltaLabel={cmpLabel} />
+        <KpiCard label="Margem" tone="rose" Icon={Percent}
+          value={pct(total.margem)} delta={margemDeltaPp} deltaLabel={cmpLabel} />
+        <KpiCard span2 label="Ticket médio" tone="amber" Icon={Receipt}
+          value={brl(ticketMedio)} sub="Faturamento ÷ cupons do período" />
       </div>
 
       <ProjecaoSection metrics={projMetrics} periodo={periodo} />
