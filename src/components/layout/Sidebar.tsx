@@ -128,6 +128,9 @@ const Sidebar = () => {
   const [controlOpen, setControlOpen] = useState(false)
   const controlRef = useRef<HTMLDivElement>(null)
   const leaveTimerRef = useRef<number | null>(null)
+  // Modo "Opções ao passar o mouse": hover só mostra o nome (tooltip); o menu
+  // de opções do módulo abre por CLIQUE. Guarda qual módulo está aberto.
+  const [openOptions, setOpenOptions] = useState<string | null>(null)
   const expanded = mode === 'expanded' || (mode === 'hover' && hovered)
 
   // Dois "shadows" do `expanded` pra coordenar UI com a animação CSS:
@@ -198,6 +201,21 @@ const Sidebar = () => {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [controlOpen])
+
+  // Fecha o menu de opções do módulo (modo "options") ao clicar fora ou Esc.
+  useEffect(() => {
+    if (!openOptions) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-module-options]')) setOpenOptions(null)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenOptions(null) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [openOptions])
 
   // Prioriza profiles.full_name (fonte da verdade do app); user_metadata
   // do Supabase auth pode estar desatualizado (ex.: usuário renomeado no admin
@@ -352,60 +370,81 @@ const Sidebar = () => {
                 const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
                 const Icon = item.icon
                 const subOptions = MODULE_SUBOPTIONS[item.path]
-                // Flyout com as sub-opções: só no modo "Opções ao passar o mouse"
-                // e nos módulos que têm abas deep-linkáveis. Senão, tooltip normal.
-                const showFlyout = mode === 'options' && narrow && !!subOptions
+                // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
+                // abre o menu de opções (em vez de navegar direto). Só vale pros
+                // módulos com abas deep-linkáveis; os demais navegam normal.
+                const optionsMode = mode === 'options' && narrow && !!subOptions
+                const optionsOpen = openOptions === item.path
+
+                const inner = (
+                  <>
+                    {/* Barra vertical indicando item ativo. Fica colada à esquerda
+                        do botão, encostando no texto (alinhada com o início da palavra). */}
+                    {isActive && (
+                      <span
+                        aria-hidden
+                        className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-sky-500 dark:bg-sky-400"
+                      />
+                    )}
+                    {/* Coluna fixa do ícone — fica sempre na mesma posição quer
+                        a sidebar esteja narrow ou wide. */}
+                    <span className="flex h-9 w-10 shrink-0 items-center justify-center">
+                      <Icon
+                        className={cn(
+                          'h-[17px] w-[17px]',
+                          isActive
+                            ? 'text-sky-600 dark:text-sky-300'
+                            : 'text-gray-400 dark:text-white/55',
+                        )}
+                      />
+                    </span>
+                    {wide && (
+                      <span className="text-[13px] font-medium">{item.label}</span>
+                    )}
+                  </>
+                )
+                const baseCls = cn(
+                  'relative flex h-9 w-full items-center rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-white'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
+                )
 
                 return (
-                  <div key={item.path} className="group relative">
-                    <Link
-                      to={item.path}
-                      aria-label={item.label}
-                      aria-current={isActive ? 'page' : undefined}
-                      className={cn(
-                        'relative flex h-9 items-center rounded-lg transition-colors',
-                        isActive
-                          ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-white'
-                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white',
-                      )}
-                    >
-                      {/* Barra vertical indicando item ativo. Fica colada à esquerda
-                          do botão, encostando no texto (alinhada com o início da palavra). */}
-                      {isActive && (
-                        <span
-                          aria-hidden
-                          className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-sky-500 dark:bg-sky-400"
-                        />
-                      )}
-                      {/* Coluna fixa do ícone — fica sempre na mesma posição quer
-                          a sidebar esteja narrow ou wide. */}
-                      <span className="flex h-9 w-10 shrink-0 items-center justify-center">
-                        <Icon
-                          className={cn(
-                            'h-[17px] w-[17px]',
-                            isActive
-                              ? 'text-sky-600 dark:text-sky-300'
-                              : 'text-gray-400 dark:text-white/55',
-                          )}
-                        />
-                      </span>
-                      {wide && (
-                        <span className="text-[13px] font-medium">{item.label}</span>
-                      )}
-                    </Link>
+                  <div key={item.path} className="group relative" data-module-options={optionsMode ? '' : undefined}>
+                    {optionsMode ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenOptions((p) => (p === item.path ? null : item.path))}
+                        aria-label={item.label}
+                        aria-haspopup="menu"
+                        aria-expanded={optionsOpen}
+                        className={cn(baseCls, 'text-left')}
+                      >
+                        {inner}
+                      </button>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        aria-label={item.label}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={baseCls}
+                      >
+                        {inner}
+                      </Link>
+                    )}
 
-                    {/* Tooltip simples (narrow, sem flyout) */}
-                    {narrow && !showFlyout && (
+                    {/* Tooltip com o NOME do módulo (narrow). Escondido enquanto o
+                        menu de opções desse módulo estiver aberto. */}
+                    {narrow && !optionsOpen && (
                       <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
                         {item.label}
                       </span>
                     )}
 
-                    {/* Flyout com as sub-opções do módulo (modo "Opções ao passar
-                        o mouse"). O pl-2 cria uma "ponte" hover entre o ícone e o
-                        popover pra ele não fechar ao mover o cursor. */}
-                    {showFlyout && (
-                      <div className="invisible absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100">
+                    {/* Menu de opções do módulo — abre por CLIQUE (modo "options"). */}
+                    {optionsMode && optionsOpen && (
+                      <div className="absolute left-full top-0 z-50 ml-2">
                         <div className="min-w-[12rem] rounded-xl border border-gray-200 bg-white py-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900">
                           <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                             {item.label}
@@ -416,6 +455,7 @@ const Sidebar = () => {
                               <Link
                                 key={opt.to}
                                 to={opt.to}
+                                onClick={() => setOpenOptions(null)}
                                 className={cn(
                                   'flex items-center gap-2 px-3 py-1.5 text-sm transition-colors',
                                   optActive
