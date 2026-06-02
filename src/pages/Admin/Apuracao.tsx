@@ -28,7 +28,6 @@ import {
   aggregateVendaItensToCache,
   aggregateVendaItensToFuncionarioCache,
   upsertVendasFuncionarioCache,
-  fetchVendasFuncionarioCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
   type ProdutoInfo,
@@ -388,17 +387,9 @@ const Apuracao = () => {
           quantidade: 0, total_venda: 0, total_custo: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
           cupons_grupo: 0, cupons_produto: 0,
         }))
-      // Tombstone das linhas de vendedor que sumiram do novo cálculo (mesmo
-      // motivo das vendas — zera chaves ausentes via upsert).
-      const existentesFunc = await fetchVendasFuncionarioCache({ empresaCodigos: empresasCodes, dataInicial: start, dataFinal: end })
-      const novasFuncKeys = new Set(vendaFuncRows.map((r) => `${r.empresa_codigo}|${r.data}|${r.funcionario_codigo}|${r.setor}`))
-      const funcTombstones = existentesFunc
-        .filter((r) => !novasFuncKeys.has(`${r.empresa_codigo}|${r.data}|${r.funcionario_codigo}|${r.setor}`))
-        .map((r) => ({
-          rede_id: rede.id, empresa_codigo: r.empresa_codigo, data: r.data,
-          funcionario_codigo: r.funcionario_codigo, setor: r.setor,
-          faturamento: 0, custo: 0, quantidade: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
-        }))
+      // apuracao_vendas_funcionario tem policy de DELETE (ver SQL), então o
+      // deleteCachePeriodo abaixo já remove os órfãos — sem tombstone (evita uma
+      // leitura paginada extra por mês, que pesava na apuração).
       // Fecha as portas de órfão nas demais tabelas de cache: apaga o período
       // antes de regravar (precisa das policies de DELETE no Supabase).
       await Promise.all([
@@ -416,7 +407,7 @@ const Apuracao = () => {
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),
         upsertVendasCache([...vendaRows, ...tombstones], currentUser?.id),
-        upsertVendasFuncionarioCache([...vendaFuncRows, ...funcTombstones], currentUser?.id),
+        upsertVendasFuncionarioCache(vendaFuncRows, currentUser?.id),
       ])
       return { ok: true, rows: rows.length }
     } catch (e) {
