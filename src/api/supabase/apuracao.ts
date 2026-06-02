@@ -992,6 +992,30 @@ export const deleteVendasCachePeriodo = async (
   if (error) console.warn('[apuracao_vendas] delete period error:', error.message)
 }
 
+/**
+ * Apaga linhas de QUALQUER tabela de cache no período (rede), por uma coluna de
+ * data — chamar ANTES do upsert pra remover órfãos (registros que sumiram da
+ * fonte). Mesmo motivo do `deleteVendasCachePeriodo`, generalizado pras demais
+ * tabelas (diaria/fuel/abastecimentos/caixas/formas). Requer policy de DELETE
+ * (ver docs/supabase-cache-delete-policies.sql); sem ela, RLS apaga 0 linhas.
+ */
+export const deleteCachePeriodo = async (
+  table: string,
+  dateCol: string,
+  redeId: string,
+  dataInicial: string,
+  dataFinal: string,
+): Promise<void> => {
+  if (!supabase) return
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq('rede_id', redeId)
+    .gte(dateCol, dataInicial)
+    .lte(dateCol, dataFinal)
+  if (error) console.warn(`[${table}] delete period error:`, error.message)
+}
+
 export const upsertVendasCache = async (
   rows: ApuracaoVendaUpsert[],
   computedBy?: string | null,

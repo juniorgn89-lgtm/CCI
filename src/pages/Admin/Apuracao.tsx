@@ -23,6 +23,7 @@ import {
   formaPagamentoToCacheRow,
   upsertVendasCache,
   deleteVendasCachePeriodo,
+  deleteCachePeriodo,
   fetchVendasCache,
   aggregateVendaItensToCache,
   fetchUserNamesByIds,
@@ -379,6 +380,15 @@ const Apuracao = () => {
           setor: r.setor as SetorVenda, produto_nome: r.produto_nome,
           quantidade: 0, total_venda: 0, total_custo: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
         }))
+      // Fecha as portas de órfão nas demais tabelas de cache: apaga o período
+      // antes de regravar (precisa das policies de DELETE no Supabase).
+      await Promise.all([
+        deleteCachePeriodo('apuracao_diaria', 'data', rede.id, start, end),
+        deleteCachePeriodo('apuracao_fuel_diaria', 'data', rede.id, start, end),
+        deleteCachePeriodo('apuracao_abastecimentos', 'data_fiscal', rede.id, start, end),
+        deleteCachePeriodo('apuracao_caixas', 'data_movimento', rede.id, start, end),
+        deleteCachePeriodo('apuracao_formas_pagamento', 'data_movimento', rede.id, start, end),
+      ])
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
