@@ -84,8 +84,9 @@ export const useAuth = () => {
       }
 
       resetLoginThrottle()
-      const isMobile = window.innerWidth < 768
-      navigate(isMobile ? '/gerente' : '/dashboard')
+      // Mobile e desktop entram no MESMO app (shell responsivo via AppLayout).
+      // O app Gerente legado (/gerente) segue no código, mas sem rota de entrada.
+      navigate('/dashboard')
     },
     [navigate]
   )
