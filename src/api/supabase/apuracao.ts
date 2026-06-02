@@ -1044,38 +1044,6 @@ export const upsertVendasCache = async (
 export interface ProdutoInfo { setor: SetorVenda; nome: string; grupo?: string }
 
 /**
- * Conta os CUPONS (vendaCodigo distinto) da conveniência por (empresa, dia).
- * Conveniência = produtos cujo setor === 'conveniencia'. Retorna "empresa|dia" → nº.
- */
-/**
- * Cupons (vendaCodigo distinto) por "empresa|dia|setor" — base do ticket médio
- * (= faturamento ÷ cupons, igual ao BI). Antes só contava conveniência; agora
- * conta cada setor (combustível/automotivos/conveniência) pra a Central exibir
- * ticket médio em todas as abas. `outros` fica de fora.
- */
-const cuponsByDaySetor = (
-  itens: VendaItem[],
-  produtoInfo: Map<number, ProdutoInfo>,
-  autorizados?: Set<number>,
-): Map<string, number> => {
-  const sets = new Map<string, Set<number>>()
-  for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
-    const setor = produtoInfo.get(it.produtoCodigo)?.setor
-    if (!setor || setor === 'outros') continue
-    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
-    if (!data || it.vendaCodigo == null) continue
-    const k = `${it.empresaCodigo}|${data}|${setor}`
-    let s = sets.get(k)
-    if (!s) { s = new Set(); sets.set(k, s) }
-    s.add(it.vendaCodigo)
-  }
-  const out = new Map<string, number>()
-  for (const [k, s] of sets) out.set(k, s.size)
-  return out
-}
-
-/**
  * Agrega itens de venda crus (VendaItem) em linhas do cache, somando por
  * (empresa, dia, produto). Carimba `setor` e `produto_nome` (a partir de
  * `produtoInfo`) pra a leitura não depender do catálogo ao vivo nem sofrer
@@ -1087,25 +1055,32 @@ export const aggregateVendaItensToCache = (
   produtoInfo: Map<number, ProdutoInfo>,
   autorizados?: Set<number>,
 ): ApuracaoVendaUpsert[] => {
-  const cuponsByDay = cuponsByDaySetor(itens, produtoInfo, autorizados)
-  // Cupons distintos por GRUPO e por PRODUTO (empresa|dia|chave) — base do ticket
-  // médio por grupo/produto (automotivos/conveniência). Combustível não usa.
+  // Pré-passagem ÚNICA sobre os itens: cupons distintos por SETOR
+  // (empresa|dia|setor) e — só pra loja (automotivos/conveniência) — por GRUPO e
+  // por PRODUTO. Base do ticket médio (= faturamento ÷ cupons, igual ao BI).
+  const setorSets = new Map<string, Set<number>>()
   const grupoSets = new Map<string, Set<number>>()
   const produtoSets = new Map<string, Set<number>>()
   for (const it of itens) {
     if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
     const setor = produtoInfo.get(it.produtoCodigo)?.setor
-    if (!setor || setor === 'outros' || setor === 'combustivel') continue
+    if (!setor || setor === 'outros') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
-    const grupo = produtoInfo.get(it.produtoCodigo)?.grupo || 'Sem grupo'
-    const gk = `${it.empresaCodigo}|${data}|${grupo}`
-    let gs = grupoSets.get(gk); if (!gs) { gs = new Set(); grupoSets.set(gk, gs) }
-    gs.add(it.vendaCodigo)
-    const pk = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
-    let ps = produtoSets.get(pk); if (!ps) { ps = new Set(); produtoSets.set(pk, ps) }
-    ps.add(it.vendaCodigo)
+    const sk = `${it.empresaCodigo}|${data}|${setor}`
+    let ss = setorSets.get(sk); if (!ss) { ss = new Set(); setorSets.set(sk, ss) }
+    ss.add(it.vendaCodigo)
+    if (setor !== 'combustivel') {
+      const gk = `${it.empresaCodigo}|${data}|${produtoInfo.get(it.produtoCodigo)?.grupo || 'Sem grupo'}`
+      let gs = grupoSets.get(gk); if (!gs) { gs = new Set(); grupoSets.set(gk, gs) }
+      gs.add(it.vendaCodigo)
+      const pk = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
+      let ps = produtoSets.get(pk); if (!ps) { ps = new Set(); produtoSets.set(pk, ps) }
+      ps.add(it.vendaCodigo)
+    }
   }
+  const cuponsByDay = new Map<string, number>()
+  for (const [k, s] of setorSets) cuponsByDay.set(k, s.size)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
     if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
