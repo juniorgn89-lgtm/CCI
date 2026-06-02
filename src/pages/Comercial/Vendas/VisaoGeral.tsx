@@ -237,6 +237,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
       1000, 50,
     ),
     enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Cruzamento /VENDA (situacao='A') — exclui cancelados da parte de pista.

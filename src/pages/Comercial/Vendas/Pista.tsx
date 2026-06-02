@@ -258,6 +258,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       1000, 50,
     ),
     enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Vendas do período ANTERIOR (mês/ano ant. conforme o comparativo) — base da
@@ -276,6 +277,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       1000, 50,
     ),
     enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Cruzamento /VENDA (situacao='A') — exclui cancelados (VENDA_ITEM não traz o flag).

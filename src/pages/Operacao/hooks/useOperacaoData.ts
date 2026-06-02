@@ -253,6 +253,7 @@ const useOperacaoData = () => {
     queryKey: ['abastecimentos', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: hasEmpresa && !abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Abastecimentos — previous period (for DeltaBadge variation)
@@ -260,6 +261,7 @@ const useOperacaoData = () => {
     queryKey: ['abastecimentos', prev.inicial, prev.final],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prev.inicial, dataFinal: prev.final }),
     enabled: hasEmpresa && !!prev.inicial && !!prev.final && !abastCachePrev.isCacheHit && !abastCachePrev.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Caixas — previous period (for totalApurado delta). Gateado por cache HIT.
@@ -273,6 +275,7 @@ const useOperacaoData = () => {
       !!prev.final &&
       !caixasCachePrev.isCacheHit &&
       !caixasCachePrev.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Abastecimentos + caixas do período comparativo — só fetcham quando 'vs ano ant.'
@@ -281,6 +284,7 @@ const useOperacaoData = () => {
     queryKey: ['abastecimentos', cmp.inicial, cmp.final],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: cmp.inicial, dataFinal: cmp.final }),
     enabled: hasEmpresa && isPrevYear && !!cmp.inicial && !!cmp.final && !abastCacheCmp.isCacheHit && !abastCacheCmp.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
   const { data: caixasCmpRaw } = useQuery({
     queryKey: ['caixas', empresaCodigo, cmp.inicial, cmp.final],
@@ -293,6 +297,7 @@ const useOperacaoData = () => {
       !!cmp.final &&
       !caixasCacheCmp.isCacheHit &&
       !caixasCacheCmp.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Funcionários (direct call — small dataset)
@@ -338,6 +343,7 @@ const useOperacaoData = () => {
       empresaCodigo !== null &&
       !caixasCacheCurrent.isCacheHit &&
       !caixasCacheCurrent.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Formas de pagamento. Gateado por cache HIT (mesmo cache de caixas — gravados juntos).
@@ -350,6 +356,7 @@ const useOperacaoData = () => {
       empresaCodigo !== null &&
       !caixasCacheCurrent.isCacheHit &&
       !caixasCacheCurrent.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // l1 (abast) e l6/l7 (caixas/formas) só são relevantes quando cache MISS.

@@ -270,6 +270,7 @@ const useConvenienceData = () => {
       1000, 50
     ),
     enabled: hasEmpresa && !vendasCacheCurrent.isCacheHit && !vendasCacheCurrent.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Previous month venda itens (for KPI comparison) — live só quando cache MISS.
@@ -287,6 +288,7 @@ const useConvenienceData = () => {
       1000, 50
     ),
     enabled: hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Período comparativo (KPI deltas) — só fetcha quando 'vs ano ant.'; no modo
@@ -305,6 +307,7 @@ const useConvenienceData = () => {
       1000, 50
     ),
     enabled: hasEmpresa && isPrevYear && !vendasCacheCmp.isCacheHit && !vendasCacheCmp.isChecking,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Historical months for evolution chart (fills gap between prevMonth and current)

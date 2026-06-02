@@ -87,12 +87,11 @@ const useCaixasCache = (input: UseCaixasCacheInput): UseCaixasCacheResult => {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Safety net: cache de formas pode estar incompleto (cobrir alguns dias do
-  // período mas não outros) ou totalmente vazio (upsert silencioso no apurarMes,
-  // RLS). A condição "cache empty" não pega o caso parcial. Solução simples:
-  // sempre rodar live em paralelo quando há cache HIT e mergear/dedupe.
-  // Custo: 1 request extra por página. Benefício: dados consistentes.
-  const liveFallbackEnabled = isCacheHit && empresaCodigo != null
+  // Safety net SÓ quando o cache de formas está VAZIO (modo de falha real: upsert
+  // silencioso no apurarMes / RLS). No HIT normal (formas presentes) confia no
+  // cache e NÃO refaz o fetch live paginado — esse fetch em todo HIT era o maior
+  // peso residual da aba Caixas. Espera o cache de formas assentar antes de decidir.
+  const liveFallbackEnabled = isCacheHit && empresaCodigo != null && !loadingFormas && formasRows.length === 0
 
   const { data: fallbackFormas = [], isLoading: loadingFallbackFormas } = useQuery({
     queryKey: ['formas-live-closed', empresaCodigo, closedIni, closedEnd],
