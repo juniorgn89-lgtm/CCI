@@ -1,10 +1,15 @@
 import { useMemo } from 'react'
-import { DollarSign, Droplet, Percent, TrendingUp, Layers, Trophy, Fuel, Wrench, Store } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { DollarSign, Droplet, Percent, TrendingUp, Layers, Trophy, Fuel, Wrench, Store, CreditCard } from 'lucide-react'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useFilterStore } from '@/store/filters'
-import { todayLocal } from '@/lib/period'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchFormasPagamentoCache, fetchApuracaoDiaria } from '@/api/supabase/apuracao'
+import { offsetPeriod, todayLocal } from '@/lib/period'
 import { KpiCard, Section, MarginPill, ProgressBar, DeltaBadge } from '@/components/mobile/primitives'
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
+import { DonutMobile, AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brlShort, litersShort, liters, pct, variacaoPct } from '@/components/mobile/format'
 
@@ -48,6 +53,52 @@ const CentralMobile = () => {
     const fatAA = postos.reduce((s, p) => s + p.fatAA, 0)
     return { fatAA, postos, maxFat: Math.max(...postos.map((p) => p.fat), 0) }
   }, [rede])
+
+  // Empresas da rede (pra ler formas/evolução rede-wide do cache).
+  const { data: empresasData } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas({ limite: 200 }),
+    staleTime: 10 * 60 * 1000,
+  })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const codes = useMemo(() => empresasPermitidas.map((e) => e.codigo), [empresasPermitidas])
+  // Início da janela de 12 meses (1º dia do mês 11 meses antes do fim).
+  const evoIni = useMemo(() => `${offsetPeriod(dataFinal, 11).substring(0, 7)}-01`, [dataFinal])
+
+  // Formas de pagamento (período, rede inteira) e evolução mensal (12m).
+  const { data: formasRows = [] } = useQuery({
+    queryKey: ['central-formas', codes.join(','), dataInicial, dataFinal],
+    queryFn: () => fetchFormasPagamentoCache({ empresaCodigos: codes, dataInicial, dataFinal }),
+    enabled: codes.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+  const { data: evoRows = [] } = useQuery({
+    queryKey: ['central-evolucao', codes.join(','), evoIni, dataFinal],
+    queryFn: () => fetchApuracaoDiaria({ empresaCodigos: codes, dataInicial: evoIni, dataFinal }),
+    enabled: codes.length > 0,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const formasDonut = useMemo(() => {
+    const m = new Map<string, { nome: string; valor: number }>()
+    for (const f of formasRows) {
+      const tipo = f.tipo_forma_pagamento || 'OUTROS'
+      const cur = m.get(tipo) ?? { nome: f.nome_forma_pagamento || tipo, valor: 0 }
+      cur.valor += f.valor_pagamento
+      m.set(tipo, cur)
+    }
+    const arr = [...m.values()].sort((a, b) => b.valor - a.valor)
+    const top = arr.slice(0, 5)
+    const resto = arr.slice(5).reduce((s, x) => s + x.valor, 0)
+    if (resto > 0) top.push({ nome: 'Outros', valor: resto })
+    return { data: top, total: arr.reduce((s, x) => s + x.valor, 0) }
+  }, [formasRows])
+
+  const evolucao = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of evoRows) m.set(r.data.slice(0, 7), (m.get(r.data.slice(0, 7)) ?? 0) + (r.vendas_total ?? 0))
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mes, fat]) => ({ label: `${mes.slice(5, 7)}/${mes.slice(2, 4)}`, fat }))
+  }, [evoRows])
 
   if (rede.isLoading) return <LoadingScreen message="Carregando a rede…" />
   if (!rede.hasRede || rede.global.faturamento <= 0) return <EmptyCard />
@@ -124,9 +175,19 @@ const CentralMobile = () => {
         </div>
       </Section>
 
-      <p className="px-1 pb-1 text-center text-[10.5px] text-gray-400 dark:text-gray-500">
-        Evolução mensal e formas de pagamento chegam nas próximas atualizações.
-      </p>
+      {formasDonut.data.length > 0 && (
+        <Section Icon={CreditCard} title="Formas de pagamento" accent="blue"
+          right={<span className="text-[11px] tabular-nums text-gray-400">{brlShort(formasDonut.total)}</span>}>
+          <DonutMobile data={formasDonut.data} centerTop={brlShort(formasDonut.total)} centerSub="total" />
+        </Section>
+      )}
+
+      {evolucao.length > 1 && (
+        <Section Icon={TrendingUp} title="Evolução mensal" accent="navy"
+          right={<span className="text-[10.5px] text-gray-400">faturamento · 12m</span>}>
+          <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={160} />
+        </Section>
+      )}
     </div>
   )
 }
