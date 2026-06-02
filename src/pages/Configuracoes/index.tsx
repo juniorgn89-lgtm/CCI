@@ -16,7 +16,7 @@ import {
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 
 const APP_VERSION = 'v1.0.0'
-const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'suporte@visor360.com.br'
+const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'contato@cci.app.br'
 
 const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Claro', icon: Sun },
