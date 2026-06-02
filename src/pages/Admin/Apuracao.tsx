@@ -26,6 +26,9 @@ import {
   deleteCachePeriodo,
   fetchVendasCache,
   aggregateVendaItensToCache,
+  aggregateVendaItensToFuncionarioCache,
+  upsertVendasFuncionarioCache,
+  fetchVendasFuncionarioCache,
   fetchUserNamesByIds,
   type ApuracaoMonthMetadata,
   type ProdutoInfo,
@@ -364,6 +367,9 @@ const Apuracao = () => {
         produtoInfo.set(p.produtoCodigo, { setor, nome: p.nome })
       }
       const vendaRows = aggregateVendaItensToCache(vendaItens, rede.id, produtoInfo, autorizados)
+      // Produtividade de vendedores da loja (apuracao_vendas_funcionario):
+      // agrega por (empresa, dia, funcionario, setor) — só conveniência/pista.
+      const vendaFuncRows = aggregateVendaItensToFuncionarioCache(vendaItens, rede.id, produtoInfo, autorizados)
       // Remove ÓRFÃOS (chaves que existiam no cache mas sumiram do cálculo — ex.:
       // venda cancelada depois de uma apuração anterior). Duas camadas:
       //  1) DELETE do período (best-effort; pode ser no-op por RLS de DELETE).
@@ -380,6 +386,17 @@ const Apuracao = () => {
           setor: r.setor as SetorVenda, produto_nome: r.produto_nome,
           quantidade: 0, total_venda: 0, total_custo: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
         }))
+      // Tombstone das linhas de vendedor que sumiram do novo cálculo (mesmo
+      // motivo das vendas — zera chaves ausentes via upsert).
+      const existentesFunc = await fetchVendasFuncionarioCache({ empresaCodigos: empresasCodes, dataInicial: start, dataFinal: end })
+      const novasFuncKeys = new Set(vendaFuncRows.map((r) => `${r.empresa_codigo}|${r.data}|${r.funcionario_codigo}|${r.setor}`))
+      const funcTombstones = existentesFunc
+        .filter((r) => !novasFuncKeys.has(`${r.empresa_codigo}|${r.data}|${r.funcionario_codigo}|${r.setor}`))
+        .map((r) => ({
+          rede_id: rede.id, empresa_codigo: r.empresa_codigo, data: r.data,
+          funcionario_codigo: r.funcionario_codigo, setor: r.setor,
+          faturamento: 0, custo: 0, quantidade: 0, acrescimos: 0, descontos: 0, linhas: 0, cupons: 0,
+        }))
       // Fecha as portas de órfão nas demais tabelas de cache: apaga o período
       // antes de regravar (precisa das policies de DELETE no Supabase).
       await Promise.all([
@@ -388,6 +405,7 @@ const Apuracao = () => {
         deleteCachePeriodo('apuracao_abastecimentos', 'data_fiscal', rede.id, start, end),
         deleteCachePeriodo('apuracao_caixas', 'data_movimento', rede.id, start, end),
         deleteCachePeriodo('apuracao_formas_pagamento', 'data_movimento', rede.id, start, end),
+        deleteCachePeriodo('apuracao_vendas_funcionario', 'data', rede.id, start, end),
       ])
       await Promise.all([
         upsertApuracaoDiaria(rows, currentUser?.id),
@@ -396,6 +414,7 @@ const Apuracao = () => {
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),
         upsertVendasCache([...vendaRows, ...tombstones], currentUser?.id),
+        upsertVendasFuncionarioCache([...vendaFuncRows, ...funcTombstones], currentUser?.id),
       ])
       return { ok: true, rows: rows.length }
     } catch (e) {

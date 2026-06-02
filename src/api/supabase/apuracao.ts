@@ -1125,6 +1125,163 @@ export const aggregateVendaItensToCache = (
   return Array.from(map.values())
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Cache de PRODUTIVIDADE DE VENDEDORES (apuracao_vendas_funcionario)
+// ═══════════════════════════════════════════════════════════════════════
+// Agregado por (rede, empresa, dia, funcionario, setor) — só setores de loja
+// (automotivos/conveniencia). O vendedor é o `funcionarioCodigo` de cada item
+// de venda, que o cache por produto (apuracao_vendas) descarta. Base da aba
+// "Vendedores" da Produtividade. Veja docs/supabase-apuracao-vendas-funcionario.sql.
+
+/** Setores de loja considerados "venda de balcão" (combustível = frentista). */
+const SETORES_LOJA: SetorVenda[] = ['automotivos', 'conveniencia']
+
+export interface ApuracaoVendaFuncionarioRow {
+  rede_id: string
+  empresa_codigo: number
+  data: string // yyyy-MM-dd
+  funcionario_codigo: number
+  setor: string
+  faturamento: number
+  custo: number
+  quantidade: number
+  acrescimos: number
+  descontos: number
+  linhas: number
+  /** Nº de cupons (vendaCodigo distinto) do funcionário no (setor, dia). */
+  cupons: number
+  computed_at: string
+  computed_by: string | null
+}
+
+export type ApuracaoVendaFuncionarioUpsert = Omit<ApuracaoVendaFuncionarioRow, 'computed_at' | 'computed_by'>
+
+export const fetchVendasFuncionarioCache = async (
+  params: FetchCaixasCacheParams,
+): Promise<ApuracaoVendaFuncionarioRow[]> => {
+  if (!supabase) return []
+  const all: ApuracaoVendaFuncionarioRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_vendas_funcionario')
+      .select('*')
+      .gte('data', params.dataInicial)
+      .lte('data', params.dataFinal)
+      // Ordem TOTAL (PK inteira) pra o .range() não pular linhas nas fronteiras.
+      .order('data', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('funcionario_codigo', { ascending: true })
+      .order('setor', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_vendas_funcionario] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoVendaFuncionarioRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  // Dedup defensivo por (rede, empresa, dia, funcionario, setor) — mantém a
+  // apuração mais recente caso a unique constraint tenha se perdido.
+  const byKey = new Map<string, ApuracaoVendaFuncionarioRow>()
+  for (const r of all) {
+    const k = `${r.rede_id}|${r.empresa_codigo}|${r.data}|${r.funcionario_codigo}|${r.setor}`
+    const prev = byKey.get(k)
+    if (!prev || (r.computed_at ?? '') > (prev.computed_at ?? '')) byKey.set(k, r)
+  }
+  return Array.from(byKey.values())
+}
+
+/**
+ * Agrega itens de venda crus por (empresa, dia, funcionario, setor) — só loja
+ * (automotivos/conveniencia) e só vendas autorizadas (situacao='A'). `cupons` =
+ * vendaCodigo distinto do funcionário naquele setor/dia (ticket médio = fat ÷ cupons).
+ */
+export const aggregateVendaItensToFuncionarioCache = (
+  itens: VendaItem[],
+  redeId: string,
+  produtoInfo: Map<number, ProdutoInfo>,
+  autorizados?: Set<number>,
+): ApuracaoVendaFuncionarioUpsert[] => {
+  const isLoja = (it: VendaItem): SetorVenda | null => {
+    const setor = produtoInfo.get(it.produtoCodigo)?.setor
+    return setor && SETORES_LOJA.includes(setor) ? setor : null
+  }
+  // Cupons (vendaCodigo distinto) por empresa|dia|funcionario|setor.
+  const cupomSets = new Map<string, Set<number>>()
+  for (const it of itens) {
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
+    const setor = isLoja(it)
+    if (!setor || !it.funcionarioCodigo) continue
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data || it.vendaCodigo == null) continue
+    const k = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
+    let s = cupomSets.get(k)
+    if (!s) { s = new Set(); cupomSets.set(k, s) }
+    s.add(it.vendaCodigo)
+  }
+  const map = new Map<string, ApuracaoVendaFuncionarioUpsert>()
+  for (const it of itens) {
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue
+    const setor = isLoja(it)
+    if (!setor || !it.funcionarioCodigo) continue
+    const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
+    if (!data) continue
+    const key = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.faturamento += it.totalVenda ?? 0
+      existing.custo += it.totalCusto ?? 0
+      existing.quantidade += it.quantidade ?? 0
+      existing.acrescimos += it.totalAcrescimo ?? 0
+      existing.descontos += it.totalDesconto ?? 0
+      existing.linhas += 1
+    } else {
+      map.set(key, {
+        rede_id: redeId,
+        empresa_codigo: it.empresaCodigo,
+        data,
+        funcionario_codigo: it.funcionarioCodigo,
+        setor,
+        faturamento: it.totalVenda ?? 0,
+        custo: it.totalCusto ?? 0,
+        quantidade: it.quantidade ?? 0,
+        acrescimos: it.totalAcrescimo ?? 0,
+        descontos: it.totalDesconto ?? 0,
+        linhas: 1,
+        cupons: cupomSets.get(key)?.size ?? 0,
+      })
+    }
+  }
+  return Array.from(map.values())
+}
+
+export const upsertVendasFuncionarioCache = async (
+  rows: ApuracaoVendaFuncionarioUpsert[],
+  computedBy?: string | null,
+): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const stamped = rows.map((r) => ({ ...r, computed_by: computedBy ?? null }))
+  const chunkSize = 500
+  for (let i = 0; i < stamped.length; i += chunkSize) {
+    const chunk = stamped.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_vendas_funcionario')
+      .upsert(chunk, { onConflict: 'rede_id,empresa_codigo,data,funcionario_codigo,setor' })
+    if (error) {
+      console.warn('[apuracao_vendas_funcionario] upsert error:', error.message)
+      return
+    }
+  }
+}
+
 /**
  * Lista os dias do período (yyyy-MM-dd). Útil pra detectar "buracos" entre o
  * que foi requisitado e o que voltou do cache.

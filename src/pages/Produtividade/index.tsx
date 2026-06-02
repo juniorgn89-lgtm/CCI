@@ -1,6 +1,6 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Fuel, ShoppingBag } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -19,6 +19,8 @@ import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
+import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
+import { cn } from '@/lib/utils'
 
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
 
@@ -68,6 +70,8 @@ const Produtividade = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
     setProdTab(visibleTabs[0].id as SubTab)
   }
+  // Alternador: Frentistas (combustível) × Vendedores (conveniência).
+  const [modo, setModo] = useState<'frentistas' | 'vendedores'>('frentistas')
 
   // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
   // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
@@ -115,7 +119,33 @@ const Produtividade = () => {
             <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
             <FocusModeToggle />
           </div>
-          {hasEmpresa && visibleTabs.length > 0 && (
+
+          {/* Alternador Frentistas (combustível) × Vendedores (conveniência). */}
+          {hasEmpresa && (
+            <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+              {([
+                { id: 'frentistas', label: 'Frentistas', Icon: Fuel },
+                { id: 'vendedores', label: 'Vendedores', Icon: ShoppingBag },
+              ] as const).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setModo(m.id)}
+                  className={cn(
+                    'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
+                    modo === m.id
+                      ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                  )}
+                >
+                  <m.Icon className="h-3.5 w-3.5" />
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {hasEmpresa && modo === 'frentistas' && visibleTabs.length > 0 && (
             <TopBarTabs
               active={prodTab}
               onChange={(id) => setProdTab(id as SubTab)}
@@ -127,7 +157,7 @@ const Produtividade = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
-      {hasEmpresa && (
+      {hasEmpresa && modo === 'frentistas' && (
         <HeaderTray>
           <ModuleSettings
             title="Produtividade"
@@ -142,7 +172,9 @@ const Produtividade = () => {
 
       {!hasEmpresa && <SelectCompanyState />}
 
-      {hasEmpresa && (
+      {hasEmpresa && modo === 'vendedores' && <VendedoresConveniencia />}
+
+      {hasEmpresa && modo === 'frentistas' && (
         showSkeleton ? (
           <TabFallback />
         ) : (
