@@ -18,6 +18,8 @@ const PayablesTable = lazy(() => import('@/pages/Financeiro/components/PayablesT
 const CashFlowChart = lazy(() => import('@/pages/Financeiro/components/CashFlowChart'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import useIsMobile from '@/hooks/useIsMobile'
+import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
   visao: LayoutDashboard,
@@ -61,6 +63,10 @@ const Financeiro = () => {
     hasEmpresa,
   } = useFinanceData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
+  const isMobile = useIsMobile()
+
+  // Mobile: tela própria (Visão Geral / Receber / Pagar / Fluxo).
+  if (isMobile) return <FinanceiroMobile />
 
   return (
     <div className="space-y-6">
