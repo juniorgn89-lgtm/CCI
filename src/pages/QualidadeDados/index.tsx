@@ -25,6 +25,8 @@ import useQualidadeDados, {
   type CupomMultiAbast,
 } from '@/pages/QualidadeDados/hooks/useQualidadeDados'
 import useQualidadeArquivados, { keyOf } from '@/pages/QualidadeDados/hooks/useQualidadeArquivados'
+import useIsMobile from '@/hooks/useIsMobile'
+import QualidadeMobile from '@/pages/QualidadeDados/QualidadeMobile'
 import {
   identityAbastecimento,
   identityPrecoSuspeito,
@@ -992,6 +994,9 @@ const QualidadeDados = () => {
   // selectedKeys mantém key → rotulo (precisa do rótulo na hora de arquivar)
   const [selectedKeys, setSelectedKeys] = useState<Map<string, string>>(new Map())
   const [arquivando, setArquivando] = useState(false)
+  const isMobile = useIsMobile()
+  // Mobile: tela de triagem própria (overview das inconsistências).
+  if (isMobile) return <QualidadeMobile />
   const onSelect = setSelected
 
   // Filtra items removendo os já arquivados (não-restaurados)
