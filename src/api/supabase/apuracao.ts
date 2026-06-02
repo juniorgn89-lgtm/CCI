@@ -996,7 +996,13 @@ export interface ProdutoInfo { setor: SetorVenda; nome: string }
  * Conta os CUPONS (vendaCodigo distinto) da conveniência por (empresa, dia).
  * Conveniência = produtos cujo setor === 'conveniencia'. Retorna "empresa|dia" → nº.
  */
-const cuponsConvByDay = (
+/**
+ * Cupons (vendaCodigo distinto) por "empresa|dia|setor" — base do ticket médio
+ * (= faturamento ÷ cupons, igual ao BI). Antes só contava conveniência; agora
+ * conta cada setor (combustível/automotivos/conveniência) pra a Central exibir
+ * ticket médio em todas as abas. `outros` fica de fora.
+ */
+const cuponsByDaySetor = (
   itens: VendaItem[],
   produtoInfo: Map<number, ProdutoInfo>,
   autorizados?: Set<number>,
@@ -1004,10 +1010,11 @@ const cuponsConvByDay = (
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
     if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
-    if (produtoInfo.get(it.produtoCodigo)?.setor !== 'conveniencia') continue
+    const setor = produtoInfo.get(it.produtoCodigo)?.setor
+    if (!setor || setor === 'outros') continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
-    const k = `${it.empresaCodigo}|${data}`
+    const k = `${it.empresaCodigo}|${data}|${setor}`
     let s = sets.get(k)
     if (!s) { s = new Set(); sets.set(k, s) }
     s.add(it.vendaCodigo)
@@ -1029,7 +1036,7 @@ export const aggregateVendaItensToCache = (
   produtoInfo: Map<number, ProdutoInfo>,
   autorizados?: Set<number>,
 ): ApuracaoVendaUpsert[] => {
-  const cuponsByDay = cuponsConvByDay(itens, produtoInfo, autorizados)
+  const cuponsByDay = cuponsByDaySetor(itens, produtoInfo, autorizados)
   const map = new Map<string, ApuracaoVendaUpsert>()
   for (const it of itens) {
     if (autorizados ? !autorizados.has(it.vendaCodigo) : it.cancelada === 'S') continue  // só vendas autorizadas (BI)
@@ -1065,7 +1072,7 @@ export const aggregateVendaItensToCache = (
         acrescimos: it.totalAcrescimo ?? 0,
         descontos: it.totalDesconto ?? 0,
         linhas: 1,
-        cupons: setor === 'conveniencia' ? (cuponsByDay.get(`${it.empresaCodigo}|${data}`) ?? 0) : 0,
+        cupons: cuponsByDay.get(`${it.empresaCodigo}|${data}|${setor}`) ?? 0,
       })
     }
   }

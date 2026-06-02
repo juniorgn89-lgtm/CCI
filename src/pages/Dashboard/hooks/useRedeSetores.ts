@@ -64,6 +64,10 @@ export interface RedePostoRow {
   precoVenda: number
   precoCusto: number
   lbPorUnidade: number
+  /** Cupons (vendaCodigo distinto) do setor no posto — denominador do ticket médio. */
+  cupons: number
+  /** Ticket médio = faturamento ÷ cupons (igual ao BI). 0 quando sem cupons. */
+  ticketMedio: number
   produtos: RedeProdutoRow[]
 }
 
@@ -81,6 +85,10 @@ export interface RedeSetor {
   lucroPorUnidade: number
   acrescimos: number
   descontos: number
+  /** Cupons (vendaCodigo distinto) do setor na rede. */
+  cupons: number
+  /** Ticket médio do setor = faturamento ÷ cupons. */
+  ticketMedio: number
   postos: RedePostoRow[]
 }
 
@@ -117,6 +125,7 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
   id, unidadeLabel, lbLabel,
   qtd: 0, qtdAnoAnterior: 0, faturamento: 0, custo: 0, lucroBruto: 0,
   lucroBrutoAnoAnterior: 0, margem: 0, lucroPorUnidade: 0, acrescimos: 0, descontos: 0,
+  cupons: 0, ticketMedio: 0,
   postos: [],
 })
 
@@ -290,6 +299,34 @@ const useRedeSetores = (): RedeSetoresData => {
       postoMap.set(a.empresaCodigo, posto)
     }
 
+    // Cupons (vendaCodigo distinto) por "empresa|setor" — denominador do ticket
+    // médio (= faturamento ÷ cupons, igual ao BI). No cache vêm desnormalizados
+    // por (empresa,dia,setor) em cada linha → dedup por essa chave e soma. No
+    // "hoje" (live) conta distinto direto dos itens.
+    const cuponsByES = new Map<string, number>()
+    {
+      const seenDay = new Set<string>()
+      for (const r of closedRows) {
+        if (r.setor === 'outros') continue
+        const s = setorOf(r.setor, r.produto_codigo)
+        const dayKey = `${r.empresa_codigo}|${r.data}|${s}`
+        if (seenDay.has(dayKey)) continue
+        seenDay.add(dayKey)
+        const esk = `${r.empresa_codigo}|${s}`
+        cuponsByES.set(esk, (cuponsByES.get(esk) ?? 0) + (r.cupons ?? 0))
+      }
+      const todaySets = new Map<string, Set<number>>()
+      for (const it of todayItens) {
+        if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
+        const s = classify(it.produtoCodigo, isFuel, isPista)
+        const esk = `${it.empresaCodigo}|${s}`
+        let set = todaySets.get(esk)
+        if (!set) { set = new Set(); todaySets.set(esk, set) }
+        set.add(it.vendaCodigo)
+      }
+      for (const [esk, set] of todaySets) cuponsByES.set(esk, (cuponsByES.get(esk) ?? 0) + set.size)
+    }
+
     const buildSetor = (id: SetorId): RedeSetor => {
       const isComb = id === 'combustivel'
       const setor = emptySetor(id, isComb ? 'Litros' : 'Quantidade', isComb ? 'L.B. por litro' : 'L.B. por unidade')
@@ -340,6 +377,7 @@ const useRedeSetores = (): RedeSetoresData => {
         }
         produtos.sort((a, b) => b.lucroBruto - a.lucroBruto)
         const lucro = posto.fat - posto.custo
+        const cupons = cuponsByES.get(`${empresaCodigo}|${id}`) ?? 0
         setor.postos.push({
           empresaCodigo,
           posto: nomePorEmpresa.get(empresaCodigo) ?? `Posto ${empresaCodigo}`,
@@ -355,16 +393,20 @@ const useRedeSetores = (): RedeSetoresData => {
           precoVenda: posto.qtd > 0 ? posto.fat / posto.qtd : 0,
           precoCusto: posto.qtd > 0 ? posto.custo / posto.qtd : 0,
           lbPorUnidade: posto.qtd > 0 ? lucro / posto.qtd : 0,
+          cupons,
+          ticketMedio: cupons > 0 ? posto.fat / cupons : 0,
           produtos,
         })
         setor.qtd += posto.qtd; setor.faturamento += posto.fat; setor.custo += posto.custo
         setor.acrescimos += posto.acr; setor.descontos += posto.desc
         setor.qtdAnoAnterior += pQtdAnt; setor.lucroBrutoAnoAnterior += pLucroAnt
+        setor.cupons += cupons
       }
       setor.postos.sort((a, b) => b.lucroBruto - a.lucroBruto)
       setor.lucroBruto = setor.faturamento - setor.custo
       setor.margem = setor.faturamento > 0 ? (setor.lucroBruto / setor.faturamento) * 100 : 0
       setor.lucroPorUnidade = setor.qtd > 0 ? setor.lucroBruto / setor.qtd : 0
+      setor.ticketMedio = setor.cupons > 0 ? setor.faturamento / setor.cupons : 0
       return setor
     }
 

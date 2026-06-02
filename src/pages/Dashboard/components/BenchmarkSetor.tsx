@@ -24,6 +24,8 @@ interface ProdutoRow {
 
 interface PostoRow {
   posto: string
+  cupons: number
+  ticketMedio: number
   produtos: ProdutoRow[]
 }
 
@@ -90,7 +92,7 @@ const BenchmarkSetor = () => {
   const data = useMemo<SetorData>(() => ({
     unidadeLabel: setorReal.unidadeLabel,
     lbLabel: setorReal.lbLabel,
-    postos: setorReal.postos.map((p) => ({ posto: p.posto, produtos: p.produtos })),
+    postos: setorReal.postos.map((p) => ({ posto: p.posto, cupons: p.cupons, ticketMedio: p.ticketMedio, produtos: p.produtos })),
   }), [setorReal])
 
   // Agrega cada posto e o total geral.
@@ -128,14 +130,16 @@ const BenchmarkSetor = () => {
       acrescimos: acc.acrescimos + p.acrescimos,
       descontos: acc.descontos + p.descontos,
       totalVenda: acc.totalVenda + p.precoVenda * p.qtd,
-    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0, totalVenda: 0 })
+      cupons: acc.cupons + p.cupons,
+    }), { qtd: 0, qtdAnoAnterior: 0, lucroBruto: 0, lucroBrutoAnoAnterior: 0, faturamentoAnoAnterior: 0, acrescimos: 0, descontos: 0, totalVenda: 0, cupons: 0 })
 
     const totalMargem = totals.totalVenda > 0 ? (totals.lucroBruto / totals.totalVenda) * 100 : 0
     const totalPrecoVenda = totals.qtd > 0 ? totals.totalVenda / totals.qtd : 0
     const totalPrecoCusto = totals.qtd > 0 ? (totals.totalVenda - totals.lucroBruto) / totals.qtd : 0
     const totalLb = totals.qtd > 0 ? totals.lucroBruto / totals.qtd : 0
+    const totalTicket = totals.cupons > 0 ? totals.totalVenda / totals.cupons : 0
 
-    return { postos, totals: { ...totals, margem: totalMargem, precoVenda: totalPrecoVenda, precoCusto: totalPrecoCusto, lbPorUnidade: totalLb } }
+    return { postos, totals: { ...totals, margem: totalMargem, precoVenda: totalPrecoVenda, precoCusto: totalPrecoCusto, lbPorUnidade: totalLb, ticketMedio: totalTicket } }
   }, [data])
 
   // Posto que está "se destacando" no setor ativo — maior Lucro Bruto absoluto.
@@ -159,6 +163,10 @@ const BenchmarkSetor = () => {
   // Coluna Faturamento (igual ao BI) só em Automotivos/Conveniências — Combustíveis
   // já tem Litros como métrica de volume e o BI não mostra faturamento lá.
   const showFaturamento = setor !== 'combustiveis'
+  // Combustíveis mantém colunas próprias (Acréscimos/Descontos/Preço venda/custo/
+  // L.B. por litro). Automotivos/Conveniências espelham o BI: Preço médio /
+  // Custo médio / Ticket médio (sem acréscimos/descontos/L.B. por unidade).
+  const isComb = setor === 'combustiveis'
   const fatProd = (r: { precoVenda: number; qtd: number }) => r.precoVenda * r.qtd
   const maxFat = allRows.reduce((m, r) => Math.max(m, fatProd(r)), 0)
   const maxFatPosto = aggregated.postos.reduce((m, p) => Math.max(m, p.faturamento), 0)
@@ -227,11 +235,21 @@ const BenchmarkSetor = () => {
               <ThHelp label="Ano anterior" help="Lucro bruto no mesmo período do ano anterior (R$)." />
               <ThHelp label="Variação" help="Variação % do lucro bruto vs o ano anterior." />
               <ThHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-              <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />
-              <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />
-              <ThHelp label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-              <ThHelp label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
-              <ThHelp label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
+              {isComb ? (
+                <>
+                  <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />
+                  <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />
+                  <ThHelp label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <ThHelp label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
+                  <ThHelp label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
+                </>
+              ) : (
+                <>
+                  <ThHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <ThHelp label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
+                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI." />
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -287,11 +305,21 @@ const BenchmarkSetor = () => {
                     <td className="px-2 py-1">
                       <BarCell value={p.margem} max={maxMargemPosto} formatted={fmtPct(p.margem)} color="red" align="near" />
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.acrescimos)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.descontos)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoCusto)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.lbPorUnidade)}</td>
+                    {isComb ? (
+                      <>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.acrescimos)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(p.descontos)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoCusto)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.lbPorUnidade)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoVenda)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.precoCusto)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{p.ticketMedio > 0 ? formatCurrency(p.ticketMedio) : '—'}</td>
+                      </>
+                    )}
                   </tr>
                   {expanded && p.produtos.map((prod) => {
                     const qVar = variacaoPct(prod.qtd, prod.qtdAnoAnterior)
@@ -330,11 +358,21 @@ const BenchmarkSetor = () => {
                         <td className="px-2 py-1">
                           <BarCell value={prod.margem} max={maxMargem} formatted={fmtPct(prod.margem)} color="red" align="near" maxWidthPct={60} />
                         </td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.acrescimos)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.descontos)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoVenda)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoCusto)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.lbPorUnidade)}</td>
+                        {isComb ? (
+                          <>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.acrescimos)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">{formatCurrency(prod.descontos)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoVenda)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoCusto)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.lbPorUnidade)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoVenda)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums">{formatCurrency(prod.precoCusto)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs tabular-nums text-gray-400">—</td>
+                          </>
+                        )}
                       </tr>
                     )
                   })}
@@ -353,11 +391,21 @@ const BenchmarkSetor = () => {
               <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.lucroBrutoAnoAnterior)}</td>
               <td className="px-3 py-2 text-right"><VariacaoBadge value={variacaoPct(aggregated.totals.lucroBruto, aggregated.totals.lucroBrutoAnoAnterior)} /></td>
               <td className="px-3 py-2 text-right tabular-nums">{fmtPct(aggregated.totals.margem)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.acrescimos)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.descontos)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoVenda)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoCusto)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lbPorUnidade)}</td>
+              {isComb ? (
+                <>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.acrescimos)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{formatCurrency(aggregated.totals.descontos)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoVenda)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoCusto)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.lbPorUnidade)}</td>
+                </>
+              ) : (
+                <>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoVenda)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(aggregated.totals.precoCusto)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{aggregated.totals.ticketMedio > 0 ? formatCurrency(aggregated.totals.ticketMedio) : '—'}</td>
+                </>
+              )}
             </tr>
           </tbody>
         </table>
