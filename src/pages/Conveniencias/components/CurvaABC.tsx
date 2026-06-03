@@ -180,7 +180,17 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto">
-            <DataTable columns={cols} data={rows} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight />
+            <DataTable
+              columns={cols}
+              data={rows}
+              keyExtractor={(r) => r.produtoCodigo}
+              enableRowHighlight
+              groups={[
+                { label: '', span: 2 },             // Classe · Produto
+                { label: 'Financeiro', span: 1 },   // Faturamento
+                { label: 'Distribuição', span: 2 }, // Participação · Acumulado
+              ]}
+            />
           </div>
         </div>
       </div>
