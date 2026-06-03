@@ -19,10 +19,22 @@ export interface Column<T> {
   className?: string
 }
 
+/** Grupo de colunas (cabeçalho superior). `label` vazio = espaçador (sem título). */
+export interface ColumnGroup {
+  label: string
+  span: number
+}
+
 interface DataTableProps<T> {
   columns: Column<T>[]
   data: T[]
   keyExtractor: (row: T) => string | number
+  /**
+   * Agrupa as colunas com um cabeçalho superior (Operação · Financeiro · …).
+   * A soma dos `span` deve bater com o nº de colunas. O 1º grupo com título
+   * não recebe divisor à esquerda; os seguintes, sim.
+   */
+  groups?: ColumnGroup[]
   /**
    * Linha de totalizador no rodapé. Mapa indexado por column.key → conteúdo.
    * Colunas sem entrada renderizam vazio. Não é afetada pela ordenação.
@@ -46,12 +58,31 @@ const DataTable = <T extends Record<string, unknown>>({
   data,
   keyExtractor,
   footer,
+  groups,
   onRowClick,
   enableRowHighlight = false,
 }: DataTableProps<T>) => {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null)
+
+  // Grupos de coluna → células do cabeçalho superior + índices que iniciam grupo
+  // (recebem divisor vertical no corpo). 1º grupo com título não tem divisor.
+  const { groupCells, dividerCols } = useMemo(() => {
+    if (!groups) return { groupCells: null, dividerCols: new Set<number>() }
+    const set = new Set<number>()
+    let idx = 0
+    let labeled = 0
+    const cells = groups.map((g) => {
+      const isLabeled = !!g.label
+      let divider = false
+      if (isLabeled) { labeled++; if (labeled > 1) { divider = true; set.add(idx) } }
+      idx += g.span
+      return { label: g.label, span: g.span, divider }
+    })
+    return { groupCells: cells, dividerCols: set }
+  }, [groups])
+  const divCls = 'border-l border-gray-200 dark:border-gray-700'
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -101,8 +132,25 @@ const DataTable = <T extends Record<string, unknown>>({
   return (
     <Table className="min-w-[600px]">
       <TableHeader>
+        {groupCells && (
+          <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
+            {groupCells.map((g, gi) => (
+              <TableHead
+                key={gi}
+                colSpan={g.span}
+                className={cn(
+                  'h-auto py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider',
+                  g.label && 'bg-gray-100/60 text-gray-400 dark:bg-gray-800/60 dark:text-gray-500',
+                  g.divider && divCls,
+                )}
+              >
+                {g.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        )}
         <TableRow className="bg-gray-100 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800">
-          {columns.map((col) => (
+          {columns.map((col, ci) => (
             <TableHead
               key={col.key}
               className={cn(
@@ -110,6 +158,7 @@ const DataTable = <T extends Record<string, unknown>>({
                 col.align === 'right' && 'text-right',
                 col.align === 'center' && 'text-center',
                 col.sortable && 'cursor-pointer select-none',
+                dividerCols.has(ci) && divCls,
                 col.className
               )}
               onClick={col.sortable ? () => handleSort(col.key) : undefined}
@@ -164,13 +213,14 @@ const DataTable = <T extends Record<string, unknown>>({
               clickable && 'cursor-pointer'
             )}
           >
-            {columns.map((col) => (
+            {columns.map((col, ci) => (
               <TableCell
                 key={col.key}
                 className={cn(
                   'text-sm',
                   col.align === 'right' && 'text-right',
                   col.align === 'center' && 'text-center',
+                  dividerCols.has(ci) && divCls,
                   col.className
                 )}
               >
@@ -182,13 +232,14 @@ const DataTable = <T extends Record<string, unknown>>({
         })}
         {footer && (
           <TableRow className="border-t-2 border-gray-300 bg-gray-100 font-semibold hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-800">
-            {columns.map((col) => (
+            {columns.map((col, ci) => (
               <TableCell
                 key={col.key}
                 className={cn(
                   'text-sm',
                   col.align === 'right' && 'text-right',
                   col.align === 'center' && 'text-center',
+                  dividerCols.has(ci) && divCls,
                   col.className
                 )}
               >
