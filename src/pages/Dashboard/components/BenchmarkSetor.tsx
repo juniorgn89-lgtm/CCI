@@ -47,15 +47,23 @@ const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
 
 const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
-/** Cabeçalho de coluna com "?" (tooltip nativo). */
-const ThHelp = ({ label, help, align = 'right' }: { label: string; help: string; align?: 'left' | 'right' }) => (
-  <th className={cn('px-3 py-2', align === 'right' ? 'text-right' : 'text-left')}>
+/** Cabeçalho de coluna com "?" (tooltip nativo). `groupStart` desenha o divisor
+ * vertical sutil que separa os grupos (Operação · Financeiro · …). */
+const ThHelp = ({ label, help, align = 'right', groupStart }: { label: string; help: string; align?: 'left' | 'right'; groupStart?: boolean }) => (
+  <th className={cn('px-3 py-2', align === 'right' ? 'text-right' : 'text-left', groupStart && 'border-l border-gray-200 dark:border-gray-700')}>
     <span className={cn('inline-flex items-center gap-1', align === 'right' && 'justify-end')}>
       {label}
       <span title={help} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
         <HelpCircle className="h-3 w-3" />
       </span>
     </span>
+  </th>
+)
+
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
+const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
+  <th colSpan={colSpan} className="border-l border-gray-200 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500">
+    {label}
   </th>
 )
 
@@ -124,36 +132,41 @@ const DataRow = ({
   const antCls = cn('px-3 text-right tabular-nums', pad, small ? 'text-xs text-gray-400' : 'text-gray-500')
   const trailCls = cn('px-3 text-right tabular-nums', pad, txt)
   const numCls = cn('px-3 text-right tabular-nums', pad)
+  const gStart = 'border-l border-gray-200 dark:border-gray-700'  // divisor entre grupos
   return (
     <tr onClick={onClick} aria-selected={selected} className={rowClass}>
       {label}
+      {/* Operação */}
       {plain
-        ? <td className={numCls}>{formatNumber(Math.round(vals.qtd))}</td>
-        : <td className="px-2 py-1"><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={cn(numCls, gStart)}>{formatNumber(Math.round(vals.qtd))}</td>
+        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
+      {/* Financeiro */}
       {showFaturamento && (plain
-        ? <td className={numCls}>{formatCurrency(vals.faturamento)}</td>
-        : <td className="px-2 py-1"><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrency(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
-      <td className={antCls}>{showFaturamento ? formatCurrency(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
-      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
+        ? <td className={cn(numCls, gStart)}>{formatCurrency(vals.faturamento)}</td>
+        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrency(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
       {plain
-        ? <td className={numCls}>{formatCurrency(vals.lucroBruto)}</td>
-        : <td className="px-2 py-1"><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrency(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
-      <td className={antCls}>{formatCurrency(vals.lucroBrutoAnoAnterior)}</td>
-      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
+        ? <td className={cn(numCls, !showFaturamento && gStart)}>{formatCurrency(vals.lucroBruto)}</td>
+        : <td className={cn('px-2 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrency(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
       {plain
         ? <td className={numCls}>{fmtPct(vals.margem)}</td>
         : <td className="px-2 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
+      {isComb && <td className={antCls}>{formatCurrency(vals.acrescimos)}</td>}
+      {isComb && <td className={antCls}>{formatCurrency(vals.descontos)}</td>}
+      {/* Comparativo */}
+      <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrency(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
+      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
+      <td className={antCls}>{formatCurrency(vals.lucroBrutoAnoAnterior)}</td>
+      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
+      {/* Eficiência */}
       {isComb ? (
         <>
-          <td className={cn(antCls)}>{formatCurrency(vals.acrescimos)}</td>
-          <td className={cn(antCls)}>{formatCurrency(vals.descontos)}</td>
-          <td className={trailCls}>{formatCurrency(vals.precoVenda)}</td>
+          <td className={cn(trailCls, gStart)}>{formatCurrency(vals.precoVenda)}</td>
           <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
           <td className={trailCls}>{formatCurrency(vals.lbPorUnidade)}</td>
         </>
       ) : (
         <>
-          <td className={trailCls}>{formatCurrency(vals.precoVenda)}</td>
+          <td className={cn(trailCls, gStart)}>{formatCurrency(vals.precoVenda)}</td>
           <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
           <td className={cn(trailCls, ticket == null && 'text-gray-400')}>{ticket != null && ticket > 0 ? formatCurrency(ticket) : '—'}</td>
         </>
@@ -350,31 +363,43 @@ const BenchmarkSetor = () => {
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
+            {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
+            <tr className="bg-gray-100/60 text-gray-400 dark:bg-gray-800/60 dark:text-gray-500">
+              <th className="px-3 py-1.5" />
+              <GroupTh label="Operação" colSpan={1} />
+              <GroupTh label="Financeiro" colSpan={showFaturamento ? 3 : 4} />
+              <GroupTh label="Comparativo" colSpan={4} />
+              <GroupTh label="Eficiência" colSpan={3} />
+            </tr>
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
               <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
-              <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              {/* Operação */}
+              <ThHelp groupStart label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              {/* Financeiro */}
               {showFaturamento && (
-                <ThHelp label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
+                <ThHelp groupStart label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
               )}
-              <ThHelp label="Ano anterior" help={showFaturamento ? 'Faturamento no mesmo período do ano anterior (R$).' : 'Mesmo período do ano anterior (volume).'} />
+              <ThHelp groupStart={!showFaturamento} label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
+              <ThHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+              {isComb && <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
+              {isComb && <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
+              {/* Comparativo */}
+              <ThHelp groupStart label="Ano anterior" help={showFaturamento ? 'Faturamento no mesmo período do ano anterior (R$).' : 'Mesmo período do ano anterior (volume).'} />
               <ThHelp label="Variação" help={showFaturamento ? 'Variação % do faturamento vs o ano anterior.' : 'Variação % do volume vs o ano anterior.'} />
-              <ThHelp label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
               <ThHelp label="Ano anterior" help="Lucro bruto no mesmo período do ano anterior (R$)." />
               <ThHelp label="Variação" help="Variação % do lucro bruto vs o ano anterior." />
-              <ThHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+              {/* Eficiência */}
               {isComb ? (
                 <>
-                  <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />
-                  <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />
-                  <ThHelp label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <ThHelp groupStart label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
                   <ThHelp label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
                   <ThHelp label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
                 </>
               ) : (
                 <>
-                  <ThHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <ThHelp groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
                   <ThHelp label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI. Disponível no nível do posto/total." />
+                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI." />
                 </>
               )}
             </tr>
