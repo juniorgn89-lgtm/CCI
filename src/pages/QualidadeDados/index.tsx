@@ -635,7 +635,7 @@ const CupomMultiAbastTable = ({
                 <td className="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
                 <td className={cn(
                   'px-3 py-1.5 text-xs',
-                  c.mixCombustiveis ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300',
+                  c.mixCombustiveis ? 'bg-red-50 font-medium text-gray-800 dark:bg-red-900/20 dark:text-gray-200' : 'text-gray-700 dark:text-gray-300',
                 )}>
                   {combustiveisLabel}
                   <span className="ml-1 text-[10px] text-gray-400">({c.abastecimentos.length} itens)</span>
@@ -645,7 +645,7 @@ const CupomMultiAbastTable = ({
                 </td>
                 <td className={cn(
                   'px-3 py-1.5 text-[11px]',
-                  c.mixPagamentos ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-500 dark:text-gray-400',
+                  c.mixPagamentos ? 'bg-red-50 font-medium text-gray-700 dark:bg-red-900/20 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400',
                 )}>
                   {pagamentoLabel}
                 </td>
