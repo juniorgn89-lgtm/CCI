@@ -26,7 +26,7 @@ const SEG_META = [
 /**
  * Visão Geral (mix consolidado) — versão mobile. Combina os 3 setores:
  * combustível (useFuelVendaAnalytics), conveniência (useConvenienceData) e
- * pista (venda itens PS-, mesma régua BI). Mesmos números das abas individuais.
+ * pista (venda itens PS-, mesma régua). Mesmos números das abas individuais.
  */
 const VisaoGeralTabMobile = () => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()

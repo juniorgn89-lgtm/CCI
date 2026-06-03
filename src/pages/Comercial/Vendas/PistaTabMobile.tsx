@@ -30,7 +30,7 @@ const categoriaDoGrupo = (nome: string): string => {
 }
 
 /**
- * Aba Pista (automotivos) — versão mobile. Mesma régua BI do Pista desktop
+ * Aba Pista (automotivos) — versão mobile. Mesma régua do Pista desktop
  * (tipoGrupo "Pista" e tipoProduto ≠ "C", cancelada="N"). Queries próprias
  * (produtos/grupos/venda itens current+prev) e cálculo agregado.
  */

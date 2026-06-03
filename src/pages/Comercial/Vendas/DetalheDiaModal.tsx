@@ -130,7 +130,7 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
               <tbody>
                 {(() => {
                   // Máximos por coluna — definem o 100% das barras (estilo Power
-                  // BI Data Bars: maior valor da coluna = barra mais longa).
+                  // Data bars: maior valor da coluna = barra mais longa).
                   const maxLitros = Math.max(...detail.fuels.map((f) => f.litros), 0)
                   const maxFat = Math.max(...detail.fuels.map((f) => f.faturamento), 0)
                   const maxLb = Math.max(...detail.fuels.map((f) => f.lucroBruto), 0)

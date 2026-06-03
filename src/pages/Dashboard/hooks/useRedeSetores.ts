@@ -74,7 +74,7 @@ export interface RedePostoRow {
   lbPorUnidade: number
   /** Cupons (vendaCodigo distinto) do setor no posto — denominador do ticket médio. */
   cupons: number
-  /** Ticket médio = faturamento ÷ cupons (igual ao BI). 0 quando sem cupons. */
+  /** Ticket médio = faturamento ÷ cupons. 0 quando sem cupons. */
   ticketMedio: number
   produtos: RedeProdutoRow[]
 }
@@ -150,10 +150,10 @@ const useRedeSetores = (): RedeSetoresData => {
   const closedEnd = split.closedDays?.dataFinal ?? ''
   const todayIni = split.todayPart?.dataInicial ?? ''
   const todayEnd = split.todayPart?.dataFinal ?? ''
-  // AA "mesmos dias decorridos" (igual ao BI): corta o ano anterior no mesmo
+  // AA "mesmos dias decorridos": corta o ano anterior no mesmo
   // ponto que o período atual tem dados. Sem isso, um mês corrente parcial
   // compara X dias contra um mês CHEIO do ano passado (queda enganosa). O teto
-  // é hoje (proxy do "LastSale" do BI) — só morde quando o fim selecionado é
+  // é hoje (proxy do "LastSale") — só morde quando o fim selecionado é
   // futuro (ex.: mês corrente inteiro escolhido no meio do mês).
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
@@ -237,7 +237,7 @@ const useRedeSetores = (): RedeSetoresData => {
       for (const p of produtosData) grupoNomePorProduto.set(p.produtoCodigo, grupoNome.get(p.grupoCodigo) ?? 'Sem grupo')
     }
     if (produtosData && gruposData) {
-      // Mesma classificação do BI: combustível = tipoProduto "C"; automotivos =
+      // Classificação: combustível = tipoProduto "C"; automotivos =
       // grupo "Pista" (não-C); conveniência = grupo "Conveniência" (o resto cai
       // em conveniência só no fallback live de "hoje", impacto desprezível).
       const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
@@ -262,7 +262,7 @@ const useRedeSetores = (): RedeSetoresData => {
       cacheNome || nomeProduto.get(pc) || `Produto ${pc}`
 
     const curr: VendaAgg[] = closedRows
-      .filter((r) => r.setor !== 'outros')  // 'outros' fica fora dos setores (igual ao BI)
+      .filter((r) => r.setor !== 'outros')  // 'outros' fica fora dos setores
       .map((r) => ({
         empresaCodigo: r.empresa_codigo, produtoCodigo: r.produto_codigo,
         setor: setorOf(r.setor, r.produto_codigo), nome: nomeDe(r.produto_nome, r.produto_codigo),
@@ -273,7 +273,7 @@ const useRedeSetores = (): RedeSetoresData => {
       if (it.quantidade <= 0) continue
       if (!autToday.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const setor = classify(it.produtoCodigo, isFuel, isPista)
-      // Combustível: custo = precoCusto × qtd (igual ao BI). Demais: totalCusto.
+      // Combustível: custo = precoCusto × qtd. Demais: totalCusto.
       const custo = setor === 'combustivel'
         ? it.precoCusto * it.quantidade
         : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
@@ -318,7 +318,7 @@ const useRedeSetores = (): RedeSetoresData => {
     }
 
     // Cupons (vendaCodigo distinto) por "empresa|setor" — denominador do ticket
-    // médio (= faturamento ÷ cupons, igual ao BI). No cache vêm desnormalizados
+    // médio (= faturamento ÷ cupons). No cache vêm desnormalizados
     // por (empresa,dia,setor) em cada linha → dedup por essa chave e soma. No
     // "hoje" (live) conta distinto direto dos itens.
     const cuponsByES = new Map<string, number>()

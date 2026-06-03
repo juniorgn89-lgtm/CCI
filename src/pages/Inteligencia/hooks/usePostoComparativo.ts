@@ -46,7 +46,7 @@ const usePostoComparativo = (empresaCodigo: number | null) => {
   const { dataInicial, dataFinal } = useFilterStore()
   const enabled = !!empresaCodigo
 
-  // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+  // "Mesmos dias decorridos": corta o fim em hoje antes de deslocar.
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevMonthInicial = offsetPeriod(dataInicial, 1)

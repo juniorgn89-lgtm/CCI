@@ -118,7 +118,7 @@ const DataRow = ({
   /** Ticket médio (posto). null → "—" (grupo/produto não têm cupons próprios). */
   ticket: number | null
   small?: boolean
-  /** Total: números puros, sem barra (igual ao BI). */
+  /** Total: números puros, sem barra. */
   plain?: boolean
   onClick?: (e: React.MouseEvent) => void
   selected?: boolean
@@ -226,7 +226,7 @@ const BenchmarkSetor = () => {
   const aggregated = useMemo(() => {
     const postos = data.postos.map((p) => {
       const totals = aggProdutos(p.produtos)
-      // Grupos (tipo de produto) dentro do posto — nível intermediário (igual ao BI).
+      // Grupos (tipo de produto) dentro do posto — nível intermediário.
       const byGrupo = new Map<string, ProdutoRow[]>()
       for (const prod of p.produtos) {
         const g = prod.grupo || 'Sem grupo'
@@ -277,7 +277,7 @@ const BenchmarkSetor = () => {
   }, [aggregated])
 
   const showFaturamento = setor !== 'combustiveis'
-  // Combustíveis mantém colunas próprias; Automotivos/Conveniências espelham o BI.
+  // Combustíveis mantém colunas próprias; Automotivos/Conveniências seguem a régua padrão.
   const isComb = setor === 'combustiveis'
 
   // Máximos pra calibrar as barras em cada nível (escalas próprias).

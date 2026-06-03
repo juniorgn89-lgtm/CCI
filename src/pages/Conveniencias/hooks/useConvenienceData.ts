@@ -202,7 +202,7 @@ const useConvenienceData = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const isPrevYear = comparisonMode === 'prevYear'
-  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes
+  // Comparativo "mesmos dias decorridos": corta o fim em hoje antes
   // de deslocar, pra mês corrente parcial não comparar contra período cheio do passado.
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
@@ -242,7 +242,7 @@ const useConvenienceData = () => {
     if (!produtosData || !gruposData) return set
     const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
     for (const p of produtosData) {
-      // Régua BI: conveniência = tipoGrupo "Conveniência" (exclui combustível, pista e "outros").
+      // Régua: conveniência = tipoGrupo "Conveniência" (exclui combustível, pista e "outros").
       if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) === 'conveniencia') set.add(p.produtoCodigo)
     }
     return set
@@ -380,13 +380,13 @@ const useConvenienceData = () => {
     const estoque = estoqueRaw?.resultados ?? []
 
     // ── Maps ──
-    // grupoMap (nome p/ exibição) + grupoTipo (classificação BI por tipoGrupo).
+    // grupoMap (nome p/ exibição) + grupoTipo (classificação por tipoGrupo).
     const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
     const grupoTipo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
 
     const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string }>()
     for (const p of produtos) {
-      // Régua BI: conveniência = tipoGrupo "Conveniência" (exclui combustível,
+      // Régua: conveniência = tipoGrupo "Conveniência" (exclui combustível,
       // pista e "outros"). Antes era "não combustível e não PS-".
       if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'conveniencia') continue
       produtoMap.set(p.produtoCodigo, {
@@ -443,7 +443,7 @@ const useConvenienceData = () => {
       for (const v of byDay.values()) total += v
       return total
     }
-    // Ticket médio = faturamento ÷ CUPONS (igual ao BI). Cai pra ÷ linhas quando
+    // Ticket médio = faturamento ÷ CUPONS. Cai pra ÷ linhas quando
     // não há cupons (apuração antiga sem a coluna) — sem quebrar a tela.
     const ticketFromCupons = (fat: number, cupons: number, linhas: number): number =>
       cupons > 0 ? fat / cupons : (linhas > 0 ? fat / linhas : 0)

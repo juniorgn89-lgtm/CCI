@@ -78,7 +78,7 @@ const HelpDot = ({ text }: { text: string }) => (
 
 const fmtPct2 = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
 
-/* ─── Card de segmento (formato do BI): Lucro bruto em destaque + 2 métricas
+/* ─── Card de segmento (formato): Lucro bruto em destaque + 2 métricas
  * secundárias (Margem / Faturamento / L.B. por litro). Clicável quando `to`. ─── */
 interface SegmentCardProps {
   label: string
@@ -197,7 +197,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
 
-  // ── Fonte 1: Combustível — VENDA fiscal (mesma fonte do BI e da aba
+  // ── Fonte 1: Combustível — VENDA fiscal (mesma fonte da aba
   // Combustível), não abastecimento. Garante que lucro/margem/litros batam.
   const { kpis: vendaKpis, dailyData: combDaily, isLoading: isLoadingComb } = useFuelVendaAnalytics()
 
@@ -585,7 +585,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
             />
           </div>
 
-          {/* Cards por segmento — formato BI: Lucro bruto + 2 métricas (Combustível,
+          {/* Cards por segmento — formato: Lucro bruto + 2 métricas (Combustível,
               Automotivos, Conveniência) + card Global consolidado. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SegmentCard

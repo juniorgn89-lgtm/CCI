@@ -9,7 +9,7 @@ const EMPTY: Set<number> = new Set()
  * unindo todas as empresas passadas.
  *
  * O `/VENDA_ITEM` NÃO retorna o flag `cancelada`, então pra excluir cancelados
- * como o BI (e descartar itens órfãos) cruzamos `venda_item.vendaCodigo` com
+ * corretamente (e descartar itens órfãos) cruzamos `venda_item.vendaCodigo` com
  * este set e mantemos só os itens cuja venda está autorizada. Ver
  * project_venda_item_sem_cancelada.
  */

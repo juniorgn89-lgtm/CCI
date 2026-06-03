@@ -196,7 +196,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
-  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje.
+  // Comparativo "mesmos dias decorridos": corta o fim em hoje.
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
@@ -302,7 +302,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     const grupoTipo = new Map<number, string>()
     for (const g of gruposData) { grupoMap.set(g.grupoCodigo, g.nome); grupoTipo.set(g.grupoCodigo, g.tipoGrupo) }
 
-    // Produtos de automotivos — régua BI: tipoGrupo "Pista" e tipoProduto ≠ "C".
+    // Produtos de automotivos — régua: tipoGrupo "Pista" e tipoProduto ≠ "C".
     const pistaProdutos = new Map<number, { nome: string; grupoNome: string; categoria: string }>()
     for (const p of produtosData) {
       if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'automotivos') continue
@@ -393,7 +393,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     }
   }, [produtosData, gruposData, vendaItens])
 
-  /* KPIs de VALOR (cards no padrão do BI) — atual + período anterior, sobre os
+  /* KPIs de VALOR (cards no padrão) — atual + período anterior, sobre os
    * mesmos produtos PS- (pista/automotivo). Ticket = faturamento ÷ nº de vendas. */
   const cmpKpis = useMemo(() => {
     const pistaSet = new Set<number>()
@@ -427,7 +427,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
 
   /* Tabela "Realizado dia a dia" — hierárquica: dia → grupo (PS-) → produto.
    * Colunas: Qtde, Faturamento, Custo, Lucro bruto, Margem, Preço/Custo/L.B. médio
-   * (médios = total ÷ Qtde). Igual ao relatório do BI. */
+   * (médios = total ÷ Qtde). Igual ao relatório. */
   const realizadoDiaADia = useMemo(() => {
     const info = new Map<number, { nome: string; grupoNome: string }>()
     if (produtosData && gruposData) {

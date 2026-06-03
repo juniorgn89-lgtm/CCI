@@ -3,7 +3,7 @@ import { Clock } from 'lucide-react'
 import { useTenantStore } from '@/store/tenant'
 import { fetchUltimaApuracao } from '@/api/supabase/apuracao'
 
-/** Formata ISO → "DD/MM/AAAA às HH:MM" (igual ao "Atualizado em…" do BI). */
+/** Formata ISO → "DD/MM/AAAA às HH:MM" (padrão "Atualizado em…"). */
 const fmt = (iso: string): string => {
   const d = new Date(iso)
   if (!isFinite(d.getTime())) return ''
@@ -14,7 +14,7 @@ const fmt = (iso: string): string => {
 /**
  * Mostra a data/hora da última apuração da rede — referência de frescor do dado
  * pra todos os usuários, em todas as telas (vive no Header global). Igual ao
- * "Atualizado em…" do BI de referência. Some sozinho se não houver rede/apuração.
+ * "Atualizado em…" da apuração. Some sozinho se não houver rede/apuração.
  */
 const UltimaApuracaoInfo = () => {
   const rede = useTenantStore((s) => s.rede)

@@ -100,7 +100,7 @@ const getProdutoMap = async (): Promise<Map<number, Produto>> => {
   return map
 }
 
-/** Cache do mapa grupoCodigo→tipoGrupo — pra classificar setor (régua do BI:
+/** Cache do mapa grupoCodigo→tipoGrupo — pra classificar setor (régua de classificação:
  * combustível=tipoProduto "C", automotivos="Pista", conveniência="Conveniência"). */
 let _grupoTipoCache: { fetchedAt: number; map: Map<number, string> } | null = null
 const getGrupoTipoMap = async (): Promise<Map<number, string>> => {
@@ -325,11 +325,11 @@ const getTopProdutos = async (
 
   const por = new Map<number, { produtoCodigo: number; nome: string; qtd: number; faturamento: number; setor: string }>()
   for (const i of itens) {
-    if (isVendaCancelada(i)) continue  // BI conta só cancelada="N"
+    if (isVendaCancelada(i)) continue  // conta só cancelada="N"
     // Filtro defensivo (em caso do fallback sem filtro ter retornado todas).
     if (empresas.length > 0 && !empresasSet.has(i.empresaCodigo)) continue
     const p = produtoMap.get(i.produtoCodigo)
-    // Régua BI: combustível=tipoProduto "C"; conveniência=tipoGrupo "Conveniência".
+    // Régua: combustível=tipoProduto "C"; conveniência=tipoGrupo "Conveniência".
     const setor = classifySetor(p?.tipoProduto, p ? grupoTipo.get(p.grupoCodigo) : undefined)
     if (input.categoria === 'combustivel' && setor !== 'combustivel') continue
     if (input.categoria === 'conveniencia' && setor !== 'conveniencia') continue

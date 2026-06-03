@@ -45,7 +45,7 @@ const KpiCard = ({ icon: Icon, label, value, sub, tint }: {
 /**
  * Produtividade dos VENDEDORES da conveniência — ranking por funcionário,
  * lendo o cache apuracao_vendas_funcionario (setor conveniência). Mesmo período
- * e postos do filtro global. Ticket médio = faturamento ÷ cupons (igual ao BI).
+ * e postos do filtro global. Ticket médio = faturamento ÷ cupons.
  */
 const VendedoresConveniencia = () => {
   const { rows, totalFaturamento, totalLucro, totalCupons, isLoading, hasEmpresa } = useVendedoresConveniencia()

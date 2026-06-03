@@ -165,7 +165,7 @@ const useAbastecimentosAnalytics = () => {
 
   // Período de comparação honra o toggle global (vs mês ant. / vs ano ant.).
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
-  // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+  // "Mesmos dias decorridos": corta o fim em hoje antes de deslocar.
   const hojeCmp = todayLocal()
   const fimCmp = dataFinal > hojeCmp ? hojeCmp : dataFinal
   const prevMonthInicial = offsetPeriod(dataInicial, cmpOffset)
@@ -290,7 +290,7 @@ const useAbastecimentosAnalytics = () => {
     placeholderData: keepPreviousData,
   })
 
-  // Custo médio (CMV) + desconto por produto, do /VENDA_ITEM (mesma fonte do BI).
+  // Custo médio (CMV) + desconto por produto, do /VENDA_ITEM (mesma fonte).
   // Substitui o custo do LMC; quando o produto não casa, cai no LMC (fallback).
   const { vendaByProduct } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
@@ -424,7 +424,7 @@ const useAbastecimentosAnalytics = () => {
       const v = vendaByProduct.get(a.codigoProduto)
       return v ? a.valorTotal * v.descRate : 0
     }
-    // Faturamento LÍQUIDO da linha = bruto − desconto (igual ao BI).
+    // Faturamento LÍQUIDO da linha = bruto − desconto.
     const netFatOf = (a: { codigoProduto: number; valorTotal: number }): number =>
       a.valorTotal - descOf(a)
 

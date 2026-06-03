@@ -222,7 +222,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // ABASTECIMENTO continua só pro operacional: `rows` (modal de frentistas/
   // bombas/hora) e `lbLitroData` (gráfico 12 meses — migra na fase do cache).
   const { rows, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
-  // VENDA fiscal (igual ao WebPosto) — fonte das métricas de VALOR: KPIs,
+  // VENDA fiscal — fonte das métricas de VALOR: KPIs,
   // mix, ranking, projeção, tabela dia a dia e por combustível.
   const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros } = useFuelVendaAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
@@ -276,7 +276,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       fuels: FuelLine[]
     }
 
-    // Fonte: VENDA fiscal (igual ao WebPosto). Agrupa pela data de movimento
+    // Fonte: VENDA fiscal. Agrupa pela data de movimento
     // (já travada no período), faturamento BRUTO (totalVenda) e CMV (totalCusto).
     const src = diaFuelFilter === 'Todos' ? vendaRows : vendaRows.filter((r) => r.combustivelNome === diaFuelFilter)
     const byDay = new Map<string, { fuels: Map<string, FuelLine>; totals: Omit<FuelLine, 'nome'> }>()
@@ -593,7 +593,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     </div>
   )
 
-  /* ─── Máximos por coluna (Power BI Data Bars) ─── */
+  /* ─── Máximos por coluna (data bars) ─── */
   const colMax = useMemo(() => {
     const days = detalheDiaADia.days
     if (days.length === 0) {

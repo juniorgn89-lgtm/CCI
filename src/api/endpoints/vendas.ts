@@ -62,8 +62,8 @@ export const fetchVendaItens = (params?: FetchVendaItensParams) =>
  * Conjunto de `vendaCodigo` AUTORIZADOS no período (`/VENDA` com `situacao='A'`).
  *
  * O `/VENDA_ITEM` NÃO retorna o flag `cancelada` (nem aceita `situacao`), então
- * filtrar item por `it.cancelada` é no-op. Pra bater com o BI (que conta só
- * vendas válidas), cruzamos `venda_item.vendaCodigo = venda.vendaCodigo` e
+ * filtrar item por `it.cancelada` é no-op. Pra contar só vendas válidas,
+ * cruzamos `venda_item.vendaCodigo = venda.vendaCodigo` e
  * mantemos APENAS os itens cuja venda está autorizada (situacao='A') — assim
  * cancelados E quaisquer outras situações não-'A' ficam de fora.
  */

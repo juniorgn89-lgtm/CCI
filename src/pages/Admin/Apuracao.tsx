@@ -285,7 +285,7 @@ const Apuracao = () => {
       }
       // vendaCodigo AUTORIZADOS (por empresa) — o /VENDA_ITEM não traz `cancelada`,
       // então cruzamos venda_item.vendaCodigo = venda.vendaCodigo e mantemos só os
-      // itens cuja venda está autorizada (/VENDA situacao='A'), igual ao BI.
+      // itens cuja venda está autorizada (/VENDA situacao='A').
       const fetchAutorizadosAllEmpresas = async () => {
         const set = new Set<number>()
         for (const ec of empresasCodes) {
@@ -348,11 +348,11 @@ const Apuracao = () => {
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
       const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
       // Carimba setor + nome de cada produto na apuração (congela a classificação).
-      // Espelha EXATAMENTE as medidas do BI de referência:
+      // Classificação de setor:
       //   combustível  = tipoProduto "C"            (qualquer grupo)
       //   automotivos  = tipoGrupo "Pista" e ≠ "C"
       //   conveniência = tipoGrupo "Conveniência"
-      //   resto        = "outros" (fora dos setores, igual ao BI)
+      //   resto        = "outros" (fora dos setores)
       const grupoTipoPorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
       const grupoNomePorCodigo = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
       const produtoInfo = new Map<number, ProdutoInfo>()

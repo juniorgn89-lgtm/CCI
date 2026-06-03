@@ -117,7 +117,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
         <div className="flex items-center gap-2">
           {/* Referência de frescor do dado — última apuração da rede, em todas as
-              telas (igual ao "Atualizado em…" do BI). */}
+              telas (padrão "Atualizado em…"). */}
           <UltimaApuracaoInfo />
           {/* Os filtros de posto/escopo/comparativo agora vivem na TopBar
               consolidada (sub-bar do AppLayout), junto do período e do título. */}

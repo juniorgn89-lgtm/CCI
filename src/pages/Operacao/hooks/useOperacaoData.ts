@@ -208,7 +208,7 @@ const useOperacaoData = () => {
   // (reaproveita o fetch, sem custo extra); 'prevYear' → mesma faixa 12 meses atrás.
   const cmp = useMemo(() => {
     if (!isPrevYear) return prev
-    // "Mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes de deslocar.
+    // "Mesmos dias decorridos": corta o fim em hoje antes de deslocar.
     const hoje = todayLocal()
     const fim = dataFinal > hoje ? hoje : dataFinal
     return { inicial: offsetMonths(dataInicial, 12), final: offsetMonths(fim, 12) }

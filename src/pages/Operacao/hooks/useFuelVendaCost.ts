@@ -14,14 +14,14 @@ export interface FuelVendaCost {
 
 /**
  * Custo médio (CMV) e taxa de desconto por produto, a partir do /VENDA_ITEM —
- * a MESMA fonte que o BI usa pro lucro bruto de combustível, substituindo o
+ * a MESMA fonte usada pro lucro bruto de combustível, substituindo o
  * custo do LMC (última compra). O mapa é "alias-expandido": indexado por
  * produtoCodigo, produtoLmcCodigo e codigo, então o lookup casa mesmo quando o
  * abastecimento referencia o combustível por outro código.
  *
  * Casamos por produto (não por vendaItemCodigo) porque o cache de abastecimento
  * grava vendaItemCodigo=0. Como os litros do abast = qty da venda por produto,
- * em agregado bate exato com o BI.
+ * em agregado bate exato.
  *
  * Compartilhado entre as telas que mostram lucro/margem de combustível
  * (Combustível, Dashboard, Gerente).
@@ -75,7 +75,7 @@ const useFuelVendaCost = (
     // Agrega os itens por produtoCodigo.
     const agg = new Map<number, { qty: number; custo: number; venda: number; desconto: number }>()
     for (const it of vendaItens) {
-      if (isVendaCancelada(it)) continue  // BI conta só cancelada="N"
+      if (isVendaCancelada(it)) continue  // conta só cancelada="N"
       if (it.quantidade <= 0) continue
       const cur = agg.get(it.produtoCodigo) ?? { qty: 0, custo: 0, venda: 0, desconto: 0 }
       cur.qty += it.quantidade

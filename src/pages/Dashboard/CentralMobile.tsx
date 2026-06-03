@@ -15,7 +15,7 @@ import { brl, brlShort, litersShort, liters, pct, variacaoPct } from '@/componen
 
 /**
  * Central da Rede — versão mobile. Rede-wide, venda fiscal (useRedeSetores, já
- * alinhado ao BI). Sem barra de filtro de posto (visão consolidada).
+ * alinhado). Sem barra de filtro de posto (visão consolidada).
  */
 const CentralMobile = () => {
   const rede = useRedeSetores()

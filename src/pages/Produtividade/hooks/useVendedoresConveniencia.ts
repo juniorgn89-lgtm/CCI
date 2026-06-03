@@ -34,7 +34,7 @@ export interface VendedoresData {
  * Produtividade dos VENDEDORES da conveniência — lê o cache
  * `apuracao_vendas_funcionario` (setor conveniência) e cruza com `/FUNCIONARIO`
  * pro nome. Mesmo período/postos do filtro global. Ticket médio = fat ÷ cupons
- * (igual ao BI). Só vendas autorizadas (já filtrado na apuração).
+ *. Só vendas autorizadas (já filtrado na apuração).
  */
 const useVendedoresConveniencia = (): VendedoresData => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()

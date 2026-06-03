@@ -151,7 +151,7 @@ export const fetchApuracaoStatusByMonth = async (
 /**
  * Data/hora (ISO) da última apuração desta rede — o `computed_at` mais recente
  * em `apuracao_diaria`. Serve de referência de frescor na Central ("Apurado em
- * DD/MM às HH:MM", igual ao "Atualizado em…" do BI). Retorna null se nunca
+ * DD/MM às HH:MM", padrão "Atualizado em…"). Retorna null se nunca
  * apurado / sem rede.
  */
 export const fetchUltimaApuracao = async (redeId: string): Promise<string | null> => {
@@ -556,7 +556,7 @@ export const upsertApuracaoFuelDiaria = async (
 
 /**
  * CMV (custo médio por litro) por produto, alias-expandido, a partir dos itens
- * de venda — MESMA fonte/lógica do useFuelVendaCost (que o BI usa). Indexado por
+ * de venda — MESMA fonte/lógica do useFuelVendaCost. Indexado por
  * produtoCodigo/produtoLmcCodigo/codigo pra casar com o código do abastecimento.
  */
 const buildCmvMapFromVendaItens = (
@@ -889,8 +889,8 @@ export const cacheRowToFormaPagamento = (r: FormaPagamentoCacheRow): VendaFormaP
 // Veja docs/supabase-apuracao-vendas.sql para o schema completo.
 
 /** Setor do produto, congelado na apuração (evita re-classificação ao vivo). */
-// 'outros' = produto fora dos 3 setores do BI (nem tipoProduto "C", nem grupo
-// "Pista", nem "Conveniência") — fica de fora dos totais (igual ao BI).
+// 'outros' = produto fora dos 3 setores (nem tipoProduto "C", nem grupo
+// "Pista", nem "Conveniência") — fica de fora dos totais.
 export type SetorVenda = 'combustivel' | 'automotivos' | 'conveniencia' | 'outros'
 
 export interface ApuracaoVendaRow {
@@ -914,7 +914,7 @@ export interface ApuracaoVendaRow {
    * Nº de CUPONS (vendaCodigo distinto) da CONVENIÊNCIA naquele (empresa, dia).
    * Valor de DIA — desnormalizado: todas as linhas de produto de conveniência
    * do mesmo (empresa, dia) carregam o mesmo número. Pro ticket médio = fat ÷
-   * cupons (igual ao BI), o leitor deduplica por (empresa, dia) antes de somar.
+   * cupons, o leitor deduplica por (empresa, dia) antes de somar.
    * 0 em linhas não-conveniência (combustível/PS-) e em apurações antigas.
    */
   cupons: number
@@ -1047,10 +1047,10 @@ export interface ProdutoInfo { setor: SetorVenda; nome: string; grupo?: string }
  * Agrega itens de venda crus (VendaItem) em DUAS estruturas, numa ÚNICA dupla de
  * passagens sobre os itens (perf: antes eram 2 funções × 2 passagens = 4×):
  *  - `vendaRows`: por (empresa, dia, produto) → cache `apuracao_vendas`, com
- *    cupons por setor/grupo/produto pro ticket médio (igual ao BI).
+ *    cupons por setor/grupo/produto pro ticket médio.
  *  - `funcRows`: por (empresa, dia, funcionario, setor de loja) → cache
  *    `apuracao_vendas_funcionario` (produtividade de vendedores).
- * Só vendas autorizadas (situacao='A'); 'outros' fica de fora (igual ao BI).
+ * Só vendas autorizadas (situacao='A'); 'outros' fica de fora.
  * Carimba `setor`/`produto_nome` pra leitura não depender do catálogo ao vivo.
  */
 export const aggregateVendaCache = (
@@ -1096,8 +1096,8 @@ export const aggregateVendaCache = (
     if (!data) continue
     const info = produtoInfo.get(it.produtoCodigo)
     const setor: SetorVenda = info?.setor ?? 'conveniencia'
-    if (setor === 'outros') continue  // fora dos 3 setores do BI
-    // Combustível: custo = precoCusto × qtd (igual ao BI). Demais: totalCusto.
+    if (setor === 'outros') continue  // fora dos 3 setores
+    // Combustível: custo = precoCusto × qtd. Demais: totalCusto.
     const custo = setor === 'combustivel'
       ? (it.precoCusto ?? 0) * (it.quantidade ?? 0)
       : (it.totalCusto ?? 0)

@@ -129,14 +129,14 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
 
   const hasEmpresa = empresaCodigos.length > 0
   // Custo médio (CMV) + desconto de combustível por produto, via /VENDA_ITEM
-  // (mesma fonte do BI). Substitui o custo do LMC no lucro/margem de combustível.
+  // (mesma fonte). Substitui o custo do LMC no lucro/margem de combustível.
   const { vendaByProduct: fuelVenda } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const rede = useTenantStore((s) => s.rede)
 
   // LMC lookback: fetch from 3 months before to capture most recent cost data
   const lmcDataInicial = threeMonthsBefore(dataInicial)
 
-  // Comparison periods — "mesmos dias decorridos" (igual ao BI): corta o fim em
+  // Comparison periods — "mesmos dias decorridos": corta o fim em
   // hoje antes de deslocar, pra mês corrente parcial não comparar contra período
   // cheio do passado.
   const hoje = todayLocal()

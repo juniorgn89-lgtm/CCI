@@ -41,7 +41,7 @@ const convCuponsByDay = (itens: VendaItem[], convProdutoCodigos?: Set<number>, a
   if (!convProdutoCodigos) return new Map()
   const sets = new Map<string, Set<number>>()
   for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas (BI)
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas
     if (!convProdutoCodigos.has(it.produtoCodigo)) continue
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data || it.vendaCodigo == null) continue
@@ -64,7 +64,7 @@ export const aggregateItensToVendaAgg = (itens: VendaItem[], convProdutoCodigos?
   const cuponsByDay = convCuponsByDay(itens, convProdutoCodigos, autorizados)
   const map = new Map<string, VendaAgg>()
   for (const it of itens) {
-    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas (BI)
+    if (autorizados ? !autorizados.has(it.vendaCodigo) : isVendaCancelada(it)) continue  // só vendas autorizadas
     const data = it.dataMovimento ? it.dataMovimento.slice(0, 10) : ''
     if (!data) continue
     const key = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`

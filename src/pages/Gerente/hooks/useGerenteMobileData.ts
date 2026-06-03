@@ -156,7 +156,7 @@ const useGerenteMobileData = () => {
       if (prodCode <= 0) continue
       const cost = fuelCostUnit(a.empresaCodigo, prodCode)
       fuelLitros += a.quantidade
-      fuelFat += a.valorTotal  // faturamento BRUTO (= BI; Σ valorTotal, sem desconto)
+      fuelFat += a.valorTotal  // faturamento BRUTO (Σ valorTotal, sem desconto)
       fuelCusto += cost * a.quantidade
     }
     const fuelLB = fuelFat - fuelCusto

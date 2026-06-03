@@ -19,12 +19,11 @@ const shiftDays = (dateStr: string, days: number): string => {
 }
 
 /**
- * Analytics de COMBUSTÍVEL baseado na VENDA fiscal (VENDA_ITEM) — a MESMA fonte
- * do relatório "Vendas, Custo e Lucratividade" do WebPosto. Substitui o cálculo
- * por ABASTECIMENTO (bomba) nas métricas de VALOR (litros vendidos, faturamento,
- * CMV, margem, L.B./litro), pra não divergir do sistema.
+ * Analytics de COMBUSTÍVEL baseado na VENDA fiscal (VENDA_ITEM). Substitui o
+ * cálculo por ABASTECIMENTO (bomba) nas métricas de VALOR (litros vendidos,
+ * faturamento, CMV, margem, L.B./litro), pra refletir a venda fiscal.
  *
- * Definições (iguais ao WebPosto):
+ * Definições:
  *  - litros        = Σ quantidade
  *  - faturamento   = Σ totalVenda (BRUTO — coluna "Vendas R$")
  *  - custo (CMV)   = Σ totalCusto
@@ -94,14 +93,14 @@ const useFuelVendaAnalytics = () => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
-  // Comparativo "mesmos dias decorridos" (igual ao BI): corta o fim em hoje antes
+  // Comparativo "mesmos dias decorridos": corta o fim em hoje antes
   // de deslocar, pra mês corrente parcial não comparar contra período cheio do passado.
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
   const prevFinal = offsetPeriod(fimEfetivo, cmpOffset)
   // Semana anterior = MESMO intervalo deslocado 7 dias atrás. Base da coluna
-  // "Variação semanal" da tabela por combustível (igual ao BI), independente do
+  // "Variação semanal" da tabela por combustível, independente do
   // toggle de comparação (que controla os cards de KPI).
   const semanaAntInicial = shiftDays(dataInicial, -7)
   const semanaAntFinal = shiftDays(dataFinal, -7)
@@ -145,7 +144,7 @@ const useFuelVendaAnalytics = () => {
 
   // vendaCodigo AUTORIZADOS por janela (cruzamento com /VENDA situacao='A'). O
   // VENDA_ITEM não traz `cancelada`, então sem isto canceladas vazariam pros
-  // KPIs (divergência vs BI). Mantemos só itens cuja venda está autorizada.
+  // KPIs (divergência). Mantemos só itens cuja venda está autorizada.
   const fetchAutorizados = (di: string, df: string) => async (): Promise<Set<number>> => {
     const sets = await Promise.all(
       empresaCodigos.map((emp) => fetchVendaCodigosAutorizados({ empresaCodigo: emp, dataInicial: di, dataFinal: df })),
@@ -202,7 +201,7 @@ const useFuelVendaAnalytics = () => {
     const fuelCodes = new Set<number>()
     const nomePorCodigo = new Map<number, string>()
     for (const p of produtosData ?? []) {
-      if (p.tipoProduto !== 'C') continue  // BI: combustível = tipoProduto "C"
+      if (p.tipoProduto !== 'C') continue  // combustível = tipoProduto "C"
       for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
         if (typeof c === 'number' && c > 0) {
           fuelCodes.add(c)
@@ -225,7 +224,7 @@ const useFuelVendaAnalytics = () => {
       if (it.quantidade <= 0) continue
       if (!isFuel(it.produtoCodigo)) continue
       if (!inPeriod(it.dataMovimento, dataInicial, dataFinal)) continue
-      const custo = it.precoCusto * it.quantidade  // BI: Custo Combustiveis = Σ precoCusto × qtd
+      const custo = it.precoCusto * it.quantidade  // Custo Combustiveis = Σ precoCusto × qtd
       rows.push({
         data: day(it.dataMovimento),
         produtoCodigo: it.produtoCodigo,

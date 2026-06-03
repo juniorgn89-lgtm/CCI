@@ -173,7 +173,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
     return arr
   }, [enriched, sortKey, sortDir])
 
-  // Máximos por coluna pra escala das barras (data bars estilo Power BI).
+  // Máximos por coluna pra escala das barras (data bars).
   const colMax = useMemo(() => ({
     litros: Math.max(...enriched.map((f) => f.litros), 0),
     automotivo: Math.max(...enriched.map((f) => f.automotivo), 0),
