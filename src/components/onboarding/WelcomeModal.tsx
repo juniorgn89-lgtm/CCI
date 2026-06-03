@@ -23,8 +23,8 @@ const SLIDES: Slide[] = [
   {
     Icon: LineChart,
     chip: 'from-emerald-400 to-teal-600',
-    title: 'Vendas e margens que batem com o BI',
-    desc: 'Combustível, pista e conveniência com o mesmo número do seu BI — ticket médio, lucro bruto e mix por produto, até o nível do grupo.',
+    title: 'Vendas e margens com precisão',
+    desc: 'Combustível, pista e conveniência com o número exato — ticket médio, lucro bruto e mix por produto, até o nível do grupo.',
   },
   {
     Icon: Sparkles,

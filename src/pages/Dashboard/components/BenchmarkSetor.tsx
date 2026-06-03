@@ -399,7 +399,7 @@ const BenchmarkSetor = () => {
                 <>
                   <ThHelp groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
                   <ThHelp label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas) — igual ao BI." />
+                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas)." />
                 </>
               )}
             </tr>

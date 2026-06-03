@@ -1,11 +1,10 @@
 /**
- * Classificação de setor — fonte ÚNICA da verdade, idêntica ao BI WebPosto/CCI.
- * Ver as medidas DAX em docs/BI-REFERENCE.md.
+ * Classificação de setor — fonte ÚNICA da verdade da aplicação.
  *
  *   combustível  = produto.tipoProduto === "C"          (qualquer grupo)
  *   automotivos  = grupo.tipoGrupo === "Pista" e ≠ "C"
  *   conveniência = grupo.tipoGrupo === "Conveniência"
- *   outros       = resto → FORA dos setores (o BI não soma em lugar nenhum)
+ *   outros       = resto → FORA dos setores (não soma em lugar nenhum)
  *
  * Antes cada hook reclassificava ao vivo com regras próprias (flag `combustivel`,
  * nome do grupo começando com "PS -", "o resto" = conveniência) — o que causava
@@ -25,13 +24,13 @@ export const classifySetor = (
         ? 'conveniencia'
         : 'outros'
 
-/** Item de venda cancelado? O BI conta só `cancelada = "N"`. */
+/** Item de venda cancelado? Conta-se só `cancelada = "N"`. */
 export const isVendaCancelada = (it: { cancelada?: string }): boolean => it.cancelada === 'S'
 
 interface ProdutoLike { produtoCodigo: number; tipoProduto: string; grupoCodigo: number }
 interface GrupoLike { grupoCodigo: number; tipoGrupo: string }
 
-/** Mapa `produtoCodigo → Setor` (régua do BI) a partir do catálogo + grupos. */
+/** Mapa `produtoCodigo → Setor` a partir do catálogo + grupos. */
 export const buildSetorMap = (
   produtos: ProdutoLike[],
   grupos: GrupoLike[],
