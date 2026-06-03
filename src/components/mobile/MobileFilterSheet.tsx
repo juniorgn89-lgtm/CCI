@@ -29,7 +29,7 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
       <SheetTitle className="text-base font-bold">Filtros</SheetTitle>
       <div className="mt-4 space-y-4">
         {!hideCompanySelect && <Field label="Posto"><CompanySelect /></Field>}
-        <Field label="Período"><DateRangeToolbar /></Field>
+        <Field label="Período"><DateRangeToolbar stacked /></Field>
         <Field label="Escopo"><DataFilterModeSelect /></Field>
         <Field label="Comparativo"><ComparisonSelect /></Field>
       </div>

@@ -49,7 +49,7 @@ const openCalendar = (ref: React.RefObject<HTMLInputElement | null>) => {
   el.focus()
 }
 
-const DateRangeToolbar = () => {
+const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   const periodIni = useFilterStore((s) => s.dataInicial)
   const periodFim = useFilterStore((s) => s.dataFinal)
   const { setPeriodo } = useFilters()
@@ -72,14 +72,17 @@ const DateRangeToolbar = () => {
   }
   const dirty = draftIni !== periodIni || draftFim !== periodFim
   const handleVisualizar = () => setPeriodo(draftIni, draftFim)
+  // Modo empilhado (mobile): aplica na hora — sem rascunho/botão próprio (o
+  // sheet tem um único "Visualizar"). No desktop segue com rascunho + Visualizar.
+  const commitIni = (v: string) => { setDraftIni(v); if (stacked) setPeriodo(v, draftFim) }
+  const commitFim = (v: string) => { setDraftFim(v); if (stacked) setPeriodo(draftIni, v) }
+  const commitBoth = (ini: string, fim: string) => { setDraftIni(ini); setDraftFim(fim); if (stacked) setPeriodo(ini, fim) }
 
   // Desloca o período inteiro em ±1 ano, preservando mês e dia (clampa fim de
   // mês via offsetPeriod). Útil pra comparar o MESMO intervalo no ano anterior.
-  // years: -1 = ano anterior, +1 = próximo ano. Só altera o draft → Visualizar aplica.
   const shiftYear = (years: number) => {
     const monthsBack = -years * 12
-    setDraftIni(offsetPeriod(draftIni, monthsBack))
-    setDraftFim(offsetPeriod(draftFim, monthsBack))
+    commitBoth(offsetPeriod(draftIni, monthsBack), offsetPeriod(draftFim, monthsBack))
   }
 
   // Azul = período automático; laranja = personalizado. Sempre reflete o draft
@@ -89,28 +92,26 @@ const DateRangeToolbar = () => {
   // — o contexto vem do placeholder nativo + tooltip (title). pr-6 abre espaço
   // pro botão de calendário; esconde o indicador nativo (usamos o nosso).
   const inputClass = cn(
-    'h-7 w-[118px] pr-6 text-xs transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0',
+    'h-7 pr-6 text-xs transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0',
+    stacked ? 'w-full' : 'w-[118px]',
     auto
       ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
       : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
   )
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={cn('flex gap-1.5', stacked ? 'w-full flex-col items-stretch gap-2' : 'items-center')}>
       <MonthRangeSelect
         draftIni={draftIni}
         draftFim={draftFim}
-        onChange={(ini, fim) => {
-          setDraftIni(ini)
-          setDraftFim(fim)
-        }}
+        onChange={(ini, fim) => commitBoth(ini, fim)}
       />
       <div className="relative">
         <Input
           ref={iniRef}
           type="date"
           value={draftIni}
-          onChange={(e) => setDraftIni(e.target.value)}
+          onChange={(e) => commitIni(e.target.value)}
           className={inputClass}
           aria-label="Data inicial"
           title="Data inicial"
@@ -125,13 +126,13 @@ const DateRangeToolbar = () => {
           <Calendar className="h-3.5 w-3.5" />
         </button>
       </div>
-      <span className="text-xs text-gray-400">—</span>
+      {!stacked && <span className="text-xs text-gray-400">—</span>}
       <div className="relative">
         <Input
           ref={fimRef}
           type="date"
           value={draftFim}
-          onChange={(e) => setDraftFim(e.target.value)}
+          onChange={(e) => commitFim(e.target.value)}
           className={inputClass}
           aria-label="Data final"
           title="Data final"
@@ -174,22 +175,24 @@ const DateRangeToolbar = () => {
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
-      <button
-        type="button"
-        onClick={handleVisualizar}
-        disabled={!dirty}
-        title={dirty ? 'Aplicar o período selecionado' : 'Período já aplicado'}
-        className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all',
-          dirty
-            ? 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162a44]'
-            : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
-        )}
-      >
-        <Eye className="h-3.5 w-3.5" />
-        Visualizar
-        {dirty && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="Alterações não aplicadas" />}
-      </button>
+      {!stacked && (
+        <button
+          type="button"
+          onClick={handleVisualizar}
+          disabled={!dirty}
+          title={dirty ? 'Aplicar o período selecionado' : 'Período já aplicado'}
+          className={cn(
+            'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all',
+            dirty
+              ? 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162a44]'
+              : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
+          )}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Visualizar
+          {dirty && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="Alterações não aplicadas" />}
+        </button>
+      )}
     </div>
   )
 }
