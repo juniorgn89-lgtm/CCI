@@ -1,14 +1,17 @@
 import { useState, type ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
-import { LayoutDashboard, SlidersHorizontal, ChevronDown, Sun, Moon } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
+import { useAuthStore } from '@/store/auth'
+import { useAuth } from '@/hooks/useAuth'
 import useEmpresaNome from '@/hooks/useEmpresaNome'
 import type { NavItem } from '@/components/layout/navConfig'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import MobileFilterSheet from '@/components/mobile/MobileFilterSheet'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 interface MobileShellProps {
   /** Módulos visíveis (já filtrados por permissão). */
@@ -38,7 +41,19 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const toggleTheme = useThemeStore((s) => s.toggle)
   const rede = useTenantStore((s) => s.rede)
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+  const user = useAuthStore((s) => s.user)
+  const fullName = useAuthStore((s) => s.fullName)
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const canApurar = useAuthStore((s) => s.canApurar)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  const userName = fullName || (user?.user_metadata?.full_name as string | undefined) || 'Usuário'
+  const userEmail = user?.email ?? '—'
+  const initials = userName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?'
+  const go = (path: string) => { setProfileOpen(false); navigate(path) }
 
   // Central da Rede é sempre rede-wide → barra de filtro SÓ com data (sem posto).
   const isCentral = pathname === '/dashboard'
@@ -65,13 +80,21 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex h-14 items-center gap-2.5 px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white/12">
-            <LayoutDashboard className="h-5 w-5 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-bold leading-tight">Visor360</p>
-            <p className="truncate text-[11px] leading-tight text-white/70">{subtitle}</p>
-          </div>
+          {/* Logo → abre perfil + configurações + apuração */}
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            aria-label="Perfil e configurações"
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity active:opacity-70"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white/12">
+              <LayoutDashboard className="h-5 w-5 text-white" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold leading-tight">Visor360</span>
+              <span className="block truncate text-[11px] leading-tight text-white/70">{subtitle}</span>
+            </span>
+          </button>
           {/* Pill "Tempo real" */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
             <span className="relative flex h-2 w-2">
@@ -112,6 +135,54 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
 
       <MobileBottomNav items={items} />
       <MobileFilterSheet open={filterOpen} onOpenChange={setFilterOpen} hideCompanySelect={isCentral} />
+
+      {/* Perfil + configurações (básico) + apuração — abre ao tocar na logo. */}
+      <Sheet open={profileOpen} onOpenChange={setProfileOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetTitle className="sr-only">Perfil e configurações</SheetTitle>
+          {/* Identidade */}
+          <div className="flex items-center gap-3 pb-2">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-sm font-semibold text-white">{initials}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{userName}</p>
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userEmail}</p>
+            </div>
+          </div>
+
+          <div className="mt-2 space-y-1 border-t border-gray-100 pt-2 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={() => go('/configuracoes')}
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+            >
+              <Settings className="h-5 w-5 shrink-0 text-gray-500" />
+              <span className="flex-1 text-left">Configurações</span>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </button>
+
+            {(isMaster || canApurar) && (
+              <button
+                type="button"
+                onClick={() => go('/admin/apuracao')}
+                className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+              >
+                <Database className="h-5 w-5 shrink-0 text-gray-500" />
+                <span className="flex-1 text-left">Apuração</span>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { setProfileOpen(false); logout() }}
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/30"
+            >
+              <LogOut className="h-5 w-5 shrink-0" />
+              <span className="flex-1 text-left">Sair</span>
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
