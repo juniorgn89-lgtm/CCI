@@ -887,15 +887,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
+                            <th colSpan={2} className="px-3 py-1.5" />
+                            <GroupTh label="Operação" colSpan={1} />
+                            <GroupTh label="Comparativo" colSpan={1} />
+                            <GroupTh label="Financeiro" colSpan={4} />
+                            <GroupTh label="Eficiência" colSpan={3} />
+                          </tr>
+                          <tr>
                             <th className="px-3 py-2 text-left font-medium">Data</th>
                             <th className="px-3 py-2 text-left font-medium">Dia da semana</th>
-                            <th className="px-3 py-2 text-right font-medium">Litros</th>
-                            <th className="px-3 py-2 text-right font-medium">Var. semanal</th>
-                            <th className="px-3 py-2 text-right font-medium">Faturamento</th>
+                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Litros</th>
+                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Var. semanal</th>
+                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
                             <th className="px-3 py-2 text-right font-medium">Lucro bruto</th>
                             <th className="px-3 py-2 text-right font-medium">Descontos</th>
                             <th className="px-3 py-2 text-right font-medium">Margem</th>
-                            <th className="px-3 py-2 text-right font-medium">Preço venda</th>
+                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Preço venda</th>
                             <th className="px-3 py-2 text-right font-medium">Preço custo</th>
                             <th className="px-3 py-2 text-right font-medium">L.B. litro</th>
                           </tr>
@@ -916,10 +923,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{d.dayOfWeek}</td>
-                                <td className="px-2 py-1">
+                                <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                   <BarCell value={d.litros} max={colMax.litros} formatted={formatNumber(Math.round(d.litros))} color="blue" align="near" />
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums">
+                                <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums dark:border-gray-700">
                                   {d.variacaoSemanal === null ? (
                                     <span className="text-gray-400">—</span>
                                   ) : (
@@ -929,7 +936,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     </span>
                                   )}
                                 </td>
-                                <td className="px-2 py-1">
+                                <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                   <BarCell value={d.faturamento} max={colMax.faturamento} formatted={formatCurrencyInt(d.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
@@ -941,7 +948,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 <td className="px-2 py-1">
                                   <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                                <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">
                                   {formatCurrency(precoVenda)}
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">
@@ -957,8 +964,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-3 py-2.5">Total</td>
                             <td className="px-3 py-2.5" />
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(detalheDiaADia.total.litros))}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">
+                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(detalheDiaADia.total.litros))}</td>
+                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">
                               {detalheDiaADia.variacaoTotal === null
                                 ? '—'
                                 : (
@@ -967,7 +974,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   </span>
                                 )}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.faturamento)}</td>
+                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(detalheDiaADia.total.faturamento)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.lucroBruto)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
@@ -975,7 +982,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 ? `${((detalheDiaADia.total.lucroBruto / detalheDiaADia.total.faturamento) * 100).toFixed(2).replace('.', ',')}%`
                                 : '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">
+                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">
                               {detalheDiaADia.total.litros > 0
                                 ? formatCurrency(detalheDiaADia.total.faturamento / detalheDiaADia.total.litros)
                                 : '—'}
