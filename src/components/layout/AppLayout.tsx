@@ -16,6 +16,7 @@ import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { useAuthStore } from '@/store/auth'
+import WelcomeModal from '@/components/onboarding/WelcomeModal'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 import { showsGlobalFilters } from '@/lib/globalFilters'
@@ -93,6 +94,12 @@ const AppLayout = () => {
 
   const isMaster = useAuthStore((s) => s.isMaster)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
+  const authUser = useAuthStore((s) => s.user)
+  const authFullName = useAuthStore((s) => s.fullName)
+  // Tour de boas-vindas (1ª vez por usuário) — overlay em portal, vale nas 2 shells.
+  const welcomeModal = authUser ? (
+    <WelcomeModal key={authUser.id} userId={authUser.id} userName={authFullName} />
+  ) : null
   const tenantRede = useTenantStore((s) => s.rede)
 
   // Redireciona pra primeira rota permitida no mount inicial. Antes era sempre
@@ -151,6 +158,7 @@ const AppLayout = () => {
   if (isMobile) {
     return (
       <MobileShell items={visibleNavItems} showFilters={showFilters}>
+        {welcomeModal}
         <LoadingOverlay />
         <ErrorBoundary key={pathname}>
           <Outlet />
@@ -161,6 +169,7 @@ const AppLayout = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+      {welcomeModal}
       {/* Desktop sidebar — escondida quando o Modo Foco está ativo. */}
       {!focusActive && <Sidebar />}
 
