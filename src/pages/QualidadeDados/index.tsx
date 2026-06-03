@@ -557,9 +557,11 @@ const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): Lancamen
 }
 
 const RiscoBadge = ({ score }: { score: 1 | 2 | 3 }) => {
-  if (score === 3) return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-700 dark:bg-red-900/40 dark:text-red-300">Alto</span>
-  if (score === 2) return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Médio</span>
-  return <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Baixo</span>
+  // Só fonte colorida (sem fundo de pílula) — menos poluição visual.
+  const base = 'text-[10px] font-bold uppercase tracking-wider'
+  if (score === 3) return <span className={`${base} text-red-600 dark:text-red-400`}>Alto</span>
+  if (score === 2) return <span className={`${base} text-amber-600 dark:text-amber-400`}>Médio</span>
+  return <span className={`${base} text-blue-600 dark:text-blue-400`}>Baixo</span>
 }
 
 const CupomMultiAbastTable = ({
