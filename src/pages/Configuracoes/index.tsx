@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
 import { getUiScaleMode, setUiScaleMode, UI_SCALE_OPTIONS, type UiScaleMode } from '@/lib/uiScale'
 import { useAuthStore } from '@/store/auth'
+import useIsMobile from '@/hooks/useIsMobile'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
 import {
@@ -288,6 +289,7 @@ const ManutencaoBombasSection = () => {
 
 const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
+  const isMobile = useIsMobile()
   const [scaleMode, setScaleMode] = useState<UiScaleMode>(() => getUiScaleMode())
   const handleScaleChange = (m: UiScaleMode) => {
     setScaleMode(m)
@@ -370,7 +372,8 @@ const Configuracoes = () => {
           </div>
         </div>
 
-        {/* Tamanho da interface (zoom) — útil em telas/monitores antigos */}
+        {/* Tamanho da interface (zoom) — opção de tela só pra PC; escondida no mobile. */}
+        {!isMobile && (
         <div className="pt-2">
           <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Tamanho da interface</p>
           <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
@@ -402,6 +405,7 @@ const Configuracoes = () => {
             })}
           </div>
         </div>
+        )}
       </section>
 
       {/* Conta */}
