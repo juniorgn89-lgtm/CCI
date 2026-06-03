@@ -97,12 +97,14 @@ const ThWithHelp = ({
   label,
   help,
   align = 'right',
+  groupStart,
 }: {
   label: string
   help: string
   align?: 'left' | 'right'
+  groupStart?: boolean
 }) => (
-  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
+  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right', groupStart && 'border-l border-gray-200 dark:border-gray-700')}>
     <span className={cn('inline-flex items-center gap-1', align === 'left' ? '' : 'justify-end')}>
       {label}
       <span className="group relative inline-flex cursor-help">
@@ -117,6 +119,13 @@ const ThWithHelp = ({
         </span>
       </span>
     </span>
+  </th>
+)
+
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
+const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
+  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
+    {label}
   </th>
 )
 
@@ -969,13 +978,19 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 <table className="w-full text-sm">
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
+                      <th className="px-3 py-1.5" />
+                      <GroupTh label="Operação" colSpan={1} />
+                      <GroupTh label="Financeiro" colSpan={4} />
+                      <GroupTh label="Eficiência" colSpan={3} />
+                    </tr>
+                    <tr>
                       <ThWithHelp align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
-                      <ThWithHelp label="Qtde" help="Total de unidades vendidas na categoria." />
-                      <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
+                      <ThWithHelp groupStart label="Qtde" help="Total de unidades vendidas na categoria." />
+                      <ThWithHelp groupStart label="Faturamento" help="Receita total da categoria (R$)." />
                       <ThWithHelp label="Custo" help="Custo total da categoria (R$)." />
                       <ThWithHelp label="Lucro Bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                       <ThWithHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-                      <ThWithHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
+                      <ThWithHelp groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
                       <ThWithHelp label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
                       <ThWithHelp label="L.B. Médio" help="Lucro bruto médio por unidade: lucro ÷ unidades." />
                     </tr>
@@ -1034,10 +1049,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                     )}
                                   </span>
                                 </td>
-                                <td className="px-2 py-1">
+                                <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                   <BarCell value={c.qtdVendida} max={maxQtd} formatted={formatNumber(Math.round(c.qtdVendida))} color="blue" align="near" />
                                 </td>
-                                <td className="px-2 py-1">
+                                <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                   <BarCell value={c.faturamento} max={maxFat} formatted={formatCurrencyInt(c.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(c.custo)}</td>
@@ -1047,7 +1062,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                 <td className="px-2 py-1">
                                   <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.faturamento / c.qtdVendida) : '—'}</td>
+                                <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.faturamento / c.qtdVendida) : '—'}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.custo / c.qtdVendida) : '—'}</td>
                                 <td className="px-2 py-1">
                                   <BarCell value={c.qtdVendida > 0 ? lucro / c.qtdVendida : 0} max={maxLbMedio} formatted={c.qtdVendida > 0 ? formatCurrency(lucro / c.qtdVendida) : '—'} color="amber" align="near" />
@@ -1058,12 +1073,12 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                           {/* Linha Total */}
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-4 py-2.5">Total</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totUnid))}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
+                            <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(totUnid))}</td>
+                            <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totFat)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totCusto)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(2).replace('.', ',')}%</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
+                            <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totCusto / totUnid) : '—'}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totLucro / totUnid) : '—'}</td>
                           </tr>

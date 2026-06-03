@@ -62,7 +62,7 @@ const ThHelp = ({ label, help, align = 'right', groupStart }: { label: string; h
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
-  <th colSpan={colSpan} className="border-l border-gray-200 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500">
+  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
     {label}
   </th>
 )
@@ -364,7 +364,7 @@ const BenchmarkSetor = () => {
         <table className="w-full text-sm">
           <thead>
             {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
-            <tr className="bg-gray-100/60 text-gray-400 dark:bg-gray-800/60 dark:text-gray-500">
+            <tr className="text-gray-400 dark:text-gray-500">
               <th className="px-3 py-1.5" />
               <GroupTh label="Operação" colSpan={1} />
               <GroupTh label="Financeiro" colSpan={showFaturamento ? 3 : 4} />

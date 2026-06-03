@@ -95,12 +95,14 @@ const ThWithHelp = ({
   label,
   help,
   align = 'right',
+  groupStart,
 }: {
   label: string
   help: string
   align?: 'left' | 'right'
+  groupStart?: boolean
 }) => (
-  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
+  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right', groupStart && 'border-l border-gray-200 dark:border-gray-700')}>
     <span className={cn('inline-flex items-center gap-1', align === 'left' ? '' : 'justify-end')}>
       {label}
       <span className="group relative inline-flex cursor-help">
@@ -115,6 +117,13 @@ const ThWithHelp = ({
         </span>
       </span>
     </span>
+  </th>
+)
+
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
+const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
+  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
+    {label}
   </th>
 )
 
@@ -996,15 +1005,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
+                            <th className="px-3 py-1.5" />
+                            <GroupTh label="Operação" colSpan={1} />
+                            <GroupTh label="Comparativo" colSpan={1} />
+                            <GroupTh label="Financeiro" colSpan={5} />
+                            <GroupTh label="Eficiência" colSpan={3} />
+                          </tr>
+                          <tr>
                             <ThWithHelp align="left" label="Combustível" help="Tipo de combustível vendido no período." />
-                            <ThWithHelp label="Litros" help="Volume total vendido no período (L)." />
-                            <ThWithHelp label="Variação semanal" help="Variação % de litros vs a semana anterior (mesmo intervalo, 7 dias antes)." />
-                            <ThWithHelp label="Faturamento" help="Receita total da venda desse combustível (R$)." />
+                            <ThWithHelp groupStart label="Litros" help="Volume total vendido no período (L)." />
+                            <ThWithHelp groupStart label="Variação semanal" help="Variação % de litros vs a semana anterior (mesmo intervalo, 7 dias antes)." />
+                            <ThWithHelp groupStart label="Faturamento" help="Receita total da venda desse combustível (R$)." />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                             <ThWithHelp label="Acréscimos" help="Acréscimos aplicados nas vendas desse combustível (R$)." />
                             <ThWithHelp label="Descontos" help="Descontos concedidos nas vendas desse combustível (R$)." />
                             <ThWithHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-                            <ThWithHelp label="Preço venda" help="Preço médio de venda por litro: faturamento ÷ litros." />
+                            <ThWithHelp groupStart label="Preço venda" help="Preço médio de venda por litro: faturamento ÷ litros." />
                             <ThWithHelp label="Preço custo" help="Custo médio de aquisição por litro: custo ÷ litros." />
                             <ThWithHelp label="L.B. litro" help="Lucro bruto por litro: preço venda − preço custo (R$/L)." />
                           </tr>
@@ -1043,10 +1059,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                         <span className="truncate underline-offset-4 hover:underline" title={f.nome}>{f.nome}</span>
                                       </span>
                                     </td>
-                                    <td className="px-2 py-1">
+                                    <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                       <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(Math.round(f.litros))} color="blue" align="near" />
                                     </td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums">
+                                    <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">
                                       {f.variacao === null ? (
                                         <span className="text-gray-400">—</span>
                                       ) : (
@@ -1056,7 +1072,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                         </span>
                                       )}
                                     </td>
-                                    <td className="px-2 py-1">
+                                    <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                       <BarCell value={f.faturamento} max={maxFat} formatted={formatCurrencyInt(f.faturamento)} color="green" align="near" />
                                     </td>
                                     <td className="px-2 py-1">
@@ -1067,7 +1083,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     <td className="px-2 py-1">
                                       <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
                                     </td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
+                                    <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
                                     <td className="px-2 py-1">
                                       <BarCell value={f.lbPorLitro} max={maxLb} formatted={formatCurrency(f.lbPorLitro)} color="amber" align="near" />
@@ -1077,16 +1093,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 {/* Linha Total */}
                                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                                   <td className="px-4 py-2.5">Total</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totLitros))}</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">
+                                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(totLitros))}</td>
+                                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">
                                     {totVariacao === null ? '—' : <span className={variationColor(totVariacao)}>{formatPct(totVariacao, 2)}</span>}
                                   </td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
+                                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totFat)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucroBruto)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totAcre)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totDesc)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totPrecoMed)}</td>
+                                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrency(totPrecoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLbLitro)}</td>
                                 </tr>

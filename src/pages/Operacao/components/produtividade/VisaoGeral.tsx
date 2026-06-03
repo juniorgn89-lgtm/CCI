@@ -373,7 +373,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
           <table className="w-full">
             <thead>
               {/* Linha de grupos — agrupa as colunas por tema */}
-              <tr className="bg-gray-100/60 dark:bg-gray-800/60">
+              <tr>
                 <th colSpan={3} className="px-4 py-1.5" />
                 <GroupTh label="Operação" colSpan={4} />
                 <GroupTh label="Financeiro" colSpan={2} />
@@ -530,7 +530,7 @@ const Th = ({ children, className }: ThProps) => (
 const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
   <th
     colSpan={colSpan}
-    className="border-l border-gray-200 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500"
+    className="border-l border-gray-200 bg-gray-100/60 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500"
   >
     {label}
   </th>
