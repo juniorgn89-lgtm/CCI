@@ -79,7 +79,7 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
 
       <Sheet open={maisOpen} onOpenChange={setMaisOpen}>
         <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-2xl">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pr-9">
             <SheetTitle className="text-base font-bold">Módulos</SheetTitle>
             <button
               type="button"

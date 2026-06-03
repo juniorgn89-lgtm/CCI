@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
+import useEmpresaNome from '@/hooks/useEmpresaNome'
 import type { NavItem } from '@/components/layout/navConfig'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import MobileFilterSheet from '@/components/mobile/MobileFilterSheet'
@@ -47,7 +48,10 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
     ? (rede?.nome ? `Rede · ${rede.nome}` : 'Visão consolidada da rede')
     : (rede?.nome ?? 'Visor360')
 
-  const postoResumo = empresaCodigos.length === 1 ? '1 posto' : empresaCodigos.length === 0 ? 'Todos os postos' : `${empresaCodigos.length} postos`
+  const empresaNome = useEmpresaNome()
+  const postoResumo = empresaCodigos.length === 1
+    ? (empresaNome || '1 posto')
+    : empresaCodigos.length === 0 ? 'Todos os postos' : `${empresaCodigos.length} postos`
   // Central não tem filtro de posto → resumo só com o período.
   const filterResumo = isCentral
     ? periodLabel(dataInicial, dataFinal)
