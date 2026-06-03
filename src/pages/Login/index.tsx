@@ -69,6 +69,10 @@ const Login = () => {
     }
   }
 
+  // Botão "Entrar" acende (azul/verde forte) só quando os campos estão preenchidos.
+  const canSubmitGerente = email.trim().length > 0 && password.length > 0
+  const canSubmitFrentista = frentistaCodigo.trim().length > 0 && frentistaPin.length > 0
+
   return (
     <div className="relative flex min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#1a3358] to-[#0f2440]">
       {/* Painel esquerdo — decorativo, escondido em telas < lg.
@@ -232,8 +236,13 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="group h-11 w-full rounded-lg bg-[#1e3a5f] text-sm font-semibold hover:bg-[#162d4a] dark:bg-[#1e3a5f] dark:hover:bg-[#162d4a]"
-              disabled={submitting}
+              className={cn(
+                'group h-11 w-full rounded-lg text-sm font-semibold text-white transition-all',
+                canSubmitGerente
+                  ? 'bg-[#2563eb] shadow-lg shadow-blue-600/30 ring-1 ring-blue-400/40 hover:bg-blue-600 dark:bg-[#2563eb] dark:hover:bg-blue-600'
+                  : 'cursor-not-allowed bg-[#1e3a5f]/50 text-white/45 shadow-none hover:bg-[#1e3a5f]/50 dark:bg-[#1e3a5f]/50',
+              )}
+              disabled={submitting || !canSubmitGerente}
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -307,8 +316,13 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="group h-11 w-full rounded-lg bg-green-600 text-sm font-semibold hover:bg-green-500"
-              disabled={frentistaSubmitting}
+              className={cn(
+                'group h-11 w-full rounded-lg text-sm font-semibold text-white transition-all',
+                canSubmitFrentista
+                  ? 'bg-green-600 shadow-lg shadow-green-600/30 ring-1 ring-green-400/40 hover:bg-green-500'
+                  : 'cursor-not-allowed bg-green-900/40 text-white/45 shadow-none hover:bg-green-900/40',
+              )}
+              disabled={frentistaSubmitting || !canSubmitFrentista}
             >
               {frentistaSubmitting ? (
                 <span className="flex items-center gap-2">
