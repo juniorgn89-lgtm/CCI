@@ -39,16 +39,19 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const [filterOpen, setFilterOpen] = useState(false)
 
-  // Central da Rede é sempre rede-wide → sem barra de filtro de posto.
+  // Central da Rede é sempre rede-wide → barra de filtro SÓ com data (sem posto).
   const isCentral = pathname === '/dashboard'
-  const showFilterBar = showFilters && !isCentral
+  const showFilterBar = showFilters
 
   const subtitle = isCentral
     ? (rede?.nome ? `Rede · ${rede.nome}` : 'Visão consolidada da rede')
     : (rede?.nome ?? 'Visor360')
 
   const postoResumo = empresaCodigos.length === 1 ? '1 posto' : empresaCodigos.length === 0 ? 'Todos os postos' : `${empresaCodigos.length} postos`
-  const filterResumo = `${postoResumo} · ${periodLabel(dataInicial, dataFinal)}`
+  // Central não tem filtro de posto → resumo só com o período.
+  const filterResumo = isCentral
+    ? periodLabel(dataInicial, dataFinal)
+    : `${postoResumo} · ${periodLabel(dataInicial, dataFinal)}`
 
   return (
     <div className="flex h-[100dvh] flex-col bg-gray-50 dark:bg-gray-950">
