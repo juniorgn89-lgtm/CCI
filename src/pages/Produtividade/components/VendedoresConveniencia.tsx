@@ -19,6 +19,16 @@ const COLS: { key: SortKey; label: string; color: BarColor; val: (r: VendedorRow
   { key: 'ticketMedio', label: 'Ticket médio', color: 'amber', val: (r) => r.ticketMedio, fmt: (r) => formatCurrency(r.ticketMedio) },
 ]
 
+/** Colunas que iniciam um grupo → divisor vertical (Financeiro é o 1º, sem divisor). */
+const GROUP_START = new Set<SortKey>(['itens', 'ticketMedio'])
+const gStart = 'border-l border-gray-200 dark:border-gray-700'
+
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && gStart)}>
+    {label}
+  </th>
+)
+
 const KpiCard = ({ icon: Icon, label, value, sub, tint }: {
   icon: typeof Users; label: string; value: string; sub?: string; tint: string
 }) => (
@@ -92,11 +102,17 @@ const VendedoresConveniencia = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
+              <tr>
+                <th colSpan={2} className="px-3 py-1.5" />
+                <GroupTh first label="Financeiro" colSpan={3} />
+                <GroupTh label="Operação" colSpan={2} />
+                <GroupTh label="Eficiência" colSpan={1} />
+              </tr>
               <tr className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase text-gray-500 dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-400">
                 <th className="px-5 py-2.5 text-left font-medium">#</th>
                 <th className="px-3 py-2.5 text-left font-medium">Vendedor</th>
                 {COLS.map((c) => (
-                  <th key={c.key} className="px-3 py-2.5 text-right font-medium">
+                  <th key={c.key} className={cn('px-3 py-2.5 text-right font-medium', GROUP_START.has(c.key) && gStart)}>
                     <button
                       type="button"
                       onClick={() => setSort(c.key)}
@@ -120,7 +136,7 @@ const VendedoresConveniencia = () => {
                     </div>
                   </td>
                   {COLS.map((c) => (
-                    <td key={c.key} className="px-2 py-2.5">
+                    <td key={c.key} className={cn('px-2 py-2.5', GROUP_START.has(c.key) && gStart)}>
                       <BarCell value={c.val(r)} max={colMax[c.key]} formatted={c.fmt(r)} color={c.color} align="near" />
                     </td>
                   ))}
