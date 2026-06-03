@@ -36,9 +36,10 @@ const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'catalogo', label: 'Catálogo', Icon: Package },
 ]
 
-/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
-const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
-  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema.
+ * `first` omite o divisor vertical à esquerda (1º grupo). */
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={`bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500${first ? '' : ' border-l border-gray-200 dark:border-gray-700'}`}>
     {label}
   </th>
 )
@@ -398,13 +399,13 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th className="px-3 py-1.5" />
-                            <GroupTh label="Operação" colSpan={1} />
+                            <GroupTh first label="Operação" colSpan={1} />
                             <GroupTh label="Financeiro" colSpan={4} />
                             <GroupTh label="Eficiência" colSpan={3} />
                           </tr>
                           <tr>
                             <th className="px-3 py-2 text-left font-medium">Data</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Qtde</th>
+                            <th className="px-3 py-2 text-right font-medium">Qtde</th>
                             <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
                             <th className="px-3 py-2 text-right font-medium">Custo</th>
                             <th className="px-3 py-2 text-right font-medium">Lucro Bruto</th>
@@ -424,7 +425,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                               <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
                                 <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
                               </td>
-                              <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
+                              <td className="px-2 py-1">
                                 <BarCell value={d.qtd} max={diaColMax.qtd} formatted={formatNumber(Math.round(d.qtd))} color="blue" align="near" />
                               </td>
                               <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
@@ -447,7 +448,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                           {/* Total */}
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-3 py-2.5">Total</td>
-                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(realizadoDiaADia.total.qtd))}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(realizadoDiaADia.total.qtd))}</td>
                             <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(realizadoDiaADia.total.fat)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.custo)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.lucro)}</td>

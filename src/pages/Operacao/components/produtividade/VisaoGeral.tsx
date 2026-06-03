@@ -375,7 +375,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
               {/* Linha de grupos — agrupa as colunas por tema */}
               <tr>
                 <th colSpan={3} className="px-4 py-1.5" />
-                <GroupTh label="Operação" colSpan={4} />
+                <GroupTh first label="Operação" colSpan={4} />
                 <GroupTh label="Financeiro" colSpan={2} />
                 <GroupTh label="Eficiência" colSpan={2} />
                 <GroupTh label="Comparativo" colSpan={2} />
@@ -384,7 +384,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                 <Th className="w-10">#</Th>
                 <ThSort label="Frentista" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />
                 <ThSort label="Score" k="score" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('score')} align="left" width="w-[120px]" />
-                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} groupStart />
+                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} />
                 <ThSort label="Automotivo" k="automotivo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('automotivo')} />
                 <ThSort label="Mix aditiv." k="mixAditivada" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('mixAditivada')} />
                 <ThSort label="Abastec." k="abastecimentos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('abastecimentos')} />
@@ -438,7 +438,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                           </div>
                         )}
                       </td>
-                      <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
+                      <td className="px-2 py-2.5">
                         <BarCell value={f.litros} max={colMax.litros} formatted={formatLiters(f.litros)} color="blue" align="near" />
                       </td>
                       <td className="px-2 py-2.5">
@@ -527,10 +527,10 @@ const Th = ({ children, className }: ThProps) => (
   </th>
 )
 
-const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
   <th
     colSpan={colSpan}
-    className="border-l border-gray-200 bg-gray-100/60 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500"
+    className={cn('bg-gray-100/60 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}
   >
     {label}
   </th>

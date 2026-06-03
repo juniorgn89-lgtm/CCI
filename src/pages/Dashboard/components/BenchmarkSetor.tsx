@@ -61,8 +61,8 @@ const ThHelp = ({ label, help, align = 'right', groupStart }: { label: string; h
 )
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
-const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
-  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
     {label}
   </th>
 )
@@ -138,8 +138,8 @@ const DataRow = ({
       {label}
       {/* Operação */}
       {plain
-        ? <td className={cn(numCls, gStart)}>{formatNumber(Math.round(vals.qtd))}</td>
-        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={numCls}>{formatNumber(Math.round(vals.qtd))}</td>
+        : <td className="px-2 py-1"><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
       {/* Financeiro */}
       {showFaturamento && (plain
         ? <td className={cn(numCls, gStart)}>{formatCurrency(vals.faturamento)}</td>
@@ -366,7 +366,7 @@ const BenchmarkSetor = () => {
             {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
             <tr className="text-gray-400 dark:text-gray-500">
               <th className="px-3 py-1.5" />
-              <GroupTh label="Operação" colSpan={1} />
+              <GroupTh first label="Operação" colSpan={1} />
               <GroupTh label="Financeiro" colSpan={showFaturamento ? 3 : 4} />
               <GroupTh label="Comparativo" colSpan={4} />
               <GroupTh label="Eficiência" colSpan={3} />
@@ -374,7 +374,7 @@ const BenchmarkSetor = () => {
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
               <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
               {/* Operação */}
-              <ThHelp groupStart label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
               {/* Financeiro */}
               {showFaturamento && (
                 <ThHelp groupStart label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
