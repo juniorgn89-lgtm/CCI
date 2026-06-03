@@ -615,8 +615,11 @@ const CupomMultiAbastTable = ({
                 key={c.vendaCodigo}
                 className={cn(
                   'cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40',
+                  // Linha inteira com fundo vermelho uniforme quando há mistura
+                  // (combustível ou pagamento) — sem destaque remendado por célula.
+                  (c.mixCombustiveis || c.mixPagamentos) && 'bg-red-50/60 dark:bg-red-900/15',
+                  c.riscoScore === 3 && 'border-l-2 border-red-400 dark:border-red-500/70',
                   isSel && 'bg-blue-50/60 dark:bg-blue-900/20',
-                  c.riscoScore === 3 && 'border-l-2 border-red-400 bg-red-50/30 dark:border-red-500/70 dark:bg-red-900/10',
                 )}
                 onClick={() => onSelect(adaptCupomMultiAbast(c, qi))}
               >
@@ -637,7 +640,7 @@ const CupomMultiAbastTable = ({
                 <td className="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
                 <td className={cn(
                   'px-3 py-1.5 text-xs',
-                  c.mixCombustiveis ? 'bg-red-50 font-medium text-gray-800 dark:bg-red-900/20 dark:text-gray-200' : 'text-gray-700 dark:text-gray-300',
+                  c.mixCombustiveis ? 'font-medium text-gray-800 dark:text-gray-200' : 'text-gray-700 dark:text-gray-300',
                 )}>
                   {combustiveisLabel}
                   <span className="ml-1 text-[10px] text-gray-400">({c.abastecimentos.length} itens)</span>
@@ -647,7 +650,7 @@ const CupomMultiAbastTable = ({
                 </td>
                 <td className={cn(
                   'px-3 py-1.5 text-[11px]',
-                  c.mixPagamentos ? 'bg-red-50 font-medium text-gray-700 dark:bg-red-900/20 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400',
+                  c.mixPagamentos ? 'font-medium text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400',
                 )}>
                   {pagamentoLabel}
                 </td>
