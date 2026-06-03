@@ -120,9 +120,10 @@ const ThWithHelp = ({
   </th>
 )
 
-/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
-const GroupTh = ({ label, colSpan }: { label: string; colSpan: number }) => (
-  <th colSpan={colSpan} className="border-l border-gray-200 bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-500">
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema.
+ * `first` omite o divisor vertical à esquerda (1º grupo). */
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
     {label}
   </th>
 )
@@ -888,7 +889,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th colSpan={2} className="px-3 py-1.5" />
-                            <GroupTh label="Operação" colSpan={1} />
+                            <GroupTh first label="Operação" colSpan={1} />
                             <GroupTh label="Comparativo" colSpan={1} />
                             <GroupTh label="Financeiro" colSpan={4} />
                             <GroupTh label="Eficiência" colSpan={3} />
@@ -896,7 +897,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <tr>
                             <th className="px-3 py-2 text-left font-medium">Data</th>
                             <th className="px-3 py-2 text-left font-medium">Dia da semana</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Litros</th>
+                            <th className="px-3 py-2 text-right font-medium">Litros</th>
                             <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Var. semanal</th>
                             <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
                             <th className="px-3 py-2 text-right font-medium">Lucro bruto</th>
@@ -923,7 +924,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{d.dayOfWeek}</td>
-                                <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
+                                <td className="px-2 py-1">
                                   <BarCell value={d.litros} max={colMax.litros} formatted={formatNumber(Math.round(d.litros))} color="blue" align="near" />
                                 </td>
                                 <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums dark:border-gray-700">
@@ -964,7 +965,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                             <td className="px-3 py-2.5">Total</td>
                             <td className="px-3 py-2.5" />
-                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(detalheDiaADia.total.litros))}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(detalheDiaADia.total.litros))}</td>
                             <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">
                               {detalheDiaADia.variacaoTotal === null
                                 ? '—'
@@ -1013,14 +1014,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th className="px-3 py-1.5" />
-                            <GroupTh label="Operação" colSpan={1} />
+                            <GroupTh first label="Operação" colSpan={1} />
                             <GroupTh label="Comparativo" colSpan={1} />
                             <GroupTh label="Financeiro" colSpan={5} />
                             <GroupTh label="Eficiência" colSpan={3} />
                           </tr>
                           <tr>
                             <ThWithHelp align="left" label="Combustível" help="Tipo de combustível vendido no período." />
-                            <ThWithHelp groupStart label="Litros" help="Volume total vendido no período (L)." />
+                            <ThWithHelp label="Litros" help="Volume total vendido no período (L)." />
                             <ThWithHelp groupStart label="Variação semanal" help="Variação % de litros vs a semana anterior (mesmo intervalo, 7 dias antes)." />
                             <ThWithHelp groupStart label="Faturamento" help="Receita total da venda desse combustível (R$)." />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
@@ -1066,7 +1067,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                         <span className="truncate underline-offset-4 hover:underline" title={f.nome}>{f.nome}</span>
                                       </span>
                                     </td>
-                                    <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
+                                    <td className="px-2 py-1">
                                       <BarCell value={f.litros} max={maxLitros} formatted={formatNumber(Math.round(f.litros))} color="blue" align="near" />
                                     </td>
                                     <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">
@@ -1100,7 +1101,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 {/* Linha Total */}
                                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                                   <td className="px-4 py-2.5">Total</td>
-                                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatNumber(Math.round(totLitros))}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totLitros))}</td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">
                                     {totVariacao === null ? '—' : <span className={variationColor(totVariacao)}>{formatPct(totVariacao, 2)}</span>}
                                   </td>
