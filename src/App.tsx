@@ -91,7 +91,7 @@ const loadTenantForUser = async () => {
     // Tenta profile primeiro (gerente)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('rede_id, full_name, empresa_codigos, modulos_permitidos, is_master, pode_apurar, pode_ver_reabastecimento, redes:rede_id ( id, nome, chave, api_base_url )')
+      .select('rede_id, full_name, empresa_codigos, modulos_permitidos, is_master, pode_apurar, pode_ver_reabastecimento, onboarding_seen, redes:rede_id ( id, nome, chave, api_base_url )')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile) {
@@ -104,6 +104,7 @@ const loadTenantForUser = async () => {
         is_master: boolean | null
         pode_apurar: boolean | null
         pode_ver_reabastecimento: boolean | null
+        onboarding_seen: boolean | null
         redes: { id: string; nome: string; chave: string; api_base_url: string } | null
       }
       const isMaster = !!typed.is_master
@@ -123,6 +124,7 @@ const loadTenantForUser = async () => {
       // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)
+      useAuthStore.getState().setOnboardingSeen(!!typed.onboarding_seen)
       return
     }
 

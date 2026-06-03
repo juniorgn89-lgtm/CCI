@@ -2,8 +2,8 @@ import { useState, type ComponentType } from 'react'
 import { LayoutDashboard, LineChart, Sparkles, Radar, type LucideProps } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-
-const STORAGE_PREFIX = 'visor360.onboarding.v1.'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/store/auth'
 
 interface Slide {
   Icon: ComponentType<LucideProps>
@@ -41,27 +41,24 @@ const SLIDES: Slide[] = [
 ]
 
 interface WelcomeModalProps {
-  /** Id do usuário logado — chave da flag "já viu" (por usuário). */
-  userId: string
   userName?: string | null
 }
 
 /**
- * Tour de boas-vindas (1ª vez por usuário). Mostra um carrossel de slides
- * apresentando o app e marca como visto em localStorage. Reaparece só pra
- * usuário novo / dispositivo novo. Montar com `key={userId}` no AppLayout.
+ * Tour de boas-vindas — mostra UMA vez por USUÁRIO (não por dispositivo). A flag
+ * vem de `profiles.onboarding_seen` (auth store) e é marcada via RPC
+ * `mark_onboarding_seen` no Supabase, então não reaparece em outro
+ * dispositivo/navegador/URL de deploy.
  */
-const WelcomeModal = ({ userId, userName }: WelcomeModalProps) => {
-  const storageKey = STORAGE_PREFIX + userId
-  const [open, setOpen] = useState(() => {
-    if (typeof window === 'undefined' || !userId) return false
-    try { return localStorage.getItem(storageKey) !== 'seen' } catch { return false }
-  })
+const WelcomeModal = ({ userName }: WelcomeModalProps) => {
+  const seen = useAuthStore((s) => s.onboardingSeen)
+  const setSeen = useAuthStore((s) => s.setOnboardingSeen)
   const [step, setStep] = useState(0)
+  const open = !seen
 
   const finish = () => {
-    try { localStorage.setItem(storageKey, 'seen') } catch { /* noop */ }
-    setOpen(false)
+    setSeen(true)  // some na hora (otimista)
+    if (supabase) supabase.rpc('mark_onboarding_seen').then(undefined, () => { /* noop */ })
   }
 
   const isLast = step === SLIDES.length - 1

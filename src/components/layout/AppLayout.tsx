@@ -98,7 +98,7 @@ const AppLayout = () => {
   const authFullName = useAuthStore((s) => s.fullName)
   // Tour de boas-vindas (1ª vez por usuário) — overlay em portal, vale nas 2 shells.
   const welcomeModal = authUser ? (
-    <WelcomeModal key={authUser.id} userId={authUser.id} userName={authFullName} />
+    <WelcomeModal key={authUser.id} userName={authFullName} />
   ) : null
   const tenantRede = useTenantStore((s) => s.rede)
 

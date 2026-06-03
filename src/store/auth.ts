@@ -43,6 +43,12 @@ interface AuthState {
    * UI cai pra `user_metadata.full_name` ou email.
    */
   fullName: string | null
+  /**
+   * Se o usuário já viu o tour de boas-vindas (de `profiles.onboarding_seen`).
+   * Default `true` (não mostra) até o bootstrap confirmar `false` pro perfil —
+   * evita flash. Persistido por USUÁRIO no Supabase (não por dispositivo).
+   */
+  onboardingSeen: boolean
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
@@ -50,6 +56,7 @@ interface AuthState {
   setCanApurar: (canApurar: boolean) => void
   setCanVerReabastecimento: (v: boolean) => void
   setFullName: (name: string | null) => void
+  setOnboardingSeen: (v: boolean) => void
   setLoaded: () => void
 }
 
@@ -63,6 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   canApurar: false,
   canVerReabastecimento: false,
   fullName: null,
+  onboardingSeen: true,
   setAuth: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
@@ -71,5 +79,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   setCanApurar: (canApurar) => set({ canApurar }),
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setFullName: (fullName) => set({ fullName }),
+  setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setLoaded: () => set({ isLoading: false }),
 }))
