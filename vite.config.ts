@@ -9,7 +9,11 @@ export default defineConfig({
     react(),
     // basicSsl(), // enable for local HTTPS testing
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (não 'autoUpdate'): o SW novo fica em wait e a UI mostra um
+      // banner "Nova versão — Atualizar". O autoUpdate deixava o celular preso
+      // na casca antiga (com CSP velho), sem reload confiável. Aqui o usuário
+      // (ou o reload automático do banner) força skipWaiting na hora.
+      registerType: 'prompt',
       includeAssets: ['vite.svg'],
       manifest: {
         name: 'Visor360 - Gestão de Postos',
