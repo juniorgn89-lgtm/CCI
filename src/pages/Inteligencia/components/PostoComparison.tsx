@@ -104,7 +104,7 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Conversão</p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{posto.conversao.toFixed(1)}%</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{posto.conversao.toFixed(0)}%</p>
                 </div>
               </div>
             </div>
@@ -172,7 +172,7 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.litros)}L</td>
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmtNum(p.abastecimentos)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{fmt(p.ticketMedio)}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{p.conversao.toFixed(1)}%</td>
+                    <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-300">{p.conversao.toFixed(0)}%</td>
                   </tr>
                   )
                 })}
@@ -247,7 +247,7 @@ const PostoComparison = ({ postos, networkAvg }: Props) => {
           { label: 'Litros Médios', value: `${fmtNum(networkAvg.litros)}L`, icon: Fuel },
           { label: 'Abast. Médio', value: fmtNum(networkAvg.abastecimentos), icon: Target },
           { label: 'Ticket Médio', value: fmt(networkAvg.ticketMedio), icon: TrendingUp },
-          { label: 'Conversão Média', value: `${networkAvg.conversao.toFixed(1)}%`, icon: Trophy },
+          { label: 'Conversão Média', value: `${networkAvg.conversao.toFixed(0)}%`, icon: Trophy },
         ].map(item => {
           const Icon = item.icon
           return (

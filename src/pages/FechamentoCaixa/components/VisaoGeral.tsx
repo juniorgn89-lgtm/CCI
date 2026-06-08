@@ -225,7 +225,7 @@ const VisaoGeral = () => {
               </p>
               <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                 {agregados.apurado > 0
-                  ? `${((agregados.totalCombustivel / agregados.apurado) * 100).toFixed(1).replace('.', ',')}% do apurado`
+                  ? `${((agregados.totalCombustivel / agregados.apurado) * 100).toFixed(0).replace('.', ',')}% do apurado`
                   : '—'}
               </p>
             </div>
@@ -331,7 +331,7 @@ const VisaoGeral = () => {
                             <div className="h-full rounded-full bg-blue-500/70" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="shrink-0 text-[10px] tabular-nums text-gray-400">
-                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(1).replace('.', ',')}%
+                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(0).replace('.', ',')}%
                           </span>
                         </div>
                       </li>
@@ -376,7 +376,7 @@ const VisaoGeral = () => {
                           </span>
                         </div>
                         <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                          {formatNumber(f.atendimentos)} abast. · {formatNumber(f.litros)} L · {pct.toFixed(1).replace('.', ',')}%
+                          {formatNumber(f.atendimentos)} abast. · {formatNumber(f.litros)} L · {pct.toFixed(0).replace('.', ',')}%
                         </p>
                       </li>
                     )

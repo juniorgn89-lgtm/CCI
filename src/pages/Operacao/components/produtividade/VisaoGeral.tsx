@@ -234,7 +234,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
             {formatLiters(totalLitros)}
           </p>
           <p className="text-xs tabular-nums text-gray-500">
-            de {formatLiters(totalMeta)} ({(progressoMes * 100).toFixed(1)}%)
+            de {formatLiters(totalMeta)} ({(progressoMes * 100).toFixed(0)}%)
           </p>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
             <div
@@ -279,7 +279,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                       : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                   )}>
                     {destaque.varLitrosPct >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                    {Math.abs(destaque.varLitrosPct).toFixed(1)}% vs anterior
+                    {Math.abs(destaque.varLitrosPct).toFixed(0)}% vs anterior
                   </span>
                 )}
                 {destaque.meta > 0 && destaque.litros >= destaque.meta && (
@@ -316,7 +316,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                 )}>
                   {atencao.varLitrosPct >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                  {Math.abs(atencao.varLitrosPct).toFixed(1)}% vs anterior
+                  {Math.abs(atencao.varLitrosPct).toFixed(0)}% vs anterior
                 </span>
                 {atencao.meta > 0 && atencao.litros < atencao.meta && (
                   <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
@@ -445,7 +445,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                         <BarCell value={f.automotivo} max={colMax.automotivo} formatted={formatLiters(f.automotivo)} color="blue" align="near" />
                       </td>
                       <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500">
-                        {f.mixAditivadaPct > 0 ? `${f.mixAditivadaPct.toFixed(1).replace('.', ',')}%` : '—'}
+                        {f.mixAditivadaPct > 0 ? `${f.mixAditivadaPct.toFixed(0).replace('.', ',')}%` : '—'}
                       </td>
                       <td className="px-2 py-2.5">
                         <BarCell value={f.abastecimentos} max={colMax.abastecimentos} formatted={formatNumber(f.abastecimentos)} color="blue" align="near" />
@@ -483,7 +483,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
                             Novo frentista
                           </span>
                         ) : (
-                          `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(1)}%`
+                          `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(0)}%`
                         )}
                       </td>
                       <td className="w-[120px] whitespace-nowrap px-4 py-2.5">

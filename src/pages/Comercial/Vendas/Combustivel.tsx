@@ -79,7 +79,7 @@ const variationColor = (v: number): string => {
 }
 
 /** Formata percentual estilo "+12,5%" ou "−4,2%". */
-const formatPct = (v: number, digits = 2): string => {
+const formatPct = (v: number, digits = 0): string => {
   const sign = v > 0 ? '+' : v < 0 ? '−' : ''
   return `${sign}${Math.abs(v).toFixed(digits).replace('.', ',')}%`
 }
@@ -685,7 +685,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             key={f.produtoCodigo}
                             className={cn('h-full', fuelColor(f.nome))}
                             style={{ width: `${pct}%` }}
-                            title={`${f.nome}: ${pct.toFixed(1).replace('.', ',')}%`}
+                            title={`${f.nome}: ${pct.toFixed(0).replace('.', ',')}%`}
                           />
                         ) : null
                       })}
@@ -724,22 +724,22 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="Margem"
-              value={showSkeleton ? '—' : `${margemPctGlobal.toFixed(2).replace('.', ',')}%`}
+              value={showSkeleton ? '—' : `${margemPctGlobal.toFixed(0).replace('.', ',')}%`}
               Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={showSkeleton}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
+              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? `${projecaoCombustivel.projetadoMargem.toFixed(0).replace('.', ',')}%` : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
-              projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(2).replace('.', ',')}%`)}
+              projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(0).replace('.', ',')}%`)}
               extra={
                 !showSkeleton && vendaCmp.margemPct > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {`${vendaCmp.margemPct.toFixed(2).replace('.', ',')}%`}
+                        {`${vendaCmp.margemPct.toFixed(0).replace('.', ',')}%`}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -753,7 +753,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         )}
                       >
                         {margemPctGlobal - vendaCmp.margemPct >= 0 ? '+' : ''}
-                        {(margemPctGlobal - vendaCmp.margemPct).toFixed(2).replace('.', ',')} pp
+                        {(margemPctGlobal - vendaCmp.margemPct).toFixed(0).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -932,7 +932,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     <span className="text-gray-400">—</span>
                                   ) : (
                                     <span className={cn('inline-flex items-center justify-end gap-0.5 font-semibold', variationColor(d.variacaoSemanal))}>
-                                      {formatPct(d.variacaoSemanal, 2)}
+                                      {formatPct(d.variacaoSemanal)}
                                       {d.variacaoSemanal > 0 ? <TrendingUp className="h-3 w-3" /> : d.variacaoSemanal < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
                                     </span>
                                   )}
@@ -947,7 +947,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   {formatCurrency(d.descontos)}
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
                                 <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">
                                   {formatCurrency(precoVenda)}
@@ -971,7 +971,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 ? '—'
                                 : (
                                   <span className={variationColor(detalheDiaADia.variacaoTotal)}>
-                                    {formatPct(detalheDiaADia.variacaoTotal, 2)}
+                                    {formatPct(detalheDiaADia.variacaoTotal)}
                                   </span>
                                 )}
                             </td>
@@ -980,7 +980,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.total.faturamento > 0
-                                ? `${((detalheDiaADia.total.lucroBruto / detalheDiaADia.total.faturamento) * 100).toFixed(2).replace('.', ',')}%`
+                                ? `${((detalheDiaADia.total.lucroBruto / detalheDiaADia.total.faturamento) * 100).toFixed(0).replace('.', ',')}%`
                                 : '—'}
                             </td>
                             <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">
@@ -1089,7 +1089,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(f.acrescimo)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(f.desconto)}</td>
                                     <td className="px-2 py-1">
-                                      <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                      <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                                     </td>
                                     <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>
@@ -1103,13 +1103,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <td className="px-4 py-2.5">Total</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(Math.round(totLitros))}</td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">
-                                    {totVariacao === null ? '—' : <span className={variationColor(totVariacao)}>{formatPct(totVariacao, 2)}</span>}
+                                    {totVariacao === null ? '—' : <span className={variationColor(totVariacao)}>{formatPct(totVariacao)}</span>}
                                   </td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totFat)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucroBruto)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totAcre)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totDesc)}</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(0).replace('.', ',')}%</td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrency(totPrecoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLbLitro)}</td>
@@ -1221,12 +1221,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               tick={{ fontSize: 10, fill: '#9ca3af' }}
                               axisLine={false}
                               tickLine={false}
-                              tickFormatter={(v) => `${v.toFixed(1)}%`}
+                              tickFormatter={(v) => `${v.toFixed(0)}%`}
                             />
                             <Tooltip
                               formatter={((value: number | null, name: string) =>
                                 value == null ? ['—', name]
-                                  : name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name]
+                                  : name === 'Margem' ? [`${value.toFixed(0).replace('.', ',')}%`, name]
                                   : [formatCurrencyInt(value), name]
                               ) as never}
                               contentStyle={{ fontSize: 12, borderRadius: 8 }}

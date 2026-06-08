@@ -134,7 +134,7 @@ const NetworkMap = ({ postos }: Props) => {
                       { label: 'Receita', value: fmt(posto.receita), Icon: Receipt },
                       { label: 'Abastecimentos', value: fmtNum(posto.abastecimentos), Icon: Target },
                       { label: 'Ticket Médio', value: fmt(posto.ticketMedio), Icon: TrendingUp },
-                      { label: 'Conversão', value: `${posto.conversao.toFixed(1)}%`, Icon: null },
+                      { label: 'Conversão', value: `${posto.conversao.toFixed(0)}%`, Icon: null },
                     ] as const).map(row => (
                       <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#555' }}>

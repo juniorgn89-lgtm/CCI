@@ -207,7 +207,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                             </span>
                           </div>
                           <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(1).replace('.', ',')}%
+                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(0).replace('.', ',')}%
                           </p>
                         </li>
                       )

@@ -285,10 +285,10 @@ const ConvenienciaVisaoGeral = ({
                               {c.quantidade > 0 ? formatCurrency((c.faturamento - c.margemTotal) / c.quantidade) : '—'}
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={c.margemPct} max={maxMargem} formatted={`${c.margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                              <BarCell value={c.margemPct} max={maxMargem} formatted={`${c.margemPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={mixPct} max={maxMix} formatted={`${mixPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                              <BarCell value={mixPct} max={maxMix} formatted={`${mixPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                             </td>
                           </tr>
                         )
@@ -305,8 +305,8 @@ const ConvenienciaVisaoGeral = ({
                         <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{totUnid > 0 ? formatCurrency(totCusto / totUnid) : '—'}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">100,0%</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(0).replace('.', ',')}%</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">100%</td>
                       </tr>
                     </>
                   )
@@ -432,7 +432,7 @@ const ConvenienciaVisaoGeral = ({
                           <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={p.margemPct} max={maxMargem} formatted={`${p.margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                          <BarCell value={p.margemPct} max={maxMargem} formatted={`${p.margemPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                         </td>
                       </tr>
                     )

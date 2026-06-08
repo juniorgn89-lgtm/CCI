@@ -274,7 +274,7 @@ const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
                     <>
                       {' · '}
                       <span className={cn(top1.varTotalPct >= 0 ? 'text-green-700' : 'text-red-700', 'font-medium')}>
-                        {top1.varTotalPct >= 0 ? '+' : ''}{top1.varTotalPct.toFixed(1)}% vs mês anterior
+                        {top1.varTotalPct >= 0 ? '+' : ''}{top1.varTotalPct.toFixed(0)}% vs mês anterior
                       </span>
                     </>
                   )}
@@ -316,7 +316,7 @@ const Destaques = ({ frentistas, abastecimentoRowsPrev }: Props) => {
                       delta >= 0 ? 'text-green-700' : 'text-red-700'
                     )}>
                       {delta >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                      {Math.abs(delta).toFixed(1)}%
+                      {Math.abs(delta).toFixed(0)}%
                     </p>
                   ) : (
                     <p className="mt-0.5 text-[10px] text-gray-400">—</p>

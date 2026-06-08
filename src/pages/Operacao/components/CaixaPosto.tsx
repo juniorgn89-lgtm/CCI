@@ -542,7 +542,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                         contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
                         formatter={((v: number, _name: string, item: { payload?: PagamentoBreakdown }) => {
                           const pct = totalPagamentos > 0 ? (v / totalPagamentos) * 100 : 0
-                          return [`${formatCurrencyTooltip(v)} · ${pct.toFixed(1)}%`, item?.payload?.nome ?? 'Valor']
+                          return [`${formatCurrencyTooltip(v)} · ${pct.toFixed(0)}%`, item?.payload?.nome ?? 'Valor']
                         }) as never}
                       />
                     </PieChart>
@@ -574,7 +574,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                               <Icon className="h-3 w-3 text-gray-400" />
                               <span className="truncate text-xs text-gray-700 dark:text-gray-300">{p.nome}</span>
                             </div>
-                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(1)}%</span>
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(0)}%</span>
                           </div>
                           <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{formatCurrency(p.valor)} · {formatNumber(p.quantidade)} transações</p>
                         </div>

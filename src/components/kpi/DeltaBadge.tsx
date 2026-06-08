@@ -38,7 +38,7 @@ const DeltaBadge = ({
       )}>
         <Icon className="h-3 w-3 shrink-0" />
         <span className="text-[10px] font-semibold tabular-nums">
-          {isPositive ? '+' : ''}{pct.toFixed(1)}% vs {label}
+          {isPositive ? '+' : ''}{pct.toFixed(0)}% vs {label}
         </span>
       </div>
       {showAbsolute && formatter && (

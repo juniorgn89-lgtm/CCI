@@ -95,7 +95,7 @@ const SalesForecast = ({ forecastData }: Props) => {
             </div>
           </div>
           <p className={cn('mt-1 text-lg font-bold tabular-nums', trendPct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-            {trendPct >= 0 ? '+' : ''}{trendPct.toFixed(1)}%
+            {trendPct >= 0 ? '+' : ''}{trendPct.toFixed(0)}%
           </p>
           <p className="text-xs text-gray-400">{trendPct >= 0 ? 'crescimento' : 'queda'} projetado</p>
         </div>

@@ -17,7 +17,7 @@ const fmt = (v: number, unit: string) => {
   if (unit === 'L') {
     return v >= 1_000 ? `${(v / 1_000).toFixed(1)}K L` : `${v.toFixed(0)} L`
   }
-  return `${v.toFixed(1)}${unit}`
+  return `${v.toFixed(0)}${unit}`
 }
 
 const PostoGoals = ({ goals }: Props) => {

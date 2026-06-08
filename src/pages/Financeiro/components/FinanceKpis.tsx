@@ -60,7 +60,7 @@ const FinanceKpis = ({ kpis, onNavigate }: FinanceKpisProps) => {
       label: 'Inadimplência',
       value: formatCurrency(kpis.inadimplencia),
       subtitle: kpis.inadimplenciaPercent > 0
-        ? `${kpis.inadimplenciaPercent.toFixed(1)}% do total a receber`
+        ? `${kpis.inadimplenciaPercent.toFixed(0)}% do total a receber`
         : 'Nenhum título vencido',
       icon: AlertTriangle,
       cardBg: kpis.inadimplencia > 0

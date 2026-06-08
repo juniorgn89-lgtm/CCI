@@ -390,7 +390,7 @@ const MeusAbastecimentos = () => {
                     {/* Participação */}
                     <span className="inline-flex justify-end">
                       <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                        {pct.toFixed(1)}%
+                        {pct.toFixed(0)}%
                       </span>
                     </span>
                   </div>

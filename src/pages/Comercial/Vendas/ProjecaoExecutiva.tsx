@@ -199,7 +199,7 @@ const ProjecaoExecutiva = ({
                 <Chip
                   icon={up ? TrendingUp : TrendingDown}
                   label="Tendência"
-                  value={`${up ? '+' : ''}${(fat.tendenciaPct * 100).toFixed(1).replace('.', ',')}%`}
+                  value={`${up ? '+' : ''}${(fat.tendenciaPct * 100).toFixed(0).replace('.', ',')}%`}
                   valueClass={up ? 'text-emerald-200' : 'text-red-200'}
                 />
               </div>
@@ -215,7 +215,7 @@ const ProjecaoExecutiva = ({
                 {formatCurrencyInt(projetadoLucro)}
               </p>
               <p className="text-[11px] tabular-nums text-white/70">
-                {fat.esperado > 0 ? `${margemPct.toFixed(1).replace('.', ',')}% margem` : '—'}
+                {fat.esperado > 0 ? `${margemPct.toFixed(0).replace('.', ',')}% margem` : '—'}
               </p>
             </div>
           </div>

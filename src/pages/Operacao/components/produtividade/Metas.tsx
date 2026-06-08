@@ -238,7 +238,7 @@ const Metas = ({ frentistas }: Props) => {
                           : pct >= 70 ? 'text-amber-600 dark:text-amber-400'
                           : 'text-red-600 dark:text-red-400'
                       )}>
-                        {metaAtual === 0 ? '—' : pct > 200 ? 'Novo' : `${pct.toFixed(1)}%`}
+                        {metaAtual === 0 ? '—' : pct > 200 ? 'Novo' : `${pct.toFixed(0)}%`}
                       </td>
                     </tr>
                   )

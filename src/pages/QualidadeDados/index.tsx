@@ -90,7 +90,7 @@ const adaptPrecoSuspeito = (r: AbastecimentoPrecoSuspeito, qi: QualidadeIssue): 
       { label: 'Combustível', value: r.combustivelNome },
       { label: 'Preço unitário', value: formatCurrency(r.valorUnitario), numeric: true, highlight: true },
       { label: 'Preço médio do período', value: formatCurrency(r.precoMedio), numeric: true },
-      { label: 'Desvio', value: `${desvioPct > 0 ? '+' : ''}${desvioPct.toFixed(1).replace('.', ',')}% (${r.zScore.toFixed(1).replace('.', ',')}σ)`, numeric: true, highlight: true },
+      { label: 'Desvio', value: `${desvioPct > 0 ? '+' : ''}${desvioPct.toFixed(0).replace('.', ',')}% (${r.zScore.toFixed(1).replace('.', ',')}σ)`, numeric: true, highlight: true },
       { label: 'Data', value: formatDate(day) },
       { label: 'Bomba / Bico', value: r.bombaDescricao },
       { label: 'Frentista', value: r.frentistaNome },

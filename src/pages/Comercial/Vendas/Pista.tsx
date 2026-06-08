@@ -721,7 +721,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             key={c.nome}
                             className={cn('h-full', CATEGORIA_BAR_COLOR[c.nome] ?? 'bg-gray-400')}
                             style={{ width: `${pct}%` }}
-                            title={`${c.nome}: ${pct.toFixed(1).replace('.', ',')}%`}
+                            title={`${c.nome}: ${pct.toFixed(0).replace('.', ',')}%`}
                           />
                         ) : null
                       })}
@@ -758,20 +758,20 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
             <KpiCard
               label="Margem"
-              value={isLoadingVendas ? '—' : `${cmpKpis.atual.margemPct.toFixed(2).replace('.', ',')}%`}
+              value={isLoadingVendas ? '—' : `${cmpKpis.atual.margemPct.toFixed(0).replace('.', ',')}%`}
               Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
-              projecao={projecaoPista.isProjetada && computed ? `${projecaoPista.projetadoMargemPct.toFixed(2).replace('.', ',')}%` : undefined}
+              projecao={projecaoPista.isProjetada && computed ? `${projecaoPista.projetadoMargemPct.toFixed(0).replace('.', ',')}%` : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.margemPct > 0 ? (
                   <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {cmpKpis.prev.margemPct.toFixed(2).replace('.', ',')}%
+                        {cmpKpis.prev.margemPct.toFixed(0).replace('.', ',')}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -783,7 +783,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                           : 'text-red-600 dark:text-red-400',
                       )}>
                         {cmpKpis.atual.margemPct - cmpKpis.prev.margemPct >= 0 ? '+' : ''}
-                        {(cmpKpis.atual.margemPct - cmpKpis.prev.margemPct).toFixed(2).replace('.', ',')} pp
+                        {(cmpKpis.atual.margemPct - cmpKpis.prev.margemPct).toFixed(0).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -906,7 +906,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             <BarCell value={d.lucro} max={diaColMax.lucro} formatted={formatCurrencyInt(d.lucro)} color="green" align="near" />
                           </td>
                           <td className="px-2 py-1">
-                            <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'} color="amber" align="near" />
+                            <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(0).replace('.', ',')}%` : '—'} color="amber" align="near" />
                           </td>
                           <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.fat / d.qtd) : '—'}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.custo / d.qtd) : '—'}</td>
@@ -922,7 +922,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                         <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(realizadoDiaADia.total.fat)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.custo)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.lucro)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.fat > 0 ? `${((realizadoDiaADia.total.lucro / realizadoDiaADia.total.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.fat > 0 ? `${((realizadoDiaADia.total.lucro / realizadoDiaADia.total.fat) * 100).toFixed(0).replace('.', ',')}%` : '—'}</td>
                         <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.fat / realizadoDiaADia.total.qtd) : '—'}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.custo / realizadoDiaADia.total.qtd) : '—'}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.lucro / realizadoDiaADia.total.qtd) : '—'}</td>
@@ -1066,7 +1066,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
                                 <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.faturamento / c.qtdVendida) : '—'}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.custo / c.qtdVendida) : '—'}</td>
@@ -1083,7 +1083,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totFat)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totCusto)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(2).replace('.', ',')}%</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(0).replace('.', ',')}%</td>
                             <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{totUnid > 0 ? formatCurrency(totFat / totUnid) : '—'}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totCusto / totUnid) : '—'}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totUnid > 0 ? formatCurrency(totLucro / totUnid) : '—'}</td>
@@ -1242,7 +1242,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(1).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(0).replace('.', ',')}%`} color="amber" align="near" />
                                 </td>
                               </tr>
                             )
@@ -1261,7 +1261,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                               {formatCurrency(totProjProd)}
                             </td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(1).replace('.', ',')}%</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(0).replace('.', ',')}%</td>
                           </tr>
                         </>
                       )

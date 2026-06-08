@@ -164,7 +164,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
             <span className="text-gray-300 dark:text-gray-600">·</span>
             <span className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
               <Fuel className="h-3.5 w-3.5" />
-              {fuel.participacao.toFixed(1).replace('.', ',')}% do mix
+              {fuel.participacao.toFixed(0).replace('.', ',')}% do mix
             </span>
             <span className="text-gray-300 dark:text-gray-600">·</span>
             <span className="text-gray-600 dark:text-gray-400">
@@ -181,7 +181,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               <Kpi Icon={Droplets} label="Litros" value={formatNumber(Math.round(fuel.litros))} />
               <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrencyInt(fuel.faturamento)} />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrencyInt(fuel.lucroBruto)} />
-              <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(1).replace('.', ',')}%`} />
+              <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(0).replace('.', ',')}%`} />
               <Kpi Icon={Receipt} label="Ticket / litro" value={formatCurrency(ticketPorLitro)} />
               <Kpi Icon={DollarSign} label="L.B./Litro" value={formatCurrency(fuel.lbPorLitro)} />
               <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(fuel.precoCustoMedio)} />
@@ -202,7 +202,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                 <Kpi Icon={Droplets} label="Litros" value={formatNumber(Math.round(projecao.projetadoLitros))} tone="projecao" />
                 <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrencyInt(projecao.projetado)} tone="projecao" />
                 <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrencyInt(projecao.projetadoLucro)} tone="projecao" />
-                <Kpi Icon={Percent} label="Margem" value={`${projecao.projetadoMargem.toFixed(1).replace('.', ',')}%`} tone="projecao" />
+                <Kpi Icon={Percent} label="Margem" value={`${projecao.projetadoMargem.toFixed(0).replace('.', ',')}%`} tone="projecao" />
               </div>
             </section>
           )}

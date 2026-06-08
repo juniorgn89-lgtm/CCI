@@ -246,7 +246,7 @@ const UsageCard = () => {
                   : tone === 'alerta' ? 'text-amber-600 dark:text-amber-400'
                   : 'text-gray-600 dark:text-gray-400',
               )}>
-                ({pct?.toFixed(1)}%)
+                ({pct?.toFixed(0)}%)
               </span>
             </p>
           )}

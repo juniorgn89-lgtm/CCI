@@ -74,7 +74,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     {
       key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
       render: (r) => (
-        <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(1)}%`} />
+        <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(0)}%`} />
       ),
     },
     {
@@ -125,7 +125,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
         metrics={[
           { label: 'Faturamento', value: formatCurrency(catalogTotals.faturamento) },
           { label: 'Lucro Bruto', value: formatCurrency(catalogTotals.lucroBruto), color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Margem Média', value: `${catalogTotals.margemMedia.toFixed(1)}%` },
+          { label: 'Margem Média', value: `${catalogTotals.margemMedia.toFixed(0)}%` },
         ]}
       />
 

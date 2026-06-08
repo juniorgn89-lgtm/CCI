@@ -37,7 +37,7 @@ const columns: Column<EnrichedRow>[] = [
       return (
         <span className={cn('inline-flex items-center justify-end gap-1 tabular-nums font-medium', isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
           {isUp ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-          {Math.abs(r.variacaoVsMedia).toFixed(1)}%
+          {Math.abs(r.variacaoVsMedia).toFixed(0)}%
         </span>
       )
     },

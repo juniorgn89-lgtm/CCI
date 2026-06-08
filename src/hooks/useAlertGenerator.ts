@@ -195,7 +195,7 @@ const useAlertGenerator = () => {
             category: 'combustivel',
             severity: 'warning',
             title: `Margem combustível baixa em ${posto}`,
-            description: `Margem atual: ${margem.toFixed(1)}%. Revise a precificação.`,
+            description: `Margem atual: ${margem.toFixed(0)}%. Revise a precificação.`,
             timestamp: now,
             read: false,
             empresaCodigo: empCod,

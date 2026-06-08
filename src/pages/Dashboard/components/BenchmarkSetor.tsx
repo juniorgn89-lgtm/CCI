@@ -45,7 +45,7 @@ const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
   { id: 'conveniencias', label: 'CONVENIÊNCIAS', Icon: Store },
 ]
 
-const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
+const fmtPct = (v: number) => `${v.toFixed(0).replace('.', ',')}%`
 
 /** Cabeçalho de coluna com "?" (tooltip nativo). `groupStart` desenha o divisor
  * vertical sutil que separa os grupos (Operação · Financeiro · …). */
@@ -82,7 +82,7 @@ const VariacaoBadge = ({ value }: { value: number }) => {
       up ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
     )}>
       <Icon className="h-3 w-3" />
-      {up ? '+' : ''}{value.toFixed(1).replace('.', ',')}%
+      {up ? '+' : ''}{value.toFixed(0).replace('.', ',')}%
     </span>
   )
 }

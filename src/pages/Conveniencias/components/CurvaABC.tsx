@@ -44,8 +44,8 @@ const buildCols = (maxFat: number): Column<ABCRow>[] => [
   },
   { key: 'nome', label: 'Produto', sortable: true },
   { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
-  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(2)}%` },
-  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, render: (r) => `${r.acumulado.toFixed(1)}%` },
+  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(0)}%` },
+  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, render: (r) => `${r.acumulado.toFixed(0)}%` },
 ]
 
 const CurvaABC = ({ products }: CurvaABCProps) => {

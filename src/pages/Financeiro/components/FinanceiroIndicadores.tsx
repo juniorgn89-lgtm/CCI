@@ -387,7 +387,7 @@ const FinanceiroIndicadores = ({ kpis, receivablesData, payablesData, cashFlowDa
             {formatCurrency(kpis.totalVencidosReceber)}
           </p>
           <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-            {kpis.countVencidosReceber} {kpis.countVencidosReceber === 1 ? 'vencido' : 'vencidos'} · {kpis.inadimplenciaPercent.toFixed(1).replace('.', ',')}%
+            {kpis.countVencidosReceber} {kpis.countVencidosReceber === 1 ? 'vencido' : 'vencidos'} · {kpis.inadimplenciaPercent.toFixed(0).replace('.', ',')}%
           </p>
         </button>
       </div>

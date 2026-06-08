@@ -13,8 +13,8 @@ export const periodoMes = (dataInicial: string, dataFinal: string): { dia: numbe
   return { dia, dias, frac: dias > 0 ? dia / dias : 1 }
 }
 
-/** Percentual com vírgula (1 casa por padrão). */
-export const pct = (n: number, dec = 1): string => `${n.toFixed(dec).replace('.', ',')}%`
+/** Percentual sem casa decimal por padrão (arredondado). */
+export const pct = (n: number, dec = 0): string => `${n.toFixed(dec).replace('.', ',')}%`
 
 /** BRL completo (R$ 1.234.567,00). */
 export const brl = (n: number): string => formatCurrency(n)

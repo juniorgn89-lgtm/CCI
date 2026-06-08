@@ -18,8 +18,8 @@ const MARGEM_SAUDAVEL = 8
 const MARGEM_ATENCAO = 5
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
-const pct1 = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
-const pctLabel = (v: number) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1).replace('.', ',')}%`
+const pct1 = (v: number) => `${(v * 100).toFixed(0).replace('.', ',')}%`
+const pctLabel = (v: number) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(0).replace('.', ',')}%`
 const moneyL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 const moneyLraw = (v: number) => v.toFixed(3).replace('.', ',')
 
@@ -270,7 +270,7 @@ const RadarMobile = () => {
     return {
       score, tone, verdict, Icon, resumo,
       factors: [
-        { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(1).replace('.', ',')}%` },
+        { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(0).replace('.', ',')}%` },
         { label: 'Folga de elasticidade', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)}` : '—' },
         { label: 'Momentum de volume', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
         { label: 'Resposta a cortes', value: histScore, hint: elasticidade != null ? `${cortes.length} corte(s)` : 'sem histórico' },
@@ -280,7 +280,7 @@ const RadarMobile = () => {
 
   const alertas = useMemo(() => {
     const out: { tone: Tone; Icon: typeof Info; text: string }[] = []
-    if (margemTone === 'red') out.push({ tone: 'red', Icon: ShieldX, text: `Margem crítica (${agg.margem.toFixed(1).replace('.', ',')}%) — abaixo do piso de ~${MARGEM_ATENCAO}%.` })
+    if (margemTone === 'red') out.push({ tone: 'red', Icon: ShieldX, text: `Margem crítica (${agg.margem.toFixed(0).replace('.', ',')}%) — abaixo do piso de ~${MARGEM_ATENCAO}%.` })
     else if (margemTone === 'amber') out.push({ tone: 'amber', Icon: ShieldAlert, text: 'A margem atual está próxima do limite mínimo saudável.' })
     if (wow.hasPrev && wow.custoDelta > 0.01) out.push({ tone: wow.custoDelta > 0.03 ? 'red' : 'amber', Icon: Flame, text: `O custo subiu ${pct1(wow.custoDelta)} nos últimos 7 dias — pressão sobre a margem.` })
     else if (wow.hasPrev && wow.custoDelta < -0.01) out.push({ tone: 'emerald', Icon: TrendingDown, text: `O custo caiu ${pct1(Math.abs(wow.custoDelta))} nos últimos 7 dias — abre espaço para preço.` })
@@ -387,7 +387,7 @@ const RadarMobile = () => {
               sub="médio" delta={wow.hasPrev ? wow.precoDelta : undefined} deltaGoodWhenUp
               footer={`Competitividade: ${compLabel.toLowerCase()}`} />
             <ExecCard Icon={Gauge} tone={margemTone} label="L.B. / Litro" value={moneyL(agg.lbLitro)}
-              sub={`Margem ${agg.margem.toFixed(1).replace('.', ',')}% · ${margemLabel}`}
+              sub={`Margem ${agg.margem.toFixed(0).replace('.', ',')}% · ${margemLabel}`}
               delta={wow.hasPrev ? wow.lbDelta : undefined} deltaGoodWhenUp
               footer={`Mín. sustentável ${moneyL(lbMinSustentavel)}`} />
             <ExecCard Icon={Flame} tone={wow.custoDelta > 0.005 ? 'red' : wow.custoDelta < -0.005 ? 'emerald' : 'slate'}
@@ -434,7 +434,7 @@ const RadarMobile = () => {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <SimStat label="Novo preço" value={moneyL(sim.novoPreco)} />
               <SimStat label="Nova L.B./L" value={moneyL(sim.novoLb)} tone={sim.belowBreakeven ? 'red' : sim.novoLb < lbMinSustentavel ? 'amber' : 'emerald'} />
-              <SimStat label="Margem / L" value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(1).replace('.', ',')}%` : '—'} tone={sim.margemFinal >= MARGEM_SAUDAVEL ? 'emerald' : sim.margemFinal >= MARGEM_ATENCAO ? 'amber' : 'red'} />
+              <SimStat label="Margem / L" value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(0).replace('.', ',')}%` : '—'} tone={sim.margemFinal >= MARGEM_SAUDAVEL ? 'emerald' : sim.margemFinal >= MARGEM_ATENCAO ? 'amber' : 'red'} />
               <SimStat label="Volume p/ empatar" value={sim.belowBreakeven ? '∞' : `+${pct1(sim.breakEvenGrowth)}`} tone={sim.belowBreakeven || sim.breakEvenGrowth > 0.2 ? 'red' : sim.breakEvenGrowth > 0.1 ? 'amber' : 'emerald'} />
             </div>
 
@@ -453,7 +453,7 @@ const RadarMobile = () => {
                   {[
                     { l: 'Faturamento', b: sim.baseline.fat, c: sim.semReacao.fat, e: sim.comElasticidade?.fat, fmt: formatCurrencyInt },
                     { l: 'Lucro bruto', b: sim.baseline.lucro, c: sim.semReacao.lucro, e: sim.comElasticidade?.lucro, fmt: formatCurrencyInt },
-                    { l: 'Margem', b: sim.baseline.margem, c: sim.semReacao.margem, e: sim.comElasticidade?.margem, fmt: (v: number) => `${v.toFixed(1).replace('.', ',')}%` },
+                    { l: 'Margem', b: sim.baseline.margem, c: sim.semReacao.margem, e: sim.comElasticidade?.margem, fmt: (v: number) => `${v.toFixed(0).replace('.', ',')}%` },
                     { l: 'Volume', b: sim.baseline.litros, c: sim.semReacao.litros, e: sim.comElasticidade?.litros, fmt: (v: number) => formatLiters(v) },
                   ].map((r) => (
                     <tr key={r.l}>
@@ -522,8 +522,8 @@ const RadarMobile = () => {
                       <div className="mb-1 flex items-baseline justify-between text-[11px]">
                         <span className="font-medium text-gray-600 dark:text-gray-300">corte {d.label}/L</span>
                         <span className="tabular-nums">
-                          <span className="font-semibold" style={{ color: cor }}>+{d.necessario.toFixed(1).replace('.', ',')}%</span>
-                          {d.esperado != null && <span className="ml-1.5 text-[10px] text-blue-600 dark:text-blue-400">est. +{d.esperado.toFixed(1).replace('.', ',')}%</span>}
+                          <span className="font-semibold" style={{ color: cor }}>+{d.necessario.toFixed(0).replace('.', ',')}%</span>
+                          {d.esperado != null && <span className="ml-1.5 text-[10px] text-blue-600 dark:text-blue-400">est. +{d.esperado.toFixed(0).replace('.', ',')}%</span>}
                         </span>
                       </div>
                       <ProgressBar pct={Math.min(100, d.necessario)} color={cor} height={5} />

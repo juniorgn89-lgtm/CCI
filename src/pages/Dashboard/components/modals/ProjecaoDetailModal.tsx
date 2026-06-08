@@ -24,7 +24,7 @@ interface ProjecaoDetailModalProps {
   setores: SetorLinha[]
 }
 
-const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
+const fmtPct = (v: number): string => `${v.toFixed(0).replace('.', ',')}%`
 
 const fmtPeriod = (di: string, df: string): string => {
   const a = di.split('-').reverse().join('/')
@@ -137,7 +137,7 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
                   <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />
                 )}
                 <span className={cn(totais.variacaoFaturamento >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
-                  {totais.variacaoFaturamento >= 0 ? '+' : ''}{totais.variacaoFaturamento.toFixed(1).replace('.', ',')}% vs realizado
+                  {totais.variacaoFaturamento >= 0 ? '+' : ''}{totais.variacaoFaturamento.toFixed(0).replace('.', ',')}% vs realizado
                 </span>
               </p>
             </div>
@@ -156,7 +156,7 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
                   <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />
                 )}
                 <span className={cn(totais.variacaoLucro >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
-                  {totais.variacaoLucro >= 0 ? '+' : ''}{totais.variacaoLucro.toFixed(1).replace('.', ',')}% vs realizado
+                  {totais.variacaoLucro >= 0 ? '+' : ''}{totais.variacaoLucro.toFixed(0).replace('.', ',')}% vs realizado
                 </span>
               </p>
             </div>

@@ -103,7 +103,7 @@ const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNav
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
                           <span className="truncate text-xs text-gray-700 dark:text-gray-300">{g.nome}</span>
-                          <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(1)}%</span>
+                          <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(0)}%</span>
                         </div>
                         <p className="text-[10px] tabular-nums text-gray-400">{formatCurrency(g.faturamento)}</p>
                       </div>
@@ -149,7 +149,7 @@ const ConvenienciaIndicadores = ({ dailyChartData, groupTable, topSellers, onNav
                       <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">
                         <div className="h-1.5 rounded-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
                       </div>
-                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{formatCurrency(p.faturamento)} &middot; {p.participacaoPct.toFixed(1)}% do total</p>
+                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">{formatCurrency(p.faturamento)} &middot; {p.participacaoPct.toFixed(0)}% do total</p>
                     </div>
                   </div>
                 )

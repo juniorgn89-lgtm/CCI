@@ -171,7 +171,7 @@ const CategoriaDetalheModal = ({
                 tooltip={PROJECAO_TOOLTIP}
               />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(lucro)} tooltip="Lucro bruto total: faturamento − custo (R$)." />
-              <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(1).replace('.', ',')}%`} tooltip="(Lucro bruto ÷ faturamento) × 100." />
+              <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(0).replace('.', ',')}%`} tooltip="(Lucro bruto ÷ faturamento) × 100." />
               <Kpi Icon={Receipt} label="Ticket / unid." value={formatCurrency(ticketMedio)} tooltip="Faturamento ÷ unidades vendidas (R$ por unidade)." />
               <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(precoMedioCusto)} tooltip="Custo total ÷ unidades vendidas (R$ por unidade)." />
               <Kpi Icon={Package} label="SKUs ativos" value={formatNumber(categoria.qtdProdutos)} tooltip="Quantidade de produtos distintos com venda no período." />
@@ -212,7 +212,7 @@ const CategoriaDetalheModal = ({
                       <div className="mt-1 flex items-start justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                         <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                           <span>{formatNumber(Math.round(p.quantidade))} unid.</span>
-                          <span>margem {margemP.toFixed(1).replace('.', ',')}%</span>
+                          <span>margem {margemP.toFixed(0).replace('.', ',')}%</span>
                           <span>custo <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(p.custo)}</span></span>
                           <span>preço méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(precoMedio)}</span></span>
                           <span>custo méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(custoMedio)}</span></span>

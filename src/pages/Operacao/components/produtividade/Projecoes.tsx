@@ -99,7 +99,7 @@ const CustomTooltip = ({ active, payload, visibleFrentistas }: CustomTooltipProp
                 )}
                 {pctMeta != null && (
                   <p className="text-[11px] tabular-nums text-gray-500">
-                    Meta atingida: <span className={cn('font-medium', pctMeta >= 100 ? 'text-green-600' : 'text-amber-600')}>{pctMeta.toFixed(1)}%</span>
+                    Meta atingida: <span className={cn('font-medium', pctMeta >= 100 ? 'text-green-600' : 'text-amber-600')}>{pctMeta.toFixed(0)}%</span>
                   </p>
                 )}
               </div>
@@ -510,7 +510,7 @@ const Projecoes = ({ frentistas, periodInfo }: Props) => {
                     )}>
                       {f.meta === 0 || f.vsMetaPct > 150
                         ? 'Novo'
-                        : `${f.vsMeta >= 0 ? '+' : ''}${formatLiters(f.vsMeta)} (${f.vsMetaPct >= 0 ? '+' : ''}${f.vsMetaPct.toFixed(1)}%)`}
+                        : `${f.vsMeta >= 0 ? '+' : ''}${formatLiters(f.vsMeta)} (${f.vsMetaPct >= 0 ? '+' : ''}${f.vsMetaPct.toFixed(0)}%)`}
                     </td>
                   </tr>
                   )

@@ -18,7 +18,7 @@ const SegmentKpiMini = ({ label, value, variation, invertColor }: SegmentKpiMini
       <p className="mt-0.5 text-base font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
       <p className={cn('mt-0.5 inline-flex items-center gap-0.5 text-[11px] font-medium', goodColor ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
         {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-        {positive ? '+' : ''}{variation.toFixed(1).replace('.', ',')}%
+        {positive ? '+' : ''}{variation.toFixed(0).replace('.', ',')}%
       </p>
     </div>
   )

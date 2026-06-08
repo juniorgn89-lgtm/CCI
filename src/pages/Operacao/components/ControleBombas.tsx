@@ -742,7 +742,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                         : s.mediaQueda >= 0 ? 'text-green-600 dark:text-green-400'
                         : 'text-red-600 dark:text-red-400'
                     )}>
-                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(1)}%`}
+                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(0)}%`}
                     </td>
                     <td className="w-[140px] px-4 py-2.5">
                       {s.wearStatus === 'sem-registro' ? (

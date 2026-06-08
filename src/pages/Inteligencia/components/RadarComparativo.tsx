@@ -163,7 +163,7 @@ const RadarComparativo = ({ postos, networkAvg }: RadarComparativoProps) => {
                       <span className="ml-1.5 text-[10px] text-gray-400">{p.cidade}/{p.estado}</span>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatLiters(p.litros)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{part.toFixed(1).replace('.', ',')}%</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{part.toFixed(0).replace('.', ',')}%</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(p.fatCombustivel)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(p.ticketMedio)}</td>
                     {stats.showMargem && (
@@ -188,10 +188,10 @@ const RadarComparativo = ({ postos, networkAvg }: RadarComparativoProps) => {
                       </div>
                     </td>
                     <td className={cn('px-4 py-2.5 text-right font-medium tabular-nums', competitivo ? TONE_TEXT.emerald : caro ? TONE_TEXT.red : 'text-gray-400')}>
-                      {diff >= 0 ? '+' : ''}{(diff * 100).toFixed(1).replace('.', ',')}%
+                      {diff >= 0 ? '+' : ''}{(diff * 100).toFixed(0).replace('.', ',')}%
                     </td>
                     {stats.showMargem && (
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{p.comCustoPct >= 50 ? `${p.margem.toFixed(1).replace('.', ',')}%` : '—'}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{p.comCustoPct >= 50 ? `${p.margem.toFixed(0).replace('.', ',')}%` : '—'}</td>
                     )}
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-2">

@@ -375,7 +375,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                       {formatCurrency(c.valor)}
-                      <span className="ml-1 text-[10px] font-normal text-gray-400">{pct.toFixed(1).replace('.', ',')}%</span>
+                      <span className="ml-1 text-[10px] font-normal text-gray-400">{pct.toFixed(0).replace('.', ',')}%</span>
                     </span>
                   </div>
                   <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
