@@ -10,10 +10,6 @@ const fmtDateShort = (iso: string): string => {
   return `${d}/${m}/${y.slice(2)}`
 }
 
-/** Nº aproximado de entregas: sugestão ÷ capacidade do tanque. */
-const calcEntregas = (sugestao: number, capacidade: number): number =>
-  sugestao > 0 && capacidade > 0 ? Math.ceil(sugestao / capacidade) : 0
-
 /**
  * Card de um tanque: nível + última compra + projeção de necessidade.
  * Borda cinza neutra (mesma dos cards de bomba) — a severidade aparece no
@@ -100,33 +96,25 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
             Sem compras no período
           </span>
         )}
-        {t.necessidadeFimDoMes > 0 ? (() => {
-            const entregas = calcEntregas(t.necessidadeFimDoMes, t.capacidade)
-            return (
-              <span
-                className="inline-flex items-start gap-1 text-blue-700 dark:text-blue-400"
-                title="Projeção: consumo médio diário × dias restantes do mês − estoque atual"
-              >
-                <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  Comprar até fim do mês:{' '}
-                  <span className="whitespace-nowrap font-semibold tabular-nums">
-                    {formatLiters(t.necessidadeFimDoMes)}
-                  </span>
-                  {entregas > 0 && (
-                    <> · <span className="tabular-nums" title="Nº aproximado de entregas (sugestão ÷ capacidade do tanque)">
-                      {entregas} {entregas === 1 ? 'entrega' : 'entregas'}
-                    </span></>
-                  )}
-                  {t.diasRestantes != null && (
-                    <span className="mt-0.5 block text-[11px] text-blue-600/70 dark:text-blue-400/70">
-                      (estoque cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
-                    </span>
-                  )}
+        {t.necessidadeFimDoMes > 0 ? (
+            <span
+              className="inline-flex items-start gap-1 text-blue-700 dark:text-blue-400"
+              title="Projeção: consumo médio diário × dias restantes do mês − estoque atual"
+            >
+              <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Comprar até fim do mês:{' '}
+                <span className="whitespace-nowrap font-semibold tabular-nums">
+                  {formatLiters(t.necessidadeFimDoMes)}
                 </span>
+                {t.diasRestantes != null && (
+                  <span className="mt-0.5 block text-[11px] text-blue-600/70 dark:text-blue-400/70">
+                    (estoque cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
+                  </span>
+                )}
               </span>
-            )
-          })() : (
+            </span>
+          ) : (
             <span
               className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500"
               title="Sem consumo registrado no período — sistema não consegue projetar necessidade."

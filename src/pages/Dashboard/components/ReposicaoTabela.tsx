@@ -42,10 +42,6 @@ const InfoTooltip = ({ text }: { text: string }) => {
   )
 }
 
-/** Nº aproximado de abastecimentos que a sugestão representa (sugestão ÷ capacidade). */
-const entregas = (sugestao: number, capacidade: number): number =>
-  sugestao > 0 && capacidade > 0 ? Math.ceil(sugestao / capacidade) : 0
-
 interface ReposicaoTabelaProps {
   linhas: ReposicaoLinha[]
   /** Máximos compartilhados (todas as tabelas do mesmo relatório). Se omitido,
@@ -73,7 +69,6 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
           <col className="w-[14%]" />
           <col className="w-[12%]" />
           <col className="w-[16%]" />
-          <col className="w-[80px]" />
         </colgroup>
         <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
           <tr>
@@ -83,14 +78,10 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
             <th className="px-3 py-2 text-right font-medium">Capacidade</th>
             <th className="px-3 py-2 text-right font-medium">Ritmo/dia</th>
             <th className="px-3 py-2 text-right font-medium">Sugestão</th>
-            <th className="px-3 py-2 text-right font-medium" title="Nº aproximado de abastecimentos (sugestão ÷ capacidade)">
-              Entregas
-            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
           {linhas.map((r) => {
-            const n = entregas(r.sugestao, r.capacidade)
             const rowSelected = selected === r.produtoCodigo
             return (
               <tr
@@ -143,9 +134,6 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
                       <InfoTooltip text="Sem consumo registrado nesse tanque no período. Sem ritmo de venda, o sistema não consegue projetar quanto comprar." />
                     </span>
                   )}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                  {n > 0 ? `≈ ${n}×` : '—'}
                 </td>
               </tr>
             )
