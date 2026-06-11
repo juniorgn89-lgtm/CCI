@@ -15,13 +15,13 @@
  * - Requer Chromium/Edge ou Firefox recente (suporte a CSS `zoom`).
  */
 
-export type UiScaleMode = 'auto' | 100 | 90 | 85 | 80 | 75
+export type UiScaleMode = 'auto' | 100 | 95 | 90 | 80 | 75
 
 export const UI_SCALE_OPTIONS: { value: UiScaleMode; label: string; hint: string }[] = [
   { value: 'auto', label: 'Automático', hint: 'Ajusta ao tamanho da tela (recomendado)' },
   { value: 100, label: '100%', hint: 'Tamanho original' },
+  { value: 95, label: '1366 × 768', hint: 'Notebook HD — preenche sem rolar' },
   { value: 90, label: '90%', hint: 'Um pouco menor' },
-  { value: 85, label: '1366 × 768', hint: 'Notebook HD — cabe sem rolar' },
   { value: 80, label: '80%', hint: 'Telas antigas / apertadas' },
   { value: 75, label: '75%', hint: 'Telas bem pequenas' },
 ]
@@ -39,8 +39,8 @@ const readMode = (): UiScaleMode => {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
     if (v === '100' || v === 'off') return 100
+    if (v === '95') return 95
     if (v === '90') return 90
-    if (v === '85') return 85
     if (v === '80') return 80
     if (v === '75') return 75
     return 'auto'
