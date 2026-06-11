@@ -109,7 +109,7 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
                 </span>
                 {t.diasRestantes != null && (
                   <span className="mt-0.5 block text-[11px] text-blue-600/70 dark:text-blue-400/70">
-                    (estoque cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
+                    (estoque atual cobre ~{t.diasRestantes} {t.diasRestantes === 1 ? 'dia' : 'dias'})
                   </span>
                 )}
               </span>
