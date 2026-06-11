@@ -1,8 +1,34 @@
-import { Building2, Wallet } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Building2, Wallet, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency } from '@/lib/formatters'
+
+/** Contador "atualiza em 0:SS · última HH:MM:SS" — sincronizado ao último fetch. */
+const ContadorAoVivo = ({ dataUpdatedAt }: { dataUpdatedAt: number }) => {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const segDecorridos = dataUpdatedAt ? Math.floor((now - dataUpdatedAt) / 1000) : 0
+  const segRestantes = dataUpdatedAt ? Math.max(0, 60 - segDecorridos) : 60
+  const ultima = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '—'
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[11px] font-medium text-green-700 dark:border-green-800/40 dark:bg-green-900/20 dark:text-green-300"
+      title="Os dados ao vivo se atualizam sozinhos a cada 60 segundos."
+    >
+      <RefreshCw className={`h-3 w-3 ${segRestantes <= 1 ? 'animate-spin' : ''}`} />
+      Atualiza em 0:{String(segRestantes).padStart(2, '0')}
+      <span className="text-green-600/60 dark:text-green-400/50">·</span>
+      <span className="tabular-nums text-green-700/80 dark:text-green-300/80">última {ultima}</span>
+    </span>
+  )
+}
 
 const formatHora = (iso: string): string => {
   if (!iso) return '-'
@@ -21,7 +47,7 @@ const formatDataAbertura = (iso: string): string => {
 const TurnosAoVivo = () => {
   const navigate = useNavigate()
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
-  const { empresas, totalAoVivo, totalEmpresas, empresasComAoVivo, isLoading } = useTurnosAoVivo()
+  const { empresas, totalAoVivo, totalEmpresas, empresasComAoVivo, isLoading, dataUpdatedAt } = useTurnosAoVivo()
 
   const handleClick = (empresaCodigo: number) => {
     setEmpresas([empresaCodigo])
@@ -53,11 +79,14 @@ const TurnosAoVivo = () => {
             )}
           </p>
         </div>
-        {totalEmpresas > 0 && (
-          <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-            {totalEmpresas} {totalEmpresas === 1 ? 'posto na rede' : 'postos na rede'}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <ContadorAoVivo dataUpdatedAt={dataUpdatedAt} />
+          {totalEmpresas > 0 && (
+            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+              {totalEmpresas} {totalEmpresas === 1 ? 'posto na rede' : 'postos na rede'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Loading state inicial (ainda nem retornou empresas) */}

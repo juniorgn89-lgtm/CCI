@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import MonthRangeSelect from '@/components/filters/MonthRangeSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
+import { useTopbarUi } from '@/store/topbarUi'
 import { offsetPeriod } from '@/lib/period'
 import { cn } from '@/lib/utils'
 
@@ -70,7 +71,13 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
     setPrevFim(periodFim)
     setDraftFim(periodFim)
   }
-  const dirty = draftIni !== periodIni || draftFim !== periodFim
+  // Modo "ao vivo" (ex.: aba Ao Vivo Rede) desabilita o período — lá os dados
+  // são sempre do agora. Publica o estado "sujo" pro AppLayout embaçar a tela.
+  const liveLock = useTopbarUi((s) => s.liveLock)
+  const setFilterDirty = useTopbarUi((s) => s.setFilterDirty)
+  const dirty = (draftIni !== periodIni || draftFim !== periodFim) && !liveLock
+  useEffect(() => { setFilterDirty(dirty) }, [dirty, setFilterDirty])
+  useEffect(() => () => setFilterDirty(false), [setFilterDirty])
   const handleVisualizar = () => setPeriodo(draftIni, draftFim)
   // Modo empilhado (mobile): aplica na hora — sem rascunho/botão próprio (o
   // sheet tem um único "Visualizar"). No desktop segue com rascunho + Visualizar.
@@ -100,7 +107,15 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   )
 
   return (
-    <div className={cn('flex gap-1.5', stacked ? 'w-full flex-col items-stretch gap-2' : 'items-center')}>
+    <div
+      aria-disabled={liveLock}
+      title={liveLock ? 'Ao Vivo: período fixado no agora' : undefined}
+      className={cn(
+        'flex gap-1.5',
+        stacked ? 'w-full flex-col items-stretch gap-2' : 'items-center',
+        liveLock && 'pointer-events-none opacity-40',
+      )}
+    >
       <MonthRangeSelect
         draftIni={draftIni}
         draftFim={draftFim}
@@ -184,7 +199,7 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
           className={cn(
             'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all',
             dirty
-              ? 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162a44]'
+              ? 'animate-pulse bg-[#1e3a5f] text-white shadow-lg ring-2 ring-orange-400 ring-offset-1 hover:bg-[#162a44] dark:ring-offset-gray-900'
               : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
           )}
         >

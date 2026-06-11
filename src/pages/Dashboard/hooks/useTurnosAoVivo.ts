@@ -51,6 +51,9 @@ const useTurnosAoVivo = () => {
         }),
       enabled: !!dataInicial && !!dataFinal,
       staleTime: 30 * 1000,
+      // "Ao vivo": revalida sozinho a cada 60s (mesmo sem foco na aba).
+      refetchInterval: 60 * 1000,
+      refetchIntervalInBackground: true,
     })),
   })
 
@@ -81,6 +84,8 @@ const useTurnosAoVivo = () => {
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: !!dataInicial && !!dataFinal && anyAbertos,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchIntervalInBackground: true,
   })
 
   const empresasAoVivo: EmpresaAoVivo[] = empresas.map((emp, idx) => {
@@ -151,6 +156,9 @@ const useTurnosAoVivo = () => {
 
   const allCards = empresasAoVivo.flatMap((e) => e.caixas)
   const isLoading = loadingEmpresas || (empresas.length > 0 && caixasQueries.every((q) => q.isLoading))
+  // Momento da última atualização concluída (maior dataUpdatedAt entre as
+  // queries de caixas) — base do contador "atualiza em 60s" da aba Ao Vivo.
+  const dataUpdatedAt = caixasQueries.reduce((m, q) => Math.max(m, q.dataUpdatedAt ?? 0), 0)
 
   return {
     empresas: empresasAoVivo,
@@ -159,6 +167,7 @@ const useTurnosAoVivo = () => {
     totalEmpresas: empresas.length,
     empresasComAoVivo: empresasAoVivo.filter((e) => e.caixas.length > 0).length,
     isLoading,
+    dataUpdatedAt,
   }
 }
 

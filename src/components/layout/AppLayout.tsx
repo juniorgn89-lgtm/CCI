@@ -24,6 +24,7 @@ import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import TopBar from '@/components/layout/TopBar'
 import useIsMobile from '@/hooks/useIsMobile'
 import MobileShell from '@/components/mobile/MobileShell'
+import { useTopbarUi } from '@/store/topbarUi'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -52,6 +53,9 @@ const AppLayout = () => {
 
   const showFilters = showsGlobalFilters(pathname)
   const isMobile = useIsMobile()
+  // Período alterado e não aplicado → embaça o conteúdo (a TopBar com o botão
+  // Visualizar fica nítida, virando o foco da tela).
+  const filterDirty = useTopbarUi((s) => s.filterDirty)
 
   // ESC sai do modo foco (UX padrão pra reading mode).
   useEffect(() => {
@@ -238,7 +242,10 @@ const AppLayout = () => {
           ref={mainRef}
           role="main"
           onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
-          className="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5"
+          className={cn(
+            'flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
+            filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
+          )}
         >
           <LoadingOverlay />
           <ErrorBoundary key={pathname}>

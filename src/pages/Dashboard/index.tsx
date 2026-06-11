@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { LayoutDashboard, Activity, Fuel, Layers } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
+import { useTopbarUi } from '@/store/topbarUi'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
@@ -73,6 +74,14 @@ const Dashboard = () => {
     setActiveTab(visibleTabs[0].id as TabId)
   }
 
+  // Aba "Ao Vivo Rede" = tela ao vivo → desabilita os filtros de período/escopo/
+  // comparativo (não fazem sentido no agora). Limpa ao sair.
+  const setLiveLock = useTopbarUi((s) => s.setLiveLock)
+  useEffect(() => {
+    setLiveLock(activeTab === 'aovivo')
+    return () => setLiveLock(false)
+  }, [activeTab, setLiveLock])
+
   // Mobile: tela própria (KPIs + projeção + setores + ranking), no shell mobile.
   if (isMobile) return <CentralMobile />
 
@@ -126,8 +135,10 @@ const Dashboard = () => {
             </HeaderTray>
           )}
 
-          {/* Cards de segmento sempre visíveis (Combustível, Automotivos, Conveniência, Global, Projeção). */}
-          <ProjecoesPainel />
+          {/* Cards de segmento (Combustível, Automotivos, Conveniência, Global,
+              Projeção) — escondidos na aba "Ao Vivo Rede", que foca só nos
+              caixas abertos em tempo real. */}
+          {activeTab !== 'aovivo' && <ProjecoesPainel />}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs) */}
           {visibleTabs.length > 0 && (
