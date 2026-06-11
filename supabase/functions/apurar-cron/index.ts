@@ -1,10 +1,14 @@
 // ============================================================================
-// apurar-cron — Edge Function que roda a apuração SOZINHA (cron diário).
-// Port server-side do botão "Apurar" (/admin/apuracao). INCREMENTAL: para cada
-// rede ATIVA, reapura só os últimos dias FECHADOS (janela de 3 dias até ontem)
-// — leve o bastante pro limite de recursos da Edge Function, e o mês se preenche
-// sozinho conforme os dias fecham. Usa service role → DELETE + UPSERT no cache.
-// Reapurar mês inteiro continua sendo o botão manual em /admin/apuracao.
+// apurar-cron — Edge Function que roda a apuração SOZINHA (via cron).
+// Port server-side do botão "Apurar" (/admin/apuracao). Usa service role →
+// DELETE + UPSERT(onConflict=PK) no cache. Reapurar mês inteiro continua sendo
+// o botão manual em /admin/apuracao.
+//
+// Dois modos (pelo corpo `{"scope": "..."}`):
+//  - scope ausente / "closed" (cron DIÁRIO): reapura os últimos 3 dias FECHADOS
+//    (janela até ontem) de cada rede ativa. Leve p/ o limite da Edge Function.
+//  - scope "today" (cron FREQUENTE, ex.: 30 min): reapura SÓ o dia de hoje
+//    (live/volátil), pra manter o cache do dia corrente fresco.
 //
 // Deploy:  supabase functions deploy apurar-cron --no-verify-jwt
 // Secrets: CRON_SECRET (obrigatório). SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
@@ -159,9 +163,16 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { 'content-type': 'application/json' } })
   }
 
+  // scope=today → apura SÓ o dia de hoje (live, volátil) — pra um cron frequente.
+  // scope=closed (default) → últimos 3 dias FECHADOS (cron diário).
+  const body = await req.json().catch(() => ({})) as { scope?: string }
+  const scope = body?.scope === 'today' ? 'today' : 'closed'
+
   const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const today = tzToday()
-  const targets = targetsForToday(today)
+  const targets: Target[] = scope === 'today'
+    ? [{ start: today, end: today }]
+    : targetsForToday(today)
 
   const { data: redes, error: redesErr } = await supa
     .from('redes').select('id, nome, chave, api_base_url, ativo').eq('ativo', true)
@@ -183,5 +194,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ today, targets, summary }, null, 2), { headers: { 'content-type': 'application/json' } })
+  return new Response(JSON.stringify({ scope, today, targets, summary }, null, 2), { headers: { 'content-type': 'application/json' } })
 })
