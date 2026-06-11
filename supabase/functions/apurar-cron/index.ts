@@ -1,8 +1,10 @@
 // ============================================================================
 // apurar-cron — Edge Function que roda a apuração SOZINHA (cron diário).
-// Port server-side do botão "Apurar" (/admin/apuracao). Para cada rede ATIVA,
-// reapura o mês corrente (dias já fechados) e, na virada do mês (dias 1-3),
-// também o mês anterior. Usa service role → DELETE+INSERT direto no cache.
+// Port server-side do botão "Apurar" (/admin/apuracao). INCREMENTAL: para cada
+// rede ATIVA, reapura só os últimos dias FECHADOS (janela de 3 dias até ontem)
+// — leve o bastante pro limite de recursos da Edge Function, e o mês se preenche
+// sozinho conforme os dias fecham. Usa service role → DELETE + UPSERT no cache.
+// Reapurar mês inteiro continua sendo o botão manual em /admin/apuracao.
 //
 // Deploy:  supabase functions deploy apurar-cron --no-verify-jwt
 // Secrets: CRON_SECRET (obrigatório). SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
@@ -26,47 +28,56 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const tzToday = (): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 
-const lastDayOfMonth = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate()
-
-/** Último dia "fechado" do mês (mês passado = último dia; mês corrente = ontem). */
-const closedEndForMonth = (y: number, m: number, today: string): string | null => {
-  const [ty, tm, td] = today.split('-').map(Number)
-  if (y > ty || (y === ty && m > tm)) return null
-  const last = lastDayOfMonth(y, m)
-  if (y < ty || (y === ty && m < tm)) return `${y}-${pad(m)}-${pad(last)}`
-  if (td <= 1) return null
-  return `${ty}-${pad(tm)}-${pad(td - 1)}`
+const addDays = (dateStr: string, n: number): string => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
 }
 
-const threeMonthsBefore = (startStr: string): string => {
-  const [y, m] = startStr.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1 - 3, 1)).toISOString().slice(0, 10)
-}
+// Lookback do LMC pra montar o custo (preço mais recente). 45 dias cobrem o
+// custo vigente sem o peso de baixar meses de LMC numa Edge Function.
+const lmcLookbackStart = (startStr: string): string => addDays(startStr, -45)
 
 interface Rede { id: string; nome: string; chave: string; api_base_url: string }
-interface Target { year: number; month: number; start: string; end: string }
+interface Target { start: string; end: string }
 
+/**
+ * Janela INCREMENTAL: os últimos N dias FECHADOS (até ontem). Mantém o cache
+ * fresco sem reapurar o mês inteiro a cada noite (o que estourava o limite de
+ * recursos). N=3 dá auto-cura caso uma execução falhe. Cruza virada de mês sem
+ * problema (o range pode pegar fim do mês anterior).
+ */
+const TRAILING_DAYS = 3
 const targetsForToday = (today: string): Target[] => {
-  const [ty, tm, td] = today.split('-').map(Number)
-  const out: Target[] = []
-  const curEnd = closedEndForMonth(ty, tm, today)
-  if (curEnd) out.push({ year: ty, month: tm, start: `${ty}-${pad(tm)}-01`, end: curEnd })
-  // Virada de mês: sela o mês anterior nos primeiros dias.
-  if (td <= 3) {
-    const py = tm === 1 ? ty - 1 : ty
-    const pm = tm === 1 ? 12 : tm - 1
-    const pend = closedEndForMonth(py, pm, today)
-    if (pend) out.push({ year: py, month: pm, start: `${py}-${pad(pm)}-01`, end: pend })
-  }
-  return out
+  const end = addDays(today, -1) // ontem (último dia fechado)
+  const start = addDays(end, -(TRAILING_DAYS - 1))
+  return [{ start, end }]
 }
 
 type Supa = ReturnType<typeof createClient>
 
-const insertChunked = async (supa: Supa, table: string, rows: unknown[]) => {
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error } = await supa.from(table).insert(rows.slice(i, i + 500))
-    if (error) throw new Error(`insert ${table}: ${error.message}`)
+// PK de cada tabela de cache (do schema em docs/*.sql) — usada no onConflict do
+// upsert E pra deduplicar o lote (evita "ON CONFLICT cannot affect row twice").
+const PK: Record<string, string[]> = {
+  apuracao_diaria: ['rede_id', 'empresa_codigo', 'data'],
+  apuracao_fuel_diaria: ['rede_id', 'empresa_codigo', 'data', 'produto_codigo'],
+  apuracao_abastecimentos: ['rede_id', 'empresa_codigo', 'abastecimento_codigo'],
+  apuracao_caixas: ['rede_id', 'empresa_codigo', 'caixa_codigo', 'turno_codigo', 'data_movimento'],
+  apuracao_formas_pagamento: ['rede_id', 'empresa_codigo', 'venda_codigo', 'venda_prazo_codigo'],
+  apuracao_vendas: ['rede_id', 'empresa_codigo', 'data', 'produto_codigo'],
+  apuracao_vendas_funcionario: ['rede_id', 'empresa_codigo', 'data', 'funcionario_codigo', 'setor'],
+}
+
+const upsertChunked = async (supa: Supa, table: string, rows: unknown[]) => {
+  const cols = PK[table]
+  // Dedupe por PK (mantém o último) — paginação da Quality pode repetir linhas.
+  const byKey = new Map<string, Record<string, unknown>>()
+  for (const r of rows as Record<string, unknown>[]) {
+    byKey.set(cols.map((c) => String(r[c])).join('|'), r)
+  }
+  const deduped = [...byKey.values()]
+  for (let i = 0; i < deduped.length; i += 500) {
+    const { error } = await supa.from(table).upsert(deduped.slice(i, i + 500), { onConflict: cols.join(',') })
+    if (error) throw new Error(`upsert ${table}: ${error.message}`)
   }
 }
 
@@ -77,7 +88,7 @@ const deletePeriodo = async (supa: Supa, table: string, dateCol: string, redeId:
 
 const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Target): Promise<number> => {
   const ctx = { baseURL: rede.api_base_url, chave: rede.chave }
-  const lmcStart = threeMonthsBefore(t.start)
+  const lmcStart = lmcLookbackStart(t.start)
 
   // Per-empresa sequencial (igual ao front) pra não estourar rate limit.
   const seq = async <T>(fn: (ec: number) => Promise<T[]>): Promise<T[]> => {
@@ -129,13 +140,13 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
     deletePeriodo(supa, 'apuracao_vendas_funcionario', 'data', rede.id, t.start, t.end),
   ])
   await Promise.all([
-    insertChunked(supa, 'apuracao_diaria', rows),
-    insertChunked(supa, 'apuracao_fuel_diaria', fuelRows),
-    insertChunked(supa, 'apuracao_abastecimentos', abastRows),
-    insertChunked(supa, 'apuracao_caixas', caixaRows),
-    insertChunked(supa, 'apuracao_formas_pagamento', formaRows),
-    insertChunked(supa, 'apuracao_vendas', vendaRows),
-    insertChunked(supa, 'apuracao_vendas_funcionario', funcRows),
+    upsertChunked(supa, 'apuracao_diaria', rows),
+    upsertChunked(supa, 'apuracao_fuel_diaria', fuelRows),
+    upsertChunked(supa, 'apuracao_abastecimentos', abastRows),
+    upsertChunked(supa, 'apuracao_caixas', caixaRows),
+    upsertChunked(supa, 'apuracao_formas_pagamento', formaRows),
+    upsertChunked(supa, 'apuracao_vendas', vendaRows),
+    upsertChunked(supa, 'apuracao_vendas_funcionario', funcRows),
   ])
   return rows.length
 }
@@ -166,7 +177,7 @@ Deno.serve(async (req) => {
       if (empresaCodes.length === 0) { summary.push({ rede: rede.nome, skipped: 'sem empresas' }); continue }
       let totalRows = 0
       for (const t of targets) totalRows += await apurarMes(supa, rede, empresaCodes, t)
-      summary.push({ rede: rede.nome, empresas: empresaCodes.length, meses: targets.map((t) => `${t.year}-${pad(t.month)}`), rows: totalRows, ok: true })
+      summary.push({ rede: rede.nome, empresas: empresaCodes.length, janela: targets.map((t) => `${t.start}..${t.end}`), rows: totalRows, ok: true })
     } catch (e) {
       summary.push({ rede: rede.nome, ok: false, error: (e as Error).message })
     }
