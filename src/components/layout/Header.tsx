@@ -7,6 +7,7 @@ import { navItems } from '@/components/layout/navConfig'
 import { useFocusMode } from '@/store/focusMode'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
+import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
 import UltimaApuracaoInfo from '@/components/layout/UltimaApuracaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 
@@ -113,6 +114,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             </Link>
           )}
           <RedeSwitcher />
+          <ComoFuncionaButton />
         </div>
 
         <div className="flex items-center gap-2">
