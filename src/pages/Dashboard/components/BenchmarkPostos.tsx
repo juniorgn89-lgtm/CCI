@@ -121,7 +121,7 @@ const BenchmarkPostos = () => {
   )
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]">
+    <section className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       {/* Header — clicável pra colapsar/expandir */}
       <button
         type="button"

@@ -91,7 +91,7 @@ const TurnosAoVivo = () => {
               <button
                 key={emp.empresaCodigo}
                 onClick={() => handleClick(emp.empresaCodigo)}
-                className="group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-green-700 [mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent_100%)]"
+                className="group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-green-700"
               >
                 {/* Header: nome do posto + badge "Ao vivo" */}
                 <div className="mb-3 flex items-start justify-between gap-2">
