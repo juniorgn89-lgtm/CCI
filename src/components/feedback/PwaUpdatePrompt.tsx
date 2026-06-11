@@ -3,7 +3,7 @@ import { RefreshCw, X } from 'lucide-react'
 
 // Checa por nova versão de tempos em tempos (além do check no load). Importante
 // pro PWA instalado no celular, que pode ficar aberto por horas sem recarregar.
-const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000 // 1h
+const UPDATE_CHECK_INTERVAL = 30 * 60 * 1000 // 30 min
 
 /**
  * Banner de atualização do PWA. Quando há uma versão nova publicada, o Service
