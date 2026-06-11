@@ -8,7 +8,7 @@ import { useFocusMode } from '@/store/focusMode'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
-import UltimaApuracaoInfo from '@/components/layout/UltimaApuracaoInfo'
+import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 
 interface HeaderProps {
@@ -118,9 +118,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Referência de frescor do dado — última apuração da rede, em todas as
-              telas (padrão "Atualizado em…"). */}
-          <UltimaApuracaoInfo />
+          {/* Referência de frescor do dado — última atualização EM TEMPO REAL
+              (carimbada a cada ciclo de fetch), em todas as telas. */}
+          <UltimaAtualizacaoInfo />
           {/* Os filtros de posto/escopo/comparativo agora vivem na TopBar
               consolidada (sub-bar do AppLayout), junto do período e do título. */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
