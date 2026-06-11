@@ -1,8 +1,10 @@
+import { useLocation } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import CompanySelect from '@/components/filters/CompanySelect'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
+import { showsComparison } from '@/lib/globalFilters'
 
 interface MobileFilterSheetProps {
   open: boolean
@@ -23,7 +25,10 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
  * já ligados aos stores (posto/período/escopo/comparativo), então aplicar é
  * imediato; "Visualizar" só fecha o painel.
  */
-const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilterSheetProps) => (
+const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilterSheetProps) => {
+  const { pathname } = useLocation()
+  const showComparison = showsComparison(pathname)
+  return (
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetContent side="top" className="max-h-[88vh] overflow-y-auto rounded-b-2xl">
       <SheetTitle className="text-base font-bold">Filtros</SheetTitle>
@@ -31,7 +36,7 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
         {!hideCompanySelect && <Field label="Posto"><CompanySelect /></Field>}
         <Field label="Período"><DateRangeToolbar stacked /></Field>
         <Field label="Escopo"><DataFilterModeSelect /></Field>
-        <Field label="Comparativo"><ComparisonSelect /></Field>
+        {showComparison && <Field label="Comparativo"><ComparisonSelect /></Field>}
       </div>
       <button
         type="button"
@@ -42,6 +47,7 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
       </button>
     </SheetContent>
   </Sheet>
-)
+  )
+}
 
 export default MobileFilterSheet

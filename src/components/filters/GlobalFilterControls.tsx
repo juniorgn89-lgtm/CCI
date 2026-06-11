@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import CompanySelect from '@/components/filters/CompanySelect'
 import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
+import { showsComparison } from '@/lib/globalFilters'
 import { cn } from '@/lib/utils'
 
 interface GlobalFilterControlsProps {
@@ -36,13 +38,16 @@ const GlobalFilterControls = ({ dateSlot, className, hideCompanySelect }: Global
   })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const showCompanySelect = !hideCompanySelect && empresasPermitidas.length !== 1
+  // Comparativo só nas telas que de fato o consomem (senão vira controle morto).
+  const { pathname } = useLocation()
+  const showComparison = showsComparison(pathname)
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       {showCompanySelect && <CompanySelect />}
       {dateSlot}
       <DataFilterModeSelect />
-      <ComparisonSelect />
+      {showComparison && <ComparisonSelect />}
     </div>
   )
 }

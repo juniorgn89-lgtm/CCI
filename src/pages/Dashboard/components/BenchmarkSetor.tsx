@@ -215,6 +215,9 @@ const BenchmarkSetor = () => {
   }
 
   const rede = useRedeSetores()
+  // Rótulos do bloco "Comparativo" seguem o modo escolhido no filtro global.
+  const cmpLabel = rede.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
+  const cmpWord = rede.comparisonMode === 'prevYear' ? 'ano anterior' : 'mês anterior'
   const setorReal = setor === 'combustiveis' ? rede.combustivel : setor === 'automotivos' ? rede.automotivos : rede.conveniencia
   const data = useMemo<SetorData>(() => ({
     unidadeLabel: setorReal.unidadeLabel,
@@ -328,7 +331,7 @@ const BenchmarkSetor = () => {
             <Layers className="h-4 w-4 text-gray-500" />
             <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Detalhamento de informações por setor
-              <span title="Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ano anterior." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <span title={`Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ${cmpWord}.`} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <HelpCircle className="h-3.5 w-3.5" />
               </span>
             </h3>
@@ -384,10 +387,10 @@ const BenchmarkSetor = () => {
               {isComb && <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
               {isComb && <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
               {/* Comparativo */}
-              <ThHelp groupStart label="Ano anterior" help={showFaturamento ? 'Faturamento no mesmo período do ano anterior (R$).' : 'Mesmo período do ano anterior (volume).'} />
-              <ThHelp label="Variação" help={showFaturamento ? 'Variação % do faturamento vs o ano anterior.' : 'Variação % do volume vs o ano anterior.'} />
-              <ThHelp label="Ano anterior" help="Lucro bruto no mesmo período do ano anterior (R$)." />
-              <ThHelp label="Variação" help="Variação % do lucro bruto vs o ano anterior." />
+              <ThHelp groupStart label={cmpLabel} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `Mesmo período do ${cmpWord} (volume).`} />
+              <ThHelp label="Variação" help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
+              <ThHelp label={cmpLabel} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
+              <ThHelp label="Variação" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
               {/* Eficiência */}
               {isComb ? (
                 <>

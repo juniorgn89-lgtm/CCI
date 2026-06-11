@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useFilterStore } from '@/store/filters'
+import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { useTenantStore } from '@/store/tenant'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -13,8 +13,13 @@ import { offsetPeriod, todayLocal } from '@/lib/period'
 
 /**
  * Dados REDE-WIDE por setor (Combustível / Automotivos / Conveniência) pra a
- * Central da Rede — todos os postos, venda fiscal (apuracao_vendas), com ano
- * anterior. Dias fechados vêm do cache Supabase; o dia corrente é live.
+ * Central da Rede — todos os postos, venda fiscal (apuracao_vendas), com período
+ * comparativo. Dias fechados vêm do cache Supabase; o dia corrente é live.
+ *
+ * O período comparativo segue o `comparisonMode` do filtro global: 'prevYear'
+ * (mesmo período do ANO anterior) ou 'prevMonth' (mês anterior). Os campos
+ * `*AnoAnterior` guardam o valor desse período escolhido (nome histórico
+ * mantido); a UI rotula conforme `comparisonMode` exposto aqui.
  *
  * Classificação por produto:
  *  - combustível  = produto.combustivel === true
@@ -116,6 +121,8 @@ export interface RedeSetoresData {
     /** Ticket médio rede = faturamento ÷ cupons (aproximado pelo soma de setores). */
     ticketMedio: number
   }
+  /** Modo de comparação ativo — a UI usa pra rotular ("ano anterior"/"mês anterior"). */
+  comparisonMode: ComparisonMode
   isLoading: boolean
   hasRede: boolean
 }
@@ -142,7 +149,7 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
 })
 
 const useRedeSetores = (): RedeSetoresData => {
-  const { dataInicial, dataFinal } = useFilterStore()
+  const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const rede = useTenantStore((s) => s.rede)
 
   const split = useMemo(() => splitPeriodAtToday(dataInicial, dataFinal), [dataInicial, dataFinal])
@@ -157,8 +164,10 @@ const useRedeSetores = (): RedeSetoresData => {
   // futuro (ex.: mês corrente inteiro escolhido no meio do mês).
   const hoje = todayLocal()
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
-  const anoAntIni = offsetPeriod(dataInicial, 12)
-  const anoAntFim = offsetPeriod(fimEfetivo, 12)
+  // Offset do comparativo conforme o modo: 12 meses (ano ant.) ou 1 mês (mês ant.).
+  const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  const anoAntIni = offsetPeriod(dataInicial, cmpOffset)
+  const anoAntFim = offsetPeriod(fimEfetivo, cmpOffset)
 
   // Empresas (postos) da rede + nomes.
   const { data: empresasData } = useQuery({
@@ -497,10 +506,11 @@ const useRedeSetores = (): RedeSetoresData => {
         cupons: gCupons,
         ticketMedio: gCupons > 0 ? gFat / gCupons : 0,
       },
+      comparisonMode,
       isLoading,
       hasRede,
     }
-  }, [closedRows, todayItens, autToday, anoAntRows, produtosData, gruposData, nomePorEmpresa, hasRede, lProd, lGrp, lClosed, lToday, lPrev])
+  }, [closedRows, todayItens, autToday, anoAntRows, produtosData, gruposData, nomePorEmpresa, hasRede, comparisonMode, lProd, lGrp, lClosed, lToday, lPrev])
 }
 
 export default useRedeSetores
