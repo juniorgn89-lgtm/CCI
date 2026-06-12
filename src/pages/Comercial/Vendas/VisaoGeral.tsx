@@ -112,9 +112,9 @@ const SegmentCard = ({ label, Icon, iconBg, iconColor, cardBg, lucroBruto, prima
       {loading ? (
         <Skeleton className="mt-3 h-7 w-28" />
       ) : (
-        <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
+        <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+      <div className="mt-2 grid grid-cols-2 gap-3 border-t border-gray-100 pt-2 dark:border-gray-800">
         <div>
           <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-gray-100">{primary.value}</p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">{primary.label}</p>
@@ -128,7 +128,7 @@ const SegmentCard = ({ label, Icon, iconBg, iconColor, cardBg, lucroBruto, prima
     </>
   )
   const cls = cn(
-    'block rounded-xl border border-gray-200 p-5 shadow-sm transition-all dark:border-gray-700',
+    'block rounded-xl border border-gray-200 p-4 shadow-sm transition-all dark:border-gray-700',
     to && 'hover:-translate-y-0.5 hover:shadow-md',
     cardBg,
   )
@@ -158,7 +158,7 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ label, value, hint, tooltip, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => (
-  <div className={cn('rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
+  <div className={cn('rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
         {label}
@@ -171,7 +171,7 @@ const KpiCard = ({ label, value, hint, tooltip, extra, Icon, iconBg, iconColor, 
     {loading ? (
       <Skeleton className="mt-2 h-8 w-32" />
     ) : (
-      <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+      <p className="mt-2 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
     )}
     {projecao && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
@@ -396,7 +396,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {!embedded && (
         <>
           <PageHeaderTitle>
@@ -642,7 +642,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
           </div>
 
           {/* Charts: donut do mix + bar horizontal de margem */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {/* Donut */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -659,7 +659,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               ) : (
                 <div className="flex flex-col items-center gap-4 sm:flex-row">
                   <div className="w-[200px] shrink-0">
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <PieChart>
                         <Pie
                           data={mixData}
@@ -722,7 +722,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                   Sem vendas no período.
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={mixData} layout="vertical" margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} />
