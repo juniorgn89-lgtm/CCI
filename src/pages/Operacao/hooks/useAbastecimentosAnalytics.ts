@@ -445,12 +445,15 @@ const useAbastecimentosAnalytics = () => {
       const horaFutura = dH !== '' && dH > todayISO
       return fiscalFuturo || horaFutura
     }
+    // Exclui aferição (teste de bomba) — não é venda; o webPosto também ignora.
     const baseFiltered = (hasEmpresa ? abastecimentos.filter((a) => matchEmpresa(a.empresaCodigo)) : abastecimentos)
       .filter(validProduct)
+      .filter((a) => !a.afericao)
     const filtered = baseFiltered.filter((a) => !isFuture(a))
     const futurosCru = baseFiltered.filter(isFuture)
     const filteredPrevMonth = (hasEmpresa ? prevMonthAbast.filter((a) => matchEmpresa(a.empresaCodigo)) : prevMonthAbast)
       .filter(validProduct)
+      .filter((a) => !a.afericao)
       .filter((a) => !isFuture(a))
 
     const rows: AbastecimentoRow[] = filtered.map((a) => {

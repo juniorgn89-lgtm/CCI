@@ -11,10 +11,18 @@ interface Params {
 const fmtDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+/** Parseia 'yyyy-MM-dd' como meia-noite LOCAL (não UTC). `new Date('2026-06-11')`
+ *  vira meia-noite UTC, que em fuso negativo (Brasília) recua 1 dia ao formatar
+ *  de volta com getDate() — deslocava todo o range −1 dia. */
+const parseLocal = (s: string): Date => {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 const splitDateRange = (start: string, end: string, chunkDays: number): { from: string; to: string }[] => {
   const chunks: { from: string; to: string }[] = []
-  let current = new Date(start)
-  const endDate = new Date(end)
+  let current = parseLocal(start)
+  const endDate = parseLocal(end)
   while (current <= endDate) {
     const chunkEnd = new Date(current)
     chunkEnd.setDate(chunkEnd.getDate() + chunkDays - 1)
