@@ -6,6 +6,7 @@ import type {
   Duplicata,
   MovimentoConta,
   Caixa,
+  CaixaApresentado,
   Conta,
 } from '@/api/types/financeiro'
 
@@ -81,6 +82,15 @@ interface FetchCaixasParams {
   limite?: number
 }
 
+interface FetchCaixasApresentadoParams {
+  dataInicial: string
+  dataFinal: string
+  empresaCodigo?: number
+  turno?: number
+  ultimoCodigo?: number
+  limite?: number
+}
+
 interface FetchContasParams {
   empresaCodigo?: number
   ultimoCodigo?: number
@@ -101,6 +111,12 @@ export const fetchMovimentosConta = (params?: FetchMovimentosContaParams) =>
 
 export const fetchCaixas = (params?: FetchCaixasParams) =>
   client.get<PaginatedResponse<Caixa>>('/CAIXA', { params }).then((res) => res.data)
+
+/** Apresentado por caixa (valores por forma de pagamento conferidos no
+ *  fechamento). Permite quebrar o "apresentado" por PDV — o /VENDA_FORMA_PAGAMENTO
+ *  não tem vínculo de caixa/PDV. */
+export const fetchCaixasApresentado = (params?: FetchCaixasApresentadoParams) =>
+  client.get<PaginatedResponse<CaixaApresentado>>('/CAIXA_APRESENTADO', { params }).then((res) => res.data)
 
 export const fetchContas = (params?: FetchContasParams) =>
   client.get<PaginatedResponse<Conta>>('/CONTA', { params }).then((res) => res.data)

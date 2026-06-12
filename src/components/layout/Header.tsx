@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
-import { useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { navItems } from '@/components/layout/navConfig'
 import { useFocusMode } from '@/store/focusMode'
+import { useTopbarUi } from '@/store/topbarUi'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import CompanySelect from '@/components/filters/CompanySelect'
 import NotificationBell from '@/components/layout/NotificationBell'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
@@ -33,6 +37,18 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const { pathname } = useLocation()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
+
+  // Seletor de posto ao lado da rede (todas as telas). Esconde na Central da
+  // Rede (/dashboard, rede-wide) e quando o usuário só tem 1 posto permitido.
+  // Query cacheada (queryKey ['empresas']) — deduplica com outras instâncias.
+  const { data: empresasData } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas(),
+    staleTime: 10 * 60 * 1000,
+  })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const liveLock = useTopbarUi((s) => s.liveLock)
+  const showCompanySelect = pathname !== '/dashboard' && empresasPermitidas.length !== 1
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
@@ -114,6 +130,12 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             </Link>
           )}
           <RedeSwitcher />
+          {/* Seletor de posto logo ao lado da rede (global). */}
+          {showCompanySelect && (
+            <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
+              <CompanySelect />
+            </span>
+          )}
           <ComoFuncionaButton />
         </div>
 

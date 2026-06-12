@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendaFormasPagamento, fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { labelFormaPagamento } from '@/lib/formaPagamento'
 import type { VendaItem, VendaFormaPagamento } from '@/api/types/venda'
 
 /**
@@ -62,7 +63,7 @@ export const computeProratedPagamentos = (
     const fraction = total > 0 ? match / total : 0
     if (fraction <= 0) continue
     const tipo = f.tipoFormaPagamento || 'OUTROS'
-    const prev = map.get(tipo) ?? { tipo, nome: f.nomeFormaPagamento || tipo, valor: 0, quantidade: 0 }
+    const prev = map.get(tipo) ?? { tipo, nome: labelFormaPagamento(f.nomeFormaPagamento || tipo), valor: 0, quantidade: 0 }
     prev.valor += (f.valorPagamento ?? 0) * fraction
     prev.quantidade += 1
     map.set(tipo, prev)

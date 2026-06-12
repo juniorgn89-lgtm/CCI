@@ -16,6 +16,7 @@ import {
   ReferenceDot,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatDate } from '@/lib/formatters'
+import { formatDateTimeBR } from '@/lib/datetime'
 import { cn, isPastPeriod } from '@/lib/utils'
 import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia, OperacaoKpiData } from '@/pages/Operacao/hooks/useOperacaoData'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
@@ -45,12 +46,10 @@ const paymentIcon = (tipo: string) => {
   return Wallet
 }
 
-const formatIsoTime = (iso: string | null | undefined): string => {
-  if (!iso) return '-'
-  if (iso.includes('T')) return iso.split('T')[1]?.substring(0, 5) ?? '-'
-  if (iso.includes(' ')) return iso.split(' ')[1]?.substring(0, 5) ?? '-'
-  return iso.substring(0, 5)
-}
+/** Data + hora de abertura/fechamento no horário de Brasília (UTC−3). A API
+ *  entrega em UTC; sem converter, a hora vinha 3h adiantada e o fechamento
+ *  parecia ocorrer antes da abertura (turno que vira a madrugada). */
+const formatIsoDateTime = formatDateTimeBR
 
 const WEEKDAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -90,6 +89,31 @@ const DailyTooltip = ({ active, payload }: DailyTooltipProps) => {
     </div>
   )
 }
+
+/** Badge do PDV (Pista / Conveniência / PDV {n}) exibido na linha do turno. */
+const PdvBadge = ({ label }: { label: string }) => {
+  const tone =
+    label === 'Pista'
+      ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+      : label === 'Conveniência'
+      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+  return (
+    <span className={cn('inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold', tone)}>
+      {label}
+    </span>
+  )
+}
+
+/** "?" de ajuda nos cards — tooltip no hover/foco (mesmo padrão da aba Produtividade). */
+const CardHelp = ({ text }: { text: string }) => (
+  <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label={text}>
+    <HelpCircle className="h-3.5 w-3.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200" />
+    <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
+      {text}
+    </span>
+  </span>
+)
 
 const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apuradoPorDia, activeTab: activeTabProp }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
@@ -170,6 +194,8 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     weekday: string
     turnos: TurnoGroup[]
     apuradoTotal: number
+    /** Soma do apresentado dos PDVs com dado; null se nenhum tem. */
+    apresentadoTotal: number | null
     diferencaTotal: number
     hasAberto: boolean
   }
@@ -183,11 +209,13 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
         weekday: weekdayPtBr(data),
         turnos: [],
         apuradoTotal: 0,
+        apresentadoTotal: null,
         diferencaTotal: 0,
         hasAberto: false,
       }
       day.turnos.push(g)
       day.apuradoTotal += g.apuradoTotal
+      if (g.apresentadoTotal != null) day.apresentadoTotal = (day.apresentadoTotal ?? 0) + g.apresentadoTotal
       // Diferença só faz sentido em fechados — caixas abertos não entram na soma
       if (g.fechado) day.diferencaTotal += g.diferencaTotal
       if (!g.fechado) day.hasAberto = true
@@ -401,10 +429,13 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
       {activeTab === 'visao' && (
       <>
       {/* KPIs do módulo — primeira seção da aba Visão Geral */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apurado</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apurado</p>
+              <CardHelp text="Soma do valor apurado de todos os caixas/turnos do período — vendas registradas pelo PDV em todos os setores (combustível, pista e conveniência)." />
+            </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -413,6 +444,22 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
             {!kpis ? '—' : formatCurrency(kpis.totalApurado)}
           </p>
           {kpis && <DeltaBadge current={kpis.totalApurado} previous={kpis.cmpTotalApurado} label={kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'} />}
+        </div>
+
+        <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/60 to-white p-5 shadow-sm dark:border-sky-900/50 dark:from-sky-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apresentado</p>
+              <CardHelp text="Soma de todas as formas de pagamento do período (dinheiro, cartão, Pix, a prazo etc.) registradas nas vendas. É como o faturamento foi recebido." />
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/30">
+              <Wallet className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {formatCurrency(caixaResumo.totalApresentado)}
+          </p>
+          <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">Soma das formas de pagamento</p>
         </div>
 
         <div className={cn(
@@ -424,7 +471,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
             : 'border-gray-200 bg-gradient-to-br from-gray-50/60 to-white dark:border-gray-700 dark:from-gray-800/40 dark:to-gray-900'
         )}>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença de Caixa</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença de Caixa</p>
+              <CardHelp text="Soma das sobras e faltas dos caixas fechados (apurado vs. conferência física do fechamento). Vermelho = falta acumulada; âmbar = sobra. Só considera caixas fechados." />
+            </div>
             <div className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg',
               kpis && kpis.totalDiferenca < 0
@@ -460,7 +510,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
 
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-orange-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Abertos</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Abertos</p>
+              <CardHelp text="Quantos caixas/turnos ainda estão em andamento no período, sem fechamento conferido." />
+            </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
               <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
@@ -473,7 +526,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
 
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-green-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-green-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Fechados</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Fechados</p>
+              <CardHelp text="Quantos caixas/turnos já foram fechados e conferidos no período." />
+            </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
               <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
@@ -923,9 +979,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Turno</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Responsáveis</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Data</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Horário</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abertura</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Fechamento</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apresentado</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Diferença</th>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
                 </tr>
@@ -949,57 +1006,63 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:bg-gray-800/60',
                         )}
                       >
-                        <td colSpan={7} className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {/* Esquerda — data + ao vivo + contagem */}
-                            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                              <ChevronDown className={cn(
-                                'h-4 w-4 shrink-0 transition-transform',
-                                dayCollapsed ? '-rotate-90 text-gray-400' : 'text-gray-500 dark:text-gray-400',
-                              )} />
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{dataFmt}</span>
-                                <span className="text-[11px] capitalize text-gray-400">{day.weekday}</span>
-                              </div>
-                              <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700">
-                                {day.turnos.length} {day.turnos.length === 1 ? 'turno' : 'turnos'}
+                        {/* Esquerda — data + ao vivo + contagem (ocupa Turno→Fechamento) */}
+                        <td colSpan={4} className="px-4 py-3">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <ChevronDown className={cn(
+                              'h-4 w-4 shrink-0 transition-transform',
+                              dayCollapsed ? '-rotate-90 text-gray-400' : 'text-gray-500 dark:text-gray-400',
+                            )} />
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{dataFmt}</span>
+                              <span className="text-[11px] capitalize text-gray-400">{day.weekday}</span>
+                            </div>
+                            <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700">
+                              {(() => {
+                                const nTurnos = new Set(day.turnos.map((t) => t.turno)).size
+                                const nPdvs = day.turnos.length
+                                const turnoTxt = `${nTurnos} ${nTurnos === 1 ? 'turno' : 'turnos'}`
+                                return nPdvs > nTurnos ? `${turnoTxt} · ${nPdvs} PDVs` : turnoTxt
+                              })()}
+                            </span>
+                            {day.hasAberto && !periodIsPast && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-green-400 opacity-75" />
+                                  <span className="relative h-1.5 w-1.5 rounded-full bg-green-500" />
+                                </span>
+                                ao vivo
                               </span>
-                              {day.hasAberto && !periodIsPast && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                                  <span className="relative flex h-1.5 w-1.5">
-                                    <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-green-400 opacity-75" />
-                                    <span className="relative h-1.5 w-1.5 rounded-full bg-green-500" />
-                                  </span>
-                                  ao vivo
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Direita — apurado + diferença em pills */}
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <p className="text-[10px] uppercase tracking-wider text-gray-400">Apurado</p>
-                                <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                                  {formatCurrency(day.apuradoTotal)}
-                                </p>
-                              </div>
-                              {Math.abs(day.diferencaTotal) > 0.005 ? (
-                                <span className={cn(
-                                  'rounded-md px-2 py-1 text-xs font-semibold tabular-nums',
-                                  diferencaPositiva
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                                    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-                                )}>
-                                  {day.diferencaTotal > 0 ? '+' : ''}{formatCurrency(day.diferencaTotal)}
-                                </span>
-                              ) : (
-                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
-                                  s/ diferença
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </td>
+                        {/* Totalizador Apurado — alinhado à coluna Apurado */}
+                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(day.apuradoTotal)}
+                        </td>
+                        {/* Totalizador Apresentado — alinhado à coluna Apresentado */}
+                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                          {day.apresentadoTotal != null ? formatCurrency(day.apresentadoTotal) : '—'}
+                        </td>
+                        {/* Totalizador Diferença — alinhado à coluna Diferença */}
+                        <td className="px-4 py-3 text-right">
+                          {Math.abs(day.diferencaTotal) > 0.005 ? (
+                            <span className={cn(
+                              'rounded-md px-2 py-1 text-xs font-semibold tabular-nums',
+                              diferencaPositiva
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                            )}>
+                              {day.diferencaTotal > 0 ? '+' : ''}{formatCurrency(day.diferencaTotal)}
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                              s/ diferença
+                            </span>
+                          )}
+                        </td>
+                        {/* Status — vazio no banner do dia */}
+                        <td className="px-4 py-3" />
                       </tr>
 
                       {/* Turnos do dia — só renderiza se o dia não está colapsado */}
@@ -1034,14 +1097,17 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             !g.fechado && 'border-l-4 border-green-500'
                           )}
                         >
-                          {g.turno}
+                          <div className="flex items-center gap-2">
+                            <span>{g.turno}</span>
+                            <PdvBadge label={g.pdvLabel} />
+                          </div>
                         </td>
                         <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400">{responsaveisLabel}</td>
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                          {g.dataMovimento ? g.dataMovimento.split('-').reverse().join('/') : '-'}
+                          {formatIsoDateTime(g.abertura)}
                         </td>
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                          {formatIsoTime(g.abertura)} - {g.fechado ? formatIsoTime(g.fechamento) : 'Aberto'}
+                          {g.fechado ? formatIsoDateTime(g.fechamento) : 'Aberto'}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                           {selectedPgto ? (
@@ -1060,6 +1126,9 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                               </>
                             )
                           })()}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                          {g.apresentadoTotal != null ? formatCurrency(g.apresentadoTotal) : '—'}
                         </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm tabular-nums',

@@ -5,12 +5,14 @@ import { fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
-import { fetchCaixas } from '@/api/endpoints/financeiro'
+import { fetchCaixas, fetchCaixasApresentado } from '@/api/endpoints/financeiro'
+import { CAIXA_APRESENTADO_FORMAS } from '@/api/types/financeiro'
 import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import useCaixasCache from '@/pages/Operacao/hooks/useCaixasCache'
 import { todayLocal } from '@/lib/period'
+import { labelFormaPagamento } from '@/lib/formaPagamento'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -130,9 +132,12 @@ export interface TurnoRow {
 }
 
 export interface TurnoGroup {
-  groupKey: string           // `${turnoCodigo}-${dataMovimento}`
+  groupKey: string           // `${turnoCodigo}-${dataMovimento}-${pdvCodigo}`
   turnoCodigo: number
   turno: string
+  pdvCodigo: number
+  /** Rótulo do PDV: 'Pista', 'Conveniência' ou 'PDV {código}' (fallback). */
+  pdvLabel: string
   dataMovimento: string
   responsaveis: string[]     // funcionario names in this group
   abertura: string           // earliest ISO abertura
@@ -141,6 +146,11 @@ export interface TurnoGroup {
   apuradoTotal: number
   diferencaTotal: number
   totalVendasTotal: number
+  /** Total apresentado (conferido no fechamento) deste PDV. null = sem dado
+   *  de /CAIXA_APRESENTADO (rede não expõe). */
+  apresentadoTotal: number | null
+  /** Quebra do apresentado por forma de pagamento (vazio quando sem dado). */
+  apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
   pagamentos: TurnoPagamento[]
   caixaCodigos: number[]
@@ -148,6 +158,8 @@ export interface TurnoGroup {
 
 export interface CaixaResumo {
   totalApurado: number
+  /** Soma das formas de pagamento do período (o "apresentado"). */
+  totalApresentado: number
   totalDiferenca: number
   caixasAbertos: number
   caixasFechados: number
@@ -359,6 +371,18 @@ const useOperacaoData = () => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Apresentado por caixa (formas conferidas no fechamento). NÃO está no cache
+  // Supabase, então busca sempre que houver empresa. É o que permite quebrar o
+  // "apresentado" por PDV (o /VENDA_FORMA_PAGAMENTO não tem caixa/PDV).
+  // retry:false — se a rede não expõe /CAIXA_APRESENTADO, degrada pra vazio.
+  const { data: apresentadoRaw } = useQuery({
+    queryKey: ['caixasApresentado', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchAllPages((p) => fetchCaixasApresentado({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    enabled: hasEmpresa && empresaCodigo !== null,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+
   // l1 (abast) e l6/l7 (caixas/formas) só são relevantes quando cache MISS.
   // Aguardar isChecking dos probes evita flicker entre cache e live.
   // Períodos `prev` (abast + caixas) NÃO entram no gate — UI renderiza
@@ -411,6 +435,25 @@ const useOperacaoData = () => {
     const formasPgto = caixasCacheCurrent.isCacheHit
       ? caixasCacheCurrent.formasPagamento
       : (formasPgtoRaw ?? [])
+
+    // Apresentado (conferido no fechamento) por caixa → permite quebrar por PDV.
+    // Sem cache: vem direto do /CAIXA_APRESENTADO (vazio se a rede não expõe).
+    // /CAIXA_APRESENTADO: 1 linha larga por caixa, com {forma}Apresentado/Apurado/
+    // Diferenca. Apresentado do caixa = soma dos *Apresentado por forma (>0).
+    const apresentadoList = apresentadoRaw ?? []
+    const hasApresentado = apresentadoList.length > 0
+    const apresentadoByCaixa = new Map<number, { total: number; formas: Map<string, number> }>()
+    for (const a of apresentadoList) {
+      const rec = a as unknown as Record<string, number>
+      const entry = apresentadoByCaixa.get(a.caixaCodigo) ?? { total: 0, formas: new Map<string, number>() }
+      for (const f of CAIXA_APRESENTADO_FORMAS) {
+        const v = Number(rec[`${f.key}Apresentado`]) || 0
+        if (v === 0) continue
+        entry.total += v
+        entry.formas.set(f.nome, (entry.formas.get(f.nome) ?? 0) + v)
+      }
+      apresentadoByCaixa.set(a.caixaCodigo, entry)
+    }
 
     // ── Maps ──
     const funcMap = new Map<number, { nome: string; ativo: boolean }>()
@@ -666,6 +709,18 @@ const useOperacaoData = () => {
       formasByDay.set(dia, bucket)
     }
 
+    // Frentistas que bombearam combustível em cada dia. Usado pra classificar o
+    // PDV de um caixa: se o operador do caixa aparece aqui, é PDV de Pista;
+    // senão, Conveniência. (A API não liga abastecimento→PDV; só por frentista.)
+    const frentistasFuelByDay = new Map<string, Set<number>>()
+    for (const a of abastecimentos) {
+      const dia = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
+      if (!dia) continue
+      const set = frentistasFuelByDay.get(dia) ?? new Set<number>()
+      set.add(a.codigoFrentista)
+      frentistasFuelByDay.set(dia, set)
+    }
+
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
         const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
@@ -717,7 +772,7 @@ const useOperacaoData = () => {
         const pgtoAggShift = new Map<string, { nome: string; valor: number; count: number }>()
         for (const fp of shiftPgto) {
           const tipo = fp.tipoFormaPagamento || 'OUTROS'
-          const prev = pgtoAggShift.get(tipo) ?? { nome: fp.nomeFormaPagamento || tipo, valor: 0, count: 0 }
+          const prev = pgtoAggShift.get(tipo) ?? { nome: labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
           prev.valor += fp.valorPagamento
           prev.count += 1
           pgtoAggShift.set(tipo, prev)
@@ -751,12 +806,12 @@ const useOperacaoData = () => {
         return b.dataMovimento.localeCompare(a.dataMovimento)
       })
 
-    // ── Turno groups (group caixas by turnoCodigo + dataMovimento) ──
+    // ── Turno groups (group caixas by turnoCodigo + dataMovimento + PDV) ──
     // Índice caixa→turnoRow pra mesclar pagamentos sem varrer turnoRows por grupo.
     const turnoRowByCaixa = new Map(turnoRows.map((r) => [r.caixaCodigo, r]))
     const groupMap = new Map<string, typeof caixas>()
     for (const c of caixas) {
-      const key = `${c.turnoCodigo}-${c.dataMovimento?.substring(0, 10)}`
+      const key = `${c.turnoCodigo}-${c.dataMovimento?.substring(0, 10)}-${c.pdvCodigo}`
       const grp = groupMap.get(key) ?? []
       grp.push(c)
       groupMap.set(key, grp)
@@ -781,8 +836,15 @@ const useOperacaoData = () => {
           ? Math.max(...grpCaixas.map((c) => c.fechamento ? new Date(c.fechamento).getTime() : 0))
           : nowTs
 
-        // All abastecimentos in the group's time window (bucket do dia)
-        const grpAbast = (abastByDay.get(caixaDate) ?? [])
+        // Classifica o PDV: operador do caixa bombeou combustível no dia → Pista.
+        // (A API não liga abastecimento→PDV; classificamos pelo operador.)
+        const fuelSet = frentistasFuelByDay.get(caixaDate) ?? new Set<number>()
+        const isPista = grpCaixas.some((c) => fuelSet.has(c.funcionarioCodigo))
+        const pdvLabel = isPista ? 'Pista' : 'Conveniência'
+
+        // Abastecimentos só fazem sentido no PDV de Pista — o de Conveniência não
+        // herda dado de bomba (senão o combustível apareceria duplicado nos dois).
+        const grpAbast = !isPista ? [] : (abastByDay.get(caixaDate) ?? [])
           .filter(({ ts }) => {
             if (ts == null || !isFinite(aberturaTs)) return true
             return ts >= aberturaTs && ts <= maxFechamentoTs
@@ -823,10 +885,28 @@ const useOperacaoData = () => {
         const diferencaTotal = grpCaixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0)
         const totalVendasTotal = grpAbast.reduce((s, a) => s + a.valorTotal, 0)
 
+        // Apresentado por PDV (soma dos caixas do grupo) + quebra por forma.
+        const apFormasMap = new Map<string, number>()
+        let apTotal = 0
+        let apHit = false
+        for (const c of grpCaixas) {
+          const entry = apresentadoByCaixa.get(c.caixaCodigo)
+          if (!entry) continue
+          apHit = true
+          apTotal += entry.total
+          for (const [nome, val] of entry.formas) apFormasMap.set(nome, (apFormasMap.get(nome) ?? 0) + val)
+        }
+        const apresentadoTotal = hasApresentado && apHit ? apTotal : null
+        const apresentadoFormas: TurnoPagamento[] = Array.from(apFormasMap.entries())
+          .map(([nome, valor]) => ({ tipo: nome, nome, valor, quantidade: 0 }))
+          .sort((a, b) => b.valor - a.valor)
+
         return {
           groupKey,
           turnoCodigo: first.turnoCodigo,
           turno: first.turno || `Turno ${first.turnoCodigo}`,
+          pdvCodigo: first.pdvCodigo,
+          pdvLabel,
           dataMovimento: caixaDate,
           responsaveis: sorted.map((c) => funcMap.get(c.funcionarioCodigo)?.nome ?? `Func ${c.funcionarioCodigo}`),
           abertura: first.abertura ?? '',
@@ -835,6 +915,8 @@ const useOperacaoData = () => {
           apuradoTotal,
           diferencaTotal,
           totalVendasTotal,
+          apresentadoTotal,
+          apresentadoFormas,
           frentistas,
           pagamentos: Array.from(pgtoMerge.values()).sort((a, b) => b.valor - a.valor),
           caixaCodigos: grpCaixas.map((c) => c.caixaCodigo),
@@ -845,9 +927,23 @@ const useOperacaoData = () => {
         return b.dataMovimento.localeCompare(a.dataMovimento) || b.abertura.localeCompare(a.abertura)
       })
 
+    // Colisão de rótulo: se 2+ PDVs do mesmo turno/dia classificarem igual
+    // (ex.: nenhum operador bombeou → ambos "Conveniência"), a heurística não
+    // distingue — então caímos pro código ("PDV {n}") nesses grupos.
+    const labelCount = new Map<string, number>()
+    for (const g of turnoGroups) {
+      const k = `${g.turnoCodigo}-${g.dataMovimento}-${g.pdvLabel}`
+      labelCount.set(k, (labelCount.get(k) ?? 0) + 1)
+    }
+    for (const g of turnoGroups) {
+      const k = `${g.turnoCodigo}-${g.dataMovimento}-${g.pdvLabel}`
+      if ((labelCount.get(k) ?? 0) > 1) g.pdvLabel = `PDV ${g.pdvCodigo}`
+    }
+
     // ── Caixa summary ──
     const caixaResumo: CaixaResumo = {
       totalApurado: caixas.reduce((s, c) => s + c.apurado, 0),
+      totalApresentado: formasPgto.reduce((s, fp) => s + fp.valorPagamento, 0),
       totalDiferenca: caixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0),
       caixasAbertos: caixas.filter((c) => !c.fechado).length,
       caixasFechados: caixas.filter((c) => c.fechado).length,
@@ -860,7 +956,7 @@ const useOperacaoData = () => {
     const pgtoAgg = new Map<string, { nome: string; valor: number; count: number }>()
     for (const fp of formasPgto) {
       const tipo = fp.tipoFormaPagamento || 'OUTROS'
-      const prev = pgtoAgg.get(tipo) ?? { nome: fp.nomeFormaPagamento || tipo, valor: 0, count: 0 }
+      const prev = pgtoAgg.get(tipo) ?? { nome: labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
       prev.valor += fp.valorPagamento
       prev.count += 1
       pgtoAgg.set(tipo, prev)
@@ -1013,7 +1109,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
+  }, [abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,

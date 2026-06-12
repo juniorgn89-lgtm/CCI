@@ -231,7 +231,6 @@ const AppLayout = () => {
             title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
             actions={
               <GlobalFilterControls
-                hideCompanySelect={pathname === '/dashboard'}
                 dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
               />
             }

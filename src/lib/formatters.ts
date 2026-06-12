@@ -21,8 +21,8 @@ export const formatCurrencyInt = (value: number): string => {
 export const formatPercent = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'percent',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value / 100)
 }
 

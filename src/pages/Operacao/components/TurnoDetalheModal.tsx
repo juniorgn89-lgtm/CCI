@@ -6,6 +6,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
+import { formatDateTimeBR } from '@/lib/datetime'
 import type { TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
 
 interface TurnoDetalheModalProps {
@@ -14,12 +15,7 @@ interface TurnoDetalheModalProps {
   turno: TurnoGroup | null
 }
 
-const formatIsoTime = (iso: string | null | undefined): string => {
-  if (!iso) return '-'
-  if (iso.includes('T')) return iso.split('T')[1]?.substring(0, 5) ?? '-'
-  if (iso.includes(' ')) return iso.split(' ')[1]?.substring(0, 5) ?? '-'
-  return iso.substring(0, 5)
-}
+// Abertura/fechamento vêm em UTC da API — formatDateTimeBR converte pra Brasília.
 
 const paymentIcon = (tipo: string) => {
   const t = tipo.toUpperCase()
@@ -45,8 +41,14 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
   const dataLabel = turno.dataMovimento
     ? turno.dataMovimento.split('-').reverse().join('/')
     : '-'
-  const horarioLabel = `${formatIsoTime(turno.abertura)} - ${turno.fechado ? formatIsoTime(turno.fechamento) : 'Aberto'}`
-  const totalPagamentos = turno.pagamentos.reduce((s, p) => s + p.valor, 0)
+  const horarioLabel = `${formatDateTimeBR(turno.abertura)} → ${turno.fechado ? formatDateTimeBR(turno.fechamento) : 'Aberto'}`
+
+  // Formas: preferimos o apresentado POR PDV (/CAIXA_APRESENTADO) quando existe —
+  // é o único que separa Pista × Conveniência. Senão cai nas formas do dia
+  // (/VENDA_FORMA_PAGAMENTO), que não têm PDV e ficam iguais nos dois modais.
+  const formasIsApresentado = turno.apresentadoFormas.length > 0
+  const formasList = formasIsApresentado ? turno.apresentadoFormas : turno.pagamentos
+  const totalPagamentos = formasList.reduce((s, p) => s + p.valor, 0)
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -56,6 +58,16 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
             <span className="flex items-center gap-2">
               <Wallet className="h-4 w-4 text-emerald-500" />
               {turno.turno} · {dataLabel}
+              <span className={cn(
+                'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                turno.pdvLabel === 'Pista'
+                  ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+                  : turno.pdvLabel === 'Conveniência'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+              )}>
+                {turno.pdvLabel}
+              </span>
               {!turno.fechado ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
                   <span className="relative flex h-2 w-2">
@@ -102,6 +114,9 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
             </div>
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
               <Kpi Icon={TrendingUp} label="Apurado" value={formatCurrency(turno.apuradoTotal)} />
+              {turno.apresentadoTotal != null && (
+                <Kpi Icon={Wallet} label="Apresentado" value={formatCurrency(turno.apresentadoTotal)} />
+              )}
               {turno.fechado && (
                 <Kpi Icon={DollarSign} label="Esperado" value={formatCurrency(stats.esperado)} />
               )}
@@ -161,8 +176,13 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
               <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                 <Wallet className="h-3.5 w-3.5" />
                 Formas de Pagamento
+                {!formasIsApresentado && turno.pagamentos.length > 0 && (
+                  <span className="ml-auto normal-case tracking-normal text-[10px] font-normal text-amber-600 dark:text-amber-400" title="As formas vêm de /VENDA_FORMA_PAGAMENTO, que não separa por PDV — refletem o dia inteiro, não só este PDV.">
+                    do dia (sem quebra por PDV)
+                  </span>
+                )}
               </div>
-              {turno.pagamentos.length === 0 ? (
+              {formasList.length === 0 ? (
                 // Sem detalhamento mas com apurado > 0 → sinal de sync falhada
                 // entre apuracao_caixas e apuracao_formas_pagamento. Sugere
                 // re-apurar; se o cache ainda voltar vazio depois disso, é
@@ -189,7 +209,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                 )
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {turno.pagamentos
+                  {formasList
                     .slice()
                     .sort((a, b) => b.valor - a.valor)
                     .map((p) => {
@@ -207,7 +227,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                             </span>
                           </div>
                           <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(0).replace('.', ',')}%
+                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(0).replace('.', ',')}%
                           </p>
                         </li>
                       )

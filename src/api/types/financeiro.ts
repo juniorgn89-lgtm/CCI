@@ -161,14 +161,91 @@ export interface Caixa {
   diferenca: number
 }
 
+/**
+ * Apresentado vs Apurado por caixa, quebrado por forma de pagamento — espelha o
+ * "Fechamento de Caixa" do webPosto. Uma linha por caixa; cada forma tem o trio
+ * `{forma}Apresentado` (conferido), `{forma}Apurado` (sistema) e `{forma}Diferenca`.
+ */
 export interface CaixaApresentado {
   codigo: number
   empresaCodigo: number
   caixaCodigo: number
-  formaPagamentoCodigo: number
-  valor: number
-  descricao: string
+  consolidado: boolean
+  dinheiroApresentado: number
+  dinheiroApurado: number
+  dinheiroDiferenca: number
+  notaPrazoApresentado: number
+  notaPrazoApurado: number
+  notaPrazoDiferenca: number
+  chequeApresentado: number
+  chequeApurado: number
+  chequeDiferenca: number
+  chequePreApresentado: number
+  chequePreApurado: number
+  chequePreDiferenca: number
+  cartaoApresentado: number
+  cartaoApurado: number
+  cartaoDiferenca: number
+  cartaoFreteApresentado: number
+  cartaoFreteApurado: number
+  cartaoFreteDiferenca: number
+  valeClienteApresentado: number
+  valeClienteApurado: number
+  valeClienteDiferenca: number
+  emprestimoApresentado: number
+  emprestimoApurado: number
+  emprestimoDiferenca: number
+  prePagApresentado: number
+  prePagApurado: number
+  prePagDiferenca: number
+  despesaApresentado: number
+  despesaApurado: number
+  despesaDiferenca: number
+  valeFunApresentado: number
+  valeFunApurado: number
+  valeFunDiferenca: number
+  chequePagarApresentado: number
+  chequePagarApurado: number
+  chequePagarDiferenca: number
+  transfBancApresentado: number
+  transfBancApurado: number
+  transfBancDiferenca: number
+  transfDebApresentado: number
+  transfDebApurado: number
+  transfDebDiferenca: number
+  fundoCxDebApresentado: number
+  fundoCxDebApurado: number
+  fundoCxDebDiferenca: number
+  valeCliente: number
+  suprimentoCaixa: number
+  recebimentoCaixa: number
+  chequeTroco: number
+  servicoCaixa: number
+  prePagoCredito: number
+  fundoCaixaCredito: number
+  ordemPagamento: number
+  pagamentoCaixa: number
+  saidaTrocaValor: number
 }
+
+/** Formas de pagamento do /CAIXA_APRESENTADO, com rótulo do webPosto. */
+export const CAIXA_APRESENTADO_FORMAS: { key: string; nome: string }[] = [
+  { key: 'dinheiro', nome: 'Dinheiro' },
+  { key: 'cartao', nome: 'Cartão' },
+  { key: 'transfBanc', nome: 'Transf. Crédito' },
+  { key: 'transfDeb', nome: 'Transf. Débito' },
+  { key: 'notaPrazo', nome: 'A Prazo' },
+  { key: 'cheque', nome: 'Cheque' },
+  { key: 'chequePre', nome: 'Cheque Pré' },
+  { key: 'cartaoFrete', nome: 'Cartão Frete' },
+  { key: 'valeCliente', nome: 'Vale Cliente' },
+  { key: 'valeFun', nome: 'Vale Funcionário' },
+  { key: 'emprestimo', nome: 'Empréstimo' },
+  { key: 'prePag', nome: 'Pré-Pago' },
+  { key: 'despesa', nome: 'Despesa' },
+  { key: 'chequePagar', nome: 'Cheque a Pagar' },
+  { key: 'fundoCxDeb', nome: 'Fundo Caixa Déb.' },
+]
 
 export interface Conta {
   codigo: number
