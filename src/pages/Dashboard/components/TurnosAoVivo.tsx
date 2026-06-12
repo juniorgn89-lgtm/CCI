@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, Wallet, RefreshCw } from 'lucide-react'
+import { Building2, Wallet, RefreshCw, Globe } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
 import { useFilterStore } from '@/store/filters'
@@ -48,6 +48,8 @@ const TurnosAoVivo = () => {
   const navigate = useNavigate()
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const { empresas, totalAoVivo, totalEmpresas, empresasComAoVivo, isLoading, dataUpdatedAt } = useTurnosAoVivo()
+  // Total parcial da rede ao vivo (soma do apurado parcial de todos os postos).
+  const totalParcial = empresas.reduce((s, e) => s + e.apuradoParcial, 0)
 
   const handleClick = (empresaCodigo: number) => {
     setEmpresas([empresaCodigo])
@@ -113,7 +115,35 @@ const TurnosAoVivo = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,21rem)] gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* Card GLOBAL — consolidado da rede ao vivo (1º card, destacado). */}
+          <div className="flex h-full flex-col rounded-xl border border-[#1e3a5f]/30 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-5 text-left shadow-sm">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold text-white">Global</p>
+                <p className="truncate text-[11px] uppercase tracking-wide text-white/60">Faturamento de hoje · todos os setores</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-300">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                Ao vivo
+              </span>
+            </div>
+            <div
+              className="flex items-center gap-2"
+              title="Faturamento fiscal total de hoje (combustível + pista + conveniência), somando todos os postos. Atualiza ao vivo."
+            >
+              <Globe className="h-5 w-5 shrink-0 text-white/80" />
+              <span className="text-2xl font-bold tabular-nums text-white">{formatCurrency(totalParcial)}</span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-300">parcial</span>
+            </div>
+            <div className="mt-auto border-t border-white/15 pt-3 text-xs text-white/80">
+              {totalAoVivo} {totalAoVivo === 1 ? 'caixa aberto' : 'caixas abertos'} · {empresasComAoVivo} {empresasComAoVivo === 1 ? 'posto' : 'postos'}
+            </div>
+          </div>
+
           {empresas
             .filter((emp) => emp.caixas.length > 0)
             .map((emp) => (
@@ -147,7 +177,7 @@ const TurnosAoVivo = () => {
                     <Wallet className="h-5 w-5 shrink-0 text-amber-500" />
                     <span
                       className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100"
-                      title="Combustível bombeado desde a abertura do caixa mais antigo"
+                      title="Faturamento fiscal total de hoje (todos os setores) deste posto"
                     >
                       {formatCurrency(emp.apuradoParcial)}
                     </span>

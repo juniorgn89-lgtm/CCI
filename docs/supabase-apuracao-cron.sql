@@ -41,8 +41,31 @@ select cron.schedule(
       'Content-Type', 'application/json',
       'x-cron-secret', '<CRON_SECRET>'
     ),
-    body    := '{}'::jsonb,
+    body    := '{}'::jsonb,  -- scope ausente = "closed" (últimos 3 dias fechados)
     timeout_milliseconds := 600000  -- 10 min (apuração de várias redes é pesada)
+  );
+  $$
+);
+
+-- ── 2º cron: DIA CORRENTE a cada 30 min (scope=today) ─────────────────────
+-- Mantém o cache do dia de hoje fresco (apura só hoje, leve). Independente do
+-- diário acima. (Hoje ainda é lido AO VIVO pelo front; este cron prepara o
+-- cache pra quando o front passar a ler "hoje" do Supabase.)
+select cron.unschedule('apurar-cron-hoje')
+where exists (select 1 from cron.job where jobname = 'apurar-cron-hoje');
+
+select cron.schedule(
+  'apurar-cron-hoje',
+  '*/30 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/apurar-cron',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', '<CRON_SECRET>'
+    ),
+    body    := jsonb_build_object('scope', 'today'),
+    timeout_milliseconds := 600000
   );
   $$
 );

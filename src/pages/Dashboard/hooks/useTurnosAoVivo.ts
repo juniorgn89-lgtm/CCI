@@ -2,10 +2,10 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
-import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
+import { fetchVendaResumo } from '@/api/endpoints/vendas'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import type { Abastecimento } from '@/api/types/combustivel'
+import { todayLocal } from '@/lib/period'
 import type { Caixa } from '@/api/types/financeiro'
 
 export interface CaixaAoVivoCard {
@@ -21,7 +21,7 @@ export interface EmpresaAoVivo {
   empresaCodigo: number
   empresaNome: string
   caixas: CaixaAoVivoCard[]
-  /** Combustível bombeado desde a abertura do caixa mais antigo aberto. Único valor por empresa pra evitar dupla contagem entre PDVs. */
+  /** Faturamento fiscal TOTAL de hoje (combustível + pista + conveniência), via /VENDA_RESUMO. */
   apuradoParcial: number
   isLoading: boolean
   error: boolean
@@ -58,13 +58,11 @@ const useTurnosAoVivo = () => {
   })
 
   // Detecta quais empresas têm caixas abertos (após caixas resolverem).
-  // Funcionários e abastecimentos só carregam pra essas — se nenhuma tem
-  // caixa aberto, esses fetches pesados não disparam (load instantâneo).
+  // Funcionários só carregam pra essas (load instantâneo se nenhuma aberta).
   const empresasComAbertos = empresas.map((_, idx) => {
     const cQuery = caixasQueries[idx]
     return cQuery?.data?.resultados?.some((c) => !c.fechado) ?? false
   })
-  const anyAbertos = empresasComAbertos.some(Boolean)
 
   // Funcionários por empresa — só carrega quando aquela empresa tem caixa aberto
   const funcionariosQueries = useQueries({
@@ -76,17 +74,26 @@ const useTurnosAoVivo = () => {
     })),
   })
 
-  // Abastecimentos do período (call global, chunked) — só dispara se há ao
-  // menos uma empresa com caixa aberto. Caso contrário, apurado parcial = 0
-  // sem precisar baixar dezenas de milhares de abastecimentos.
-  const { data: abastecimentos } = useQuery({
-    queryKey: ['abastecimentos-aovivo', dataInicial, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: !!dataInicial && !!dataFinal && anyAbertos,
+  // Faturamento fiscal TOTAL de HOJE por empresa (combustível + pista +
+  // conveniência). /VENDA_RESUMO.total já é o total fiscal do dia (todos os
+  // setores) — 1 call leve pra rede inteira. Inclui turnos já fechados hoje
+  // (é o faturamento do dia, não só o dos caixas abertos agora).
+  const hoje = todayLocal()
+  const { data: vendaResumoHoje } = useQuery({
+    queryKey: ['venda-resumo-aovivo', hoje],
+    queryFn: () => fetchVendaResumo({ dataInicial: hoje, dataFinal: hoje }),
+    enabled: empresas.length > 0,
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
     refetchIntervalInBackground: true,
   })
+  const faturamentoHojePorEmpresa = (() => {
+    const m = new Map<number, number>()
+    for (const r of vendaResumoHoje ?? []) {
+      m.set(r.codigoEmpresa, (m.get(r.codigoEmpresa) ?? 0) + (r.total ?? 0))
+    }
+    return m
+  })()
 
   const empresasAoVivo: EmpresaAoVivo[] = empresas.map((emp, idx) => {
     const cQuery = caixasQueries[idx]
@@ -110,35 +117,12 @@ const useTurnosAoVivo = () => {
       responsavelNome: funcMap.get(c.funcionarioCodigo) ?? '—',
     }))
 
-    // Apurado parcial calculado UMA vez por empresa para evitar dupla contagem
-    // quando há múltiplos caixas (PDVs diferentes) com janelas de tempo sobrepostas.
-    // Soma abastecimentos da empresa nas datas dos caixas abertos, a partir
-    // da abertura do caixa mais antigo ainda aberto.
+    // Parcial = faturamento fiscal TOTAL de hoje (todos os setores) da empresa.
+    // Mostrado só pros postos com caixa aberto. Fallback no c.apurado dos caixas
+    // abertos quando o dia ainda não tem venda fiscal lançada.
     let apuradoParcial = 0
     if (openCaixas.length > 0) {
-      const abastEmpresa: Abastecimento[] = (abastecimentos ?? []).filter(
-        (a) => a.empresaCodigo === emp.empresaCodigo
-      )
-      const datasAbertas = new Set(
-        openCaixas.map((c) => c.dataMovimento?.substring(0, 10) ?? '').filter(Boolean)
-      )
-      const earliestAbertura = openCaixas.reduce((min, c) => {
-        const ts = c.abertura ? new Date(c.abertura).getTime() : 0
-        if (ts <= 0) return min
-        return min === 0 || ts < min ? ts : min
-      }, 0)
-      for (const a of abastEmpresa) {
-        const abastDate = (a.dataFiscal || a.dataHoraAbastecimento?.substring(0, 10)) ?? ''
-        if (!datasAbertas.has(abastDate)) continue
-        if (a.dataHoraAbastecimento && earliestAbertura > 0) {
-          const ts = new Date(a.dataHoraAbastecimento).getTime()
-          if (ts < earliestAbertura) continue
-        }
-        apuradoParcial += a.valorTotal
-      }
-      // Fallback: se ainda não há abastecimentos lançados (caixa recém-aberto),
-      // usa a soma do c.apurado dos caixas abertos (a API pode preencher esse
-      // campo em algumas situações, como vimos no POSTO DARWIN).
+      apuradoParcial = faturamentoHojePorEmpresa.get(emp.empresaCodigo) ?? 0
       if (apuradoParcial === 0) {
         apuradoParcial = openCaixas.reduce((s, c) => s + (c.apurado ?? 0), 0)
       }
