@@ -118,6 +118,9 @@ export interface TurnoRow {
   caixaCodigo: number
   turno: string
   turnoCodigo: number
+  pdvCodigo: number
+  /** 'Pista' | 'Conveniência' | 'PDV {código}'. */
+  pdvLabel: string
   funcionarioNome: string
   funcionarioCodigo: number
   dataMovimento: string
@@ -127,6 +130,10 @@ export interface TurnoRow {
   apurado: number
   diferenca: number
   totalVendas: number
+  /** Apresentado (conferido) deste caixa; null sem dado de /CAIXA_APRESENTADO. */
+  apresentadoTotal: number | null
+  /** Quebra do apresentado por forma (vazio sem dado). */
+  apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
   pagamentos: TurnoPagamento[]
 }
@@ -170,6 +177,27 @@ export interface PagamentoBreakdown {
   nome: string
   valor: number
   quantidade: number
+}
+
+/** Linha de conferência (Fechamento Apresentado do webPosto): por forma. */
+export interface ConferenciaForma {
+  nome: string
+  apresentado: number
+  apurado: number
+  diferenca: number
+}
+
+/** Conferência de um caixa/PDV: apresentado × apurado × diferença por forma. */
+export interface ConferenciaCaixa {
+  caixaCodigo: number
+  dataMovimento: string
+  turno: string
+  pdvLabel: string
+  responsavel: string
+  formas: ConferenciaForma[]
+  totalApresentado: number
+  totalApurado: number
+  totalDiferenca: number
 }
 
 export interface ApuradoPorDia {
@@ -440,7 +468,10 @@ const useOperacaoData = () => {
     // Sem cache: vem direto do /CAIXA_APRESENTADO (vazio se a rede não expõe).
     // /CAIXA_APRESENTADO: 1 linha larga por caixa, com {forma}Apresentado/Apurado/
     // Diferenca. Apresentado do caixa = soma dos *Apresentado por forma (>0).
-    const apresentadoList = apresentadoRaw ?? []
+    // Filtra pelos caixas do PERÍODO (o endpoint pode retornar caixas fora da
+    // janela; sem isso o total estoura somando dias que não estão na tela).
+    const periodoCaixaCods = new Set(caixas.map((c) => c.caixaCodigo))
+    const apresentadoList = (apresentadoRaw ?? []).filter((a) => periodoCaixaCods.has(a.caixaCodigo))
     const hasApresentado = apresentadoList.length > 0
     const apresentadoByCaixa = new Map<number, { total: number; formas: Map<string, number> }>()
     for (const a of apresentadoList) {
@@ -739,7 +770,12 @@ const useOperacaoData = () => {
             : nowTs
         }
 
-        const shiftAbast = (abastByDay.get(caixaDate) ?? [])
+        // Classifica o PDV do caixa pelo operador (bombeou combustível no dia →
+        // Pista). Combustível só conta pra Pista — senão a caixa de Conveniência
+        // herdaria os abastecimentos do dia inteiro (valores misturados).
+        const isPista = (frentistasFuelByDay.get(caixaDate) ?? new Set<number>()).has(c.funcionarioCodigo)
+
+        const shiftAbast = !isPista ? [] : (abastByDay.get(caixaDate) ?? [])
           .filter(({ ts }) => {
             if (ts == null || aberturaTs == null) return true
             return ts >= aberturaTs && ts <= fechamentoTs!
@@ -784,10 +820,22 @@ const useOperacaoData = () => {
 
         const totalVendas = pagamentos.reduce((s, p) => s + p.valor, 0)
 
+        // Apresentado por caixa (de /CAIXA_APRESENTADO) — quebra por forma sem
+        // a mistura do balde do dia inteiro.
+        const apEntry = apresentadoByCaixa.get(c.caixaCodigo)
+        const apresentadoTotal = hasApresentado && apEntry ? apEntry.total : null
+        const apresentadoFormas: TurnoPagamento[] = apEntry
+          ? Array.from(apEntry.formas.entries())
+              .map(([nome, valor]) => ({ tipo: nome, nome, valor, quantidade: 0 }))
+              .sort((a, b) => b.valor - a.valor)
+          : []
+
         return {
           caixaCodigo: c.caixaCodigo,
           turno: c.turno || `Turno ${c.turnoCodigo}`,
           turnoCodigo: c.turnoCodigo,
+          pdvCodigo: c.pdvCodigo,
+          pdvLabel: isPista ? 'Pista' : 'Conveniência',
           funcionarioNome: funcMap.get(c.funcionarioCodigo)?.nome ?? `Funcionário ${c.funcionarioCodigo}`,
           funcionarioCodigo: c.funcionarioCodigo,
           dataMovimento: c.dataMovimento,
@@ -797,6 +845,8 @@ const useOperacaoData = () => {
           apurado: c.apurado,
           diferenca: c.diferenca,
           totalVendas,
+          apresentadoTotal,
+          apresentadoFormas,
           frentistas,
           pagamentos,
         }
@@ -940,10 +990,54 @@ const useOperacaoData = () => {
       if ((labelCount.get(k) ?? 0) > 1) g.pdvLabel = `PDV ${g.pdvCodigo}`
     }
 
+    // Propaga o rótulo final do grupo (já com fallback de colisão) pra cada
+    // turnoRow, pra Fechamentos mostrar o mesmo Pista/Conveniência/PDV.
+    const labelByCaixa = new Map<string, string>()
+    for (const g of turnoGroups) {
+      for (const cod of g.caixaCodigos) labelByCaixa.set(`${cod}-${g.dataMovimento}`, g.pdvLabel)
+    }
+    for (const r of turnoRows) {
+      const lbl = labelByCaixa.get(`${r.caixaCodigo}-${r.dataMovimento.slice(0, 10)}`)
+      if (lbl) r.pdvLabel = lbl
+    }
+
+    // ── Conferência por PDV (Fechamento Apresentado) ──
+    // Junta cada linha do /CAIXA_APRESENTADO com o caixa (turno/PDV/responsável)
+    // e quebra por forma: apresentado × apurado × diferença.
+    const rowByCaixaCod = new Map(turnoRows.map((r) => [r.caixaCodigo, r]))
+    const conferenciaPdv: ConferenciaCaixa[] = apresentadoList.map((a) => {
+      const rec = a as unknown as Record<string, number>
+      const row = rowByCaixaCod.get(a.caixaCodigo)
+      const formas: ConferenciaForma[] = []
+      let tApr = 0, tApu = 0, tDif = 0
+      for (const f of CAIXA_APRESENTADO_FORMAS) {
+        const apresentado = Number(rec[`${f.key}Apresentado`]) || 0
+        const apurado = Number(rec[`${f.key}Apurado`]) || 0
+        const diferenca = Number(rec[`${f.key}Diferenca`]) || 0
+        if (apresentado === 0 && apurado === 0 && diferenca === 0) continue
+        formas.push({ nome: f.nome, apresentado, apurado, diferenca })
+        tApr += apresentado; tApu += apurado; tDif += diferenca
+      }
+      return {
+        caixaCodigo: a.caixaCodigo,
+        dataMovimento: row?.dataMovimento?.slice(0, 10) ?? '',
+        turno: row?.turno ?? `Caixa ${a.caixaCodigo}`,
+        pdvLabel: row?.pdvLabel ?? '—',
+        responsavel: row?.funcionarioNome ?? '',
+        formas: formas.sort((x, y) => y.apresentado - x.apresentado),
+        totalApresentado: tApr,
+        totalApurado: tApu,
+        totalDiferenca: tDif,
+      }
+    }).sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento) || a.turno.localeCompare(b.turno))
+
     // ── Caixa summary ──
+    // Apresentado: usa o /CAIXA_APRESENTADO (mesma fonte dos Turnos/Conferência,
+    // pra bater entre as abas); só cai nas formas planas se a rede não expõe.
+    const apresentadoFromCaixa = Array.from(apresentadoByCaixa.values()).reduce((s, e) => s + e.total, 0)
     const caixaResumo: CaixaResumo = {
       totalApurado: caixas.reduce((s, c) => s + c.apurado, 0),
-      totalApresentado: formasPgto.reduce((s, fp) => s + fp.valorPagamento, 0),
+      totalApresentado: hasApresentado ? apresentadoFromCaixa : formasPgto.reduce((s, fp) => s + fp.valorPagamento, 0),
       totalDiferenca: caixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0),
       caixasAbertos: caixas.filter((c) => !c.fechado).length,
       caixasFechados: caixas.filter((c) => c.fechado).length,
@@ -1104,6 +1198,7 @@ const useOperacaoData = () => {
       turnoRows,
       turnoGroups,
       caixaResumo,
+      conferenciaPdv,
       pagamentoBreakdown,
       apuradoPorDia,
       frentistasList,

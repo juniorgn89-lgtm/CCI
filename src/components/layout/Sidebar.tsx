@@ -18,6 +18,8 @@ import {
   Radar,
   LayoutDashboard,
   Wallet,
+  ClipboardCheck,
+  Receipt,
   TrendingUp,
   Target,
   Award,
@@ -92,6 +94,8 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/caixas-turnos': [
     { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
     { label: 'Turnos de Caixa', to: '/caixas-turnos?tab=turnos', Icon: Wallet },
+    { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
+    { label: 'Fechamento', to: '/caixas-turnos?tab=fechamento', Icon: Receipt },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },

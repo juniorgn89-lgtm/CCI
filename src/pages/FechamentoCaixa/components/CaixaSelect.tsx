@@ -31,10 +31,20 @@ export interface CaixaOption {
   caixaLabel: string
   /** Subtítulo (ex.: "CRISTIELE MAURICIO ALVES · A: 03:00 F: 03:02"). */
   subLabel: string
+  /** PDV: 'Pista' | 'Conveniência' | 'PDV {código}'. */
+  pdvLabel?: string
   fechado: boolean
   apurado: number
   diferenca: number
 }
+
+/** Badge do PDV (Pista azul / Conveniência roxo / PDV cinza). */
+const pdvTone = (label: string): string =>
+  label === 'Pista'
+    ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+    : label === 'Conveniência'
+      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
 
 interface CaixaSelectProps {
   /** Opções JÁ filtradas por "incluir abertos" (o caller aplica o filtro). */
@@ -173,8 +183,13 @@ const CaixaSelect = ({
                       )}
                     >
                       <div className="flex w-full flex-col gap-1">
-                        <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                        <span className="flex flex-wrap items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
                           <span>{c.turno} · {c.caixaLabel}</span>
+                          {c.pdvLabel && (
+                            <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold', pdvTone(c.pdvLabel))}>
+                              {c.pdvLabel}
+                            </span>
+                          )}
                           {!c.fechado && (
                             <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                               Em aberto

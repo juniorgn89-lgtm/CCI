@@ -11,7 +11,6 @@ const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 const Dashboard = lazy(importDashboard)
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
-const FechamentoCaixa = lazy(() => import('@/pages/FechamentoCaixa'))
 const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Bombas = lazy(() => import('@/pages/Bombas'))
@@ -63,7 +62,8 @@ const AppRoutes = () => {
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Suspense fallback={<RouteFallback />}><Reabastecimento /></Suspense>} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
-          <Route path="/fechamento-caixa" element={<Suspense fallback={<RouteFallback />}><FechamentoCaixa /></Suspense>} />
+          {/* Fechamentos foi consolidado em Fechamento de Caixa (aba "Fechamento"). */}
+          <Route path="/fechamento-caixa" element={<Navigate to="/caixas-turnos?tab=fechamento" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />

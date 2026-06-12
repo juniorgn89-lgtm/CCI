@@ -28,7 +28,10 @@ interface TopBarTabsProps {
 const TopBarTabs = ({ tabs, active, onChange, className }: TopBarTabsProps) => (
   <div
     className={cn(
+      // Rola na horizontal SE precisar, mas sem barra visível (fica feio numa
+      // sub-bar densa). Combinado com o modo só-ícone abaixo, raramente rola.
       'flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]',
+      '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
       className,
     )}
   >
@@ -40,7 +43,7 @@ const TopBarTabs = ({ tabs, active, onChange, className }: TopBarTabsProps) => (
           type="button"
           disabled={t.disabled}
           onClick={() => { if (!t.disabled) onChange(t.id) }}
-          title={t.title}
+          title={t.title ?? t.label}
           className={cn(
             'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
             t.disabled
@@ -50,8 +53,11 @@ const TopBarTabs = ({ tabs, active, onChange, className }: TopBarTabsProps) => (
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
           )}
         >
-          {t.Icon && <t.Icon className="h-3.5 w-3.5" />}
-          {t.label}
+          {t.Icon && <t.Icon className="h-3.5 w-3.5 shrink-0" />}
+          {/* Em telas mais estreitas (até ~1536px) só a aba ATIVA mostra o texto;
+              as inativas ficam só com ícone (tooltip no hover) pra caber sem
+              barra de rolagem. Em telas largas (2xl+) todas mostram o label. */}
+          <span className={cn(!isActive && 'hidden 2xl:inline')}>{t.label}</span>
           {t.badge}
         </button>
       )

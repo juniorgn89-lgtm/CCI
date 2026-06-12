@@ -1,5 +1,5 @@
 import {
-  BarChart3, Warehouse, DollarSign, Brain, Gauge, Wallet, Receipt,
+  BarChart3, Warehouse, DollarSign, Brain, Gauge, Receipt,
   Network, LineChart, ShieldAlert, UsersRound, Fuel,
 } from 'lucide-react'
 
@@ -35,14 +35,13 @@ export const navGroups: NavGroup[] = [
       { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
       { label: 'Bombas', path: '/bombas', icon: Gauge },
       { label: 'Reabastecimento', path: '/reabastecimento', icon: Fuel },
-      { label: 'Caixas & Turnos', path: '/caixas-turnos', icon: Wallet },
+      { label: 'Fechamento de Caixa', path: '/caixas-turnos', icon: Receipt },
       { label: 'Produtividade', path: '/produtividade', icon: BarChart3 },
     ],
   },
   {
     title: 'Gestão',
     items: [
-      { label: 'Fechamentos', path: '/fechamento-caixa', icon: Receipt },
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },

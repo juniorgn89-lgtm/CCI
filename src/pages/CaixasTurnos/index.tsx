@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { Wallet, LayoutDashboard } from 'lucide-react'
+import { Wallet, LayoutDashboard, ClipboardCheck, Receipt } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -18,6 +18,12 @@ import useIsMobile from '@/hooks/useIsMobile'
 import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
 const CaixaPosto = lazy(() => import('@/pages/Operacao/components/CaixaPosto'))
+const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
+const FechamentoView = lazy(() => import('@/pages/FechamentoCaixa/components/VisaoGeral'))
+
+type CaixaTab = 'visao' | 'turnos' | 'conferencia' | 'fechamento'
+const isCaixaTab = (v: string): v is CaixaTab =>
+  v === 'visao' || v === 'turnos' || v === 'conferencia' || v === 'fechamento'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -35,15 +41,13 @@ const CaixasTurnos = () => {
     caixaResumo,
     pagamentoBreakdown,
     turnoGroups,
+    conferenciaPdv,
     apuradoPorDia,
     isLoading,
     hasEmpresa,
   } = useOperacaoData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
-  const [caixaTab, setCaixaTab] = useTabParam<'visao' | 'turnos'>(
-    'visao',
-    (v): v is 'visao' | 'turnos' => v === 'visao' || v === 'turnos',
-  )
+  const [caixaTab, setCaixaTab] = useTabParam<CaixaTab>('visao', isCaixaTab)
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useCaixasLayout()
   const isMobile = useIsMobile()
 
@@ -51,11 +55,13 @@ const CaixasTurnos = () => {
   const TAB_META: Record<string, { Icon: typeof Wallet }> = {
     visao: { Icon: LayoutDashboard },
     turnos: { Icon: Wallet },
+    conferencia: { Icon: ClipboardCheck },
+    fechamento: { Icon: Receipt },
   }
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === caixaTab)) {
-    setCaixaTab(visibleTabs[0].id as 'visao' | 'turnos')
+    setCaixaTab(visibleTabs[0].id as CaixaTab)
   }
 
   // Mobile: tela própria (abas Visão Geral + Turnos), reusa o mesmo hook.
@@ -67,15 +73,15 @@ const CaixasTurnos = () => {
         <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-              <Wallet className="h-4 w-4 text-white" />
+              <Receipt className="h-4 w-4 text-white" />
             </div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Caixas &amp; Turnos</h1>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Fechamento de Caixa</h1>
             <FocusModeToggle />
           </div>
           {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
               active={caixaTab}
-              onChange={(id) => setCaixaTab(id as 'visao' | 'turnos')}
+              onChange={(id) => setCaixaTab(id as CaixaTab)}
               tabs={visibleTabs.map((t) => ({
                 id: t.id,
                 label: t.label,
@@ -118,14 +124,20 @@ const CaixasTurnos = () => {
           <TabFallback />
         ) : (
           <Suspense fallback={<TabFallback />}>
-            <CaixaPosto
-              kpis={kpis}
-              caixaResumo={caixaResumo}
-              pagamentoBreakdown={pagamentoBreakdown}
-              turnoGroups={turnoGroups}
-              apuradoPorDia={apuradoPorDia}
-              activeTab={caixaTab}
-            />
+            {caixaTab === 'conferencia' ? (
+              <ConferenciaPdv conferencia={conferenciaPdv} />
+            ) : caixaTab === 'fechamento' ? (
+              <FechamentoView />
+            ) : (
+              <CaixaPosto
+                kpis={kpis}
+                caixaResumo={caixaResumo}
+                pagamentoBreakdown={pagamentoBreakdown}
+                turnoGroups={turnoGroups}
+                apuradoPorDia={apuradoPorDia}
+                activeTab={caixaTab}
+              />
+            )}
           </Suspense>
         )
       )}

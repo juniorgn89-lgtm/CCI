@@ -390,6 +390,11 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
+  // Diferença EXIBIDA nos Turnos = apresentado − apurado (fecha por subtração,
+  // igual à Conferência). Sem dado de apresentado, cai na diferença oficial.
+  const difGroup = (g: TurnoGroup): number =>
+    g.apresentadoTotal != null ? g.apresentadoTotal - g.apuradoTotal : g.diferencaTotal
+
   // Resumo de diferenças (apenas turnos fechados — caixa aberto não tem
   // diferença definitiva). Tolerância de cents para tratar arredondamento.
   const diferencaSummary = useMemo(() => {
@@ -403,11 +408,12 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
       if (!g.fechado) continue
       countFechados++
       apuradoFechados += g.apuradoTotal
-      if (g.diferencaTotal > 0.005) {
-        sobras += g.diferencaTotal
+      const dif = difGroup(g)
+      if (dif > 0.005) {
+        sobras += dif
         countSobra++
-      } else if (g.diferencaTotal < -0.005) {
-        faltas += g.diferencaTotal
+      } else if (dif < -0.005) {
+        faltas += dif
         countFalta++
       }
     }
@@ -981,8 +987,8 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Responsáveis</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abertura</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Fechamento</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apresentado</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Apurado</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Diferença</th>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
                 </tr>
@@ -991,7 +997,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                 {daysGroups.map((day) => {
                   const dayCollapsed = isDayCollapsed(day)
                   const dataFmt = day.data.split('-').reverse().join('/')
-                  const diferencaPositiva = day.diferencaTotal > 0.005
+                  // Diferença do dia = apresentado − apurado (consistente com as
+                  // linhas/Conferência); fallback na oficial sem apresentado.
+                  const difDia = day.apresentadoTotal != null ? day.apresentadoTotal - day.apuradoTotal : day.diferencaTotal
+                  const diferencaPositiva = difDia > 0.005
                   return (
                     <React.Fragment key={day.data}>
                       {/* Day header — banner clicável pra colapsar/expandir os turnos do dia.
@@ -1036,24 +1045,24 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             )}
                           </div>
                         </td>
-                        {/* Totalizador Apurado — alinhado à coluna Apurado */}
-                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(day.apuradoTotal)}
-                        </td>
                         {/* Totalizador Apresentado — alinhado à coluna Apresentado */}
                         <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">
                           {day.apresentadoTotal != null ? formatCurrency(day.apresentadoTotal) : '—'}
                         </td>
+                        {/* Totalizador Apurado — alinhado à coluna Apurado */}
+                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(day.apuradoTotal)}
+                        </td>
                         {/* Totalizador Diferença — alinhado à coluna Diferença */}
                         <td className="px-4 py-3 text-right">
-                          {Math.abs(day.diferencaTotal) > 0.005 ? (
+                          {Math.abs(difDia) > 0.005 ? (
                             <span className={cn(
                               'rounded-md px-2 py-1 text-xs font-semibold tabular-nums',
                               diferencaPositiva
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
                             )}>
-                              {day.diferencaTotal > 0 ? '+' : ''}{formatCurrency(day.diferencaTotal)}
+                              {difDia > 0 ? '+' : ''}{formatCurrency(difDia)}
                             </span>
                           ) : (
                             <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
@@ -1070,6 +1079,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                         const responsaveisLabel = g.responsaveis.length <= 2
                           ? g.responsaveis.join(' · ')
                           : `${g.responsaveis.slice(0, 2).join(' · ')} (+${g.responsaveis.length - 2})`
+                        const dif = difGroup(g)
 
                         return (
                           <React.Fragment key={g.groupKey}>
@@ -1109,6 +1119,9 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                         <td className="px-4 py-2.5 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                           {g.fechado ? formatIsoDateTime(g.fechamento) : 'Aberto'}
                         </td>
+                        <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                          {g.apresentadoTotal != null ? formatCurrency(g.apresentadoTotal) : '—'}
+                        </td>
                         <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                           {selectedPgto ? (
                             <>
@@ -1127,23 +1140,20 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             )
                           })()}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                          {g.apresentadoTotal != null ? formatCurrency(g.apresentadoTotal) : '—'}
-                        </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm tabular-nums',
                           selectedPgto ? 'text-gray-400'
                             : !g.fechado ? 'text-gray-400'
-                            : g.diferencaTotal > 0.005 ? 'text-green-600 dark:text-green-400'
-                            : g.diferencaTotal < -0.005 ? 'text-red-600 dark:text-red-400'
+                            : dif > 0.005 ? 'text-green-600 dark:text-green-400'
+                            : dif < -0.005 ? 'text-red-600 dark:text-red-400'
                             : 'text-gray-500'
                         )}>
                           {selectedPgto
                             ? '—'
                             : !g.fechado
                             ? '-'
-                            : Math.abs(g.diferencaTotal) > 0.005
-                            ? `${g.diferencaTotal > 0 ? '+' : ''}${formatCurrency(g.diferencaTotal)}`
+                            : Math.abs(dif) > 0.005
+                            ? `${dif > 0 ? '+' : ''}${formatCurrency(dif)}`
                             : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-center">

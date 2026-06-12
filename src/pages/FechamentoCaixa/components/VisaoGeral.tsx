@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Receipt, Banknote, CreditCard, Smartphone, Wallet,
-  DollarSign, Scale, TrendingUp, Users, AlertTriangle,
+  DollarSign, Scale, TrendingUp, Users, AlertTriangle, ChevronRight,
 } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +9,8 @@ import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
+import CartaoDetalheModal from './CartaoDetalheModal'
 import CaixaSelect, { type CaixaOption } from './CaixaSelect'
 
 /* ─── Helpers ──────────────────────────────────────────── */
@@ -60,6 +62,7 @@ const VisaoGeral = () => {
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [includeAbertos, setIncludeAbertos] = useState(false)
+  const [cartaoOpen, setCartaoOpen] = useState(false)
 
   const [prevEmpresaKey, setPrevEmpresaKey] = useState(empresaKey)
   if (prevEmpresaKey !== empresaKey) {
@@ -97,6 +100,7 @@ const VisaoGeral = () => {
         turnoCodigo: c.turnoCodigo,
         caixaLabel: `Caixa #${c.caixaCodigo}`,
         subLabel: `${c.funcionarioNome} · A: ${formatIsoTime(c.abertura)} F: ${formatIsoTime(c.fechamento)}`,
+        pdvLabel: c.pdvLabel,
         fechado: c.fechado,
         apurado: c.apurado,
         diferenca: c.diferenca,
@@ -109,6 +113,14 @@ const VisaoGeral = () => {
     [caixasFiltrados, selectedKeys],
   )
 
+  // Quebra do cartão (débito/crédito + bandeira) — busca /VENDA sob demanda.
+  const selectedCaixaCodigos = useMemo(() => selectedCaixas.map((c) => c.caixaCodigo), [selectedCaixas])
+  const pdvByCaixa = useMemo(
+    () => new Map(selectedCaixas.map((c) => [c.caixaCodigo, c.pdvLabel])),
+    [selectedCaixas],
+  )
+  const cartao = useCartaoBreakdown(selectedCaixaCodigos, pdvByCaixa, cartaoOpen)
+
   const noneSelected = selectedKeys.length === 0
 
   const agregados = useMemo(() => {
@@ -117,21 +129,33 @@ const VisaoGeral = () => {
       .filter((c) => c.fechado)
       .reduce((s, c) => s + c.diferenca, 0)
 
-    // Formas de pagamento vêm do balde do DIA inteiro (não dá pra atribuir a um
-    // caixa específico — a forma não tem caixaCodigo). Cada caixa do mesmo dia
-    // carrega o MESMO balde, então contamos uma vez POR DIA pra não duplicar
-    // quando o usuário seleciona vários caixas do mesmo dia.
+    // Formas de pagamento: preferimos o apresentado POR CAIXA
+    // (/CAIXA_APRESENTADO) — separa Pista × Loja de verdade. Sem esse dado,
+    // caímos no balde do DIA inteiro (a forma não tem caixaCodigo); aí contamos
+    // uma vez POR DIA pra não duplicar quando há vários caixas do mesmo dia.
+    const usaApresentado = selectedCaixas.some((c) => c.apresentadoFormas.length > 0)
     const pgtoMap = new Map<string, { tipo: string; nome: string; valor: number; quantidade: number }>()
-    const diasContados = new Set<string>()
-    for (const c of selectedCaixas) {
-      const dia = c.dataMovimento?.slice(0, 10) ?? String(c.caixaCodigo)
-      if (diasContados.has(dia)) continue
-      diasContados.add(dia)
-      for (const p of c.pagamentos) {
-        const prev = pgtoMap.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
-        prev.valor += p.valor
-        prev.quantidade += p.quantidade
-        pgtoMap.set(p.tipo, prev)
+    if (usaApresentado) {
+      for (const c of selectedCaixas) {
+        for (const p of c.apresentadoFormas) {
+          const prev = pgtoMap.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
+          prev.valor += p.valor
+          prev.quantidade += p.quantidade
+          pgtoMap.set(p.tipo, prev)
+        }
+      }
+    } else {
+      const diasContados = new Set<string>()
+      for (const c of selectedCaixas) {
+        const dia = c.dataMovimento?.slice(0, 10) ?? String(c.caixaCodigo)
+        if (diasContados.has(dia)) continue
+        diasContados.add(dia)
+        for (const p of c.pagamentos) {
+          const prev = pgtoMap.get(p.tipo) ?? { tipo: p.tipo, nome: p.nome, valor: 0, quantidade: 0 }
+          prev.valor += p.valor
+          prev.quantidade += p.quantidade
+          pgtoMap.set(p.tipo, prev)
+        }
       }
     }
     const pagamentos = Array.from(pgtoMap.values()).sort((a, b) => b.valor - a.valor)
@@ -315,12 +339,22 @@ const VisaoGeral = () => {
                     const pct = agregados.totalPagamentos > 0
                       ? (p.valor / agregados.totalPagamentos) * 100
                       : 0
+                    const isCartao = p.tipo.toUpperCase().includes('CARTAO') || p.nome.toUpperCase().includes('CART')
                     return (
                       <li key={p.tipo} className="px-4 py-2.5">
-                        <div className="flex items-center justify-between gap-2 text-xs">
-                          <span className="flex min-w-0 items-center gap-1.5 truncate font-medium text-gray-900 dark:text-gray-100" title={p.nome}>
+                        <div
+                          className={cn('flex items-center justify-between gap-2 text-xs', isCartao && 'cursor-pointer')}
+                          onClick={isCartao ? () => setCartaoOpen(true) : undefined}
+                          title={isCartao ? 'Ver débito/crédito por bandeira' : p.nome}
+                        >
+                          <span className="flex min-w-0 items-center gap-1.5 truncate font-medium text-gray-900 dark:text-gray-100">
                             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                             <span className="truncate">{p.nome}</span>
+                            {isCartao && (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                                detalhar <ChevronRight className="h-2.5 w-2.5" />
+                              </span>
+                            )}
                           </span>
                           <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                             {formatCurrency(p.valor)}
@@ -331,7 +365,7 @@ const VisaoGeral = () => {
                             <div className="h-full rounded-full bg-blue-500/70" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="shrink-0 text-[10px] tabular-nums text-gray-400">
-                            {formatNumber(p.quantidade)} transaç{p.quantidade === 1 ? 'ão' : 'ões'} · {pct.toFixed(0).replace('.', ',')}%
+                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(0).replace('.', ',')}%
                           </span>
                         </div>
                       </li>
@@ -432,6 +466,15 @@ const VisaoGeral = () => {
           )}
         </>
       )}
+
+      <CartaoDetalheModal
+        open={cartaoOpen}
+        onClose={() => setCartaoOpen(false)}
+        linhas={cartao.linhas}
+        total={cartao.total}
+        pdvs={cartao.pdvs}
+        isLoading={cartao.isLoading}
+      />
     </div>
   )
 }
