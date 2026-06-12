@@ -1035,10 +1035,17 @@ const useOperacaoData = () => {
     // Apresentado: usa o /CAIXA_APRESENTADO (mesma fonte dos Turnos/Conferência,
     // pra bater entre as abas); só cai nas formas planas se a rede não expõe.
     const apresentadoFromCaixa = Array.from(apresentadoByCaixa.values()).reduce((s, e) => s + e.total, 0)
+    // Diferença = apresentado − apurado por caixa fechado (fecha por subtração,
+    // igual Turnos/Conferência). Sem apresentado do caixa, cai na diferença
+    // oficial do /CAIXA.
+    const totalDiferenca = caixas.filter((c) => c.fechado).reduce((s, c) => {
+      const ap = apresentadoByCaixa.get(c.caixaCodigo)
+      return s + (ap ? ap.total - c.apurado : c.diferenca)
+    }, 0)
     const caixaResumo: CaixaResumo = {
       totalApurado: caixas.reduce((s, c) => s + c.apurado, 0),
       totalApresentado: hasApresentado ? apresentadoFromCaixa : formasPgto.reduce((s, fp) => s + fp.valorPagamento, 0),
-      totalDiferenca: caixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0),
+      totalDiferenca,
       caixasAbertos: caixas.filter((c) => !c.fechado).length,
       caixasFechados: caixas.filter((c) => c.fechado).length,
     }

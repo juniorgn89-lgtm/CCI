@@ -479,7 +479,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença de Caixa</p>
-              <CardHelp text="Soma das sobras e faltas dos caixas fechados (apurado vs. conferência física do fechamento). Vermelho = falta acumulada; âmbar = sobra. Só considera caixas fechados." />
+              <CardHelp text="Apresentado − Apurado dos caixas fechados (a mesma conta dos Turnos e da Conferência, que fecha por subtração). Vermelho = falta; âmbar = sobra. Só considera caixas fechados." />
             </div>
             <div className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg',
