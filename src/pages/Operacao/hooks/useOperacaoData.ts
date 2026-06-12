@@ -440,18 +440,22 @@ const useOperacaoData = () => {
     // Abastecimentos: prioriza cache (já filtrado por empresa em Supabase),
     // fallback live (que ainda precisa de filtro client-side porque endpoint
     // Quality não aceita empresaCodigo).
+    // Exclui aferição (teste de bomba — combustível volta pro tanque, não é
+    // venda; o relatório "Abastecimento x Cupom" do webPosto também ignora).
+    // No cache o flag vem sempre false (a apuração já filtra antes de gravar).
+    const real = (a: { afericao?: boolean }) => !a.afericao
     const abastecimentos = (abastCacheCurrent.isCacheHit
       ? abastCacheCurrent.abastecimentos
       : (abastecimentosData ?? []).filter(
           (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
         )
-    ).filter(notFuture)
+    ).filter(notFuture).filter(real)
     const abastPrev = (abastCachePrev.isCacheHit
       ? abastCachePrev.abastecimentos
       : (abastPrevData ?? []).filter(
           (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
         )
-    ).filter(notFuture)
+    ).filter(notFuture).filter(real)
     const funcionarios = funcionariosRaw?.resultados ?? []
     const bombas = bombasRaw?.resultados ?? []
     const bicos = bicosRaw?.resultados ?? []
@@ -1128,7 +1132,7 @@ const useOperacaoData = () => {
       : (abastCacheCmp.isCacheHit
           ? abastCacheCmp.abastecimentos
           : (abastCmpData ?? []).filter((a) => !empresaCodigo || a.empresaCodigo === empresaCodigo)
-        ).filter(notFuture)
+        ).filter(notFuture).filter(real)
     const cmpCaixas = !isPrevYear
       ? prevCaixas
       : (caixasCacheCmp.isCacheHit ? caixasCacheCmp.caixas : (caixasCmpRaw?.resultados ?? []))

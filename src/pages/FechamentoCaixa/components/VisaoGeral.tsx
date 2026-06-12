@@ -48,6 +48,11 @@ const ContentSkeleton = () => (
 const caixaKey = (c: { caixaCodigo: number; dataMovimento: string }) =>
   `${c.caixaCodigo}-${c.dataMovimento.substring(0, 10)}`
 
+/** Diferença exibida = apresentado − apurado (fecha por subtração, igual às
+ *  outras abas); sem apresentado do caixa, cai na diferença oficial do /CAIXA. */
+const difCaixa = (c: { apresentadoTotal: number | null; apurado: number; diferenca: number }): number =>
+  c.apresentadoTotal != null ? c.apresentadoTotal - c.apurado : c.diferenca
+
 /**
  * Aba "Visão Geral" do Fechamento de Caixa — dados reais via useOperacaoData.
  * Seletor de caixas próprio (turnoRows), KPIs agregados, formas de pagamento,
@@ -103,7 +108,7 @@ const VisaoGeral = () => {
         pdvLabel: c.pdvLabel,
         fechado: c.fechado,
         apurado: c.apurado,
-        diferenca: c.diferenca,
+        diferenca: difCaixa(c),
       })),
     [caixasFiltrados],
   )
@@ -127,7 +132,7 @@ const VisaoGeral = () => {
     const apurado = selectedCaixas.reduce((s, c) => s + c.apurado, 0)
     const diferencaFechados = selectedCaixas
       .filter((c) => c.fechado)
-      .reduce((s, c) => s + c.diferenca, 0)
+      .reduce((s, c) => s + difCaixa(c), 0)
 
     // Formas de pagamento: preferimos o apresentado POR CAIXA
     // (/CAIXA_APRESENTADO) — separa Pista × Loja de verdade. Sem esse dado,
@@ -184,8 +189,8 @@ const VisaoGeral = () => {
   const caixasComDiferenca = useMemo(
     () =>
       selectedCaixas
-        .filter((c) => c.fechado && Math.abs(c.diferenca) > 0.005)
-        .sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca)),
+        .filter((c) => c.fechado && Math.abs(difCaixa(c)) > 0.005)
+        .sort((a, b) => Math.abs(difCaixa(b)) - Math.abs(difCaixa(a))),
     [selectedCaixas],
   )
 
@@ -453,9 +458,9 @@ const VisaoGeral = () => {
                         <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.apurado)}</td>
                         <td className={cn(
                           'px-4 py-2 text-right font-semibold tabular-nums',
-                          c.diferenca > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                          difCaixa(c) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                         )}>
-                          {c.diferenca > 0 ? '+' : ''}{formatCurrency(c.diferenca)}
+                          {difCaixa(c) > 0 ? '+' : ''}{formatCurrency(difCaixa(c))}
                         </td>
                       </tr>
                     ))}

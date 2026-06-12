@@ -22,7 +22,7 @@ const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/Conferenci
 const FechamentoView = lazy(() => import('@/pages/FechamentoCaixa/components/VisaoGeral'))
 
 type CaixaTab = 'visao' | 'turnos' | 'conferencia' | 'fechamento'
-const isCaixaTab = (v: string): v is CaixaTab =>
+const isCaixaTab = (v: string | null): v is CaixaTab =>
   v === 'visao' || v === 'turnos' || v === 'conferencia' || v === 'fechamento'
 
 const TabFallback = () => (

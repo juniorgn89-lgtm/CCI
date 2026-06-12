@@ -19,6 +19,8 @@ export interface Abastecimento {
   dataHoraAbastecimento: string
   placa: string
   abastecimentoCodigo: number
+  /** Teste de bomba — não é venda; excluído da apuração. */
+  afericao?: boolean
   precoCusto?: number
 }
 

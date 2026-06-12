@@ -342,7 +342,8 @@ const Apuracao = () => {
       // aliases de produto) entra em cada abast row pra que o front dispense
       // LMC live na leitura — mesma resolução de custo da apuração diária.
       const costMap = buildCostMapFromLmc(lmc, produtos)
-      const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
+      // Exclui aferição (teste de bomba) — não é venda; alinha com o webPosto.
+      const abastRows = abast.filter((a) => !a.afericao).map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
       const caixaRows = caixas
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data

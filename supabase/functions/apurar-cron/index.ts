@@ -127,7 +127,8 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
     abastecimentos: abast, lmc, produtos, vendaItens, autorizados,
   })
   const costMap = buildCostMapFromLmc(lmc, produtos)
-  const abastRows = abast.map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
+  // Exclui aferição (teste de bomba) — não é venda; alinha com o webPosto.
+  const abastRows = abast.filter((a) => !a.afericao).map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
   const caixaRows = caixas.map((c) => caixaToCacheRow(c, rede.id)).filter((r) => !!r.data_movimento)
   const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
   const produtoInfo = buildProdutoInfo(produtos, grupos)
