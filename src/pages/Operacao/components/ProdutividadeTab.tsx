@@ -254,7 +254,7 @@ const ProdutividadeTab = ({
               </div>
             </div>
           )}
-          <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} scores={frentistaScores} />
+          <VisaoGeral frentistas={frentistas} periodInfo={periodInfo} abastecimentos={abastecimentoRows} scores={frentistaScores} />
         </div>
       )}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}

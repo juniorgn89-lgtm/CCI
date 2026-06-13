@@ -3,13 +3,17 @@ import { Target, Trophy, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown, HelpCir
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { useMetasStore } from '@/store/metas'
-import { SCORE_TOOLTIP, type FrentistaScore } from '@/lib/frentistaScore'
+import { type FrentistaScore } from '@/lib/frentistaScore'
 import BarCell from '@/components/tables/BarCell'
+import FrentistaDetalheModal from '@/pages/Operacao/components/produtividade/FrentistaDetalheModal'
 import type { FrentistaProdRow, PeriodInfo } from '@/pages/Operacao/components/ProdutividadeTab'
+import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
 interface Props {
   frentistas: FrentistaProdRow[]
   periodInfo: PeriodInfo
+  /** Abastecimentos crus do período — pro modal de detalhe por produto. */
+  abastecimentos: AbastecimentoRow[]
   /** Score 0–100 por frentista (funcionarioCodigo → score). Vazio enquanto o
    * custo (lucro bruto) ainda carrega. */
   scores?: Map<number, FrentistaScore>
@@ -30,17 +34,17 @@ type SortKey =
   | 'progresso'
 type SortDir = 'asc' | 'desc'
 
-type PrimarySort = 'score' | 'litros' | 'faturamento' | 'lucro'
+type PrimarySort = 'abastecimentos' | 'litros' | 'faturamento' | 'lucro'
 
 const PRIMARY_OPTIONS: { key: PrimarySort; label: string }[] = [
-  { key: 'score', label: 'Score' },
+  { key: 'abastecimentos', label: 'Abastec.' },
   { key: 'litros', label: 'Litros' },
   { key: 'faturamento', label: 'Faturamento' },
   { key: 'lucro', label: 'Lucro bruto' },
 ]
 
 const PRIMARY_TO_SORT_KEY: Record<PrimarySort, SortKey> = {
-  score: 'score',
+  abastecimentos: 'abastecimentos',
   litros: 'litros',
   faturamento: 'faturamento',
   lucro: 'lucroBruto',
@@ -57,21 +61,13 @@ const computeMeta = (
 // < -90%  → idem, ratio extremo mostra que comparativo não é confiável
 const isOutlierVariation = (pct: number) => pct > 150 || pct < -90
 
-const scoreBarColor = (s: number) =>
-  s >= 75 ? 'bg-green-500' : s >= 50 ? 'bg-blue-500' : s >= 25 ? 'bg-amber-500' : 'bg-red-500'
-
-const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
+const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) => {
   const { manualMode, metas: manualMetas } = useMetasStore()
-  const [primarySort, setPrimarySort] = useState<PrimarySort>('score')
-  const [sortKey, setSortKey] = useState<SortKey>('score')
+  const [primarySort, setPrimarySort] = useState<PrimarySort>('abastecimentos')
+  const [sortKey, setSortKey] = useState<SortKey>('abastecimentos')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  // Linha destacada — útil pra comparar frentistas ao analisar a tabela
-  const [selected, setSelected] = useState<number | null>(null)
-  const toggleSelected = (codigo: number) => {
-    setSelected((curr) => (curr === codigo ? null : codigo))
-  }
-
-  const scoresReady = !!scores && scores.size > 0
+  // Frentista aberto no modal de detalhe por produto.
+  const [modalFrentista, setModalFrentista] = useState<{ codigo: number; nome: string } | null>(null)
 
   const enriched = useMemo(
     () =>
@@ -339,16 +335,16 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Comparativo de Frentistas
               </h3>
-              {/* "?" — explica como o score é calculado */}
-              <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label="Como o score é calculado">
+              {/* "?" — clique numa linha abre o detalhe por produto do frentista */}
+              <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label="Como usar">
                 <HelpCircle className="h-3.5 w-3.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200" />
                 <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
-                  {SCORE_TOOLTIP}
+                  Clique num frentista pra ver o detalhe por produto (litros, preço médio, faturamento e nº de abastecimentos).
                 </span>
               </span>
             </div>
             <p className="mt-0.5 text-xs italic text-gray-400">
-              Score 0–100 ponderado · comparação de desempenho entre frentistas
+              Comparação de desempenho entre frentistas · clique pra detalhar por produto
             </p>
           </div>
           <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
@@ -374,7 +370,7 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
             <thead>
               {/* Linha de grupos — agrupa as colunas por tema */}
               <tr>
-                <th colSpan={3} className="px-4 py-1.5" />
+                <th colSpan={2} className="px-4 py-1.5" />
                 <GroupTh first label="Operação" colSpan={4} />
                 <GroupTh label="Financeiro" colSpan={2} />
                 <GroupTh label="Eficiência" colSpan={2} />
@@ -383,7 +379,6 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
               <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <Th className="w-10">#</Th>
                 <ThSort label="Frentista" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />
-                <ThSort label="Score" k="score" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('score')} align="left" width="w-[120px]" />
                 <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} />
                 <ThSort label="Automotivo" k="automotivo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('automotivo')} />
                 <ThSort label="Mix aditiv." k="mixAditivada" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('mixAditivada')} />
@@ -399,45 +394,24 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-8 text-center text-sm text-gray-400">
+                  <td colSpan={12} className="py-8 text-center text-sm text-gray-400">
                     Sem dados de frentistas no período.
                   </td>
                 </tr>
               ) : (
                 sorted.map((f, idx) => {
-                  const rowSelected = selected === f.funcionarioCodigo
                   return (
                     <tr
                       key={f.funcionarioCodigo}
-                      onClick={() => toggleSelected(f.funcionarioCodigo)}
-                      aria-selected={rowSelected}
+                      onClick={() => setModalFrentista({ codigo: f.funcionarioCodigo, nome: f.nome })}
+                      title="Ver detalhe por produto"
                       className={cn(
-                        'cursor-pointer transition-colors',
-                        rowSelected
-                          ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
-                          : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
+                        'cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                        idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30',
                       )}
                     >
                       <td className="px-4 py-2.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                       <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{f.nome}</td>
-                      {/* Score */}
-                      <td className="w-[120px] whitespace-nowrap px-4 py-2.5">
-                        {!scoresReady || f.scoreVal === null ? (
-                          <span className="text-xs text-gray-400">—</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-                              <div
-                                className={cn('h-1.5 rounded-full transition-all', scoreBarColor(f.scoreVal))}
-                                style={{ width: `${Math.min(100, Math.max(0, f.scoreVal))}%` }}
-                              />
-                            </div>
-                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                              {f.scoreVal.toFixed(0)}
-                            </span>
-                          </div>
-                        )}
-                      </td>
                       <td className="px-2 py-2.5">
                         <BarCell value={f.litros} max={colMax.litros} formatted={formatLiters(f.litros)} color="blue" align="near" />
                       </td>
@@ -512,6 +486,14 @@ const VisaoGeral = ({ frentistas, periodInfo, scores }: Props) => {
           </table>
         </div>
       </div>
+
+      <FrentistaDetalheModal
+        open={modalFrentista !== null}
+        onClose={() => setModalFrentista(null)}
+        nome={modalFrentista?.nome ?? ''}
+        codigo={modalFrentista?.codigo ?? -1}
+        abastecimentos={abastecimentos}
+      />
     </div>
   )
 }
