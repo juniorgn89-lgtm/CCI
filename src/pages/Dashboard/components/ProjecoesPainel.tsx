@@ -90,7 +90,7 @@ const ProjecoesPainel = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       <SegmentCard
         label="Combustível"
         Icon={Droplets}
@@ -136,41 +136,42 @@ const ProjecoesPainel = () => {
         secondary={{ label: 'Margem', value: fmtPct(global.margem) }}
       />
 
-      {/* Projeção — tabela compacta (extrapolação linear até fim do mês) */}
-      <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      {/* Projeção — tabela compacta (extrapolação linear até fim do mês).
+          Mais larga (2 colunas) e no gradiente navy→azul da Projeção de Vendas. */}
+      <div className="flex flex-col rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] p-5 text-left shadow-sm xl:col-span-2">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <p className="inline-flex items-center gap-1 text-sm font-semibold text-white">
               Projeção
-              <span title="Estimativa de fechamento do mês por setor: extrapolação linear do realizado (dias decorridos → dias totais do mês). É uma projeção, não o valor final." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <span title="Estimativa de fechamento do mês por setor: extrapolação linear do realizado (dias decorridos → dias totais do mês). É uma projeção, não o valor final." className="cursor-help text-white/60 hover:text-white">
                 <HelpCircle className="h-3 w-3" />
               </span>
             </p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Fim do mês</p>
+            <p className="text-[11px] text-white/70">Fim do mês</p>
           </div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-            <LineChart className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15">
+            <LineChart className="h-5 w-5 text-white" />
           </div>
         </div>
         <table className="mt-3 w-full text-[11px]">
           <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            <tr className="border-b border-white/20 text-left text-white/60">
               <th className="py-1 font-medium">Setor</th>
               <th className="py-1 text-right font-medium">Faturamento</th>
               <th className="py-1 text-right font-medium">Lucro bruto</th>
               <th className="py-1 text-right font-medium">Margem</th>
             </tr>
           </thead>
-          <tbody className="text-gray-800 dark:text-gray-200">
+          <tbody className="text-white/90">
             {projLinhas.map((r) => (
-              <tr key={r.setor} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">
+              <tr key={r.setor} className="border-b border-white/10 last:border-b-0">
                 <td className="py-1">{r.setor}</td>
                 <td className="py-1 text-right tabular-nums">{formatCurrencyInt(r.faturamento)}</td>
                 <td className="py-1 text-right tabular-nums">{formatCurrencyInt(r.lucroBruto)}</td>
                 <td className="py-1 text-right tabular-nums">{fmtPct(r.margem)}</td>
               </tr>
             ))}
-            <tr className="font-semibold text-gray-900 dark:text-gray-100">
+            <tr className="font-semibold text-white">
               <td className="pt-1.5">Total</td>
               <td className="pt-1.5 text-right tabular-nums">{formatCurrencyInt(projTotal.faturamento)}</td>
               <td className="pt-1.5 text-right tabular-nums">{formatCurrencyInt(projTotal.lucroBruto)}</td>

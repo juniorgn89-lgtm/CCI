@@ -1,6 +1,11 @@
 -- ============================================================================
 -- Apuração automática (cron diário) — agenda a Edge Function `apurar-cron`.
 -- ============================================================================
+-- ── Flag por rede pra ligar/desligar a apuração automática (toggle no admin) ─
+-- A Edge Function pula redes com apuracao_auto = false. Default true (todas as
+-- redes existentes continuam apurando automaticamente).
+alter table redes add column if not exists apuracao_auto boolean not null default true;
+
 -- A Edge Function reapura, pra cada rede ATIVA, o mês corrente (dias fechados)
 -- e — nos dias 1 a 3 — também o mês anterior. Roda no servidor, sem ninguém
 -- logado. Este SQL agenda a chamada HTTP via pg_cron + pg_net.

@@ -7,7 +7,7 @@ import {
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
-import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
+import { fetchRedes, fetchRedeApuracaoAuto, toggleRedeApuracaoAuto, type RedeRow } from '@/api/supabase/redes'
 import {
   fetchApuracaoStatusByMonth,
   upsertApuracaoDiaria,
@@ -181,6 +181,25 @@ const Apuracao = () => {
     enabled: hasAccess && !!rede,
     staleTime: 60 * 1000,
   })
+
+  // Toggle da apuração automática (cron diário) desta rede.
+  const { data: autoOn } = useQuery({
+    queryKey: ['rede-apuracao-auto', rede?.id],
+    queryFn: () => rede ? fetchRedeApuracaoAuto(rede.id) : Promise.resolve(true),
+    enabled: hasAccess && !!rede,
+    staleTime: 60 * 1000,
+  })
+  const [savingAuto, setSavingAuto] = useState(false)
+  const handleToggleAuto = async () => {
+    if (!rede || savingAuto) return
+    setSavingAuto(true)
+    try {
+      await toggleRedeApuracaoAuto(rede.id, !autoOn)
+      await queryClient.invalidateQueries({ queryKey: ['rede-apuracao-auto', rede.id] })
+    } finally {
+      setSavingAuto(false)
+    }
+  }
 
   // Resolve user_ids dos lastComputedBy → nomes (via profiles).
   const lastComputedByIds = useMemo(() => {
@@ -548,19 +567,42 @@ const Apuracao = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleApurarAno}
-          disabled={running || empresasCount === 0}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
-            running || empresasCount === 0
-              ? 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
-              : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]'
-          )}
-        >
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          Apurar ano todo
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Toggle: apuração automática (cron diário) desta rede */}
+          <button
+            onClick={handleToggleAuto}
+            disabled={savingAuto}
+            title="Liga/desliga a apuração automática diária (cron) desta rede. Não dispara agora — só controla se roda sozinha."
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <span className={cn(
+              'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+              autoOn ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600',
+            )}>
+              <span className={cn(
+                'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                autoOn ? 'translate-x-3.5' : 'translate-x-0.5',
+              )} />
+            </span>
+            <span className="font-medium">Apuração automática</span>
+            <span className={cn('text-xs font-semibold', autoOn ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
+              {savingAuto ? '…' : autoOn ? 'Ligada' : 'Desligada'}
+            </span>
+          </button>
+          <button
+            onClick={handleApurarAno}
+            disabled={running || empresasCount === 0}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+              running || empresasCount === 0
+                ? 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
+                : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]'
+            )}
+          >
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            Apurar ano todo
+          </button>
+        </div>
       </div>
 
       {/* Year selector */}

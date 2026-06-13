@@ -9,6 +9,8 @@ export interface RedeRow {
   chave: string
   api_base_url: string
   ativo: boolean
+  /** Apuração automática (cron diário) ligada pra esta rede. Default true. */
+  apuracao_auto?: boolean
   created_at: string
   updated_at: string
   /* ─── Assistente IA · configuração por rede (migration: supabase-assistente-config.sql) ─── */
@@ -84,6 +86,7 @@ interface UpdateRedeInput {
   chave?: string
   api_base_url?: string
   ativo?: boolean
+  apuracao_auto?: boolean
   assistente_habilitado?: boolean
   assistente_tier?: AssistenteTier
   assistente_limite_mensal_usd?: number | null
@@ -124,6 +127,18 @@ export const updateRede = async (id: string, patch: UpdateRedeInput): Promise<vo
 
 export const toggleRedeAtivo = (id: string, ativo: boolean) =>
   updateRede(id, { ativo })
+
+/** Liga/desliga a apuração automática (cron diário) de uma rede. */
+export const toggleRedeApuracaoAuto = (id: string, apuracao_auto: boolean) =>
+  updateRede(id, { apuracao_auto })
+
+/** Lê só a flag de apuração automática da rede (default true se a coluna for null). */
+export const fetchRedeApuracaoAuto = async (id: string): Promise<boolean> => {
+  if (!supabase) return true
+  const { data, error } = await supabase.from('redes').select('apuracao_auto').eq('id', id).single()
+  if (error) return true
+  return (data as { apuracao_auto?: boolean } | null)?.apuracao_auto ?? true
+}
 
 /**
  * Exclui uma rede do sistema. Operação irreversível.

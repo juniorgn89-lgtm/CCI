@@ -41,7 +41,7 @@ const addDays = (dateStr: string, n: number): string => {
 // custo vigente sem o peso de baixar meses de LMC numa Edge Function.
 const lmcLookbackStart = (startStr: string): string => addDays(startStr, -45)
 
-interface Rede { id: string; nome: string; chave: string; api_base_url: string }
+interface Rede { id: string; nome: string; chave: string; api_base_url: string; apuracao_auto?: boolean }
 interface Target { start: string; end: string }
 
 /**
@@ -176,13 +176,15 @@ Deno.serve(async (req) => {
     : targetsForToday(today)
 
   const { data: redes, error: redesErr } = await supa
-    .from('redes').select('id, nome, chave, api_base_url, ativo').eq('ativo', true)
+    .from('redes').select('id, nome, chave, api_base_url, ativo, apuracao_auto').eq('ativo', true)
   if (redesErr) {
     return new Response(JSON.stringify({ error: redesErr.message }), { status: 500, headers: { 'content-type': 'application/json' } })
   }
 
   const summary: Record<string, unknown>[] = []
   for (const rede of (redes ?? []) as Rede[]) {
+    // Apuração automática desligada pra esta rede (toggle no admin) — pula.
+    if (rede.apuracao_auto === false) { summary.push({ rede: rede.nome, skipped: 'apuração automática desligada' }); continue }
     try {
       const empresas = await fetchEmpresas({ baseURL: rede.api_base_url, chave: rede.chave })
       const empresaCodes = empresas.map((e) => e.codigo).filter((c) => c > 0)
