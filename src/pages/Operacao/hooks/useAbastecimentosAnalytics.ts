@@ -159,9 +159,14 @@ export interface ProjectionMeta {
 }
 
 const useAbastecimentosAnalytics = () => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const empresaCodigoSingle = empresaCodigos.length === 1 ? empresaCodigos[0] : null
+  // Critério de data dos abastecimentos (Abast./Fiscal/Movimento). Igual ao
+  // useOperacaoData: cache só vale no modo FISCAL; nos demais busca live com
+  // o tipoData certo. Mantém as colunas da Produtividade no mesmo critério.
+  const abastTipoData = abastDateMode === 'FISCAL' ? 'FISCAL' : abastDateMode === 'MOVIMENTO' ? 'MOVIMENTO' : undefined
+  const cacheActive = abastDateMode === 'FISCAL'
 
   // Período de comparação honra o toggle global (vs mês ant. / vs ano ant.).
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
@@ -202,19 +207,19 @@ const useAbastecimentosAnalytics = () => {
     empresasPermitidasCount,
   })
 
-  // Current period — live só quando cache MISS.
+  // Current period — live só quando cache MISS (ou fora do modo FISCAL).
   const { data: abastLive = [], isLoading: isLoadingAbastLive } = useQuery({
-    queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: !abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking,
+    queryKey: ['abastecimentos', dataInicial, dataFinal, abastDateMode],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal, tipoData: abastTipoData }),
+    enabled: !cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking),
     placeholderData: keepPreviousData,
   })
 
   // Mês anterior — mesmo padrão.
   const { data: prevMonthLive = [] } = useQuery({
-    queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal }),
-    enabled: !abastCachePrev.isCacheHit && !abastCachePrev.isChecking,
+    queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal, abastDateMode],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, tipoData: abastTipoData }),
+    enabled: !cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking),
     retry: false,
   })
 
@@ -256,8 +261,8 @@ const useAbastecimentosAnalytics = () => {
 
   // Fontes "efetivas": cache quando HIT, live caso contrário. Padrão idêntico
   // ao useOperacaoData — mantém comportamento legado em MISS (sem regressão).
-  const abastecimentos = abastCacheCurrent.isCacheHit ? abastCacheCurrent.abastecimentos : abastLive
-  const prevMonthAbast = abastCachePrev.isCacheHit ? abastCachePrev.abastecimentos : prevMonthLive
+  const abastecimentos = cacheActive && abastCacheCurrent.isCacheHit ? abastCacheCurrent.abastecimentos : abastLive
+  const prevMonthAbast = cacheActive && abastCachePrev.isCacheHit ? abastCachePrev.abastecimentos : prevMonthLive
   // evolutionAbast saiu — substituído por `evolutionDaily` (ApuracaoDiariaRow[])
   // que é consumido direto no agregado mensal.
 
@@ -268,6 +273,7 @@ const useAbastecimentosAnalytics = () => {
   // 5s pelo LMC). Quando NADA tem preco_custo (rows antigas de antes da
   // migration), cai pro LMC live como antes.
   const cacheHasCostEmbedded =
+    cacheActive &&
     abastCacheCurrent.isCacheHit &&
     abastCacheCurrent.abastecimentos.length > 0 &&
     abastCacheCurrent.abastecimentos.some((a) => typeof a.precoCusto === 'number' && a.precoCusto > 0)
@@ -286,7 +292,7 @@ const useAbastecimentosAnalytics = () => {
     // Só dispara LMC DEPOIS que a checagem do cache terminou — evita
     // fetch redundante enquanto isChecking=true e abastecimentos=[].
     // Cancela quando descobrimos que o cache tem custo embutido.
-    enabled: !abastCacheCurrent.isChecking && !cacheHasCostEmbedded,
+    enabled: (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
 
@@ -328,8 +334,8 @@ const useAbastecimentosAnalytics = () => {
   // isLoading: aguarda probes de cache + LMC + live current (quando cache MISS).
   // Quando cache HIT, isLoadingAbastLive sempre é false (query enabled=false).
   const isLoading =
-    abastCacheCurrent.isChecking ||
-    (isLoadingAbastLive && !abastCacheCurrent.isCacheHit) ||
+    (cacheActive && abastCacheCurrent.isChecking) ||
+    (isLoadingAbastLive && !(cacheActive && abastCacheCurrent.isCacheHit)) ||
     isLoadingEvolution ||
     isLoadingLmc
     // abastCachePrev removido do gate — UI renderiza com o atual pronto e

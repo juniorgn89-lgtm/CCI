@@ -90,3 +90,17 @@ using (
     select rede_id from public.frentistas where user_id = auth.uid()
   )
 );
+
+-- ── apuracao_vendas_funcionario ──
+drop policy if exists "apuracao_vendas_func delete" on public.apuracao_vendas_funcionario;
+create policy "apuracao_vendas_func delete"
+on public.apuracao_vendas_funcionario for delete
+to authenticated
+using (
+  public.is_current_user_master()
+  or rede_id in (
+    select rede_id from public.profiles where user_id = auth.uid()
+    union
+    select rede_id from public.frentistas where user_id = auth.uid()
+  )
+);

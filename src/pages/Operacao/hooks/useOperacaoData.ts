@@ -233,10 +233,16 @@ const offsetMonths = (dateStr: string, monthsBack: number): string => {
 /* ── Hook ────────────────────────────────────────────────── */
 
 const useOperacaoData = () => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const isPrevYear = comparisonMode === 'prevYear'
+  // Critério de data dos abastecimentos (espelha Abast./Fiscal/Movimento do
+  // webPosto). 'ABAST' = default da API (omite tipoData). O cache do Supabase é
+  // gravado/lido por data fiscal — então só serve no modo FISCAL; nos demais
+  // modos buscamos live com o tipoData certo (bate com o webPosto).
+  const abastTipoData = abastDateMode === 'FISCAL' ? 'FISCAL' : abastDateMode === 'MOVIMENTO' ? 'MOVIMENTO' : undefined
+  const cacheActive = abastDateMode === 'FISCAL'
   // Captura "agora" uma vez por mount (lazy init) — usado pra filtrar
   // abastecimentos com data futura e pra fechamentoTs de caixas abertos.
   // Date.now() não pode ser chamado direto no render (regra de pureza).
@@ -290,17 +296,17 @@ const useOperacaoData = () => {
   // Live só quando o cache MISS (período não apurado ainda OU mês corrente
   // sem dias fechados suficientes).
   const { data: abastecimentosData, isLoading: l1 } = useQuery({
-    queryKey: ['abastecimentos', dataInicial, dataFinal],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
-    enabled: hasEmpresa && !abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking,
+    queryKey: ['abastecimentos', dataInicial, dataFinal, abastDateMode],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal, tipoData: abastTipoData }),
+    enabled: hasEmpresa && (!cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking)),
     staleTime: 5 * 60 * 1000,
   })
 
   // Abastecimentos — previous period (for DeltaBadge variation)
   const { data: abastPrevData } = useQuery({
-    queryKey: ['abastecimentos', prev.inicial, prev.final],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prev.inicial, dataFinal: prev.final }),
-    enabled: hasEmpresa && !!prev.inicial && !!prev.final && !abastCachePrev.isCacheHit && !abastCachePrev.isChecking,
+    queryKey: ['abastecimentos', prev.inicial, prev.final, abastDateMode],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: prev.inicial, dataFinal: prev.final, tipoData: abastTipoData }),
+    enabled: hasEmpresa && !!prev.inicial && !!prev.final && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -321,9 +327,9 @@ const useOperacaoData = () => {
   // Abastecimentos + caixas do período comparativo — só fetcham quando 'vs ano ant.'
   // (no modo 'mês ant.' o cmp coincide com o prev e reaproveitamos aqueles dados).
   const { data: abastCmpData } = useQuery({
-    queryKey: ['abastecimentos', cmp.inicial, cmp.final],
-    queryFn: () => fetchAbastecimentosChunked({ dataInicial: cmp.inicial, dataFinal: cmp.final }),
-    enabled: hasEmpresa && isPrevYear && !!cmp.inicial && !!cmp.final && !abastCacheCmp.isCacheHit && !abastCacheCmp.isChecking,
+    queryKey: ['abastecimentos', cmp.inicial, cmp.final, abastDateMode],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial: cmp.inicial, dataFinal: cmp.final, tipoData: abastTipoData }),
+    enabled: hasEmpresa && isPrevYear && !!cmp.inicial && !!cmp.final && (!cacheActive || (!abastCacheCmp.isCacheHit && !abastCacheCmp.isChecking)),
     staleTime: 5 * 60 * 1000,
   })
   const { data: caixasCmpRaw } = useQuery({
@@ -416,8 +422,8 @@ const useOperacaoData = () => {
   // Períodos `prev` (abast + caixas) NÃO entram no gate — UI renderiza
   // com dados correntes prontos; delta badges enchem quando o prev chegar.
   const isLoading =
-    (l1 && !abastCacheCurrent.isCacheHit) ||
-    abastCacheCurrent.isChecking ||
+    (l1 && !(cacheActive && abastCacheCurrent.isCacheHit)) ||
+    (cacheActive && abastCacheCurrent.isChecking) ||
     caixasCacheCurrent.isChecking ||
     l2 || l3 || l4 || l5 ||
     (l6 && !caixasCacheCurrent.isCacheHit) ||
@@ -444,13 +450,15 @@ const useOperacaoData = () => {
     // venda; o relatório "Abastecimento x Cupom" do webPosto também ignora).
     // No cache o flag vem sempre false (a apuração já filtra antes de gravar).
     const real = (a: { afericao?: boolean }) => !a.afericao
-    const abastecimentos = (abastCacheCurrent.isCacheHit
+    // Cache só vale no modo FISCAL (gravado por data fiscal). Fora dele, usa o
+    // live já buscado com o tipoData certo.
+    const abastecimentos = (cacheActive && abastCacheCurrent.isCacheHit
       ? abastCacheCurrent.abastecimentos
       : (abastecimentosData ?? []).filter(
           (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
         )
     ).filter(notFuture).filter(real)
-    const abastPrev = (abastCachePrev.isCacheHit
+    const abastPrev = (cacheActive && abastCachePrev.isCacheHit
       ? abastCachePrev.abastecimentos
       : (abastPrevData ?? []).filter(
           (a) => !empresaCodigo || a.empresaCodigo === empresaCodigo
@@ -1129,7 +1137,7 @@ const useOperacaoData = () => {
     // 'prevMonth' reaproveita os números do prev; 'prevYear' usa o período 12m atrás.
     const abastCmp = !isPrevYear
       ? abastPrev
-      : (abastCacheCmp.isCacheHit
+      : (cacheActive && abastCacheCmp.isCacheHit
           ? abastCacheCmp.abastecimentos
           : (abastCmpData ?? []).filter((a) => !empresaCodigo || a.empresaCodigo === empresaCodigo)
         ).filter(notFuture).filter(real)
@@ -1215,14 +1223,15 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
+  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,
     isLoading,
     hasEmpresa,
     // "Instantâneo": dados vieram do snapshot mensal (abastecimentos + caixas).
-    isCacheHit: abastCacheCurrent.isCacheHit && caixasCacheCurrent.isCacheHit,
+    // Fora do modo FISCAL o abast vem live, então não é snapshot.
+    isCacheHit: cacheActive && abastCacheCurrent.isCacheHit && caixasCacheCurrent.isCacheHit,
   }
 }
 

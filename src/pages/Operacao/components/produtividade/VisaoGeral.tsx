@@ -8,12 +8,15 @@ import BarCell from '@/components/tables/BarCell'
 import FrentistaDetalheModal from '@/pages/Operacao/components/produtividade/FrentistaDetalheModal'
 import type { FrentistaProdRow, PeriodInfo } from '@/pages/Operacao/components/ProdutividadeTab'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
+import type { AbastecimentoRow as AbastecimentoComCusto } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 interface Props {
   frentistas: FrentistaProdRow[]
   periodInfo: PeriodInfo
   /** Abastecimentos crus do período — pro modal de detalhe por produto. */
   abastecimentos: AbastecimentoRow[]
+  /** Linhas com custo/lucro (analytics) — alimentam o Lucro bruto por dia. */
+  abastComCusto?: AbastecimentoComCusto[]
   /** Score 0–100 por frentista (funcionarioCodigo → score). Vazio enquanto o
    * custo (lucro bruto) ainda carrega. */
   scores?: Map<number, FrentistaScore>
@@ -56,12 +59,57 @@ const computeMeta = (
   manualMetas: Record<number, number>,
 ): number => (manualMode ? manualMetas[f.funcionarioCodigo] ?? 0 : f.prevLitros)
 
-// Variações fora desse range indicam ausência de histórico real no mês anterior:
-// > 150%  → mês anterior teve volume insignificante; frentista é virtualmente "novo"
-// < -90%  → idem, ratio extremo mostra que comparativo não é confiável
-const isOutlierVariation = (pct: number) => pct > 150 || pct < -90
+// ── Day-grouped helpers (tabela em seções por dia, igual ao webPosto) ──
+const upper = (s: string) => (s ?? '').toUpperCase()
+const isAutomotivo = (n: string): boolean => {
+  const u = upper(n)
+  return u.includes('GASOLINA') || u.includes('ETANOL') || u.includes('ALCOOL') || u.includes('ÁLCOOL') ||
+    u.includes('DIESEL') || u.includes('S-10') || u.includes('S10') || u.includes('S500')
+}
+const isGasolina = (n: string) => upper(n).includes('GASOLINA')
+const isAditivada = (n: string) => upper(n).includes('ADITIVADA')
 
-const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) => {
+/** 'yyyy-MM-dd' → 'dd/MM/yyyy'. */
+const formatDia = (iso: string): string => {
+  const [y, m, d] = iso.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
+}
+
+interface DiaFrentistaRow {
+  codigo: number
+  nome: string
+  litros: number
+  automotivo: number
+  mixAditivadaPct: number
+  abastecimentos: number
+  faturamento: number
+  lucroBruto: number | null
+  ticketMedio: number
+  ticketMedioAutomotivo: number
+}
+
+const compareDiaRow = (a: DiaFrentistaRow, b: DiaFrentistaRow, key: SortKey, dir: SortDir): number => {
+  let av: number | string = 0
+  let bv: number | string = 0
+  switch (key) {
+    case 'nome': av = a.nome; bv = b.nome; break
+    case 'litros': av = a.litros; bv = b.litros; break
+    case 'automotivo': av = a.automotivo; bv = b.automotivo; break
+    case 'mixAditivada': av = a.mixAditivadaPct; bv = b.mixAditivadaPct; break
+    case 'abastecimentos': av = a.abastecimentos; bv = b.abastecimentos; break
+    case 'faturamento': av = a.faturamento; bv = b.faturamento; break
+    case 'lucroBruto': av = a.lucroBruto ?? -Infinity; bv = b.lucroBruto ?? -Infinity; break
+    case 'ticketMedio': av = a.ticketMedio; bv = b.ticketMedio; break
+    case 'ticketMedioAutomotivo': av = a.ticketMedioAutomotivo; bv = b.ticketMedioAutomotivo; break
+    default: av = a.abastecimentos; bv = b.abastecimentos
+  }
+  if (typeof av === 'string' && typeof bv === 'string') {
+    return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+  }
+  return dir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number)
+}
+
+const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, abastComCusto, scores }: Props) => {
   const { manualMode, metas: manualMetas } = useMetasStore()
   const [primarySort, setPrimarySort] = useState<PrimarySort>('abastecimentos')
   const [sortKey, setSortKey] = useState<SortKey>('abastecimentos')
@@ -99,86 +147,97 @@ const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) =
     setSortDir('desc')
   }
 
-  const sorted = useMemo(() => {
-    const arr = [...enriched]
-    arr.sort((a, b) => {
-      // Ao ordenar por progresso, frentistas sem meta (Novo) sempre ficam no fim
-      if (sortKey === 'progresso') {
-        const aNoMeta = a.meta === 0
-        const bNoMeta = b.meta === 0
-        if (aNoMeta && !bNoMeta) return 1
-        if (!aNoMeta && bNoMeta) return -1
-      }
-      let av: number | string = 0
-      let bv: number | string = 0
-      switch (sortKey) {
-        case 'nome':
-          av = a.nome
-          bv = b.nome
-          break
-        case 'score':
-          av = a.scoreVal ?? -Infinity
-          bv = b.scoreVal ?? -Infinity
-          break
-        case 'litros':
-          av = a.litros
-          bv = b.litros
-          break
-        case 'automotivo':
-          av = a.automotivo
-          bv = b.automotivo
-          break
-        case 'mixAditivada':
-          av = a.mixAditivadaPct
-          bv = b.mixAditivadaPct
-          break
-        case 'abastecimentos':
-          av = a.abastecimentos
-          bv = b.abastecimentos
-          break
-        case 'faturamento':
-          av = a.faturamento
-          bv = b.faturamento
-          break
-        case 'lucroBruto':
-          av = a.lucroBruto ?? -Infinity
-          bv = b.lucroBruto ?? -Infinity
-          break
-        case 'ticketMedio':
-          av = a.ticketMedioVal
-          bv = b.ticketMedioVal
-          break
-        case 'ticketMedioAutomotivo':
-          av = a.ticketMedioAutomotivo
-          bv = b.ticketMedioAutomotivo
-          break
-        case 'variacao':
-          av = a.varLitrosPct
-          bv = b.varLitrosPct
-          break
-        case 'progresso':
-          av = a.progresso
-          bv = b.progresso
-          break
-      }
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      }
-      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number)
-    })
-    return arr
-  }, [enriched, sortKey, sortDir])
+  // Linhas por (dia × frentista), agrupadas em seções por dia (igual ao
+  // relatório de Abastecimento do webPosto). Base (litros/fat/abast/automotivo/
+  // mix/tickets) vem das linhas da operação; o Lucro bruto vem do analytics
+  // (que tem custo) — "—" enquanto o custo carrega. Agrupa pela data do
+  // abastecimento (dataHora), como o webPosto faz na exibição.
+  const dias = useMemo(() => {
+    const lucroHasData = (abastComCusto?.length ?? 0) > 0
+    const lucroMap = new Map<string, number>()
+    for (const r of abastComCusto ?? []) {
+      if (r.precoCusto <= 0) continue
+      const key = `${(r.dataHora || '').slice(0, 10)}|${r.frentistaCodigo}`
+      lucroMap.set(key, (lucroMap.get(key) ?? 0) + r.lucroBruto)
+    }
 
-  // Máximos por coluna pra escala das barras (data bars).
-  const colMax = useMemo(() => ({
-    litros: Math.max(...enriched.map((f) => f.litros), 0),
-    automotivo: Math.max(...enriched.map((f) => f.automotivo), 0),
-    abastecimentos: Math.max(...enriched.map((f) => f.abastecimentos), 0),
-    faturamento: Math.max(...enriched.map((f) => f.faturamento), 0),
-    lucroBruto: Math.max(...enriched.map((f) => f.lucroBruto ?? 0), 0),
-    ticketMedio: Math.max(...enriched.map((f) => f.ticketMedioVal), 0),
-    ticketAut: Math.max(...enriched.map((f) => f.ticketMedioAutomotivo), 0),
-  }), [enriched])
+    interface Acc {
+      codigo: number; nome: string
+      litros: number; automotivo: number; gasolina: number; aditivada: number
+      abast: number; fat: number; fatAuto: number; abastAuto: number
+    }
+    const perDay = new Map<string, Map<number, Acc>>()
+    for (const a of abastecimentos) {
+      const dia = (a.dataHora || '').slice(0, 10)
+      if (dia.length !== 10) continue
+      const m = perDay.get(dia) ?? new Map<number, Acc>()
+      const acc = m.get(a.frentistaCodigo) ?? {
+        codigo: a.frentistaCodigo, nome: a.frentistaNome,
+        litros: 0, automotivo: 0, gasolina: 0, aditivada: 0, abast: 0, fat: 0, fatAuto: 0, abastAuto: 0,
+      }
+      const auto = isAutomotivo(a.produtoNome)
+      acc.litros += a.litros
+      acc.abast += 1
+      acc.fat += a.valorTotal
+      if (auto) { acc.automotivo += a.litros; acc.fatAuto += a.valorTotal; acc.abastAuto += 1 }
+      if (isGasolina(a.produtoNome)) { acc.gasolina += a.litros; if (isAditivada(a.produtoNome)) acc.aditivada += a.litros }
+      m.set(a.frentistaCodigo, acc)
+      perDay.set(dia, m)
+    }
+
+    return Array.from(perDay.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([dia, m]) => {
+        const accs = Array.from(m.values())
+        const linhas: DiaFrentistaRow[] = accs.map((acc) => ({
+          codigo: acc.codigo,
+          nome: acc.nome,
+          litros: acc.litros,
+          automotivo: acc.automotivo,
+          mixAditivadaPct: acc.gasolina > 0 ? (acc.aditivada / acc.gasolina) * 100 : 0,
+          abastecimentos: acc.abast,
+          faturamento: acc.fat,
+          lucroBruto: lucroHasData ? (lucroMap.get(`${dia}|${acc.codigo}`) ?? 0) : null,
+          ticketMedio: acc.abast > 0 ? acc.fat / acc.abast : 0,
+          ticketMedioAutomotivo: acc.abastAuto > 0 ? acc.fatAuto / acc.abastAuto : 0,
+        }))
+        linhas.sort((a, b) => compareDiaRow(a, b, sortKey, sortDir))
+
+        const totGas = accs.reduce((s, a) => s + a.gasolina, 0)
+        const totAdit = accs.reduce((s, a) => s + a.aditivada, 0)
+        const totFatAuto = accs.reduce((s, a) => s + a.fatAuto, 0)
+        const totAbastAuto = accs.reduce((s, a) => s + a.abastAuto, 0)
+        const totAbast = linhas.reduce((s, l) => s + l.abastecimentos, 0)
+        const totFat = linhas.reduce((s, l) => s + l.faturamento, 0)
+        const subtotal: DiaFrentistaRow = {
+          codigo: -1,
+          nome: `Subtotal ${formatDia(dia)}`,
+          litros: linhas.reduce((s, l) => s + l.litros, 0),
+          automotivo: linhas.reduce((s, l) => s + l.automotivo, 0),
+          mixAditivadaPct: totGas > 0 ? (totAdit / totGas) * 100 : 0,
+          abastecimentos: totAbast,
+          faturamento: totFat,
+          lucroBruto: lucroHasData ? linhas.reduce((s, l) => s + (l.lucroBruto ?? 0), 0) : null,
+          ticketMedio: totAbast > 0 ? totFat / totAbast : 0,
+          ticketMedioAutomotivo: totAbastAuto > 0 ? totFatAuto / totAbastAuto : 0,
+        }
+        return { dia, linhas, subtotal }
+      })
+  }, [abastecimentos, abastComCusto, sortKey, sortDir])
+
+  // Máximos por coluna pra escala das barras (data bars) — sobre todas as linhas.
+  const colMax = useMemo(() => {
+    const all = dias.flatMap((d) => d.linhas)
+    return {
+      litros: Math.max(...all.map((f) => f.litros), 0),
+      automotivo: Math.max(...all.map((f) => f.automotivo), 0),
+      abastecimentos: Math.max(...all.map((f) => f.abastecimentos), 0),
+      faturamento: Math.max(...all.map((f) => f.faturamento), 0),
+      lucroBruto: Math.max(...all.map((f) => f.lucroBruto ?? 0), 0),
+      ticketMedio: Math.max(...all.map((f) => f.ticketMedio), 0),
+      ticketAut: Math.max(...all.map((f) => f.ticketMedioAutomotivo), 0),
+    }
+  }, [dias])
 
   const handleColumnSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -370,11 +429,10 @@ const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) =
             <thead>
               {/* Linha de grupos — agrupa as colunas por tema */}
               <tr>
-                <th colSpan={2} className="px-4 py-1.5" />
+                <th colSpan={2} className="bg-gray-100/60 px-4 py-1.5 dark:bg-gray-800/60" />
                 <GroupTh first label="Operação" colSpan={4} />
                 <GroupTh label="Financeiro" colSpan={2} />
                 <GroupTh label="Eficiência" colSpan={2} />
-                <GroupTh label="Comparativo" colSpan={2} />
               </tr>
               <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <Th className="w-10">#</Th>
@@ -387,23 +445,29 @@ const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) =
                 <ThSort label="Lucro bruto" k="lucroBruto" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('lucroBruto')} />
                 <ThSort label="Ticket méd." k="ticketMedio" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedio')} groupStart />
                 <ThSort label="Ticket aut." k="ticketMedioAutomotivo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedioAutomotivo')} />
-                <ThSort label="vs. Mês Ant." k="variacao" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('variacao')} groupStart />
-                <ThSort label="Progresso" k="progresso" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('progresso')} align="left" width="w-[120px]" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {sorted.length === 0 ? (
+            {dias.length === 0 ? (
+              <tbody>
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="py-8 text-center text-sm text-gray-400">
                     Sem dados de frentistas no período.
                   </td>
                 </tr>
-              ) : (
-                sorted.map((f, idx) => {
-                  return (
+              </tbody>
+            ) : (
+              dias.map((d) => (
+                <tbody key={d.dia} className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {/* Cabeçalho de dia (igual ao bloco de data do webPosto) */}
+                  <tr className="bg-gray-100/70 dark:bg-gray-800/60">
+                    <td colSpan={10} className="px-4 py-1.5 text-xs font-semibold tabular-nums text-gray-600 dark:text-gray-300">
+                      {formatDia(d.dia)}
+                    </td>
+                  </tr>
+                  {d.linhas.map((f, idx) => (
                     <tr
-                      key={f.funcionarioCodigo}
-                      onClick={() => setModalFrentista({ codigo: f.funcionarioCodigo, nome: f.nome })}
+                      key={`${d.dia}-${f.codigo}`}
+                      onClick={() => setModalFrentista({ codigo: f.codigo, nome: f.nome })}
                       title="Ver detalhe por produto"
                       className={cn(
                         'cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40',
@@ -433,56 +497,33 @@ const VisaoGeral = ({ frentistas, periodInfo, abastecimentos, scores }: Props) =
                           : <BarCell value={f.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />}
                       </td>
                       <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
-                        <BarCell value={f.ticketMedioVal} max={colMax.ticketMedio} formatted={formatCurrency(f.ticketMedioVal)} color="amber" align="near" />
+                        <BarCell value={f.ticketMedio} max={colMax.ticketMedio} formatted={formatCurrency(f.ticketMedio)} color="amber" align="near" />
                       </td>
                       <td className="px-2 py-2.5">
                         {f.ticketMedioAutomotivo > 0
                           ? <BarCell value={f.ticketMedioAutomotivo} max={colMax.ticketAut} formatted={formatCurrency(f.ticketMedioAutomotivo)} color="amber" align="near" />
                           : <div className="text-right text-sm text-gray-400">—</div>}
                       </td>
-                      <td className={cn(
-                        'border-l border-gray-200 px-4 py-2.5 text-right text-sm font-medium tabular-nums dark:border-gray-700',
-                        !f.hasPrev || isOutlierVariation(f.varLitrosPct)
-                          ? 'text-gray-400'
-                          : f.varLitrosPct >= 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}>
-                        {!f.hasPrev || isOutlierVariation(f.varLitrosPct) ? (
-                          <span
-                            className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-normal text-blue-700 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-400"
-                            style={{ fontSize: '11px' }}
-                            title="Sem histórico no mês anterior"
-                          >
-                            Novo frentista
-                          </span>
-                        ) : (
-                          `${f.varLitrosPct >= 0 ? '+' : ''}${f.varLitrosPct.toFixed(0)}%`
-                        )}
-                      </td>
-                      <td className="w-[120px] whitespace-nowrap px-4 py-2.5">
-                        {f.meta === 0 ? (
-                          <span className="text-xs text-gray-400">—</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-                              <div
-                                className={cn(
-                                  'h-1.5 rounded-full transition-all',
-                                  f.progresso >= 1 ? 'bg-green-500' : f.progresso >= 0.6 ? 'bg-blue-500' : 'bg-amber-500'
-                                )}
-                                style={{ width: `${Math.min(100, f.progresso * 100)}%` }}
-                              />
-                            </div>
-                            <span className="shrink-0 text-[10px] tabular-nums text-gray-500">{(f.progresso * 100).toFixed(0)}%</span>
-                          </div>
-                        )}
-                      </td>
                     </tr>
-                  )
-                })
-              )}
-            </tbody>
+                  ))}
+                  {/* Subtotal do dia — só quando há mais de um frentista no dia. */}
+                  {d.linhas.length > 1 && (
+                    <tr className="bg-gray-50/80 text-xs font-semibold text-gray-600 dark:bg-gray-800/40 dark:text-gray-300">
+                      <td className="px-4 py-2" />
+                      <td className="px-4 py-2">{d.subtotal.nome}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{formatLiters(d.subtotal.litros)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{formatLiters(d.subtotal.automotivo)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.subtotal.mixAditivadaPct > 0 ? `${d.subtotal.mixAditivadaPct.toFixed(0)}%` : '—'}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{formatNumber(d.subtotal.abastecimentos)}</td>
+                      <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums dark:border-gray-700">{formatCurrency(d.subtotal.faturamento)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.subtotal.lucroBruto === null ? '—' : formatCurrency(d.subtotal.lucroBruto)}</td>
+                      <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums dark:border-gray-700">{formatCurrency(d.subtotal.ticketMedio)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.subtotal.ticketMedioAutomotivo > 0 ? formatCurrency(d.subtotal.ticketMedioAutomotivo) : '—'}</td>
+                    </tr>
+                  )}
+                </tbody>
+              ))
+            )}
           </table>
         </div>
       </div>

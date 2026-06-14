@@ -11,6 +11,7 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { useProdutividadeLayout } from '@/store/moduleLayout'
+import { useFilterStore, type AbastDateMode } from '@/store/filters'
 import { subTabs, type SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
@@ -72,6 +73,9 @@ const Produtividade = () => {
   }
   // Alternador: Frentistas (combustível) × Vendedores (conveniência).
   const [modo, setModo] = useState<'frentistas' | 'vendedores'>('frentistas')
+  // Critério de data dos abastecimentos — espelha Abast./Fiscal/Movimento do webPosto.
+  const abastDateMode = useFilterStore((s) => s.abastDateMode)
+  const setAbastDateMode = useFilterStore((s) => s.setAbastDateMode)
 
   // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
   // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
@@ -145,6 +149,33 @@ const Produtividade = () => {
             </div>
           )}
 
+          {/* Critério de data dos abastecimentos (igual ao webPosto). Só no modo
+              Frentistas — Vendedores é conveniência, não usa abastecimento. */}
+          {hasEmpresa && modo === 'frentistas' && (
+            <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+              {([
+                { id: 'ABAST', label: 'Abast.' },
+                { id: 'FISCAL', label: 'Fiscal' },
+                { id: 'MOVIMENTO', label: 'Movimento' },
+              ] as { id: AbastDateMode; label: string }[]).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setAbastDateMode(m.id)}
+                  title={`Contar abastecimentos por data: ${m.label}`}
+                  className={cn(
+                    'flex h-7 items-center whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
+                    abastDateMode === m.id
+                      ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
               active={modo === 'vendedores' ? 'visao' : prodTab}
@@ -191,6 +222,7 @@ const Produtividade = () => {
               frentistaRowsPrev={frentistaRowsPrev}
               abastecimentoRows={abastecimentoRows}
               abastecimentoRowsPrev={abastecimentoRowsPrev}
+              abastComCusto={abastComCusto}
               isLoading={isLoading}
               topKpis={topKpis}
               frentistaScores={frentistaScores}

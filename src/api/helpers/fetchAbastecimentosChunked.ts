@@ -2,10 +2,15 @@ import { fetchAbastecimentos } from '@/api/endpoints/combustiveis'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { Abastecimento } from '@/api/types/combustivel'
 
+type TipoData = 'EMISSAO' | 'ENTRADA' | 'FISCAL' | 'MOVIMENTO'
+
 interface Params {
   dataInicial: string
   dataFinal: string
   chunkDays?: number
+  /** Critério de data do filtro (espelha Abast./Fiscal/Movimento do webPosto).
+   *  Omitido = default da API (= data do abastecimento). */
+  tipoData?: TipoData
 }
 
 const fmtDate = (d: Date) =>
@@ -37,17 +42,18 @@ const splitDateRange = (start: string, end: string, chunkDays: number): { from: 
 const fetchChunkWithRetry = async (
   from: string,
   to: string,
+  tipoData: TipoData | undefined,
   attempt = 0
 ): Promise<Abastecimento[]> => {
   try {
     return await fetchAllPages(
-      (p) => fetchAbastecimentos({ dataInicial: from, dataFinal: to, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      (p) => fetchAbastecimentos({ dataInicial: from, dataFinal: to, tipoData, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 50
     )
   } catch {
     if (attempt < 1) {
       await new Promise((res) => setTimeout(res, 2000))
-      return fetchChunkWithRetry(from, to, attempt + 1)
+      return fetchChunkWithRetry(from, to, tipoData, attempt + 1)
     }
     // Return empty on final failure — partial data beats a total crash
     console.warn(`[fetchAbastecimentosChunked] chunk ${from}→${to} failed after retry, skipping`)
@@ -63,6 +69,7 @@ export const fetchAbastecimentosChunked = async ({
   dataInicial,
   dataFinal,
   chunkDays = 7,
+  tipoData,
 }: Params): Promise<Abastecimento[]> => {
   const chunks = splitDateRange(dataInicial, dataFinal, chunkDays)
 
@@ -70,7 +77,7 @@ export const fetchAbastecimentosChunked = async ({
   for (let i = 0; i < chunks.length; i += PARALLEL_CHUNKS) {
     const batch = chunks.slice(i, i + PARALLEL_CHUNKS)
     const batchResults = await Promise.all(
-      batch.map(({ from, to }) => fetchChunkWithRetry(from, to))
+      batch.map(({ from, to }) => fetchChunkWithRetry(from, to, tipoData))
     )
     results.push(...batchResults.flat())
   }

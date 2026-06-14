@@ -3,6 +3,16 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type ComparisonMode = 'prevMonth' | 'prevYear'
 
+/**
+ * Critério de data dos abastecimentos na Produtividade — espelha o filtro
+ * Abast./Fiscal/Movimento do relatório de Abastecimento do webPosto:
+ *  - ABAST: data/hora do abastecimento (quando o frentista de fato abasteceu)
+ *  - FISCAL: data fiscal (turno/caixa fiscalizado) — é o que a apuração usa
+ *  - MOVIMENTO: data de movimento do caixa
+ * Default FISCAL → consistente com apuração/Central/Dashboard e usa o cache.
+ */
+export type AbastDateMode = 'ABAST' | 'FISCAL' | 'MOVIMENTO'
+
 interface FilterState {
   empresaCodigos: number[]
   dataInicial: string
@@ -14,9 +24,12 @@ interface FilterState {
    * mantenha sua preferência entre sessões.
    */
   comparisonMode: ComparisonMode
+  /** Critério de data dos abastecimentos (Produtividade). Ver AbastDateMode. */
+  abastDateMode: AbastDateMode
   setEmpresas: (codigos: number[]) => void
   setPeriodo: (dataInicial: string, dataFinal: string) => void
   setComparisonMode: (mode: ComparisonMode) => void
+  setAbastDateMode: (mode: AbastDateMode) => void
 }
 
 const now = new Date()
@@ -33,6 +46,7 @@ export const useFilterStore = create<FilterState>()(
       dataInicial: firstDay,
       dataFinal: lastDayStr,
       comparisonMode: 'prevYear',
+      abastDateMode: 'FISCAL',
 
       setEmpresas: (codigos) => {
         set({ empresaCodigos: codigos })
@@ -44,6 +58,10 @@ export const useFilterStore = create<FilterState>()(
 
       setComparisonMode: (comparisonMode) => {
         set({ comparisonMode })
+      },
+
+      setAbastDateMode: (abastDateMode) => {
+        set({ abastDateMode })
       },
     }),
     {

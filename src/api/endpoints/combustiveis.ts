@@ -12,7 +12,7 @@ import type {
 interface FetchAbastecimentosParams {
   dataInicial: string
   dataFinal: string
-  tipoData?: 'EMISSAO' | 'ENTRADA'
+  tipoData?: 'EMISSAO' | 'ENTRADA' | 'FISCAL' | 'MOVIMENTO'
   ultimoCodigo?: number
   limite?: number
 }
