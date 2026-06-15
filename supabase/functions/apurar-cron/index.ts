@@ -5,8 +5,11 @@
 // o botão manual em /admin/apuracao.
 //
 // Dois modos (pelo corpo `{"scope": "..."}`):
-//  - scope ausente / "closed" (cron DIÁRIO): reapura os últimos 3 dias FECHADOS
-//    (janela até ontem) de cada rede ativa. Leve p/ o limite da Edge Function.
+//  - scope ausente / "closed" (cron DIÁRIO): por rede ativa, reapura os últimos
+//    3 dias FECHADOS (janela até ontem) E, quando o MÊS CORRENTE tem dias
+//    fechados ainda não apurados antes dessa janela, faz BACKFILL dos mais
+//    antigos (até MAX_BACKFILL_DAYS/noite) — o mês se completa sozinho sem
+//    reapurar tudo toda noite. Leve p/ o limite da Edge Function.
 //  - scope "today" (cron FREQUENTE, ex.: 30 min): reapura SÓ o dia de hoje
 //    (live/volátil), pra manter o cache do dia corrente fresco.
 //
@@ -57,7 +60,58 @@ const targetsForToday = (today: string): Target[] => {
   return [{ start, end }]
 }
 
+// Teto de dias de BACKFILL por execução — bounda o custo da Edge Function. Gaps
+// maiores que isso se curam em noites consecutivas (sempre os mais antigos
+// primeiro). Steady-state o gap é 0–1 dia, então normalmente nem dispara.
+const MAX_BACKFILL_DAYS = 8
+
+const enumerateDays = (start: string, end: string): string[] => {
+  const out: string[] = []
+  for (let cur = start; cur <= end; cur = addDays(cur, 1)) out.push(cur)
+  return out
+}
+
+/** Primeiro dia do mês de `day` (yyyy-MM-01). */
+const firstOfMonth = (day: string): string => day.slice(0, 7) + '-01'
+
 type Supa = ReturnType<typeof createClient>
+
+/**
+ * Targets do cron diário pra UMA rede. SEMPRE reapura os últimos 3 dias fechados
+ * (mantém o recente fresco + auto-cura de falha). ALÉM disso, quando o mês
+ * corrente tem dias fechados ainda NÃO apurados antes dessa janela (buraco),
+ * agenda os mais antigos — até MAX_BACKFILL_DAYS por noite — pra o mês se
+ * completar sozinho sem reapurar tudo toda noite.
+ *
+ * Cobertura por dia em apuracao_diaria (1 row por empresa/dia, igual ao HIT do
+ * front): um dia conta como apurado quando tem >= empresaCount rows.
+ */
+const closedTargetsForRede = async (
+  supa: Supa, redeId: string, empresaCount: number, today: string,
+): Promise<Target[]> => {
+  const trailing = targetsForToday(today)[0] // [today-3, today-1]
+  const monthStart = firstOfMonth(today)
+  const gapEnd = addDays(trailing.start, -1) // dia anterior ao início do trailing
+  // Início do mês já dentro (ou depois) da janela trailing → nada a preencher.
+  if (monthStart > gapEnd) return [trailing]
+
+  const { data, error } = await supa
+    .from('apuracao_diaria').select('data')
+    .eq('rede_id', redeId).gte('data', monthStart).lte('data', gapEnd)
+  // Sem cobertura confiável → degrada pro comportamento antigo (só trailing).
+  if (error) return [trailing]
+
+  const perDay = new Map<string, number>()
+  for (const r of (data ?? []) as { data: string }[]) perDay.set(r.data, (perDay.get(r.data) ?? 0) + 1)
+
+  const missing = enumerateDays(monthStart, gapEnd).filter((d) => (perDay.get(d) ?? 0) < empresaCount)
+  if (missing.length === 0) return [trailing]
+
+  // Backfill dos mais antigos, até o teto — range contíguo (dias já apurados no
+  // meio são reapurados de novo; é idempotente, sem custo de correção).
+  const lote = missing.slice(0, MAX_BACKFILL_DAYS)
+  return [{ start: lote[0], end: lote[lote.length - 1] }, trailing]
+}
 
 // PK de cada tabela de cache (do schema em docs/*.sql) — usada no onConflict do
 // upsert E pra deduplicar o lote (evita "ON CONFLICT cannot affect row twice").
@@ -171,9 +225,6 @@ Deno.serve(async (req) => {
 
   const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const today = tzToday()
-  const targets: Target[] = scope === 'today'
-    ? [{ start: today, end: today }]
-    : targetsForToday(today)
 
   const { data: redes, error: redesErr } = await supa
     .from('redes').select('id, nome, chave, api_base_url, ativo, apuracao_auto').eq('ativo', true)
@@ -189,6 +240,11 @@ Deno.serve(async (req) => {
       const empresas = await fetchEmpresas({ baseURL: rede.api_base_url, chave: rede.chave })
       const empresaCodes = empresas.map((e) => e.codigo).filter((c) => c > 0)
       if (empresaCodes.length === 0) { summary.push({ rede: rede.nome, skipped: 'sem empresas' }); continue }
+      // scope=today → só hoje. scope=closed → trailing 3 dias + backfill do mês
+      // corrente (consciente de cobertura, por rede).
+      const targets: Target[] = scope === 'today'
+        ? [{ start: today, end: today }]
+        : await closedTargetsForRede(supa, rede.id, empresaCodes.length, today)
       let totalRows = 0
       for (const t of targets) totalRows += await apurarMes(supa, rede, empresaCodes, t)
       summary.push({ rede: rede.nome, empresas: empresaCodes.length, janela: targets.map((t) => `${t.start}..${t.end}`), rows: totalRows, ok: true })
@@ -197,5 +253,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ scope, today, targets, summary }, null, 2), { headers: { 'content-type': 'application/json' } })
+  return new Response(JSON.stringify({ scope, today, summary }, null, 2), { headers: { 'content-type': 'application/json' } })
 })
