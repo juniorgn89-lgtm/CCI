@@ -17,7 +17,6 @@ import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
-import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
 import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
@@ -77,14 +76,9 @@ const Produtividade = () => {
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
   const setAbastDateMode = useFilterStore((s) => s.setAbastDateMode)
 
-  // Score dos frentistas — precisa do custo por abastecimento (lucro bruto),
-  // que vem do useAbastecimentosAnalytics (LMC/cache). A tabela mostra "—" até
-  // os custos chegarem, sem travar o resto da aba.
+  // Linhas com custo por abastecimento (lucro bruto), do useAbastecimentosAnalytics
+  // (LMC/cache). Alimentam o Lucro bruto por dia da tabela; "—" até o custo chegar.
   const { rows: abastComCusto } = useAbastecimentosAnalytics()
-  const frentistaScores = useMemo(
-    () => computeScores(buildScoreInputs(abastComCusto)),
-    [abastComCusto],
-  )
 
   const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
   const ritmoPrev = useMemo(() => ritmoPorHoraAtiva(abastecimentoRowsPrev), [abastecimentoRowsPrev])
@@ -225,7 +219,6 @@ const Produtividade = () => {
               abastComCusto={abastComCusto}
               isLoading={isLoading}
               topKpis={topKpis}
-              frentistaScores={frentistaScores}
               active={prodTab}
             />
           </Suspense>
