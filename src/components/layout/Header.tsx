@@ -3,15 +3,14 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import { navItems } from '@/components/layout/navConfig'
 import { useFocusMode } from '@/store/focusMode'
 import { useTopbarUi } from '@/store/topbarUi'
+import { useFilterStore } from '@/store/filters'
+import { useTenantStore } from '@/store/tenant'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import CompanySelect from '@/components/filters/CompanySelect'
 import NotificationBell from '@/components/layout/NotificationBell'
-import RedeSwitcher from '@/components/layout/RedeSwitcher'
-import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
+import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 
@@ -49,6 +48,19 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const liveLock = useTopbarUi((s) => s.liveLock)
   const showCompanySelect = pathname !== '/dashboard' && empresasPermitidas.length !== 1
+
+  // Rótulo central (apagado) — qual POSTO o usuário está vendo. Sem posto
+  // selecionado (ex.: Central da Rede), cai pro nome da rede como contexto.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const tenantNome = useTenantStore((s) => s.rede?.nome)
+  const postoNome =
+    empresaCodigos.length === 1
+      ? empresasPermitidas.find((e) => e.codigo === empresaCodigos[0])?.fantasia ?? null
+      : empresaCodigos.length > 1
+        ? `${empresaCodigos.length} postos`
+        : null
+  // Na Central da Rede (/dashboard) a visão é rede-wide — não mostra posto.
+  const contextoLabel = pathname === '/dashboard' ? null : postoNome ?? tenantNome ?? null
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
@@ -92,17 +104,15 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
     })
   }
 
-  // Match exato OU sub-rota (ex.: /comercial/vendas/pista ainda casa com
-  // /comercial/vendas) — mesma lógica do Sidebar, evita "Visor360" aparecer
-  // em rotas filhas.
-  const currentModule = navItems.find(
-    (item) => pathname === item.path || pathname.startsWith(item.path + '/'),
-  )
-  const title = currentModule?.label ?? 'Visor360'
-
   return (
-    <header className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex h-12 items-center justify-between px-4 md:px-6">
+    <header className="shrink-0 bg-white dark:bg-gray-900">
+      <div className="relative flex h-12 items-center justify-between px-4 md:px-6">
+        {/* Posto atual — centralizado e apagado, só pra indicar o que se vê. */}
+        {contextoLabel && (
+          <span className="pointer-events-none absolute left-1/2 hidden max-w-[40%] -translate-x-1/2 truncate text-sm font-medium text-gray-400 dark:text-gray-500 md:block">
+            {contextoLabel}
+          </span>
+        )}
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuOpen}
@@ -116,27 +126,30 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          {/* Título do módulo no Header — sempre escondido pra evitar
-              repetição com o PageHeaderTitle da sub-bar. Mostra só "Visor360"
-              quando não há módulo (rotas fora do catálogo). */}
-          {!currentModule && (
-            <Link
-              to="/"
-              aria-label="Página inicial"
-              title="Página inicial"
-              className="hidden text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-300 xl:block"
-            >
-              {title}
-            </Link>
-          )}
-          <RedeSwitcher />
-          {/* Seletor de posto logo ao lado da rede (global). */}
-          {showCompanySelect && (
-            <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-              <CompanySelect />
+
+          {/* Logo + nome — fixos na barra de topo (fora do menu que recolhe,
+              estilo Gmail). Badge navy "V" + bolinha verde de status. */}
+          <Link
+            to="/"
+            aria-label="Página inicial"
+            title="Visor360"
+            className="group mr-1 flex shrink-0 items-center gap-2.5"
+          >
+            <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-base font-bold text-white shadow-sm transition-transform group-hover:scale-105">
+              V
+              <span
+                aria-hidden
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-gray-900"
+              />
             </span>
-          )}
-          <ComoFuncionaButton />
+            <span className="hidden flex-col leading-tight sm:flex">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">Visor360</span>
+              <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
+            </span>
+          </Link>
+
+          {/* Rede, posto e "Como funciona?" agrupados num menu (hambúrguer). */}
+          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
         </div>
 
         <div className="flex items-center gap-2">

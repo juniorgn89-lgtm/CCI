@@ -335,35 +335,11 @@ const Sidebar = () => {
       onMouseEnter={handleHoverEnter}
       onMouseLeave={handleHoverLeave}
       className={cn(
-        'hidden flex-col overflow-visible border-r border-gray-100 bg-white text-gray-700 dark:border-gray-800 dark:bg-[#1e3a5f] dark:text-gray-200 md:flex',
+        'hidden flex-col overflow-visible bg-white text-gray-700 dark:bg-[#1e3a5f] dark:text-gray-200 md:flex',
         '[transition:width_220ms_cubic-bezier(0.4,0,0.2,1)]',
         expanded ? 'w-52' : 'w-14',
       )}
     >
-      {/* Logo — badge navy com "V" + bolinha verde de status (padrão CCI Admin) */}
-      <div className={cn('flex h-14 items-center', wide ? 'px-4' : 'justify-center')}>
-        <Link
-          to="/"
-          aria-label="Página inicial"
-          title="Visor360"
-          className="group flex items-center gap-2.5"
-        >
-          <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-base font-bold text-white shadow-sm transition-transform group-hover:scale-105">
-            V
-            <span
-              aria-hidden
-              className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#1e3a5f]"
-            />
-          </span>
-          {wide && (
-            <span className="flex flex-col leading-tight">
-              <span className="text-sm font-bold text-gray-900 dark:text-white">Visor360</span>
-              <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
-            </span>
-          )}
-        </Link>
-      </div>
-
       <nav aria-label="Menu principal" className="flex-1 px-2 pb-4 pt-3 md:pt-4">
         {visibleNavGroups.map((group, gi) => (
           <div key={group.title} className={cn(wide && gi > 0 && 'mt-4')}>

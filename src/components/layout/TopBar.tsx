@@ -30,7 +30,7 @@ interface TopBarProps {
 const TopBar = ({ title, actions, scrolled, className }: TopBarProps) => (
   <div
     className={cn(
-      'flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-gray-200 bg-white px-4 py-1.5 transition-shadow duration-200 dark:border-gray-800 dark:bg-gray-900 md:px-6',
+      'flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-white px-4 py-1.5 transition-shadow duration-200 dark:bg-gray-900 md:px-6',
       scrolled ? 'shadow-md' : 'shadow-sm',
       className,
     )}

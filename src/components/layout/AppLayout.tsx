@@ -172,85 +172,90 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex h-screen flex-col bg-gray-100 dark:bg-gray-950">
       {welcomeModal}
-      {/* Desktop sidebar — escondida quando o Modo Foco está ativo. */}
-      {!focusActive && <Sidebar />}
+      {/* Barra de topo de largura total — logo+nome na ponta esquerda (fixos,
+          fora do menu que recolhe, estilo Gmail) + rede/posto + cluster direito. */}
+      <Header onMobileMenuOpen={() => setMobileOpen(true)} />
 
-      {/* Mobile sidebar (Sheet) */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-52 border-r border-gray-100 bg-white p-0 dark:border-gray-800 dark:bg-[#1e3a5f]">
-          <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-          <div className="flex h-16 items-center px-4">
-            <Link
-              to="/"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Página inicial"
-              className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
-            >
-              Visor360
-            </Link>
-          </div>
-          <nav aria-label="Menu principal" className="mt-2 space-y-1 px-2">
-            {visibleNavItems.map((item) => {
-              const isActive = pathname === item.path
-              const Icon = item.icon
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop sidebar — escondida quando o Modo Foco está ativo. */}
+        {!focusActive && <Sidebar />}
 
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileOpen(false)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'border-l-4 border-[#2563eb] bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
-                      : 'border-l-4 border-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white'
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </nav>
-        </SheetContent>
-      </Sheet>
+        {/* Mobile sidebar (Sheet) */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-52 border-r border-gray-100 bg-white p-0 dark:border-gray-800 dark:bg-[#1e3a5f]">
+            <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+            <div className="flex h-16 items-center px-4">
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Página inicial"
+                className="text-lg font-bold tracking-wide text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
+              >
+                Visor360
+              </Link>
+            </div>
+            <nav aria-label="Menu principal" className="mt-2 space-y-1 px-2">
+              {visibleNavItems.map((item) => {
+                const isActive = pathname === item.path
+                const Icon = item.icon
 
-      {/* Main area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onMobileMenuOpen={() => setMobileOpen(true)} />
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'border-l-4 border-[#2563eb] bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
+                        : 'border-l-4 border-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white'
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </SheetContent>
+        </Sheet>
 
-        {/* TopBar consolidada — título (slot-portal por página) + cluster único de
-            filtros. Fica fixa no topo (irmã do <main> que rola). O período
-            (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
-        {showFilters && (
-          <TopBar
-            scrolled={scrolled}
-            title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
-            actions={
-              <GlobalFilterControls
-                dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
-              />
-            }
-          />
-        )}
-
-        <main
-          ref={mainRef}
-          role="main"
-          onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
-          className={cn(
-            'flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
-            filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
+        {/* Painel de conteúdo — cantos arredondados sobre o fundo cinza do shell
+            (estilo Gmail). TopBar + main vivem dentro dele. */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 md:m-2 md:rounded-2xl">
+          {/* TopBar consolidada — título (slot-portal por página) + cluster único de
+              filtros. Fica fixa no topo (irmã do <main> que rola). O período
+              (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
+          {showFilters && (
+            <TopBar
+              scrolled={scrolled}
+              title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
+              actions={
+                <GlobalFilterControls
+                  dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
+                />
+              }
+            />
           )}
-        >
-          <LoadingOverlay />
-          <ErrorBoundary key={pathname}>
-            <Outlet />
-          </ErrorBoundary>
-        </main>
+
+          <main
+            ref={mainRef}
+            role="main"
+            onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
+            className={cn(
+              'flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
+              filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
+            )}
+          >
+            <LoadingOverlay />
+            <ErrorBoundary key={pathname}>
+              <Outlet />
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
     </div>
   )
