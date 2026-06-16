@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta } from '@/api/endpoints/financeiro'
+import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import type { MovimentoConta } from '@/api/types/financeiro'
+import type { MovimentoConta, TituloReceber, TituloPagar } from '@/api/types/financeiro'
 
 export interface FinanceKpiData {
   totalReceber: number
@@ -84,6 +84,21 @@ export interface CashFlowTotals {
   saldo: number
 }
 
+export type CartaoModalidade = 'Crédito' | 'Débito' | 'PIX' | 'Carteira Digital'
+
+/** Linha da tabela "Carteira de cartões e Apps — A vencer" (apps pendentes). */
+export interface CarteiraDigitalItem {
+  tipo: 'Carteira Digital'
+  descricao: string
+  valor: number
+}
+
+/** Soma de recebíveis de cartão por modalidade ("Modo recebimento"). */
+export interface ModoRecebimentoItem {
+  modalidade: CartaoModalidade
+  valor: number
+}
+
 /**
  * Classifica um movimento de conta como entrada ou saída.
  *
@@ -130,6 +145,41 @@ const sumMovimentos = (data: MovimentoConta[]): CashFlowTotals => {
     else saidas += Math.abs(m.valor)
   }
   return { entradas, saidas, saldo: entradas - saidas }
+}
+
+/** Mapeia um título a receber pra linha de tabela (com status/dias de atraso). */
+const toReceivableRow = (t: TituloReceber, hoje: string): ReceivableRow => {
+  const isOverdue = t.pendente && t.dataVencimento < hoje
+  const diasAtraso = isOverdue
+    ? Math.floor((new Date(hoje).getTime() - new Date(t.dataVencimento).getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+  let statusTag: ReceivableRow['statusTag'] = 'pago'
+  if (t.pendente) statusTag = isOverdue ? 'vencido' : 'a-vencer'
+  return {
+    ...t,
+    situacaoLabel: t.pendente ? (isOverdue ? 'Vencido' : 'A Vencer') : 'Pago',
+    statusTag,
+    diasAtraso,
+  }
+}
+
+/** Mapeia um título a pagar pra linha de tabela (com status/dias de atraso). */
+const toPayableRow = (t: TituloPagar, hoje: string): PayableRow => {
+  const isPending = t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO'
+  const isOverdue = isPending && t.vencimento < hoje
+  const diasAtraso = isOverdue
+    ? Math.floor((new Date(hoje).getTime() - new Date(t.vencimento).getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+  let statusTag: PayableRow['statusTag'] = 'pago'
+  if (t.situacao === 'CANCELADO') statusTag = 'cancelado'
+  else if (isPending) statusTag = isOverdue ? 'vencido' : 'a-vencer'
+  return {
+    ...t,
+    situacaoLabel: t.situacao === 'PAGO' ? 'Pago' : t.situacao === 'CANCELADO' ? 'Cancelado' : isOverdue ? 'Vencido' : 'A Vencer',
+    statusTag,
+    diasAtraso,
+    saldoRestante: t.valor - t.valorPago,
+  }
 }
 
 const useFinanceData = () => {
@@ -203,7 +253,75 @@ const useFinanceData = () => {
     enabled: hasEmpresa,
   })
 
+  // Recebíveis de cartão (/CARTAO) DO PERÍODO — alimenta o "Modo recebimento".
+  const { data: cartoes = [] } = useQuery({
+    queryKey: ['cartao', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchCartao({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
+  // --- Snapshot de PENDENTES (independe do período selecionado) ---
+  // A Visão Geral espelha o webPosto: mostra TODOS os títulos/cartões em aberto
+  // (em atraso / a vencer), não só os do período. Por isso queries dedicadas com
+  // janela ampla + apenasPendente. Títulos podem estar vencidos há anos (ex.:
+  // tributos), então a janela começa em 2015; cartões pendentes são recentes (1 ano).
+  const hojeStr = new Date().toISOString().split('T')[0]
+  const SNAPSHOT_INICIO = '2015-01-01'
+  const cartaoSnapInicio = offsetDateByDays(hojeStr, 365)
+
+  const { data: titulosReceberPend = [], isLoading: isLoadingReceberPend } = useQuery({
+    queryKey: ['titulosReceberPend', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosReceber({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: SNAPSHOT_INICIO,
+        dataFinal: hojeStr,
+        apenasPendente: true,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
+  const { data: titulosPagarPend = [], isLoading: isLoadingPagarPend } = useQuery({
+    queryKey: ['titulosPagarPend', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosPagar({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: SNAPSHOT_INICIO,
+        dataFinal: hojeStr,
+        apenasPendente: true,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
+  const { data: cartoesPend = [] } = useQuery({
+    queryKey: ['cartaoPend', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchCartao({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: cartaoSnapInicio,
+        dataFinal: hojeStr,
+        apenasPendente: true,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
+    || isLoadingReceberPend || isLoadingPagarPend
 
   const computed = useMemo(() => {
     const hoje = new Date().toISOString().split('T')[0]
@@ -238,49 +356,13 @@ const useFinanceData = () => {
       countVencidosPagar: vencidosPagar.length,
     }
 
-    // --- Receivables table ---
-    const receivablesData: ReceivableRow[] = titulosReceber.map((t) => {
-      const isOverdue = t.pendente && t.dataVencimento < hoje
-      const diasAtraso = isOverdue
-        ? Math.floor((new Date(hoje).getTime() - new Date(t.dataVencimento).getTime()) / (1000 * 60 * 60 * 24))
-        : 0
+    // --- Receivables / Payables tables (DO PERÍODO, pras abas Receber/Pagar) ---
+    const receivablesData: ReceivableRow[] = titulosReceber.map((t) => toReceivableRow(t, hoje))
+    const payablesData: PayableRow[] = titulosPagar.map((t) => toPayableRow(t, hoje))
 
-      let statusTag: ReceivableRow['statusTag'] = 'pago'
-      if (t.pendente) {
-        statusTag = isOverdue ? 'vencido' : 'a-vencer'
-      }
-
-      return {
-        ...t,
-        situacaoLabel: t.pendente ? (isOverdue ? 'Vencido' : 'A Vencer') : 'Pago',
-        statusTag,
-        diasAtraso,
-      }
-    })
-
-    // --- Payables table ---
-    const payablesData: PayableRow[] = titulosPagar.map((t) => {
-      const isPending = t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO'
-      const isOverdue = isPending && t.vencimento < hoje
-      const diasAtraso = isOverdue
-        ? Math.floor((new Date(hoje).getTime() - new Date(t.vencimento).getTime()) / (1000 * 60 * 60 * 24))
-        : 0
-
-      let statusTag: PayableRow['statusTag'] = 'pago'
-      if (t.situacao === 'CANCELADO') {
-        statusTag = 'cancelado'
-      } else if (isPending) {
-        statusTag = isOverdue ? 'vencido' : 'a-vencer'
-      }
-
-      return {
-        ...t,
-        situacaoLabel: t.situacao === 'PAGO' ? 'Pago' : t.situacao === 'CANCELADO' ? 'Cancelado' : isOverdue ? 'Vencido' : 'A Vencer',
-        statusTag,
-        diasAtraso,
-        saldoRestante: t.valor - t.valorPago,
-      }
-    })
+    // --- Snapshot de TODOS os pendentes (pros widgets de atraso da Visão Geral) ---
+    const receivablesAtraso: ReceivableRow[] = titulosReceberPend.map((t) => toReceivableRow(t, hoje))
+    const payablesAtraso: PayableRow[] = titulosPagarPend.map((t) => toPayableRow(t, hoje))
 
     // --- Cash flow chart data ---
     const byDay = new Map<string, { entradas: number; saidas: number }>()
@@ -375,17 +457,67 @@ const useFinanceData = () => {
 
     const cashFlowPrevTotals = sumMovimentos(movimentosPrev)
 
+    // --- Cartão / Apps (/CARTAO) ---
+    // Modalidade derivada da administradora (a API não traz um "tipo" explícito):
+    //  - contém CREDITO/DEBITO/PIX → adquirente direto
+    //  - marca de cartão (VISA/MASTER/ELO/AMEX…) sem credito/debito explícito →
+    //    crédito (ex.: "AMERICAN EXPRESS (GETNET)")
+    //  - o resto (PREMMIA, ABASTECE AI, SEM PARAR…) → "Carteira Digital" (apps),
+    //    que é o que o webPosto chama de "Cartões e Apps a vencer".
+    const CARD_BRAND_RE = /VISA|MASTERCARD|MASTER|ELO|MAESTRO|AMERICAN EXPRESS|AMEX|HIPERCARD|HIPER|DINERS|CABAL|SOROCRED|BANESCARD/
+    const modalidadeCartao = (admin: string): CartaoModalidade => {
+      const u = (admin ?? '').toUpperCase()
+      if (u.includes('CRED')) return 'Crédito'
+      if (u.includes('DEB') || u.includes('MAESTRO')) return 'Débito'
+      if (u.includes('PIX')) return 'PIX'
+      if (CARD_BRAND_RE.test(u)) return 'Crédito'
+      return 'Carteira Digital'
+    }
+
+    // "Carteira de cartões e Apps — A vencer": só apps pendentes, por administradora.
+    // Usa o snapshot de pendentes (cartoesPend), não o período.
+    const carteiraMap = new Map<string, number>()
+    for (const c of cartoesPend) {
+      if (!c.pendente) continue
+      if (modalidadeCartao(c.adiministradoraDescricao) !== 'Carteira Digital') continue
+      const nome = (c.adiministradoraDescricao ?? '').trim() || 'Outros'
+      carteiraMap.set(nome, (carteiraMap.get(nome) ?? 0) + c.valor)
+    }
+    const carteiraDigitalItems: CarteiraDigitalItem[] = Array.from(carteiraMap, ([descricao, valor]) => ({
+      tipo: 'Carteira Digital' as const,
+      descricao,
+      valor,
+    })).sort((a, b) => b.valor - a.valor)
+    const cartoesAppsAVencer = carteiraDigitalItems.reduce((s, i) => s + i.valor, 0)
+
+    // "Modo recebimento": todos os cartões do período somados por modalidade.
+    const modoMap = new Map<CartaoModalidade, number>()
+    for (const c of cartoes) {
+      const mod = modalidadeCartao(c.adiministradoraDescricao)
+      modoMap.set(mod, (modoMap.get(mod) ?? 0) + c.valor)
+    }
+    const MODALIDADES: CartaoModalidade[] = ['Crédito', 'Débito', 'PIX', 'Carteira Digital']
+    const modoRecebimento: ModoRecebimentoItem[] = MODALIDADES
+      .map((modalidade) => ({ modalidade, valor: modoMap.get(modalidade) ?? 0 }))
+      .filter((m) => m.valor > 0)
+
     return {
       kpis,
       receivablesData,
       payablesData,
+      receivablesAtraso,
+      payablesAtraso,
       cashFlowData,
       cashFlowTotals,
       cashFlowPrevTotals,
       cashFlowPrevPeriod: { dataInicial: prevDataInicial, dataFinal: prevDataFinal },
       diasNoPeriodo,
+      cartoesAppsAVencer,
+      carteiraDigitalItems,
+      modoRecebimento,
+      cartoesAVencer: cartoesPend,
     }
-  }, [titulosReceber, titulosPagar, movimentos, movimentosPrev, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
 
   return {
     ...computed,

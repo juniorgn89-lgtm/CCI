@@ -8,6 +8,8 @@ import type {
   Caixa,
   CaixaApresentado,
   Conta,
+  Cartao,
+  CartaoPagar,
 } from '@/api/types/financeiro'
 
 interface FetchTitulosReceberParams {
@@ -91,6 +93,31 @@ interface FetchCaixasApresentadoParams {
   limite?: number
 }
 
+interface FetchCartaoParams {
+  dataInicial: string
+  dataFinal: string
+  turno?: number
+  empresaCodigo?: number
+  apenasPendente?: boolean
+  dataFiltro?: 'MOVIMENTO' | 'VENCIMENTO' | 'PAGAMENTO'
+  dataHoraAtualizacao?: string
+  ultimoCodigo?: number
+  limite?: number
+  vendaCodigo?: number[]
+}
+
+interface FetchCartaoPagarParams {
+  empresaCodigo?: number
+  dataInicial: string
+  dataFinal: string
+  tipoData: 'MOVIMENTO' | 'VENCIMENTO' | 'PAGAMENTO'
+  cartaoCompraCodigo?: number
+  situacao?: string
+  autorizacao?: string
+  ultimoCodigo?: number
+  limite?: number
+}
+
 interface FetchContasParams {
   empresaCodigo?: number
   ultimoCodigo?: number
@@ -120,3 +147,10 @@ export const fetchCaixasApresentado = (params?: FetchCaixasApresentadoParams) =>
 
 export const fetchContas = (params?: FetchContasParams) =>
   client.get<PaginatedResponse<Conta>>('/CONTA', { params }).then((res) => res.data)
+
+/** Recebíveis de cartão (a vencer/recebido) por administradora/bandeira. */
+export const fetchCartao = (params?: FetchCartaoParams) =>
+  client.get<PaginatedResponse<Cartao>>('/CARTAO', { params }).then((res) => res.data)
+
+export const fetchCartaoPagar = (params?: FetchCartaoPagarParams) =>
+  client.get<PaginatedResponse<CartaoPagar>>('/CARTAO_PAGAR', { params }).then((res) => res.data)

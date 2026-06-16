@@ -247,6 +247,53 @@ export const CAIXA_APRESENTADO_FORMAS: { key: string; nome: string }[] = [
   { key: 'fundoCxDeb', nome: 'Fundo Caixa Déb.' },
 ]
 
+/** Recebível de cartão (/INTEGRACAO/CARTAO) — a vencer/recebido por administradora. */
+export interface Cartao {
+  empresaCodigo: number
+  cartaoCodigo: number
+  vendaCodigo: number
+  vencimento: string
+  valor: number
+  parcela: number
+  taxaPercentual: number
+  administradoraCodigo: number
+  /** ATENÇÃO: a API escreve o campo com "i" a mais (typo deles). */
+  adiministradoraDescricao: string
+  clienteReferencia: string
+  clienteRazao: string
+  clienteCpfCnpj: string
+  centroCustoCodigo: number
+  centroCustoDescricao: string
+  dataPagamento: string
+  tipoInclusao: string
+  dataMovimento: string
+  horaMovimento: string
+  dataFiscal: string
+  pendente: boolean
+  nsu: string
+  autorizacao: string
+  codigo: number
+  codigoBandeira: string
+  nsuTef: string
+}
+
+/** Conta de cartão a pagar (/INTEGRACAO/CARTAO_PAGAR). */
+export interface CartaoPagar {
+  empresaCodigo: number
+  cartaoCompraCodigo: number
+  cartaoPagarCodigo: number
+  dataMovimento: string
+  dataVencimento: string
+  dataPagamento: string
+  valor: number
+  centroCustoCodigo: number
+  planoContaGerencialCodigo: number
+  situacao: string
+  descricao: string
+  autorizacao: string
+  codigo: number
+}
+
 export interface Conta {
   codigo: number
   empresaCodigo: number

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -11,11 +11,13 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
+import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
+import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
-const FinanceiroIndicadores = lazy(() => import('@/pages/Financeiro/components/FinanceiroIndicadores'))
 const ReceivablesTable = lazy(() => import('@/pages/Financeiro/components/ReceivablesTable'))
 const PayablesTable = lazy(() => import('@/pages/Financeiro/components/PayablesTable'))
 const CashFlowChart = lazy(() => import('@/pages/Financeiro/components/CashFlowChart'))
+const AgendaFinanceira = lazy(() => import('@/pages/Financeiro/components/AgendaFinanceira'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
@@ -26,6 +28,7 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   receber: Receipt,
   pagar: CreditCard,
   fluxo: BarChart3,
+  agenda: CalendarDays,
 }
 
 const TableSkeleton = () => (
@@ -50,15 +53,19 @@ const Financeiro = () => {
   )
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
 
-  const handleNavigate = (tab: string) => setActiveTab(tab)
-
   const {
     kpis,
     receivablesData,
     payablesData,
+    receivablesAtraso,
+    payablesAtraso,
     cashFlowData,
     cashFlowTotals,
     cashFlowPrevTotals,
+    cartoesAppsAVencer,
+    carteiraDigitalItems,
+    modoRecebimento,
+    cartoesAVencer,
     isLoading,
     hasEmpresa,
   } = useFinanceData()
@@ -114,9 +121,12 @@ const Financeiro = () => {
       <HeaderTray>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+      {/* Visão Geral (estado atual) e Agenda (seletor próprio de mês/ano) não usam o período global. */}
+      {activeTab !== 'visao' && activeTab !== 'agenda' && (
+        <PageHeaderActions>
+          <DateRangeToolbar />
+        </PageHeaderActions>
+      )}
 
       {/* Empty state: no empresa selected */}
       {!hasEmpresa && <SelectCompanyState />}
@@ -136,14 +146,15 @@ const Financeiro = () => {
                 <TableSkeleton />
               ) : (
                 <Suspense fallback={<TableSkeleton />}>
-                  {activeTab === 'visao' && kpis && (
-                    <FinanceiroIndicadores
-                      kpis={kpis}
-                      receivablesData={receivablesData}
-                      payablesData={payablesData}
-                      cashFlowData={cashFlowData}
-                      onNavigateTab={handleNavigate}
-                    />
+                  {activeTab === 'visao' && (
+                    <div className="space-y-4">
+                      <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
+                      <CartoesEModo
+                        cartoesAppsAVencer={cartoesAppsAVencer}
+                        carteiraDigitalItems={carteiraDigitalItems}
+                        modoRecebimento={modoRecebimento}
+                      />
+                    </div>
                   )}
                   {activeTab === 'receber' && (
                     <ReceivablesTable data={receivablesData} />
@@ -156,6 +167,13 @@ const Financeiro = () => {
                       data={cashFlowData}
                       totals={cashFlowTotals}
                       prevTotals={cashFlowPrevTotals}
+                    />
+                  )}
+                  {activeTab === 'agenda' && (
+                    <AgendaFinanceira
+                      receivables={receivablesAtraso}
+                      payables={payablesAtraso}
+                      cartoes={cartoesAVencer}
                     />
                   )}
                 </Suspense>
