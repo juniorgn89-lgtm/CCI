@@ -7,9 +7,7 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useEstoquesLayout } from '@/store/moduleLayout'
 import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
@@ -18,7 +16,6 @@ import EstoqueMedio from '@/pages/Estoques/components/abas/EstoqueMedio'
 import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
 import NecessidadeEstoque from '@/pages/Estoques/components/abas/NecessidadeEstoque'
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
-import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import EstoqueMobile from '@/pages/Estoques/EstoqueMobile'
 
@@ -55,8 +52,10 @@ const Estoques = () => {
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
   const [coberturaDias, setCoberturaDias] = useState(30)
 
-  const { productAnalytics, kpis, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
-  const showSkeleton = useShowSkeleton(isLoading, productAnalytics.length > 0)
+  const { productAnalytics, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
+  // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
+  // mostrar cards zerados durante o (re)carregamento do estoque.
+  const showSkeleton = isLoading && productAnalytics.length === 0
   const isMobile = useIsMobile()
 
   // Mobile: tela própria (Reposição / Estoque / Giro).
@@ -85,9 +84,9 @@ const Estoques = () => {
       <HeaderTray>
         <ModuleSettings title="Estoques" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+      {/* Sem filtro de período: o estoque é sempre o saldo ATUAL (igual ao
+          webPosto, cujo "Qtd" não muda com a data). Histórico fixo de 6m é
+          interno. Sem DateRangeToolbar aqui → a barra de período não aparece. */}
 
       {!hasEmpresa && <SelectCompanyState />}
 
@@ -110,7 +109,6 @@ const Estoques = () => {
                     <EstoqueVisaoGeral
                       data={productAnalytics}
                       categorias={categorias}
-                      kpis={kpis ?? null}
                       onNavigateTab={setActiveTab}
                     />
                   )}

@@ -5,6 +5,7 @@ import { useNotificationStore, type AppAlert } from '@/store/notifications'
 import { useManutencaoStore } from '@/store/manutencao'
 import type { PaginatedResponse } from '@/api/types/common'
 import type { ProdutoEstoque } from '@/api/types/estoque'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import type { TituloReceber, TituloPagar } from '@/api/types/financeiro'
 import type { Abastecimento, Bomba, Bico } from '@/api/types/combustivel'
 import type { Produto } from '@/api/types/produto'
@@ -47,16 +48,13 @@ const useAlertGenerator = () => {
     )
 
     if (estoqueCache?.resultados && empresaCodigo !== null) {
-      const items = estoqueCache.resultados
       const posto = nomeDoPosto(empresaCodigo)
       let zeroCount = 0
       let criticalCount = 0
 
-      for (const pe of items) {
-        const saldo = pe.saldoEstoque
-          ? pe.saldoEstoque.reduce((sum, se) => sum + se.quantidade, 0)
-          : pe.saldo
-
+      // Dedup das duplicatas do /PRODUTO_ESTOQUE — sem isso cada produto era
+      // contado N vezes, inflando os contadores de ruptura/crítico.
+      for (const saldo of saldoAtualPorProduto(estoqueCache.resultados).values()) {
         if (saldo <= 0) zeroCount++
         else if (saldo <= 5) criticalCount++
       }

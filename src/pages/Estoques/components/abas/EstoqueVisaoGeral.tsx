@@ -1,33 +1,44 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  AlertTriangle, AlertCircle, RefreshCw, TrendingDown, Package, Layers,
-  ShoppingCart, Boxes, Clock, Hourglass, DollarSign,
+  AlertTriangle, AlertCircle, RefreshCw, Package,
+  ShoppingCart, Boxes, Clock, Hourglass, DollarSign, HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
-import type { ProductAnalyticsRow, EstoqueKpis } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
-  /** KPIs principais — renderizados como primeira seção (movidos do topo da página). */
-  kpis: EstoqueKpis | null
   onNavigateTab?: (tab: string) => void
 }
 
+type SaldoFiltro = 'todos' | 'comSaldo' | 'zerado' | 'negativo'
+
 const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v)
 
-const necessidadeBadge = (status: ProductAnalyticsRow['necessidadeStatus']): { label: string; cls: string } => {
-  switch (status) {
-    case 'negativo': return { label: 'Negativo', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' }
-    case 'critico': return { label: 'Crítico', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' }
-    case 'baixo': return { label: 'Baixo', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' }
-    case 'ok': return { label: 'OK', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' }
-    case 'sem_movimento': return { label: 'Sem movimento', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }
-  }
-}
+/** Ícone "?" com tooltip explicativo (hover). */
+const Hint = ({ text }: { text: string }) => (
+  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
+    <HelpCircle className="h-3.5 w-3.5" />
+  </span>
+)
 
-const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
+const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
+  const [saldoFiltro, setSaldoFiltro] = useState<SaldoFiltro>('todos')
+
+  // Filtro local de saldo — TODOS os cartões/listas reagem. `data` (filtrado)
+  // substitui o prop, então o restante do componente não muda.
+  const data = useMemo(
+    () => allData.filter((r) => {
+      if (saldoFiltro === 'comSaldo' && !(r.saldoAtual > 0)) return false
+      if (saldoFiltro === 'zerado' && r.saldoAtual !== 0) return false
+      if (saldoFiltro === 'negativo' && !(r.saldoAtual < 0)) return false
+      return true
+    }),
+    [allData, saldoFiltro],
+  )
+
   const stats = useMemo(() => {
     const negativos = data.filter((r) => r.saldoAtual < 0)
     const rupturas = data.filter((r) => r.saldoAtual === 0 && r.vendasUltimos6m > 0)
@@ -36,22 +47,9 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
     const giros = data.filter((r) => r.estoqueMedio > 0 && r.giro > 0).map((r) => r.giro)
     const giroMedio = giros.length > 0 ? giros.reduce((s, x) => s + x, 0) / giros.length : 0
 
-    const topValor = [...data].sort((a, b) => b.valorEstoque - a.valorEstoque).slice(0, 10)
-    const maxTopValor = Math.max(...topValor.map((p) => p.valorEstoque), 0)
-
-    // Top necessidade crítica — prioriza negativo > critico > baixo. Ordenado
-    // por menor cobertura primeiro (mais urgente). Filtra sem movimento porque
-    // não tem sentido recomendar compra de produto parado.
-    const ordenadosPorCobertura = [...data]
-      .filter((r) => r.necessidadeStatus !== 'sem_movimento' && r.necessidadeStatus !== 'ok')
-      .sort((a, b) => {
-        const rank = (s: ProductAnalyticsRow['necessidadeStatus']) =>
-          s === 'negativo' ? 0 : s === 'critico' ? 1 : 2
-        const dr = rank(a.necessidadeStatus) - rank(b.necessidadeStatus)
-        if (dr !== 0) return dr
-        return a.diasCobertura - b.diasCobertura
-      })
-      .slice(0, 10)
+    // Total de unidades + valor em estoque (reagem ao filtro local).
+    const quantidadeTotal = data.reduce((s, r) => s + r.saldoAtual, 0)
+    const valorTotal = data.reduce((s, r) => s + r.valorEstoque, 0)
 
     // Top 3 produtos prestes a zerar — projeção de ruptura baseada na média
     // diária de vendas. Exclui produtos já em ruptura (saldo ≤ 0, tratados em
@@ -66,61 +64,82 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
       .sort((a, b) => a.diasCobertura - b.diasCobertura)
       .slice(0, 3)
 
-    // Por categoria — soma valor em estoque
-    const catMap = new Map<string, { categoria: string; valor: number; produtos: number }>()
-    for (const r of data) {
-      const prev = catMap.get(r.categoria) ?? { categoria: r.categoria, valor: 0, produtos: 0 }
-      prev.valor += r.valorEstoque
-      prev.produtos += 1
-      catMap.set(r.categoria, prev)
-    }
-    const porCategoria = Array.from(catMap.values())
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 8)
-    const totalValor = porCategoria.reduce((s, c) => s + c.valor, 0)
-    const maxCat = Math.max(...porCategoria.map((c) => c.valor), 0)
-
     return {
       negativos,
       rupturas,
       criticos,
       semMovimento,
       giroMedio,
-      topValor,
-      maxTopValor,
-      ordenadosPorCobertura,
+      quantidadeTotal,
+      valorTotal,
       proximosZerar,
-      porCategoria,
-      totalValor,
-      maxCat,
     }
   }, [data])
 
   return (
     <div className="space-y-4">
+      {/* Filtro de saldo centralizado — os cartões/listas reagem a ele. */}
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          Saldo
+          <Hint text="Filtra os produtos pelo saldo atual: todos, só com saldo (>0), zerados ou negativos." />
+        </span>
+        <Segmented
+          value={saldoFiltro}
+          onChange={setSaldoFiltro}
+          options={[
+            { value: 'todos', label: 'Todo saldo' },
+            { value: 'comSaldo', label: 'Com saldo' },
+            { value: 'zerado', label: 'Zerados' },
+            { value: 'negativo', label: 'Negativos' },
+          ]}
+        />
+      </div>
+
       {/* KPIs principais — movidos do topo da página */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de produtos</p>
+            <span className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de produtos</span>
+              <Hint text="Nº de produtos não-combustíveis com saldo atual ou venda nos últimos 6 meses (no filtro de saldo selecionado)." />
+            </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
               <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatNumber(kpis?.totalProdutos ?? 0)}
+            {formatNumber(data.length)}
           </p>
           <p className="text-xs text-gray-500">não-combustíveis com saldo ou movimentação</p>
         </div>
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-indigo-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-indigo-950/20 dark:to-gray-900">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Quantidade em estoque</span>
+              <Hint text="Soma do saldo atual (em unidades) de todos os produtos do filtro. Não inclui combustível (medido em litros)." />
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+              <Boxes className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {fmtUnidades(stats.quantidadeTotal)}
+          </p>
+          <p className="text-xs text-gray-500">soma do saldo de todos os produtos</p>
+        </div>
         <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-emerald-950/20 dark:to-gray-900">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor total em estoque</p>
+            <span className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor total em estoque</span>
+              <Hint text="Saldo atual × custo médio (últimos 6 meses) de cada produto, somado. Quanto de capital está parado em estoque." />
+            </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
               <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {formatCurrency(kpis?.valorTotalEstoque ?? 0)}
+            {formatCurrency(stats.valorTotal)}
           </p>
           <p className="text-xs text-gray-500">a custo médio dos últimos 6 meses</p>
         </div>
@@ -132,6 +151,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
           label="Saldo negativo"
           value={formatNumber(stats.negativos.length)}
           sub="produto(s) com saldo < 0"
+          hint="Produtos com saldo menor que zero — quase sempre erro de lançamento ou baixa indevida. Corrigir antes de comprar."
           Icon={AlertCircle}
           tone={stats.negativos.length > 0 ? 'danger' : 'neutral'}
           onClick={onNavigateTab ? () => onNavigateTab('geral') : undefined}
@@ -140,6 +160,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
           label="Ruptura"
           value={formatNumber(stats.rupturas.length)}
           sub="zerado com vendas no 6m"
+          hint="Produtos zerados que tiveram venda nos últimos 6 meses — ou seja, estão deixando de vender por falta de estoque."
           Icon={AlertTriangle}
           tone={stats.rupturas.length > 0 ? 'warning' : 'neutral'}
           onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined}
@@ -148,6 +169,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
           label="Necessidade crítica"
           value={formatNumber(stats.criticos.length)}
           sub="compra urgente"
+          hint="Produtos que precisam de compra urgente: saldo zerado com venda, ou cobertura abaixo de metade dos dias-alvo."
           Icon={ShoppingCart}
           tone={stats.criticos.length > 0 ? 'danger' : 'neutral'}
           onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined}
@@ -156,6 +178,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
           label="Giro médio (6m)"
           value={stats.giroMedio.toFixed(2).replace('.', ',')}
           sub={`${formatNumber(stats.semMovimento.length)} sem movimento`}
+          hint="Quantas vezes, em média, o estoque girou em 6 meses (unidades vendidas ÷ estoque médio). Alto = produto rodando; baixo = capital parado."
           Icon={RefreshCw}
           tone="neutral"
           onClick={onNavigateTab ? () => onNavigateTab('giro') : undefined}
@@ -171,6 +194,7 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Vão zerar em breve
               </h3>
+              <Hint text="Top 3 produtos mais perto de zerar, projetado pela média diária de vendas (saldo atual ÷ venda/dia). Vermelho < 7 dias." />
               <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">
                 projeção pela média diária
               </span>
@@ -245,161 +269,44 @@ const EstoqueVisaoGeral = ({ data, kpis, onNavigateTab }: Props) => {
         </section>
       )}
 
-      {/* 2 colunas: top valor + top necessidade */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Top valor em estoque */}
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-500" />
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Top 10 · Valor em Estoque</h3>
-            </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('geral')}
-                className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
-              >
-                Ver todos
-              </button>
-            )}
-          </div>
-          {stats.topValor.length === 0 ? (
-            <p className="px-4 py-8 text-center text-xs text-gray-400">Sem dados.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {stats.topValor.map((p) => {
-                const barWidth = stats.maxTopValor > 0 ? (p.valorEstoque / stats.maxTopValor) * 100 : 0
-                return (
-                  <li key={p.produtoCodigo} className="px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate font-medium text-gray-900 dark:text-gray-100" title={p.produtoNome}>
-                        {p.produtoNome}
-                      </span>
-                      <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                        {formatCurrency(p.valorEstoque)}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div
-                          className="h-full rounded-full bg-blue-500/70"
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
-                      <span className="shrink-0 text-[10px] tabular-nums text-gray-400">
-                        {fmtUnidades(p.saldoAtual)} un.
-                      </span>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* Top necessidade crítica */}
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-500" />
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Top 10 · Necessidade Crítica</h3>
-            </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('necessidade')}
-                className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
-              >
-                Ver todos
-              </button>
-            )}
-          </div>
-          {stats.ordenadosPorCobertura.length === 0 ? (
-            <p className="px-4 py-8 text-center text-xs text-gray-400">Tudo certo no estoque.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {stats.ordenadosPorCobertura.map((p) => {
-                const badge = necessidadeBadge(p.necessidadeStatus)
-                return (
-                  <li key={p.produtoCodigo} className="px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate font-medium text-gray-900 dark:text-gray-100" title={p.produtoNome}>
-                        {p.produtoNome}
-                      </span>
-                      <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium', badge.cls)}>
-                        {badge.label}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                      Saldo {fmtUnidades(p.saldoAtual)} · cobertura {p.diasCobertura < 0 ? '— ' : ''}{Math.abs(Math.round(p.diasCobertura))}d
-                      {p.necessidadeUnidades > 0 && (
-                        <> · sugerido <span className="font-medium text-gray-600 dark:text-gray-300">{fmtUnidades(p.necessidadeUnidades)} un.</span></>
-                      )}
-                    </p>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* Distribuição por categoria — barras horizontais */}
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-purple-500" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Distribuição por Categoria</h3>
-          </div>
-          <span className="text-[11px] tabular-nums text-gray-400">
-            Top 8 · {formatCurrency(stats.totalValor)}
-          </span>
-        </div>
-        {stats.porCategoria.length === 0 ? (
-          <p className="px-4 py-8 text-center text-xs text-gray-400">Sem dados.</p>
-        ) : (
-          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-            {stats.porCategoria.map((c) => {
-              const barWidth = stats.maxCat > 0 ? (c.valor / stats.maxCat) * 100 : 0
-              const pct = stats.totalValor > 0 ? (c.valor / stats.totalValor) * 100 : 0
-              return (
-                <li key={c.categoria} className="px-4 py-2.5">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="flex min-w-0 items-center gap-1.5 truncate">
-                      <Boxes className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <span className="truncate font-medium text-gray-900 dark:text-gray-100" title={c.categoria}>
-                        {c.categoria}
-                      </span>
-                      <span className="shrink-0 text-[10px] text-gray-400">· {formatNumber(c.produtos)} SKU</span>
-                    </span>
-                    <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                      {formatCurrency(c.valor)}
-                      <span className="ml-1 text-[10px] font-normal text-gray-400">{pct.toFixed(0).replace('.', ',')}%</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                    <div
-                      className="h-full rounded-full bg-purple-500/70"
-                      style={{ width: `${barWidth}%` }}
-                    />
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
     </div>
   )
 }
 
+/** Segmented control (pills) — usado nos filtros centralizados do topo. */
+const Segmented = <T extends string>({
+  value, onChange, options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string }[]
+}) => (
+  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+    {options.map((o) => (
+      <button
+        key={o.value}
+        type="button"
+        onClick={() => onChange(o.value)}
+        className={cn(
+          'h-7 whitespace-nowrap rounded-md px-2.5 text-xs font-medium transition-all',
+          value === o.value
+            ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+        )}
+      >
+        {o.label}
+      </button>
+    ))}
+  </div>
+)
+
 const MiniKpi = ({
-  label, value, sub, Icon, tone, onClick,
+  label, value, sub, hint, Icon, tone, onClick,
 }: {
   label: string
   value: string
   sub?: string
+  hint?: string
   Icon: typeof Package
   tone: 'danger' | 'warning' | 'neutral'
   onClick?: () => void
@@ -421,7 +328,10 @@ const MiniKpi = ({
       )}
     >
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
+        <span className="flex items-center gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</span>
+          {hint && <Hint text={hint} />}
+        </span>
         <div className={cn(
           'flex h-7 w-7 items-center justify-center rounded-md',
           tone === 'danger' ? 'bg-red-100 dark:bg-red-900/30'

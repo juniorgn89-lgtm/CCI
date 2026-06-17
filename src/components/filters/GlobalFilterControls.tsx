@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
-import { showsComparison } from '@/lib/globalFilters'
+import { showsComparison, showsDataScope } from '@/lib/globalFilters'
 import { useTopbarUi } from '@/store/topbarUi'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,7 @@ const GlobalFilterControls = ({ dateSlot, className }: GlobalFilterControlsProps
   // Comparativo só nas telas que de fato o consomem (senão vira controle morto).
   const { pathname } = useLocation()
   const showComparison = showsComparison(pathname)
+  const showScope = showsDataScope(pathname)
   // Modo "ao vivo" desabilita escopo/comparativo. O período (dateSlot) se
   // desabilita sozinho via liveLock.
   const liveLock = useTopbarUi((s) => s.liveLock)
@@ -32,9 +33,11 @@ const GlobalFilterControls = ({ dateSlot, className }: GlobalFilterControlsProps
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       {dateSlot}
-      <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-        <DataFilterModeSelect />
-      </span>
+      {showScope && (
+        <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
+          <DataFilterModeSelect />
+        </span>
+      )}
       {showComparison && (
         <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
           <ComparisonSelect />

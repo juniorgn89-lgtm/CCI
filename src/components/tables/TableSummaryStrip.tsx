@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { HelpCircle, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface MetricItem {
@@ -17,6 +17,8 @@ interface TableSummaryStripProps {
   subtitle?: string
   metrics: MetricItem[]
   accentGradient?: string
+  /** Tooltip "?" ao lado do título, explicando o que a tabela mostra. */
+  titleHint?: string
 }
 
 const TableSummaryStrip = ({
@@ -27,6 +29,7 @@ const TableSummaryStrip = ({
   subtitle,
   metrics,
   accentGradient = 'bg-gradient-to-r from-blue-50/80 to-white dark:from-blue-950/30 dark:to-gray-900',
+  titleHint,
 }: TableSummaryStripProps) => {
   return (
     <div
@@ -46,8 +49,13 @@ const TableSummaryStrip = ({
           <Icon className={cn('h-4.5 w-4.5', iconColor)} />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+          <h3 className="flex items-center gap-1 text-sm font-bold text-gray-900 dark:text-gray-100">
             {title}
+            {titleHint && (
+              <span title={titleHint} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
+                <HelpCircle className="h-3.5 w-3.5" />
+              </span>
+            )}
           </h3>
           {subtitle && (
             <p className="text-[11px] text-gray-500 dark:text-gray-400">

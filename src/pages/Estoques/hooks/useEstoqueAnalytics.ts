@@ -1,12 +1,15 @@
 import { useMemo } from 'react'
 import { useQueries, useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchProdutoEstoque, fetchEstoquePeriodo } from '@/api/endpoints/estoques'
+import { fetchProdutoEstoque, fetchProdutoEstoqueExtrato, fetchEstoquePeriodo } from '@/api/endpoints/estoques'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
+import useVendasCache, { aggregateItensToVendaAgg, type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
+import { todayLocal } from '@/lib/period'
 import type { Produto } from '@/api/types/produto'
-import type { ProdutoEstoque, EstoquePeriodo } from '@/api/types/estoque'
+import type { ProdutoEstoque, ProdutoEstoqueExtrato, EstoquePeriodo } from '@/api/types/estoque'
 import type { VendaItem } from '@/api/types/venda'
 
 export interface ProductAnalyticsRow {
@@ -16,10 +19,20 @@ export interface ProductAnalyticsRow {
   codigoSku: string
   /** Saldo atual (soma de todos os locais) */
   saldoAtual: number
+  /** Estoque mínimo cadastrado (Qtd. Mín.), do /PRODUTO_ESTOQUE_EXTRATO. */
+  estoqueMinimo: number
   /** Custo médio unitário (a partir das vendas dos últimos 6 meses) */
   custoMedio: number
   /** Preço médio de venda unitário (últimos 6 meses) */
   precoMedioVenda: number
+  /** Markup % = (preço médio / custo médio − 1) × 100 */
+  markup: number
+  /** Margem de lucro por unidade (R$) = preço médio − custo médio */
+  margemLucroUnit: number
+  /** Código de barras (primeiro cadastrado) ou '' */
+  codigoBarras: string
+  /** Última venda (yyyy-MM-dd) dentro dos últimos 6 meses, ou null */
+  ultimaVenda: string | null
   /** Valor em estoque = saldoAtual × custoMedio */
   valorEstoque: number
   /** Total de unidades vendidas nos últimos 6 meses */
@@ -90,6 +103,10 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
 
+  // O saldo de estoque é SEMPRE o ATUAL (igual ao webPosto, cujo "Qtd" não muda
+  // com a data do relatório). Não fazemos snapshot histórico por data — a API
+  // de estoque não dá um snapshot confiável e o webPosto também ignora a data.
+
   const months = useMemo(() => buildLast6Months(), [])
   const periodoInicial = months[0].inicial
   const periodoFinal = months[months.length - 1].final
@@ -114,7 +131,7 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     staleTime: 30 * 60 * 1000,
   })
 
-  // Estoque atual (saldo de cada produto por local)
+  // Estoque atual (saldo de cada produto por local) — sempre o saldo de agora.
   const { data: produtoEstoqueData, isLoading: isLoadingEstoque } = useQuery({
     queryKey: ['produtoEstoqueAll', empresaCodigo],
     queryFn: () => fetchAllPages(
@@ -122,6 +139,20 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       1000, 20,
     ),
     enabled: hasEmpresa,
+    placeholderData: keepPreviousData,
+  })
+
+  // Cadastro do produto por empresa (estoque mínimo/máximo, preço venda/custo)
+  // via /PRODUTO_ESTOQUE_EXTRATO. exibeHistoricoCompra=false → payload leve.
+  // Supplementar (Qtd. Mín.); não entra no gate de loading.
+  const { data: estoqueExtratoData } = useQuery({
+    queryKey: ['produtoEstoqueExtrato', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchProdutoEstoqueExtrato({ empresaCodigo: empresaCodigo!, exibeHistoricoCompra: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+    staleTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
   })
 
@@ -139,9 +170,19 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     placeholderData: keepPreviousData,
   })
 
-  // VendaItens últimos 6 meses — uma query por mês (paralelas, cacheadas individualmente).
-  // Usa "vendaItensAll" pra alinhar com o prefetch paginado e evitar colisão
-  // com a versão sem paginação que retorna PaginatedResponse.
+  // Venda dos últimos 6 meses — vem do cache Supabase (apuracao_vendas) pros
+  // dias FECHADOS apurados + hoje live. Elimina os 6 fetches pesados de
+  // venda_item ao vivo. Janela até HOJE (venda não é futura).
+  const vendasCache = useVendasCache({
+    dataInicial: periodoInicial,
+    dataFinal: todayLocal(),
+    empresaCodigo,
+    empresasPermitidasCount: 1,
+  })
+
+  // Fallback LIVE — só quando o cache de vendas dá MISS (mês não apurado ou
+  // apuração antiga). Mantém o comportamento legado sem regressão.
+  const vendasLiveEnabled = hasEmpresa && !vendasCache.isCacheHit && !vendasCache.isChecking
   const vendaItensQueries = useQueries({
     queries: months.map((m) => ({
       queryKey: ['vendaItensAll', empresaCodigo, m.inicial, m.final],
@@ -149,13 +190,17 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         (p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial: m.inicial, dataFinal: m.final, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
         1000, 50,
       ),
-      enabled: hasEmpresa,
+      enabled: vendasLiveEnabled,
       staleTime: 5 * 60 * 1000,
     })),
   })
 
   const isLoadingVendas = vendaItensQueries.some((q) => q.isLoading)
-  const isLoading = isLoadingEstoque || isLoadingPeriodo || isLoadingVendas
+  const isLoading =
+    isLoadingEstoque ||
+    isLoadingPeriodo ||
+    vendasCache.isChecking ||
+    (!vendasCache.isCacheHit && isLoadingVendas)
 
   // Chave estável para useMemo: muda só quando algum dos meses retorna dados novos
   const vendasUpdateKey = vendaItensQueries.map((q) => q.dataUpdatedAt).join('-')
@@ -163,6 +208,14 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     () => vendaItensQueries.flatMap((q) => q.data ?? []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [vendasUpdateKey],
+  )
+
+  // Fonte única de venda agregada (cache HIT → cache; senão → live agregado no
+  // mesmo shape). VendaAgg = { produtoCodigo, data, quantidade, totalVenda,
+  // totalCusto, ... } por (empresa, dia, produto).
+  const vendaAggs: VendaAgg[] = useMemo(
+    () => (vendasCache.isCacheHit ? vendasCache.vendas : aggregateItensToVendaAgg(allItens)),
+    [vendasCache.isCacheHit, vendasCache.vendas, allItens],
   )
 
   const computed = useMemo(() => {
@@ -175,14 +228,15 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     const grupoMap = new Map<number, string>()
     for (const g of grupos) grupoMap.set(g.grupoCodigo, g.nome)
 
-    // Saldo atual por produto (somado por todos os locais)
+    // Saldo atual por produto — dedup das duplicatas do /PRODUTO_ESTOQUE.
     const estoqueRaw: ProdutoEstoque[] = Array.isArray(produtoEstoqueData) ? produtoEstoqueData : []
-    const saldoAtualMap = new Map<number, number>()
-    for (const pe of estoqueRaw) {
-      const total = pe.saldoEstoque && pe.saldoEstoque.length > 0
-        ? pe.saldoEstoque.reduce((s, se) => s + se.quantidade, 0)
-        : pe.saldo
-      saldoAtualMap.set(pe.produtoCodigo, (saldoAtualMap.get(pe.produtoCodigo) ?? 0) + total)
+    const saldoAtualMap = saldoAtualPorProduto(estoqueRaw)
+
+    // Estoque mínimo (cadastro) por produto, do /PRODUTO_ESTOQUE_EXTRATO. Dedup
+    // por produtoCodigo (valor de cadastro idêntico nas duplicatas).
+    const minimoMap = new Map<number, number>()
+    for (const e of (estoqueExtratoData ?? []) as ProdutoEstoqueExtrato[]) {
+      if (!minimoMap.has(e.produtoCodigo)) minimoMap.set(e.produtoCodigo, e.estoqueMinimo ?? 0)
     }
 
     // Por produto: total quantidade, total receita, total custo (a partir das vendas)
@@ -191,23 +245,29 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       receita: number
       custoTotal: number
       qtdPorMes: Map<string, number>
+      /** Maior dataMovimento vista (yyyy-MM-dd…) — última venda. */
+      ultimaData: string
     }
+    // Agrega por produto a partir do VendaAgg (cache ou live, mesmo shape).
+    // Combustível é descartado depois (a iteração de produtos pula combustível),
+    // então não precisa filtrar aqui.
     const salesMap = new Map<number, ProductSales>()
-    for (const item of allItens) {
-      // Pular combustíveis na agregação (extra safety além do filtro de produtos)
-      if (item.produtoLmcCodigo > 0) continue
-      const acc = salesMap.get(item.produtoCodigo) ?? {
+    for (const v of vendaAggs) {
+      const acc = salesMap.get(v.produtoCodigo) ?? {
         quantidade: 0,
         receita: 0,
         custoTotal: 0,
         qtdPorMes: new Map<string, number>(),
+        ultimaData: '',
       }
-      acc.quantidade += item.quantidade
-      acc.receita += item.totalVenda
-      acc.custoTotal += item.totalCusto
-      const ym = item.dataMovimento?.substring(0, 7) ?? ''
-      if (ym) acc.qtdPorMes.set(ym, (acc.qtdPorMes.get(ym) ?? 0) + item.quantidade)
-      salesMap.set(item.produtoCodigo, acc)
+      acc.quantidade += v.quantidade
+      acc.receita += v.totalVenda
+      acc.custoTotal += v.totalCusto
+      const dm = v.data ?? ''
+      if (dm && dm > acc.ultimaData) acc.ultimaData = dm
+      const ym = dm.substring(0, 7)
+      if (ym) acc.qtdPorMes.set(ym, (acc.qtdPorMes.get(ym) ?? 0) + v.quantidade)
+      salesMap.set(v.produtoCodigo, acc)
     }
 
     // Estoque histórico por produto: agrupar por dataMovimento e calcular média
@@ -222,7 +282,9 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       // Filtrar para últimos 6 meses
       if (date < periodoInicial || date > periodoFinal) continue
       const acc = historyMap.get(ep.codigoProduto) ?? { byDate: new Map<string, number>() }
-      acc.byDate.set(date, (acc.byDate.get(date) ?? 0) + ep.quatidadeEstoque)
+      // Um snapshot por (produto, data) — last-write-wins dedup. A API repete
+      // linhas (mesmo bug do /PRODUTO_ESTOQUE); SOMAR inflaria o estoque médio.
+      acc.byDate.set(date, ep.quatidadeEstoque)
       historyMap.set(ep.codigoProduto, acc)
     }
 
@@ -244,6 +306,10 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       const custoTotalVendas = sales?.custoTotal ?? 0
       const custoMedio = vendasUltimos6m > 0 ? custoTotalVendas / vendasUltimos6m : 0
       const precoMedioVenda = vendasUltimos6m > 0 ? receitaUltimos6m / vendasUltimos6m : 0
+      const markup = custoMedio > 0 ? (precoMedioVenda / custoMedio - 1) * 100 : 0
+      const margemLucroUnit = precoMedioVenda > 0 ? precoMedioVenda - custoMedio : 0
+      const codigoBarras = produto.produtoCodigoBarra?.[0]?.codigoBarra ?? ''
+      const ultimaVenda = sales?.ultimaData ? sales.ultimaData.slice(0, 10) : null
       const valorEstoque = saldoAtual * custoMedio
       const mediaMensalVendas = vendasUltimos6m / MONTHS_LOOKBACK
 
@@ -308,8 +374,13 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         categoria: grupoMap.get(produto.grupoCodigo) ?? 'Outros',
         codigoSku: produto.referenciaCodigo || produto.produtoCodigoExterno || String(produto.produtoCodigo),
         saldoAtual,
+        estoqueMinimo: minimoMap.get(produto.produtoCodigo) ?? 0,
         custoMedio,
         precoMedioVenda,
+        markup,
+        margemLucroUnit,
+        codigoBarras,
+        ultimaVenda,
         valorEstoque,
         vendasUltimos6m,
         receitaUltimos6m,
@@ -333,7 +404,7 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     const categorias = Array.from(new Set(productAnalytics.map((r) => r.categoria))).sort()
 
     return { productAnalytics, kpis, categorias, months }
-  }, [produtosData, gruposData, produtoEstoqueData, estoquePeriodoData, allItens, periodoInicial, periodoFinal, months, coberturaDias])
+  }, [produtosData, gruposData, produtoEstoqueData, estoqueExtratoData, estoquePeriodoData, vendaAggs, periodoInicial, periodoFinal, months, coberturaDias])
 
   return {
     ...computed,

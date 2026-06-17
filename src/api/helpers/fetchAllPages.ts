@@ -17,9 +17,19 @@ export const fetchAllPages = async <T>(
     const response = await fetchFn({ ultimoCodigo, limite })
     allResults.push(...response.resultados)
 
+    // Última página — retornou menos que o limite.
     if (response.resultados.length < limite) break
 
-    ultimoCodigo = response.ultimoCodigo
+    // Endpoint que IGNORA o `limite` e devolve tudo numa página só (ex.:
+    // /PRODUTO_ESTOQUE retorna ~9.5k linhas mesmo pedindo 1.000). Repaginar só
+    // traria as MESMAS linhas (duplicação Nx) — para aqui.
+    if (response.resultados.length > limite) break
+
+    // Cursor não avançou (mesmo ultimoCodigo) → evita loop de duplicatas.
+    const next = response.ultimoCodigo
+    if (next === undefined || next === ultimoCodigo) break
+
+    ultimoCodigo = next
     page++
   }
 

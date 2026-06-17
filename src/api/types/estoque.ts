@@ -28,6 +28,19 @@ export interface Estoque {
   estoqueCodigoExterno: string
 }
 
+/** Linha do /PRODUTO_ESTOQUE_EXTRATO — traz dados de CADASTRO (estoque mínimo/
+ * máximo, preço de venda/custo) por produto, além do saldo atual. Arrays de
+ * histórico/última entrada omitidos quando exibeHistoricoCompra=false. */
+export interface ProdutoEstoqueExtrato {
+  produtoCodigo: number
+  empresaCodigo: number
+  saldoAtual: number
+  estoqueMinimo: number
+  estoqueMaximo: number
+  precoVenda: number
+  precoCusto: number
+}
+
 export interface EstoquePeriodo {
   codigo: number
   codigoProduto: number

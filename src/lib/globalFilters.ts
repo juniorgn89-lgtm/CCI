@@ -22,3 +22,13 @@ const ROTAS_COM_COMPARATIVO = ['/dashboard', '/comercial/vendas', '/caixas-turno
 
 export const showsComparison = (pathname: string): boolean =>
   ROTAS_COM_COMPARATIVO.includes(pathname)
+
+/**
+ * Rotas onde o escopo "Em andamento / Apurado / Completo" NÃO se aplica e seria
+ * um controle morto. Estoque é sempre o saldo ATUAL (não tem versão "apurada"),
+ * então o seletor de escopo fica escondido lá.
+ */
+const ROTAS_SEM_ESCOPO = ['/estoques']
+
+export const showsDataScope = (pathname: string): boolean =>
+  !ROTAS_SEM_ESCOPO.includes(pathname)
