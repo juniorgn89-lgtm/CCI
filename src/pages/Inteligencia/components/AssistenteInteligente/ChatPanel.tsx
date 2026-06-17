@@ -87,11 +87,17 @@ const UnavailableState = ({ status, errorMessage, redeNome }: { status: string; 
 interface ChatPanelProps {
   /** Override do tamanho do container (mobile usa altura própria pra caber no shell). */
   heightClass?: string
+  /** Contexto da tela atual + glossário (Suporte Cadu iA global). */
+  uiContext?: string
+  /** Restringe as consultas a estes postos (Suporte Cadu iA = posto do filtro). */
+  restrictToEmpresaCodigos?: number[]
+  /** Chips de sugestão do estado vazio (default = SUGGESTED_PROMPTS da rede). */
+  suggestions?: string[]
 }
 
-const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]' }: ChatPanelProps) => {
+const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiContext, restrictToEmpresaCodigos, suggestions = SUGGESTED_PROMPTS }: ChatPanelProps) => {
   const { apiKey, status, errorMessage, isUsable, redeNome, redeId, limiteUsd, markInvalid } = useRedeAssistente()
-  const { messages, loading, error, ask, reset } = useClaudeChat(apiKey, markInvalid)
+  const { messages, loading, error, ask, reset } = useClaudeChat(apiKey, markInvalid, uiContext, restrictToEmpresaCodigos)
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -191,8 +197,9 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]' }: Chat
             <p className="mt-2 max-w-md text-[11px] text-gray-400 dark:text-gray-500">
               Respondo apenas sobre dados da sua rede conectada — não atendo perguntas fora da operação.
             </p>
+            {suggestions.length > 0 && (
             <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
-              {SUGGESTED_PROMPTS.map((p) => (
+              {suggestions.map((p) => (
                 <button
                   key={p}
                   onClick={() => send(p)}
@@ -202,6 +209,7 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]' }: Chat
                 </button>
               ))}
             </div>
+            )}
           </div>
         ) : (
           messages.map((m) => (

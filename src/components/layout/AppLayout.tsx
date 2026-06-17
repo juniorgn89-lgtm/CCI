@@ -22,6 +22,7 @@ import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 import { showsGlobalFilters } from '@/lib/globalFilters'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import TopBar from '@/components/layout/TopBar'
+import SuporteCaduWidget from '@/components/cadu/SuporteCaduWidget'
 import useIsMobile from '@/hooks/useIsMobile'
 import MobileShell from '@/components/mobile/MobileShell'
 import { useTopbarUi } from '@/store/topbarUi'
@@ -257,6 +258,10 @@ const AppLayout = () => {
           </main>
         </div>
       </div>
+
+      {/* Suporte Cadu iA — lançador global. Oculto no módulo Inteligência (Cadu
+          completo já está lá) e nas rotas sem rede conectada (login/admin/config). */}
+      {!pathname.startsWith('/inteligencia') && !isSafeWithoutRede(pathname) && <SuporteCaduWidget />}
     </div>
   )
 }

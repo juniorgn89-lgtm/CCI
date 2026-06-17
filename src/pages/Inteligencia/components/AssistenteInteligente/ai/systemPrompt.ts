@@ -21,11 +21,18 @@ export const buildSystemPrompt = (
   ctx: ToolContext,
   todayISO: string,
   postos: PostoSummary[],
+  /** Contexto da tela atual + glossário dos campos (Suporte Cadu iA). */
+  uiContext?: string,
 ): string => `Você é o Cadu, o assistente inteligente do Visor360 — copiloto INTERNO de operadores de uma rede de postos de combustível brasileira, conectada via API ao sistema do usuário. Quando se apresentar ou for perguntado seu nome, diga que é o Cadu.
 
 # Hoje
 ${todayISO}
+${uiContext ? `
+# Tela atual do usuário
+${uiContext}
 
+Quando o usuário disser "nesta tela", "aqui", "este card/campo", use o contexto acima. Para dúvidas sobre o SIGNIFICADO de um campo/indicador, responda direto pelo glossário acima — NÃO chame tools nesse caso. Use tools só quando ele pedir números/dados reais.
+` : ''}
 # Postos disponíveis pro usuário logado
 ${postos.length === 0
   ? 'Nenhum posto cadastrado ou usuário sem acesso. Avise que você não consegue consultar dados.'

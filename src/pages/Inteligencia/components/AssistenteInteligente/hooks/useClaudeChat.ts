@@ -44,7 +44,14 @@ const currentMonthRange = () => {
  *  3) Se tool_use → executa, anexa tool_result, volta pro passo 2
  *  4) end_turn → extrai texto final e mostra
  */
-export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => void) => {
+export const useClaudeChat = (
+  apiKey: string,
+  onAuthError?: (msg: string) => void,
+  uiContext?: string,
+  /** Restringe o escopo das tools a estes empresaCodigos (ex.: posto do filtro
+   * global no Suporte Cadu iA). Sempre intersectado com os postos permitidos. */
+  restrictToEmpresaCodigos?: number[],
+) => {
   const allowedFromAuth = useAuthStore((s) => s.empresaCodigos)
   const isMaster = useAuthStore((s) => s.isMaster)
   const appendLog = useToolCallLog((s) => s.append)
@@ -79,6 +86,12 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
         nome: (e.fantasia || e.razao || '').trim() || `Empresa ${e.codigo}`,
       }))
   })()
+
+  // Escopo efetivo: se restrito (Suporte Cadu iA), só os postos selecionados que
+  // o user pode ver; senão, todos os acessíveis (comportamento do módulo Inteligência).
+  const scopedPostos = (restrictToEmpresaCodigos && restrictToEmpresaCodigos.length > 0)
+    ? accessiblePostos.filter((p) => restrictToEmpresaCodigos.includes(p.codigo))
+    : accessiblePostos
 
   // Conversa fica no store (sobrevive à troca de abas + permite carregar do Histórico).
   const messages = useCaduChat((s) => s.messages)
@@ -141,12 +154,12 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
       // Antes passávamos [] pra master (sem filtro), mas alguns endpoints do Quality
       // (ex: /VENDA_ITEM) crasham sem empresaCodigo. Passando explicitamente a lista
       // funciona pros dois casos (master vê todas + whitelist vê só as permitidas).
-      const allowedCodigos = accessiblePostos.map((p) => p.codigo)
+      const allowedCodigos = scopedPostos.map((p) => p.codigo)
 
       const { dataInicial, dataFinal } = currentMonthRange()
       const ctx: ToolContext = { allowedEmpresaCodigos: allowedCodigos, dataInicial, dataFinal }
       const todayISO = new Date().toISOString().slice(0, 10)
-      const system = buildSystemPrompt(ctx, todayISO, accessiblePostos)
+      const system = buildSystemPrompt(ctx, todayISO, scopedPostos, uiContext)
 
       const collectedToolCalls: UiChatMessage['toolCalls'] = []
       // Acumula tokens de TODAS as iterações do tool_use loop pra contabilizar
@@ -299,7 +312,7 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
         }
       }
     },
-    [apiKey, loading, messages, setMessages, accessiblePostos, appendLog, onAuthError, redeId, recordUsage, persistConversa],
+    [apiKey, loading, messages, setMessages, scopedPostos, appendLog, onAuthError, redeId, recordUsage, persistConversa, uiContext],
   )
 
   return {
@@ -308,6 +321,6 @@ export const useClaudeChat = (apiKey: string, onAuthError?: (msg: string) => voi
     error,
     ask,
     reset,
-    accessiblePostosCount: accessiblePostos.length,
+    accessiblePostosCount: scopedPostos.length,
   }
 }
