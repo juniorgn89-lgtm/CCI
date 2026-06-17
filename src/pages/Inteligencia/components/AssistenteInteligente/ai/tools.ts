@@ -245,6 +245,7 @@ const getVolumeCombustivel = async (
   for (const a of abast) {
     // Filtro client-side por empresa — endpoint /ABASTECIMENTO não aceita esse filtro
     if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
+    if (a.afericao) continue // exclui aferição (igual às telas Combustível/Produtividade)
     const nome = produtoLabel(produtoMap.get(a.codigoProduto), a.codigoProduto)
     if (filtroNome && !nome.toLowerCase().includes(filtroNome)) continue
     const cur = porProduto.get(a.codigoProduto) ?? { nome, litros: 0, faturamento: 0, qtd: 0 }
@@ -394,6 +395,7 @@ const getTopFrentistas = async (
     if (!a.codigoFrentista) continue
     // Filtro client-side por empresa
     if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
+    if (a.afericao) continue // exclui aferição (igual à tela Produtividade)
     const nome = funcNome.get(a.codigoFrentista) ?? `Frentista ${a.codigoFrentista}`
     const cur = por.get(a.codigoFrentista) ?? { nome, litros: 0, faturamento: 0, qtd: 0, empresaCodigo: a.empresaCodigo }
     cur.litros += a.quantidade
@@ -606,6 +608,7 @@ const getLucroCombustivel = async (
     const costMap = buildCostMapFromLmc(lmcs)
     for (const a of liveAbast) {
       if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
+      if (a.afericao) continue // exclui aferição (igual à tela Combustível)
       const c = costMap.get(`${a.empresaCodigo}-${a.codigoProduto}`)
       linhas.push({
         empresaCodigo: a.empresaCodigo,

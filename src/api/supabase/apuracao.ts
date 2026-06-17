@@ -230,6 +230,7 @@ export const computeApuracaoRows = (input: ComputeRowsInput): ApuracaoDiariaUpse
   const fuelByKey = new Map<string, FuelAgg>()
 
   for (const a of input.abastecimentos) {
+    if (a.afericao) continue // aferição não é venda — fora da apuração
     const day = (a.dataFiscal || a.dataHoraAbastecimento?.slice(0, 10) || '').slice(0, 10)
     if (!day || day < input.dataInicial || day > input.dataFinal) continue
     const prodCode = Number(a.codigoProduto)
@@ -618,6 +619,7 @@ export const computeFuelProdutoRows = (input: ComputeFuelProdutoInput): Apuracao
   interface Agg { empresa: number; data: string; produto: number; litros: number; fat: number; custo: number; count: number }
   const byKey = new Map<string, Agg>()
   for (const a of input.abastecimentos) {
+    if (a.afericao) continue // aferição não é venda — fora da apuração
     const day = (a.dataFiscal || a.dataHoraAbastecimento?.slice(0, 10) || '').slice(0, 10)
     if (!day || day < input.dataInicial || day > input.dataFinal) continue
     const prod = Number(a.codigoProduto)

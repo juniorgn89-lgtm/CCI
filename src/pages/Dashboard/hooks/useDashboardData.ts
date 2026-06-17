@@ -203,6 +203,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial: effIni,
         dataFinal: effEnd,
+        situacao: 'A', // só vendas autorizadas (consistente com Cadu/Vendas)
       }),
     enabled: shouldFetchMain,
     placeholderData: keepPreviousData,
@@ -216,6 +217,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial: prevMonthInicial,
         dataFinal: prevMonthFinal,
+        situacao: 'A',
       }),
     enabled: !cachePrevMonth.isCacheHit && !cachePrevMonth.isChecking,
     retry: false,
@@ -229,6 +231,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
         empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
         dataInicial: prevYearInicial,
         dataFinal: prevYearFinal,
+        situacao: 'A',
       }),
     enabled: !cachePrevYear.isCacheHit && !cachePrevYear.isChecking,
     retry: false,
@@ -381,7 +384,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     ): PrevAgg => {
       let fuelFat = 0, fuelCusto = 0, vendasTotal = 0
       for (const a of abastData) {
-        if (!matchesEmpresa(a.empresaCodigo)) continue
+        if (!matchesEmpresa(a.empresaCodigo) || a.afericao) continue
         fuelFat += a.valorTotal
         fuelCusto += getCost(a.empresaCodigo, Number(a.codigoProduto)) * a.quantidade
       }
@@ -569,7 +572,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
       // caso contrário (live), conta records do abastPrevMonth filtrado.
       const prevMonthAbastCount = cachePrevMonth.isCacheHit
         ? cachePrevMonth.rows.reduce((s, r) => matchesEmpresa(r.empresa_codigo) ? s + r.fuel_abast_count : s, 0)
-        : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length
+        : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo) && !a.afericao).length
       const comparison: PeriodComparison = {
         prevMonth: {
           faturamento: prevMonthAgg.vendasTotal,
@@ -631,7 +634,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     // Filtra por filtro global + restrição do user. matchesEmpresa cobre os
     // dois casos — não pode ter guard de `hasEmpresa` aqui porque mesmo sem
     // filtro global o user restrito não pode ver outros postos.
-    const filteredAbast = abastecimentos.filter((a) => matchesEmpresa(a.empresaCodigo))
+    const filteredAbast = abastecimentos.filter((a) => matchesEmpresa(a.empresaCodigo) && !a.afericao)
 
     for (const a of filteredAbast) {
       const prodCode = Number(a.codigoProduto)
@@ -893,7 +896,7 @@ const useDashboardData = (options: UseDashboardDataOptions = {}) => {
     const cmpPrevYearNonFuelFat = Math.max(0, prevYearAgg.vendasTotal - prevYearAgg.fuelFat)
     const prevMonthAbastCount = cachePrevMonth.isCacheHit
       ? cachePrevMonth.rows.reduce((s, r) => matchesEmpresa(r.empresa_codigo) ? s + r.fuel_abast_count : s, 0)
-      : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo)).length
+      : abastPrevMonth.filter((a) => matchesEmpresa(a.empresaCodigo) && !a.afericao).length
 
     const comparison: PeriodComparison = {
       prevMonth: {
