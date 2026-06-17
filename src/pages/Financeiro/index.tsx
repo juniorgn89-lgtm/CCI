@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Landmark, Receipt, CreditCard, BarChart3, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
+import { Landmark, Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -7,16 +7,14 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
 import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
-const ReceivablesTable = lazy(() => import('@/pages/Financeiro/components/ReceivablesTable'))
-const PayablesTable = lazy(() => import('@/pages/Financeiro/components/PayablesTable'))
-const CashFlowChart = lazy(() => import('@/pages/Financeiro/components/CashFlowChart'))
+const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
+const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
+const CartoesIntel = lazy(() => import('@/pages/Financeiro/components/CartoesIntel'))
 const AgendaFinanceira = lazy(() => import('@/pages/Financeiro/components/AgendaFinanceira'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
@@ -27,7 +25,7 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   visao: LayoutDashboard,
   receber: Receipt,
   pagar: CreditCard,
-  fluxo: BarChart3,
+  cartoes: CreditCard,
   agenda: CalendarDays,
 }
 
@@ -55,17 +53,15 @@ const Financeiro = () => {
 
   const {
     kpis,
-    receivablesData,
-    payablesData,
     receivablesAtraso,
     payablesAtraso,
-    cashFlowData,
-    cashFlowTotals,
-    cashFlowPrevTotals,
     cartoesAppsAVencer,
     carteiraDigitalItems,
     modoRecebimento,
     cartoesAVencer,
+    pmr,
+    receivablesPagos,
+    saldoEmCaixa,
     isLoading,
     hasEmpresa,
   } = useFinanceData()
@@ -121,13 +117,6 @@ const Financeiro = () => {
       <HeaderTray>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
-      {/* Visão Geral (estado atual) e Agenda (seletor próprio de mês/ano) não usam o período global. */}
-      {activeTab !== 'visao' && activeTab !== 'agenda' && (
-        <PageHeaderActions>
-          <DateRangeToolbar />
-        </PageHeaderActions>
-      )}
-
       {/* Empty state: no empresa selected */}
       {!hasEmpresa && <SelectCompanyState />}
 
@@ -157,17 +146,13 @@ const Financeiro = () => {
                     </div>
                   )}
                   {activeTab === 'receber' && (
-                    <ReceivablesTable data={receivablesData} />
+                    <ReceivablesIntel data={receivablesAtraso} pagos={receivablesPagos} pmr={pmr} />
                   )}
                   {activeTab === 'pagar' && (
-                    <PayablesTable data={payablesData} />
+                    <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
                   )}
-                  {activeTab === 'fluxo' && (
-                    <CashFlowChart
-                      data={cashFlowData}
-                      totals={cashFlowTotals}
-                      prevTotals={cashFlowPrevTotals}
-                    />
+                  {activeTab === 'cartoes' && (
+                    <CartoesIntel />
                   )}
                   {activeTab === 'agenda' && (
                     <AgendaFinanceira

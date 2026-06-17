@@ -102,11 +102,11 @@ export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layo
 
 // Bump no nome da store força reset pra essa aba específica (rename
 // indicadores → visao não casaria com o merge do migrate).
-export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v3', [
+export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v5', [
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
-  { id: 'fluxo', label: 'Fluxo de Caixa', visible: true },
+  { id: 'cartoes', label: 'Cartões', visible: true },
   { id: 'agenda', label: 'Agenda', visible: true },
 ])
 

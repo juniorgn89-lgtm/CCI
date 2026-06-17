@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao } from '@/api/endpoints/financeiro'
+import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao, fetchContas } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { MovimentoConta, TituloReceber, TituloPagar } from '@/api/types/financeiro'
 
@@ -320,6 +320,36 @@ const useFinanceData = () => {
     enabled: hasEmpresa,
   })
 
+  // Títulos a receber PAGOS nos últimos 6 meses (filtro por data de pagamento) —
+  // base pro PMR (prazo médio de recebimento = pagamento − movimento).
+  const pmrInicio = offsetDateByDays(hojeStr, 180)
+  const { data: titulosReceberPagos = [] } = useQuery({
+    queryKey: ['titulosReceberPagos', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosReceber({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: pmrInicio,
+        dataFinal: hojeStr,
+        dataFiltro: 'PAGAMENTO',
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
+  // Saldo em caixa/banco (/CONTA) — pro card "Impacto no Caixa" da aba Pagar.
+  const { data: contas = [] } = useQuery({
+    queryKey: ['contas', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchContas({ empresaCodigo: empresaCodigo ?? undefined, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+  const saldoEmCaixa = contas.filter((c) => c.ativo).reduce((s, c) => s + (c.saldoAtual ?? 0), 0)
+
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
     || isLoadingReceberPend || isLoadingPagarPend
 
@@ -457,6 +487,22 @@ const useFinanceData = () => {
 
     const cashFlowPrevTotals = sumMovimentos(movimentosPrev)
 
+    // --- PMR (atraso médio de recebimento) ---
+    // Média de dias entre VENCIMENTO e pagamento dos títulos pagos nos últimos 6
+    // meses (negativo = pago adiantado). Bate com a definição do webPosto.
+    // Sem dado pago suficiente → null (não inventa).
+    const diasPagamento: number[] = []
+    for (const t of titulosReceberPagos) {
+      const pag = (t.dataPagamento ?? '').split('T')[0]
+      const venc = (t.dataVencimento ?? '').split('T')[0]
+      if (!pag || !venc) continue
+      const dias = Math.round((new Date(pag).getTime() - new Date(venc).getTime()) / (1000 * 60 * 60 * 24))
+      if (dias >= -3650 && dias <= 3650) diasPagamento.push(dias)
+    }
+    const pmr = diasPagamento.length > 0
+      ? Math.round(diasPagamento.reduce((s, d) => s + d, 0) / diasPagamento.length)
+      : null
+
     // --- Cartão / Apps (/CARTAO) ---
     // Modalidade derivada da administradora (a API não traz um "tipo" explícito):
     //  - contém CREDITO/DEBITO/PIX → adquirente direto
@@ -516,11 +562,16 @@ const useFinanceData = () => {
       carteiraDigitalItems,
       modoRecebimento,
       cartoesAVencer: cartoesPend,
+      pmr,
     }
-  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
 
   return {
     ...computed,
+    // Títulos pagos (6m) — base pro score de risco/recuperação na aba Receber.
+    receivablesPagos: titulosReceberPagos,
+    // Saldo em caixa/banco (contas ativas) — pro "Impacto no Caixa" da aba Pagar.
+    saldoEmCaixa,
     isLoading,
     hasEmpresa,
   }
