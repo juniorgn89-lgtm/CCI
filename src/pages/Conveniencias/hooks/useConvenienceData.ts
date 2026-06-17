@@ -4,6 +4,7 @@ import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import useVendasCache, { aggregateItensToVendaAgg, type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
@@ -120,6 +121,8 @@ export interface CatalogProduct {
   nome: string
   grupo: string
   grupoCodigo: number
+  /** Código de referência do produto (referenciaCodigo, fallback código externo). */
+  referencia: string
   precoMedioVenda: number
   custoMedio: number
   margemPct: number
@@ -384,7 +387,7 @@ const useConvenienceData = () => {
     const grupoMap = new Map(grupos.map((g) => [g.grupoCodigo, g.nome]))
     const grupoTipo = new Map(grupos.map((g) => [g.grupoCodigo, g.tipoGrupo]))
 
-    const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string }>()
+    const produtoMap = new Map<number, { nome: string; grupoCodigo: number; ativo: boolean; unidade: string; referencia: string }>()
     for (const p of produtos) {
       // Régua: conveniência = tipoGrupo "Conveniência" (exclui combustível,
       // pista e "outros"). Antes era "não combustível e não PS-".
@@ -394,6 +397,7 @@ const useConvenienceData = () => {
         grupoCodigo: p.grupoCodigo,
         ativo: p.ativo,
         unidade: p.unidadeVenda || 'UN',
+        referencia: p.referenciaCodigo || p.produtoCodigoExterno || '',
       })
     }
 
@@ -649,10 +653,8 @@ const useConvenienceData = () => {
 
     // ── Stock items — calculado ANTES do catálogo pra incluir saldo em cada
     // CatalogProduct (necessário pro badge de cobertura no ProductCatalog). ──
-    const estoqueMap = new Map<number, number>()
-    for (const e of estoque) {
-      estoqueMap.set(e.produtoCodigo, (estoqueMap.get(e.produtoCodigo) ?? 0) + e.saldo)
-    }
+    // Dedup das duplicatas do /PRODUTO_ESTOQUE (somar registros inflava o saldo).
+    const estoqueMap = saldoAtualPorProduto(estoque)
 
     // ── Série diária por produto — necessária pra computar `projetado` em
     // cada CatalogProduct. Reaproveita convAggs já em memória. ──
@@ -694,6 +696,7 @@ const useConvenienceData = () => {
           faturamento: v.faturamento,
           ativo: info?.ativo ?? true,
           unidade: info?.unidade ?? 'UN',
+          referencia: info?.referencia ?? '',
           saldo: estoqueMap.get(code),
           projetado,
         }

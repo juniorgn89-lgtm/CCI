@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
@@ -303,7 +304,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     for (const g of gruposData) { grupoMap.set(g.grupoCodigo, g.nome); grupoTipo.set(g.grupoCodigo, g.tipoGrupo) }
 
     // Produtos de automotivos — régua: tipoGrupo "Pista" e tipoProduto ≠ "C".
-    const pistaProdutos = new Map<number, { nome: string; grupoNome: string; categoria: string }>()
+    const pistaProdutos = new Map<number, { nome: string; grupoNome: string; categoria: string; referencia: string }>()
     for (const p of produtosData) {
       if (classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)) !== 'automotivos') continue
       const grupoNome = grupoMap.get(p.grupoCodigo) ?? ''
@@ -311,6 +312,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         nome: p.nome,
         grupoNome,
         categoria: categoriaDoGrupo(grupoNome),
+        referencia: p.referenciaCodigo || p.produtoCodigoExterno || '',
       })
     }
 
@@ -320,6 +322,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       nome: string
       grupoNome: string
       categoria: string
+      referencia: string
       quantidade: number
       faturamento: number
       custo: number
@@ -334,6 +337,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         nome: pista.nome,
         grupoNome: pista.grupoNome,
         categoria: pista.categoria,
+        referencia: pista.referencia,
         quantidade: 0,
         faturamento: 0,
         custo: 0,
@@ -493,18 +497,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     }
   }, [realizadoDiaADia])
 
-  // Mapa produtoCodigo → saldo de estoque (soma de saldoEstoque[].quantidade
-  // ou saldo do produto). Usado pelo filtro de estoque, pelo modal e pela tabela.
-  const estoquePorProduto = useMemo(() => {
-    const map = new Map<number, number>()
-    for (const e of estoqueRaw?.resultados ?? []) {
-      const saldo = e.saldoEstoque
-        ? e.saldoEstoque.reduce((s, x) => s + x.quantidade, 0)
-        : e.saldo
-      map.set(e.produtoCodigo, (map.get(e.produtoCodigo) ?? 0) + saldo)
-    }
-    return map
-  }, [estoqueRaw])
+  // Mapa produtoCodigo → saldo de estoque. Dedup das duplicatas do
+  // /PRODUTO_ESTOQUE (somar registros inflava o saldo). Usado pelo filtro de
+  // estoque, pelo modal e pela tabela.
+  const estoquePorProduto = useMemo(
+    () => saldoAtualPorProduto(estoqueRaw?.resultados ?? []),
+    [estoqueRaw],
+  )
 
   const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
 
@@ -546,6 +545,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         nome: p.nome,
         grupo: p.categoria,
         grupoCodigo: 0, // não usado pelos componentes — só `grupo` (string)
+        referencia: p.referencia,
         precoMedioVenda,
         custoMedio,
         margemPct,

@@ -25,6 +25,12 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
   const [sortBy, setSortBy] = useState<'faturamento' | 'qtdVendida' | 'margemPct'>('faturamento')
 
   const columns = useMemo<Column<CatalogProduct>[]>(() => [
+    {
+      key: 'referencia', label: 'Ref.', sortable: true,
+      render: (r) => (
+        <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.referencia || '—'}</span>
+      ),
+    },
     { key: 'nome', label: 'Produto', sortable: true },
     { key: 'grupo', label: 'Grupo', sortable: true },
     {
@@ -96,7 +102,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     let result = products
     if (search) {
       const q = search.toLowerCase()
-      result = result.filter((p) => p.nome.toLowerCase().includes(q) || p.grupo.toLowerCase().includes(q))
+      result = result.filter((p) => p.nome.toLowerCase().includes(q) || p.grupo.toLowerCase().includes(q) || (p.referencia ?? '').toLowerCase().includes(q))
     }
     if (grupoFilter) {
       result = result.filter((p) => p.grupo === grupoFilter)
@@ -190,7 +196,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
           keyExtractor={(r) => r.produtoCodigo}
           enableRowHighlight
           groups={[
-            { label: '', span: 2 },           // Produto · Grupo
+            { label: '', span: 3 },           // Ref. · Produto · Grupo
             { label: 'Eficiência', span: 2 }, // Preço médio · Custo médio
             { label: 'Operação', span: 2 },   // Qtd vendida · Cobertura
             { label: 'Financeiro', span: 3 }, // Faturamento · Projeção · Margem %
