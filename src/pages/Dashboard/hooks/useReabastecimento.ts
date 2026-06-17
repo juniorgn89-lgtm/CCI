@@ -12,6 +12,7 @@ export interface UltimaCompra {
   data: string  // yyyy-MM-dd
   volume: number  // litros
   valorEstimado: number  // estimativa: volume × precoCusto naquela data
+  precoCusto: number  // custo unitário (R$/L) na data da compra
 }
 
 export interface ReabastTanque {
@@ -189,6 +190,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
             data: nota.dataEntrada.slice(0, 10),
             volume: nota.volumeRecebido,
             valorEstimado: nota.volumeRecebido * (lmc.precoCusto || 0),
+            precoCusto: lmc.precoCusto || 0,
           }
         }
         m.set(key, prev)

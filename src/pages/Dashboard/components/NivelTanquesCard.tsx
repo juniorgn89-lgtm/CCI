@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList } from 'lucide-react'
+import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList, HelpCircle } from 'lucide-react'
 import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
@@ -87,10 +87,10 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
 
       {/* Stat cards — sem borda externa, separados por divider só no desktop */}
       <div className="grid grid-cols-2 divide-gray-100 border-b border-gray-100 dark:divide-gray-800 dark:border-gray-800 md:grid-cols-4 md:divide-x">
-        <StatCard label="Total de tanques" value={resumo.total} icon={Fuel} color="gray" />
-        <StatCard label="Críticos" value={resumo.critico} sub="abaixo de 20%" icon={AlertTriangle} color="red" />
-        <StatCard label="Alerta" value={resumo.alerta} sub="entre 20% e 30%" icon={Clock} color="amber" />
-        <StatCard label="OK" value={resumo.ok} sub="acima de 30%" icon={CheckCircle2} color="emerald" />
+        <StatCard label="Total de tanques" value={resumo.total} icon={Fuel} color="gray" hint="Quantidade de tanques de combustível do posto." />
+        <StatCard label="Críticos" value={resumo.critico} sub="abaixo de 20%" icon={AlertTriangle} color="red" hint="Tanques abaixo de 20% da capacidade — risco de faltar combustível." />
+        <StatCard label="Alerta" value={resumo.alerta} sub="entre 20% e 30%" icon={Clock} color="amber" hint="Tanques entre 20% e 30% da capacidade — atenção ao reabastecimento." />
+        <StatCard label="OK" value={resumo.ok} sub="acima de 30%" icon={CheckCircle2} color="emerald" hint="Tanques acima de 30% da capacidade — nível saudável." />
       </div>
 
       {/* Necessidade total — strip azul destacado */}
@@ -227,9 +227,10 @@ interface StatCardProps {
   sub?: string
   icon: typeof Fuel
   color: 'gray' | 'red' | 'amber' | 'emerald'
+  hint?: string
 }
 
-const StatCard = ({ label, value, sub, icon: Icon, color }: StatCardProps) => {
+const StatCard = ({ label, value, sub, icon: Icon, color, hint }: StatCardProps) => {
   const colorClasses = {
     gray: { bg: 'bg-gray-100 dark:bg-gray-800', icon: 'text-gray-600 dark:text-gray-400' },
     red: { bg: 'bg-red-50 dark:bg-red-900/30', icon: 'text-red-600 dark:text-red-400' },
@@ -242,8 +243,13 @@ const StatCard = ({ label, value, sub, icon: Icon, color }: StatCardProps) => {
         <Icon className={cn('h-4 w-4', colorClasses.icon)} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           {label}
+          {hint && (
+            <span title={hint} className="inline-flex cursor-help text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
+              <HelpCircle className="h-3 w-3" />
+            </span>
+          )}
         </p>
         <p className="mt-0.5 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
           {value}

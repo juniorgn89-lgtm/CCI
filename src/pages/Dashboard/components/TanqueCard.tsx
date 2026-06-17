@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingDown, Info } from 'lucide-react'
+import { ShoppingCart, TrendingDown, Info, HelpCircle } from 'lucide-react'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
@@ -41,14 +41,22 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
             {subtitle ?? t.produtoNome}
           </p>
         </div>
-        <span
-          className={cn(
-            'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
-            badge.bg,
-          )}
-        >
-          {badge.label}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+              badge.bg,
+            )}
+          >
+            {badge.label}
+          </span>
+          <span
+            title="Nível atual do tanque (% da capacidade). Mostra a última compra (volume, data e custo) e a necessidade projetada até o fim do mês pelo consumo médio diário."
+            className="inline-flex cursor-help text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </span>
+        </div>
       </div>
 
       {/* Nível: barra + % em destaque (hero do card) */}
@@ -83,6 +91,11 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
               {t.ultimaCompra.valorEstimado > 0 && (
                 <> · <span className="tabular-nums" title="Estimado: volume × preço de custo do dia">
                   {formatCurrency(t.ultimaCompra.valorEstimado)}
+                </span></>
+              )}
+              {t.ultimaCompra.precoCusto > 0 && (
+                <> · <span className="whitespace-nowrap tabular-nums text-gray-500 dark:text-gray-400" title="Custo unitário (R$/L) na data da compra">
+                  {formatCurrency(t.ultimaCompra.precoCusto)}/L
                 </span></>
               )}
             </span>
