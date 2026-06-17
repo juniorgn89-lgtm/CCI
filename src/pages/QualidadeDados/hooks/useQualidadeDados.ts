@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchVendaItens, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchCaixas, fetchTitulosReceber, fetchTitulosPagar } from '@/api/endpoints/financeiro'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
@@ -25,10 +26,25 @@ export interface QualidadeIssue<T = unknown> {
   items: T[]
 }
 
+/** Classifica uma forma de pagamento em categoria curta pra exibição. */
+const fpgCategoria = (tipo: string, nome: string): string => {
+  const s = `${tipo} ${nome}`.toLowerCase()
+  if (s.includes('dinheiro') || s.includes('especie') || s.includes('espécie')) return 'Dinheiro'
+  if (s.includes('pix')) return 'PIX'
+  if (s.includes('debito') || s.includes('débito')) return 'Débito'
+  if (s.includes('credito') || s.includes('crédito')) return 'Crédito'
+  if (s.includes('cart')) return 'Cartão'
+  if (s.includes('prazo') || s.includes('nota') || s.includes('fiado')) return 'A prazo'
+  if (s.includes('vale') || s.includes('premmia') || s.includes('abastece') || s.includes('app')) return 'App/Vale'
+  return (nome || tipo || 'Outros').trim()
+}
+
 export interface AbastecimentoPrecoSuspeito extends AbastecimentoRow {
   /** Z-score do valor unitário vs média do mesmo combustível. */
   zScore: number
   precoMedio: number
+  /** Forma(s) de pagamento da venda (abast → vendaItem → venda → formas). */
+  formaPagamento: string
 }
 
 export interface CaixaAbertoDetalhe extends Caixa {
@@ -240,13 +256,37 @@ const useQualidadeDados = (): QualidadeData => {
       const sd = Math.sqrt(variance)
       stats.set(nome, { mean, sd, count: n })
     }
+    // Forma de pagamento por venda (categorias deduplicadas).
+    const formasByVenda = new Map<number, Set<string>>()
+    for (const fp of formasPgto) {
+      const set = formasByVenda.get(fp.vendaCodigo) ?? new Set<string>()
+      set.add(fpgCategoria(fp.tipoFormaPagamento || '', fp.nomeFormaPagamento || ''))
+      formasByVenda.set(fp.vendaCodigo, set)
+    }
+    // Ponte abast → venda. Live: por vendaItemCodigo. Cache (vendaItemCodigo=0):
+    // chave natural (empresa+bico+produto+qtd+data), igual à análise de cupom.
+    const fpgNaturalKey = (empresa: number, bico: number, produto: number, qty: number, date: string) =>
+      `${empresa}|${bico}|${produto}|${qty.toFixed(3)}|${(date ?? '').slice(0, 10)}`
+    const vendaByItem = new Map<number, number>()
+    const vendaByNaturalKey = new Map<string, number>()
+    for (const item of vendaItens) {
+      vendaByItem.set(item.vendaItemCodigo, item.vendaCodigo)
+      vendaByNaturalKey.set(fpgNaturalKey(item.empresaCodigo, item.bicoCodigo, item.produtoCodigo, item.quantidade, item.dataMovimento), item.vendaCodigo)
+    }
+    const formaDoAbast = (r: AbastecimentoRow): string => {
+      let vc = r.vendaItemCodigo ? vendaByItem.get(r.vendaItemCodigo) : undefined
+      if (vc == null) vc = vendaByNaturalKey.get(fpgNaturalKey(r.empresaCodigo, r.bicoCodigo, r.produtoCodigo, r.litros, r.dataHora))
+      const set = vc != null ? formasByVenda.get(vc) : undefined
+      return set && set.size > 0 ? Array.from(set).join(' + ') : '—'
+    }
+
     const precoSuspeito: AbastecimentoPrecoSuspeito[] = []
     for (const r of abastRows) {
       const s = stats.get(r.combustivelNome)
       if (!s || s.sd === 0) continue
       const z = (r.valorUnitario - s.mean) / s.sd
       if (Math.abs(z) >= 3) {
-        precoSuspeito.push({ ...r, zScore: z, precoMedio: s.mean })
+        precoSuspeito.push({ ...r, zScore: z, precoMedio: s.mean, formaPagamento: formaDoAbast(r) })
       }
     }
 
@@ -287,7 +327,7 @@ const useQualidadeDados = (): QualidadeData => {
         items: litrosSuspeito,
       },
     ]
-  }, [abastRows, inconsistenciasFuturas])
+  }, [abastRows, inconsistenciasFuturas, formasPgto, vendaItens])
 
   // Vendas
   const vendas = useMemo<QualidadeIssue[]>(() => {
@@ -523,14 +563,9 @@ const useQualidadeDados = (): QualidadeData => {
   const estoque = useMemo<QualidadeIssue[]>(() => {
     const lista = estoqueRaw?.resultados ?? []
     const produtoMap = new Map((produtosData ?? []).map((p) => [p.produtoCodigo, p.nome]))
-    // Soma os saldos por produto (pode ter vários estoqueCodigo)
-    const saldoPorProduto = new Map<number, number>()
-    for (const e of lista) {
-      const saldo = e.saldoEstoque
-        ? e.saldoEstoque.reduce((s, x) => s + x.quantidade, 0)
-        : e.saldo
-      saldoPorProduto.set(e.produtoCodigo, (saldoPorProduto.get(e.produtoCodigo) ?? 0) + saldo)
-    }
+    // Saldo por produto — dedup das duplicatas do /PRODUTO_ESTOQUE (somar
+    // registros inflava o saldo, distorcendo o valor mostrado nos negativos).
+    const saldoPorProduto = saldoAtualPorProduto(lista)
     const saldoNegativo: ProdutoEstoqueNegativo[] = []
     for (const [produtoCodigo, saldo] of saldoPorProduto.entries()) {
       if (saldo < 0) {

@@ -358,6 +358,7 @@ const PrecoSuspeitoTable = ({
           <th className="px-3 py-2 text-left font-medium">Código</th>
           <th className="px-3 py-2 text-left font-medium">Data</th>
           <th className="px-3 py-2 text-left font-medium">Combustível</th>
+          <th className="px-3 py-2 text-left font-medium">Forma pgto</th>
           <th className="px-3 py-2 text-right font-medium">Preço unit.</th>
           <th className="px-3 py-2 text-right font-medium">Média</th>
           <th className="px-3 py-2 text-right font-medium">Z-score</th>
@@ -383,6 +384,7 @@ const PrecoSuspeitoTable = ({
               <td className="px-3 py-1.5 font-mono tabular-nums text-blue-600 underline-offset-2 hover:underline dark:text-blue-400">#{r.codigo}</td>
               <td className="px-3 py-1.5 font-medium tabular-nums text-gray-900 dark:text-gray-100">{formatDate(day)}</td>
               <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{r.combustivelNome}</td>
+              <td className="px-3 py-1.5 text-gray-600 dark:text-gray-400">{r.formaPagamento}</td>
               <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-red-700 dark:text-red-400">
                 {formatCurrency(r.valorUnitario)}
               </td>
