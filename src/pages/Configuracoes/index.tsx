@@ -16,7 +16,7 @@ import {
 } from '@/store/manutencao'
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 
-const APP_VERSION = 'v1.0.0'
+const APP_VERSION = 'v1.1.0'
 const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'contato@cci.app.br'
 
 const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
