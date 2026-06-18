@@ -1,13 +1,14 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Wallet, Fuel, Users, Clock, Calendar, TrendingUp, DollarSign, Receipt,
-  Banknote, CreditCard, Smartphone, Scale, AlertTriangle,
+  Banknote, CreditCard, Smartphone, Scale, AlertTriangle, ChevronDown, ChevronRight, Loader2,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { formatDateTimeBR } from '@/lib/datetime'
 import type { TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
+import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 
 interface TurnoDetalheModalProps {
   open: boolean
@@ -25,6 +26,11 @@ const paymentIcon = (tipo: string) => {
   return Wallet
 }
 
+const isCardTipo = (tipo: string) => {
+  const t = (tipo || '').toUpperCase()
+  return t.includes('CARTAO') || t.includes('CARTÃO') || t.includes('CREDITO') || t.includes('DEBITO')
+}
+
 const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => {
   const stats = useMemo(() => {
     if (!turno) return null
@@ -35,6 +41,16 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
     const esperado = turno.apuradoTotal - turno.diferencaTotal
     return { totalCombustivel, conveniencia, totalLitros, totalAbast, esperado }
   }, [turno])
+
+  // Quebra do cartão por bandeira — carregada sob demanda (só busca /VENDA quando
+  // o usuário expande). Todos os caixas do grupo são do mesmo PDV (grupo = 1 PDV).
+  const [cardOpen, setCardOpen] = useState(false)
+  useEffect(() => { setCardOpen(false) }, [turno?.groupKey])
+  const pdvByCaixa = useMemo(
+    () => new Map((turno?.caixaCodigos ?? []).map((c) => [c, turno?.pdvLabel ?? '—'])),
+    [turno?.caixaCodigos, turno?.pdvLabel],
+  )
+  const cartao = useCartaoBreakdown(turno?.caixaCodigos ?? [], pdvByCaixa, open && cardOpen && !!turno)
 
   if (!turno || !stats) return null
 
@@ -49,6 +65,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
   const formasIsApresentado = turno.apresentadoFormas.length > 0
   const formasList = formasIsApresentado ? turno.apresentadoFormas : turno.pagamentos
   const totalPagamentos = formasList.reduce((s, p) => s + p.valor, 0)
+  const hasCard = formasList.some((p) => isCardTipo(p.tipo) || isCardTipo(p.nome))
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -258,6 +275,61 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                       )
                     })}
                 </ul>
+              )}
+
+              {/* Quebra do cartão por bandeira (Visa/Master/Elo + débito/crédito).
+                  Sob demanda: só busca /VENDA quando expandido. */}
+              {hasCard && (
+                <div className="border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => setCardOpen((v) => !v)}
+                    className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/50"
+                  >
+                    {cardOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+                    Bandeiras do cartão
+                    {cardOpen && cartao.isLoading && <Loader2 className="ml-1 h-3 w-3 animate-spin text-gray-400" />}
+                  </button>
+                  {cardOpen && (
+                    <div className="px-3 pb-2">
+                      {cartao.isLoading ? (
+                        <p className="py-3 text-center text-[11px] text-gray-400">Carregando bandeiras…</p>
+                      ) : cartao.linhas.length === 0 ? (
+                        <p className="py-3 text-center text-[11px] text-gray-400">
+                          Sem detalhe de bandeira para este turno.
+                        </p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {cartao.linhas.map((l) => (
+                            <li key={l.key} className="flex items-center justify-between gap-2 rounded-md bg-gray-50 px-2.5 py-1.5 text-[11px] dark:bg-gray-800/40">
+                              <span className="flex min-w-0 items-center gap-1.5 truncate text-gray-700 dark:text-gray-200">
+                                <span className="truncate font-medium">{l.bandeira}</span>
+                                {l.tipo !== '—' && (
+                                  <span className="shrink-0 rounded bg-gray-200 px-1 py-0.5 text-[8.5px] font-semibold uppercase tracking-wider text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                    {l.tipo}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="shrink-0 text-right tabular-nums">
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(l.valor)}</span>
+                                {l.quantidade > 0 && (
+                                  <span className="ml-1.5 text-[10px] text-gray-400">{formatNumber(l.quantidade)}×</span>
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {!cartao.isLoading && cartao.linhas.length > 0 && (
+                        <p className="mt-1.5 text-[9.5px] leading-snug text-gray-400 dark:text-gray-500">
+                          Bandeiras vêm de /VENDA (transações autorizadas dos caixas deste turno) — o total
+                          pode diferir levemente da linha "Cartão" acima, que usa a fonte agregada de formas.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </section>
           </div>
