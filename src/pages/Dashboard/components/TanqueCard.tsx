@@ -68,7 +68,7 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
           />
         </div>
         <span className={cn('shrink-0 text-xl font-bold tabular-nums', textColor)}>
-          {t.nivelPct.toFixed(0)}%
+          {t.nivelPct.toFixed(2)}%
         </span>
       </div>
       <p className="mt-1.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">

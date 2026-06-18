@@ -698,7 +698,7 @@ const getLucroCombustivel = async (
     metodo_custo: 'lucro bruto = faturamento − (custo unitário × litros). Custo = preço de custo gravado por abastecimento na apuração (mesma base da tela Combustível); dias fechados vêm do cache de apuração, o dia corrente do LMC mais recente.',
     cobertura_custo_pct: Number(coberturaPct.toFixed(1)),
     aviso_cobertura: coberturaPct < 95
-      ? `Atenção: ${coberturaPct.toFixed(1)}% dos litros tinham custo apurado. Os litros sem custo entram com custo 0 (margem ~100%) e inflam o lucro. Provável causa: período não reapurado após cadastro de custos, ou produto sem custo. Sinalize isso na resposta e sugira reapurar no Admin → Apuração.`
+      ? `Atenção: ${coberturaPct.toFixed(2)}% dos litros tinham custo apurado. Os litros sem custo entram com custo 0 (margem ~100%) e inflam o lucro. Provável causa: período não reapurado após cadastro de custos, ou produto sem custo. Sinalize isso na resposta e sugira reapurar no Admin → Apuração.`
       : null,
     total: {
       litros: Number(totalLitros.toFixed(2)),

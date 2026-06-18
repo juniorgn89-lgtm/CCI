@@ -44,8 +44,8 @@ const buildCols = (maxFat: number): Column<ABCRow>[] => [
   },
   { key: 'nome', label: 'Produto', sortable: true },
   { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
-  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(0)}%` },
-  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, render: (r) => `${r.acumulado.toFixed(0)}%` },
+  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(2)}%` },
+  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, render: (r) => `${r.acumulado.toFixed(2)}%` },
 ]
 
 const CurvaABC = ({ products }: CurvaABCProps) => {
@@ -123,7 +123,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
             </div>
             <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.faturamento)}</p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {formatNumber(r.produtos)} produtos ({r.pctProdutos.toFixed(0)}%) · {r.pctFat.toFixed(0)}% do faturamento
+              {formatNumber(r.produtos)} produtos ({r.pctProdutos.toFixed(2)}%) · {r.pctFat.toFixed(2)}% do faturamento
             </p>
           </div>
         ))}

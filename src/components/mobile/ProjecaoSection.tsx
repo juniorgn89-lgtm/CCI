@@ -69,7 +69,7 @@ const ProjecaoSection = ({ title = 'Projeção do mês', metrics, periodo, subti
                 <div className="mt-1 flex items-center gap-1.5">
                   <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">realizado {m.fmt(m.realizado)}</span>
                   <span className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-                    <TrendArrow className="h-2.5 w-2.5" />{up ? '+' : ''}{tr.toFixed(0).replace('.', ',')}%
+                    <TrendArrow className="h-2.5 w-2.5" />{up ? '+' : ''}{tr.toFixed(2).replace('.', ',')}%
                   </span>
                   <span className="text-[9.5px] text-gray-400 dark:text-gray-500">tendência</span>
                 </div>

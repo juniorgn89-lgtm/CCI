@@ -26,9 +26,11 @@ export const showsComparison = (pathname: string): boolean =>
 /**
  * Rotas onde o escopo "Em andamento / Apurado / Completo" NÃO se aplica e seria
  * um controle morto. Estoque é sempre o saldo ATUAL (não tem versão "apurada"),
- * então o seletor de escopo fica escondido lá.
+ * então o seletor de escopo fica escondido lá. Reabastecimento segue a mesma
+ * lógica: trabalha com o snapshot do estoque ATUAL dos tanques + a "última
+ * compra", logo o intervalo/escopo de período não faz sentido.
  */
-const ROTAS_SEM_ESCOPO = ['/estoques']
+const ROTAS_SEM_ESCOPO = ['/estoques', '/reabastecimento']
 
 export const showsDataScope = (pathname: string): boolean =>
   !ROTAS_SEM_ESCOPO.includes(pathname)

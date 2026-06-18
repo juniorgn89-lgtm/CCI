@@ -20,7 +20,7 @@ const VariacaoBadge = ({ value }: { value: number }) => {
       positive ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
     )}>
       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-      {Math.abs(value).toFixed(0)}%
+      {Math.abs(value).toFixed(2)}%
     </span>
   )
 }
@@ -44,28 +44,28 @@ const PostoComparativo = ({ data }: Props) => {
   if (data.variacaoMes.receita !== 0) {
     insights.push({
       type: data.variacaoMes.receita >= 0 ? 'positive' : 'warning',
-      text: `Receita ${data.variacaoMes.receita >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(data.variacaoMes.receita).toFixed(0)}% vs mês anterior`,
+      text: `Receita ${data.variacaoMes.receita >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(data.variacaoMes.receita).toFixed(2)}% vs mês anterior`,
     })
   }
 
   if (data.variacaoAno.receita !== 0) {
     insights.push({
       type: data.variacaoAno.receita >= 0 ? 'positive' : 'warning',
-      text: `Receita ${data.variacaoAno.receita >= 0 ? 'subiu' : 'caiu'} ${Math.abs(data.variacaoAno.receita).toFixed(0)}% vs mesmo período do ano anterior`,
+      text: `Receita ${data.variacaoAno.receita >= 0 ? 'subiu' : 'caiu'} ${Math.abs(data.variacaoAno.receita).toFixed(2)}% vs mesmo período do ano anterior`,
     })
   }
 
   if (data.variacaoMes.abastecimentos !== 0) {
     insights.push({
       type: data.variacaoMes.abastecimentos >= 0 ? 'positive' : 'warning',
-      text: `Volume de abastecimentos ${data.variacaoMes.abastecimentos >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(data.variacaoMes.abastecimentos).toFixed(0)}% vs mês anterior`,
+      text: `Volume de abastecimentos ${data.variacaoMes.abastecimentos >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(data.variacaoMes.abastecimentos).toFixed(2)}% vs mês anterior`,
     })
   }
 
   if (data.variacaoMes.ticketMedio !== 0) {
     insights.push({
       type: data.variacaoMes.ticketMedio >= 0 ? 'info' : 'warning',
-      text: `Ticket médio ${data.variacaoMes.ticketMedio >= 0 ? 'subiu' : 'caiu'} ${Math.abs(data.variacaoMes.ticketMedio).toFixed(0)}% vs mês anterior`,
+      text: `Ticket médio ${data.variacaoMes.ticketMedio >= 0 ? 'subiu' : 'caiu'} ${Math.abs(data.variacaoMes.ticketMedio).toFixed(2)}% vs mês anterior`,
     })
   }
 

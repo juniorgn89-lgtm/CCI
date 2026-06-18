@@ -172,7 +172,7 @@ const ProdutividadeMobile = () => {
                 <div key={m.codigo} className="px-3.5 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{m.nome}</span>
-                    {m.metaAtual > 0 ? <Badge tone={metaTone(m.pct)}>{m.pct.toFixed(0)}%</Badge> : <span className="text-[10px] text-gray-400">sem meta</span>}
+                    {m.metaAtual > 0 ? <Badge tone={metaTone(m.pct)}>{m.pct.toFixed(2)}%</Badge> : <span className="text-[10px] text-gray-400">sem meta</span>}
                   </div>
                   <div className="mt-1 flex items-center justify-between gap-2 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
                     <span>realizado <strong className="text-gray-900 dark:text-gray-100">{liters(m.litros)}</strong></span>

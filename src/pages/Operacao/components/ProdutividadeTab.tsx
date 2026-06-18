@@ -103,7 +103,6 @@ const ProdutividadeTab = ({
   frentistaRows,
   frentistaRowsPrev,
   abastecimentoRows,
-  abastecimentoRowsPrev,
   abastComCusto,
   isLoading,
   topKpis,
@@ -257,13 +256,9 @@ const ProdutividadeTab = ({
         </div>
       )}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}
-      {active === 'metas' && <Metas frentistas={frentistas} />}
+      {active === 'metas' && <Metas frentistas={frentistas} periodInfo={periodInfo} />}
       {active === 'destaques' && (
-        <Destaques
-          frentistas={frentistas}
-          periodInfo={periodInfo}
-          abastecimentoRowsPrev={abastecimentoRowsPrev}
-        />
+        <Destaques frentistas={frentistas} periodInfo={periodInfo} />
       )}
     </div>
   )

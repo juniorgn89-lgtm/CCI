@@ -66,7 +66,7 @@ const ControlCenter = ({ postos, networkTotals, alerts }: Props) => {
           { label: 'Faturamento Total', value: fmt(networkTotals.receita), icon: Receipt, color: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', gradient: 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900' },
           { label: 'Abastecimentos', value: fmtNum(networkTotals.abastecimentos), icon: Target, color: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', gradient: 'from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900' },
           { label: 'Ticket Médio', value: fmt(networkTotals.ticketMedio), icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-100 dark:bg-amber-900/30', gradient: 'from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900' },
-          { label: 'Conversão Média', value: `${networkTotals.conversao.toFixed(0)}%`, icon: Activity, color: 'text-rose-600 dark:text-rose-400', iconBg: 'bg-rose-100 dark:bg-rose-900/30', gradient: 'from-rose-50/60 to-white dark:from-rose-950/20 dark:to-gray-900' },
+          { label: 'Conversão Média', value: `${networkTotals.conversao.toFixed(2)}%`, icon: Activity, color: 'text-rose-600 dark:text-rose-400', iconBg: 'bg-rose-100 dark:bg-rose-900/30', gradient: 'from-rose-50/60 to-white dark:from-rose-950/20 dark:to-gray-900' },
         ].map(item => {
           const Icon = item.icon
           return (

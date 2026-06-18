@@ -34,7 +34,7 @@ const KpiCard = ({ label, value, icon: Icon, variation, previousValue }: KpiCard
             ) : (
               <TrendingDown className="h-3.5 w-3.5" />
             )}
-            <span>{isPositive ? '+' : ''}{variation.toFixed(0)}%</span>
+            <span>{isPositive ? '+' : ''}{variation.toFixed(2)}%</span>
           </div>
         )}
       </div>

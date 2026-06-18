@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { TituloReceber } from '@/api/types/financeiro'
 import NotasPrazoNaoFaturadas from '@/pages/Financeiro/components/NotasPrazoNaoFaturadas'
 import ClienteRiscoModal from '@/pages/Financeiro/components/ClienteRiscoModal'
@@ -20,6 +20,8 @@ import ClienteRiscoModal from '@/pages/Financeiro/components/ClienteRiscoModal'
 interface Props {
   /** Snapshot de TODOS os títulos a receber em aberto (vencido + a vencer). */
   data: ReceivableRow[]
+  /** Duplicatas em aberto (/DUPLICATA não baixadas). */
+  duplicatas: DuplicataRow[]
   /** Títulos pagos nos últimos 6 meses (base de score/recuperação). */
   pagos: TituloReceber[]
   /** PMR geral (dias) — fallback. */
@@ -85,8 +87,26 @@ const SCORE_STYLE = {
  * /TITULO_RECEBER (em aberto + pagos 6m). Métricas sem fonte na API (limite de
  * crédito, bloqueio, vendedor, histórico de saldo/inadimplência) são omitidas.
  */
-const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
+const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
   const hoje = todayISO()
+
+  // Separação espelhando a Visão Geral (saldo EM ABERTO):
+  //  - Não faturadas: a receber em aberto com convertido=false.
+  //  - Duplicatas em aberto: /DUPLICATA não baixadas.
+  //  - Títulos a receber em aberto (faturados): pendentes com convertido≠false.
+  const separacao = useMemo(() => {
+    const pend = data.filter((r) => r.pendente)
+    const naoFat = pend.filter((r) => (r as unknown as { convertido?: boolean | null }).convertido === false)
+    const faturados = pend.filter((r) => (r as unknown as { convertido?: boolean | null }).convertido !== false)
+    return {
+      naoFatTotal: naoFat.reduce((s, r) => s + r.valor, 0),
+      naoFatCount: naoFat.length,
+      dupTotal: duplicatas.reduce((s, d) => s + d.saldoRestante, 0),
+      dupCount: duplicatas.length,
+      fatTotal: faturados.reduce((s, r) => s + r.valor, 0),
+      fatCount: faturados.length,
+    }
+  }, [data, duplicatas])
 
   const m = useMemo(() => {
     const pend = data.filter((r) => r.pendente)
@@ -253,18 +273,43 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
 
   // Análise automática da carteira (regras sobre dados reais) — botão "Analisar carteira".
   const analise: string[] = []
-  analise.push(`Saúde da carteira: score ${m.scoreCarteira}/100 (${SCORE_STYLE[carteiraBand].label.toLowerCase()} risco). ${formatCurrency(m.totalVencido)} estão vencidos de ${formatCurrency(m.carteira)} em aberto (inadimplência ${m.inadimplencia.toFixed(1)}%).`)
-  if (m.concentracao) analise.push(`Concentração de risco: ${m.concentracao.clientes} cliente${m.concentracao.clientes > 1 ? 's' : ''} (${m.concentracao.nomes.slice(0, 3).join(', ')}) respondem por ${m.concentracao.pct.toFixed(0)}% do valor vencido.`)
+  analise.push(`Saúde da carteira: score ${m.scoreCarteira}/100 (${SCORE_STYLE[carteiraBand].label.toLowerCase()} risco). ${formatCurrency(m.totalVencido)} estão vencidos de ${formatCurrency(m.carteira)} em aberto (inadimplência ${m.inadimplencia.toFixed(2)}%).`)
+  if (m.concentracao) analise.push(`Concentração de risco: ${m.concentracao.clientes} cliente${m.concentracao.clientes > 1 ? 's' : ''} (${m.concentracao.nomes.slice(0, 3).join(', ')}) respondem por ${m.concentracao.pct.toFixed(2)}% do valor vencido.`)
   if (m.maiorAtraso) analise.push(`Cliente mais crítico: ${m.maiorAtraso.nome}, com ${m.maiorAtraso.maxDiasAtraso} dias de atraso (${formatCurrency(m.maiorAtraso.totalVencido)}).`)
   if (m.clientes90 > 0) analise.push(`${m.clientes90} cliente${m.clientes90 > 1 ? 's' : ''} acima de 90 dias — risco elevado de não recebimento.`)
-  if (m.recVar != null) analise.push(`Recuperação ${m.recVar >= 0 ? 'subiu' : 'caiu'} ${Math.abs(m.recVar).toFixed(0)}% no último mês (${formatCurrency(m.recMes)} recebidos).`)
-  if (m.taxaPrazo != null) analise.push(`Histórico: ${m.taxaPrazo.toFixed(0)}% dos títulos foram pagos no prazo nos últimos 6 meses.`)
+  if (m.recVar != null) analise.push(`Recuperação ${m.recVar >= 0 ? 'subiu' : 'caiu'} ${Math.abs(m.recVar).toFixed(2)}% no último mês (${formatCurrency(m.recMes)} recebidos).`)
+  if (m.taxaPrazo != null) analise.push(`Histórico: ${m.taxaPrazo.toFixed(2)}% dos títulos foram pagos no prazo nos últimos 6 meses.`)
   const recomendacao = m.concentracao
-    ? `Recomendação: priorize a cobrança de ${m.concentracao.nomes.slice(0, 2).join(' e ')} — responsáveis por ${m.concentracao.pct.toFixed(0)}% do valor vencido. ${m.prev7 > 0 ? `Antecipe contato dos ${formatCurrency(m.prev7)} que vencem em 7 dias.` : ''}`
+    ? `Recomendação: priorize a cobrança de ${m.concentracao.nomes.slice(0, 2).join(' e ')} — responsáveis por ${m.concentracao.pct.toFixed(2)}% do valor vencido. ${m.prev7 > 0 ? `Antecipe contato dos ${formatCurrency(m.prev7)} que vencem em 7 dias.` : ''}`
     : 'Recomendação: carteira saudável, sem concentração relevante de vencidos no momento.'
 
   return (
     <div className="space-y-3">
+      {/* Separação por saldo em aberto — espelha a Visão Geral */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <SepCard
+          title="Notas a prazo não faturadas"
+          subtitle="A receber em aberto · convertido = não"
+          total={separacao.naoFatTotal}
+          count={separacao.naoFatCount}
+          tone="indigo"
+        />
+        <SepCard
+          title="Duplicatas em aberto"
+          subtitle="Duplicatas não baixadas"
+          total={separacao.dupTotal}
+          count={separacao.dupCount}
+          tone="blue"
+        />
+        <SepCard
+          title="Títulos a receber faturados"
+          subtitle="Em aberto · já convertidos"
+          total={separacao.fatTotal}
+          count={separacao.fatCount}
+          tone="emerald"
+        />
+      </div>
+
       {/* Cabeçalho + ação de análise */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Inteligência de Cobrança</h2>
@@ -317,7 +362,7 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
           sub={pmrTrend == null ? 'Pagamento − vencimento (90d)' : `${pmrTrend <= 0 ? '↓' : '↑'} ${Math.abs(pmrTrend)}d vs trimestre ant.`}
           subClass={pmrTrend == null ? undefined : pmrTrend <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'} />
         <ExecCard title="Índice de inadimplência" Icon={Percent} tone="amber"
-          value={`${m.inadimplencia.toFixed(1)}%`} valueClass={inadColor}
+          value={`${m.inadimplencia.toFixed(2)}%`} valueClass={inadColor}
           hint={`Valor vencido ÷ carteira em aberto (vencido + a vencer). A barra mostra o índice; o traço marca a meta de ${META_INADIMPLENCIA}%.`}
           sub={`${formatCurrencyShort(m.totalVencido)} de ${formatCurrencyShort(m.carteira)} · meta ${META_INADIMPLENCIA}%`}>
           <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -342,7 +387,7 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
         <ExecCard title="Recuperação de crédito" Icon={RotateCcw} tone="teal"
           value={formatCurrency(m.recMes)} sub="Recebido nos últimos 30 dias"
           hint="Total recebido (títulos pagos) nos últimos 30 dias. A variação compara com os 30 dias anteriores."
-          badge={m.recVar == null ? undefined : { up: m.recVar >= 0, text: `${m.recVar >= 0 ? '+' : ''}${m.recVar.toFixed(0)}%` }} />
+          badge={m.recVar == null ? undefined : { up: m.recVar >= 0, text: `${m.recVar >= 0 ? '+' : ''}${m.recVar.toFixed(2)}%` }} />
       </div>
 
       {/* Gráficos: faixa de atraso · heatmap · recuperação mensal */}
@@ -369,7 +414,7 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
                     </span>
                     <span className="tabular-nums text-gray-800 dark:text-gray-200">
                       <b>{formatCurrencyShort(f.valor)}</b>
-                      <span className="ml-1 text-gray-400">{m.carteira > 0 ? `${((f.valor / m.carteira) * 100).toFixed(0)}%` : ''}</span>
+                      <span className="ml-1 text-gray-400">{m.carteira > 0 ? `${((f.valor / m.carteira) * 100).toFixed(2)}%` : ''}</span>
                     </span>
                   </li>
                 ))}
@@ -604,5 +649,33 @@ const ChartCard = ({ title, Icon, className, hint, children }: { title: string; 
 const Empty = ({ text = 'Sem dados para exibir.' }: { text?: string }) => (
   <p className="py-12 text-center text-sm text-gray-400">{text}</p>
 )
+
+const SEP_TONE = {
+  indigo: { ring: 'border-indigo-200 dark:border-indigo-900/50', value: 'text-indigo-700 dark:text-indigo-300' },
+  blue: { ring: 'border-blue-200 dark:border-blue-900/50', value: 'text-blue-700 dark:text-blue-300' },
+  emerald: { ring: 'border-emerald-200 dark:border-emerald-900/50', value: 'text-emerald-700 dark:text-emerald-300' },
+}
+
+const SepCard = ({
+  title, subtitle, total, count, tone,
+}: {
+  title: string
+  subtitle: string
+  total: number
+  count: number
+  tone: keyof typeof SEP_TONE
+}) => {
+  const st = SEP_TONE[tone]
+  return (
+    <section className={cn('rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-900', st.ring)}>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</p>
+      <p className="mt-0.5 text-[11px] text-gray-400">{subtitle}</p>
+      <p className={cn('mt-2 text-xl font-bold tabular-nums', st.value)}>{formatCurrency(total)}</p>
+      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+        {count} {count === 1 ? 'título em aberto' : 'títulos em aberto'}
+      </p>
+    </section>
+  )
+}
 
 export default ReceivablesIntel

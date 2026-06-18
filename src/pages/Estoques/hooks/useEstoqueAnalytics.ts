@@ -39,7 +39,7 @@ export interface ProductAnalyticsRow {
   vendasUltimos6m: number
   /** Total de receita nos últimos 6 meses */
   receitaUltimos6m: number
-  /** Média mensal de unidades vendidas */
+  /** Média mensal de unidades vendidas (base 6 meses) */
   mediaMensalVendas: number
   /** Mês com maior venda (formato 'YYYY-MM') ou null */
   mesPico: string | null
@@ -51,6 +51,21 @@ export interface ProductAnalyticsRow {
   giro: number
   /** Cobertura atual em dias (saldoAtual / venda diária média) */
   diasCobertura: number
+  // ── Métricas calculadas na JANELA selecionada (30/60/90 dias) ─────────────
+  /** Tamanho da janela usada nas métricas abaixo (30, 60 ou 90 dias). */
+  janelaDias: number
+  /** Unidades vendidas dentro da janela selecionada. */
+  vendasJanela: number
+  /** Receita dentro da janela selecionada (R$). */
+  receitaJanela: number
+  /** Média diária de venda na janela (vendasJanela / janelaDias). */
+  mediaDiariaVendas: number
+  /** Média mensal projetada a partir da janela (mediaDiariaVendas × 30). */
+  mediaMensalJanela: number
+  /** Estoque médio dentro da janela selecionada. */
+  estoqueMedioJanela: number
+  /** Giro na janela = vendasJanela / estoqueMedioJanela. */
+  giroJanela: number
   /** Quantidade sugerida pra atingir cobertura desejada (em unidades) */
   necessidadeUnidades: number
   /** Status da necessidade */
@@ -98,10 +113,23 @@ const buildLast6Months = (): MonthRange[] => {
   return ranges
 }
 
-const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
+const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias: number = DAYS_PER_MONTH) => {
   const { empresaCodigos } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+
+  // Janela móvel (30/60/90 dias) que controla SÓ as métricas de volume: vendas
+  // na janela, estoque médio, giro, média de venda e a necessidade derivada.
+  // O fetch continua sendo 6 meses (não muda custo/preço/margem nem o histórico
+  // mensal). Aqui só recortamos por data dentro do cálculo.
+  const janelaInicial = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - (janelaDias - 1))
+    const yy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${yy}-${mm}-${dd}`
+  }, [janelaDias])
 
   // O saldo de estoque é SEMPRE o ATUAL (igual ao webPosto, cujo "Qtd" não muda
   // com a data do relatório). Não fazemos snapshot histórico por data — a API
@@ -247,6 +275,10 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       qtdPorMes: Map<string, number>
       /** Maior dataMovimento vista (yyyy-MM-dd…) — última venda. */
       ultimaData: string
+      /** Unidades vendidas DENTRO da janela selecionada (30/60/90 dias). */
+      qtdJanela: number
+      /** Receita DENTRO da janela selecionada. */
+      receitaJanela: number
     }
     // Agrega por produto a partir do VendaAgg (cache ou live, mesmo shape).
     // Combustível é descartado depois (a iteração de produtos pula combustível),
@@ -259,6 +291,8 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         custoTotal: 0,
         qtdPorMes: new Map<string, number>(),
         ultimaData: '',
+        qtdJanela: 0,
+        receitaJanela: 0,
       }
       acc.quantidade += v.quantidade
       acc.receita += v.totalVenda
@@ -267,6 +301,11 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       if (dm && dm > acc.ultimaData) acc.ultimaData = dm
       const ym = dm.substring(0, 7)
       if (ym) acc.qtdPorMes.set(ym, (acc.qtdPorMes.get(ym) ?? 0) + v.quantidade)
+      // Recorte da janela móvel (custo/preço/margem NÃO usam isso — ficam no 6m).
+      if (dm && dm >= janelaInicial) {
+        acc.qtdJanela += v.quantidade
+        acc.receitaJanela += v.totalVenda
+      }
       salesMap.set(v.produtoCodigo, acc)
     }
 
@@ -286,6 +325,20 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       // linhas (mesmo bug do /PRODUTO_ESTOQUE); SOMAR inflaria o estoque médio.
       acc.byDate.set(date, ep.quatidadeEstoque)
       historyMap.set(ep.codigoProduto, acc)
+    }
+
+    // Média de um conjunto de snapshots cujas datas caem na janela selecionada.
+    // Sem snapshots na janela → null (o chamador faz fallback pro saldo atual).
+    const estoqueMedioNaJanela = (history: ProductHistory | undefined): number | null => {
+      if (!history || history.byDate.size === 0) return null
+      let soma = 0
+      let n = 0
+      for (const [date, qtd] of history.byDate) {
+        if (date < janelaInicial) continue
+        soma += qtd
+        n++
+      }
+      return n > 0 ? soma / n : null
     }
 
     // Construir analytics: itera produtos do catálogo, gera linha para cada não-combustível com algum dado
@@ -326,7 +379,7 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         }
       }
 
-      // Estoque médio
+      // Estoque médio (6 meses) — mantido pra Visão Geral / referência histórica.
       let estoqueMedio = 0
       if (history && history.byDate.size > 0) {
         const values = Array.from(history.byDate.values())
@@ -336,11 +389,20 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         estoqueMedio = saldoAtual
       }
 
-      // Giro: quantas vezes o estoque "girou" no período de 6 meses
+      // Giro (6 meses): quantas vezes o estoque "girou" no período de 6 meses
       const giro = estoqueMedio > 0 ? vendasUltimos6m / estoqueMedio : 0
 
-      // Cobertura em dias: saldoAtual / venda diária média
-      const vendaDiariaMedia = mediaMensalVendas / DAYS_PER_MONTH
+      // ── Métricas na JANELA selecionada (30/60/90 dias) ────────────────────
+      const vendasJanela = sales?.qtdJanela ?? 0
+      const receitaJanela = sales?.receitaJanela ?? 0
+      const mediaDiariaVendas = vendasJanela / janelaDias
+      const mediaMensalJanela = mediaDiariaVendas * DAYS_PER_MONTH
+      // Estoque médio recortado na janela; sem snapshots na janela → saldo atual.
+      const estoqueMedioJanela = estoqueMedioNaJanela(history) ?? saldoAtual
+      const giroJanela = estoqueMedioJanela > 0 ? vendasJanela / estoqueMedioJanela : 0
+
+      // Cobertura em dias: saldoAtual / venda diária média (base janela)
+      const vendaDiariaMedia = mediaDiariaVendas
       const diasCobertura = vendaDiariaMedia > 0 ? saldoAtual / vendaDiariaMedia : Infinity
 
       // Status: identifica primeiro a inconsistência (saldo negativo) — não vira
@@ -348,7 +410,7 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
       let necessidadeStatus: ProductAnalyticsRow['necessidadeStatus']
       if (saldoAtual < 0) {
         necessidadeStatus = 'negativo'
-      } else if (vendasUltimos6m === 0) {
+      } else if (vendasJanela === 0) {
         necessidadeStatus = 'sem_movimento'
       } else if (saldoAtual === 0) {
         // Zerado com venda → precisa comprar
@@ -393,6 +455,13 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
         necessidadeUnidades,
         necessidadeStatus,
         vendasMensais,
+        janelaDias,
+        vendasJanela,
+        receitaJanela,
+        mediaDiariaVendas,
+        mediaMensalJanela,
+        estoqueMedioJanela,
+        giroJanela,
       })
     }
 
@@ -404,13 +473,14 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH) => {
     const categorias = Array.from(new Set(productAnalytics.map((r) => r.categoria))).sort()
 
     return { productAnalytics, kpis, categorias, months }
-  }, [produtosData, gruposData, produtoEstoqueData, estoqueExtratoData, estoquePeriodoData, vendaAggs, periodoInicial, periodoFinal, months, coberturaDias])
+  }, [produtosData, gruposData, produtoEstoqueData, estoqueExtratoData, estoquePeriodoData, vendaAggs, periodoInicial, periodoFinal, months, coberturaDias, janelaDias, janelaInicial])
 
   return {
     ...computed,
     isLoading,
     hasEmpresa,
     coberturaDias,
+    janelaDias,
   }
 }
 

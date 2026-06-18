@@ -10,6 +10,7 @@ import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnaly
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
+  janelaDias: number
   onNavigateTab?: (tab: string) => void
 }
 
@@ -24,7 +25,7 @@ const Hint = ({ text }: { text: string }) => (
   </span>
 )
 
-const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
+const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) => {
   const [saldoFiltro, setSaldoFiltro] = useState<SaldoFiltro>('todos')
 
   // Filtro local de saldo — TODOS os cartões/listas reagem. `data` (filtrado)
@@ -44,7 +45,7 @@ const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
     const rupturas = data.filter((r) => r.saldoAtual === 0 && r.vendasUltimos6m > 0)
     const criticos = data.filter((r) => r.necessidadeStatus === 'critico' || r.necessidadeStatus === 'negativo')
     const semMovimento = data.filter((r) => r.necessidadeStatus === 'sem_movimento' && r.saldoAtual > 0)
-    const giros = data.filter((r) => r.estoqueMedio > 0 && r.giro > 0).map((r) => r.giro)
+    const giros = data.filter((r) => r.estoqueMedioJanela > 0 && r.giroJanela > 0).map((r) => r.giroJanela)
     const giroMedio = giros.length > 0 ? giros.reduce((s, x) => s + x, 0) / giros.length : 0
 
     // Total de unidades + valor em estoque (reagem ao filtro local).
@@ -57,7 +58,7 @@ const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
     const proximosZerar = [...data]
       .filter((r) =>
         r.saldoAtual > 0 &&
-        r.mediaMensalVendas > 0 &&
+        r.mediaDiariaVendas > 0 &&
         isFinite(r.diasCobertura) &&
         r.diasCobertura > 0,
       )
@@ -175,10 +176,10 @@ const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
           onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined}
         />
         <MiniKpi
-          label="Giro médio (6m)"
+          label={`Giro médio (${janelaDias}d)`}
           value={stats.giroMedio.toFixed(2).replace('.', ',')}
           sub={`${formatNumber(stats.semMovimento.length)} sem movimento`}
-          hint="Quantas vezes, em média, o estoque girou em 6 meses (unidades vendidas ÷ estoque médio). Alto = produto rodando; baixo = capital parado."
+          hint={`Quantas vezes, em média, o estoque girou nos últimos ${janelaDias} dias (unidades vendidas ÷ estoque médio). Alto = produto rodando; baixo = capital parado.`}
           Icon={RefreshCw}
           tone="neutral"
           onClick={onNavigateTab ? () => onNavigateTab('giro') : undefined}
@@ -212,7 +213,7 @@ const EstoqueVisaoGeral = ({ data: allData, onNavigateTab }: Props) => {
           <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
             {stats.proximosZerar.map((p) => {
               const dias = Math.max(0, Math.round(p.diasCobertura))
-              const vendaDiaria = p.mediaMensalVendas / 30
+              const vendaDiaria = p.mediaDiariaVendas
               // Tom: < 7d crítico (vermelho), < 15d alerta (âmbar), >= 15d neutro
               const tone: 'critical' | 'warning' | 'neutral' =
                 dias < 7 ? 'critical' : dias < 15 ? 'warning' : 'neutral'

@@ -148,12 +148,12 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
 
   // Análise automática.
   const analise: string[] = []
-  if (m.concentracao) analise.push(`Concentração: ${m.concentracao.fornecedores} fornecedor${m.concentracao.fornecedores > 1 ? 'es' : ''} (${m.concentracao.nomes.slice(0, 3).join(', ')}) somam ${m.concentracao.pct.toFixed(0)}% das obrigações em aberto.`)
+  if (m.concentracao) analise.push(`Concentração: ${m.concentracao.fornecedores} fornecedor${m.concentracao.fornecedores > 1 ? 'es' : ''} (${m.concentracao.nomes.slice(0, 3).join(', ')}) somam ${m.concentracao.pct.toFixed(2)}% das obrigações em aberto.`)
   if (m.totalVencido > 0) analise.push(`${formatCurrency(m.totalVencido)} já estão vencidos (${m.qtdVencidos} título${m.qtdVencidos > 1 ? 's' : ''}, ${m.fornVencidos} fornecedor${m.fornVencidos > 1 ? 'es' : ''}).`)
   if (m.prev7 > 0) analise.push(`${formatCurrency(m.prev7)} vencem nos próximos 7 dias — pressão imediata no caixa.`)
   analise.push(`Saldo projetado após pagamentos: ${formatCurrency(saldoProjetado)} (caixa ${CAIXA.label.toLowerCase()}).`)
   const recomendacao = m.concentracao
-    ? `Recomendação: negocie prazo/condição com ${m.concentracao.nomes.slice(0, 2).join(' e ')} — concentram ${m.concentracao.pct.toFixed(0)}% do total a pagar.`
+    ? `Recomendação: negocie prazo/condição com ${m.concentracao.nomes.slice(0, 2).join(' e ')} — concentram ${m.concentracao.pct.toFixed(2)}% do total a pagar.`
     : 'Recomendação: obrigações pulverizadas, sem concentração relevante.'
 
   // Tabela.
@@ -203,7 +203,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
         <ExecCard title="A vencer" Icon={CalendarDays} tone="blue" hint="Títulos a pagar em aberto com vencimento futuro. 'Próx.' = próximo vencimento."
           value={formatCurrency(m.totalAVencer)} sub={`${m.qtdAVencer} títulos · próx. ${m.proximoVenc ? brDate(m.proximoVenc) : '—'}`} />
         <ExecCard title="Qtde vencidos" Icon={Hash} tone="rose" hint="Quantidade de títulos vencidos e seu peso sobre a carteira em aberto."
-          value={String(m.qtdVencidos)} sub={`${m.pctVencidos.toFixed(0)}% da carteira`} />
+          value={String(m.qtdVencidos)} sub={`${m.pctVencidos.toFixed(2)}% da carteira`} />
         <ExecCard title="Compromisso 7 dias" Icon={Wallet} tone="amber" hint="Total que sairá do caixa nos próximos 7 dias (vencimentos pendentes)."
           value={formatCurrency(m.prev7)} sub="Próximos 7 dias" />
         <ExecCard title="Compromisso 30 dias" Icon={Banknote} tone="violet" hint="Total previsto para pagamento nos próximos 30 dias."
@@ -259,7 +259,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: DONUT_CORES[i % DONUT_CORES.length] }} />
                       <span className="truncate" title={f.nome}>{f.nome}</span>
                     </span>
-                    <span className="shrink-0 tabular-nums text-gray-800 dark:text-gray-200">{((f.valor / m.totalPagar) * 100).toFixed(0)}%</span>
+                    <span className="shrink-0 tabular-nums text-gray-800 dark:text-gray-200">{((f.valor / m.totalPagar) * 100).toFixed(2)}%</span>
                   </li>
                 ))}
               </ul>

@@ -4,9 +4,10 @@ import { useFilterStore } from '@/store/filters'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
-import { fetchVendaItens, fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
-import { fetchCaixas, fetchTitulosReceber, fetchTitulosPagar } from '@/api/endpoints/financeiro'
+import { fetchVendaItens, fetchVendaFormasPagamento, fetchVendas } from '@/api/endpoints/vendas'
+import { fetchCaixas, fetchTitulosReceber, fetchTitulosPagar, fetchCartao } from '@/api/endpoints/financeiro'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
+import { fetchClientes } from '@/api/endpoints/clientes'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import useAbastecimentosAnalytics, { type AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
@@ -43,8 +44,15 @@ export interface AbastecimentoPrecoSuspeito extends AbastecimentoRow {
   /** Z-score do valor unitário vs média do mesmo combustível. */
   zScore: number
   precoMedio: number
-  /** Forma(s) de pagamento da venda (abast → vendaItem → venda → formas). */
+  /** Forma(s) de pagamento da venda (abast → vendaItem → venda → formas).
+   *  Quando há cartão, inclui a adquirente/bandeira (ex.: "Cartão (GETNET)"). */
   formaPagamento: string
+  /** Adquirente/bandeira do cartão (/CARTAO.adiministradoraDescricao), quando a
+   *  venda foi paga no cartão. '—' quando não é cartão ou não casou. */
+  adquirente: string
+  /** Nome do cliente da venda — de /CARTAO.clienteRazao (cartão) ou
+   *  /CLIENTE via /VENDA.clienteCodigo (demais). '—' quando consumidor final. */
+  clienteNome: string
 }
 
 export interface CaixaAbertoDetalhe extends Caixa {
@@ -178,6 +186,25 @@ const useQualidadeDados = (): QualidadeData => {
     enabled: hasEmpresa && empresaCodigo !== null,
   })
 
+  // Recebíveis de cartão (/CARTAO) do período — fonte da adquirente/bandeira
+  // (adiministradoraDescricao, com o typo da API) e do nome do cliente
+  // (clienteRazao) para vendas pagas no cartão. Chave de ponte: vendaCodigo.
+  const { data: cartoes = [], isLoading: isLoadingCartoes } = useQuery({
+    queryKey: ['cartoes-qualidade', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () => fetchAllPages(
+      (p) => fetchCartao({
+        empresaCodigo: empresaCodigo!,
+        dataInicial,
+        dataFinal,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 50,
+    ),
+    enabled: hasEmpresa && empresaCodigo !== null,
+    staleTime: 5 * 60 * 1000,
+  })
+
   // Funcionários — pra resolver funcionarioCodigo → nome do frentista
   // que emitiu o cupom suspeito. Mesma queryKey do useOperacaoData =
   // React Query dedupe automático.
@@ -231,14 +258,17 @@ const useQualidadeDados = (): QualidadeData => {
     enabled: hasEmpresa && empresaCodigo !== null,
   })
 
-  /* ─── Detectores ─── */
+  /* ─── Ponte abast → venda + suspeitos de preço (base) ─── */
 
-  // Abastecimentos
-  const abastecimentos = useMemo<QualidadeIssue[]>(() => {
-    // 1) Sem frentista
-    const semFrentista = abastRows.filter((r) => !r.frentistaCodigo || r.frentistaNome === '—')
+  // Suspeito "cru": tem tudo de AbastecimentoPrecoSuspeito + a forma de pagamento
+  // (categoria) e o vendaCodigo resolvido pela ponte — usado depois pra buscar
+  // adquirente (/CARTAO) e cliente (/CLIENTE) e enriquecer a linha.
+  type PrecoSuspeitoBase = Omit<AbastecimentoPrecoSuspeito, 'adquirente' | 'clienteNome'> & {
+    vendaCodigo: number | null
+  }
 
-    // 2) Preço anormal — Z-score por combustivelNome
+  const precoSuspeitoBase = useMemo<PrecoSuspeitoBase[]>(() => {
+    // Z-score por combustivelNome
     type StatsByFuel = Map<string, { mean: number; sd: number; count: number }>
     const stats: StatsByFuel = new Map()
     const groups = new Map<string, number[]>()
@@ -273,22 +303,121 @@ const useQualidadeDados = (): QualidadeData => {
       vendaByItem.set(item.vendaItemCodigo, item.vendaCodigo)
       vendaByNaturalKey.set(fpgNaturalKey(item.empresaCodigo, item.bicoCodigo, item.produtoCodigo, item.quantidade, item.dataMovimento), item.vendaCodigo)
     }
-    const formaDoAbast = (r: AbastecimentoRow): string => {
+    const vendaCodigoDoAbast = (r: AbastecimentoRow): number | null => {
       let vc = r.vendaItemCodigo ? vendaByItem.get(r.vendaItemCodigo) : undefined
       if (vc == null) vc = vendaByNaturalKey.get(fpgNaturalKey(r.empresaCodigo, r.bicoCodigo, r.produtoCodigo, r.litros, r.dataHora))
+      return vc ?? null
+    }
+    const formaDoVenda = (vc: number | null): string => {
       const set = vc != null ? formasByVenda.get(vc) : undefined
       return set && set.size > 0 ? Array.from(set).join(' + ') : '—'
     }
 
-    const precoSuspeito: AbastecimentoPrecoSuspeito[] = []
+    const out: PrecoSuspeitoBase[] = []
     for (const r of abastRows) {
       const s = stats.get(r.combustivelNome)
       if (!s || s.sd === 0) continue
       const z = (r.valorUnitario - s.mean) / s.sd
       if (Math.abs(z) >= 3) {
-        precoSuspeito.push({ ...r, zScore: z, precoMedio: s.mean, formaPagamento: formaDoAbast(r) })
+        const vc = vendaCodigoDoAbast(r)
+        out.push({ ...r, zScore: z, precoMedio: s.mean, formaPagamento: formaDoVenda(vc), vendaCodigo: vc })
       }
     }
+    return out
+  }, [abastRows, formasPgto, vendaItens])
+
+  // vendaCodigos dos suspeitos — drivers das buscas dependentes (/VENDA + /CLIENTE).
+  const suspiciousVendaCodigos = useMemo(() => {
+    const set = new Set<number>()
+    for (const r of precoSuspeitoBase) if (r.vendaCodigo != null) set.add(r.vendaCodigo)
+    return Array.from(set).sort((a, b) => a - b)
+  }, [precoSuspeitoBase])
+  const suspiciousVendaKey = suspiciousVendaCodigos.join(',')
+
+  // /VENDA por código (só dos suspeitos) → clienteCodigo de cada venda. Usado
+  // pra resolver o nome do cliente em vendas que NÃO são cartão (cartão já vem
+  // com clienteRazao no /CARTAO). Lote enxuto: nº de outliers é pequeno.
+  const { data: vendasSuspeitas = [] } = useQuery({
+    queryKey: ['vendasSuspeitas-qualidade', empresaCodigo, suspiciousVendaKey],
+    queryFn: () => fetchVendas({
+      empresaCodigo: empresaCodigo!,
+      vendaCodigo: suspiciousVendaCodigos,
+      situacao: 'A',
+      limite: 1000,
+    }).then((res) => res.resultados ?? []),
+    enabled: hasEmpresa && empresaCodigo !== null && suspiciousVendaCodigos.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // clienteCodigos referenciados pelas vendas suspeitas → /CLIENTE pra nome.
+  const suspiciousClienteCodigos = useMemo(() => {
+    const set = new Set<number>()
+    for (const v of vendasSuspeitas) if (v.clienteCodigo) set.add(v.clienteCodigo)
+    return Array.from(set).sort((a, b) => a - b)
+  }, [vendasSuspeitas])
+  const suspiciousClienteKey = suspiciousClienteCodigos.join(',')
+
+  const { data: clientesSuspeitos = [] } = useQuery({
+    queryKey: ['clientesSuspeitos-qualidade', empresaCodigo, suspiciousClienteKey],
+    queryFn: () => fetchClientes({
+      empresaCodigo: empresaCodigo!,
+      clienteCodigo: suspiciousClienteCodigos,
+      limite: 1000,
+    }).then((res) => res.resultados ?? []),
+    enabled: hasEmpresa && empresaCodigo !== null && suspiciousClienteCodigos.length > 0,
+    staleTime: 30 * 60 * 1000,
+  })
+
+  // Enriquecimento final: adquirente (/CARTAO) + nome do cliente (/CARTAO ou /CLIENTE).
+  const precoSuspeito = useMemo<AbastecimentoPrecoSuspeito[]>(() => {
+    // vendaCodigo → adquirente/cliente do /CARTAO (typo: adiministradoraDescricao).
+    const cartaoByVenda = new Map<number, { adquirente: string; clienteRazao: string }>()
+    for (const c of cartoes) {
+      if (c.vendaCodigo == null) continue
+      const adq = (c.adiministradoraDescricao ?? '').trim()
+      const cli = (c.clienteRazao ?? '').trim()
+      const prev = cartaoByVenda.get(c.vendaCodigo)
+      // Mantém a primeira descrição não vazia.
+      cartaoByVenda.set(c.vendaCodigo, {
+        adquirente: prev?.adquirente || adq,
+        clienteRazao: prev?.clienteRazao || cli,
+      })
+    }
+    // vendaCodigo → clienteCodigo (das vendas suspeitas).
+    const clienteCodigoByVenda = new Map<number, number>()
+    for (const v of vendasSuspeitas) {
+      if (v.clienteCodigo) clienteCodigoByVenda.set(v.vendaCodigo, v.clienteCodigo)
+    }
+    // clienteCodigo → nome (do /CLIENTE).
+    const nomeByCliente = new Map<number, string>()
+    for (const cli of clientesSuspeitos) {
+      nomeByCliente.set(cli.codigo, (cli.nome ?? '').trim())
+    }
+
+    return precoSuspeitoBase.map((r) => {
+      const cartao = r.vendaCodigo != null ? cartaoByVenda.get(r.vendaCodigo) : undefined
+      const adquirente = cartao?.adquirente || '—'
+      // Cliente: prioriza clienteRazao do /CARTAO; cai pro /CLIENTE via /VENDA.
+      let clienteNome = cartao?.clienteRazao || ''
+      if (!clienteNome && r.vendaCodigo != null) {
+        const cc = clienteCodigoByVenda.get(r.vendaCodigo)
+        if (cc != null) clienteNome = nomeByCliente.get(cc) || ''
+      }
+      // Forma de pagamento: anexa a adquirente quando há cartão.
+      const formaPagamento = adquirente !== '—' && /cart/i.test(r.formaPagamento)
+        ? r.formaPagamento.replace(/cart[ãa]o/i, `Cartão (${adquirente})`)
+        : r.formaPagamento
+      const { vendaCodigo: _vendaCodigo, ...rest } = r
+      return { ...rest, adquirente, clienteNome: clienteNome || '—', formaPagamento }
+    })
+  }, [precoSuspeitoBase, cartoes, vendasSuspeitas, clientesSuspeitos])
+
+  /* ─── Detectores ─── */
+
+  // Abastecimentos
+  const abastecimentos = useMemo<QualidadeIssue[]>(() => {
+    // 1) Sem frentista
+    const semFrentista = abastRows.filter((r) => !r.frentistaCodigo || r.frentistaNome === '—')
 
     // 3) Litros suspeito (< 1 ou > 200)
     const litrosSuspeito = abastRows.filter((r) => r.litros < 1 || r.litros > 200)
@@ -327,7 +456,7 @@ const useQualidadeDados = (): QualidadeData => {
         items: litrosSuspeito,
       },
     ]
-  }, [abastRows, inconsistenciasFuturas, formasPgto, vendaItens])
+  }, [abastRows, inconsistenciasFuturas, precoSuspeito])
 
   // Vendas
   const vendas = useMemo<QualidadeIssue[]>(() => {
@@ -626,7 +755,7 @@ const useQualidadeDados = (): QualidadeData => {
   const totalAtencao = allIssues.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
   const totalInfo = allIssues.filter((i) => i.severity === 'low').reduce((s, i) => s + i.count, 0)
 
-  const isLoading = isLoadingAbast || isLoadingVendas || isLoadingFormas || isLoadingCaixas || isLoadingEstoque || isLoadingReceber || isLoadingPagar
+  const isLoading = isLoadingAbast || isLoadingVendas || isLoadingFormas || isLoadingCartoes || isLoadingCaixas || isLoadingEstoque || isLoadingReceber || isLoadingPagar
 
   return {
     abastecimentos,

@@ -21,7 +21,7 @@ const SUGGESTED = [
 /** Formata o valor do eixo/tooltip conforme a unidade que a IA indicou. */
 const fmtVal = (v: number, unidade?: string) => {
   if (unidade === 'R$') return formatCurrencyShort(v)
-  if (unidade === '%') return `${v.toFixed(0).replace('.', ',')}%`
+  if (unidade === '%') return `${v.toFixed(2).replace('.', ',')}%`
   if (unidade === 'L') return `${formatNumber(v)} L`
   return formatNumber(v)
 }

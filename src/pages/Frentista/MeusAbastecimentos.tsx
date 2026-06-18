@@ -312,7 +312,7 @@ const MeusAbastecimentos = () => {
                       {meta.descricao || 'Meta'}
                     </p>
                     <p className="shrink-0 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                      {meta.pct.toFixed(0)}%
+                      {meta.pct.toFixed(2)}%
                     </p>
                   </div>
                   <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -390,7 +390,7 @@ const MeusAbastecimentos = () => {
                     {/* Participação */}
                     <span className="inline-flex justify-end">
                       <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                        {pct.toFixed(0)}%
+                        {pct.toFixed(2)}%
                       </span>
                     </span>
                   </div>

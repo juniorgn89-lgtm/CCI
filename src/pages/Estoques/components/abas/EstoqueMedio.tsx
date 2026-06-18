@@ -8,6 +8,7 @@ import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnaly
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
+  janelaDias: number
 }
 
 interface EnrichedRow extends ProductAnalyticsRow {
@@ -21,12 +22,12 @@ const fmtData = (iso: string | null): string => {
   return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
-const columns: Column<EnrichedRow>[] = [
+const buildColumns = (janelaDias: number): Column<EnrichedRow>[] => [
   { key: 'codigoSku', label: 'Ref.', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoSku || '—'}</span> },
   { key: 'produtoNome', label: 'Produto', sortable: true, render: (r) => <span className="font-medium">{r.produtoNome}</span> },
   { key: 'categoria', label: 'Categoria', sortable: true, render: (r) => <span className="text-xs text-gray-500 dark:text-gray-400">{r.categoria}</span> },
   { key: 'codigoBarras', label: 'Cód. Barras', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoBarras || '—'}</span> },
-  { key: 'estoqueMedio', label: 'Estoque médio (6m)', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.estoqueMedio)}</span> },
+  { key: 'estoqueMedioJanela', label: `Estoque médio (${janelaDias}d)`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.estoqueMedioJanela)}</span> },
   {
     key: 'saldoAtual', label: 'Saldo atual', align: 'right', sortable: true,
     render: (r) => <span className={cn('tabular-nums font-medium', r.saldoAtual <= 0 && 'text-red-600 dark:text-red-400')}>{fmtUnidades(r.saldoAtual)}</span>,
@@ -34,12 +35,12 @@ const columns: Column<EnrichedRow>[] = [
   {
     key: 'variacaoVsMedia', label: 'Variação vs média', align: 'right', sortable: true,
     render: (r) => {
-      if (r.estoqueMedio <= 0) return <span className="text-gray-400">—</span>
+      if (r.estoqueMedioJanela <= 0) return <span className="text-gray-400">—</span>
       const isUp = r.variacaoVsMedia >= 0
       return (
         <span className={cn('inline-flex items-center justify-end gap-1 tabular-nums font-medium', isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
           {isUp ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-          {Math.abs(r.variacaoVsMedia).toFixed(0)}%
+          {Math.abs(r.variacaoVsMedia).toFixed(2)}%
         </span>
       )
     },
@@ -47,14 +48,16 @@ const columns: Column<EnrichedRow>[] = [
   { key: 'ultimaVenda', label: 'Últ. venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{fmtData(r.ultimaVenda)}</span> },
 ]
 
-const EstoqueMedio = ({ data, categorias }: Props) => {
+const EstoqueMedio = ({ data, categorias, janelaDias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
+
+  const columns = useMemo(() => buildColumns(janelaDias), [janelaDias])
 
   const enriched: EnrichedRow[] = useMemo(
     () => data.map((r) => ({
       ...r,
-      variacaoVsMedia: r.estoqueMedio > 0 ? ((r.saldoAtual - r.estoqueMedio) / r.estoqueMedio) * 100 : 0,
+      variacaoVsMedia: r.estoqueMedioJanela > 0 ? ((r.saldoAtual - r.estoqueMedioJanela) / r.estoqueMedioJanela) * 100 : 0,
     })),
     [data],
   )
@@ -66,11 +69,11 @@ const EstoqueMedio = ({ data, categorias }: Props) => {
         if (busca && !r.produtoNome.toLowerCase().includes(busca.toLowerCase()) && !r.codigoSku.toLowerCase().includes(busca.toLowerCase()) && !(r.codigoBarras ?? '').includes(busca)) return false
         return true
       })
-      .sort((a, b) => b.estoqueMedio - a.estoqueMedio)
+      .sort((a, b) => b.estoqueMedioJanela - a.estoqueMedioJanela)
   }, [enriched, busca, categoria])
 
   const totals = useMemo(() => {
-    const totalMedio = filtered.reduce((s, r) => s + r.estoqueMedio, 0)
+    const totalMedio = filtered.reduce((s, r) => s + r.estoqueMedioJanela, 0)
     const totalAtual = filtered.reduce((s, r) => s + r.saldoAtual, 0)
     return { totalMedio, totalAtual }
   }, [filtered])
@@ -82,7 +85,7 @@ const EstoqueMedio = ({ data, categorias }: Props) => {
         iconColor="text-blue-600"
         iconBg="bg-blue-100 dark:bg-blue-900/40"
         title="Estoque médio"
-        titleHint="Média do saldo nos últimos 6 meses comparada ao saldo atual. 'Variação vs média' mostra se o saldo de hoje está acima (verde) ou abaixo (vermelho) da média histórica do produto."
+        titleHint={`Média do saldo nos últimos ${janelaDias} dias comparada ao saldo atual. 'Variação vs média' mostra se o saldo de hoje está acima (verde) ou abaixo (vermelho) da média do produto no período.`}
         subtitle={`${filtered.length} de ${data.length} produtos`}
         accentGradient="bg-gradient-to-r from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
         metrics={[
@@ -119,9 +122,9 @@ const EstoqueMedio = ({ data, categorias }: Props) => {
           keyExtractor={(r) => r.produtoCodigo}
           enableRowHighlight
           groups={[
-            { label: '', span: 4 },              // Ref · Produto · Categoria · Cód. Barras
-            { label: 'Estoque (6m)', span: 3 },  // Estoque médio · Saldo atual · Variação
-            { label: '', span: 1 },              // Últ. venda
+            { label: '', span: 4 },                          // Ref · Produto · Categoria · Cód. Barras
+            { label: `Estoque (${janelaDias}d)`, span: 3 },  // Estoque médio · Saldo atual · Variação
+            { label: '', span: 1 },                          // Últ. venda
           ]}
         />
 

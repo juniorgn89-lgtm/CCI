@@ -10,6 +10,7 @@ import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnaly
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
+  janelaDias: number
 }
 
 const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(v)
@@ -20,26 +21,28 @@ const fmtData = (iso: string | null): string => {
   return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
-const columns: Column<ProductAnalyticsRow>[] = [
+const buildColumns = (janelaDias: number): Column<ProductAnalyticsRow>[] => [
   { key: 'codigoSku', label: 'Ref.', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoSku || '—'}</span> },
   { key: 'produtoNome', label: 'Produto', sortable: true, render: (r) => <span className="font-medium">{r.produtoNome}</span> },
   { key: 'categoria', label: 'Categoria', sortable: true, render: (r) => <span className="text-xs text-gray-500 dark:text-gray-400">{r.categoria}</span> },
   { key: 'codigoBarras', label: 'Cód. Barras', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoBarras || '—'}</span> },
-  { key: 'vendasUltimos6m', label: 'Vendas 6m', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.vendasUltimos6m)}</span> },
-  { key: 'estoqueMedio', label: 'Estoque médio', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.estoqueMedio)}</span> },
+  { key: 'vendasJanela', label: `Vendas ${janelaDias}d`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.vendasJanela)}</span> },
+  { key: 'estoqueMedioJanela', label: 'Estoque médio', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.estoqueMedioJanela)}</span> },
   {
-    key: 'giro', label: 'Giro (6m)', align: 'right', sortable: true,
-    render: (r) => <HeatmapCell value={r.giro} min={0} max={6} formatted={r.giro > 0 ? fmtGiro(r.giro) + 'x' : '—'} />,
+    key: 'giroJanela', label: `Giro (${janelaDias}d)`, align: 'right', sortable: true,
+    render: (r) => <HeatmapCell value={r.giroJanela} min={0} max={2} formatted={r.giroJanela > 0 ? fmtGiro(r.giroJanela) + 'x' : '—'} />,
   },
   { key: 'saldoAtual', label: 'Saldo atual', align: 'right', sortable: true, render: (r) => <span className={cn('tabular-nums', r.saldoAtual <= 0 && 'text-red-600 dark:text-red-400')}>{fmtUnidades(r.saldoAtual)}</span> },
   { key: 'valorEstoque', label: 'Valor em estoque', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.valorEstoque)}</span> },
   { key: 'ultimaVenda', label: 'Últ. venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{fmtData(r.ultimaVenda)}</span> },
 ]
 
-const GiroProdutos = ({ data, categorias }: Props) => {
+const GiroProdutos = ({ data, categorias, janelaDias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
   const [showHelp, setShowHelp] = useState(false)
+
+  const columns = useMemo(() => buildColumns(janelaDias), [janelaDias])
 
   const filtered = useMemo(() => {
     return data
@@ -48,12 +51,12 @@ const GiroProdutos = ({ data, categorias }: Props) => {
         if (busca && !r.produtoNome.toLowerCase().includes(busca.toLowerCase()) && !r.codigoSku.toLowerCase().includes(busca.toLowerCase()) && !(r.codigoBarras ?? '').includes(busca)) return false
         return true
       })
-      .sort((a, b) => b.giro - a.giro)
+      .sort((a, b) => b.giroJanela - a.giroJanela)
   }, [data, busca, categoria])
 
   const totals = useMemo(() => {
-    const comGiro = filtered.filter((r) => r.giro > 0)
-    const giroMedio = comGiro.length > 0 ? comGiro.reduce((s, r) => s + r.giro, 0) / comGiro.length : 0
+    const comGiro = filtered.filter((r) => r.giroJanela > 0)
+    const giroMedio = comGiro.length > 0 ? comGiro.reduce((s, r) => s + r.giroJanela, 0) / comGiro.length : 0
     return { giroMedio, comGiro: comGiro.length, semGiro: filtered.length - comGiro.length }
   }, [filtered])
 
@@ -64,7 +67,7 @@ const GiroProdutos = ({ data, categorias }: Props) => {
         iconColor="text-blue-600"
         iconBg="bg-blue-100 dark:bg-blue-900/40"
         title="Giro dos produtos"
-        titleHint="Quantas vezes o estoque girou nos últimos 6 meses (vendas ÷ estoque médio). Giro alto = produto rodando; giro baixo = capital parado. Veja a tabela de faixas no botão 'O que é giro'."
+        titleHint={`Quantas vezes o estoque girou nos últimos ${janelaDias} dias (vendas ÷ estoque médio). Giro alto = produto rodando; giro baixo = capital parado. Veja a tabela de faixas no botão 'O que é giro'.`}
         subtitle={`${filtered.length} de ${data.length} produtos`}
         accentGradient="bg-gradient-to-r from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
         metrics={[
@@ -119,7 +122,7 @@ const GiroProdutos = ({ data, categorias }: Props) => {
               <span className="font-semibold text-gray-900 dark:text-gray-100">Fórmula:</span>{' '}
               <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-gray-700 dark:bg-gray-900 dark:text-gray-300">Giro = Quantidade vendida ÷ Estoque médio</span>
             </p>
-            <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">Como interpretar (em 6 meses)</p>
+            <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">Como interpretar (em {janelaDias} dias)</p>
             <div className="overflow-x-auto rounded-lg border border-blue-100 bg-white text-xs dark:border-blue-800/40 dark:bg-gray-900">
               <table className="w-full">
                 <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
@@ -142,9 +145,9 @@ const GiroProdutos = ({ data, categorias }: Props) => {
           keyExtractor={(r) => r.produtoCodigo}
           enableRowHighlight
           groups={[
-            { label: '', span: 4 },          // Ref · Produto · Categoria · Cód. Barras
-            { label: 'Giro (6m)', span: 3 }, // Vendas 6m · Estoque médio · Giro
-            { label: 'Estoque', span: 3 },   // Saldo atual · Valor em estoque · Últ. venda
+            { label: '', span: 4 },                        // Ref · Produto · Categoria · Cód. Barras
+            { label: `Giro (${janelaDias}d)`, span: 3 },   // Vendas · Estoque médio · Giro
+            { label: 'Estoque', span: 3 },                 // Saldo atual · Valor em estoque · Últ. venda
           ]}
         />
 

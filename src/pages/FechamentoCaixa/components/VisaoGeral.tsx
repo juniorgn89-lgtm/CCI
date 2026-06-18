@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import {
   Receipt, Banknote, CreditCard, Smartphone, Wallet,
-  DollarSign, Scale, TrendingUp, Users, AlertTriangle, ChevronRight,
+  DollarSign, Scale, TrendingUp, Users, AlertTriangle, ChevronRight, ChevronDown,
 } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -62,12 +62,21 @@ const VisaoGeral = () => {
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const empresaKey = empresaCodigos.join(',')
 
-  const { turnoRows, isLoading } = useOperacaoData()
+  const { turnoRows, conferenciaPdv, isLoading } = useOperacaoData()
   const showSkeleton = useShowSkeleton(isLoading, turnoRows.length > 0)
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [includeAbertos, setIncludeAbertos] = useState(false)
   const [cartaoOpen, setCartaoOpen] = useState(false)
+  // Linhas de sobra/falta expandidas (disclosure por caixa → forma).
+  const [expandedDif, setExpandedDif] = useState<Set<string>>(() => new Set())
+  const toggleDif = (key: string) =>
+    setExpandedDif((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   const [prevEmpresaKey, setPrevEmpresaKey] = useState(empresaKey)
   if (prevEmpresaKey !== empresaKey) {
@@ -180,9 +189,34 @@ const VisaoGeral = () => {
     const totalCombustivel = frentistas.reduce((s, f) => s + f.faturamento, 0)
     const conveniencia = Math.max(0, apurado - totalCombustivel)
 
+    // Vendedores de loja (conveniência) dos caixas selecionados. O cache é por
+    // DIA × funcionário, então cada caixa de Conveniência carrega os vendedores
+    // do seu dia — dedup por dia evita somar o mesmo vendedor 2× quando há mais
+    // de um caixa de Conveniência no mesmo dia.
+    const vendMap = new Map<number, { funcionarioCodigo: number; nome: string; faturamento: number; itens: number; cupons: number }>()
+    const diasVendContados = new Set<string>()
+    for (const c of selectedCaixas) {
+      if (c.vendedores.length === 0) continue
+      const dia = c.dataMovimento?.slice(0, 10) ?? String(c.caixaCodigo)
+      if (diasVendContados.has(dia)) continue
+      diasVendContados.add(dia)
+      for (const v of c.vendedores) {
+        const prev = vendMap.get(v.funcionarioCodigo) ?? {
+          funcionarioCodigo: v.funcionarioCodigo, nome: v.nome, faturamento: 0, itens: 0, cupons: 0,
+        }
+        prev.faturamento += v.faturamento
+        prev.itens += v.itens
+        prev.cupons += v.cupons
+        vendMap.set(v.funcionarioCodigo, prev)
+      }
+    }
+    const vendedores = Array.from(vendMap.values()).sort((a, b) => b.faturamento - a.faturamento)
+    const totalVendedores = vendedores.reduce((s, v) => s + v.faturamento, 0)
+
     return {
       apurado, diferencaFechados, pagamentos, totalPagamentos,
       frentistas, totalCombustivel, conveniencia,
+      vendedores, totalVendedores,
     }
   }, [selectedCaixas])
 
@@ -192,6 +226,14 @@ const VisaoGeral = () => {
         .filter((c) => c.fechado && Math.abs(difCaixa(c)) > 0.005)
         .sort((a, b) => Math.abs(difCaixa(b)) - Math.abs(difCaixa(a))),
     [selectedCaixas],
+  )
+
+  // Quebra por forma (apresentado × apurado × diferença) por caixa — alimenta a
+  // linha expansível das sobras/faltas, mostrando ONDE está a diferença daquele
+  // colaborador/caixa. Vem do /CAIXA_APRESENTADO (mesma fonte da Conferência).
+  const conferenciaByCaixa = useMemo(
+    () => new Map(conferenciaPdv.map((c) => [c.caixaCodigo, c])),
+    [conferenciaPdv],
   )
 
   return (
@@ -254,7 +296,7 @@ const VisaoGeral = () => {
               </p>
               <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                 {agregados.apurado > 0
-                  ? `${((agregados.totalCombustivel / agregados.apurado) * 100).toFixed(0).replace('.', ',')}% do apurado`
+                  ? `${((agregados.totalCombustivel / agregados.apurado) * 100).toFixed(2).replace('.', ',')}% do apurado`
                   : '—'}
               </p>
             </div>
@@ -370,7 +412,7 @@ const VisaoGeral = () => {
                             <div className="h-full rounded-full bg-blue-500/70" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="shrink-0 text-[10px] tabular-nums text-gray-400">
-                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(0).replace('.', ',')}%
+                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(2).replace('.', ',')}%
                           </span>
                         </div>
                       </li>
@@ -415,7 +457,7 @@ const VisaoGeral = () => {
                           </span>
                         </div>
                         <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                          {formatNumber(f.atendimentos)} abast. · {formatNumber(f.litros)} L · {pct.toFixed(0).replace('.', ',')}%
+                          {formatNumber(f.atendimentos)} abast. · {formatNumber(f.litros)} L · {pct.toFixed(2).replace('.', ',')}%
                         </p>
                       </li>
                     )
@@ -424,6 +466,50 @@ const VisaoGeral = () => {
               )}
             </section>
           </div>
+
+          {agregados.vendedores.length > 0 && (
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-violet-500" />
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Vendedores da Loja
+                  </h3>
+                  <span className="text-[11px] text-gray-400">— conveniência</span>
+                </div>
+                {agregados.totalVendedores > 0 && (
+                  <span className="text-[11px] tabular-nums text-gray-400">
+                    Total: {formatCurrency(agregados.totalVendedores)}
+                  </span>
+                )}
+              </div>
+              <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                {agregados.vendedores.map((v) => {
+                  const pct = agregados.totalVendedores > 0
+                    ? (v.faturamento / agregados.totalVendedores) * 100
+                    : 0
+                  return (
+                    <li key={v.funcionarioCodigo} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100" title={v.nome}>
+                          {v.nome}
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(v.faturamento)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
+                        {formatNumber(v.cupons)} cupons · {formatNumber(v.itens)} itens · {pct.toFixed(2).replace('.', ',')}%
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="border-t border-gray-100 px-4 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
+                Vendedores de loja são atribuídos pelo dia — a apuração de vendas por funcionário não separa por caixa/PDV.
+              </p>
+            </section>
+          )}
 
           {caixasComDiferenca.length > 0 && (
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -440,6 +526,7 @@ const VisaoGeral = () => {
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                     <tr>
+                      <th className="w-8 px-2 py-2" />
                       <th className="px-4 py-2 text-left font-medium">Data</th>
                       <th className="px-4 py-2 text-left font-medium">Turno</th>
                       <th className="px-4 py-2 text-left font-medium">Caixa</th>
@@ -449,21 +536,81 @@ const VisaoGeral = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {caixasComDiferenca.map((c) => (
-                      <tr key={caixaKey(c)} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        <td className="px-4 py-2 tabular-nums text-gray-500 dark:text-gray-400">{fmtBRDate(c.dataMovimento)}</td>
-                        <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">{c.turno}</td>
-                        <td className="px-4 py-2 tabular-nums text-gray-500 dark:text-gray-400">#{c.caixaCodigo}</td>
-                        <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.apurado)}</td>
-                        <td className={cn(
-                          'px-4 py-2 text-right font-semibold tabular-nums',
-                          difCaixa(c) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
-                        )}>
-                          {difCaixa(c) > 0 ? '+' : ''}{formatCurrency(difCaixa(c))}
-                        </td>
-                      </tr>
-                    ))}
+                    {caixasComDiferenca.map((c) => {
+                      const key = caixaKey(c)
+                      const conf = conferenciaByCaixa.get(c.caixaCodigo)
+                      // Só formas com diferença relevante (onde está a sobra/falta).
+                      const formasDif = conf
+                        ? conf.formas.filter((f) => Math.abs(f.diferenca) > 0.005)
+                        : []
+                      const canExpand = formasDif.length > 0
+                      const expanded = expandedDif.has(key)
+                      return (
+                        <Fragment key={key}>
+                          <tr
+                            className={cn(
+                              'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                              canExpand && 'cursor-pointer',
+                            )}
+                            onClick={canExpand ? () => toggleDif(key) : undefined}
+                            title={canExpand ? 'Ver diferença por forma de pagamento' : undefined}
+                          >
+                            <td className="px-2 py-2 text-center text-gray-400">
+                              {canExpand && (
+                                expanded
+                                  ? <ChevronDown className="mx-auto h-3.5 w-3.5" />
+                                  : <ChevronRight className="mx-auto h-3.5 w-3.5" />
+                              )}
+                            </td>
+                            <td className="px-4 py-2 tabular-nums text-gray-500 dark:text-gray-400">{fmtBRDate(c.dataMovimento)}</td>
+                            <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">{c.turno}</td>
+                            <td className="px-4 py-2 tabular-nums text-gray-500 dark:text-gray-400">#{c.caixaCodigo}</td>
+                            <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
+                            <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.apurado)}</td>
+                            <td className={cn(
+                              'px-4 py-2 text-right font-semibold tabular-nums',
+                              difCaixa(c) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                            )}>
+                              {difCaixa(c) > 0 ? '+' : ''}{formatCurrency(difCaixa(c))}
+                            </td>
+                          </tr>
+                          {expanded && canExpand && (
+                            <tr className="bg-gray-50/60 dark:bg-gray-800/30">
+                              <td />
+                              <td colSpan={6} className="px-4 py-2">
+                                <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                                  <table className="w-full text-[11px]">
+                                    <thead className="text-[9px] uppercase tracking-wider text-gray-400">
+                                      <tr>
+                                        <th className="px-3 py-1.5 text-left font-medium">Forma</th>
+                                        <th className="px-3 py-1.5 text-right font-medium">Apresentado</th>
+                                        <th className="px-3 py-1.5 text-right font-medium">Apurado</th>
+                                        <th className="px-3 py-1.5 text-right font-medium">Diferença</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                      {formasDif.map((f) => (
+                                        <tr key={f.nome}>
+                                          <td className="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-300">{f.nome}</td>
+                                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(f.apresentado)}</td>
+                                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(f.apurado)}</td>
+                                          <td className={cn(
+                                            'px-3 py-1.5 text-right font-semibold tabular-nums',
+                                            f.diferenca > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                                          )}>
+                                            {f.diferenca > 0 ? '+' : ''}{formatCurrency(f.diferenca)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

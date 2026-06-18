@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Warehouse, Package, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard } from 'lucide-react'
+import { Warehouse, Package, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -39,6 +40,34 @@ const TableSkeleton = () => (
   </div>
 )
 
+/** Seletor de janela móvel (30/60/90 dias) — pills no estilo do design system. */
+const JanelaSelect = ({
+  value,
+  onChange,
+}: {
+  value: 30 | 60 | 90
+  onChange: (v: 30 | 60 | 90) => void
+}) => (
+  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+    {([30, 60, 90] as const).map((opt) => (
+      <button
+        key={opt}
+        type="button"
+        onClick={() => onChange(opt)}
+        aria-pressed={value === opt}
+        className={cn(
+          'h-7 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-all',
+          value === opt
+            ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+        )}
+      >
+        {opt} dias
+      </button>
+    ))}
+  </div>
+)
+
 const Estoques = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useEstoquesLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
@@ -51,8 +80,14 @@ const Estoques = () => {
   )
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
   const [coberturaDias, setCoberturaDias] = useState(30)
+  // Janela móvel (30/60/90 dias) que controla as métricas de volume: giro,
+  // estoque médio, média de venda e a necessidade de reabastecimento derivada.
+  const [janelaDias, setJanelaDias] = useState<30 | 60 | 90>(30)
 
-  const { productAnalytics, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias)
+  const { productAnalytics, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias)
+
+  // Abas cuja métrica principal depende da janela móvel — mostram o seletor.
+  const showJanelaSelector = ['visao', 'giro', 'estoqueMedio', 'mediaVendas', 'necessidade'].includes(activeTab)
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
   const showSkeleton = isLoading && productAnalytics.length === 0
@@ -105,22 +140,33 @@ const Estoques = () => {
                 <TableSkeleton />
               ) : (
                 <>
+                  {showJanelaSelector && (
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                        <CalendarRange className="h-3.5 w-3.5" />
+                        Janela de cálculo
+                      </span>
+                      <JanelaSelect value={janelaDias} onChange={setJanelaDias} />
+                    </div>
+                  )}
                   {activeTab === 'visao' && (
                     <EstoqueVisaoGeral
                       data={productAnalytics}
                       categorias={categorias}
+                      janelaDias={janelaDias}
                       onNavigateTab={setActiveTab}
                     />
                   )}
                   {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
-                  {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} />}
-                  {activeTab === 'estoqueMedio' && <EstoqueMedio data={productAnalytics} categorias={categorias} />}
-                  {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} />}
+                  {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
+                  {activeTab === 'estoqueMedio' && <EstoqueMedio data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
+                  {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
                   {activeTab === 'necessidade' && (
                     <NecessidadeEstoque
                       data={productAnalytics}
                       categorias={categorias}
                       coberturaDias={coberturaDias}
+                      janelaDias={janelaDias}
                       onCoberturaChange={setCoberturaDias}
                     />
                   )}

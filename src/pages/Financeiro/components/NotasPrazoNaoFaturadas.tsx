@@ -17,7 +17,12 @@ const addDaysISO = (iso: string, n: number) => {
 const onlyDate = (s: string) => (s ?? '').split('T')[0]
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
 const nomeCli = (r: { nomeCliente?: string; clienteCodigo: number }) => r.nomeCliente?.trim() || `Cliente ${r.clienteCodigo}`
-const isNaoFaturada = (r: ReceivableRow) => (r as unknown as { convertido?: boolean | null }).convertido === false
+// "Não faturada" = título a receber EM ABERTO (pendente) ainda NÃO convertido em
+// boleto/duplicata (convertido=false). Exigir `pendente` evita somar títulos já
+// baixados/faturados que ainda venham com convertido=false no histórico — era a
+// causa do total divergir do webPosto.
+const isNaoFaturada = (r: ReceivableRow) =>
+  r.pendente === true && (r as unknown as { convertido?: boolean | null }).convertido === false
 /** Número do documento: tituloNumero → documento → #tituloCodigo. */
 const numDoc = (r: ReceivableRow) => {
   const n = (r as unknown as { tituloNumero?: number }).tituloNumero
@@ -163,7 +168,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                Existem <b>{formatCurrency(stats.total)}</b> em notas ainda não faturadas — {pctPotencial.toFixed(0)}% do total em aberto.
+                Existem <b>{formatCurrency(stats.total)}</b> em notas ainda não faturadas — {pctPotencial.toFixed(2)}% do total em aberto.
               </span>
             </div>
           )}

@@ -17,7 +17,7 @@ const TONES: Record<Tone, { icon: string; chip: string; soft: string }> = {
   teal: { icon: '#0d9488', chip: 'rgba(20,184,166,0.16)', soft: 'rgba(20,184,166,0.12)' },
 }
 
-const pct1 = (v: number) => `${v.toFixed(0).replace('.', ',')}%`
+const pct1 = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
 /* ── DeltaBadge — seta + % vs <ref> ── */
 interface DeltaBadgeProps {
@@ -41,7 +41,7 @@ export const DeltaBadge = ({ value, label = 'mês ant.', invert = false, small =
       )}
     >
       <Arrow className={small ? 'h-3 w-3' : 'h-[13px] w-[13px]'} />
-      {positive ? '+' : ''}{value.toFixed(0).replace('.', ',')}%
+      {positive ? '+' : ''}{value.toFixed(2).replace('.', ',')}%
       <span className="font-medium text-gray-400 dark:text-gray-500">vs {label}</span>
     </span>
   )

@@ -44,9 +44,9 @@ const DotGrid = ({ pct, color }: { pct: number; color: string }) => {
 const buildCols = (maxFat: number, maxLB: number): Column<ParetoRow>[] => [
   { key: 'nome', label: 'Produto', sortable: true },
   { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
-  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(0)}%` },
+  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(2)}%` },
   { key: 'lucroBruto', label: 'Lucro Bruto', align: 'right', sortable: true, render: (r) => <BarCell value={r.lucroBruto} max={maxLB} formatted={formatCurrency(r.lucroBruto)} color="green" /> },
-  { key: 'margemPct', label: 'Margem', align: 'right', sortable: true, render: (r) => `${r.margemPct.toFixed(0)}%` },
+  { key: 'margemPct', label: 'Margem', align: 'right', sortable: true, render: (r) => `${r.margemPct.toFixed(2)}%` },
   { key: 'precoMedio', label: 'Preço Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.precoMedio) },
   { key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.custoMedio) },
   { key: 'lbMedio', label: 'L.B. Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.lbMedio) },

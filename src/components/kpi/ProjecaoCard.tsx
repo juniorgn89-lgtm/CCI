@@ -98,7 +98,7 @@ const ProjecaoCard = ({
               {formatCurrency(projetadoLucro)}
             </p>
             <p className="text-[11px] tabular-nums text-white/70">
-              {projetadoFaturamento > 0 ? `${margemPct.toFixed(0).replace('.', ',')}% margem` : '—'}
+              {projetadoFaturamento > 0 ? `${margemPct.toFixed(2).replace('.', ',')}% margem` : '—'}
             </p>
           </div>
         </div>

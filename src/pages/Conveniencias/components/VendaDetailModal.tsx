@@ -18,7 +18,7 @@ const productCols: Column<DaySaleProduct>[] = [
   { key: 'margemRs', label: 'Margem R$', align: 'right', sortable: true, render: (r) => formatCurrency(r.margemRs) },
   {
     key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
-    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(0)}%`} />,
+    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(2)}%`} />,
   },
 ]
 
@@ -86,7 +86,7 @@ const VendaDetailModal = ({ open, onClose, title, products, showGroupFilter, ite
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {totals.itens} produto{totals.itens === 1 ? '' : 's'} · {formatCurrency(totals.faturamento)} · margem {totals.margemPct.toFixed(0)}%
+            {totals.itens} produto{totals.itens === 1 ? '' : 's'} · {formatCurrency(totals.faturamento)} · margem {totals.margemPct.toFixed(2)}%
           </DialogDescription>
         </DialogHeader>
 
@@ -158,7 +158,7 @@ const VendaDetailModal = ({ open, onClose, title, products, showGroupFilter, ite
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <span className="truncate text-xs text-gray-700 dark:text-gray-300">{p.nome}</span>
-                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(0)}%</span>
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct.toFixed(2)}%</span>
                           </div>
                           <p className="text-[10px] tabular-nums text-gray-400">
                             {formatCurrency(p.valor)} · {formatNumber(p.quantidade)} transações

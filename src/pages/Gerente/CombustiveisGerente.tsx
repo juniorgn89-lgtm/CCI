@@ -99,7 +99,7 @@ const CombustiveisGerente = () => {
                   <p className={cn('text-sm font-bold', colors.text)}>{c.nome}</p>
                 </div>
                 <span className={cn('text-sm font-semibold', colors.text)}>
-                  {c.participacao.toFixed(0)}% do total
+                  {c.participacao.toFixed(2)}% do total
                 </span>
               </div>
 

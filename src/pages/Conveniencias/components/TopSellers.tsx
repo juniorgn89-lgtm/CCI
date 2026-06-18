@@ -71,7 +71,7 @@ const TopSellers = ({ topSellers, treemapData }: TopSellersProps) => {
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Participação</p>
-                <p className="text-sm font-semibold tabular-nums text-blue-600 dark:text-blue-400">{item.participacaoPct.toFixed(0)}%</p>
+                <p className="text-sm font-semibold tabular-nums text-blue-600 dark:text-blue-400">{item.participacaoPct.toFixed(2)}%</p>
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@ const TopSellers = ({ topSellers, treemapData }: TopSellersProps) => {
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm text-gray-700 dark:text-gray-300">{item.name}</span>
                         <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                          {pct.toFixed(0)}%
+                          {pct.toFixed(2)}%
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">

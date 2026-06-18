@@ -8,6 +8,7 @@ import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnaly
 interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
+  janelaDias: number
 }
 
 const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(v)
@@ -25,15 +26,15 @@ const formatMonthLabel = (ym: string): string => {
   return `${names[idx] ?? m}/${y.slice(2)}`
 }
 
-const columns: Column<ProductAnalyticsRow>[] = [
+const buildColumns = (janelaDias: number): Column<ProductAnalyticsRow>[] => [
   { key: 'codigoSku', label: 'Ref.', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoSku || '—'}</span> },
   { key: 'produtoNome', label: 'Produto', sortable: true, render: (r) => <span className="font-medium">{r.produtoNome}</span> },
   { key: 'categoria', label: 'Categoria', sortable: true, render: (r) => <span className="text-xs text-gray-500 dark:text-gray-400">{r.categoria}</span> },
   { key: 'codigoBarras', label: 'Cód. Barras', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoBarras || '—'}</span> },
-  { key: 'vendasUltimos6m', label: 'Vendas 6m', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.vendasUltimos6m)}</span> },
-  { key: 'mediaMensalVendas', label: 'Média mensal', align: 'right', sortable: true, render: (r) => <span className="tabular-nums font-semibold">{fmtUnidades(r.mediaMensalVendas)}</span> },
+  { key: 'vendasJanela', label: `Vendas ${janelaDias}d`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.vendasJanela)}</span> },
+  { key: 'mediaDiariaVendas', label: 'Média/dia', align: 'right', sortable: true, render: (r) => <span className="tabular-nums font-semibold">{fmtUnidades(r.mediaDiariaVendas)}</span> },
   {
-    key: 'vendasPico', label: 'Mês pico', align: 'right', sortable: true,
+    key: 'vendasPico', label: 'Mês pico (6m)', align: 'right', sortable: true,
     render: (r) => (
       r.mesPico ? (
         <div className="text-right">
@@ -43,29 +44,31 @@ const columns: Column<ProductAnalyticsRow>[] = [
       ) : <span className="text-gray-400">—</span>
     ),
   },
-  { key: 'receitaUltimos6m', label: 'Receita 6m', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.receitaUltimos6m)}</span> },
+  { key: 'receitaJanela', label: `Receita ${janelaDias}d`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.receitaJanela)}</span> },
   { key: 'saldoAtual', label: 'Saldo atual', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.saldoAtual)}</span> },
   { key: 'ultimaVenda', label: 'Últ. venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{fmtData(r.ultimaVenda)}</span> },
 ]
 
-const MediaVendas = ({ data, categorias }: Props) => {
+const MediaVendas = ({ data, categorias, janelaDias }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
+
+  const columns = useMemo(() => buildColumns(janelaDias), [janelaDias])
 
   const filtered = useMemo(() => {
     return data
       .filter((r) => {
         if (categoria && r.categoria !== categoria) return false
         if (busca && !r.produtoNome.toLowerCase().includes(busca.toLowerCase()) && !r.codigoSku.toLowerCase().includes(busca.toLowerCase()) && !(r.codigoBarras ?? '').includes(busca)) return false
-        if (r.vendasUltimos6m === 0) return false // só produtos que venderam algo
+        if (r.vendasJanela === 0) return false // só produtos que venderam algo na janela
         return true
       })
-      .sort((a, b) => b.vendasUltimos6m - a.vendasUltimos6m)
+      .sort((a, b) => b.vendasJanela - a.vendasJanela)
   }, [data, busca, categoria])
 
   const totals = useMemo(() => {
-    const totalVendas = filtered.reduce((s, r) => s + r.vendasUltimos6m, 0)
-    const totalReceita = filtered.reduce((s, r) => s + r.receitaUltimos6m, 0)
+    const totalVendas = filtered.reduce((s, r) => s + r.vendasJanela, 0)
+    const totalReceita = filtered.reduce((s, r) => s + r.receitaJanela, 0)
     return { totalVendas, totalReceita }
   }, [filtered])
 
@@ -75,13 +78,13 @@ const MediaVendas = ({ data, categorias }: Props) => {
         icon={TrendingUp}
         iconColor="text-blue-600"
         iconBg="bg-blue-100 dark:bg-blue-900/40"
-        title="Média de venda dos últimos 6 meses"
-        titleHint="Volume vendido por produto nos últimos 6 meses, com média mensal, mês de pico (maior volume) e receita do período. Só lista produtos que tiveram alguma venda."
+        title={`Média de venda dos últimos ${janelaDias} dias`}
+        titleHint={`Volume vendido por produto nos últimos ${janelaDias} dias, com média diária e receita do período. O 'Mês pico' continua sendo o maior mês dos últimos 6 meses (referência sazonal). Só lista produtos que venderam algo na janela.`}
         subtitle={`${filtered.length} de ${data.length} produtos`}
         accentGradient="bg-gradient-to-r from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
         metrics={[
-          { label: 'Total vendido (6m)', value: fmtUnidades(totals.totalVendas) },
-          { label: 'Receita (6m)', value: formatCurrency(totals.totalReceita), color: 'text-blue-600 dark:text-blue-400' },
+          { label: `Total vendido (${janelaDias}d)`, value: fmtUnidades(totals.totalVendas) },
+          { label: `Receita (${janelaDias}d)`, value: formatCurrency(totals.totalReceita), color: 'text-blue-600 dark:text-blue-400' },
         ]}
       />
 
@@ -113,9 +116,9 @@ const MediaVendas = ({ data, categorias }: Props) => {
           keyExtractor={(r) => r.produtoCodigo}
           enableRowHighlight
           groups={[
-            { label: '', span: 4 },             // Ref · Produto · Categoria · Cód. Barras
-            { label: 'Vendas (6m)', span: 4 },  // Vendas 6m · Média mensal · Mês pico · Receita 6m
-            { label: 'Estoque', span: 2 },      // Saldo atual · Últ. venda
+            { label: '', span: 4 },                         // Ref · Produto · Categoria · Cód. Barras
+            { label: `Vendas (${janelaDias}d)`, span: 4 },  // Vendas · Média/dia · Mês pico · Receita
+            { label: 'Estoque', span: 2 },                  // Saldo atual · Últ. venda
           ]}
         />
 

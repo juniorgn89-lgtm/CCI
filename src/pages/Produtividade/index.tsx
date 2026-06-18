@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import useTabParam from '@/hooks/useTabParam'
 import { BarChart3, Fuel, ShoppingBag } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
@@ -11,7 +11,7 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { useProdutividadeLayout } from '@/store/moduleLayout'
-import { useFilterStore, type AbastDateMode } from '@/store/filters'
+import { useFilterStore } from '@/store/filters'
 import { subTabs, type SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
@@ -72,9 +72,13 @@ const Produtividade = () => {
   }
   // Alternador: Frentistas (combustível) × Vendedores (conveniência).
   const [modo, setModo] = useState<'frentistas' | 'vendedores'>('frentistas')
-  // Critério de data dos abastecimentos — espelha Abast./Fiscal/Movimento do webPosto.
+  // Produtividade do frentista usa SEMPRE a data de abastecimento como base
+  // (sem o seletor Abast./Fiscal/Movimento). Fixa o modo ao montar a tela.
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
   const setAbastDateMode = useFilterStore((s) => s.setAbastDateMode)
+  useEffect(() => {
+    if (abastDateMode !== 'ABAST') setAbastDateMode('ABAST')
+  }, [abastDateMode, setAbastDateMode])
 
   // Linhas com custo por abastecimento (lucro bruto), do useAbastecimentosAnalytics
   // (LMC/cache). Alimentam o Lucro bruto por dia da tabela; "—" até o custo chegar.
@@ -137,33 +141,6 @@ const Produtividade = () => {
                   )}
                 >
                   <m.Icon className="h-3.5 w-3.5" />
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Critério de data dos abastecimentos (igual ao webPosto). Só no modo
-              Frentistas — Vendedores é conveniência, não usa abastecimento. */}
-          {hasEmpresa && modo === 'frentistas' && (
-            <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {([
-                { id: 'ABAST', label: 'Abast.' },
-                { id: 'FISCAL', label: 'Fiscal' },
-                { id: 'MOVIMENTO', label: 'Movimento' },
-              ] as { id: AbastDateMode; label: string }[]).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setAbastDateMode(m.id)}
-                  title={`Contar abastecimentos por data: ${m.label}`}
-                  className={cn(
-                    'flex h-7 items-center whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
-                    abastDateMode === m.id
-                      ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                  )}
-                >
                   {m.label}
                 </button>
               ))}

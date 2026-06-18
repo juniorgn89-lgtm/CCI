@@ -439,7 +439,7 @@ const useNetworkData = ({ empresaCodigos }: UseNetworkDataParams) => {
         alerts.push({
           type: 'warning',
           posto: p.fantasia,
-          message: `Baixa conversão de produtos (${p.conversao.toFixed(0)}%)`,
+          message: `Baixa conversão de produtos (${p.conversao.toFixed(2)}%)`,
         })
       }
       if (networkAvg.receita > 0 && p.receita < networkAvg.receita * 0.6) {

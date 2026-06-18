@@ -31,7 +31,7 @@ const dailyCols: Column<DailyRow>[] = [
   { key: 'margemRs', label: 'Margem R$', align: 'right', sortable: true, render: (r) => formatCurrency(r.margemRs) },
   {
     key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
-    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(0)}%`} />,
+    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(2)}%`} />,
   },
 ]
 
@@ -42,7 +42,7 @@ const groupCols: Column<GroupRow>[] = [
   { key: 'margemTotal', label: 'Margem R$', align: 'right', sortable: true, render: (r) => formatCurrency(r.margemTotal) },
   {
     key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
-    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(0)}%`} />,
+    render: (r) => <HeatmapCell value={r.margemPct} min={-10} max={40} formatted={`${r.margemPct.toFixed(2)}%`} />,
   },
 ]
 

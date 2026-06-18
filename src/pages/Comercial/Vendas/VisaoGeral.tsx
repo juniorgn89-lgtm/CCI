@@ -76,7 +76,7 @@ const HelpDot = ({ text }: { text: string }) => (
   </span>
 )
 
-const fmtPct2 = (v: number): string => `${v.toFixed(0).replace('.', ',')}%`
+const fmtPct2 = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
 
 /* ─── Card de segmento (formato): Lucro bruto em destaque + 2 métricas
  * secundárias (Margem / Faturamento / L.B. por litro). Clicável quando `to`. ─── */
@@ -454,7 +454,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                             key={s.id}
                             className="h-full"
                             style={{ width: `${pct}%`, backgroundColor: s.cor }}
-                            title={`${s.nome}: ${pct.toFixed(0).replace('.', ',')}%`}
+                            title={`${s.nome}: ${pct.toFixed(2).replace('.', ',')}%`}
                           />
                         ) : null
                       })}
@@ -465,7 +465,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                         return (
                           <span key={s.id} className="inline-flex items-center gap-1">
                             <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.cor }} />
-                            {pct.toFixed(0)}%
+                            {pct.toFixed(2)}%
                           </span>
                         )
                       })}
@@ -505,7 +505,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
             />
             <KpiCard
               label="Margem média"
-              value={`${total.margem.toFixed(0).replace('.', ',')}%`}
+              value={`${total.margem.toFixed(2).replace('.', ',')}%`}
               hint="Lucro bruto ÷ faturamento × 100"
               tooltip="Margem bruta consolidada = (lucro bruto total ÷ faturamento total) × 100. O detalhe mostra o segmento de maior e menor margem."
               Icon={Percent}
@@ -513,7 +513,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={isLoading}
-              projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? `${projecoes.projetadoMargem.toFixed(0).replace('.', ',')}%` : undefined}
+              projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? `${projecoes.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
               extra={
                 margemRanking.melhor && margemRanking.pior && margemRanking.melhor.id !== margemRanking.pior.id ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
@@ -523,7 +523,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                         Maior · {margemRanking.melhor.nome}
                       </span>
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {margemRanking.melhor.margem.toFixed(0).replace('.', ',')}%
+                        {margemRanking.melhor.margem.toFixed(2).replace('.', ',')}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -532,7 +532,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                         Menor · {margemRanking.pior.nome}
                       </span>
                       <span className="font-semibold text-red-600 dark:text-red-400">
-                        {margemRanking.pior.margem.toFixed(0).replace('.', ',')}%
+                        {margemRanking.pior.margem.toFixed(2).replace('.', ',')}%
                       </span>
                     </div>
                   </div>
@@ -568,7 +568,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                           : 'text-red-600 dark:text-red-400',
                       )}>
                         {convKpis.cmp.ticketMedio > 0
-                          ? `${convKpis.ticketMedio >= convKpis.cmp.ticketMedio ? '+' : ''}${(((convKpis.ticketMedio - convKpis.cmp.ticketMedio) / convKpis.cmp.ticketMedio) * 100).toFixed(0).replace('.', ',')}%`
+                          ? `${convKpis.ticketMedio >= convKpis.cmp.ticketMedio ? '+' : ''}${(((convKpis.ticketMedio - convKpis.cmp.ticketMedio) / convKpis.cmp.ticketMedio) * 100).toFixed(2).replace('.', ',')}%`
                           : '—'}
                       </span>
                     </div>
@@ -693,7 +693,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-700 dark:text-gray-300">{d.nome}</span>
                               <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                                {pct.toFixed(0).replace('.', ',')}%
+                                {pct.toFixed(2).replace('.', ',')}%
                               </span>
                             </div>
                             <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
@@ -728,14 +728,14 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
                     <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} />
                     <YAxis type="category" dataKey="nome" width={100} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={((value: number) => [`${value.toFixed(0).replace('.', ',')}%`, 'Margem']) as never}
+                      formatter={((value: number) => [`${value.toFixed(2).replace('.', ',')}%`, 'Margem']) as never}
                       contentStyle={{ borderRadius: 8, fontSize: 12 }}
                     />
                     <Bar dataKey="margem" radius={[0, 4, 4, 0]}>
                       {mixData.map((d) => (
                         <Cell key={d.nome} fill={d.cor} />
                       ))}
-                      <LabelList dataKey="margem" position="right" formatter={((v: number) => `${v.toFixed(0).replace('.', ',')}%`) as never} style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                      <LabelList dataKey="margem" position="right" formatter={((v: number) => `${v.toFixed(2).replace('.', ',')}%`) as never} style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -746,7 +746,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
           {/* Resumo textual abaixo dos charts (acessibilidade + leitura rápida) */}
           {total.faturamento > 0 && (
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Total geral: {formatCurrencyShort(total.faturamento)} · Lucro {formatCurrencyShort(total.lucro)} · Margem {total.margem.toFixed(0).replace('.', ',')}%
+              Total geral: {formatCurrencyShort(total.faturamento)} · Lucro {formatCurrencyShort(total.lucro)} · Margem {total.margem.toFixed(2).replace('.', ',')}%
             </p>
           )}
         </>

@@ -35,7 +35,7 @@ const DeltaBadge = ({ value, loading }: { value: number | null; loading: boolean
     )}>
       <Icon className="h-3 w-3" />
       <span className="text-[10px] font-semibold tabular-nums">
-        {positive ? '+' : ''}{value.toFixed(0)}% vs anterior
+        {positive ? '+' : ''}{value.toFixed(2)}% vs anterior
       </span>
     </div>
   )

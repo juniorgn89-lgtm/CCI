@@ -90,10 +90,13 @@ const adaptPrecoSuspeito = (r: AbastecimentoPrecoSuspeito, qi: QualidadeIssue): 
       { label: 'Combustível', value: r.combustivelNome },
       { label: 'Preço unitário', value: formatCurrency(r.valorUnitario), numeric: true, highlight: true },
       { label: 'Preço médio do período', value: formatCurrency(r.precoMedio), numeric: true },
-      { label: 'Desvio', value: `${desvioPct > 0 ? '+' : ''}${desvioPct.toFixed(0).replace('.', ',')}% (${r.zScore.toFixed(1).replace('.', ',')}σ)`, numeric: true, highlight: true },
+      { label: 'Desvio', value: `${desvioPct > 0 ? '+' : ''}${desvioPct.toFixed(2).replace('.', ',')}% (${r.zScore.toFixed(1).replace('.', ',')}σ)`, numeric: true, highlight: true },
       { label: 'Data', value: formatDate(day) },
       { label: 'Bomba / Bico', value: r.bombaDescricao },
       { label: 'Frentista', value: r.frentistaNome },
+      { label: 'Cliente', value: r.clienteNome },
+      { label: 'Forma de pagamento', value: r.formaPagamento },
+      { label: 'Adquirente / bandeira', value: r.adquirente },
       { label: 'Placa', value: r.placa },
       { label: 'Litros', value: formatLiters(r.litros), numeric: true },
       { label: 'Valor total', value: formatCurrency(r.valorTotal), numeric: true },
@@ -358,6 +361,7 @@ const PrecoSuspeitoTable = ({
           <th className="px-3 py-2 text-left font-medium">Código</th>
           <th className="px-3 py-2 text-left font-medium">Data</th>
           <th className="px-3 py-2 text-left font-medium">Combustível</th>
+          <th className="px-3 py-2 text-left font-medium">Cliente</th>
           <th className="px-3 py-2 text-left font-medium">Forma pgto</th>
           <th className="px-3 py-2 text-right font-medium">Preço unit.</th>
           <th className="px-3 py-2 text-right font-medium">Média</th>
@@ -384,6 +388,7 @@ const PrecoSuspeitoTable = ({
               <td className="px-3 py-1.5 font-mono tabular-nums text-blue-600 underline-offset-2 hover:underline dark:text-blue-400">#{r.codigo}</td>
               <td className="px-3 py-1.5 font-medium tabular-nums text-gray-900 dark:text-gray-100">{formatDate(day)}</td>
               <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{r.combustivelNome}</td>
+              <td className="px-3 py-1.5 text-gray-600 dark:text-gray-400">{r.clienteNome}</td>
               <td className="px-3 py-1.5 text-gray-600 dark:text-gray-400">{r.formaPagamento}</td>
               <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-red-700 dark:text-red-400">
                 {formatCurrency(r.valorUnitario)}

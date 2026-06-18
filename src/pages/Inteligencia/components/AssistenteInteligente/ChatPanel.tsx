@@ -174,7 +174,7 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiCont
             usagePct! >= 100 ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300',
           )}>
             <strong>{usagePct! >= 100 ? 'Limite atingido' : 'Limite próximo'}:</strong>{' '}
-            este navegador já consumiu <strong>{usagePct!.toFixed(0)}%</strong> do limite mensal
+            este navegador já consumiu <strong>{usagePct!.toFixed(2)}%</strong> do limite mensal
             (US$ {usage.costUsd.toFixed(2)} de US$ {limiteUsd.toFixed(2)}).
             {usagePct! >= 100
               ? ' A Anthropic deve estar bloqueando novas chamadas dessa workspace.'

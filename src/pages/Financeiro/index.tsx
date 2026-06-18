@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Landmark, Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -11,6 +11,8 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
 import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
+import SaldoAbertoCards from '@/pages/Financeiro/components/SaldoAbertoCards'
+import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
 const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
 const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
@@ -51,10 +53,24 @@ const Financeiro = () => {
   )
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
 
+  // Filtro de período LOCAL (Visão Geral / Receber / Pagar). Default = snapshot
+  // completo do que está em aberto ("Todo o período"), já que são pendências.
+  const hojeISO = new Date().toISOString().split('T')[0]
+  const inicioAnoISO = `${hojeISO.slice(0, 4)}-01-01`
+  const [localPeriod, setLocalPeriod] = useState<LocalPeriod>({
+    allPeriod: true,
+    dataInicial: inicioAnoISO,
+    dataFinal: hojeISO,
+  })
+
   const {
     kpis,
     receivablesAtraso,
     payablesAtraso,
+    duplicatasAberto,
+    cardNotasNaoFaturadas,
+    cardDuplicatasAberto,
+    cardPagarAberto,
     cartoesAppsAVencer,
     carteiraDigitalItems,
     modoRecebimento,
@@ -64,7 +80,7 @@ const Financeiro = () => {
     saldoEmCaixa,
     isLoading,
     hasEmpresa,
-  } = useFinanceData()
+  } = useFinanceData(localPeriod)
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
 
@@ -137,6 +153,15 @@ const Financeiro = () => {
                 <Suspense fallback={<TableSkeleton />}>
                   {activeTab === 'visao' && (
                     <div className="space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Saldo em aberto</h2>
+                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
+                      </div>
+                      <SaldoAbertoCards
+                        notasNaoFaturadas={cardNotasNaoFaturadas}
+                        duplicatasAberto={cardDuplicatasAberto}
+                        pagarAberto={cardPagarAberto}
+                      />
                       <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
                       <CartoesEModo
                         cartoesAppsAVencer={cartoesAppsAVencer}
@@ -146,10 +171,25 @@ const Financeiro = () => {
                     </div>
                   )}
                   {activeTab === 'receber' && (
-                    <ReceivablesIntel data={receivablesAtraso} pagos={receivablesPagos} pmr={pmr} />
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
+                      </div>
+                      <ReceivablesIntel
+                        data={receivablesAtraso}
+                        duplicatas={duplicatasAberto}
+                        pagos={receivablesPagos}
+                        pmr={pmr}
+                      />
+                    </div>
                   )}
                   {activeTab === 'pagar' && (
-                    <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
+                      </div>
+                      <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
+                    </div>
                   )}
                   {activeTab === 'cartoes' && (
                     <CartoesIntel />

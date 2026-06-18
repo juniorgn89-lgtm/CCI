@@ -440,7 +440,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                             {c.nome}
                           </p>
                           <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                            {pct.toFixed(0)}% da bomba
+                            {pct.toFixed(2)}% da bomba
                           </p>
                         </div>
                         <p className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
@@ -487,7 +487,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                 <div className="mb-1 flex items-center justify-between text-[10px]">
                   <span className="text-gray-500 dark:text-gray-400">Desgaste</span>
                   <span className={cn('font-semibold tabular-nums', meta.text)}>
-                    {s.wearStatus === 'sem-registro' ? '—' : `${Math.min(100, s.desgastePct).toFixed(0)}%`}
+                    {s.wearStatus === 'sem-registro' ? '—' : `${Math.min(100, s.desgastePct).toFixed(2)}%`}
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
@@ -742,7 +742,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                         : s.mediaQueda >= 0 ? 'text-green-600 dark:text-green-400'
                         : 'text-red-600 dark:text-red-400'
                     )}>
-                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(0)}%`}
+                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(2)}%`}
                     </td>
                     <td className="w-[140px] px-4 py-2.5">
                       {s.wearStatus === 'sem-registro' ? (
@@ -756,7 +756,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                             />
                           </div>
                           <span className={cn('shrink-0 text-[10px] font-semibold tabular-nums', meta.text)}>
-                            {Math.min(100, s.desgastePct).toFixed(0)}%
+                            {Math.min(100, s.desgastePct).toFixed(2)}%
                           </span>
                         </div>
                       )}

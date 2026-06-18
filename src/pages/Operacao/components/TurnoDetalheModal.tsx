@@ -137,23 +137,25 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
             </div>
           </section>
 
-          {/* Seções: frentistas + pagamentos lado a lado */}
+          {/* Seções: frentistas/vendedores + pagamentos lado a lado */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {/* Abastecimentos por frentista */}
+            {/* Colaboradores do turno: frentistas (pista) + vendedores (loja) */}
             <section className="rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                 <Users className="h-3.5 w-3.5" />
-                Frentistas do Turno
+                {turno.pdvLabel === 'Conveniência' ? 'Vendedores da Loja' : 'Frentistas do Turno'}
               </div>
-              {turno.frentistas.length === 0 ? (
-                <p className="px-3 py-6 text-center text-xs text-gray-400">Sem abastecimentos.</p>
+              {turno.frentistas.length === 0 && turno.vendedores.length === 0 ? (
+                <p className="px-3 py-6 text-center text-xs text-gray-400">
+                  {turno.pdvLabel === 'Conveniência' ? 'Sem vendas de loja.' : 'Sem abastecimentos.'}
+                </p>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {turno.frentistas
                     .slice()
                     .sort((a, b) => b.faturamento - a.faturamento)
                     .map((f) => (
-                      <li key={f.nome} className="px-3 py-2">
+                      <li key={`frent-${f.nome}`} className="px-3 py-2">
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <span className="truncate font-medium text-gray-900 dark:text-gray-100" title={f.nome}>
                             {f.nome}
@@ -167,7 +169,30 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                         </p>
                       </li>
                     ))}
+                  {turno.vendedores.map((v) => (
+                    <li key={`vend-${v.funcionarioCodigo}`} className="px-3 py-2">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5 truncate font-medium text-gray-900 dark:text-gray-100" title={v.nome}>
+                          <span className="truncate">{v.nome}</span>
+                          <span className="shrink-0 rounded bg-violet-50 px-1 py-0.5 text-[8.5px] font-semibold uppercase tracking-wider text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">
+                            Loja
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(v.faturamento)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
+                        {formatNumber(v.cupons)} cupons · {formatNumber(v.itens)} itens
+                      </p>
+                    </li>
+                  ))}
                 </ul>
+              )}
+              {turno.vendedores.length > 0 && (
+                <p className="border-t border-gray-100 px-3 py-1.5 text-[9.5px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
+                  Vendedores de loja são atribuídos pelo dia (a apuração de vendas por funcionário não separa por caixa/PDV).
+                </p>
               )}
             </section>
 
@@ -227,7 +252,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                             </span>
                           </div>
                           <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">
-                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(0).replace('.', ',')}%
+                            {p.quantidade > 0 ? `${formatNumber(p.quantidade)} transaç${p.quantidade === 1 ? 'ão' : 'ões'} · ` : ''}{pct.toFixed(2).replace('.', ',')}%
                           </p>
                         </li>
                       )

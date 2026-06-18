@@ -73,9 +73,20 @@ const useCartaoBreakdown = (caixaCodigos: number[], pdvByCaixa: Map<number, stri
   })
 
   // vendaCodigo das vendas que pertencem aos caixas selecionados.
+  // DEDUP por vendaCodigo: se a listagem paginada repetir uma venda (páginas com
+  // overlap de cursor), fetchVendasPorCodigo a buscaria 2× e o formaPagamento[]
+  // entraria em dobro — inflando linhas E total. O Set garante 1 código só 1 vez.
   const codigos = useMemo(() => {
     const sel = new Set(caixaCodigos)
-    return (lista ?? []).filter((v) => sel.has(v.caixaCodigo)).map((v) => v.vendaCodigo)
+    const seen = new Set<number>()
+    const out: number[] = []
+    for (const v of lista ?? []) {
+      if (!sel.has(v.caixaCodigo)) continue
+      if (v.vendaCodigo == null || seen.has(v.vendaCodigo)) continue
+      seen.add(v.vendaCodigo)
+      out.push(v.vendaCodigo)
+    }
+    return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista, caixaKey])
   const codigosKey = codigos.join(',')
@@ -90,7 +101,14 @@ const useCartaoBreakdown = (caixaCodigos: number[], pdvByCaixa: Map<number, stri
 
   const linhas = useMemo<CartaoLinha[]>(() => {
     const map = new Map<string, CartaoLinha>()
+    // Dedup por vendaCodigo — se a mesma venda voltar 2× do passo 2 (chunks
+    // sobrepostos), suas formas só contam uma vez (evita total inflado).
+    const vistos = new Set<number>()
     for (const v of detalhe ?? []) {
+      if (v.vendaCodigo != null) {
+        if (vistos.has(v.vendaCodigo)) continue
+        vistos.add(v.vendaCodigo)
+      }
       const pdv = pdvByCaixa.get(v.caixaCodigo) ?? '—'
       for (const fp of v.formaPagamento ?? []) {
         const isCard =
@@ -106,10 +124,21 @@ const useCartaoBreakdown = (caixaCodigos: number[], pdvByCaixa: Map<number, stri
         map.set(key, prev)
       }
     }
-    return Array.from(map.values()).sort((a, b) => b.valor - a.valor)
+    // Arredonda cada linha (e cada PDV) pra 2 casas — assim o total exibido
+    // (soma das linhas) bate exatamente com os números mostrados, sem o desvio
+    // "soma dos arredondados ≠ arredondamento da soma" de centavos.
+    const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
+    return Array.from(map.values())
+      .map((l) => ({
+        ...l,
+        valor: round2(l.valor),
+        porPdv: Object.fromEntries(Object.entries(l.porPdv).map(([k, v]) => [k, round2(v)])),
+      }))
+      .sort((a, b) => b.valor - a.valor)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detalhe, caixaKey])
 
+  // Total = soma das linhas JÁ arredondadas → idêntico ao que aparece na tela.
   const total = useMemo(() => linhas.reduce((s, l) => s + l.valor, 0), [linhas])
 
   // PDVs presentes (ordem: Pista, Conveniência, resto).

@@ -807,7 +807,7 @@ const useConvenienceData = () => {
       insights.push({
         type: 'positive',
         title: `${top.nome} lidera as vendas`,
-        description: `Com ${top.quantidade.toLocaleString('pt-BR')} unidades vendidas, representa ${top.participacaoPct.toFixed(0)}% do faturamento total da conveniência.`,
+        description: `Com ${top.quantidade.toLocaleString('pt-BR')} unidades vendidas, representa ${top.participacaoPct.toFixed(2)}% do faturamento total da conveniência.`,
       })
     }
 
@@ -817,13 +817,13 @@ const useConvenienceData = () => {
       if (growthPct > 0) {
         insights.push({
           type: 'positive',
-          title: `Crescimento de ${growthPct.toFixed(0)}% nas vendas`,
+          title: `Crescimento de ${growthPct.toFixed(2)}% nas vendas`,
           description: `A conveniência faturou mais neste período comparado ao mês anterior.`,
         })
       } else {
         insights.push({
           type: 'warning',
-          title: `Queda de ${Math.abs(growthPct).toFixed(0)}% nas vendas`,
+          title: `Queda de ${Math.abs(growthPct).toFixed(2)}% nas vendas`,
           description: `O faturamento caiu em relação ao mês anterior. Avalie promoções e mix de produtos.`,
         })
       }
@@ -833,7 +833,7 @@ const useConvenienceData = () => {
     if (highMargin.length > 0 && highMargin[0].margemPct > 30) {
       insights.push({
         type: 'positive',
-        title: `${highMargin[0].nome} tem margem de ${highMargin[0].margemPct.toFixed(0)}%`,
+        title: `${highMargin[0].nome} tem margem de ${highMargin[0].margemPct.toFixed(2)}%`,
         description: `Produto com excelente rentabilidade. Considere destacá-lo na loja.`,
       })
     }
@@ -865,7 +865,7 @@ const useConvenienceData = () => {
       insights.push({
         type: 'info',
         title: `Grupo "${bestGroup.nome}" é o mais rentável`,
-        description: `Responsável por R$ ${bestGroup.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em faturamento com margem de ${bestGroup.margemPct.toFixed(0)}%.`,
+        description: `Responsável por R$ ${bestGroup.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em faturamento com margem de ${bestGroup.margemPct.toFixed(2)}%.`,
       })
     }
 

@@ -1,9 +1,26 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao, fetchContas } from '@/api/endpoints/financeiro'
+import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao, fetchContas, fetchDuplicatas } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import type { MovimentoConta, TituloReceber, TituloPagar } from '@/api/types/financeiro'
+import type { MovimentoConta, TituloReceber, TituloPagar, Duplicata } from '@/api/types/financeiro'
+
+/**
+ * Filtro de período LOCAL (independente do filtro global) aplicado aos snapshots
+ * de pendências. Quando `allPeriod` é true, ignora datas e considera TUDO em
+ * aberto. Caso contrário, recorta o snapshot pela `dataMovimento` no intervalo.
+ */
+export interface LocalPeriodFilter {
+  allPeriod: boolean
+  dataInicial: string
+  dataFinal: string
+}
+
+/** Resumo de "saldo em aberto" pros cards de ênfase da Visão Geral. */
+export interface OpenBalanceCard {
+  total: number
+  count: number
+}
 
 export interface FinanceKpiData {
   totalReceber: number
@@ -58,6 +75,14 @@ export interface PayableRow {
   statusTag: 'vencido' | 'a-vencer' | 'pago' | 'cancelado'
   diasAtraso: number
   saldoRestante: number
+  [key: string]: unknown
+}
+
+export interface DuplicataRow extends Duplicata {
+  /** Saldo em aberto = valorDuplicata − valorPago (nunca negativo). */
+  saldoRestante: number
+  statusTag: 'vencido' | 'a-vencer' | 'pago'
+  diasAtraso: number
   [key: string]: unknown
 }
 
@@ -182,10 +207,33 @@ const toPayableRow = (t: TituloPagar, hoje: string): PayableRow => {
   }
 }
 
-const useFinanceData = () => {
+/** Mapeia uma duplicata pra linha de tabela (com status/dias de atraso/saldo). */
+const toDuplicataRow = (d: Duplicata, hoje: string): DuplicataRow => {
+  const venc = (d.vencimento ?? '').split('T')[0]
+  const isOverdue = d.pendente && venc < hoje
+  const diasAtraso = isOverdue
+    ? Math.floor((new Date(hoje).getTime() - new Date(venc).getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+  let statusTag: DuplicataRow['statusTag'] = 'pago'
+  if (d.pendente) statusTag = isOverdue ? 'vencido' : 'a-vencer'
+  return {
+    ...d,
+    saldoRestante: Math.max(0, (d.valorDuplicata ?? 0) - (d.valorPago ?? 0)),
+    statusTag,
+    diasAtraso,
+  }
+}
+
+const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
+
+  // Primitivos do filtro local pra dependências estáveis do useMemo (evita
+  // recomputar a cada render por causa de objeto recriado no componente pai).
+  const lpAll = localPeriod?.allPeriod ?? true
+  const lpInicio = localPeriod?.dataInicial ?? ''
+  const lpFim = localPeriod?.dataFinal ?? ''
 
   const filterParams = {
     empresaCodigo: empresaCodigo ?? undefined,
@@ -304,6 +352,24 @@ const useFinanceData = () => {
     enabled: hasEmpresa,
   })
 
+  // Duplicatas EM ABERTO (snapshot) — /DUPLICATA não baixadas (pendente=true).
+  // Mesma janela ampla dos demais pendentes (podem estar vencidas há tempo).
+  const { data: duplicatasPend = [], isLoading: isLoadingDuplicatasPend } = useQuery({
+    queryKey: ['duplicatasPend', empresaCodigo],
+    queryFn: () => fetchAllPages(
+      (p) => fetchDuplicatas({
+        empresaCodigo: empresaCodigo ?? undefined,
+        dataInicial: SNAPSHOT_INICIO,
+        dataFinal: hojeStr,
+        apenasPendente: true,
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+    enabled: hasEmpresa,
+  })
+
   const { data: cartoesPend = [] } = useQuery({
     queryKey: ['cartaoPend', empresaCodigo],
     queryFn: () => fetchAllPages(
@@ -351,7 +417,7 @@ const useFinanceData = () => {
   const saldoEmCaixa = contas.filter((c) => c.ativo).reduce((s, c) => s + (c.saldoAtual ?? 0), 0)
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
-    || isLoadingReceberPend || isLoadingPagarPend
+    || isLoadingReceberPend || isLoadingPagarPend || isLoadingDuplicatasPend
 
   const computed = useMemo(() => {
     const hoje = new Date().toISOString().split('T')[0]
@@ -391,8 +457,45 @@ const useFinanceData = () => {
     const payablesData: PayableRow[] = titulosPagar.map((t) => toPayableRow(t, hoje))
 
     // --- Snapshot de TODOS os pendentes (pros widgets de atraso da Visão Geral) ---
-    const receivablesAtraso: ReceivableRow[] = titulosReceberPend.map((t) => toReceivableRow(t, hoje))
-    const payablesAtraso: PayableRow[] = titulosPagarPend.map((t) => toPayableRow(t, hoje))
+    // Filtro de período LOCAL: quando `allPeriod` é falso, recorta o snapshot pela
+    // data de movimento dentro do intervalo. Snapshot completo é o default (são
+    // pendências — interessa o saldo total em aberto).
+    const inRange = (iso: string): boolean => {
+      if (lpAll) return true
+      const d = (iso ?? '').split('T')[0]
+      if (!d) return false
+      return d >= lpInicio && d <= lpFim
+    }
+
+    const receivablesAtraso: ReceivableRow[] = titulosReceberPend
+      .map((t) => toReceivableRow(t, hoje))
+      .filter((r) => inRange(r.dataMovimento))
+    const payablesAtraso: PayableRow[] = titulosPagarPend
+      .map((t) => toPayableRow(t, hoje))
+      .filter((r) => inRange(r.dataMovimento))
+    const duplicatasAberto: DuplicataRow[] = duplicatasPend
+      .map((d) => toDuplicataRow(d, hoje))
+      .filter((d) => d.pendente && inRange(d.dataMovimento))
+
+    // --- 3 cards de ênfase da Visão Geral (saldo EM ABERTO) ---
+    // (a) Notas a prazo NÃO faturadas: títulos a receber em aberto, convertido=false.
+    //     Soma o VALOR EM ABERTO (título a receber não tem pagamento parcial → valor).
+    const notasNaoFaturadasRows = receivablesAtraso.filter((r) => r.pendente && r.convertido === false)
+    const cardNotasNaoFaturadas: OpenBalanceCard = {
+      total: notasNaoFaturadasRows.reduce((s, r) => s + r.valor, 0),
+      count: notasNaoFaturadasRows.length,
+    }
+    // (b) Duplicatas em aberto (/DUPLICATA não baixadas) — saldo restante.
+    const cardDuplicatasAberto: OpenBalanceCard = {
+      total: duplicatasAberto.reduce((s, d) => s + d.saldoRestante, 0),
+      count: duplicatasAberto.length,
+    }
+    // (c) A pagar em aberto (/TITULO_PAGAR não baixado) — saldo restante.
+    const pagarAbertoRows = payablesAtraso.filter((r) => r.statusTag === 'vencido' || r.statusTag === 'a-vencer')
+    const cardPagarAberto: OpenBalanceCard = {
+      total: pagarAbertoRows.reduce((s, r) => s + r.saldoRestante, 0),
+      count: pagarAbertoRows.length,
+    }
 
     // --- Cash flow chart data ---
     const byDay = new Map<string, { entradas: number; saidas: number }>()
@@ -553,6 +656,11 @@ const useFinanceData = () => {
       payablesData,
       receivablesAtraso,
       payablesAtraso,
+      duplicatasAberto,
+      notasNaoFaturadasRows,
+      cardNotasNaoFaturadas,
+      cardDuplicatasAberto,
+      cardPagarAberto,
       cashFlowData,
       cashFlowTotals,
       cashFlowPrevTotals,
@@ -564,7 +672,7 @@ const useFinanceData = () => {
       cartoesAVencer: cartoesPend,
       pmr,
     }
-  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim])
 
   return {
     ...computed,

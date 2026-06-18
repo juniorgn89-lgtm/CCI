@@ -9,6 +9,7 @@ interface Props {
   data: ProductAnalyticsRow[]
   categorias: string[]
   coberturaDias: number
+  janelaDias: number
   onCoberturaChange: (dias: number) => void
 }
 
@@ -49,11 +50,11 @@ const buildColumns = (coberturaDias: number): Column<ProductAnalyticsRow>[] => [
   },
   { key: 'estoqueMinimo', label: 'Qtd. Mín.', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500">{r.estoqueMinimo > 0 ? fmtUnidades(r.estoqueMinimo) : '—'}</span> },
   {
-    key: 'mediaMensalVendas',
+    key: 'mediaMensalJanela',
     label: 'Média mensal',
     align: 'right',
     sortable: true,
-    render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{fmtUnidades(r.mediaMensalVendas)}</span>,
+    render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{fmtUnidades(r.mediaMensalJanela)}</span>,
   },
   {
     key: 'diasCobertura',
@@ -61,7 +62,7 @@ const buildColumns = (coberturaDias: number): Column<ProductAnalyticsRow>[] => [
     align: 'right',
     sortable: true,
     render: (r) => {
-      if (r.mediaMensalVendas === 0) return <span className="text-gray-400">—</span>
+      if (r.mediaDiariaVendas === 0) return <span className="text-gray-400">—</span>
       const dias = r.diasCobertura
       const color = dias < coberturaDias / 2 ? 'text-red-600 dark:text-red-400'
         : dias < coberturaDias ? 'text-amber-600 dark:text-amber-400'
@@ -101,7 +102,7 @@ const buildColumns = (coberturaDias: number): Column<ProductAnalyticsRow>[] => [
   },
 ]
 
-const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange }: Props) => {
+const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCoberturaChange }: Props) => {
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<StatusFilter>('comprar')
@@ -207,14 +208,14 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, onCoberturaChange
             <h3 className="flex items-center gap-1.5 text-base font-semibold text-gray-900 dark:text-gray-100">
               Necessidade de estoque
               <span
-                title={`Compara o saldo atual com a média de venda dos últimos 6 meses pra sugerir quanto comprar (cobertura de ${coberturaDias} dias). 'Comprar' = unidades sugeridas; 'Cobertura' = quantos dias o saldo atual dura no ritmo de venda. Status: Negativo (saldo < 0), Crítico, Baixo, OK ou Sem movimento.`}
+                title={`Compara o saldo atual com a média de venda dos últimos ${janelaDias} dias pra sugerir quanto comprar (cobertura de ${coberturaDias} dias). 'Comprar' = unidades sugeridas; 'Cobertura' = quantos dias o saldo atual dura no ritmo de venda. Status: Negativo (saldo < 0), Crítico, Baixo, OK ou Sem movimento.`}
                 className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300"
               >
                 <HelpCircle className="h-3.5 w-3.5" />
               </span>
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Compara o saldo atual com a média de venda dos últimos 6 meses para sugerir compra de cobertura de {coberturaDias} dias
+              Compara o saldo atual com a média de venda dos últimos {janelaDias} dias para sugerir compra de cobertura de {coberturaDias} dias
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

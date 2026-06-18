@@ -64,7 +64,7 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
         <DialogHeader>
           <DialogTitle>{grupo ?? ''}</DialogTitle>
           <DialogDescription>
-            {totals.itens} produto{totals.itens === 1 ? '' : 's'} · R$ {fmt(totals.total)} · margem {totals.margemPct.toFixed(0)}%
+            {totals.itens} produto{totals.itens === 1 ? '' : 's'} · R$ {fmt(totals.total)} · margem {totals.margemPct.toFixed(2)}%
           </DialogDescription>
         </DialogHeader>
 

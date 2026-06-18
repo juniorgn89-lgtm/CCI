@@ -37,7 +37,7 @@ interface DetalheDiaModalProps {
 /** Formata percentual "+12,5%" / "−4,2%". */
 const formatPct = (v: number): string => {
   const sign = v > 0 ? '+' : v < 0 ? '−' : ''
-  return `${sign}${Math.abs(v).toFixed(0).replace('.', ',')}%`
+  return `${sign}${Math.abs(v).toFixed(2).replace('.', ',')}%`
 }
 
 const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalProps) => {
@@ -109,7 +109,7 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
             <Kpi label="Litros" value={formatNumber(Math.round(detail.litros))} />
             <Kpi label="Faturamento" value={formatCurrencyInt(detail.faturamento)} />
             <Kpi label="Lucro bruto" value={formatCurrencyInt(detail.lucroBruto)} />
-            <Kpi label="Margem" value={`${margemPct.toFixed(0).replace('.', ',')}%`} />
+            <Kpi label="Margem" value={`${margemPct.toFixed(2).replace('.', ',')}%`} />
           </div>
 
           {/* Composição por combustível */}

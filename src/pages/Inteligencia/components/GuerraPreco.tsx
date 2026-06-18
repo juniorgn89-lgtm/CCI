@@ -36,8 +36,8 @@ const weekdayOf = (iso: string) => {
   return WEEKDAY[new Date(y, m - 1, d).getDay()]
 }
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
-const pctLabel = (v: number) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(0).replace('.', ',')}%`
-const pct1 = (v: number) => `${(v * 100).toFixed(0).replace('.', ',')}%`
+const pctLabel = (v: number) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2).replace('.', ',')}%`
+const pct1 = (v: number) => `${(v * 100).toFixed(2).replace('.', ',')}%`
 const moneyL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}` // preço por litro (3 casas)
 const moneyLraw = (v: number) => v.toFixed(3).replace('.', ',')
 
@@ -390,7 +390,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
     return {
       score, tone, verdict, Icon, resumo, refCut, breakEvenRef,
       factors: [
-        { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(0).replace('.', ',')}%` },
+        { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(2).replace('.', ',')}%` },
         { label: 'Folga de elasticidade', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)} p/ -${moneyL(refCut).slice(3)}` : '—' },
         { label: 'Momentum de volume', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
         { label: 'Resposta a cortes', value: histScore, hint: elasticidade != null ? `${cortes.length} corte(s)` : 'sem histórico' },
@@ -402,7 +402,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
   const alertas = useMemo(() => {
     const out: { tone: Tone; Icon: typeof Info; text: string }[] = []
     if (margemTone === 'red') {
-      out.push({ tone: 'red', Icon: ShieldX, text: `Margem crítica (${agg.margem.toFixed(0).replace('.', ',')}%) — abaixo do piso sustentável de ~${MARGEM_ATENCAO}%.` })
+      out.push({ tone: 'red', Icon: ShieldX, text: `Margem crítica (${agg.margem.toFixed(2).replace('.', ',')}%) — abaixo do piso sustentável de ~${MARGEM_ATENCAO}%.` })
     } else if (margemTone === 'amber') {
       out.push({ tone: 'amber', Icon: ShieldAlert, text: 'A margem atual está próxima do limite mínimo saudável.' })
     }
@@ -523,7 +523,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               tone={margemTone}
               label="L.B. / Litro"
               value={moneyL(agg.lbLitro)}
-              sub={`Margem ${agg.margem.toFixed(0).replace('.', ',')}%`}
+              sub={`Margem ${agg.margem.toFixed(2).replace('.', ',')}%`}
               delta={wow.hasPrev ? wow.lbDelta : undefined}
               deltaLabel="vs. semana ant."
               deltaGoodWhenUp
@@ -658,7 +658,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 />
                 <SimStat
                   label="Margem / L"
-                  value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(0).replace('.', ',')}%` : '—'}
+                  value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(2).replace('.', ',')}%` : '—'}
                   tone={sim.margemFinal >= MARGEM_SAUDAVEL ? 'emerald' : sim.margemFinal >= MARGEM_ATENCAO ? 'amber' : 'red'}
                   help={`Nova L.B./litro ÷ novo preço. Cores: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica.`}
                   helpAlign="left"
@@ -692,7 +692,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   <CompareRow label="Faturamento" base={sim.baseline.fat} corte={sim.semReacao.fat} elast={sim.comElasticidade?.fat ?? null} fmt={formatCurrencyInt} />
                   <CompareRow label="Lucro bruto" base={sim.baseline.lucro} corte={sim.semReacao.lucro} elast={sim.comElasticidade?.lucro ?? null} fmt={formatCurrencyInt} />
-                  <CompareRow label="Margem" base={sim.baseline.margem} corte={sim.semReacao.margem} elast={sim.comElasticidade?.margem ?? null} fmt={(v) => `${v.toFixed(0).replace('.', ',')}%`} />
+                  <CompareRow label="Margem" base={sim.baseline.margem} corte={sim.semReacao.margem} elast={sim.comElasticidade?.margem ?? null} fmt={(v) => `${v.toFixed(2).replace('.', ',')}%`} />
                   <CompareRow label="Volume" base={sim.baseline.litros} corte={sim.semReacao.litros} elast={sim.comElasticidade?.litros ?? null} fmt={(v) => formatLiters(v)} />
                 </tbody>
               </table>
@@ -782,7 +782,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                       <XAxis dataKey="corte" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v)}%`} />
                       <Tooltip
-                        formatter={((v: number, name: string) => [`+${v.toFixed(0).replace('.', ',')}%`, name === 'necessario' ? 'Necessário' : 'Estimado']) as never}
+                        formatter={((v: number, name: string) => [`+${v.toFixed(2).replace('.', ',')}%`, name === 'necessario' ? 'Necessário' : 'Estimado']) as never}
                         labelFormatter={((l: string) => `Corte ${l}/L`) as never}
                         contentStyle={{ fontSize: 11, borderRadius: 8 }}
                       />
@@ -806,7 +806,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                   Linha azul = crescimento estimado pela elasticidade observada ({cortes.length} corte{cortes.length === 1 ? '' : 's'} no histórico).
                   <HelpTip
                     align="left"
-                    text={`A elasticidade vem dos cortes de preço já ocorridos no período: para cada dia em que o preço caiu, mede-se a variação de litros vs. o dia anterior. Faz-se a média ponderada pela magnitude do corte → ${(elasticidade * 100).toFixed(0).replace('.', ',')}% de volume por R$1 de corte. O % de cada cenário = essa elasticidade × o corte (ex.: ${(elasticidade * 100).toFixed(0)}%/R$ × R$0,10 ≈ +${pct1(Math.max(0, elasticidade * 0.1))}). Sem cortes no histórico, não há estimativa.`}
+                    text={`A elasticidade vem dos cortes de preço já ocorridos no período: para cada dia em que o preço caiu, mede-se a variação de litros vs. o dia anterior. Faz-se a média ponderada pela magnitude do corte → ${(elasticidade * 100).toFixed(2).replace('.', ',')}% de volume por R$1 de corte. O % de cada cenário = essa elasticidade × o corte (ex.: ${(elasticidade * 100).toFixed(2)}%/R$ × R$0,10 ≈ +${pct1(Math.max(0, elasticidade * 0.1))}). Sem cortes no histórico, não há estimativa.`}
                   />
                 </p>
               )}
@@ -953,7 +953,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                           </td>
                           <td className="px-4 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{moneyL(d.precoCusto)}</td>
                           <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{moneyL(d.lbLitro)}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.margem.toFixed(0).replace('.', ',')}%</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.margem.toFixed(2).replace('.', ',')}%</td>
                         </tr>
                       )
                     })}
@@ -1190,7 +1190,7 @@ const CenarioCard = ({ c }: { c: CenarioVM }) => {
         />
         <Row
           label="Margem proj."
-          value={`${c.fechamento.margem.toFixed(0).replace('.', ',')}%`}
+          value={`${c.fechamento.margem.toFixed(2).replace('.', ',')}%`}
           help="Margem projetada no fechamento = lucro projetado ÷ faturamento projetado."
         />
         <Row
@@ -1230,7 +1230,7 @@ const ProjecaoFechamento = ({ proj }: { proj: ProjData }) => {
   const items: { label: string; value: string; Icon: typeof Droplets; help: string }[] = [
     { label: 'Faturamento projetado', value: formatCurrency(proj.fat), Icon: CircleDollarSign, help: 'Faturamento estimado no fechamento do mês: realizado dos dias fechados + projeção dos dias restantes (média recente ajustada por tendência e dia da semana).' },
     { label: 'Lucro projetado', value: formatCurrency(proj.lucro), Icon: Gauge, help: 'Lucro bruto estimado no fechamento, projetado pela mesma metodologia do faturamento.' },
-    { label: 'Margem projetada', value: `${proj.margem.toFixed(0).replace('.', ',')}%`, Icon: Activity, help: 'Lucro projetado ÷ faturamento projetado no fechamento.' },
+    { label: 'Margem projetada', value: `${proj.margem.toFixed(2).replace('.', ',')}%`, Icon: Activity, help: 'Lucro projetado ÷ faturamento projetado no fechamento.' },
     { label: 'Volume projetado', value: formatLiters(proj.litros), Icon: Droplets, help: 'Litros estimados no fechamento do mês.' },
   ]
   return (

@@ -215,7 +215,27 @@ const FechamentosMobile = () => {
     const totalCombustivel = frentistas.reduce((s, f) => s + f.faturamento, 0)
     const conveniencia = Math.max(0, apurado - totalCombustivel)
 
-    return { apurado, diferencaFechados, pagamentos, totalPagamentos, frentistas, totalCombustivel, conveniencia }
+    // Vendedores de loja (conveniência) — cache por DIA × funcionário, então
+    // dedup por dia evita somar o mesmo vendedor quando há vários caixas de loja.
+    const vendMap = new Map<number, { funcionarioCodigo: number; nome: string; faturamento: number; itens: number; cupons: number }>()
+    const diasVend = new Set<string>()
+    for (const c of selectedCaixas) {
+      if (c.vendedores.length === 0) continue
+      const dia = c.dataMovimento?.slice(0, 10) ?? String(c.caixaCodigo)
+      if (diasVend.has(dia)) continue
+      diasVend.add(dia)
+      for (const v of c.vendedores) {
+        const prev = vendMap.get(v.funcionarioCodigo) ?? { funcionarioCodigo: v.funcionarioCodigo, nome: v.nome, faturamento: 0, itens: 0, cupons: 0 }
+        prev.faturamento += v.faturamento
+        prev.itens += v.itens
+        prev.cupons += v.cupons
+        vendMap.set(v.funcionarioCodigo, prev)
+      }
+    }
+    const vendedores = Array.from(vendMap.values()).sort((a, b) => b.faturamento - a.faturamento)
+    const totalVendedores = vendedores.reduce((s, v) => s + v.faturamento, 0)
+
+    return { apurado, diferencaFechados, pagamentos, totalPagamentos, frentistas, totalCombustivel, conveniencia, vendedores, totalVendedores }
   }, [selectedCaixas])
 
   const caixasComDiferenca = useMemo(
@@ -287,6 +307,31 @@ const FechamentosMobile = () => {
                   )
                 })}
               </div>
+            </Section>
+          )}
+
+          {agg.vendedores.length > 0 && (
+            <Section Icon={Users} title="Vendedores da loja" accent="violet"
+              right={<span className="text-[11px] tabular-nums text-gray-400">{brlShort(agg.totalVendedores)}</span>} flush>
+              <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+                {agg.vendedores.map((v) => {
+                  const ptc = agg.totalVendedores > 0 ? (v.faturamento / agg.totalVendedores) * 100 : 0
+                  return (
+                    <div key={v.funcionarioCodigo} className="px-3.5 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{v.nome}</span>
+                        <span className="shrink-0 text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(v.faturamento)}</span>
+                      </div>
+                      <p className="mt-0.5 text-[10.5px] tabular-nums text-gray-400 dark:text-gray-500">
+                        {formatNumber(v.cupons)} cupons · {formatNumber(v.itens)} itens · {pct(ptc)}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="border-t border-gray-100 px-3.5 py-1.5 text-[9.5px] leading-snug text-gray-400 dark:border-[#303030] dark:text-gray-500">
+                Vendedores de loja são atribuídos pelo dia (a apuração por funcionário não separa por caixa/PDV).
+              </p>
             </Section>
           )}
 

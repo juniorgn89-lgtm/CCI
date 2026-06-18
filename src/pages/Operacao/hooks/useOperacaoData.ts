@@ -9,6 +9,7 @@ import { fetchCaixas, fetchCaixasApresentado } from '@/api/endpoints/financeiro'
 import { CAIXA_APRESENTADO_FORMAS } from '@/api/types/financeiro'
 import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import useCaixasCache from '@/pages/Operacao/hooks/useCaixasCache'
 import { todayLocal } from '@/lib/period'
@@ -107,6 +108,21 @@ export interface TurnoFrentista {
   faturamento: number
 }
 
+/**
+ * Vendedor de LOJA/conveniência envolvido no PDV. Vem do cache
+ * `apuracao_vendas_funcionario` (setor='conveniencia'), que é granular por
+ * DIA × funcionário — NÃO por caixa/PDV. Por isso é atribuído ao PDV de
+ * Conveniência do dia (mesma limitação do "balde do dia" das formas de
+ * pagamento). `cupons`/`itens` são do dia inteiro do vendedor.
+ */
+export interface TurnoVendedor {
+  funcionarioCodigo: number
+  nome: string
+  faturamento: number
+  itens: number
+  cupons: number
+}
+
 export interface TurnoPagamento {
   tipo: string
   nome: string
@@ -135,6 +151,8 @@ export interface TurnoRow {
   /** Quebra do apresentado por forma (vazio sem dado). */
   apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
+  /** Vendedores de loja deste PDV no dia (só Conveniência; vazio na Pista). */
+  vendedores: TurnoVendedor[]
   pagamentos: TurnoPagamento[]
 }
 
@@ -159,6 +177,8 @@ export interface TurnoGroup {
   /** Quebra do apresentado por forma de pagamento (vazio quando sem dado). */
   apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
+  /** Vendedores de loja deste PDV no dia (só Conveniência; vazio na Pista). */
+  vendedores: TurnoVendedor[]
   pagamentos: TurnoPagamento[]
   caixaCodigos: number[]
 }
@@ -414,6 +434,22 @@ const useOperacaoData = () => {
     queryFn: () => fetchAllPages((p) => fetchCaixasApresentado({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
     enabled: hasEmpresa && empresaCodigo !== null,
     retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Vendedores de loja (conveniência) — do cache `apuracao_vendas_funcionario`.
+  // Granular por DIA × funcionário (NÃO por caixa/PDV), então só dá pra atribuir
+  // ao PDV de Conveniência do dia. Lê só dias fechados (o cache não cobre "hoje").
+  // Degrada pra vazio se a rede ainda não rodou a apuração de vendas por funcionário.
+  const { data: vendedoresRaw } = useQuery({
+    queryKey: ['vendasFuncionario', empresaCodigo, dataInicial, dataFinal],
+    queryFn: () =>
+      fetchVendasFuncionarioCache({
+        empresaCodigos: empresaCodigo != null ? [empresaCodigo] : undefined,
+        dataInicial,
+        dataFinal,
+      }),
+    enabled: hasEmpresa && empresaCodigo !== null,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -764,6 +800,34 @@ const useOperacaoData = () => {
       frentistasFuelByDay.set(dia, set)
     }
 
+    // Vendedores de loja (conveniência) por DIA. O cache
+    // apuracao_vendas_funcionario é granular por (data, funcionario, setor) —
+    // não tem caixa/PDV, então só dá pra ligar ao PDV de Conveniência do dia.
+    // Agrega faturamento/itens/cupons por funcionário dentro do dia.
+    const vendedoresByDay = new Map<string, Map<number, TurnoVendedor>>()
+    for (const r of vendedoresRaw ?? []) {
+      if (r.setor !== 'conveniencia') continue
+      if (empresaCodigo != null && r.empresa_codigo !== empresaCodigo) continue
+      const dia = (r.data || '').substring(0, 10)
+      if (!dia) continue
+      const dayMap = vendedoresByDay.get(dia) ?? new Map<number, TurnoVendedor>()
+      const prev = dayMap.get(r.funcionario_codigo) ?? {
+        funcionarioCodigo: r.funcionario_codigo,
+        nome: funcMap.get(r.funcionario_codigo)?.nome ?? `Vendedor ${r.funcionario_codigo}`,
+        faturamento: 0,
+        itens: 0,
+        cupons: 0,
+      }
+      prev.faturamento += r.faturamento
+      prev.itens += r.quantidade
+      prev.cupons += r.cupons
+      dayMap.set(r.funcionario_codigo, prev)
+      vendedoresByDay.set(dia, dayMap)
+    }
+    const vendedoresDoDia = (dia: string): TurnoVendedor[] =>
+      Array.from((vendedoresByDay.get(dia) ?? new Map<number, TurnoVendedor>()).values())
+        .sort((a, b) => b.faturamento - a.faturamento)
+
     const turnoRows: TurnoRow[] = caixas
       .map((c) => {
         const caixaDate = c.dataMovimento?.substring(0, 10) ?? ''
@@ -860,6 +924,9 @@ const useOperacaoData = () => {
           apresentadoTotal,
           apresentadoFormas,
           frentistas,
+          // Vendedores de loja só fazem sentido no PDV de Conveniência (o de
+          // Pista já tem os frentistas via abastecimento). Atribuídos pelo dia.
+          vendedores: isPista ? [] : vendedoresDoDia(caixaDate),
           pagamentos,
         }
       })
@@ -980,6 +1047,8 @@ const useOperacaoData = () => {
           apresentadoTotal,
           apresentadoFormas,
           frentistas,
+          // Vendedores de loja só no PDV de Conveniência (atribuídos pelo dia).
+          vendedores: isPista ? [] : vendedoresDoDia(caixaDate),
           pagamentos: Array.from(pgtoMerge.values()).sort((a, b) => b.valor - a.valor),
           caixaCodigos: grpCaixas.map((c) => c.caixaCodigo),
         }
@@ -1223,7 +1292,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
+  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, vendedoresRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,

@@ -35,7 +35,15 @@ const onlyDate = (s: string) => (s ?? '').split('T')[0]
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
 const adminNome = (c: Cartao) => c.adiministradoraDescricao?.trim() || 'Outros'
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const MESES_JANELA = 6
+
+/** Presets do seletor de período (em meses pra trás a partir de hoje). */
+const PERIODO_OPCOES: { value: number; label: string }[] = [
+  { value: 3, label: 'Últimos 3 meses' },
+  { value: 6, label: 'Últimos 6 meses' },
+  { value: 12, label: 'Últimos 12 meses' },
+  { value: 24, label: 'Últimos 24 meses' },
+]
+const DEFAULT_MESES = 6
 
 const Hint = ({ text }: { text: string }) => (
   <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
@@ -56,15 +64,17 @@ const CartoesIntel = () => {
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const hoje = todayISO()
+  const [mesesJanela, setMesesJanela] = useState<number>(DEFAULT_MESES)
   const inicioWin = useMemo(() => {
-    const d = new Date(`${hoje}T00:00:00`); d.setMonth(d.getMonth() - MESES_JANELA)
+    const d = new Date(`${hoje}T00:00:00`); d.setMonth(d.getMonth() - mesesJanela)
     return d.toISOString().split('T')[0]
-  }, [hoje])
+  }, [hoje, mesesJanela])
 
   const [aba, setAba] = useState<Aba>('atraso')
 
-  // Janela de 6 meses. maxPages alto pra NÃO truncar antes dos pendentes (mais
-  // recentes / código maior) — senão os KPIs zeram (só vinham os liquidados antigos).
+  // Janela configurável (default 6m). maxPages alto pra NÃO truncar antes dos
+  // pendentes (mais recentes / código maior) — senão os KPIs zeram (só vinham os
+  // liquidados antigos). queryKey inclui inicioWin → recarrega ao trocar o período.
   const { data: cartoes = [], isLoading } = useQuery({
     queryKey: ['cartaoAnalytics', empresaCodigo, inicioWin, hoje],
     queryFn: () => fetchAllPages(
@@ -94,7 +104,7 @@ const CartoesIntel = () => {
     // Curva de taxa média por mês (12m) e modalidade — ponderada por valor.
     const base = new Date(`${hoje}T00:00:00`)
     const meses: { key: string; label: string }[] = []
-    for (let i = MESES_JANELA - 1; i >= 0; i--) {
+    for (let i = mesesJanela - 1; i >= 0; i--) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
       meses.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MESES_ABREV[d.getMonth()] })
     }
@@ -141,7 +151,7 @@ const CartoesIntel = () => {
     const scatter = adminsArr.filter((a) => a.volume > 0)
 
     return { emAtraso, hojeArr, aVencer, liquidados, totalAtraso, totalHoje, totalAberto, taxaMedia, taxaSerie, modalResumo, custoPorAdmin, taxaPorAdmin, scatter }
-  }, [cartoes, hoje])
+  }, [cartoes, hoje, mesesJanela])
 
   if (!hasEmpresa) return null
   if (isLoading) {
@@ -160,6 +170,25 @@ const CartoesIntel = () => {
 
   return (
     <div className="space-y-3">
+      {/* Seletor de período */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <CreditCard className="h-4 w-4 text-gray-400" />
+          Recebíveis de cartão
+        </h2>
+        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          Período
+          <select
+            value={mesesJanela}
+            onChange={(e) => setMesesJanela(Number(e.target.value))}
+            className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            aria-label="Período de análise"
+          >
+            {PERIODO_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <ExecCard title="Em atraso" Icon={AlertTriangle} tone="red" value={formatCurrency(m.totalAtraso)}
@@ -178,9 +207,9 @@ const CartoesIntel = () => {
           <div className="mb-1 flex items-center gap-2">
             <Percent className="h-4 w-4 text-gray-400" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Taxa média de recebimentos</h3>
-            <Hint text="Oscilação da taxa média (ponderada por valor) nos últimos 6 meses, separada por modalidade de recebimento." />
+            <Hint text="Oscilação da taxa média (ponderada por valor) no período selecionado, separada por modalidade de recebimento." />
           </div>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos 6 meses, por modalidade</p>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos {mesesJanela} meses, por modalidade</p>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={m.taxaSerie} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -422,12 +451,16 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
 /** Modal com os cartões individuais de uma administradora. */
 const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolean; onClose: () => void; nome: string; itens: Cartao[]; modo: Aba }) => {
   const total = itens.reduce((s, c) => s + c.valor, 0)
+  const totalTaxa = itens.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
+  const taxaEfetiva = total > 0 ? (totalTaxa / total) * 100 : 0
+  // nº de colunas antes de "Taxa %" (pra alinhar o rótulo "Total" no rodapé).
+  const leadCols = modo === 'liquidados' ? 5 : 4
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{nome}</DialogTitle>
-          <DialogDescription>{itens.length} cartões · {formatCurrency(total)}</DialogDescription>
+          <DialogDescription>{itens.length} cartões · {formatCurrency(total)} · taxa {formatCurrency(totalTaxa)} ({taxaEfetiva.toFixed(2)}%)</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
           <table className="w-full text-xs">
@@ -438,7 +471,8 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
                 <th className="px-3 py-2 font-medium">Data venda</th>
                 <th className="px-3 py-2 font-medium">Bom para</th>
                 {modo === 'liquidados' && <th className="px-3 py-2 font-medium">Pagamento</th>}
-                <th className="px-3 py-2 text-right font-medium">Taxa</th>
+                <th className="px-3 py-2 text-right font-medium">Taxa %</th>
+                <th className="px-3 py-2 text-right font-medium">Taxa R$</th>
                 <th className="px-3 py-2 text-right font-medium">Valor</th>
               </tr>
             </thead>
@@ -450,11 +484,20 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
                   <td className="px-3 py-1.5 tabular-nums text-gray-500 dark:text-gray-400">{brDate(onlyDate(c.dataMovimento))}</td>
                   <td className="px-3 py-1.5 tabular-nums text-gray-700 dark:text-gray-300">{brDate(onlyDate(c.vencimento))}</td>
                   {modo === 'liquidados' && <td className="px-3 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{brDate(onlyDate(c.dataPagamento))}</td>}
-                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400" title={`${c.taxaPercentual.toFixed(2)}%`}>{formatCurrency(c.valor * c.taxaPercentual / 100)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{c.taxaPercentual.toFixed(2)}%</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(c.valor * c.taxaPercentual / 100)}</td>
                   <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.valor)}</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot className="sticky bottom-0 border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/80">
+              <tr className="font-semibold">
+                <td className="px-3 py-2 text-gray-500 dark:text-gray-400" colSpan={leadCols}>Total</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{taxaEfetiva.toFixed(2)}%</td>
+                <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(totalTaxa)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(total)}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </DialogContent>

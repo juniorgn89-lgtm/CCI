@@ -246,7 +246,7 @@ const UsageCard = () => {
                   : tone === 'alerta' ? 'text-amber-600 dark:text-amber-400'
                   : 'text-gray-600 dark:text-gray-400',
               )}>
-                ({pct?.toFixed(0)}%)
+                ({pct?.toFixed(2)}%)
               </span>
             </p>
           )}
@@ -286,7 +286,7 @@ const UsageCard = () => {
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700/40 dark:bg-red-900/20">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />
           <div className="text-[11px] text-red-700 dark:text-red-300">
-            <strong>Atenção:</strong> este navegador já consumiu {pct?.toFixed(0)}% do limite mensal de {fmtUSD(limiteUsd)}.
+            <strong>Atenção:</strong> este navegador já consumiu {pct?.toFixed(2)}% do limite mensal de {fmtUSD(limiteUsd)}.
             Quando bater 100%, a Anthropic bloqueia novas chamadas até o próximo mês.
           </div>
         </div>

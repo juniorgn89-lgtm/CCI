@@ -1,9 +1,7 @@
 import { Fuel } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
-import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
@@ -44,9 +42,6 @@ const Reabastecimento = () => {
           </div>
         </div>
       </PageHeaderTitle>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
 
       {!hasEmpresa && <SelectCompanyState />}
       {hasEmpresa && empresaCodigo !== null && (
