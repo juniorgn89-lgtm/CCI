@@ -247,7 +247,10 @@ const AppLayout = () => {
             role="main"
             onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
             className={cn(
-              'flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
+              // overflow-x-hidden: corta o scroll horizontal de PÁGINA (ex.: números
+              // um pouco mais largos com 2 casas decimais empurrando o layout 1-2px).
+              // Tabelas largas mantêm seu próprio overflow-x-auto interno.
+              'flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
               filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
             )}
           >
