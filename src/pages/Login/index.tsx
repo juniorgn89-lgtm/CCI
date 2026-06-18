@@ -74,7 +74,7 @@ const Login = () => {
   const canSubmitFrentista = frentistaCodigo.trim().length > 0 && frentistaPin.length > 0
 
   return (
-    <div className="relative flex min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#1a3358] to-[#0f2440]">
+    <div className="relative flex min-h-screen bg-gradient-to-br from-[#0d1820] via-[#0a141b] to-[#070f14]">
       {/* Painel esquerdo — decorativo, escondido em telas < lg.
           Animações: bolhas com float parallax, ícone com glow pulsante,
           texto com fade-in slide-up escalonado, mini-cards de KPI mock. */}

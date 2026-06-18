@@ -26,7 +26,8 @@ const getStoredMode = (): ThemeMode => {
   const legacy = localStorage.getItem(LEGACY_KEY)
   if (legacy === 'dark') return 'dark'
   if (legacy === 'light') return 'light'
-  return 'system'
+  // Default: tema escuro (identidade CCI) pra quem nunca escolheu.
+  return 'dark'
 }
 
 const computeDark = (mode: ThemeMode): boolean => {

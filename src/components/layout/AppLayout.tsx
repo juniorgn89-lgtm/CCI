@@ -226,7 +226,7 @@ const AppLayout = () => {
 
         {/* Painel de conteúdo — cantos arredondados sobre o fundo cinza do shell
             (estilo Gmail). TopBar + main vivem dentro dele. */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 md:m-2 md:rounded-2xl">
+        <div className="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 md:m-2 md:rounded-2xl">
           {/* TopBar consolidada — título (slot-portal por página) + cluster único de
               filtros. Fica fixa no topo (irmã do <main> que rola). O período
               (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
