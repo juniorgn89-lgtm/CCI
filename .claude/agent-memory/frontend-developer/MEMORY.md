@@ -42,6 +42,13 @@
 - `ProdutoEstoque`: has `saldoEstoque: SaldoEstoque[] | null` and fallback `saldo`
 - `EstoquePeriodo`: uses `codigoProduto`, `quatidadeEstoque` (typo in API), `dataMovimento`
 - `fetchVendaItens` params: `empresaCodigo, dataInicial, dataFinal, usaProdutoLmc, ultimoCodigo, limite, tipoData, vendaCodigo`
+- `/VENDA` (`Venda` type) has `clienteCodigo` + `clienteCpfCnpj` but NO client name. Nested `formaPagamento[]` (only populated when /VENDA queried BY vendaCodigo) carries `bandeira`, `gestora`, `tipoTransacao` (D/C).
+- `/CARTAO` (`Cartao` type, `fetchCartao` in financeiro endpoints) is keyed by `vendaCodigo`; carries adquirente as `adiministradoraDescricao` (TYPO: 3 i's), plus `clienteRazao`, `codigoBandeira`. Best bridge for card adquirente/bandeira + client name for card sales.
+- `/CLIENTE` endpoint: `src/api/endpoints/clientes.ts` (`fetchClientes`), type `src/api/types/cliente.ts` (`Cliente`: codigo, nome, cpfCnpj...). Params accept `clienteCodigo: number[]`. Created to resolve clienteCodigo→nome for non-card sales.
+
+## Qualidade de Dados — preço anormal enrichment
+- `useQualidadeDados.ts`: abast→venda bridge (vendaItemCodigo OR natural key empresa|bico|produto|qty.toFixed(3)|date) yields vendaCodigo per suspect.
+- Adquirente + cliente: period `/CARTAO` query → map vendaCodigo→{adiministradoraDescricao, clienteRazao}. Non-card client names: dependent `/VENDA`-by-suspect-codes → clienteCodigo → dependent `/CLIENTE`. Outlier set is small so by-code fetch is cheap.
 
 ## Notification/Alert System
 - Store: `src/store/notifications.ts` — `useNotificationStore` with `alerts`, `setAlerts`, `markAsRead`, `markAllAsRead`, `unreadCount`
@@ -50,6 +57,28 @@
 - Alert types: `AppAlert` with `id`, `category`, `severity` (danger/warning/info), `title`, `description`, `timestamp`, `read`
 - Alert IDs are deterministic (e.g. 'estoque-zero', 'financeiro-overdue-receber') for deduplication
 - Read state preserved across regeneration cycles via `setAlerts` merging
+
+## Central da Rede vs Vendas·Combustível — data sources (card/chart reconciliation)
+- Central da Rede `/dashboard` LIVE surfaces ALL read from `useRedeSetores` (VENDA fiscal, ratio-of-totals): `ProjecoesPainel` (card "L. bruto / litro" = `combustivel.lucroPorUnidade`), `BenchmarkSetor` (table), `CentralMobile`. These are mutually consistent.
+- `useDashboardData` is rendered ONLY by `BenchmarkPostos` (DEAD — never imported) and used by `useProjecaoMes`; on `/dashboard` index it's call-for-prefetch only. The Dashboard `*DetailModal` files (CombustivelDetailModal etc.) are MOCK-based (segmentMockHelpers) and NOT wired into live UI — dead code.
+- Vendas·Combustível cards use `useFuelVendaAnalytics` (live VENDA_ITEM, period). `kpis.lbPorLitro/lucroBruto/margemPct` are ratio-of-totals over `rows`. The "Últimos 12 meses" charts use `useAbastecimentosAnalytics.lbLitroData` (Supabase apuração cache, 12-mo history) — different source AND window by design; do NOT force-merge.
+- Vendas·VisaoGeral cards + margem bar chart BOTH read the same `segmentos` object — already consistent.
+- RULE for per-litro / %margem: always ratio of displayed totals (Σlucro/Σlitros), never average of ratios, never a global KPI hardcoded into a filtered table total.
+
+## Fechamento de Caixa module (data lives in useOperacaoData)
+- Page `src/pages/FechamentoCaixa/`: index → VisaoGeral (desktop) or FechamentosMobile. ALL data from `useOperacaoData` (Operacao hook), not a local hook.
+- "Conferência por PDV" UI = `src/pages/Operacao/components/ConferenciaPdv.tsx`; "Turnos" detail = `src/pages/Operacao/components/TurnoDetalheModal.tsx`; list = `TurnosTrabalho.tsx`. These Operacao files ARE part of the Fechamento feature.
+- `useOperacaoData` returns `turnoRows` (per-caixa), `turnoGroups` (per turno+dia+pdv), `conferenciaPdv` (per-caixa apresentado×apurado×diferença por forma, from /CAIXA_APRESENTADO), `caixaResumo`, etc.
+- PDV classification heuristic: caixa operator bombeou combustível no dia → 'Pista', senão 'Conveniência'. No API link abast→PDV.
+- Frentistas (pista) come from abastecimentos cross-ref by frentista+time window. Vendedores de loja (conveniência) come from `apuracao_vendas_funcionario` cache (setor='conveniencia'), GRANULAR POR DIA × funcionário — NO caixa/PDV link. Attached to Conveniência PDV by DAY (same "balde do dia" limitation as formas de pagamento). Type `TurnoVendedor` on TurnoRow/TurnoGroup.
+- `fetchVendasFuncionarioCache` (src/api/supabase/apuracao.ts) → `ApuracaoVendaFuncionarioRow[]` {empresa_codigo, data, funcionario_codigo, setor, faturamento, custo, quantidade, cupons}. Only closed days (Supabase cache); empty if rede não rodou apuração de vendas por funcionário.
+- useCartaoBreakdown: 2-step /VENDA fetch (lista por período → detalhe por vendaCodigo p/ formaPagamento[]). DEDUP vendaCodigo in both steps to avoid double-count. Lines rounded to cents at source so footer total == visible sum (no penny drift).
+
+## Financeiro Module
+- [/CARTAO + /DUPLICATA fields](reference_cartao_duplicata_fields.md) — /CARTAO tem taxaPercentual (Taxa R$ = valor×taxa%/100, derivável) mas SEM valor líquido; /DUPLICATA pendente=em aberto; notas não faturadas = pendente+convertido=false.
+- Filtro de período LOCAL: `PeriodFilterLocal.tsx` (toggle "Todo o período" + datas) + `useFinanceData(localPeriod)` recorta snapshot client-side por dataMovimento. Passar primitivos (lpAll/lpInicio/lpFim) nas deps do useMemo, não o objeto.
+- Visão Geral: 3 cards de ênfase por saldo em aberto = `SaldoAbertoCards.tsx` (notas não faturadas / duplicatas em aberto / a pagar em aberto). Hook expõe `cardNotasNaoFaturadas`, `cardDuplicatasAberto`, `cardPagarAberto`, `duplicatasAberto`.
+- CartoesIntel tem seletor de período (3/6/12/24 meses, state local `mesesJanela`); modal de detalhe mostra Taxa % e Taxa R$ separadas + tfoot com total/efetiva.
 
 ## Available shadcn/ui Components
 badge, button, card, dropdown-menu, input, select, separator, sheet, skeleton, table, tabs
