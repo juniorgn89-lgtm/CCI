@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Users, Receipt, Gauge, Trophy, Target } from 'lucide-react'
-import useOperacaoData, { type AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
+import { Users, Receipt, Trophy, Target } from 'lucide-react'
+import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import { useMetasStore } from '@/store/metas'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
@@ -9,17 +9,6 @@ import { cn } from '@/lib/utils'
 import { KpiCard, Section, ScrollTabs, Segmented, Badge, ProgressBar, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brl, brlShort, liters, variacaoPct } from '@/components/mobile/format'
-
-/** Abast/hora ativa — mede utilização durante o expediente real (= desktop). */
-const ritmoPorHoraAtiva = (rows: AbastecimentoRow[]): number => {
-  if (rows.length === 0) return 0
-  const horas = new Set<number>()
-  for (const a of rows) {
-    const h = parseInt(a.dataHora?.substring(11, 13) || '', 10)
-    if (!isNaN(h)) horas.add(h)
-  }
-  return horas.size === 0 ? 0 : rows.length / horas.size
-}
 
 const scoreTone = (s: number): Tone => (s >= 70 ? 'emerald' : s >= 40 ? 'amber' : 'rose')
 const metaTone = (pct: number): Tone => (pct >= 100 ? 'emerald' : pct >= 70 ? 'amber' : 'rose')
@@ -34,14 +23,13 @@ const TABS = [{ id: 'ranking', label: 'Ranking' }, { id: 'metas', label: 'Metas'
  * realizado por frentista — mês anterior ou manual). Mesmos números do desktop.
  */
 const ProdutividadeMobile = () => {
-  const { kpis, frentistaRows, frentistaRowsPrev, abastecimentoRows, isLoading, hasEmpresa } = useOperacaoData()
+  const { kpis, frentistaRows, frentistaRowsPrev, isLoading, hasEmpresa } = useOperacaoData()
   const { rows: abastComCusto } = useAbastecimentosAnalytics()
   const { manualMode, metas, setManualMode, setMeta } = useMetasStore()
   const [tab, setTab] = useState('ranking')
   const [sort, setSort] = useState<SortKey>('litros')
 
   const scores = useMemo(() => computeScores(buildScoreInputs(abastComCusto)), [abastComCusto])
-  const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
 
   const ranking = useMemo(() => {
     const rows = frentistaRows
@@ -98,7 +86,6 @@ const ProdutividadeMobile = () => {
         <KpiCard label="Frentistas ativos" tone="blue" Icon={Users} value={formatNumber(kpis.frentistasAtivos)} />
         <KpiCard label="Abastecimentos" tone="navy" Icon={Receipt}
           value={formatNumber(kpis.totalAbastecimentos)} delta={variacaoPct(kpis.totalAbastecimentos, kpis.prevTotalAbastecimentos)} deltaLabel="mês ant." />
-        <KpiCard label="Ritmo (abast/h ativa)" tone="violet" Icon={Gauge} value={ritmo.toFixed(1).replace('.', ',')} />
         <KpiCard label="Top frentista" tone="amber" Icon={Trophy} value={top ? liters(top.litros) : '—'} sub={top?.nome} />
       </div>
 

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { BarChart3, Fuel, ShoppingBag } from 'lucide-react'
+import { BarChart3, Fuel, ShoppingBag, LayoutGrid } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -20,6 +20,7 @@ import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
 import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
+import ProdutividadeTodos from '@/pages/Produtividade/components/ProdutividadeTodos'
 import { cn } from '@/lib/utils'
 
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
@@ -70,8 +71,8 @@ const Produtividade = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
     setProdTab(visibleTabs[0].id as SubTab)
   }
-  // Alternador: Frentistas (combustível) × Vendedores (conveniência).
-  const [modo, setModo] = useState<'frentistas' | 'vendedores'>('frentistas')
+  // Alternador: Todos (visão global) · Frentistas (combustível) · Vendedores (conveniência).
+  const [modo, setModo] = useState<'todos' | 'frentistas' | 'vendedores'>('frentistas')
   // Produtividade do frentista usa SEMPRE a data de abastecimento como base
   // (sem o seletor Abast./Fiscal/Movimento). Fixa o modo ao montar a tela.
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
@@ -122,42 +123,17 @@ const Produtividade = () => {
             <FocusModeToggle />
           </div>
 
-          {/* Alternador Frentistas (combustível) × Vendedores (conveniência). */}
-          {hasEmpresa && (
-            <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {([
-                { id: 'frentistas', label: 'Frentistas', Icon: Fuel },
-                { id: 'vendedores', label: 'Vendedores', Icon: ShoppingBag },
-              ] as const).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setModo(m.id)}
-                  className={cn(
-                    'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
-                    modo === m.id
-                      ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                  )}
-                >
-                  <m.Icon className="h-3.5 w-3.5" />
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           {hasEmpresa && visibleTabs.length > 0 && (
             <TopBarTabs
-              active={modo === 'vendedores' ? 'visao' : prodTab}
+              active={modo !== 'frentistas' ? 'visao' : prodTab}
               onChange={(id) => { if (modo === 'frentistas') setProdTab(id as SubTab) }}
               tabs={visibleTabs.map((t) => ({
                 id: t.id,
                 label: t.label,
                 Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3,
-                // No modo Vendedores só "Visão Geral" se aplica — as demais ficam
-                // visíveis porém desabilitadas (ainda não há projeção/meta de loja).
-                disabled: modo === 'vendedores' && t.id !== 'visao',
+                // Só no modo Frentistas as sub-abas se aplicam; em Todos/Vendedores
+                // ficam visíveis porém desabilitadas (sem projeção/meta de loja).
+                disabled: modo !== 'frentistas' && t.id !== 'visao',
               }))}
             />
           )}
@@ -180,6 +156,37 @@ const Produtividade = () => {
       )}
 
       {!hasEmpresa && <SelectCompanyState />}
+
+      {/* Alternador Frentistas (combustível) × Vendedores (conveniência) —
+          centralizado abaixo do cabeçalho. */}
+      {hasEmpresa && (
+        <div className="flex justify-center">
+          <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+            {([
+              { id: 'todos', label: 'Todos', Icon: LayoutGrid },
+              { id: 'frentistas', label: 'Frentistas', Icon: Fuel },
+              { id: 'vendedores', label: 'Vendedores', Icon: ShoppingBag },
+            ] as const).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setModo(m.id)}
+                className={cn(
+                  'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-4 text-xs font-medium transition-all',
+                  modo === m.id
+                    ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                )}
+              >
+                <m.Icon className="h-3.5 w-3.5" />
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasEmpresa && modo === 'todos' && <ProdutividadeTodos />}
 
       {hasEmpresa && modo === 'vendedores' && <VendedoresConveniencia />}
 

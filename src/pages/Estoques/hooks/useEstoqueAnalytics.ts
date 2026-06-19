@@ -29,11 +29,21 @@ export interface ProductAnalyticsRow {
   markup: number
   /** Margem de lucro por unidade (R$) = preço médio − custo médio */
   margemLucroUnit: number
+  /** Preço de VENDA cadastrado (tabela A), do /PRODUTO_ESTOQUE_EXTRATO. */
+  precoVendaCadastro: number
+  /** Preço de CUSTO cadastrado, do /PRODUTO_ESTOQUE_EXTRATO. */
+  precoCustoCadastro: number
+  /** Markup % cadastral = (preço venda A / custo cadastrado − 1) × 100 */
+  markupCadastro: number
+  /** Margem de lucro cadastral (R$) = preço venda A − custo cadastrado */
+  margemLucroCadastro: number
+  /** Lucro Bruto % cadastral = (venda A − custo) / venda A × 100 */
+  lucroBrutoPctCadastro: number
   /** Código de barras (primeiro cadastrado) ou '' */
   codigoBarras: string
   /** Última venda (yyyy-MM-dd) dentro dos últimos 6 meses, ou null */
   ultimaVenda: string | null
-  /** Valor em estoque = saldoAtual × custoMedio */
+  /** Valor em estoque = saldoAtual × P. Custo cadastro (fallback custo médio) */
   valorEstoque: number
   /** Total de unidades vendidas nos últimos 6 meses */
   vendasUltimos6m: number
@@ -260,11 +270,16 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
     const estoqueRaw: ProdutoEstoque[] = Array.isArray(produtoEstoqueData) ? produtoEstoqueData : []
     const saldoAtualMap = saldoAtualPorProduto(estoqueRaw)
 
-    // Estoque mínimo (cadastro) por produto, do /PRODUTO_ESTOQUE_EXTRATO. Dedup
-    // por produtoCodigo (valor de cadastro idêntico nas duplicatas).
+    // Cadastro por produto, do /PRODUTO_ESTOQUE_EXTRATO: estoque mínimo +
+    // preço de VENDA (tabela A) e preço de CUSTO cadastrados. Dedup por
+    // produtoCodigo (valor de cadastro idêntico nas duplicatas).
     const minimoMap = new Map<number, number>()
+    const cadastroPrecoMap = new Map<number, { precoVenda: number; precoCusto: number }>()
     for (const e of (estoqueExtratoData ?? []) as ProdutoEstoqueExtrato[]) {
       if (!minimoMap.has(e.produtoCodigo)) minimoMap.set(e.produtoCodigo, e.estoqueMinimo ?? 0)
+      if (!cadastroPrecoMap.has(e.produtoCodigo)) {
+        cadastroPrecoMap.set(e.produtoCodigo, { precoVenda: e.precoVenda ?? 0, precoCusto: e.precoCusto ?? 0 })
+      }
     }
 
     // Por produto: total quantidade, total receita, total custo (a partir das vendas)
@@ -363,8 +378,23 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
       const margemLucroUnit = precoMedioVenda > 0 ? precoMedioVenda - custoMedio : 0
       const codigoBarras = produto.produtoCodigoBarra?.[0]?.codigoBarra ?? ''
       const ultimaVenda = sales?.ultimaData ? sales.ultimaData.slice(0, 10) : null
-      const valorEstoque = saldoAtual * custoMedio
       const mediaMensalVendas = vendasUltimos6m / MONTHS_LOOKBACK
+
+      // Preço de CADASTRO (tabela A) — fonte: /PRODUTO_ESTOQUE_EXTRATO. É o que o
+      // webPosto mostra em "Preço de Venda (A)". Markup/margem cadastrais derivam
+      // dele + o preço de custo cadastrado.
+      const cadPreco = cadastroPrecoMap.get(produto.produtoCodigo)
+      const precoVendaCadastro = cadPreco?.precoVenda ?? 0
+      const precoCustoCadastro = cadPreco?.precoCusto ?? 0
+      const markupCadastro = precoCustoCadastro > 0 ? (precoVendaCadastro / precoCustoCadastro - 1) * 100 : 0
+      const margemLucroCadastro = precoVendaCadastro - precoCustoCadastro
+      // Lucro Bruto % = margem sobre a venda = (venda − custo) / venda × 100.
+      const lucroBrutoPctCadastro = precoVendaCadastro > 0 ? (margemLucroCadastro / precoVendaCadastro) * 100 : 0
+
+      // Valor em estoque = saldo × P. Custo de CADASTRO (mesmo custo exibido na
+      // coluna P. Custo), caindo no custo médio realizado quando não há cadastro.
+      const custoValuation = precoCustoCadastro > 0 ? precoCustoCadastro : custoMedio
+      const valorEstoque = saldoAtual * custoValuation
 
       // Mês de pico
       let mesPico: string | null = null
@@ -441,6 +471,11 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
         precoMedioVenda,
         markup,
         margemLucroUnit,
+        precoVendaCadastro,
+        precoCustoCadastro,
+        markupCadastro,
+        margemLucroCadastro,
+        lucroBrutoPctCadastro,
         codigoBarras,
         ultimaVenda,
         valorEstoque,

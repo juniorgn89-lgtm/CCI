@@ -1,14 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
-  ResponsiveContainer,
-  PieChart, Pie, Cell,
-  LineChart, Line,
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip,
-} from 'recharts'
-import {
   AlertTriangle, CalendarClock, Timer, Percent, Wallet, Users,
-  RotateCcw, ArrowUp, ArrowDown, ListOrdered, HelpCircle, Sparkles, X,
+  RotateCcw, ArrowUp, ArrowDown, HelpCircle, Sparkles, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
@@ -40,7 +33,6 @@ const nomeCli = (r: { nomeCliente?: string; clienteCodigo: number }) => r.nomeCl
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-const FAIXA_CORES = ['#10b981', '#facc15', '#fb923c', '#f87171', '#dc2626']
 
 /** Ícone "?" com tooltip explicativo (hover). */
 const Hint = ({ text }: { text: string }) => (
@@ -261,6 +253,8 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
 
   const [showAnalise, setShowAnalise] = useState(false)
   const [detalhe, setDetalhe] = useState<{ codigo: number; nome: string; score: number } | null>(null)
+  // Subabas das duas tabelas detalhadas (notas a prazo × carteira por cliente).
+  const [subTab, setSubTab] = useState<'notas' | 'carteira'>('notas')
 
   const inadColor = m.inadimplencia >= META_INADIMPLENCIA
     ? 'text-red-600 dark:text-red-400'
@@ -390,128 +384,33 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
           badge={m.recVar == null ? undefined : { up: m.recVar >= 0, text: `${m.recVar >= 0 ? '+' : ''}${m.recVar.toFixed(2)}%` }} />
       </div>
 
-      {/* Gráficos: faixa de atraso · heatmap · recuperação mensal */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <ChartCard title="Carteira por faixa de atraso" Icon={Percent}
-          hint="Distribui a carteira em aberto por faixa: a vencer e vencidos em 1–30, 31–60, 61–90 e +90 dias (valor e % do total).">
-          {m.carteira <= 0 ? <Empty /> : (
-            <div className="flex items-center gap-3">
-              <ResponsiveContainer width="50%" height={170}>
-                <PieChart>
-                  <Pie data={m.faixas.filter((f) => f.valor > 0)} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={42} outerRadius={68} paddingAngle={2}>
-                    {m.faixas.filter((f) => f.valor > 0).map((f) => (
-                      <Cell key={f.nome} fill={FAIXA_CORES[m.faixas.findIndex((x) => x.nome === f.nome)]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                </PieChart>
-              </ResponsiveContainer>
-              <ul className="flex-1 space-y-1 text-[11px]">
-                {m.faixas.map((f, i) => (
-                  <li key={f.nome} className="flex items-center justify-between gap-1">
-                    <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                      <span className="h-2 w-2 rounded-full" style={{ background: FAIXA_CORES[i] }} />{f.nome}
-                    </span>
-                    <span className="tabular-nums text-gray-800 dark:text-gray-200">
-                      <b>{formatCurrencyShort(f.valor)}</b>
-                      <span className="ml-1 text-gray-400">{m.carteira > 0 ? `${((f.valor / m.carteira) * 100).toFixed(2)}%` : ''}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </ChartCard>
-
-        <ChartCard title="Calendário de recebimentos" Icon={CalendarClock}
-          hint="Quanto está previsto receber (títulos a vencer) acumulado em cada janela: hoje, próximos 7, 15, 30 e 60 dias.">
-          {m.prev30 <= 0 && m.heatmap.every((h) => h.valor === 0) ? <Empty /> : (
-            <ul className="space-y-2 py-1">
-              {m.heatmap.map((h) => {
-                const max = Math.max(...m.heatmap.map((x) => x.valor), 1)
-                return (
-                  <li key={h.faixa}>
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-medium text-gray-600 dark:text-gray-400">{h.faixa}</span>
-                      <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(h.valor)}</span>
-                    </div>
-                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${(h.valor / max) * 100}%` }} />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </ChartCard>
-
-        <ChartCard title="Recuperação mensal (recebido)" Icon={RotateCcw}
-          hint="Total recebido (títulos pagos) por mês nos últimos 6 meses.">
-          {m.serieMensal.every((s) => s.valor === 0) ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={170}>
-              <LineChart data={m.serieMensal} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                <YAxis tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fontSize: 10 }} width={48} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Line type="monotone" dataKey="valor" stroke="#14b8a6" strokeWidth={2.5} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </ChartCard>
-      </div>
-
-      {/* Top devedores · Ranking de risco */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <ChartCard title="Top clientes devedores" Icon={AlertTriangle} className="lg:col-span-2"
-          hint="Os 8 clientes com maior valor vencido em aberto. O maior devedor aparece destacado em vermelho mais forte.">
-          {m.topDevedores.length === 0 ? <Empty text="Nenhum título vencido. 🎉" /> : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={m.topDevedores} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                <XAxis type="number" tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fontSize: 10 }} />
-                <YAxis type="category" dataKey="nome" width={150} tick={{ fontSize: 10 }} tickFormatter={(s: string) => (s.length > 22 ? s.slice(0, 21) + '…' : s)} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
-                  {m.topDevedores.map((_, i) => <Cell key={i} fill={i === 0 ? '#dc2626' : i < 3 ? '#ef4444' : '#fca5a5'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </ChartCard>
-
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-2 flex items-center gap-2">
-            <ListOrdered className="h-4 w-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Maiores riscos financeiros</h3>
-            <Hint text="Ranking dos 5 clientes com maior valor vencido. Mostra o score de risco e o maior atraso de cada um." />
-          </div>
-          {m.ranking.length === 0 ? <Empty text="Sem riscos no momento." /> : (
-            <ol className="space-y-2">
-              {m.ranking.map((c, i) => {
-                const st = SCORE_STYLE[scoreBand(c.score)]
-                return (
-                  <li key={c.codigo} className="flex items-center gap-2.5">
-                    <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold', i === 0 ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400')}>{i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-gray-800 dark:text-gray-200" title={c.nome}>{c.nome}</p>
-                      <p className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                        <span className={cn('h-1.5 w-1.5 rounded-full', st.dot)} /> Score {c.score} · {c.maxDiasAtraso}d
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs font-bold tabular-nums text-red-600 dark:text-red-400">{formatCurrencyShort(c.totalVencido)}</span>
-                  </li>
-                )
-              })}
-            </ol>
-          )}
-        </section>
+      {/* Subabas: Notas a prazo não faturadas × Carteira por cliente */}
+      <div className="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+        {([
+          { id: 'notas', label: 'Notas a prazo não faturadas' },
+          { id: 'carteira', label: 'Carteira por cliente · score de risco' },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setSubTab(t.id)}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              subTab === t.id
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Notas a prazo não faturadas — potencial de faturamento futuro */}
-      <NotasPrazoNaoFaturadas data={data} />
+      {subTab === 'notas' && <NotasPrazoNaoFaturadas data={data} />}
 
       {/* Tabela — risco por cliente */}
+      {subTab === 'carteira' && (
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -563,6 +462,7 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
           </table>
         </div>
       </section>
+      )}
 
       {detalhe && (
         <ClienteRiscoModal
@@ -635,20 +535,6 @@ const ExecCard = ({
   </section>
 )
 
-const ChartCard = ({ title, Icon, className, hint, children }: { title: string; Icon: typeof Wallet; className?: string; hint?: string; children: React.ReactNode }) => (
-  <section className={cn('rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900', className)}>
-    <div className="mb-2 flex items-center gap-2">
-      <Icon className="h-4 w-4 text-gray-400" />
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-      {hint && <Hint text={hint} />}
-    </div>
-    {children}
-  </section>
-)
-
-const Empty = ({ text = 'Sem dados para exibir.' }: { text?: string }) => (
-  <p className="py-12 text-center text-sm text-gray-400">{text}</p>
-)
 
 const SEP_TONE = {
   indigo: { ring: 'border-indigo-200 dark:border-indigo-900/50', value: 'text-indigo-700 dark:text-indigo-300' },

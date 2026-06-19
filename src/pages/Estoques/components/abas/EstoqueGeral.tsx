@@ -13,29 +13,31 @@ interface Props {
 }
 
 const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(v)
-const fmtPct = (v: number) => `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(v)}%`
+const fmtPct = (v: number) => `${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)}%`
 const fmtData = (iso: string | null): string => {
   if (!iso) return '—'
   const [y, m, d] = iso.split('-')
   return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
-// Espelha o relatório "Produto" do webPosto, no mesmo padrão visual do Catálogo
-// de Vendas. P. Custo / P. Venda são as MÉDIAS realizadas (últimos 6m), não os
-// valores de cadastro — então podem divergir do webPosto.
+// Espelha o relatório "Produto" do webPosto. P. Custo / P. Venda / Markup /
+// Marg. Luc. vêm do CADASTRO (/PRODUTO_ESTOQUE_EXTRATO): P. Venda = tabela A.
+// A coluna "Tipo" indica a tabela de preço usada (A). Batem com o Cadastro de
+// Produtos do webPosto.
 const columns: Column<ProductAnalyticsRow>[] = [
   { key: 'codigoSku', label: 'Ref.', sortable: true, render: (r) => <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.codigoSku || '—'}</span> },
   { key: 'produtoNome', label: 'Produto', sortable: true, render: (r) => <span className="font-medium">{r.produtoNome}</span> },
   { key: 'codigoBarras', label: 'Cód. Barras', sortable: true, render: (r) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{r.codigoBarras || '—'}</span> },
-  { key: 'custoMedio', label: 'P. Custo', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(r.custoMedio)}</span> },
+  { key: 'precoCustoCadastro', label: 'P. Custo', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{r.precoCustoCadastro > 0 ? formatCurrency(r.precoCustoCadastro) : '—'}</span> },
   {
-    key: 'markup', label: 'Markup %', align: 'right', sortable: true,
-    render: (r) => (r.precoMedioVenda > 0
-      ? <HeatmapCell value={r.markup} min={0} max={150} formatted={fmtPct(r.markup)} />
+    key: 'lucroBrutoPctCadastro', label: 'Lucro Bruto %', align: 'right', sortable: true,
+    render: (r) => (r.precoVendaCadastro > 0
+      ? <HeatmapCell value={r.lucroBrutoPctCadastro} min={0} max={100} formatted={fmtPct(r.lucroBrutoPctCadastro)} />
       : <span className="text-gray-400">—</span>),
   },
-  { key: 'precoMedioVenda', label: 'P. Venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{r.precoMedioVenda > 0 ? formatCurrency(r.precoMedioVenda) : '—'}</span> },
-  { key: 'margemLucroUnit', label: 'Marg. Luc.', align: 'right', sortable: true, render: (r) => <span className="tabular-nums font-medium">{r.precoMedioVenda > 0 ? formatCurrency(r.margemLucroUnit) : '—'}</span> },
+  { key: 'tipoPreco', label: 'Tipo', align: 'center', sortable: false, render: (r) => <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.precoVendaCadastro > 0 ? 'A' : '—'}</span> },
+  { key: 'precoVendaCadastro', label: 'P. Venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{r.precoVendaCadastro > 0 ? formatCurrency(r.precoVendaCadastro) : '—'}</span> },
+  { key: 'margemLucroCadastro', label: 'Marg. Luc.', align: 'right', sortable: true, render: (r) => <span className="tabular-nums font-medium">{r.precoVendaCadastro > 0 ? formatCurrency(r.margemLucroCadastro) : '—'}</span> },
   { key: 'estoqueMinimo', label: 'Qtd. Mín.', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{r.estoqueMinimo > 0 ? fmtUnidades(r.estoqueMinimo) : '—'}</span> },
   {
     key: 'saldoAtual', label: 'Qtd', align: 'right', sortable: true,
@@ -78,7 +80,7 @@ const EstoqueGeral = ({ data, categorias }: Props) => {
         iconColor="text-blue-600"
         iconBg="bg-blue-100 dark:bg-blue-900/40"
         title="Estoque de todos os produtos"
-        titleHint="Saldo atual de cada produto (não combustível), com preço de custo/venda médios dos últimos 6 meses, markup, margem de lucro, cód. de barras, quantidade mínima e última venda. Valor em estoque = saldo × custo médio."
+        titleHint="Saldo atual de cada produto (não combustível), com preço de custo e de venda (tabela A) do CADASTRO, lucro bruto %, margem de lucro, cód. de barras, quantidade mínima e última venda. Valor em estoque = saldo × preço de custo do cadastro."
         subtitle={`${filtered.length} de ${data.length} produtos`}
         accentGradient="bg-gradient-to-r from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
         metrics={[
@@ -140,7 +142,7 @@ const EstoqueGeral = ({ data, categorias }: Props) => {
           enableRowHighlight
           groups={[
             { label: '', span: 3 },             // Ref · Produto · Cód. Barras
-            { label: 'Preço & margem', span: 4 }, // P. Custo · Markup · P. Venda · Marg. Luc.
+            { label: 'Preço & margem', span: 5 }, // P. Custo · Lucro Bruto % · Tipo · P. Venda · Marg. Luc.
             { label: 'Estoque', span: 3 },       // Qtd. Mín. · Qtd · Últ. Venda
           ]}
         />

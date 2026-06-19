@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Users, Zap, Fuel, Trophy } from 'lucide-react'
+import { Users, Fuel, Trophy } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatNumber } from '@/lib/formatters'
@@ -190,7 +190,7 @@ const ProdutividadeTab = ({
       {active === 'visao' && (
         <div className="space-y-4">
           {topKpis && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-amber-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-amber-950/20 dark:to-gray-900">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Frentistas Ativos</p>
@@ -202,22 +202,6 @@ const ProdutividadeTab = ({
                   {formatNumber(topKpis.frentistasAtivos)}
                 </p>
                 <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">com atendimento no período</p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-blue-950/20 dark:to-gray-900">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ritmo Operacional</p>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                  {`${topKpis.ritmo.toFixed(1).replace('.', ',')}/h`}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  <DeltaBadge current={topKpis.ritmo} previous={topKpis.ritmoPrev} />
-                  <span className="text-[11px] text-gray-400 dark:text-gray-500">abast./hora ativa</span>
-                </div>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-cyan-50/60 to-white p-5 shadow-sm dark:border-gray-700 dark:from-cyan-950/20 dark:to-gray-900">

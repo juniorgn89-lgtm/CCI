@@ -19,11 +19,11 @@ import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
 const CaixaPosto = lazy(() => import('@/pages/Operacao/components/CaixaPosto'))
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
-const FechamentoView = lazy(() => import('@/pages/FechamentoCaixa/components/VisaoGeral'))
+const CaixaGeralReport = lazy(() => import('@/pages/CaixasTurnos/components/CaixaGeralReport'))
 
-type CaixaTab = 'visao' | 'turnos' | 'conferencia' | 'fechamento'
+type CaixaTab = 'visao' | 'turnos' | 'conferencia'
 const isCaixaTab = (v: string | null): v is CaixaTab =>
-  v === 'visao' || v === 'turnos' || v === 'conferencia' || v === 'fechamento'
+  v === 'visao' || v === 'turnos' || v === 'conferencia'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -126,8 +126,8 @@ const CaixasTurnos = () => {
           <Suspense fallback={<TabFallback />}>
             {caixaTab === 'conferencia' ? (
               <ConferenciaPdv conferencia={conferenciaPdv} />
-            ) : caixaTab === 'fechamento' ? (
-              <FechamentoView />
+            ) : caixaTab === 'visao' ? (
+              <CaixaGeralReport />
             ) : (
               <CaixaPosto
                 kpis={kpis}

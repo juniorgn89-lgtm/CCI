@@ -48,10 +48,14 @@ const ContentSkeleton = () => (
 const caixaKey = (c: { caixaCodigo: number; dataMovimento: string }) =>
   `${c.caixaCodigo}-${c.dataMovimento.substring(0, 10)}`
 
-/** Diferença exibida = apresentado − apurado (fecha por subtração, igual às
- *  outras abas); sem apresentado do caixa, cai na diferença oficial do /CAIXA. */
-const difCaixa = (c: { apresentadoTotal: number | null; apurado: number; diferenca: number }): number =>
-  c.apresentadoTotal != null ? c.apresentadoTotal - c.apurado : c.diferenca
+/** Diferença exibida = apresentado − apurado CONFERIDO (mesma fonte
+ *  /CAIXA_APRESENTADO, fecha por subtração igual à Conferência por PDV). Usar o
+ *  apuradoConferido (não o apurado de VENDAS, que inclui a prazo) evita inflar a
+ *  diferença em postos de pista. Sem dado de conferência, cai na oficial /CAIXA. */
+const difCaixa = (c: { apresentadoTotal: number | null; apuradoConferido: number | null; diferenca: number }): number =>
+  c.apresentadoTotal != null && c.apuradoConferido != null
+    ? c.apresentadoTotal - c.apuradoConferido
+    : c.diferenca
 
 /**
  * Aba "Visão Geral" do Fechamento de Caixa — dados reais via useOperacaoData.
@@ -212,9 +216,12 @@ const VisaoGeral = () => {
     }
     const vendedores = Array.from(vendMap.values()).sort((a, b) => b.faturamento - a.faturamento)
     const totalVendedores = vendedores.reduce((s, v) => s + v.faturamento, 0)
+    // Há caixa de Conveniência na seleção? (pra decidir mostrar a seção de
+    // vendedores da loja, mesmo quando ainda não há dado apurado.)
+    const temConveniencia = selectedCaixas.some((c) => c.pdvLabel === 'Conveniência')
 
     return {
-      apurado, diferencaFechados, pagamentos, totalPagamentos,
+      apurado, diferencaFechados, pagamentos, totalPagamentos, temConveniencia,
       frentistas, totalCombustivel, conveniencia,
       vendedores, totalVendedores,
     }
@@ -422,6 +429,7 @@ const VisaoGeral = () => {
               )}
             </section>
 
+            {agregados.frentistas.length > 0 && (
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
@@ -436,11 +444,7 @@ const VisaoGeral = () => {
                   </span>
                 )}
               </div>
-              {agregados.frentistas.length === 0 ? (
-                <p className="px-4 py-8 text-center text-xs text-gray-400">
-                  Sem abastecimentos nos caixas selecionados.
-                </p>
-              ) : (
+              {(
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {agregados.frentistas.map((f) => {
                     const pct = agregados.totalCombustivel > 0
@@ -465,9 +469,10 @@ const VisaoGeral = () => {
                 </ul>
               )}
             </section>
+            )}
           </div>
 
-          {agregados.vendedores.length > 0 && (
+          {(agregados.vendedores.length > 0 || agregados.temConveniencia) && (
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
@@ -483,6 +488,12 @@ const VisaoGeral = () => {
                   </span>
                 )}
               </div>
+              {agregados.vendedores.length === 0 ? (
+                <p className="px-4 py-8 text-center text-xs text-gray-400">
+                  Sem dados de vendedores da loja no período. Reapure o mês em
+                  <span className="font-medium"> /admin/apuração</span> pra preencher a venda por funcionário.
+                </p>
+              ) : (
               <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                 {agregados.vendedores.map((v) => {
                   const pct = agregados.totalVendedores > 0
@@ -505,9 +516,12 @@ const VisaoGeral = () => {
                   )
                 })}
               </ul>
-              <p className="border-t border-gray-100 px-4 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
-                Vendedores de loja são atribuídos pelo dia — a apuração de vendas por funcionário não separa por caixa/PDV.
-              </p>
+              )}
+              {agregados.vendedores.length > 0 && (
+                <p className="border-t border-gray-100 px-4 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
+                  Vendedores de loja são atribuídos pelo dia — a apuração de vendas por funcionário não separa por caixa/PDV.
+                </p>
+              )}
             </section>
           )}
 
@@ -566,7 +580,7 @@ const VisaoGeral = () => {
                             <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">{c.turno}</td>
                             <td className="px-4 py-2 tabular-nums text-gray-500 dark:text-gray-400">#{c.caixaCodigo}</td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
-                            <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.apurado)}</td>
+                            <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.apuradoConferido ?? c.apurado)}</td>
                             <td className={cn(
                               'px-4 py-2 text-right font-semibold tabular-nums',
                               difCaixa(c) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',

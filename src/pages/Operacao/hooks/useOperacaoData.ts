@@ -14,7 +14,7 @@ import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
 import useCaixasCache from '@/pages/Operacao/hooks/useCaixasCache'
 import { todayLocal } from '@/lib/period'
-import { labelFormaPagamento } from '@/lib/formaPagamento'
+import { labelFormaPagamento, isCartaoForma, CARTAO_TIPO } from '@/lib/formaPagamento'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -149,6 +149,10 @@ export interface TurnoRow {
   totalVendas: number
   /** Apresentado (conferido) deste caixa; null sem dado de /CAIXA_APRESENTADO. */
   apresentadoTotal: number | null
+  /** Apurado CONFERIDO (Σ *Apurado do /CAIXA_APRESENTADO, mesma fonte do
+   *  apresentado) — base correta da sobra/falta. null sem dado. NÃO é o
+   *  c.apurado (/CAIXA = total de vendas, inclui a prazo). */
+  apuradoConferido: number | null
   /** Quebra do apresentado por forma (vazio sem dado). */
   apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
@@ -175,6 +179,9 @@ export interface TurnoGroup {
   /** Total apresentado (conferido no fechamento) deste PDV. null = sem dado
    *  de /CAIXA_APRESENTADO (rede não expõe). */
   apresentadoTotal: number | null
+  /** Total apurado CONFERIDO (Σ *Apurado do /CAIXA_APRESENTADO) deste PDV —
+   *  base da sobra/falta real. null sem dado. */
+  apuradoConferidoTotal: number | null
   /** Quebra do apresentado por forma de pagamento (vazio quando sem dado). */
   apresentadoFormas: TurnoPagamento[]
   frentistas: TurnoFrentista[]
@@ -441,6 +448,18 @@ const useOperacaoData = () => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Apresentado do PERÍODO DE COMPARAÇÃO (mês/ano ant.) — pra o card "Total
+  // Apurado" comparar conferido × conferido (não conferido × vendas).
+  const cmpApresInicial = isPrevYear ? cmp.inicial : prev.inicial
+  const cmpApresFinal = isPrevYear ? cmp.final : prev.final
+  const { data: apresentadoCmpRaw } = useQuery({
+    queryKey: ['caixasApresentado', empresaCodigo, cmpApresInicial, cmpApresFinal],
+    queryFn: () => fetchAllPages((p) => fetchCaixasApresentado({ empresaCodigo: empresaCodigo!, dataInicial: cmpApresInicial, dataFinal: cmpApresFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    enabled: hasEmpresa && empresaCodigo !== null && !!cmpApresInicial && !!cmpApresFinal,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+
   // ── Combustível FATURADO (VENDA_ITEM) para a agregação de BOMBAS ──
   // As bombas passam a refletir o volume FISCAL autorizado (mesma base do card
   // "Litros vendidos" de Vendas·Combustível), não o volume físico de
@@ -595,15 +614,22 @@ const useOperacaoData = () => {
     const periodoCaixaCods = new Set(caixas.map((c) => c.caixaCodigo))
     const apresentadoList = (apresentadoRaw ?? []).filter((a) => periodoCaixaCods.has(a.caixaCodigo))
     const hasApresentado = apresentadoList.length > 0
-    const apresentadoByCaixa = new Map<number, { total: number; formas: Map<string, number> }>()
+    // `total` = Σ *Apresentado (conferido). `apurado` = Σ *Apurado (esperado do
+    // sistema, MESMA fonte do apresentado). A diferença real do caixa é
+    // apresentado − apuradoConferido — não o c.apurado do /CAIXA (que é o total
+    // de VENDAS, incluindo a prazo, e infla a diferença em postos de pista).
+    const apresentadoByCaixa = new Map<number, { total: number; apurado: number; formas: Map<string, number> }>()
     for (const a of apresentadoList) {
       const rec = a as unknown as Record<string, number>
-      const entry = apresentadoByCaixa.get(a.caixaCodigo) ?? { total: 0, formas: new Map<string, number>() }
+      const entry = apresentadoByCaixa.get(a.caixaCodigo) ?? { total: 0, apurado: 0, formas: new Map<string, number>() }
       for (const f of CAIXA_APRESENTADO_FORMAS) {
-        const v = Number(rec[`${f.key}Apresentado`]) || 0
-        if (v === 0) continue
-        entry.total += v
-        entry.formas.set(f.nome, (entry.formas.get(f.nome) ?? 0) + v)
+        const vApr = Number(rec[`${f.key}Apresentado`]) || 0
+        const vApu = Number(rec[`${f.key}Apurado`]) || 0
+        entry.apurado += vApu
+        if (vApr !== 0) {
+          entry.total += vApr
+          entry.formas.set(f.nome, (entry.formas.get(f.nome) ?? 0) + vApr)
+        }
       }
       apresentadoByCaixa.set(a.caixaCodigo, entry)
     }
@@ -973,8 +999,10 @@ const useOperacaoData = () => {
 
         const pgtoAggShift = new Map<string, { nome: string; valor: number; count: number }>()
         for (const fp of shiftPgto) {
-          const tipo = fp.tipoFormaPagamento || 'OUTROS'
-          const prev = pgtoAggShift.get(tipo) ?? { nome: labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
+          const rawTipo = fp.tipoFormaPagamento || 'OUTROS'
+          const cartao = isCartaoForma(rawTipo, fp.nomeFormaPagamento)
+          const tipo = cartao ? CARTAO_TIPO : rawTipo
+          const prev = pgtoAggShift.get(tipo) ?? { nome: cartao ? 'Cartão' : labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
           prev.valor += fp.valorPagamento
           prev.count += 1
           pgtoAggShift.set(tipo, prev)
@@ -990,6 +1018,7 @@ const useOperacaoData = () => {
         // a mistura do balde do dia inteiro.
         const apEntry = apresentadoByCaixa.get(c.caixaCodigo)
         const apresentadoTotal = hasApresentado && apEntry ? apEntry.total : null
+        const apuradoConferido = hasApresentado && apEntry ? apEntry.apurado : null
         const apresentadoFormas: TurnoPagamento[] = apEntry
           ? Array.from(apEntry.formas.entries())
               .map(([nome, valor]) => ({ tipo: nome, nome, valor, quantidade: 0 }))
@@ -1012,6 +1041,7 @@ const useOperacaoData = () => {
           diferenca: c.diferenca,
           totalVendas,
           apresentadoTotal,
+          apuradoConferido,
           apresentadoFormas,
           frentistas,
           // Vendedores de loja só fazem sentido no PDV de Conveniência (o de
@@ -1107,15 +1137,18 @@ const useOperacaoData = () => {
         // Apresentado por PDV (soma dos caixas do grupo) + quebra por forma.
         const apFormasMap = new Map<string, number>()
         let apTotal = 0
+        let apuradoConfTotal = 0
         let apHit = false
         for (const c of grpCaixas) {
           const entry = apresentadoByCaixa.get(c.caixaCodigo)
           if (!entry) continue
           apHit = true
           apTotal += entry.total
+          apuradoConfTotal += entry.apurado
           for (const [nome, val] of entry.formas) apFormasMap.set(nome, (apFormasMap.get(nome) ?? 0) + val)
         }
         const apresentadoTotal = hasApresentado && apHit ? apTotal : null
+        const apuradoConferidoTotal = hasApresentado && apHit ? apuradoConfTotal : null
         const apresentadoFormas: TurnoPagamento[] = Array.from(apFormasMap.entries())
           .map(([nome, valor]) => ({ tipo: nome, nome, valor, quantidade: 0 }))
           .sort((a, b) => b.valor - a.valor)
@@ -1135,6 +1168,7 @@ const useOperacaoData = () => {
           diferencaTotal,
           totalVendasTotal,
           apresentadoTotal,
+          apuradoConferidoTotal,
           apresentadoFormas,
           frentistas,
           // Vendedores de loja só no PDV de Conveniência (atribuídos pelo dia).
@@ -1206,15 +1240,22 @@ const useOperacaoData = () => {
     // Apresentado: usa o /CAIXA_APRESENTADO (mesma fonte dos Turnos/Conferência,
     // pra bater entre as abas); só cai nas formas planas se a rede não expõe.
     const apresentadoFromCaixa = Array.from(apresentadoByCaixa.values()).reduce((s, e) => s + e.total, 0)
+    // Apurado CONFERIDO (Σ *Apurado do /CAIXA_APRESENTADO) — mesma fonte/soma da
+    // coluna "Apurado" da Conferência por PDV. É o que o card "Total Apurado"
+    // deve mostrar pra bater com a tabela (não o total de VENDAS do /CAIXA).
+    const apuradoConferidoFromCaixa = Array.from(apresentadoByCaixa.values()).reduce((s, e) => s + e.apurado, 0)
     // Diferença = apresentado − apurado por caixa fechado (fecha por subtração,
     // igual Turnos/Conferência). Sem apresentado do caixa, cai na diferença
     // oficial do /CAIXA.
+    // Diferença = apresentado − apurado CONFERIDO (Σ *Apurado do /CAIXA_APRESENTADO,
+    // mesma fonte do apresentado). NÃO usar c.apurado (/CAIXA = total de vendas,
+    // inclui a prazo) — isso inflava a "Diferença de Caixa" em postos de pista.
     const totalDiferenca = caixas.filter((c) => c.fechado).reduce((s, c) => {
       const ap = apresentadoByCaixa.get(c.caixaCodigo)
-      return s + (ap ? ap.total - c.apurado : c.diferenca)
+      return s + (ap ? ap.total - ap.apurado : c.diferenca)
     }, 0)
     const caixaResumo: CaixaResumo = {
-      totalApurado: caixas.reduce((s, c) => s + c.apurado, 0),
+      totalApurado: hasApresentado ? apuradoConferidoFromCaixa : caixas.reduce((s, c) => s + c.apurado, 0),
       totalApresentado: hasApresentado ? apresentadoFromCaixa : formasPgto.reduce((s, fp) => s + fp.valorPagamento, 0),
       totalDiferenca,
       caixasAbertos: caixas.filter((c) => !c.fechado).length,
@@ -1227,8 +1268,10 @@ const useOperacaoData = () => {
     // To split, we'd need /VENDA's nested formaPagamento[].tipoTransacao field.
     const pgtoAgg = new Map<string, { nome: string; valor: number; count: number }>()
     for (const fp of formasPgto) {
-      const tipo = fp.tipoFormaPagamento || 'OUTROS'
-      const prev = pgtoAgg.get(tipo) ?? { nome: labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
+      const rawTipo = fp.tipoFormaPagamento || 'OUTROS'
+      const cartao = isCartaoForma(rawTipo, fp.nomeFormaPagamento)
+      const tipo = cartao ? CARTAO_TIPO : rawTipo
+      const prev = pgtoAgg.get(tipo) ?? { nome: cartao ? 'Cartão' : labelFormaPagamento(fp.nomeFormaPagamento || tipo), valor: 0, count: 0 }
       prev.valor += fp.valorPagamento
       prev.count += 1
       pgtoAgg.set(tipo, prev)
@@ -1245,12 +1288,16 @@ const useOperacaoData = () => {
 
     // ── Daily evolution of apurado (only fechados — open caixas don't have
     // definitive value until closure) ──
+    // Usa o apurado CONFERIDO (Σ *Apurado do /CAIXA_APRESENTADO) por caixa, igual
+    // ao card "Total Apurado" — assim a evolução e o badge "Apurado até hoje"
+    // batem com os cards. Sem conferência, cai no apurado de vendas do /CAIXA.
     const dailyAgg = new Map<string, number>()
     for (const c of caixas) {
       if (!c.fechado) continue
       const dia = c.dataMovimento?.substring(0, 10)
       if (!dia) continue
-      dailyAgg.set(dia, (dailyAgg.get(dia) ?? 0) + c.apurado)
+      const ap = apresentadoByCaixa.get(c.caixaCodigo)
+      dailyAgg.set(dia, (dailyAgg.get(dia) ?? 0) + (ap ? ap.apurado : c.apurado))
     }
 
     const apuradoPorDia: ApuradoPorDia[] = []
@@ -1305,7 +1352,18 @@ const useOperacaoData = () => {
       : (caixasCacheCmp.isCacheHit ? caixasCacheCmp.caixas : (caixasCmpRaw?.resultados ?? []))
     const cmpTotalLitros = abastCmp.reduce((s, a) => s + a.quantidade, 0)
     const cmpFaturamentoCombustivel = abastCmp.reduce((s, a) => s + a.valorTotal, 0)
-    const cmpTotalApurado = cmpCaixas.reduce((s, c) => s + c.apurado, 0)
+    // Apurado CONFERIDO do período de comparação (Σ *Apurado do /CAIXA_APRESENTADO),
+    // pra o delta do card "Total Apurado" comparar conferido × conferido. Sem
+    // conferência no período anterior, cai no apurado de vendas do /CAIXA.
+    const cmpApuradoConferido = (apresentadoCmpRaw ?? []).reduce((s, a) => {
+      const rec = a as unknown as Record<string, number>
+      let t = 0
+      for (const f of CAIXA_APRESENTADO_FORMAS) t += Number(rec[`${f.key}Apurado`]) || 0
+      return s + t
+    }, 0)
+    const cmpTotalApurado = (apresentadoCmpRaw ?? []).length > 0
+      ? cmpApuradoConferido
+      : cmpCaixas.reduce((s, c) => s + c.apurado, 0)
     const cmpTotalDiferenca = cmpCaixas.filter((c) => c.fechado).reduce((s, c) => s + c.diferenca, 0)
 
     // Per-frentista previous-period totals (para comparativos do módulo Produtividade)
@@ -1382,7 +1440,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, vendedoresRaw, fuelVendaItens, fuelAutorizados, fuelVendaItensPrev, fuelAutorizadosPrev, prev, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
+  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, apresentadoCmpRaw, vendedoresRaw, fuelVendaItens, fuelAutorizados, fuelVendaItensPrev, fuelAutorizadosPrev, prev, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,

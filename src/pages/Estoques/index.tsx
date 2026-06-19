@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Warehouse, Package, RefreshCw, BarChart3, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
+import { Warehouse, Package, RefreshCw, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -13,7 +13,6 @@ import { useEstoquesLayout } from '@/store/moduleLayout'
 import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
 import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
-import EstoqueMedio from '@/pages/Estoques/components/abas/EstoqueMedio'
 import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
 import NecessidadeEstoque from '@/pages/Estoques/components/abas/NecessidadeEstoque'
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
@@ -24,9 +23,18 @@ const TAB_ICONS: Record<string, typeof Warehouse> = {
   visao: LayoutDashboard,
   geral: Package,
   giro: RefreshCw,
-  estoqueMedio: BarChart3,
   mediaVendas: TrendingUp,
   necessidade: ShoppingCart,
+}
+
+/** Intervalo de datas coberto pela janela móvel (hoje − (N−1) dias … hoje). */
+const fmtJanelaPeriodo = (janelaDias: number): string => {
+  const fim = new Date()
+  const ini = new Date()
+  ini.setDate(ini.getDate() - (janelaDias - 1))
+  const fmt = (d: Date) =>
+    `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  return `${fmt(ini)} a ${fmt(fim)}`
 }
 
 const TableSkeleton = () => (
@@ -87,7 +95,7 @@ const Estoques = () => {
   const { productAnalytics, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias)
 
   // Abas cuja métrica principal depende da janela móvel — mostram o seletor.
-  const showJanelaSelector = ['visao', 'giro', 'estoqueMedio', 'mediaVendas', 'necessidade'].includes(activeTab)
+  const showJanelaSelector = ['visao', 'giro', 'mediaVendas', 'necessidade'].includes(activeTab)
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
   const showSkeleton = isLoading && productAnalytics.length === 0
@@ -147,6 +155,9 @@ const Estoques = () => {
                         Janela de cálculo
                       </span>
                       <JanelaSelect value={janelaDias} onChange={setJanelaDias} />
+                      <span className="text-[11px] tabular-nums text-gray-400/80 dark:text-gray-500/80">
+                        {fmtJanelaPeriodo(janelaDias)}
+                      </span>
                     </div>
                   )}
                   {activeTab === 'visao' && (
@@ -159,7 +170,6 @@ const Estoques = () => {
                   )}
                   {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
                   {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
-                  {activeTab === 'estoqueMedio' && <EstoqueMedio data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
                   {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
                   {activeTab === 'necessidade' && (
                     <NecessidadeEstoque

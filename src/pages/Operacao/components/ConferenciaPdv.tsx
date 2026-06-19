@@ -51,6 +51,19 @@ const ConferenciaPdv = ({ conferencia }: ConferenciaPdvProps) => {
   )
   const cartao = useCartaoBreakdown(cartaoCaixa ? [cartaoCaixa.caixaCodigo] : [], pdvByCaixa, cartaoCaixa !== null)
 
+  // Filtro por tipo de PDV (Pista / Conveniência) — igual à aba Turnos de Caixa.
+  const [filterPdv, setFilterPdv] = useState<'todos' | 'pista' | 'conveniencia'>('todos')
+  const lista = useMemo(
+    () => conferencia.filter((c) =>
+      filterPdv === 'todos'
+        ? true
+        : filterPdv === 'pista'
+        ? c.pdvLabel === 'Pista'
+        : c.pdvLabel === 'Conveniência',
+    ),
+    [conferencia, filterPdv],
+  )
+
   if (conferencia.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-20 text-center dark:border-gray-700 dark:bg-gray-900">
@@ -65,8 +78,38 @@ const ConferenciaPdv = ({ conferencia }: ConferenciaPdvProps) => {
 
   return (
     <>
+      {/* Filtro centralizado de tipo de turno: Pista × Conveniência */}
+      <div className="mb-4 flex justify-center">
+        <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+          {([
+            { id: 'todos', label: 'Todos' },
+            { id: 'pista', label: 'Pista' },
+            { id: 'conveniencia', label: 'Conveniência' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setFilterPdv(t.id)}
+              className={cn(
+                'rounded-lg px-5 py-1.5 text-xs font-medium transition-colors',
+                filterPdv === t.id
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {lista.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900">
+          Nenhum caixa de {filterPdv === 'pista' ? 'Pista' : 'Conveniência'} no período.
+        </p>
+      ) : (
       <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
-        {conferencia.map((c) => (
+        {lista.map((c) => (
           <section key={`${c.caixaCodigo}-${c.dataMovimento}`} className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-2.5 dark:border-gray-700">
               <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{c.turno}</span>
@@ -135,6 +178,7 @@ const ConferenciaPdv = ({ conferencia }: ConferenciaPdvProps) => {
           </section>
         ))}
       </div>
+      )}
 
       <CartaoDetalheModal
         open={cartaoCaixa !== null}

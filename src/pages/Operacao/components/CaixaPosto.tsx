@@ -135,6 +135,8 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
   // Filters
   const [filterNome, setFilterNome] = useState('')
   const [filterTurno, setFilterTurno] = useState('')
+  // Filtro por tipo de PDV (Pista / Conveniência) — seletor centralizado.
+  const [filterPdv, setFilterPdv] = useState<'todos' | 'pista' | 'conveniencia'>('todos')
   const [filterStatus, setFilterStatus] = useState<'todos' | 'aberto' | 'fechado'>(
     periodIsPast ? 'todos' : 'aberto'
   )
@@ -168,6 +170,9 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     return turnoGroups.filter((g) => {
       if (filterNome && !g.responsaveis.some((n) => n.toLowerCase().includes(filterNome.toLowerCase()))) return false
       if (filterTurno && g.turno !== filterTurno) return false
+      // Tipo de PDV: Pista × Conveniência (pdvLabel). 'todos' = sem filtro.
+      if (filterPdv === 'pista' && g.pdvLabel !== 'Pista') return false
+      if (filterPdv === 'conveniencia' && g.pdvLabel !== 'Conveniência') return false
       // Filtro de status é desabilitado quando há filtro vindo dos gráficos
       // (do contrário, o default "aberto" esconde caixas fechados que combinam com o filtro)
       if (!hasChartFilter) {
@@ -184,7 +189,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
       if (selectedDay && g.dataMovimento !== selectedDay) return false
       return true
     })
-  }, [turnoGroups, filterNome, filterTurno, filterStatus, filterDiferenca, selectedPgto, selectedDay, hasChartFilter])
+  }, [turnoGroups, filterNome, filterTurno, filterPdv, filterStatus, filterDiferenca, selectedPgto, selectedDay, hasChartFilter])
 
   // Agrupa os filteredGroups por dataMovimento, somando apurado e diferença
   // dos turnos visíveis — bate com o que o user vê quando filtra "Com diferença"
@@ -193,9 +198,14 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     data: string
     weekday: string
     turnos: TurnoGroup[]
+    /** Apurado EXIBIDO do dia: soma do apurado conferido (quando há
+     *  conferência) ou do apurado de vendas como fallback. Fecha por
+     *  subtração com o apresentado na linha do dia. */
     apuradoTotal: number
     /** Soma do apresentado dos PDVs com dado; null se nenhum tem. */
     apresentadoTotal: number | null
+    /** Diferença do dia = Σ difGroup(turno) dos fechados (apresentado −
+     *  apurado conferido), consistente com as linhas e a Conferência. */
     diferencaTotal: number
     hasAberto: boolean
   }
@@ -214,10 +224,13 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
         hasAberto: false,
       }
       day.turnos.push(g)
-      day.apuradoTotal += g.apuradoTotal
+      // Apurado do dia usa o conferido quando existe (mesma fonte do
+      // apresentado), pra que Apresentado − Apurado feche na linha do dia.
+      day.apuradoTotal += g.apuradoConferidoTotal ?? g.apuradoTotal
       if (g.apresentadoTotal != null) day.apresentadoTotal = (day.apresentadoTotal ?? 0) + g.apresentadoTotal
-      // Diferença só faz sentido em fechados — caixas abertos não entram na soma
-      if (g.fechado) day.diferencaTotal += g.diferencaTotal
+      // Diferença só faz sentido em fechados — caixas abertos não entram na
+      // soma. Usa difGroup (apresentado − apurado conferido), não a oficial.
+      if (g.fechado) day.diferencaTotal += difGroup(g)
       if (!g.fechado) day.hasAberto = true
       map.set(data, day)
     }
@@ -241,11 +254,12 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
     return dayOverrides.has(day.data) ? !defaultCollapsed : defaultCollapsed
   }
 
-  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
+  const hasActiveFilter = filterNome !== '' || filterTurno !== '' || filterPdv !== 'todos' || filterStatus !== 'aberto' || filterDiferenca !== 'todas'
 
   const clearFilters = () => {
     setFilterNome('')
     setFilterTurno('')
+    setFilterPdv('todos')
     setFilterStatus('aberto')
     setFilterDiferenca('todas')
   }
@@ -390,44 +404,19 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
 
   const abertoGroups = turnoGroups.filter((g) => !g.fechado)
 
-  // Diferença EXIBIDA nos Turnos = apresentado − apurado (fecha por subtração,
-  // igual à Conferência). Sem dado de apresentado, cai na diferença oficial.
-  const difGroup = (g: TurnoGroup): number =>
-    g.apresentadoTotal != null ? g.apresentadoTotal - g.apuradoTotal : g.diferencaTotal
-
-  // Resumo de diferenças (apenas turnos fechados — caixa aberto não tem
-  // diferença definitiva). Tolerância de cents para tratar arredondamento.
-  const diferencaSummary = useMemo(() => {
-    let sobras = 0
-    let faltas = 0
-    let apuradoFechados = 0
-    let countSobra = 0
-    let countFalta = 0
-    let countFechados = 0
-    for (const g of filteredGroups) {
-      if (!g.fechado) continue
-      countFechados++
-      apuradoFechados += g.apuradoTotal
-      const dif = difGroup(g)
-      if (dif > 0.005) {
-        sobras += dif
-        countSobra++
-      } else if (dif < -0.005) {
-        faltas += dif
-        countFalta++
-      }
-    }
-    return {
-      sobras,
-      faltas,
-      saldo: sobras + faltas,
-      apuradoFechados,
-      countSobra,
-      countFalta,
-      hasData: countSobra > 0 || countFalta > 0,
-      hasFechados: countFechados > 0,
-    }
-  }, [filteredGroups])
+  // Diferença EXIBIDA nos Turnos = apresentado − apurado CONFERIDO (mesma fonte
+  // do /CAIXA_APRESENTADO, fecha por subtração igual à Conferência por PDV).
+  // Usar o apuradoConferido (não o apuradoTotal de VENDAS) evita inflar a
+  // diferença em postos de pista, onde a venda a prazo entra no apurado de
+  // vendas mas não no apresentado. Sem dado de conferência, cai na oficial.
+  // function declaration (hoisted) — usada também no useMemo `daysGroups` que
+  // aparece ANTES no corpo; como const arrow daria TDZ ("Cannot access difGroup
+  // before initialization"), declaramos como função.
+  function difGroup(g: TurnoGroup): number {
+    return g.apresentadoTotal != null && g.apuradoConferidoTotal != null
+      ? g.apresentadoTotal - g.apuradoConferidoTotal
+      : g.diferencaTotal
+  }
 
   return (
     <div className="space-y-4">
@@ -855,6 +844,31 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
         </div>
       )}
 
+      {/* Filtro centralizado de tipo de turno: Pista × Conveniência */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+          {([
+            { id: 'todos', label: 'Todos' },
+            { id: 'pista', label: 'Pista' },
+            { id: 'conveniencia', label: 'Conveniência' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setFilterPdv(t.id)}
+              className={cn(
+                'rounded-lg px-5 py-1.5 text-xs font-medium transition-colors',
+                filterPdv === t.id
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Turno groups table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="px-6 pb-3 pt-4">
@@ -882,43 +896,6 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           </div>
         </div>
 
-        {/* Resumo de diferenças — faixa compacta entre o título e os filtros.
-            Aparece quando o filtro de status inclui fechados (Fechado ou Todos)
-            e há ao menos um turno fechado na visão filtrada. */}
-        {filterStatus === 'todos' && diferencaSummary.hasFechados && (
-          <div
-            className="flex flex-wrap items-center justify-end gap-2 border-y border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800/50"
-          >
-            <span style={{ color: '#374151', fontSize: '13px' }}>
-              Apurado fechados:{' '}
-              <span style={{ fontWeight: 500 }}>{formatCurrency(diferencaSummary.apuradoFechados)}</span>
-            </span>
-            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
-            <span style={{ color: '#166534', fontSize: '13px', fontWeight: 500 }}>
-              Sobras +{formatCurrency(diferencaSummary.sobras)}
-              <span style={{ color: '#9ca3af', fontSize: '13px', fontWeight: 400, marginLeft: '4px' }}>
-                ({diferencaSummary.countSobra})
-              </span>
-            </span>
-            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
-            <span style={{ color: '#991b1b', fontSize: '13px', fontWeight: 500 }}>
-              Faltas {formatCurrency(diferencaSummary.faltas)}
-              <span style={{ color: '#9ca3af', fontSize: '13px', fontWeight: 400, marginLeft: '4px' }}>
-                ({diferencaSummary.countFalta})
-              </span>
-            </span>
-            <span style={{ color: '#d1d5db', fontSize: '13px' }}>·</span>
-            <span
-              style={{
-                color: diferencaSummary.saldo >= 0 ? '#166534' : '#991b1b',
-                fontSize: '13px',
-                fontWeight: 500,
-              }}
-            >
-              Saldo {`${diferencaSummary.saldo >= 0 ? '+' : ''}${formatCurrency(diferencaSummary.saldo)}`}
-            </span>
-          </div>
-        )}
 
         <div className="border-b border-gray-200 px-6 pb-4 pt-3 dark:border-gray-700">
           {/* Filters */}
@@ -997,9 +974,10 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                 {daysGroups.map((day) => {
                   const dayCollapsed = isDayCollapsed(day)
                   const dataFmt = day.data.split('-').reverse().join('/')
-                  // Diferença do dia = apresentado − apurado (consistente com as
-                  // linhas/Conferência); fallback na oficial sem apresentado.
-                  const difDia = day.apresentadoTotal != null ? day.apresentadoTotal - day.apuradoTotal : day.diferencaTotal
+                  // Diferença do dia = Σ difGroup(turno) dos fechados (apresentado
+                  // − apurado conferido), já agregada no daysGroups — consistente
+                  // com as linhas dos turnos e com a Conferência por PDV.
+                  const difDia = day.diferencaTotal
                   const diferencaPositiva = difDia > 0.005
                   return (
                     <React.Fragment key={day.data}>
@@ -1130,10 +1108,16 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             </>
                           ) : (() => {
                             const eff = getApuradoEfetivo(g)
+                            // Quando há conferência (/CAIXA_APRESENTADO), mostra o
+                            // apurado CONFERIDO pra que Apresentado − Apurado =
+                            // Diferença feche na própria linha. Sem conferência,
+                            // cai no apurado efetivo (aberto/parcial).
+                            const apuradoExibido = g.apuradoConferidoTotal ?? eff.value
+                            const isPartial = g.apuradoConferidoTotal == null && eff.isPartial
                             return (
                               <>
-                                {formatCurrency(eff.value)}
-                                {eff.isPartial && (
+                                {formatCurrency(apuradoExibido)}
+                                {isPartial && (
                                   <span className="ml-1 text-[10px] font-normal text-amber-600 dark:text-amber-400">parcial</span>
                                 )}
                               </>

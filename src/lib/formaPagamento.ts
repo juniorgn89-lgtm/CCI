@@ -8,3 +8,11 @@ export const labelFormaPagamento = (nome: string): string => {
   if (/^mensal\b/i.test(n)) return 'A Prazo'
   return n
 }
+
+/** Tipo canônico unificado de "Cartão" — o TEF (transferência eletrônica de
+ *  fundos, via maquininha) é cartão e deve ser somado junto. */
+export const CARTAO_TIPO = 'CARTAO.'
+export const isCartaoForma = (tipo: string, nome = ''): boolean => {
+  const s = `${tipo} ${nome}`.toUpperCase()
+  return s.includes('CARTAO') || s.includes('CARTÃO') || s.includes('TEF')
+}

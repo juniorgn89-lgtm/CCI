@@ -54,7 +54,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 11,
+        version: 13,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -95,7 +95,6 @@ export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layo
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'geral', label: 'Estoque geral', visible: true },
   { id: 'giro', label: 'Giro', visible: true },
-  { id: 'estoqueMedio', label: 'Estoque médio', visible: true },
   { id: 'mediaVendas', label: 'Média de venda (6m)', visible: true },
   { id: 'necessidade', label: 'Necessidade', visible: true },
 ])
@@ -121,7 +120,6 @@ export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout',
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'turnos', label: 'Turnos de Caixa', visible: true },
   { id: 'conferencia', label: 'Conferência por PDV', visible: true },
-  { id: 'fechamento', label: 'Fechamento', visible: true },
 ])
 
 export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtividade-layout', [
