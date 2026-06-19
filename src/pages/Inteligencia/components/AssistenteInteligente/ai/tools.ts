@@ -1,7 +1,6 @@
 import { fetchVendaResumo, fetchVendaItens, fetchVendaCodigosAutorizados } from '@/api/endpoints/vendas'
 import { fetchTitulosPagar, fetchTitulosReceber, fetchMovimentosConta } from '@/api/endpoints/financeiro'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
-import { fetchAbastecimentosCache, splitPeriodAtToday, buildCostMapFromLmc } from '@/api/supabase/apuracao'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import type { Produto } from '@/api/types/produto'
 import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
@@ -575,14 +574,7 @@ const getUltimaCompraCombustivel = async (
   }
 }
 
-/* ─── Tool 6: lucro bruto e margem por combustível (vendas × custo /LMC) ─── */
-
-// Subtrai N meses de uma data yyyy-MM-dd — lookback do custo no LMC.
-const monthsBeforeISO = (dateStr: string, months: number): string => {
-  const d = new Date(`${dateStr}T00:00:00`)
-  d.setMonth(d.getMonth() - months)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+/* ─── Tool 6: lucro bruto e margem por combustível (mesma base da tela Vendas) ─── */
 
 const getLucroCombustivel = async (
   ctx: ToolContext,
@@ -594,68 +586,57 @@ const getLucroCombustivel = async (
   const empresaMap = await getEmpresaMap()
   const produtoMap = await getProdutoMap()
 
-  // FONTE DO CUSTO: o custo por abastecimento JÁ É gravado pela apuração na
-  // tabela apuracao_abastecimentos (mesmo número que a tela Combustível usa).
-  // NÃO re-derivamos custo via LMC live aqui — esse cruzamento é incompleto e
-  // dava cobertura baixíssima. Dias fechados → cache; "hoje" (volátil, não
-  // apurado) → live + LMC só pra esse 1 dia.
-  const split = splitPeriodAtToday(dataInicial, dataFinal)
-  interface Linha { empresaCodigo: number; codigoProduto: number; quantidade: number; valorTotal: number; custoUnit: number | null }
-  const linhas: Linha[] = []
-
-  if (split.closedDays) {
-    const cacheRows = await fetchAbastecimentosCache({
-      empresaCodigos: empresas.length > 0 ? empresas : undefined,
-      dataInicial: split.closedDays.dataInicial,
-      dataFinal: split.closedDays.dataFinal,
-    })
-    for (const r of cacheRows) {
-      linhas.push({
-        empresaCodigo: r.empresa_codigo,
-        codigoProduto: r.codigo_produto ?? 0,
-        quantidade: r.quantidade,
-        valorTotal: r.valor_total,
-        custoUnit: typeof r.preco_custo === 'number' && r.preco_custo > 0 ? r.preco_custo : null,
-      })
+  // FONTE: /VENDA_ITEM autorizado (situacao='A'), combustível (tipoProduto='C'),
+  // custo = precoCusto × quantidade — IDÊNTICO à tela Vendas · Combustível
+  // (useFuelVendaAnalytics). Antes vinha do cache de apuração (abastecimento) +
+  // LMC, que divergia dos cartões (litros/faturamento/custo de fontes diferentes).
+  const fuelCodes = new Set<number>()
+  for (const p of produtoMap.values()) {
+    if (p.tipoProduto !== 'C') continue
+    for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
+      if (typeof c === 'number' && c > 0) fuelCodes.add(c)
     }
   }
+  const isFuel = (prod: number) => fuelCodes.size === 0 || fuelCodes.has(prod)
 
-  // Sliver volátil (hoje) — não está no cache; resolve custo pelo LMC recente.
-  if (split.todayPart) {
-    const lmcInicial = monthsBeforeISO(split.todayPart.dataInicial, 3)
-    const [liveAbast, lmcs] = await Promise.all([
-      fetchAllPages<Awaited<ReturnType<typeof fetchAbastecimentos>>['resultados'][number]>(
+  // /VENDA_ITEM exige empresaCodigo; sem seleção, varre todas as empresas da rede.
+  const empresasToQuery = empresas.length > 0 ? empresas : [...empresaMap.keys()]
+  const [itensArrays, autArrays] = await Promise.all([
+    Promise.all(empresasToQuery.map((empCod) =>
+      fetchAllPages<Awaited<ReturnType<typeof fetchVendaItens>>['resultados'][number]>(
         ({ ultimoCodigo, limite }) =>
-          fetchAbastecimentos({ dataInicial: split.todayPart!.dataInicial, dataFinal: split.todayPart!.dataFinal, ultimoCodigo, limite }),
-        1000, 10,
+          fetchVendaItens({ empresaCodigo: empCod, dataInicial, dataFinal, ultimoCodigo, limite }),
+        1000,
+        60,
       ),
-      fetchAllPages<Awaited<ReturnType<typeof fetchLmc>>['resultados'][number]>(
-        ({ ultimoCodigo, limite }) =>
-          fetchLmc({ empresaCodigo: empresas.length > 0 ? empresas : undefined, dataInicial: lmcInicial, dataFinal: split.todayPart!.dataFinal, ultimoCodigo, limite }),
-        1000, 20,
-      ),
-    ])
-    const costMap = buildCostMapFromLmc(lmcs)
-    for (const a of liveAbast) {
-      if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
-      if (a.afericao) continue // exclui aferição (igual à tela Combustível)
-      const c = costMap.get(`${a.empresaCodigo}-${a.codigoProduto}`)
-      linhas.push({
-        empresaCodigo: a.empresaCodigo,
-        codigoProduto: a.codigoProduto,
-        quantidade: a.quantidade,
-        valorTotal: a.valorTotal,
-        custoUnit: typeof c === 'number' && c > 0 ? c : null,
-      })
-    }
+    )),
+    Promise.all(empresasToQuery.map((empCod) =>
+      fetchVendaCodigosAutorizados({ empresaCodigo: empCod, dataInicial, dataFinal }),
+    )),
+  ])
+  const autorizados = new Set<number>()
+  for (const arr of autArrays) for (const c of arr) autorizados.add(c)
+
+  interface Linha { empresaCodigo: number; codigoProduto: number; quantidade: number; valorTotal: number; custoUnit: number | null }
+  const linhas: Linha[] = []
+  for (const it of itensArrays.flat()) {
+    if (empresas.length > 0 && !empresasSet.has(it.empresaCodigo)) continue
+    if (!autorizados.has(it.vendaCodigo)) continue   // só vendas autorizadas (situacao='A')
+    if (it.quantidade <= 0) continue
+    if (!isFuel(it.produtoCodigo)) continue
+    linhas.push({
+      empresaCodigo: it.empresaCodigo,
+      codigoProduto: it.produtoCodigo,
+      quantidade: it.quantidade,
+      valorTotal: it.totalVenda,   // faturamento (mesma base do card)
+      custoUnit: typeof it.precoCusto === 'number' && it.precoCusto > 0 ? it.precoCusto : null,
+    })
   }
 
   if (linhas.length === 0) {
     return {
       periodo: { dataInicial, dataFinal },
-      erro: split.closedDays
-        ? 'Esse período (dias fechados) ainda NÃO foi apurado — não há custo gravado pra calcular lucro bruto. Rode a apuração no módulo Admin → Apuração e tente de novo.'
-        : 'Sem abastecimentos no período consultado.',
+      erro: 'Sem vendas de combustível autorizadas no período consultado.',
     }
   }
 
@@ -667,7 +648,6 @@ const getLucroCombustivel = async (
   for (const a of linhas) {
     if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
     const p = produtoMap.get(a.codigoProduto)
-    if (p && p.combustivel === false) continue // mantém só combustível
     const nome = produtoLabel(p, a.codigoProduto)
     if (filtroNome && !nome.toLowerCase().includes(filtroNome)) continue
     const custoUnit = a.custoUnit ?? 0
@@ -725,7 +705,7 @@ const getLucroCombustivel = async (
     periodo: { dataInicial, dataFinal },
     empresas_consultadas: empresas.length === 0 ? 'todas' : empresas,
     filtro_combustivel: filtroNome ?? 'todos',
-    metodo_custo: 'lucro bruto = faturamento − (custo unitário × litros). Custo = preço de custo gravado por abastecimento na apuração (mesma base da tela Combustível); dias fechados vêm do cache de apuração, o dia corrente do LMC mais recente.',
+    metodo_custo: 'lucro bruto = faturamento − (custo unitário × litros). Fonte: /VENDA_ITEM autorizado (situacao=A), combustível (tipoProduto=C), custo = precoCusto do item — mesma base da tela Vendas · Combustível.',
     cobertura_custo_pct: Number(coberturaPct.toFixed(1)),
     aviso_cobertura: coberturaPct < 95
       ? `Atenção: ${coberturaPct.toFixed(2)}% dos litros tinham custo apurado. Os litros sem custo entram com custo 0 (margem ~100%) e inflam o lucro. Provável causa: período não reapurado após cadastro de custos, ou produto sem custo. Sinalize isso na resposta e sugira reapurar no Admin → Apuração.`

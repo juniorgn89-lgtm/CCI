@@ -64,11 +64,6 @@ const formatBrDate = (yyyymmdd: string): string => {
 const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
   const { empresaCodigos } = useFilterStore()
   const empresaCodigo = empresaCodigos[0] ?? null
-  // Linha destacada na tabela "Comparativo de eficiência" — útil pra comparar bombas
-  const [selectedBomba, setSelectedBomba] = useState<number | null>(null)
-  const toggleSelectedBomba = (codigo: number) => {
-    setSelectedBomba((curr) => (curr === codigo ? null : codigo))
-  }
 
   const { mode, manutencoes, configs, setMode, setManutencao, clearManutencao } = useManutencaoStore()
   const config = getConfigOrDefault(configs, empresaCodigo)
@@ -690,86 +685,6 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
             </div>
           )
         })}
-      </div>
-
-      {/* Comparativo de eficiência */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-5 py-3 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comparativo de eficiência</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Bomba</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Litros/mês</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Média/abast.</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">vs. Mês Anterior</th>
-                <th className="w-[140px] px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Desgaste</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Próx. Manutenção</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {stats.map((s, idx) => {
-                const meta = wearStatusMeta[s.wearStatus]
-                const showVar = s.prevMedia > 0 && Math.abs(s.mediaQueda) <= 200
-                const rowSelected = selectedBomba === s.bomba.bombaCodigo
-                return (
-                  <tr
-                    key={s.bomba.bombaCodigo}
-                    onClick={() => toggleSelectedBomba(s.bomba.bombaCodigo)}
-                    aria-selected={rowSelected}
-                    className={cn(
-                      'cursor-pointer transition-colors',
-                      rowSelected
-                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40'
-                        : cn('hover:bg-gray-50 dark:hover:bg-gray-800/40', idx % 2 === 1 && 'bg-gray-50/70 dark:bg-gray-800/30'),
-                    )}
-                  >
-                    <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100">{s.bomba.descricao}</td>
-                    <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
-                      {formatLiters(s.litrosMes)}
-                    </td>
-                    <td className={cn(
-                      'px-4 py-2.5 text-right text-sm tabular-nums',
-                      s.mediaCaiu15 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'
-                    )}>
-                      {formatLiters(s.mediaPorAbastecimento)}
-                    </td>
-                    <td className={cn(
-                      'px-4 py-2.5 text-right text-sm font-medium tabular-nums',
-                      !showVar ? 'text-gray-400'
-                        : s.mediaQueda >= 0 ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    )}>
-                      {!showVar ? '—' : `${s.mediaQueda >= 0 ? '+' : ''}${s.mediaQueda.toFixed(2)}%`}
-                    </td>
-                    <td className="w-[140px] px-4 py-2.5">
-                      {s.wearStatus === 'sem-registro' ? (
-                        <span className="text-xs text-gray-400">Sem registro</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-                            <div
-                              className={cn('h-1.5 rounded-full', meta.barFill)}
-                              style={{ width: `${Math.min(100, s.desgastePct)}%` }}
-                            />
-                          </div>
-                          <span className={cn('shrink-0 text-[10px] font-semibold tabular-nums', meta.text)}>
-                            {Math.min(100, s.desgastePct).toFixed(2)}%
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                      {s.manutencao ? `+${formatLiters(s.proximaEstimadaLitros)}` : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       {/* Sumário visual de status (rodapé contextual) */}
