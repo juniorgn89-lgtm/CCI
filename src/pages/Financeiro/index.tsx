@@ -72,6 +72,9 @@ const Financeiro = () => {
     cardDuplicatasAberto,
     cardPagarAberto,
     cartoesAppsAVencer,
+    cartoesReceberBruto,
+    cartoesReceberLiquido,
+    cartoesReceberCount,
     carteiraDigitalItems,
     modoRecebimento,
     cartoesAVencer,
@@ -165,6 +168,9 @@ const Financeiro = () => {
                       <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
                       <CartoesEModo
                         cartoesAppsAVencer={cartoesAppsAVencer}
+                        cartoesReceberBruto={cartoesReceberBruto}
+                        cartoesReceberLiquido={cartoesReceberLiquido}
+                        cartoesReceberCount={cartoesReceberCount}
                         carteiraDigitalItems={carteiraDigitalItems}
                         modoRecebimento={modoRecebimento}
                       />

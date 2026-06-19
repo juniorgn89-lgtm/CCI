@@ -20,6 +20,30 @@ export interface LocalPeriodFilter {
 export interface OpenBalanceCard {
   total: number
   count: number
+  /** Parte VENCIDA (vencimento < hoje) do saldo em aberto. */
+  vencidoTotal: number
+  vencidoCount: number
+  /** Parte A VENCER (vencimento >= hoje) do saldo em aberto. */
+  aVencerTotal: number
+  aVencerCount: number
+}
+
+/**
+ * Quebra um conjunto de linhas (com `statusTag` e um valor em aberto) em
+ * vencido × a vencer, montando o OpenBalanceCard completo.
+ */
+const buildOpenBalanceCard = <T extends { statusTag: string }>(
+  rows: T[],
+  valueOf: (r: T) => number,
+): OpenBalanceCard => {
+  let total = 0, vencidoTotal = 0, vencidoCount = 0, aVencerTotal = 0, aVencerCount = 0
+  for (const r of rows) {
+    const v = valueOf(r)
+    total += v
+    if (r.statusTag === 'vencido') { vencidoTotal += v; vencidoCount++ }
+    else if (r.statusTag === 'a-vencer') { aVencerTotal += v; aVencerCount++ }
+  }
+  return { total, count: rows.length, vencidoTotal, vencidoCount, aVencerTotal, aVencerCount }
 }
 
 export interface FinanceKpiData {
@@ -188,22 +212,35 @@ const toReceivableRow = (t: TituloReceber, hoje: string): ReceivableRow => {
   }
 }
 
-/** Mapeia um título a pagar pra linha de tabela (com status/dias de atraso). */
+/**
+ * Mapeia um título a pagar pra linha de tabela (com status/dias de atraso).
+ *
+ * A API retorna `situacao` em Title Case ("Pago"/"Aberto"/"Parcial"/"Cancelado")
+ * — comparamos em maiúsculo pra não errar. Conta como pendência só o que tem
+ * SALDO em aberto e não está pago/cancelado, então "Aberto" E "Parcial" entram
+ * (espelhando o "A pagar" do webPosto); títulos "Pago" com resíduo de valor
+ * (juros/multa não baixados) NÃO entram.
+ */
 const toPayableRow = (t: TituloPagar, hoje: string): PayableRow => {
-  const isPending = t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO'
-  const isOverdue = isPending && t.vencimento < hoje
+  const sit = (t.situacao ?? '').toUpperCase()
+  // Saldo igual ao webPosto: valor + acréscimo (juros/multa) − desconto − pago.
+  const saldoRestante = Math.max(0, (t.valor ?? 0) + (t.acrescimo ?? 0) - (t.desconto ?? 0) - (t.valorPago ?? 0))
+  const isCancelado = sit === 'CANCELADO'
+  const isPending = !isCancelado && sit !== 'PAGO' && saldoRestante > 0
+  const venc = (t.vencimento ?? '').split('T')[0]
+  const isOverdue = isPending && venc < hoje
   const diasAtraso = isOverdue
-    ? Math.floor((new Date(hoje).getTime() - new Date(t.vencimento).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor((new Date(hoje).getTime() - new Date(venc).getTime()) / (1000 * 60 * 60 * 24))
     : 0
   let statusTag: PayableRow['statusTag'] = 'pago'
-  if (t.situacao === 'CANCELADO') statusTag = 'cancelado'
+  if (isCancelado) statusTag = 'cancelado'
   else if (isPending) statusTag = isOverdue ? 'vencido' : 'a-vencer'
   return {
     ...t,
-    situacaoLabel: t.situacao === 'PAGO' ? 'Pago' : t.situacao === 'CANCELADO' ? 'Cancelado' : isOverdue ? 'Vencido' : 'A Vencer',
+    situacaoLabel: isCancelado ? 'Cancelado' : !isPending ? 'Pago' : isOverdue ? 'Vencido' : 'A Vencer',
     statusTag,
     diasAtraso,
-    saldoRestante: t.valor - t.valorPago,
+    saldoRestante,
   }
 }
 
@@ -318,7 +355,13 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // tributos), então a janela começa em 2015; cartões pendentes são recentes (1 ano).
   const hojeStr = new Date().toISOString().split('T')[0]
   const SNAPSHOT_INICIO = '2015-01-01'
-  const cartaoSnapInicio = offsetDateByDays(hojeStr, 365)
+  // Fim no FUTURO distante: o snapshot precisa incluir os títulos A VENCER (com
+  // vencimento/movimento à frente de hoje). Cortar em "hoje" descartava parte do
+  // "a vencer" (parcelamentos longos, lançamentos com data futura).
+  const SNAPSHOT_FIM = '2045-12-31'
+  // 3 anos pra trás: recebíveis de cartão vencidos e não baixados podem ser
+  // antigos (parcelados/atrasos da administradora). Cobre o "a receber" do webPosto.
+  const cartaoSnapInicio = offsetDateByDays(hojeStr, 1095)
 
   const { data: titulosReceberPend = [], isLoading: isLoadingReceberPend } = useQuery({
     queryKey: ['titulosReceberPend', empresaCodigo],
@@ -326,7 +369,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       (p) => fetchTitulosReceber({
         empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
-        dataFinal: hojeStr,
+        dataFinal: SNAPSHOT_FIM,
         apenasPendente: true,
         ultimoCodigo: p.ultimoCodigo,
         limite: p.limite,
@@ -336,20 +379,25 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     enabled: hasEmpresa,
   })
 
+  // Sem `apenasPendente`: esse flag da Quality retorna SÓ situação "Aberto" e
+  // descarta os "Parcial" (com pagamento parcial e saldo em aberto), que o
+  // webPosto soma em "A pagar". Trazemos tudo na janela e filtramos por saldo no
+  // toPayableRow. staleTime alto porque o payload é grande (todos os títulos do
+  // período, não só os abertos).
   const { data: titulosPagarPend = [], isLoading: isLoadingPagarPend } = useQuery({
     queryKey: ['titulosPagarPend', empresaCodigo],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({
         empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
-        dataFinal: hojeStr,
-        apenasPendente: true,
+        dataFinal: SNAPSHOT_FIM,
         ultimoCodigo: p.ultimoCodigo,
         limite: p.limite,
       }),
-      1000, 20,
+      1000, 30,
     ),
     enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Duplicatas EM ABERTO (snapshot) — /DUPLICATA não baixadas (pendente=true).
@@ -360,7 +408,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       (p) => fetchDuplicatas({
         empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
-        dataFinal: hojeStr,
+        dataFinal: SNAPSHOT_FIM,
         apenasPendente: true,
         ultimoCodigo: p.ultimoCodigo,
         limite: p.limite,
@@ -426,8 +474,15 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     const pendentesReceber = titulosReceber.filter((t) => t.pendente)
     const totalReceber = pendentesReceber.reduce((acc, t) => acc + t.valor, 0)
 
-    const pendentesPagar = titulosPagar.filter((t) => t.situacao !== 'PAGO' && t.situacao !== 'CANCELADO')
-    const totalPagar = pendentesPagar.reduce((acc, t) => acc + t.valor - t.valorPago, 0)
+    const isPagarPendente = (t: TituloPagar): boolean => {
+      const sit = (t.situacao ?? '').toUpperCase()
+      const saldo = (t.valor ?? 0) + (t.acrescimo ?? 0) - (t.desconto ?? 0) - (t.valorPago ?? 0)
+      return sit !== 'PAGO' && sit !== 'CANCELADO' && saldo > 0
+    }
+    const saldoPagar = (t: TituloPagar): number =>
+      Math.max(0, (t.valor ?? 0) + (t.acrescimo ?? 0) - (t.desconto ?? 0) - (t.valorPago ?? 0))
+    const pendentesPagar = titulosPagar.filter(isPagarPendente)
+    const totalPagar = pendentesPagar.reduce((acc, t) => acc + saldoPagar(t), 0)
 
     const saldoLiquido = totalReceber - totalPagar
 
@@ -436,7 +491,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     const inadimplenciaPercent = totalReceber > 0 ? (inadimplencia / totalReceber) * 100 : 0
 
     const vencidosPagar = pendentesPagar.filter((t) => t.vencimento < hoje)
-    const totalVencidosPagar = vencidosPagar.reduce((acc, t) => acc + t.valor - t.valorPago, 0)
+    const totalVencidosPagar = vencidosPagar.reduce((acc, t) => acc + saldoPagar(t), 0)
 
     const kpis: FinanceKpiData = {
       totalReceber,
@@ -481,21 +536,12 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     // (a) Notas a prazo NÃO faturadas: títulos a receber em aberto, convertido=false.
     //     Soma o VALOR EM ABERTO (título a receber não tem pagamento parcial → valor).
     const notasNaoFaturadasRows = receivablesAtraso.filter((r) => r.pendente && r.convertido === false)
-    const cardNotasNaoFaturadas: OpenBalanceCard = {
-      total: notasNaoFaturadasRows.reduce((s, r) => s + r.valor, 0),
-      count: notasNaoFaturadasRows.length,
-    }
+    const cardNotasNaoFaturadas = buildOpenBalanceCard(notasNaoFaturadasRows, (r) => r.valor)
     // (b) Duplicatas em aberto (/DUPLICATA não baixadas) — saldo restante.
-    const cardDuplicatasAberto: OpenBalanceCard = {
-      total: duplicatasAberto.reduce((s, d) => s + d.saldoRestante, 0),
-      count: duplicatasAberto.length,
-    }
+    const cardDuplicatasAberto = buildOpenBalanceCard(duplicatasAberto, (d) => d.saldoRestante)
     // (c) A pagar em aberto (/TITULO_PAGAR não baixado) — saldo restante.
     const pagarAbertoRows = payablesAtraso.filter((r) => r.statusTag === 'vencido' || r.statusTag === 'a-vencer')
-    const cardPagarAberto: OpenBalanceCard = {
-      total: pagarAbertoRows.reduce((s, r) => s + r.saldoRestante, 0),
-      count: pagarAbertoRows.length,
-    }
+    const cardPagarAberto = buildOpenBalanceCard(pagarAbertoRows, (r) => r.saldoRestante)
 
     // --- Cash flow chart data ---
     const byDay = new Map<string, { entradas: number; saidas: number }>()
@@ -522,11 +568,11 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       previstoPorDia.set(dia, cur)
     }
     for (const t of titulosPagar) {
-      if (t.situacao === 'PAGO' || t.situacao === 'CANCELADO') continue
+      if (!isPagarPendente(t)) continue
       const dia = (t.vencimento ?? '').split('T')[0]
       if (!dia || dia < hoje) continue
       const cur = previstoPorDia.get(dia) ?? { entradas: 0, saidas: 0 }
-      cur.saidas += Math.max(0, t.valor - (t.valorPago ?? 0))
+      cur.saidas += saldoPagar(t)
       previstoPorDia.set(dia, cur)
     }
 
@@ -639,6 +685,27 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     })).sort((a, b) => b.valor - a.valor)
     const cartoesAppsAVencer = carteiraDigitalItems.reduce((s, i) => s + i.valor, 0)
 
+    // KPI "Cartões e Apps a receber": TODOS os recebíveis pendentes já vencidos
+    // (venc < hoje) — todas as modalidades (crédito/débito/PIX/apps), espelhando
+    // o relatório do webPosto. Líquido = valor − taxa da administradora (a API
+    // não traz o líquido pronto; só `taxaPercentual`).
+    let cartoesReceberBruto = 0
+    let cartoesReceberLiquido = 0
+    let cartoesReceberCount = 0
+    for (const c of cartoesPend) {
+      if (!c.pendente) continue
+      const vencCartao = (c.vencimento ?? '').split('T')[0]
+      if (!vencCartao || vencCartao >= hoje) continue
+      // Líquido igual ao webPosto: desconta a taxa ARREDONDADA a 2 casas por
+      // linha (valor − round(valor × taxa%)), não a taxa cheia — assim o total
+      // bate centavo a centavo em vez de acumular o erro de arredondamento.
+      const valorCartao = c.valor ?? 0
+      const taxaValor = Math.round((valorCartao * (c.taxaPercentual ?? 0) / 100) * 100) / 100
+      cartoesReceberBruto += valorCartao
+      cartoesReceberLiquido += valorCartao - taxaValor
+      cartoesReceberCount += 1
+    }
+
     // "Modo recebimento": todos os cartões do período somados por modalidade.
     const modoMap = new Map<CartaoModalidade, number>()
     for (const c of cartoes) {
@@ -667,6 +734,9 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       cashFlowPrevPeriod: { dataInicial: prevDataInicial, dataFinal: prevDataFinal },
       diasNoPeriodo,
       cartoesAppsAVencer,
+      cartoesReceberBruto,
+      cartoesReceberLiquido,
+      cartoesReceberCount,
       carteiraDigitalItems,
       modoRecebimento,
       cartoesAVencer: cartoesPend,

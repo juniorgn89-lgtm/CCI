@@ -34,3 +34,13 @@ const ROTAS_SEM_ESCOPO = ['/estoques', '/reabastecimento']
 
 export const showsDataScope = (pathname: string): boolean =>
   !ROTAS_SEM_ESCOPO.includes(pathname)
+
+/**
+ * Rotas onde o escopo só faz sentido em "Completo" (sem a opção "Apurado").
+ * Financeiro trabalha com snapshot do que está em aberto + fluxo do mês inteiro;
+ * o recorte "só dias fechados" confunde mais do que ajuda, então só "Completo".
+ */
+const ROTAS_SO_COMPLETO = ['/financeiro']
+
+export const showsOnlyCompletoScope = (pathname: string): boolean =>
+  ROTAS_SO_COMPLETO.includes(pathname)

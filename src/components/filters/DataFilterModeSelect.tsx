@@ -1,5 +1,7 @@
 import { CheckCircle2, Layers, HelpCircle } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { useFilterStore } from '@/store/filters'
+import { showsOnlyCompletoScope } from '@/lib/globalFilters'
 import { cn } from '@/lib/utils'
 
 /* ─── Helpers de datas ─── */
@@ -70,6 +72,10 @@ const DataFilterModeSelect = () => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const setPeriodo = useFilterStore((s) => s.setPeriodo)
+  const { pathname } = useLocation()
+  // Em rotas "só completo" (ex.: Financeiro), esconde a opção "Apurado".
+  const onlyCompleto = showsOnlyCompletoScope(pathname)
+  const visibleOptions = onlyCompleto ? options.filter((o) => o.value === 'completo') : options
 
   // Computa qual modo está ativo (se algum) com base nas datas atuais.
   const today = todayParts().iso
@@ -103,7 +109,7 @@ const DataFilterModeSelect = () => {
       aria-label="Escopo dos dados"
       className="inline-flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800"
     >
-      {options.map((opt) => {
+      {visibleOptions.map((opt) => {
         const isActive = activeMode === opt.value
         return (
           <button

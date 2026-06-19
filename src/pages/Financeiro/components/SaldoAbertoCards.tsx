@@ -54,6 +54,22 @@ const Card = ({
       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
         {data.count} {data.count === 1 ? 'título em aberto' : 'títulos em aberto'}
       </p>
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+        <div>
+          <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Vencidas
+          </p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(data.vencidoTotal)}</p>
+          <p className="text-[10px] text-gray-400">{data.vencidoCount} {data.vencidoCount === 1 ? 'título' : 'títulos'}</p>
+        </div>
+        <div>
+          <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> A vencer
+          </p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{formatCurrency(data.aVencerTotal)}</p>
+          <p className="text-[10px] text-gray-400">{data.aVencerCount} {data.aVencerCount === 1 ? 'título' : 'títulos'}</p>
+        </div>
+      </div>
     </section>
   )
 }

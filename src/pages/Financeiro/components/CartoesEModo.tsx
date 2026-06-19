@@ -5,6 +5,9 @@ import type { CarteiraDigitalItem, ModoRecebimentoItem } from '@/pages/Financeir
 
 interface Props {
   cartoesAppsAVencer: number
+  cartoesReceberBruto: number
+  cartoesReceberLiquido: number
+  cartoesReceberCount: number
   carteiraDigitalItems: CarteiraDigitalItem[]
   modoRecebimento: ModoRecebimentoItem[]
 }
@@ -23,7 +26,7 @@ const MODALIDADE_COR: Record<string, string> = {
  *  - Tabela "Carteira de cartões e Apps — A vencer" (apps pendentes por administradora)
  *  - "Modo recebimento" (recebíveis do período por modalidade)
  */
-const CartoesEModo = ({ cartoesAppsAVencer, carteiraDigitalItems, modoRecebimento }: Props) => {
+const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberLiquido, cartoesReceberCount, carteiraDigitalItems, modoRecebimento }: Props) => {
   const maxModo = Math.max(...modoRecebimento.map((m) => m.valor), 0)
 
   return (
@@ -31,8 +34,10 @@ const CartoesEModo = ({ cartoesAppsAVencer, carteiraDigitalItems, modoRecebiment
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <KpiCard
-          title="Cartões e Apps · A vencer"
-          value={formatCurrency(cartoesAppsAVencer)}
+          title="Cartões e Apps a receber"
+          value={formatCurrency(cartoesReceberBruto)}
+          liquido={formatCurrency(cartoesReceberLiquido)}
+          hint={`${cartoesReceberCount} ${cartoesReceberCount === 1 ? 'recebível pendente' : 'recebíveis pendentes'} (todas as bandeiras e apps)`}
           Icon={Wallet}
           color="violet"
         />
@@ -139,10 +144,12 @@ const CartoesEModo = ({ cartoesAppsAVencer, carteiraDigitalItems, modoRecebiment
 }
 
 const KpiCard = ({
-  title, value, hint, Icon, color,
+  title, value, liquido, hint, Icon, color,
 }: {
   title: string
   value: string
+  /** Valor líquido (após taxa) — exibido como sub-linha quando presente. */
+  liquido?: string
   hint?: string
   Icon: typeof Wallet
   color: 'violet' | 'gray'
@@ -155,7 +162,14 @@ const KpiCard = ({
     <section className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="min-w-0">
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <span className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</span>
+          {liquido && (
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              líquido <span className="tabular-nums text-emerald-600 dark:text-emerald-400">{liquido}</span>
+            </span>
+          )}
+        </div>
         {hint && <p className="mt-0.5 text-[11px] text-gray-400">{hint}</p>}
       </div>
       <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', iconBg)}>
