@@ -228,7 +228,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {mode === 'auto'
-              ? 'Desgaste calculado por litros bombeados desde a última manutenção'
+              ? 'Desgaste calculado por litros vendidos desde a última manutenção'
               : 'Informe manualmente data e litros da última manutenção por bomba'}
           </p>
         </div>
@@ -258,7 +258,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
           </p>
           <ul className="ml-4 list-disc space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
             <li>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">Desgaste</span> = litros bombeados desde a última manutenção ÷ intervalo configurado. Recalcula a cada novo abastecimento.
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Desgaste</span> = litros vendidos desde a última manutenção ÷ intervalo configurado. Recalcula a cada nova venda.
             </li>
             <li>
               O <span className="font-semibold text-gray-900 dark:text-gray-100">intervalo de litros</span> e o <span className="font-semibold text-gray-900 dark:text-gray-100">% de aviso</span> são definidos por posto em Configurações.
@@ -332,7 +332,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
             <li>
               <span className="font-semibold text-gray-900 dark:text-gray-100">Automático:</span> não exige registro manual.
               Basta configurar o <span className="font-medium">intervalo de litros</span> em Configurações que cada bomba começa a mostrar desgaste e gerar alertas automaticamente, usando o
-              <span className="font-medium"> total bombeado no período</span> como base de cálculo.
+              <span className="font-medium"> total vendido no período</span> como base de cálculo.
               A célula "Última manutenção" do card aparece marcada como <span className="font-medium text-blue-600 dark:text-blue-400">Modo auto</span>.
             </li>
             <li>
@@ -388,7 +388,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
                           'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
                           rankStyle(rank),
                         )}
-                        title={`${rank}º em litros bombeados no período`}
+                        title={`${rank}º em litros vendidos no período`}
                       >
                         {rank}º
                       </span>

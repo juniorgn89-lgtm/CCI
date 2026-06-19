@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { fetchBombas, fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
@@ -7,7 +7,8 @@ import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchCaixas, fetchCaixasApresentado } from '@/api/endpoints/financeiro'
 import { CAIXA_APRESENTADO_FORMAS } from '@/api/types/financeiro'
-import { fetchVendaFormasPagamento } from '@/api/endpoints/vendas'
+import { fetchVendaFormasPagamento, fetchVendaItens, fetchVendaCodigosAutorizados } from '@/api/endpoints/vendas'
+import type { VendaItem } from '@/api/types/venda'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useAbastCache from '@/pages/Operacao/hooks/useAbastCache'
@@ -227,6 +228,9 @@ export interface ApuradoPorDia {
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
+/** Ref estável p/ default das queries de set (evita novo Set por render). */
+const EMPTY_SET: Set<number> = new Set()
+
 const fmtIsoDate = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -437,6 +441,76 @@ const useOperacaoData = () => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // ── Combustível FATURADO (VENDA_ITEM) para a agregação de BOMBAS ──
+  // As bombas passam a refletir o volume FISCAL autorizado (mesma base do card
+  // "Litros vendidos" de Vendas·Combustível), não o volume físico de
+  // /ABASTECIMENTO. Frentistas/caixas/turnos/conferência seguem em abastecimento.
+  //
+  // REUSO DELIBERADO das queryKeys/queryFns de `useFuelVendaAnalytics` no
+  // período ATUAL → o React Query DEDUPLICA (sem refazer rede quando o usuário
+  // navega entre as duas telas). Por isso os fetchers montam o conjunto por
+  // `empresaCodigos` (array) exatamente como lá.
+  const fetchFuelVendaItens = (di: string, df: string) => async (): Promise<VendaItem[]> => {
+    const perEmpresa = await Promise.all(
+      empresaCodigos.map((emp) =>
+        fetchAllPages(
+          (p) => fetchVendaItens({
+            empresaCodigo: emp,
+            dataInicial: di,
+            dataFinal: df,
+            usaProdutoLmc: false,
+            ultimoCodigo: p.ultimoCodigo,
+            limite: p.limite,
+          }),
+          1000, 50,
+        ),
+      ),
+    )
+    return perEmpresa.flat()
+  }
+  const fetchAutorizados = (di: string, df: string) => async (): Promise<Set<number>> => {
+    const sets = await Promise.all(
+      empresaCodigos.map((emp) => fetchVendaCodigosAutorizados({ empresaCodigo: emp, dataInicial: di, dataFinal: df })),
+    )
+    const all = new Set<number>()
+    for (const s of sets) for (const c of s) all.add(c)
+    return all
+  }
+
+  // Período ATUAL — MESMAS queryKeys de useFuelVendaAnalytics (dedup garantido).
+  const { data: fuelVendaItens = [] } = useQuery({
+    queryKey: ['fuel-venda-analytics', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryFn: fetchFuelVendaItens(dataInicial, dataFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+  const { data: fuelAutorizados = EMPTY_SET } = useQuery({
+    queryKey: ['fuel-venda-autorizados', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryFn: fetchAutorizados(dataInicial, dataFinal),
+    enabled: hasEmpresa,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
+  // Período ANTERIOR (janela própria do módulo — length-based). A queryKey usa o
+  // mesmo prefixo dos fetchers de combustível; como as datas são deste módulo,
+  // não colidem com as do useFuelVendaAnalytics (que usa offsetPeriod).
+  const { data: fuelVendaItensPrev = [] } = useQuery({
+    queryKey: ['fuel-venda-analytics', empresaCodigos.join(','), prev.inicial, prev.final],
+    queryFn: fetchFuelVendaItens(prev.inicial, prev.final),
+    enabled: hasEmpresa && !!prev.inicial && !!prev.final,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+  const { data: fuelAutorizadosPrev = EMPTY_SET } = useQuery({
+    queryKey: ['fuel-venda-autorizados', empresaCodigos.join(','), prev.inicial, prev.final],
+    queryFn: fetchAutorizados(prev.inicial, prev.final),
+    enabled: hasEmpresa && !!prev.inicial && !!prev.final,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
   // Vendedores de loja (conveniência) — do cache `apuracao_vendas_funcionario`.
   // Granular por DIA × funcionário (NÃO por caixa/PDV), então só dá pra atribuir
   // ao PDV de Conveniência do dia. Lê só dias fechados (o cache não cobre "hoje").
@@ -611,31 +685,68 @@ const useOperacaoData = () => {
       combustiveis: new Set<string>(),
       porCombustivel: new Map(),
     })
-    const bombaAgg = new Map<number, BombaAggEntry>()
-    const bombaDaily = new Map<number, Map<string, number>>()
-    for (const a of abastecimentos) {
-      const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
-      const prev = bombaAgg.get(bombaCod) ?? makeEmptyAgg()
-      prev.litros += a.quantidade
-      prev.count += 1
-      prev.valor += a.valorTotal
-      const prodNome = resolveProdutoNome(a.codigoProduto, a.codigoBico)
-      if (!prodNome.startsWith('Produto ')) prev.combustiveis.add(prodNome)
-      // Detalhamento por combustível
-      const combPrev = prev.porCombustivel.get(prodNome) ?? { litros: 0, count: 0, valor: 0 }
-      combPrev.litros += a.quantidade
-      combPrev.count += 1
-      combPrev.valor += a.valorTotal
-      prev.porCombustivel.set(prodNome, combPrev)
-      bombaAgg.set(bombaCod, prev)
-
-      const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
-      if (dayStr.length === 10) {
-        const dm = bombaDaily.get(bombaCod) ?? new Map<string, number>()
-        dm.set(dayStr, (dm.get(dayStr) ?? 0) + a.quantidade)
-        bombaDaily.set(bombaCod, dm)
+    // Fonte das BOMBAS = VENDA fiscal autorizada (mesma base de Vendas·Combustível),
+    // não /ABASTECIMENTO. Identifica combustível por tipoProduto 'C' (idêntico ao
+    // useFuelVendaAnalytics), expandindo aliases de código (produtoCodigo /
+    // produtoLmcCodigo / codigo). Vazio = não filtra (fallback defensivo).
+    const fuelCodes = new Set<number>()
+    for (const p of produtos) {
+      if (p.tipoProduto !== 'C') continue
+      for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
+        if (typeof c === 'number' && c > 0) fuelCodes.add(c)
       }
     }
+    const isFuel = (prod: number) => fuelCodes.size === 0 || fuelCodes.has(prod)
+    const inPeriod = (d: string, di: string, df: string) => {
+      const dd = (d ?? '').slice(0, 10)
+      return dd >= di && dd <= df
+    }
+
+    // Agrega itens de venda autorizados por bico → bomba. Itens cujo bico não
+    // mapeia pra nenhuma bomba (produtos de loja / bico 0) são ignorados.
+    const aggregateFuelVendas = (
+      itens: VendaItem[],
+      autorizados: Set<number>,
+      di: string,
+      df: string,
+    ): { agg: Map<number, BombaAggEntry>; daily: Map<number, Map<string, number>> } => {
+      const agg = new Map<number, BombaAggEntry>()
+      const daily = new Map<number, Map<string, number>>()
+      for (const it of itens) {
+        if (empresaCodigo != null && it.empresaCodigo !== empresaCodigo) continue
+        if (!autorizados.has(it.vendaCodigo)) continue
+        if (it.quantidade <= 0) continue
+        if (!isFuel(it.produtoCodigo)) continue
+        if (!inPeriod(it.dataMovimento, di, df)) continue
+        const bombaCod = bicoToBomba.get(it.bicoCodigo)
+        if (bombaCod == null) continue // bico de loja / sem bomba
+
+        const entry = agg.get(bombaCod) ?? makeEmptyAgg()
+        entry.litros += it.quantidade
+        entry.count += 1
+        entry.valor += it.totalVenda
+        const prodNome = resolveProdutoNome(it.produtoCodigo, it.bicoCodigo)
+        if (!prodNome.startsWith('Produto ')) entry.combustiveis.add(prodNome)
+        const combPrev = entry.porCombustivel.get(prodNome) ?? { litros: 0, count: 0, valor: 0 }
+        combPrev.litros += it.quantidade
+        combPrev.count += 1
+        combPrev.valor += it.totalVenda
+        entry.porCombustivel.set(prodNome, combPrev)
+        agg.set(bombaCod, entry)
+
+        const dayStr = (it.dataMovimento ?? '').substring(0, 10)
+        if (dayStr.length === 10) {
+          const dm = daily.get(bombaCod) ?? new Map<string, number>()
+          dm.set(dayStr, (dm.get(dayStr) ?? 0) + it.quantidade)
+          daily.set(bombaCod, dm)
+        }
+      }
+      return { agg, daily }
+    }
+
+    const { agg: bombaAgg, daily: bombaDaily } = aggregateFuelVendas(
+      fuelVendaItens, fuelAutorizados, dataInicial, dataFinal,
+    )
 
     const buildBombaRows = (
       agg: typeof bombaAgg,
@@ -682,31 +793,10 @@ const useOperacaoData = () => {
 
     const bombaRows = buildBombaRows(bombaAgg, bombaDaily)
 
-    // Previous-period bombas (mesmo cálculo, agregado em abastPrev)
-    const bombaAggPrev = new Map<number, BombaAggEntry>()
-    const bombaDailyPrev = new Map<number, Map<string, number>>()
-    for (const a of abastPrev) {
-      const bombaCod = bicoToBomba.get(a.codigoBico) ?? 0
-      const prev = bombaAggPrev.get(bombaCod) ?? makeEmptyAgg()
-      prev.litros += a.quantidade
-      prev.count += 1
-      prev.valor += a.valorTotal
-      const prodNome = resolveProdutoNome(a.codigoProduto, a.codigoBico)
-      if (!prodNome.startsWith('Produto ')) prev.combustiveis.add(prodNome)
-      const combPrev = prev.porCombustivel.get(prodNome) ?? { litros: 0, count: 0, valor: 0 }
-      combPrev.litros += a.quantidade
-      combPrev.count += 1
-      combPrev.valor += a.valorTotal
-      prev.porCombustivel.set(prodNome, combPrev)
-      bombaAggPrev.set(bombaCod, prev)
-
-      const dayStr = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
-      if (dayStr.length === 10) {
-        const dm = bombaDailyPrev.get(bombaCod) ?? new Map<string, number>()
-        dm.set(dayStr, (dm.get(dayStr) ?? 0) + a.quantidade)
-        bombaDailyPrev.set(bombaCod, dm)
-      }
-    }
+    // Previous-period bombas — mesma fonte (VENDA fiscal autorizada), na janela prev.
+    const { agg: bombaAggPrev, daily: bombaDailyPrev } = aggregateFuelVendas(
+      fuelVendaItensPrev, fuelAutorizadosPrev, prev.inicial, prev.final,
+    )
     const bombaRowsPrev = buildBombaRows(bombaAggPrev, bombaDailyPrev)
 
     // ── Abastecimentos table ──
@@ -1292,7 +1382,7 @@ const useOperacaoData = () => {
       frentistasList,
       combustiveisList,
     }
-  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, vendedoresRaw, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
+  }, [cacheActive, abastecimentosData, abastPrevData, abastCmpData, funcionariosRaw, bombasRaw, bicosRaw, produtosData, caixasRaw, caixasPrevRaw, caixasCmpRaw, formasPgtoRaw, apresentadoRaw, vendedoresRaw, fuelVendaItens, fuelAutorizados, fuelVendaItensPrev, fuelAutorizadosPrev, prev, empresaCodigo, dataInicial, dataFinal, nowTs, isPrevYear, comparisonMode, abastCacheCurrent.isCacheHit, abastCacheCurrent.abastecimentos, abastCachePrev.isCacheHit, abastCachePrev.abastecimentos, abastCacheCmp.isCacheHit, abastCacheCmp.abastecimentos, caixasCacheCurrent.isCacheHit, caixasCacheCurrent.caixas, caixasCacheCurrent.formasPagamento, caixasCachePrev.isCacheHit, caixasCachePrev.caixas, caixasCacheCmp.isCacheHit, caixasCacheCmp.caixas])
 
   return {
     ...computed,
