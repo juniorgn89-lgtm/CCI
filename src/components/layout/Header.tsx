@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, RefreshCw } from 'lucide-react'
+import { LayoutGrid, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
@@ -124,7 +124,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             title={focusActive ? 'Selecionar módulo (sem sair do foco)' : 'Abrir menu'}
             aria-label="Abrir menu de módulos"
           >
-            <Menu className="h-5 w-5" />
+            <LayoutGrid className="h-5 w-5" />
           </button>
 
           {/* Logo + nome — fixos na barra de topo (fora do menu que recolhe,
