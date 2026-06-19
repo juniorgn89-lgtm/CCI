@@ -76,18 +76,6 @@ const CATEGORIA_COLOR: Record<string, string> = {
   'Outros': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
 }
 
-/** Cor sólida (500) por categoria — usada em mini barras stacked. */
-const CATEGORIA_BAR_COLOR: Record<string, string> = {
-  'Filtros': 'bg-blue-500',
-  'Lubrificantes': 'bg-amber-500',
-  'Palhetas': 'bg-emerald-500',
-  'Aditivos / Fluidos': 'bg-purple-500',
-  'Acessórios': 'bg-indigo-500',
-  'Baterias': 'bg-red-500',
-  'Serviços': 'bg-gray-500',
-  'Outros': 'bg-gray-400',
-}
-
 /**
  * Cabeçalho de coluna com ícone "?" — explica a métrica via tooltip no hover.
  * Mesmo helper usado em Combustivel.tsx; replicado aqui pra evitar import
@@ -711,25 +699,15 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoFat) : undefined}
               extra={
-                computed && computed.kpis.faturamento > 0 && computed.categorias.length > 0 ? (
-                  <>
-                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      {computed.categorias.map((c) => {
-                        const pct = (c.faturamento / computed.kpis.faturamento) * 100
-                        return pct > 0 ? (
-                          <span
-                            key={c.nome}
-                            className={cn('h-full', CATEGORIA_BAR_COLOR[c.nome] ?? 'bg-gray-400')}
-                            style={{ width: `${pct}%` }}
-                            title={`${c.nome}: ${pct.toFixed(2).replace('.', ',')}%`}
-                          />
-                        ) : null
-                      })}
+                !isLoadingVendas && cmpKpis.prev.faturamento > 0 ? (
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrencyInt(cmpKpis.prev.faturamento)}
+                      </span>
                     </div>
-                    <p className="mt-1.5 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                      Mix por categoria
-                    </p>
-                  </>
+                  </div>
                 ) : null
               }
             />
@@ -747,11 +725,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoLucro) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.lucroBruto > 0 ? (
-                  <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      {formatCurrencyInt(cmpKpis.prev.lucroBruto)}
-                    </span>
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrencyInt(cmpKpis.prev.lucroBruto)}
+                      </span>
+                    </div>
                   </div>
                 ) : null
               }
@@ -764,26 +744,17 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={isLoadingVendas}
+              current={cmpKpis.atual.margemPct}
+              previous={cmpKpis.prev.margemPct > 0 ? cmpKpis.prev.margemPct : undefined}
+              comparisonLabel={cmpLabel}
               projecao={projecaoPista.isProjetada && computed ? `${projecaoPista.projetadoMargemPct.toFixed(2).replace('.', ',')}%` : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.margemPct > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {cmpKpis.prev.margemPct.toFixed(2).replace('.', ',')}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Variação</span>
-                      <span className={cn(
-                        'font-semibold',
-                        cmpKpis.atual.margemPct - cmpKpis.prev.margemPct >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400',
-                      )}>
-                        {cmpKpis.atual.margemPct - cmpKpis.prev.margemPct >= 0 ? '+' : ''}
-                        {(cmpKpis.atual.margemPct - cmpKpis.prev.margemPct).toFixed(0).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -804,12 +775,12 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               projecao={projecaoPista.isProjetada && cmpKpis.atual.ticketMedio > 0 ? formatCurrency(cmpKpis.atual.ticketMedio) : undefined}
               extra={
-                cmpKpis.atual.qtdVendas > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                !isLoadingVendas && cmpKpis.prev.ticketMedio > 0 ? (
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
-                      <span>Nº de vendas</span>
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {formatNumber(cmpKpis.atual.qtdVendas)}
+                        {formatCurrency(cmpKpis.prev.ticketMedio)}
                       </span>
                     </div>
                   </div>

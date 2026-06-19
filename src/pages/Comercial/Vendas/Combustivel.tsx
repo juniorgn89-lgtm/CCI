@@ -78,8 +78,8 @@ const variationColor = (v: number): string => {
   return 'text-gray-400 dark:text-gray-500'
 }
 
-/** Formata percentual estilo "+12,5%" ou "−4,2%". */
-const formatPct = (v: number, digits = 0): string => {
+/** Formata percentual estilo "+12,50%" ou "−4,20%". */
+const formatPct = (v: number, digits = 2): string => {
   const sign = v > 0 ? '+' : v < 0 ? '−' : ''
   return `${sign}${Math.abs(v).toFixed(digits).replace('.', ',')}%`
 }
@@ -214,7 +214,7 @@ interface ComercialVendasCombustivelProps {
 }
 
 const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombustivelProps = {}) => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
   const empresaNome = useEmpresaNome()
   const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
@@ -471,17 +471,67 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     const src = mesesFuelFilter === 'Todos'
       ? lbLitroData.monthly
       : (lbLitroData.monthlyByFuel[mesesFuelFilter] ?? [])
-    return src.map((m) => ({
-      mes: formatMonth(m.mes),
-      litros: m.litros,
-      lbPorLitro: m.lbPorLitro,
-      faturamento: m.faturamento,
-      lucroBruto: m.lucroBruto,
-      margemPct: m.margemPct,
-      isCurrentMonth: m.isCurrentMonth,
-      semCusto: m.semCusto,
-    }))
-  }, [lbLitroData.monthly, lbLitroData.monthlyByFuel, mesesFuelFilter])
+
+    // O gráfico de 12 meses vem do cache (apuracao_*), que pode divergir dos
+    // cartões (live) no mês selecionado — custo/faturamento calculados em momentos
+    // diferentes. Quando o período é UM ÚNICO mês, sobrepõe o ponto desse mês com
+    // os valores LIVE dos cartões (fonte autoritativa), pra o último ponto do
+    // gráfico bater exatamente com os KPIs do topo. Histórico fica do cache.
+    const shiftMonth = (yyyymm: string, n: number): string => {
+      const [y, mo] = yyyymm.split('-').map(Number)
+      const d = new Date(y, mo - 1 - n, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    }
+    const selMonth = (dataFinal ?? '').slice(0, 7)
+    const singleMonth = !!dataInicial && !!dataFinal && dataInicial.slice(0, 7) === selMonth
+    const liveSel = mesesFuelFilter === 'Todos'
+      ? { litros: vendaKpis.litros, faturamento: vendaKpis.faturamento, lucroBruto: vendaKpis.lucroBruto, margemPct: vendaKpis.margemPct, lbPorLitro: vendaKpis.lbPorLitro }
+      : (() => {
+          const f = fuelTypeData.find((x) => x.nome === mesesFuelFilter)
+          return f ? { litros: f.litros, faturamento: f.faturamento, lucroBruto: f.lucroBruto, margemPct: f.margem, lbPorLitro: f.lbPorLitro } : null
+        })()
+    const overlay = singleMonth && liveSel && liveSel.litros > 0 ? liveSel : null
+
+    // Mês de comparação (mês/ano anterior conforme o toggle) — sobrepõe com o
+    // valor LIVE do card "mês anterior" (vendaCmp). Só no "Todos" (vendaCmp é
+    // agregado de todos os combustíveis, não tem quebra por produto).
+    const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+    const cmpMonth = singleMonth ? shiftMonth(selMonth, cmpOffset) : ''
+    const overlayCmp = singleMonth && mesesFuelFilter === 'Todos' && vendaCmp.litros > 0
+      ? { litros: vendaCmp.litros, faturamento: vendaCmp.faturamento, lucroBruto: vendaCmp.lucroBruto, margemPct: vendaCmp.margemPct, lbPorLitro: vendaCmp.litros > 0 ? vendaCmp.lucroBruto / vendaCmp.litros : 0 }
+      : null
+
+    const mapped = src.map((m) => {
+      const ov = overlay && m.mes === selMonth ? overlay
+        : overlayCmp && m.mes === cmpMonth ? overlayCmp
+        : null
+      return {
+        mes: formatMonth(m.mes),
+        litros: ov ? ov.litros : m.litros,
+        lbPorLitro: ov ? ov.lbPorLitro : m.lbPorLitro,
+        faturamento: ov ? ov.faturamento : m.faturamento,
+        lucroBruto: ov ? ov.lucroBruto : m.lucroBruto,
+        margemPct: ov ? ov.margemPct : m.margemPct,
+        isCurrentMonth: m.isCurrentMonth,
+        semCusto: ov ? false : m.semCusto,
+      }
+    })
+
+    // Mês selecionado ainda não está no cache → acrescenta o ponto live no fim.
+    if (overlay && !src.some((m) => m.mes === selMonth)) {
+      mapped.push({
+        mes: formatMonth(selMonth),
+        litros: overlay.litros,
+        lbPorLitro: overlay.lbPorLitro,
+        faturamento: overlay.faturamento,
+        lucroBruto: overlay.lucroBruto,
+        margemPct: overlay.margemPct,
+        isCurrentMonth: false,
+        semCusto: false,
+      })
+    }
+    return mapped
+  }, [lbLitroData.monthly, lbLitroData.monthlyByFuel, mesesFuelFilter, dataInicial, dataFinal, vendaKpis, fuelTypeData, vendaCmp, comparisonMode])
 
   /** Meses sem custo apurado — L.B./margem não plotáveis (gap no gráfico). */
   const mesesSemCusto = useMemo(
@@ -674,26 +724,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
               extra={
-                vendaKpis.litros > 0 && fuelTypeData.length > 0 ? (
-                  <>
-                    {/* Stacked bar com a composição por tipo de combustível */}
-                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      {fuelTypeData.map((f) => {
-                        const pct = (f.litros / vendaKpis.litros) * 100
-                        return pct > 0 ? (
-                          <span
-                            key={f.produtoCodigo}
-                            className={cn('h-full', fuelColor(f.nome))}
-                            style={{ width: `${pct}%` }}
-                            title={`${f.nome}: ${pct.toFixed(2).replace('.', ',')}%`}
-                          />
-                        ) : null
-                      })}
+                vendaCmp.litros > 0 ? (
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatLiters(vendaCmp.litros)}
+                      </span>
                     </div>
-                    <p className="mt-1.5 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                      Mix por tipo de combustível
-                    </p>
-                  </>
+                  </div>
                 ) : null
               }
             />
@@ -713,11 +752,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               projDetalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))}
               extra={
                 !showSkeleton && vendaCmp.lucroBruto > 0 ? (
-                  <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      {formatCurrencyInt(vendaCmp.lucroBruto)}
-                    </span>
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formatCurrencyInt(vendaCmp.lucroBruto)}
+                      </span>
+                    </div>
                   </div>
                 ) : null
               }
@@ -730,30 +771,19 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               iconColor="text-purple-600 dark:text-purple-400"
               cardBg="bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              current={margemPctGlobal}
+              previous={vendaCmp.margemPct > 0 ? vendaCmp.margemPct : undefined}
+              comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(2).replace('.', ',')}%`)}
               extra={
                 !showSkeleton && vendaCmp.margemPct > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {`${vendaCmp.margemPct.toFixed(2).replace('.', ',')}%`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Variação</span>
-                      <span
-                        className={cn(
-                          'font-semibold',
-                          margemPctGlobal - vendaCmp.margemPct >= 0
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-red-600 dark:text-red-400',
-                        )}
-                      >
-                        {margemPctGlobal - vendaCmp.margemPct >= 0 ? '+' : ''}
-                        {(margemPctGlobal - vendaCmp.margemPct).toFixed(0).replace('.', ',')} pp
                       </span>
                     </div>
                   </div>
@@ -769,12 +799,23 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               iconColor="text-amber-600 dark:text-amber-400"
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={showSkeleton}
+              current={vendaKpis.lbPorLitro}
+              previous={vendaCmp.litros > 0 ? vendaCmp.lucroBruto / vendaCmp.litros : undefined}
+              comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatCurrency(d.lbLitro))}
               extra={
-                lbRanking ? (
+                (lbRanking || vendaCmp.litros > 0) ? (
                   <div className="space-y-1 text-[10px] tabular-nums">
+                    {vendaCmp.litros > 0 && (
+                      <div className="flex items-center justify-between gap-2 text-gray-500 dark:text-gray-400">
+                        <span>{cmpLabel === 'ano ant.' ? 'Ano anterior' : 'Mês anterior'}</span>
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          {formatCurrency(vendaCmp.litros > 0 ? vendaCmp.lucroBruto / vendaCmp.litros : 0)}
+                        </span>
+                      </div>
+                    )}
                     {lbRanking && (
                       <>
                         <div className="flex items-center justify-between gap-2">

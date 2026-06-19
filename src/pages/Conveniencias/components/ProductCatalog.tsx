@@ -113,9 +113,9 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
   const catalogTotals = useMemo(() => {
     const faturamento = filtered.reduce((s, p) => s + p.faturamento, 0)
     const lucroBruto = filtered.reduce((s, p) => s + (p.faturamento - (p.custoMedio * p.qtdVendida)), 0)
-    const margemMedia = filtered.length > 0
-      ? filtered.reduce((s, p) => s + p.margemPct, 0) / filtered.length
-      : 0
+    // Margem PONDERADA (lucro ÷ faturamento) — igual ao card "Margem" das telas.
+    // Antes era média SIMPLES das margens por produto, que divergia dos cartões.
+    const margemMedia = faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0
     return { faturamento, lucroBruto, margemMedia }
   }, [filtered])
 

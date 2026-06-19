@@ -1,4 +1,4 @@
-import { fetchVendaResumo, fetchVendaItens } from '@/api/endpoints/vendas'
+import { fetchVendaResumo, fetchVendaItens, fetchVendaCodigosAutorizados } from '@/api/endpoints/vendas'
 import { fetchTitulosPagar, fetchTitulosReceber, fetchMovimentosConta } from '@/api/endpoints/financeiro'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosCache, splitPeriodAtToday, buildCostMapFromLmc } from '@/api/supabase/apuracao'
@@ -231,34 +231,64 @@ const getVolumeCombustivel = async (
   // Mapa completo de produtos (paginado + cacheado)
   const produtoMap = await getProdutoMap()
 
-  const abast = await fetchAllPages<Awaited<ReturnType<typeof fetchAbastecimentos>>['resultados'][number]>(
-    ({ ultimoCodigo, limite }) =>
-      fetchAbastecimentos({ dataInicial, dataFinal, ultimoCodigo, limite }),
-    1000,
-    30,
-  )
+  // FONTE: /VENDA_ITEM autorizado (situacao='A') filtrado a combustível
+  // (tipoProduto='C') — IDÊNTICO à tela Vendas · Combustível (useFuelVendaAnalytics).
+  // Antes usava /ABASTECIMENTO sem escopo de empresa + cap de páginas, o que
+  // truncava redes com vários postos e SUBCONTAVA os litros do posto.
+  const fuelCodes = new Set<number>()
+  const nomeFuel = new Map<number, string>()
+  for (const p of produtoMap.values()) {
+    if (p.tipoProduto !== 'C') continue
+    for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
+      if (typeof c === 'number' && c > 0) {
+        fuelCodes.add(c)
+        if (!nomeFuel.has(c)) nomeFuel.set(c, p.nome)
+      }
+    }
+  }
+  const isFuel = (prod: number) => fuelCodes.size === 0 || fuelCodes.has(prod)
+
+  // /VENDA_ITEM exige empresaCodigo; sem seleção, varre todas as empresas da rede.
+  const empresasToQuery = empresas.length > 0 ? empresas : [...empresaMap.keys()]
+  const [itensArrays, autArrays] = await Promise.all([
+    Promise.all(empresasToQuery.map((empCod) =>
+      fetchAllPages<Awaited<ReturnType<typeof fetchVendaItens>>['resultados'][number]>(
+        ({ ultimoCodigo, limite }) =>
+          fetchVendaItens({ empresaCodigo: empCod, dataInicial, dataFinal, ultimoCodigo, limite }),
+        1000,
+        60,
+      ),
+    )),
+    Promise.all(empresasToQuery.map((empCod) =>
+      fetchVendaCodigosAutorizados({ empresaCodigo: empCod, dataInicial, dataFinal }),
+    )),
+  ])
+  const itens = itensArrays.flat()
+  const autorizados = new Set<number>()
+  for (const arr of autArrays) for (const c of arr) autorizados.add(c)
 
   const filtroNome = input.combustivelNome?.toLowerCase().trim()
   const porProduto = new Map<number, { nome: string; litros: number; faturamento: number; qtd: number }>()
   const porEmpresa = new Map<number, { litros: number; faturamento: number; qtd: number }>()
 
-  for (const a of abast) {
-    // Filtro client-side por empresa — endpoint /ABASTECIMENTO não aceita esse filtro
-    if (empresas.length > 0 && !empresasSet.has(a.empresaCodigo)) continue
-    if (a.afericao) continue // exclui aferição (igual às telas Combustível/Produtividade)
-    const nome = produtoLabel(produtoMap.get(a.codigoProduto), a.codigoProduto)
+  for (const it of itens) {
+    if (empresas.length > 0 && !empresasSet.has(it.empresaCodigo)) continue
+    if (!autorizados.has(it.vendaCodigo)) continue   // só vendas autorizadas (cruzamento /VENDA situacao='A')
+    if (it.quantidade <= 0) continue
+    if (!isFuel(it.produtoCodigo)) continue
+    const nome = nomeFuel.get(it.produtoCodigo) ?? produtoLabel(produtoMap.get(it.produtoCodigo), it.produtoCodigo)
     if (filtroNome && !nome.toLowerCase().includes(filtroNome)) continue
-    const cur = porProduto.get(a.codigoProduto) ?? { nome, litros: 0, faturamento: 0, qtd: 0 }
-    cur.litros += a.quantidade
-    cur.faturamento += a.valorTotal
+    const cur = porProduto.get(it.produtoCodigo) ?? { nome, litros: 0, faturamento: 0, qtd: 0 }
+    cur.litros += it.quantidade
+    cur.faturamento += it.totalVenda
     cur.qtd += 1
-    porProduto.set(a.codigoProduto, cur)
+    porProduto.set(it.produtoCodigo, cur)
 
-    const e = porEmpresa.get(a.empresaCodigo) ?? { litros: 0, faturamento: 0, qtd: 0 }
-    e.litros += a.quantidade
-    e.faturamento += a.valorTotal
+    const e = porEmpresa.get(it.empresaCodigo) ?? { litros: 0, faturamento: 0, qtd: 0 }
+    e.litros += it.quantidade
+    e.faturamento += it.totalVenda
     e.qtd += 1
-    porEmpresa.set(a.empresaCodigo, e)
+    porEmpresa.set(it.empresaCodigo, e)
   }
 
   const lista = Array.from(porProduto.values())

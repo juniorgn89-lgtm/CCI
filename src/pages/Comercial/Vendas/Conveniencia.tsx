@@ -222,17 +222,11 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               projecao={projecao.isProjetada ? formatCurrencyInt(projecao.faturamento) : undefined}
               extra={
                 kpis ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {formatCurrencyInt(kpis.cmp.faturamento)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Itens vendidos</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {kpis.qtdItens.toLocaleString('pt-BR')}
                       </span>
                     </div>
                   </div>
@@ -251,23 +245,11 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               projecao={projecao.isProjetada ? formatCurrencyInt(projecao.lucroBruto) : undefined}
               extra={
                 kpis ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {formatCurrencyInt(kpis.cmp.margem)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Diferença</span>
-                      <span className={cn(
-                        'font-semibold',
-                        kpis.margem - kpis.cmp.margem >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400',
-                      )}>
-                        {kpis.margem - kpis.cmp.margem >= 0 ? '+' : ''}
-                        {formatCurrencyInt(kpis.margem - kpis.cmp.margem)}
                       </span>
                     </div>
                   </div>
@@ -286,23 +268,11 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               projecao={projecao.isProjetada ? `${(projecao.faturamento > 0 ? (projecao.lucroBruto / projecao.faturamento) * 100 : 0).toFixed(2).replace('.', ',')}%` : undefined}
               extra={
                 kpis ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {kpis.cmp.margemPct.toFixed(2).replace('.', ',')}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Diferença</span>
-                      <span className={cn(
-                        'font-semibold',
-                        kpis.margemPct - kpis.cmp.margemPct >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400',
-                      )}>
-                        {kpis.margemPct - kpis.cmp.margemPct >= 0 ? '+' : ''}
-                        {(kpis.margemPct - kpis.cmp.margemPct).toFixed(2).replace('.', ',')}pp
                       </span>
                     </div>
                   </div>
@@ -321,17 +291,11 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               projecao={projecao.isProjetada ? formatCurrency(projecao.ticketMedio) : undefined}
               extra={
                 kpis && kpis.qtdItens > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-between gap-2">
                       <span>{cmpLabelFull}</span>
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {formatCurrency(kpis.cmp.ticketMedio)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Atendimentos</span>
-                      <span className="font-semibold text-gray-700 dark:text-gray-300">
-                        {kpis.qtdCupons.toLocaleString('pt-BR')}
                       </span>
                     </div>
                   </div>

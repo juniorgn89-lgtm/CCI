@@ -1,8 +1,5 @@
 import { useMemo } from 'react'
-import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, Clock, LineChart as LineChartIcon, HelpCircle } from 'lucide-react'
-import {
-  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, LabelList, ReferenceLine, Legend,
-} from 'recharts'
+import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, LineChart as LineChartIcon, HelpCircle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
@@ -231,66 +228,6 @@ const CategoriaDetalheModal = ({
             )}
           </section>
 
-          {/* Distribuição diária */}
-          {porDia.length >= 2 && (
-            <section className="rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
-                  <Clock className="h-3.5 w-3.5" />
-                  Faturamento diário da categoria
-                  <span title="Faturamento (R$) por dia no período. A linha tracejada azul indica o ritmo médio projetado pros dias restantes do mês." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <HelpCircle className="h-3 w-3" />
-                  </span>
-                </span>
-                {projecao?.isProjetada && projecao.dailyRate > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 dark:text-blue-400">
-                    <LineChartIcon className="h-3 w-3" />
-                    Ritmo projetado: {formatCurrency(projecao.dailyRate)}/dia
-                  </span>
-                )}
-              </div>
-              <div className="p-3">
-                <ResponsiveContainer width="100%" height={200}>
-                  <ComposedChart data={porDia} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                    <XAxis dataKey="dataFmt" tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(v).replace('R$ ', '')} />
-                    <Tooltip
-                      formatter={((value: number, name: string) => [
-                        formatCurrency(value),
-                        name === 'projecaoLine' ? 'Ritmo projetado' : 'Faturamento',
-                      ]) as never}
-                      contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                    />
-                    {projecao?.isProjetada && projecao.dailyRate > 0 && (
-                      <Legend wrapperStyle={{ fontSize: 10 }} iconType="line" formatter={(v) => v === 'projecaoLine' ? 'Ritmo projetado' : 'Faturamento'} />
-                    )}
-                    <Bar dataKey="fat" fill="#f59e0b" radius={[3, 3, 0, 0]} name="Faturamento">
-                      <LabelList dataKey="fat" position="top" formatter={((v: number) => formatCurrency(v).replace('R$ ', '')) as never} style={{ fontSize: 9, fill: '#374151' }} />
-                    </Bar>
-                    {projecao?.isProjetada && projecao.dailyRate > 0 && (
-                      <ReferenceLine
-                        y={projecao.dailyRate}
-                        stroke="#2563eb"
-                        strokeDasharray="4 4"
-                        strokeWidth={1.5}
-                        label={{
-                          value: 'Ritmo projetado',
-                          position: 'insideTopLeft',
-                          fontSize: 9,
-                          fill: '#2563eb',
-                        }}
-                      />
-                    )}
-                    {/* Adiciona Line vazio só pra entrar na Legend acima */}
-                    {projecao?.isProjetada && projecao.dailyRate > 0 && (
-                      <Line dataKey={() => null} stroke="#2563eb" strokeDasharray="4 4" name="projecaoLine" dot={false} legendType="line" />
-                    )}
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-          )}
         </div>
       </DialogContent>
     </Dialog>
