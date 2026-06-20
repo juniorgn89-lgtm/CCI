@@ -13,6 +13,7 @@ import NotificationBell from '@/components/layout/NotificationBell'
 import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
+import { HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 
 interface HeaderProps {
   onMobileMenuOpen: () => void
@@ -148,14 +149,17 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             </span>
           </Link>
 
-          {/* Rede, posto e "Como funciona?" agrupados num menu (hambúrguer). */}
-          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
+          {/* Slot de título do módulo no Header (ao lado do logo), preenchido por
+              páginas com <PageHeaderTitle placement="header">. Piloto: Central da Rede. */}
+          <div id={HEADER_TITLE_SLOT_ID} className="flex min-w-0 items-center" />
         </div>
 
         <div className="flex items-center gap-2">
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL
               (carimbada a cada ciclo de fetch), em todas as telas. */}
           <UltimaAtualizacaoInfo />
+          {/* Menu rede/posto/"Como funciona?" (☰) — movido pro lado direito. */}
+          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
           {/* Os filtros de posto/escopo/comparativo agora vivem na TopBar
               consolidada (sub-bar do AppLayout), junto do período e do título. */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />

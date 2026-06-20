@@ -88,37 +88,40 @@ const Dashboard = () => {
   return (
     <div className="space-y-4">
       <>
-          <PageHeaderTitle>
-            <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-                  <LayoutDashboard className="h-4 w-4 text-white" />
+          {/* Piloto: título + Modo Foco sobem pro Header (à esquerda do ☰). */}
+          <PageHeaderTitle placement="header">
+            <div className="flex items-center gap-2.5">
+              {/* Divisor sutil separando o logo do título do módulo. */}
+              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+              {/* Ícone leve (sem badge navy) referenciando a tela atual. */}
+              <LayoutDashboard className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+                  <FocusModeToggle />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-                    <FocusModeToggle />
-                  </div>
-                  <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                    {periodIsPast
-                      ? 'Resumo consolidado do período selecionado'
-                      : 'Acompanhamento dos postos em tempo real'}
-                  </p>
-                </div>
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                  {periodIsPast
+                    ? 'Resumo consolidado do período selecionado'
+                    : 'Acompanhamento dos postos em tempo real'}
+                </p>
               </div>
-              {visibleTabs.length > 0 && (
-                <TopBarTabs
-                  active={activeTab}
-                  onChange={(id) => setActiveTab(id as TabId)}
-                  tabs={visibleTabs.map((t) => ({
-                    id: t.id,
-                    label: t.label,
-                    Icon: TAB_ICONS[t.id as TabId] ?? Activity,
-                  }))}
-                />
-              )}
             </div>
           </PageHeaderTitle>
+          {/* Abas continuam na TopBar (slot esquerdo padrão). */}
+          {visibleTabs.length > 0 && (
+            <PageHeaderTitle>
+              <TopBarTabs
+                active={activeTab}
+                onChange={(id) => setActiveTab(id as TabId)}
+                tabs={visibleTabs.map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                  Icon: TAB_ICONS[t.id as TabId] ?? Activity,
+                }))}
+              />
+            </PageHeaderTitle>
+          )}
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>
