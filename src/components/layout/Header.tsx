@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -106,7 +106,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
   return (
     <header className="shrink-0 bg-white dark:bg-gray-900">
-      <div className="relative flex h-12 items-center justify-between px-4 md:px-6">
+      <div className="relative flex h-12 items-center justify-between pl-3 pr-4 md:pr-6">
         {/* Posto atual — centralizado e apagado, só pra indicar o que se vê. */}
         {contextoLabel && (
           <span className="pointer-events-none absolute left-1/2 hidden max-w-[40%] -translate-x-1/2 truncate text-sm font-medium text-gray-400 dark:text-gray-500 md:block">
@@ -128,11 +128,14 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           </button>
 
           {/* Logo + nome — fixos na barra de topo (fora do menu que recolhe,
-              estilo Gmail). Badge navy "V" + bolinha verde de status. */}
-          <Link
-            to="/"
-            aria-label="Página inicial"
-            title="Visor360"
+              estilo Gmail). Badge navy "V" + bolinha verde de status.
+              Link externo pro Portal CCI. */}
+          <a
+            href="https://portal-cci-eight.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Abrir Portal CCI"
+            title="Abrir Portal CCI"
             className="group mr-1 flex shrink-0 items-center gap-2.5"
           >
             <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-base font-bold text-white shadow-sm transition-transform group-hover:scale-105">
@@ -146,7 +149,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
               <span className="text-sm font-bold text-gray-900 dark:text-white">Visor360</span>
               <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
             </span>
-          </Link>
+          </a>
 
           {/* Slot de título do módulo no Header (ao lado do logo), preenchido por
               páginas com <PageHeaderTitle placement="header">. Piloto: Central da Rede. */}
