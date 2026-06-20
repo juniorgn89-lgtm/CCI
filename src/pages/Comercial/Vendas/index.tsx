@@ -94,46 +94,54 @@ const ComercialVendas = () => {
 
   return (
     <div className="relative space-y-6">
-      <PageHeaderTitle>
-        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
-          {/* Título curto + Modo Foco (igual ao padrão da Inteligência) */}
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-              <LayoutGrid className="h-4 w-4 text-white" />
+      {/* Título + Modo Foco sobem pro Header (à esquerda do ☰). */}
+      <PageHeaderTitle placement="header">
+        <div className="flex items-center gap-2.5">
+          {/* Divisor sutil separando o logo do título do módulo. */}
+          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+          {/* Ícone leve (sem badge navy) referenciando a tela atual. */}
+          <LayoutGrid className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Vendas</h1>
+              <FocusModeToggle />
             </div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Vendas</h1>
-            <FocusModeToggle />
+            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+              Mix consolidado — combustível, pista e conveniência
+            </p>
           </div>
-
-          {/* Abas dentro da TopBar (consolidadas, sem barra separada) */}
-          {hasEmpresa && visibleTabs.length > 0 && (
-            <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {visibleTabs.map((t) => {
-                const meta = TAB_META.get(t.id as TabId)
-                const Icon = meta?.Icon ?? LayoutGrid
-                const isActive = activeTab === t.id
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => handleSetTab(t.id as TabId)}
-                    className={cn(
-                      'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
-                      isActive
-                        ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                    )}
-                    title={meta?.subtitle}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {t.label}
-                  </button>
-                )
-              })}
-            </div>
-          )}
         </div>
       </PageHeaderTitle>
+
+      {/* Abas continuam na TopBar (slot esquerdo padrão). */}
+      {hasEmpresa && visibleTabs.length > 0 && (
+        <PageHeaderTitle>
+          <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+            {visibleTabs.map((t) => {
+              const meta = TAB_META.get(t.id as TabId)
+              const Icon = meta?.Icon ?? LayoutGrid
+              const isActive = activeTab === t.id
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleSetTab(t.id as TabId)}
+                  className={cn(
+                    'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-all',
+                    isActive
+                      ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+                  )}
+                  title={meta?.subtitle}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </PageHeaderTitle>
+      )}
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>

@@ -92,20 +92,27 @@ const Financeiro = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle>
-        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-              <Landmark className="h-4 w-4 text-white" />
+      <PageHeaderTitle placement="header">
+        <div className="flex items-center gap-2.5">
+          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+          <Landmark className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
+              <FocusModeToggle />
             </div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
-            <FocusModeToggle />
+            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+              Títulos, cartões e fluxo de caixa
+            </p>
           </div>
-          {hasEmpresa && visibleTabs.length > 0 && (
-            <TopBarTabs
-              active={activeTab}
-              onChange={setActiveTab}
-              tabs={visibleTabs.map((t) => {
+        </div>
+      </PageHeaderTitle>
+      {hasEmpresa && visibleTabs.length > 0 && (
+        <PageHeaderTitle>
+          <TopBarTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            tabs={visibleTabs.map((t) => {
                 const overdue = t.id === 'receber'
                   ? (kpis?.countVencidosReceber ?? 0)
                   : t.id === 'pagar'
@@ -130,9 +137,8 @@ const Financeiro = () => {
                 }
               })}
             />
-          )}
-        </div>
-      </PageHeaderTitle>
+        </PageHeaderTitle>
+      )}
       <HeaderTray>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>

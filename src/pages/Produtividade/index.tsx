@@ -113,32 +113,37 @@ const Produtividade = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle>
-        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-              <BarChart3 className="h-4 w-4 text-white" />
+      <PageHeaderTitle placement="header">
+        <div className="flex items-center gap-2.5">
+          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+          <BarChart3 className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+              <FocusModeToggle />
             </div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
-            <FocusModeToggle />
+            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+              Desempenho de frentistas e vendedores
+            </p>
           </div>
-
-          {hasEmpresa && visibleTabs.length > 0 && (
-            <TopBarTabs
-              active={modo !== 'frentistas' ? 'visao' : prodTab}
-              onChange={(id) => { if (modo === 'frentistas') setProdTab(id as SubTab) }}
-              tabs={visibleTabs.map((t) => ({
-                id: t.id,
-                label: t.label,
-                Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3,
-                // Só no modo Frentistas as sub-abas se aplicam; em Todos/Vendedores
-                // ficam visíveis porém desabilitadas (sem projeção/meta de loja).
-                disabled: modo !== 'frentistas' && t.id !== 'visao',
-              }))}
-            />
-          )}
         </div>
       </PageHeaderTitle>
+      {hasEmpresa && visibleTabs.length > 0 && (
+        <PageHeaderTitle>
+          <TopBarTabs
+            active={modo !== 'frentistas' ? 'visao' : prodTab}
+            onChange={(id) => { if (modo === 'frentistas') setProdTab(id as SubTab) }}
+            tabs={visibleTabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3,
+              // Só no modo Frentistas as sub-abas se aplicam; em Todos/Vendedores
+              // ficam visíveis porém desabilitadas (sem projeção/meta de loja).
+              disabled: modo !== 'frentistas' && t.id !== 'visao',
+            }))}
+          />
+        </PageHeaderTitle>
+      )}
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
