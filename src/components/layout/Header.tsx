@@ -9,7 +9,6 @@ import { useFilterStore } from '@/store/filters'
 import { useTenantStore } from '@/store/tenant'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import NotificationBell from '@/components/layout/NotificationBell'
 import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
@@ -157,12 +156,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         <div className="flex items-center gap-2">
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL
               (carimbada a cada ciclo de fetch), em todas as telas. */}
+          {/* Ordem: Tempo real · Atualizar · Engrenagem (módulo) · ☰ (rede/posto). */}
           <UltimaAtualizacaoInfo />
-          {/* Menu rede/posto/"Como funciona?" (☰) — movido pro lado direito. */}
-          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
-          {/* Os filtros de posto/escopo/comparativo agora vivem na TopBar
-              consolidada (sub-bar do AppLayout), junto do período e do título. */}
-          <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
           <button
             onClick={handleRefresh}
             title={lastRefreshLabel}
@@ -175,7 +170,10 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <RefreshCw className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`} />
           </button>
-          <NotificationBell />
+          {/* Engrenagem do módulo (ModuleSettings via slot). */}
+          <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
+          {/* Menu rede/posto/"Como funciona?" (☰). */}
+          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
         </div>
       </div>
     </header>
