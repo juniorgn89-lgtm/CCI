@@ -140,6 +140,8 @@ const DETALHE_TABS: { id: DetalheTab; label: string }[] = [
 interface KpiCardProps {
   label: string
   value: string
+  /** Texto de ajuda exibido num tooltip (ícone "?") ao lado do label. */
+  help?: string
   hint?: string
   /** Bloco rico opcional após hint (divisor + linha de contexto adicional). */
   extra?: ReactNode
@@ -160,10 +162,20 @@ interface KpiCardProps {
   mostrarProjDetalhe?: boolean
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe }: KpiCardProps) => (
   <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+        {label}
+        {help && (
+          <span className="group relative inline-flex cursor-help">
+            <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
+            <span className="pointer-events-none absolute left-0 top-full z-50 mt-1 max-w-[220px] whitespace-normal rounded-md bg-gray-900 px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+              {help}
+            </span>
+          </span>
+        )}
+      </p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-5 w-5', iconColor)} />
       </div>
@@ -262,6 +274,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       lucroBruto: number
       custo: number
       descontos: number
+      acrescimos: number
     }
     interface DayLine {
       data: string
@@ -286,7 +299,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       if (!byDay.has(date)) {
         byDay.set(date, {
           fuels: new Map(),
-          totals: { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0, descontos: 0 },
+          totals: { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0, descontos: 0, acrescimos: 0 },
         })
       }
       const day = byDay.get(date)!
@@ -295,6 +308,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       day.totals.lucroBruto += r.lucroBruto
       day.totals.custo += r.custo
       day.totals.descontos += r.desconto
+      day.totals.acrescimos += r.acrescimo
       const prev = day.fuels.get(r.combustivelNome) ?? {
         nome: r.combustivelNome,
         litros: 0,
@@ -302,12 +316,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         lucroBruto: 0,
         custo: 0,
         descontos: 0,
+        acrescimos: 0,
       }
       prev.litros += r.litros
       prev.faturamento += r.faturamento
       prev.lucroBruto += r.lucroBruto
       prev.custo += r.custo
       prev.descontos += r.desconto
+      prev.acrescimos += r.acrescimo
       day.fuels.set(r.combustivelNome, prev)
     }
 
@@ -335,7 +351,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
           faturamento: v.totals.faturamento,
           lucroBruto: v.totals.lucroBruto,
           custo: v.totals.custo,
-          acrescimos: 0,
+          acrescimos: v.totals.acrescimos,
           descontos: v.totals.descontos,
           variacaoSemanal,
           fuels: Array.from(v.fuels.values()).sort((a, b) => b.faturamento - a.faturamento),
@@ -711,6 +727,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             <div className="grid grid-cols-2 gap-3 lg:col-span-4 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
+              help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados."
               value={showSkeleton ? '—' : formatLiters(vendaKpis.litros)}
               Icon={Droplets}
               iconBg="bg-cyan-100 dark:bg-cyan-900/30"
@@ -738,6 +755,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="Lucro bruto"
+              help="Lucro bruto do período: faturamento líquido − custo (CMV) dos combustíveis."
               value={showSkeleton ? '—' : formatCurrencyInt(vendaKpis.lucroBruto)}
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
@@ -765,6 +783,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="Margem"
+              help="Margem bruta: (lucro bruto ÷ faturamento líquido) × 100."
               value={showSkeleton ? '—' : `${margemPctGlobal.toFixed(2).replace('.', ',')}%`}
               Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
@@ -792,6 +811,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             <KpiCard
               label="L.B./Litro"
+              help="Lucro bruto por litro vendido: lucro bruto ÷ litros."
               value={showSkeleton ? '—' : formatCurrency(vendaKpis.lbPorLitro)}
               hint="Lucro bruto por litro"
               Icon={TrendingUp}
@@ -936,17 +956,17 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <GroupTh label="Eficiência" colSpan={3} />
                           </tr>
                           <tr>
-                            <th className="px-3 py-2 text-left font-medium">Data</th>
-                            <th className="px-3 py-2 text-left font-medium">Dia da semana</th>
-                            <th className="px-3 py-2 text-right font-medium">Litros</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Var. semanal</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
-                            <th className="px-3 py-2 text-right font-medium">Lucro bruto</th>
-                            <th className="px-3 py-2 text-right font-medium">Descontos</th>
-                            <th className="px-3 py-2 text-right font-medium">Margem</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Preço venda</th>
-                            <th className="px-3 py-2 text-right font-medium">Preço custo</th>
-                            <th className="px-3 py-2 text-right font-medium">L.B. litro</th>
+                            <ThWithHelp align="left" label="Data" help="Dia do movimento (data fiscal)." />
+                            <ThWithHelp align="left" label="Dia da semana" help="Dia da semana correspondente." />
+                            <ThWithHelp label="Litros" help="Litros vendidos no dia (base fiscal)." />
+                            <ThWithHelp groupStart label="Var. semanal" help="Variação % de litros vs o mesmo dia 7 dias antes." />
+                            <ThWithHelp groupStart label="Faturamento" help="Faturamento líquido = Bruto + Acréscimo − Desconto. Bruto = preço de bomba × litros." />
+                            <ThWithHelp label="Lucro bruto" help="Faturamento líquido − custo (CMV) do dia." />
+                            <ThWithHelp label="Acrés./Desc." help="Acréscimos − descontos do dia (líquido do ajuste). Valor negativo = desconto predominou." />
+                            <ThWithHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+                            <ThWithHelp groupStart label="Preço venda" help="Preço médio de venda por litro: faturamento ÷ litros." />
+                            <ThWithHelp label="Preço custo" help="Custo médio de aquisição por litro: custo ÷ litros." />
+                            <ThWithHelp label="L.B. litro" help="Lucro bruto por litro: preço venda − preço custo (R$/L)." />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -985,7 +1005,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrencyInt(d.lucroBruto)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                  {formatCurrency(d.descontos)}
+                                  {formatCurrency(d.acrescimos - d.descontos)}
                                 </td>
                                 <td className="px-2 py-1">
                                   <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
@@ -1018,7 +1038,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             </td>
                             <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(detalheDiaADia.total.faturamento)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.lucroBruto)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.descontos)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.acrescimos - detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.total.faturamento > 0
                                 ? `${((detalheDiaADia.total.lucroBruto / detalheDiaADia.total.faturamento) * 100).toFixed(2).replace('.', ',')}%`
@@ -1072,7 +1092,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <ThWithHelp align="left" label="Combustível" help="Tipo de combustível vendido no período." />
                             <ThWithHelp label="Litros" help="Volume total vendido no período (L)." />
                             <ThWithHelp groupStart label="Variação semanal" help="Variação % de litros vs a semana anterior (mesmo intervalo, 7 dias antes)." />
-                            <ThWithHelp groupStart label="Faturamento" help="Receita total da venda desse combustível (R$)." />
+                            <ThWithHelp groupStart label="Faturamento" help="Faturamento líquido = Bruto + Acréscimo − Desconto. Bruto = preço de bomba × litros." />
                             <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
                             <ThWithHelp label="Acréscimos" help="Acréscimos aplicados nas vendas desse combustível (R$)." />
                             <ThWithHelp label="Descontos" help="Descontos concedidos nas vendas desse combustível (R$)." />
