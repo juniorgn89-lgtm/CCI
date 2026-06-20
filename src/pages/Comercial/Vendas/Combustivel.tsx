@@ -22,6 +22,7 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
+import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
 import InfoHint from '@/components/ui/InfoHint'
@@ -128,10 +129,22 @@ interface KpiCardProps {
   projDetalhe?: ReactNode
   /** Se o detalhe por combustível deve aparecer (estado global expandido). */
   mostrarProjDetalhe?: boolean
+  /** Torna o card clicável (abre o drill-down de conferência). */
+  onClick?: () => void
 }
 
-const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe }: KpiCardProps) => (
-  <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe, onClick }: KpiCardProps) => (
+  <div
+    className={cn(
+      'flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700',
+      cardBg,
+      onClick && 'cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500',
+    )}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+  >
     <div className="flex items-center justify-between">
       <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
         {label}
@@ -205,6 +218,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [selectedFuel, setSelectedFuel] = useState<FuelVendaFuelType | null>(null)
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
+  const [litrosModalOpen, setLitrosModalOpen] = useState(false)
   const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
   // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
   // projeção por combustível.
@@ -688,8 +702,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             <div className="grid grid-cols-2 gap-3 lg:col-span-4 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
-              help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados."
+              help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados. Clique para a conferência físico × fiscal (perda/sobra)."
               value={showSkeleton ? '—' : formatLiters(vendaKpis.litros)}
+              onClick={() => setLitrosModalOpen(true)}
               Icon={Droplets}
               iconBg="bg-cyan-100 dark:bg-cyan-900/30"
               iconColor="text-cyan-600 dark:text-cyan-400"
@@ -1464,6 +1479,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         dataInicial={dataInicial}
         dataFinal={dataFinal}
         fuelColor={fuelColor}
+      />
+
+      <LitrosVendidosModal
+        open={litrosModalOpen}
+        onClose={() => setLitrosModalOpen(false)}
+        dataInicial={dataInicial}
+        dataFinal={dataFinal}
       />
     </div>
   )
