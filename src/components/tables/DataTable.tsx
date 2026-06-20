@@ -9,10 +9,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 export interface Column<T> {
   key: string
   label: string
+  /** Texto de ajuda exibido num "?" ao lado do rótulo da coluna. */
+  help?: string
   render?: (row: T) => ReactNode
   sortable?: boolean
   align?: 'left' | 'center' | 'right'
@@ -180,6 +183,7 @@ const DataTable = <T extends Record<string, unknown>>({
                 )}
               >
                 {col.label}
+                {col.help && <InfoHint text={col.help} />}
                 {col.sortable && <SortIcon columnKey={col.key} />}
               </div>
             </TableHead>

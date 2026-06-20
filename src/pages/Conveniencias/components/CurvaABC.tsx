@@ -14,6 +14,7 @@ type Classe = 'A' | 'B' | 'C'
 
 interface ABCRow {
   produtoCodigo: number
+  referencia: string
   nome: string
   faturamento: number
   participacao: number
@@ -36,16 +37,18 @@ const classeStyle: Record<Classe, string> = {
 const buildCols = (maxFat: number): Column<ABCRow>[] => [
   {
     key: 'classe', label: 'Classe', align: 'center', sortable: true,
+    help: 'Classe ABC pelo faturamento acumulado: A até 80%, B 80–95%, C 95–100%.',
     render: (r) => (
       <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold', classeStyle[r.classe])}>
         {r.classe}
       </span>
     ),
   },
-  { key: 'nome', label: 'Produto', sortable: true },
-  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
-  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(2)}%` },
-  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, render: (r) => `${r.acumulado.toFixed(2)}%` },
+  { key: 'referencia', label: 'Ref.', sortable: true, help: 'Código de referência (SKU) do produto.', render: (r) => <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.referencia || '—'}</span> },
+  { key: 'nome', label: 'Produto', sortable: true, help: 'Nome do produto.' },
+  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, help: 'Receita total do produto no período (R$).', render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
+  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, help: '% do faturamento total que este produto representa.', render: (r) => `${r.participacao.toFixed(2)}%` },
+  { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, help: 'Faturamento acumulado (%), do maior pro menor — base da classe ABC.', render: (r) => `${r.acumulado.toFixed(2)}%` },
 ]
 
 const CurvaABC = ({ products }: CurvaABCProps) => {
@@ -79,6 +82,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
       acum += p.faturamento
       rows.push({
         produtoCodigo: p.produtoCodigo,
+        referencia: p.referencia,
         nome: p.nome,
         faturamento: p.faturamento,
         participacao: totalFat > 0 ? (p.faturamento / totalFat) * 100 : 0,
@@ -186,7 +190,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
               keyExtractor={(r) => r.produtoCodigo}
               enableRowHighlight
               groups={[
-                { label: '', span: 2 },             // Classe · Produto
+                { label: '', span: 3 },             // Classe · Ref · Produto
                 { label: 'Financeiro', span: 1 },   // Faturamento
                 { label: 'Distribuição', span: 2 }, // Participação · Acumulado
               ]}

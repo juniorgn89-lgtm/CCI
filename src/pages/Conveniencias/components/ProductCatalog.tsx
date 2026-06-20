@@ -27,26 +27,31 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
   const columns = useMemo<Column<CatalogProduct>[]>(() => [
     {
       key: 'referencia', label: 'Ref.', sortable: true,
+      help: 'Código de referência (SKU) do produto.',
       render: (r) => (
         <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.referencia || '—'}</span>
       ),
     },
-    { key: 'nome', label: 'Produto', sortable: true },
-    { key: 'grupo', label: 'Grupo', sortable: true },
+    { key: 'nome', label: 'Produto', sortable: true, help: 'Nome do produto.' },
+    { key: 'grupo', label: 'Grupo', sortable: true, help: 'Grupo de cadastro do produto.' },
     {
       key: 'precoMedioVenda', label: 'Preço Médio', align: 'right', sortable: true,
+      help: 'Preço de venda médio por unidade.',
       render: (r) => formatCurrency(r.precoMedioVenda),
     },
     {
       key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true,
+      help: 'Custo médio por unidade (CMV unitário).',
       render: (r) => formatCurrency(r.custoMedio),
     },
     {
       key: 'qtdVendida', label: 'Qtd Vendida', align: 'right', sortable: true,
+      help: 'Quantidade total de unidades vendidas no período.',
       render: (r) => formatNumber(r.qtdVendida),
     },
     {
       key: 'saldo', label: 'Cobertura', align: 'right', sortable: true,
+      help: 'Dias de estoque restantes: saldo atual ÷ venda diária média do período.',
       render: (r) => (
         <CoberturaBadge
           saldo={r.saldo}
@@ -57,10 +62,12 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     },
     {
       key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
+      help: 'Receita total do produto no período (R$).',
       render: (r) => formatCurrency(r.faturamento),
     },
     {
       key: 'projetado', label: 'Projeção', align: 'right', sortable: true,
+      help: PROJECAO_TOOLTIP_PRODUTO,
       render: (r) => {
         const proj = r.projetado ?? r.faturamento
         const isProjetada = proj > r.faturamento + 0.01 // tolerância pra float
@@ -79,12 +86,14 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     },
     {
       key: 'margemPct', label: 'Margem %', align: 'right', sortable: true,
+      help: '(Lucro bruto ÷ faturamento) × 100.',
       render: (r) => (
         <HeatmapCell value={r.margemPct} min={-10} max={50} formatted={`${r.margemPct.toFixed(2)}%`} />
       ),
     },
     {
       key: 'ativo', label: 'Status', align: 'center', sortable: true,
+      help: 'Situação cadastral do produto (ativo ou inativo).',
       render: (r) => (
         <span className={cn(
           'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',

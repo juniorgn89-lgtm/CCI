@@ -21,6 +21,7 @@ import RouteFallback from '@/components/feedback/RouteFallback'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
+import InfoHint from '@/components/ui/InfoHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
@@ -89,6 +90,8 @@ const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; fi
 interface KpiCardProps {
   label: string
   value: string
+  /** Texto de ajuda exibido num tooltip ("?") ao lado do label. */
+  help?: string
   hint?: string
   /** Bloco rico opcional após hint (divisor + linha de contexto adicional). */
   extra?: ReactNode
@@ -106,10 +109,13 @@ interface KpiCardProps {
   comparisonLabel?: string
 }
 
-const KpiCard = ({ label, value, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, current, previous, comparisonLabel }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, current, previous, comparisonLabel }: KpiCardProps) => (
   <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+        {label}
+        {help && <InfoHint text={help} />}
+      </p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-5 w-5', iconColor)} />
       </div>
@@ -655,6 +661,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard
               label="Faturamento"
+              help="Receita das vendas de produtos automotivos (pista) no período — base fiscal, vendas autorizadas."
               value={isLoadingVendas ? '—' : formatCurrencyInt(cmpKpis.atual.faturamento)}
               Icon={DollarSign}
               iconBg="bg-emerald-100 dark:bg-emerald-900/30"
@@ -680,6 +687,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
             <KpiCard
               label="Lucro bruto"
+              help="Faturamento − custo (CMV) dos produtos automotivos no período."
               value={isLoadingVendas ? '—' : formatCurrencyInt(cmpKpis.atual.lucroBruto)}
               Icon={DollarSign}
               iconBg="bg-blue-100 dark:bg-blue-900/30"
@@ -705,6 +713,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
             <KpiCard
               label="Margem"
+              help="(Lucro bruto ÷ faturamento) × 100."
               value={isLoadingVendas ? '—' : `${cmpKpis.atual.margemPct.toFixed(2).replace('.', ',')}%`}
               Icon={PieChart}
               iconBg="bg-purple-100 dark:bg-purple-900/30"
@@ -730,6 +739,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
             <KpiCard
               label="Ticket médio"
+              help="Faturamento ÷ número de vendas (cupons) com produto de pista no período."
               value={isLoadingVendas ? '—' : formatCurrency(cmpKpis.atual.ticketMedio)}
               hint="Faturamento ÷ nº de vendas"
               Icon={Receipt}
@@ -812,15 +822,15 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                         <GroupTh label="Eficiência" colSpan={3} />
                       </tr>
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium">Data</th>
-                        <th className="px-3 py-2 text-right font-medium">Qtde</th>
-                        <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
-                        <th className="px-3 py-2 text-right font-medium">Custo</th>
-                        <th className="px-3 py-2 text-right font-medium">Lucro Bruto</th>
-                        <th className="px-3 py-2 text-right font-medium">Margem</th>
-                        <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Preço médio</th>
-                        <th className="px-3 py-2 text-right font-medium">Custo médio</th>
-                        <th className="px-3 py-2 text-right font-medium">L.B. Médio</th>
+                        <HeaderHint align="left" label="Data" help="Dia do movimento (data fiscal)." />
+                        <HeaderHint label="Qtde" help="Quantidade de itens automotivos vendidos no dia." />
+                        <HeaderHint groupStart label="Faturamento" help="Receita das vendas de produtos automotivos no dia (R$)." />
+                        <HeaderHint label="Custo" help="CMV (Custo da Mercadoria Vendida) = preço de custo × quantidade vendida. É o que você pagou pelos produtos vendidos — base do lucro bruto e da margem." />
+                        <HeaderHint label="Lucro Bruto" help="Faturamento − Custo (CMV) do dia." />
+                        <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+                        <HeaderHint groupStart label="Preço médio" help="Preço de venda médio por unidade: faturamento ÷ quantidade." />
+                        <HeaderHint label="Custo médio" help="Custo médio por unidade: CMV ÷ quantidade (custo unitário, não o total)." />
+                        <HeaderHint label="L.B. Médio" help="Lucro bruto médio por unidade: preço médio − custo médio." />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1102,6 +1112,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 <table className="w-full text-sm">
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
+                      <HeaderHint align="left" label="Ref." help="Código de referência (SKU) do produto." />
                       <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />
                       <HeaderHint align="left" label="Categoria" help="Família PS- (filtros, lubrificantes, etc.)." />
                       <HeaderHint label="Unidades" help="Quantidade total de unidades vendidas." />
@@ -1144,6 +1155,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
                                 )}
                               >
+                                <td className="px-3 py-2 font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{p.referencia || '—'}</td>
                                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                                   <span className="block max-w-md truncate" title={p.nome}>{p.nome}</span>
                                 </td>
@@ -1187,6 +1199,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                           })}
                           {/* Linha Total */}
                           <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                            <td className="px-3 py-2.5" />
                             <td className="px-4 py-2.5">Total</td>
                             <td className="px-4 py-2.5" />
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>

@@ -12,6 +12,7 @@ interface ParetoAnalysisProps {
 
 interface ParetoRow {
   produtoCodigo: number
+  referencia: string
   nome: string
   faturamento: number
   participacao: number
@@ -42,14 +43,15 @@ const DotGrid = ({ pct, color }: { pct: number; color: string }) => {
 }
 
 const buildCols = (maxFat: number, maxLB: number): Column<ParetoRow>[] => [
-  { key: 'nome', label: 'Produto', sortable: true },
-  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
-  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, render: (r) => `${r.participacao.toFixed(2)}%` },
-  { key: 'lucroBruto', label: 'Lucro Bruto', align: 'right', sortable: true, render: (r) => <BarCell value={r.lucroBruto} max={maxLB} formatted={formatCurrency(r.lucroBruto)} color="green" /> },
-  { key: 'margemPct', label: 'Margem', align: 'right', sortable: true, render: (r) => `${r.margemPct.toFixed(2)}%` },
-  { key: 'precoMedio', label: 'Preço Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.precoMedio) },
-  { key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.custoMedio) },
-  { key: 'lbMedio', label: 'L.B. Médio', align: 'right', sortable: true, render: (r) => formatCurrency(r.lbMedio) },
+  { key: 'referencia', label: 'Ref.', sortable: true, help: 'Código de referência (SKU) do produto.', render: (r) => <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.referencia || '—'}</span> },
+  { key: 'nome', label: 'Produto', sortable: true, help: 'Nome do produto.' },
+  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, help: 'Receita total do produto no período (R$).', render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
+  { key: 'participacao', label: 'Participação', align: 'right', sortable: true, help: '% do faturamento total que este produto representa.', render: (r) => `${r.participacao.toFixed(2)}%` },
+  { key: 'lucroBruto', label: 'Lucro Bruto', align: 'right', sortable: true, help: 'Faturamento − custo (CMV) do produto.', render: (r) => <BarCell value={r.lucroBruto} max={maxLB} formatted={formatCurrency(r.lucroBruto)} color="green" /> },
+  { key: 'margemPct', label: 'Margem', align: 'right', sortable: true, help: '(Lucro bruto ÷ faturamento) × 100.', render: (r) => `${r.margemPct.toFixed(2)}%` },
+  { key: 'precoMedio', label: 'Preço Médio', align: 'right', sortable: true, help: 'Preço de venda médio por unidade.', render: (r) => formatCurrency(r.precoMedio) },
+  { key: 'custoMedio', label: 'Custo Médio', align: 'right', sortable: true, help: 'Custo médio por unidade (CMV unitário).', render: (r) => formatCurrency(r.custoMedio) },
+  { key: 'lbMedio', label: 'L.B. Médio', align: 'right', sortable: true, help: 'Lucro bruto por unidade: preço médio − custo médio.', render: (r) => formatCurrency(r.lbMedio) },
 ]
 
 const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
@@ -75,6 +77,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
       const lucroBruto = p.faturamento - p.custoMedio * p.qtdVendida
       rows.push({
         produtoCodigo: p.produtoCodigo,
+        referencia: p.referencia,
         nome: p.nome,
         faturamento: p.faturamento,
         participacao: totalFat > 0 ? (p.faturamento / totalFat) * 100 : 0,
@@ -167,7 +170,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
           keyExtractor={(r) => r.produtoCodigo}
           enableRowHighlight
           groups={[
-            { label: '', span: 1 },           // Produto
+            { label: '', span: 2 },           // Ref · Produto
             { label: 'Financeiro', span: 4 }, // Faturamento · Participação · Lucro · Margem
             { label: 'Eficiência', span: 3 }, // Preço · Custo · L.B. médio
           ]}

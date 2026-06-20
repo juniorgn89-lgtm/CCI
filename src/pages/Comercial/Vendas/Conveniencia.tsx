@@ -9,6 +9,8 @@ import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
+import HeaderHint from '@/components/tables/HeaderHint'
+import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
 import { fimDoMesIso } from '@/lib/projection'
@@ -65,6 +67,8 @@ const DeltaPill = ({ pct }: { pct: number }) => {
 interface KpiCardProps {
   label: string
   value: string
+  /** Texto de ajuda exibido num tooltip ("?") ao lado do label. */
+  help?: string
   delta?: number
   extra?: ReactNode
   Icon: typeof Store
@@ -77,12 +81,15 @@ interface KpiCardProps {
   projecao?: string
 }
 
-const KpiCard = ({ label, value, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => {
+const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => {
   if (loading) return <KpiSkeleton />
   return (
     <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
+        <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {label}
+          {help && <InfoHint text={help} />}
+        </p>
         <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
           <Icon className={cn('h-5 w-5', iconColor)} />
         </div>
@@ -213,6 +220,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard
               label="Faturamento"
+              help="Receita das vendas de produtos de conveniência no período — base fiscal, vendas autorizadas."
               value={!kpis ? '—' : formatCurrencyInt(kpis.faturamento)}
               delta={kpis ? pctDelta(kpis.faturamento, kpis.cmp.faturamento) : undefined}
               Icon={CircleDollarSign}
@@ -236,6 +244,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             />
             <KpiCard
               label="Lucro bruto"
+              help="Faturamento − custo (CMV) dos produtos de conveniência no período."
               value={!kpis ? '—' : formatCurrencyInt(kpis.margem)}
               delta={kpis ? pctDelta(kpis.margem, kpis.cmp.margem) : undefined}
               Icon={DollarSign}
@@ -259,6 +268,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             />
             <KpiCard
               label="Margem"
+              help="(Lucro bruto ÷ faturamento) × 100."
               value={!kpis ? '—' : `${kpis.margemPct.toFixed(2).replace('.', ',')}%`}
               delta={kpis ? pctDelta(kpis.margemPct, kpis.cmp.margemPct) : undefined}
               Icon={PieChart}
@@ -282,6 +292,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             />
             <KpiCard
               label="Ticket médio"
+              help="Faturamento ÷ número de vendas (cupons) de conveniência no período."
               value={!kpis ? '—' : formatCurrency(kpis.ticketMedio)}
               delta={kpis ? pctDelta(kpis.ticketMedio, kpis.cmp.ticketMedio) : undefined}
               Icon={Ticket}
@@ -369,15 +380,15 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                             <GroupTh label="Eficiência" colSpan={3} />
                           </tr>
                           <tr>
-                            <th className="px-3 py-2 text-left font-medium">Data</th>
-                            <th className="px-3 py-2 text-right font-medium">Qtde</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Faturamento</th>
-                            <th className="px-3 py-2 text-right font-medium">Custo</th>
-                            <th className="px-3 py-2 text-right font-medium">Lucro Bruto</th>
-                            <th className="px-3 py-2 text-right font-medium">Margem</th>
-                            <th className="border-l border-gray-200 px-3 py-2 text-right font-medium dark:border-gray-700">Preço médio</th>
-                            <th className="px-3 py-2 text-right font-medium">Custo médio</th>
-                            <th className="px-3 py-2 text-right font-medium">L.B. Médio</th>
+                            <HeaderHint align="left" label="Data" help="Dia do movimento (data fiscal)." />
+                            <HeaderHint label="Qtde" help="Quantidade de itens de conveniência vendidos no dia." />
+                            <HeaderHint groupStart label="Faturamento" help="Receita das vendas de produtos de conveniência no dia (R$)." />
+                            <HeaderHint label="Custo" help="CMV (Custo da Mercadoria Vendida) = preço de custo × quantidade vendida. É o que você pagou pelos produtos vendidos — base do lucro bruto e da margem." />
+                            <HeaderHint label="Lucro Bruto" help="Faturamento − Custo (CMV) do dia." />
+                            <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+                            <HeaderHint groupStart label="Preço médio" help="Preço de venda médio por unidade: faturamento ÷ quantidade." />
+                            <HeaderHint label="Custo médio" help="Custo médio por unidade: CMV ÷ quantidade (custo unitário, não o total)." />
+                            <HeaderHint label="L.B. Médio" help="Lucro bruto médio por unidade: preço médio − custo médio." />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

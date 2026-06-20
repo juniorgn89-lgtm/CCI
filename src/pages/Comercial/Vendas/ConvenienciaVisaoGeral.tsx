@@ -365,6 +365,7 @@ const ConvenienciaVisaoGeral = ({
             <table className="w-full text-sm">
               <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                 <tr>
+                  <HeaderHint align="left" label="Ref." help="Código de referência (SKU) do produto." />
                   <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />
                   <HeaderHint align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
                   <HeaderHint label="Unidades" help="Quantidade total de unidades vendidas." />
@@ -393,6 +394,7 @@ const ConvenienciaVisaoGeral = ({
                     const projetado = p.projetado ?? p.faturamento
                     return (
                       <tr key={p.produtoCodigo} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{p.referencia || '—'}</td>
                         <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                           <span className="truncate" title={p.nome}>{p.nome}</span>
                         </td>
