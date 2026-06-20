@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { LayoutGrid, Fuel, Wrench, Store } from 'lucide-react'
+import { LayoutGrid, LineChart, Fuel, Wrench, Store } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -100,7 +100,7 @@ const ComercialVendas = () => {
           {/* Divisor sutil separando o logo do título do módulo. */}
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
           {/* Ícone leve (sem badge navy) referenciando a tela atual. */}
-          <LayoutGrid className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+          <LineChart className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Vendas</h1>

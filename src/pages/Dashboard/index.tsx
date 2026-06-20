@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { LayoutDashboard, Activity, Fuel, Layers } from 'lucide-react'
+import { BarChart3, Activity, Fuel, Layers } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
@@ -94,7 +94,7 @@ const Dashboard = () => {
               {/* Divisor sutil separando o logo do título do módulo. */}
               <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
               {/* Ícone leve (sem badge navy) referenciando a tela atual. */}
-              <LayoutDashboard className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+              <BarChart3 className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>

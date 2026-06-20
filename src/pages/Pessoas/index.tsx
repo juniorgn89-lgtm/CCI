@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Users, Search, Crown, Shield, User, Fuel } from 'lucide-react'
+import { UsersRound, Search, Crown, Shield, User, Fuel } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -165,7 +165,7 @@ const Pessoas = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <Users className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
+          <UsersRound className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
