@@ -12,6 +12,7 @@ import Metas from '@/pages/Operacao/components/produtividade/Metas'
 import Destaques from '@/pages/Operacao/components/produtividade/Destaques'
 import type { FrentistaRow, AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import type { AbastecimentoRow as AbastecimentoComCusto } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { FrentistaDescAcr } from '@/pages/Operacao/hooks/useFuelVendaCost'
 
 /* ── Types compartilhados ───────────────────────────────── */
 
@@ -82,6 +83,8 @@ interface ProdutividadeTabProps {
   abastecimentoRowsPrev: AbastecimentoRow[]
   /** Linhas com custo/lucro (do analytics) — alimentam o Lucro bruto por dia. */
   abastComCusto?: AbastecimentoComCusto[]
+  /** Acréscimo/desconto reais por frentista+produto (`func|prod`), combustível. */
+  descAcrByFrentista?: Map<string, FrentistaDescAcr>
   isLoading: boolean
   /** KPIs principais do módulo, renderizados como primeira seção da aba Visão Geral. */
   topKpis?: {
@@ -104,6 +107,7 @@ const ProdutividadeTab = ({
   frentistaRowsPrev,
   abastecimentoRows,
   abastComCusto,
+  descAcrByFrentista,
   isLoading,
   topKpis,
   active: activeProp,
@@ -236,7 +240,7 @@ const ProdutividadeTab = ({
               </div>
             </div>
           )}
-          <VisaoGeral abastecimentos={abastecimentoRows} abastComCusto={abastComCusto} />
+          <VisaoGeral abastecimentos={abastecimentoRows} abastComCusto={abastComCusto} descAcrByFrentista={descAcrByFrentista} />
         </div>
       )}
       {active === 'projecoes' && <Projecoes frentistas={frentistas} periodInfo={periodInfo} />}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ClipboardCheck, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrencyInt } from '@/lib/formatters'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 import CartaoDetalheModal from '@/pages/FechamentoCaixa/components/CartaoDetalheModal'
 import type { ConferenciaCaixa } from '@/pages/Operacao/hooks/useOperacaoData'
@@ -22,7 +22,7 @@ const pdvTone = (label: string): string =>
 const diffClass = (v: number): string =>
   v < -0.005 ? 'text-red-600 dark:text-red-400' : v > 0.005 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'
 
-const fmtDiff = (v: number): string => (Math.abs(v) < 0.005 ? '—' : `${v > 0 ? '+' : ''}${formatCurrency(v)}`)
+const fmtDiff = (v: number): string => (Math.abs(v) < 0.005 ? '—' : `${v > 0 ? '+' : ''}${formatCurrencyInt(v)}`)
 
 /** Larguras fixas compartilhadas entre a tabela de formas e o rodapé de total —
  *  garante que as colunas (e os totais) fiquem alinhados entre os cards. */
@@ -153,8 +153,8 @@ const ConferenciaPdv = ({ conferencia }: ConferenciaPdvProps) => {
                             )}
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.apresentado)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.apurado)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(f.apresentado)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(f.apurado)}</td>
                         <td className={cn('px-3 py-1.5 text-right font-semibold tabular-nums', diffClass(f.diferenca))}>{fmtDiff(f.diferenca)}</td>
                       </tr>
                     )
@@ -169,8 +169,8 @@ const ConferenciaPdv = ({ conferencia }: ConferenciaPdvProps) => {
               <tbody>
                 <tr className="bg-gray-50 font-semibold dark:bg-gray-800/50">
                   <td className="px-3 py-2 text-gray-700 dark:text-gray-200">Total</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.totalApresentado)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.totalApurado)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.totalApresentado)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.totalApurado)}</td>
                   <td className={cn('px-3 py-2 text-right tabular-nums', diffClass(c.totalDiferenca))}>{fmtDiff(c.totalDiferenca)}</td>
                 </tr>
               </tbody>

@@ -298,7 +298,7 @@ const useAbastecimentosAnalytics = () => {
 
   // Custo médio (CMV) + desconto por produto, do /VENDA_ITEM (mesma fonte).
   // Substitui o custo do LMC; quando o produto não casa, cai no LMC (fallback).
-  const { vendaByProduct } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
+  const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
   const { data: produtosData } = useQuery({
@@ -824,7 +824,7 @@ const useAbastecimentosAnalytics = () => {
     return { daysTotal, daysElapsed, daysRemaining, isProjectable, scaleFactor }
   }, [dataInicial, dataFinal])
 
-  return { ...computed, projectionMeta, isLoading }
+  return { ...computed, projectionMeta, isLoading, descAcrByFrentista }
 }
 
 export default useAbastecimentosAnalytics

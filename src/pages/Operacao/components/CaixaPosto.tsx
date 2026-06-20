@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { formatCurrency, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatCurrencyTooltip, formatNumber, formatDate } from '@/lib/formatters'
 import { formatDateTimeBR } from '@/lib/datetime'
 import { cn, isPastPeriod } from '@/lib/utils'
 import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia, OperacaoKpiData } from '@/pages/Operacao/hooks/useOperacaoData'
@@ -1016,11 +1016,11 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                         </td>
                         {/* Totalizador Apresentado — alinhado à coluna Apresentado */}
                         <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">
-                          {day.apresentadoTotal != null ? formatCurrency(day.apresentadoTotal) : '—'}
+                          {day.apresentadoTotal != null ? formatCurrencyInt(day.apresentadoTotal) : '—'}
                         </td>
                         {/* Totalizador Apurado — alinhado à coluna Apurado */}
                         <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                          {formatCurrency(day.apuradoTotal)}
+                          {formatCurrencyInt(day.apuradoTotal)}
                         </td>
                         {/* Totalizador Diferença — alinhado à coluna Diferença */}
                         <td className="px-4 py-3 text-right">
@@ -1031,7 +1031,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
                             )}>
-                              {difDia > 0 ? '+' : ''}{formatCurrency(difDia)}
+                              {difDia > 0 ? '+' : ''}{formatCurrencyInt(difDia)}
                             </span>
                           ) : (
                             <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
@@ -1089,12 +1089,12 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                           {g.fechado ? formatIsoDateTime(g.fechamento) : 'Aberto'}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                          {g.apresentadoTotal != null ? formatCurrency(g.apresentadoTotal) : '—'}
+                          {g.apresentadoTotal != null ? formatCurrencyInt(g.apresentadoTotal) : '—'}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
                           {selectedPgto ? (
                             <>
-                              {formatCurrency(getPgtoValor(g, selectedPgto))}
+                              {formatCurrencyInt(getPgtoValor(g, selectedPgto))}
                               <span className="ml-1 text-[10px] font-normal text-blue-600 dark:text-blue-400">({selectedPgtoNome})</span>
                             </>
                           ) : (() => {
@@ -1107,7 +1107,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             const isPartial = g.apuradoConferidoTotal == null && eff.isPartial
                             return (
                               <>
-                                {formatCurrency(apuradoExibido)}
+                                {formatCurrencyInt(apuradoExibido)}
                                 {isPartial && (
                                   <span className="ml-1 text-[10px] font-normal text-amber-600 dark:text-amber-400">parcial</span>
                                 )}
@@ -1128,7 +1128,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
                             : !g.fechado
                             ? '-'
                             : Math.abs(dif) > 0.005
-                            ? `${dif > 0 ? '+' : ''}${formatCurrency(dif)}`
+                            ? `${dif > 0 ? '+' : ''}${formatCurrencyInt(dif)}`
                             : '-'}
                         </td>
                         <td className="px-4 py-2.5 text-center">

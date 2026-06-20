@@ -12,6 +12,12 @@ export interface FuelVendaCost {
   descRate: number
 }
 
+/** Acréscimo/desconto REAIS (R$) por frentista, só de combustível. */
+export interface FrentistaDescAcr {
+  desconto: number
+  acrescimo: number
+}
+
 /**
  * Custo médio (CMV) e taxa de desconto por produto, a partir do /VENDA_ITEM —
  * a MESMA fonte usada pro lucro bruto de combustível, substituindo o
@@ -98,7 +104,25 @@ const useFuelVendaCost = (
     return map
   }, [vendaItens, produtosData])
 
-  return { vendaByProduct, isLoading: hasEmpresa && isLoading }
+  // Acréscimo/desconto REAIS por frentista+produto, valores exatos do item de
+  // venda (totalDesconto/totalAcrescimo). Chave `${funcionarioCodigo}|${produtoCodigo}`
+  // pra a coluna "Acrés./Desc." do Comparativo de Frentistas respeitar o filtro
+  // de combustível e bater com Vendas/Combustível.
+  const descAcrByFrentista = useMemo(() => {
+    const m = new Map<string, FrentistaDescAcr>()
+    for (const it of vendaItens) {
+      if (isVendaCancelada(it)) continue
+      if (it.quantidade <= 0) continue
+      const key = `${it.funcionarioCodigo}|${it.produtoCodigo}`
+      const cur = m.get(key) ?? { desconto: 0, acrescimo: 0 }
+      cur.desconto += it.totalDesconto ?? 0
+      cur.acrescimo += it.totalAcrescimo ?? 0
+      m.set(key, cur)
+    }
+    return m
+  }, [vendaItens])
+
+  return { vendaByProduct, descAcrByFrentista, isLoading: hasEmpresa && isLoading }
 }
 
 export default useFuelVendaCost

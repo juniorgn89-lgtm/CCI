@@ -4,7 +4,7 @@ import DataTable, { type Column } from '@/components/tables/DataTable'
 import HeatmapCell from '@/components/tables/HeatmapCell'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrencyInt } from '@/lib/formatters'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
@@ -33,7 +33,7 @@ const buildColumns = (janelaDias: number): Column<ProductAnalyticsRow>[] => [
     render: (r) => <HeatmapCell value={r.giroJanela} min={0} max={2} formatted={r.giroJanela > 0 ? fmtGiro(r.giroJanela) + 'x' : '—'} />,
   },
   { key: 'saldoAtual', label: 'Saldo atual', align: 'right', sortable: true, render: (r) => <span className={cn('tabular-nums', r.saldoAtual <= 0 && 'text-red-600 dark:text-red-400')}>{fmtUnidades(r.saldoAtual)}</span> },
-  { key: 'valorEstoque', label: 'Valor em estoque', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.valorEstoque)}</span> },
+  { key: 'valorEstoque', label: 'Valor em estoque', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(r.valorEstoque)}</span> },
   { key: 'ultimaVenda', label: 'Últ. venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{fmtData(r.ultimaVenda)}</span> },
 ]
 

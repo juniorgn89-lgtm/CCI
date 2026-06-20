@@ -83,7 +83,7 @@ const Produtividade = () => {
 
   // Linhas com custo por abastecimento (lucro bruto), do useAbastecimentosAnalytics
   // (LMC/cache). Alimentam o Lucro bruto por dia da tabela; "—" até o custo chegar.
-  const { rows: abastComCusto } = useAbastecimentosAnalytics()
+  const { rows: abastComCusto, descAcrByFrentista } = useAbastecimentosAnalytics()
 
   const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
   const ritmoPrev = useMemo(() => ritmoPorHoraAtiva(abastecimentoRowsPrev), [abastecimentoRowsPrev])
@@ -206,6 +206,7 @@ const Produtividade = () => {
               abastecimentoRows={abastecimentoRows}
               abastecimentoRowsPrev={abastecimentoRowsPrev}
               abastComCusto={abastComCusto}
+              descAcrByFrentista={descAcrByFrentista}
               isLoading={isLoading}
               topKpis={topKpis}
               active={prodTab}

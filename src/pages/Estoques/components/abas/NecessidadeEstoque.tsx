@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, AlertOctagon } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import InfoHint from '@/components/ui/InfoHint'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
@@ -82,7 +82,7 @@ const buildColumns = (coberturaDias: number): Column<ProductAnalyticsRow>[] => [
       return (
         <div className="text-right">
           <p className="tabular-nums font-bold text-blue-700 dark:text-blue-400">{fmtUnidades(r.necessidadeUnidades)}</p>
-          {valor > 0 && <p className="tabular-nums text-[10px] text-gray-400">{formatCurrency(valor)}</p>}
+          {valor > 0 && <p className="tabular-nums text-[10px] text-gray-400">{formatCurrencyInt(valor)}</p>}
         </div>
       )
     },

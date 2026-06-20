@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Truck, Users, CreditCard } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
@@ -371,14 +371,14 @@ const SideTable = ({
                 {items.map((it) => (
                   <tr key={it.nome}>
                     <td className="max-w-[180px] truncate px-4 py-1.5 text-gray-700 dark:text-gray-300" title={it.nome}>{it.nome}</td>
-                    <td className="px-4 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(it.valor)}</td>
+                    <td className="px-4 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(it.valor)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <div className="shrink-0 border-t border-gray-200 px-4 py-2 text-right text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            Total · <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(total)}</span>
+            Total · <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(total)}</span>
           </div>
         </>
       )}

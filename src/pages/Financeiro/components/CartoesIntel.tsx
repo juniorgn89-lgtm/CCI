@@ -10,7 +10,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchCartao } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
 import type { Cartao } from '@/api/types/financeiro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -246,9 +246,9 @@ const CartoesIntel = () => {
                         {m.modalResumo.map((r) => (
                           <tr key={r.mod}>
                             <td className="py-1.5 pr-3"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: MOD_COR[r.mod] }} />{r.mod}</span></td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.volume)}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(r.volume)}</td>
                             <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.taxa.toFixed(2)}%</td>
-                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-red-600 dark:text-red-400">{formatCurrency(r.custo)}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(r.custo)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -394,7 +394,7 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
                   {liquid ? (
                     <td className="px-3 py-1.5 text-right text-gray-400" colSpan={4} />
                   ) : (
-                    <td className="px-3 py-1.5 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(g.bruto)}</td>
+                    <td className="px-3 py-1.5 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.bruto)}</td>
                   )}
                 </tr>
                 {modOpen && (
@@ -409,22 +409,22 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
                         </td>
                         {liquid ? (
                           <>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(a.bruto)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(a.liquido)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(a.taxa)}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(a.bruto)}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(a.liquido)}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(a.taxa)}</td>
                             <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{a.efetiva.toFixed(2)}%</td>
                           </>
                         ) : (
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(a.bruto)}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(a.bruto)}</td>
                         )}
                       </tr>
                     ))}
                     {liquid && (
                       <tr className="border-t border-gray-200 bg-gray-50/50 font-semibold dark:border-gray-700 dark:bg-gray-800/30">
                         <td className="px-3 py-1.5 pl-9 text-gray-500 dark:text-gray-400">Total</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(g.bruto)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(g.liquido)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(g.taxa)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.bruto)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.liquido)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(g.taxa)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{g.efetiva.toFixed(2)}%</td>
                       </tr>
                     )}
@@ -480,8 +480,8 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
                   <td className="px-3 py-1.5 tabular-nums text-gray-700 dark:text-gray-300">{brDate(onlyDate(c.vencimento))}</td>
                   {modo === 'liquidados' && <td className="px-3 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{brDate(onlyDate(c.dataPagamento))}</td>}
                   <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{c.taxaPercentual.toFixed(2)}%</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(c.valor * c.taxaPercentual / 100)}</td>
-                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.valor)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(c.valor * c.taxaPercentual / 100)}</td>
+                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.valor)}</td>
                 </tr>
               ))}
             </tbody>
@@ -489,8 +489,8 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
               <tr className="font-semibold">
                 <td className="px-3 py-2 text-gray-500 dark:text-gray-400" colSpan={leadCols}>Total</td>
                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{taxaEfetiva.toFixed(2)}%</td>
-                <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(totalTaxa)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(total)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(totalTaxa)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(total)}</td>
               </tr>
             </tfoot>
           </table>

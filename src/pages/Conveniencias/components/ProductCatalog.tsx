@@ -5,7 +5,7 @@ import HeatmapCell from '@/components/tables/HeatmapCell'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
@@ -63,7 +63,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
     {
       key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true,
       help: 'Receita total do produto no período (R$).',
-      render: (r) => formatCurrency(r.faturamento),
+      render: (r) => formatCurrencyInt(r.faturamento),
     },
     {
       key: 'projetado', label: 'Projeção', align: 'right', sortable: true,
@@ -79,7 +79,7 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
             )}
             title={PROJECAO_TOOLTIP_PRODUTO}
           >
-            {formatCurrency(proj)}
+            {formatCurrencyInt(proj)}
           </span>
         )
       },
@@ -138,8 +138,8 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
         subtitle={`${filtered.length} de ${products.length} produtos`}
         accentGradient="bg-gradient-to-r from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
         metrics={[
-          { label: 'Faturamento', value: formatCurrency(catalogTotals.faturamento) },
-          { label: 'Lucro Bruto', value: formatCurrency(catalogTotals.lucroBruto), color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Faturamento', value: formatCurrencyInt(catalogTotals.faturamento) },
+          { label: 'Lucro Bruto', value: formatCurrencyInt(catalogTotals.lucroBruto), color: 'text-blue-600 dark:text-blue-400' },
           { label: 'Margem Média', value: `${catalogTotals.margemMedia.toFixed(2)}%` },
         ]}
       />

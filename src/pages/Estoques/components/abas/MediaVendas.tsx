@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search, TrendingUp } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import TableSummaryStrip from '@/components/tables/TableSummaryStrip'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
@@ -44,7 +44,7 @@ const buildColumns = (janelaDias: number): Column<ProductAnalyticsRow>[] => [
       ) : <span className="text-gray-400">—</span>
     ),
   },
-  { key: 'receitaJanela', label: `Receita ${janelaDias}d`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(r.receitaJanela)}</span> },
+  { key: 'receitaJanela', label: `Receita ${janelaDias}d`, align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(r.receitaJanela)}</span> },
   { key: 'saldoAtual', label: 'Saldo atual', align: 'right', sortable: true, render: (r) => <span className="tabular-nums">{fmtUnidades(r.saldoAtual)}</span> },
   { key: 'ultimaVenda', label: 'Últ. venda', align: 'right', sortable: true, render: (r) => <span className="tabular-nums text-gray-500 dark:text-gray-400">{fmtData(r.ultimaVenda)}</span> },
 ]

@@ -4,7 +4,7 @@ import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
 import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 
 type SetorId = 'combustiveis' | 'automotivos' | 'conveniencias'
@@ -131,20 +131,20 @@ const DataRow = ({
         : <td className="px-2 py-1"><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
       {/* Financeiro */}
       {showFaturamento && (plain
-        ? <td className={cn(numCls, gStart)}>{formatCurrency(vals.faturamento)}</td>
-        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrency(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
+        ? <td className={cn(numCls, gStart)}>{formatCurrencyInt(vals.faturamento)}</td>
+        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrencyInt(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
       {plain
-        ? <td className={cn(numCls, !showFaturamento && gStart)}>{formatCurrency(vals.lucroBruto)}</td>
-        : <td className={cn('px-2 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrency(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={cn(numCls, !showFaturamento && gStart)}>{formatCurrencyInt(vals.lucroBruto)}</td>
+        : <td className={cn('px-2 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
       {plain
         ? <td className={numCls}>{fmtPct(vals.margem)}</td>
         : <td className="px-2 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
-      {isComb && <td className={antCls}>{formatCurrency(vals.acrescimos)}</td>}
-      {isComb && <td className={antCls}>{formatCurrency(vals.descontos)}</td>}
+      {isComb && <td className={antCls}>{formatCurrencyInt(vals.acrescimos)}</td>}
+      {isComb && <td className={antCls}>{formatCurrencyInt(vals.descontos)}</td>}
       {/* Comparativo */}
-      <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrency(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
+      <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrencyInt(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
       <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
-      <td className={antCls}>{formatCurrency(vals.lucroBrutoAnoAnterior)}</td>
+      <td className={antCls}>{formatCurrencyInt(vals.lucroBrutoAnoAnterior)}</td>
       <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
       {/* Eficiência */}
       {isComb ? (

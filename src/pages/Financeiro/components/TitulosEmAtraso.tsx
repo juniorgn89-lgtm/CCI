@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Users, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
@@ -185,11 +185,11 @@ const AtrasoCard = ({
                     </span>
                     {cols.map((c) => (
                       <span key={c.key} className={cn('w-24 shrink-0 text-right tabular-nums', c.color ?? COLORS.dim)}>
-                        {it[c.key] > 0 ? formatCurrency(it[c.key]) : '—'}
+                        {it[c.key] > 0 ? formatCurrencyInt(it[c.key]) : '—'}
                       </span>
                     ))}
                     <span className="w-24 shrink-0 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                      {formatCurrency(it.valor)}
+                      {formatCurrencyInt(it.valor)}
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -205,11 +205,11 @@ const AtrasoCard = ({
               <span className="mr-3 text-gray-400">
                 {cols.map((c, i) => (
                   <span key={c.key}>
-                    {i > 0 && ' · '}{c.label} <span className={cn('tabular-nums', c.color ?? COLORS.dim)}>{formatCurrency(gerais[c.key])}</span>
+                    {i > 0 && ' · '}{c.label} <span className={cn('tabular-nums', c.color ?? COLORS.dim)}>{formatCurrencyInt(gerais[c.key])}</span>
                   </span>
                 ))}
               </span>
-              {totalLabel} vencido: <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(gerais.valor)}</span>
+              {totalLabel} vencido: <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(gerais.valor)}</span>
             </span>
           </div>
         </>

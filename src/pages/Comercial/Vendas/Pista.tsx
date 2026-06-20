@@ -1180,16 +1180,16 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrency(p.faturamento)} color="green" align="near" />
+                                  <BarCell value={p.faturamento} max={maxFat} formatted={formatCurrencyInt(p.faturamento)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
                                   {(() => {
                                     const proj = projByCodigo.get(p.produtoCodigo) ?? p.faturamento
-                                    return <BarCell value={proj} max={maxProjProd} formatted={formatCurrency(proj)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
+                                    return <BarCell value={proj} max={maxProjProd} formatted={formatCurrencyInt(proj)} color={isProjetadaProd ? 'blue' : 'green'} align="near" />
                                   })()}
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrency(lucro)} color="green" align="near" />
+                                  <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
                                   <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
@@ -1204,14 +1204,14 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             <td className="px-4 py-2.5" />
                             <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totUnid)}</td>
                             <td className="px-4 py-2.5" />
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totFat)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totFat)}</td>
                             <td className={cn(
                               'px-4 py-2.5 text-right tabular-nums',
                               isProjetadaProd && 'text-blue-700 dark:text-blue-400',
                             )}>
-                              {formatCurrency(totProjProd)}
+                              {formatCurrencyInt(totProjProd)}
                             </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totLucro)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucro)}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(2).replace('.', ',')}%</td>
                           </tr>
                         </>

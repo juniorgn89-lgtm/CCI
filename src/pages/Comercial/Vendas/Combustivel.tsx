@@ -12,6 +12,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
+import { fuelLabel } from '@/lib/fuel'
 import { formatCurrency, formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -911,7 +912,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
                               )}
                             >
-                              {opt}
+                              {fuelLabel(opt)}
                             </button>
                           )
                         })}
@@ -982,7 +983,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   <BarCell value={d.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrencyInt(d.lucroBruto)} color="green" align="near" />
                                 </td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                  {formatCurrency(d.acrescimos - d.descontos)}
+                                  {formatCurrencyInt(d.acrescimos - d.descontos)}
                                 </td>
                                 <td className="px-2 py-1">
                                   <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
@@ -1015,7 +1016,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             </td>
                             <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(detalheDiaADia.total.faturamento)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.lucroBruto)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(detalheDiaADia.total.acrescimos - detalheDiaADia.total.descontos)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(detalheDiaADia.total.acrescimos - detalheDiaADia.total.descontos)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">
                               {detalheDiaADia.total.faturamento > 0
                                 ? `${((detalheDiaADia.total.lucroBruto / detalheDiaADia.total.faturamento) * 100).toFixed(2).replace('.', ',')}%`
@@ -1132,8 +1133,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     <td className="px-2 py-1">
                                       <BarCell value={f.lucroBruto} max={maxLucroBruto} formatted={formatCurrencyInt(f.lucroBruto)} color="green" align="near" />
                                     </td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(f.acrescimo)}</td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(f.desconto)}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(f.acrescimo)}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(f.desconto)}</td>
                                     <td className="px-2 py-1">
                                       <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
                                     </td>
@@ -1153,8 +1154,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   </td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totFat)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totLucroBruto)}</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totAcre)}</td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totDesc)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totAcre)}</td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrencyInt(totDesc)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{totMargemPct.toFixed(2).replace('.', ',')}%</td>
                                   <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrency(totPrecoMed)}</td>
                                   <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(totCustoMed)}</td>
@@ -1194,7 +1195,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                       : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
                                   )}
                                 >
-                                  {opt}
+                                  {fuelLabel(opt)}
                                 </button>
                               )
                             })}
@@ -1338,7 +1339,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
                                 )}
                               >
-                                {opt}
+                                {fuelLabel(opt)}
                               </button>
                             )
                           })}

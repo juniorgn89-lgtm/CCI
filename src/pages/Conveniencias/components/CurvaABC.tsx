@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import BarCell from '@/components/tables/BarCell'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
@@ -46,7 +46,7 @@ const buildCols = (maxFat: number): Column<ABCRow>[] => [
   },
   { key: 'referencia', label: 'Ref.', sortable: true, help: 'Código de referência (SKU) do produto.', render: (r) => <span className="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{r.referencia || '—'}</span> },
   { key: 'nome', label: 'Produto', sortable: true, help: 'Nome do produto.' },
-  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, help: 'Receita total do produto no período (R$).', render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrency(r.faturamento)} color="blue" /> },
+  { key: 'faturamento', label: 'Faturamento', align: 'right', sortable: true, help: 'Receita total do produto no período (R$).', render: (r) => <BarCell value={r.faturamento} max={maxFat} formatted={formatCurrencyInt(r.faturamento)} color="blue" /> },
   { key: 'participacao', label: 'Participação', align: 'right', sortable: true, help: '% do faturamento total que este produto representa.', render: (r) => `${r.participacao.toFixed(2)}%` },
   { key: 'acumulado', label: 'Acumulado', align: 'right', sortable: true, help: 'Faturamento acumulado (%), do maior pro menor — base da classe ABC.', render: (r) => `${r.acumulado.toFixed(2)}%` },
 ]

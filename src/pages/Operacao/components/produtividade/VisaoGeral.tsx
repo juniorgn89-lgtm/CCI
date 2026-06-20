@@ -2,17 +2,21 @@ import { Fragment, useMemo, useState } from 'react'
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
-import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
+import { formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
+import { fuelLabel } from '@/lib/fuel'
 import BarCell from '@/components/tables/BarCell'
 import FrentistaDetalheModal from '@/pages/Operacao/components/produtividade/FrentistaDetalheModal'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import type { AbastecimentoRow as AbastecimentoComCusto } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { FrentistaDescAcr } from '@/pages/Operacao/hooks/useFuelVendaCost'
 
 interface Props {
   /** Abastecimentos crus do período — pro modal de detalhe por produto. */
   abastecimentos: AbastecimentoRow[]
   /** Linhas com custo/lucro (analytics) — fonte das métricas financeiras. */
   abastComCusto?: AbastecimentoComCusto[]
+  /** Acréscimo/desconto reais por frentista+produto (`func|prod`) — combustível. */
+  descAcrByFrentista?: Map<string, FrentistaDescAcr>
 }
 
 type SortKey =
@@ -23,6 +27,7 @@ type SortKey =
   | 'faturamento'
   | 'custo'
   | 'lucroBruto'
+  | 'acresDesc'
   | 'margemPct'
   | 'ticketMedio'
 type SortDir = 'asc' | 'desc'
@@ -44,8 +49,6 @@ const fuelFamily = (nome: string): string | null => {
   return null
 }
 const FUEL_ORDER = ['Gasolina', 'Etanol', 'Diesel']
-/** Rótulo da pill — tira o ponto final do nome do cadastro ("GASOLINA COMUM."). */
-const fuelLabel = (nome: string) => (nome ?? '').replace(/\.+$/, '').trim()
 
 /** Quebra por combustível dentro de um frentista (visão expandida). */
 interface CombustivelRow {
@@ -73,6 +76,8 @@ interface FrentistaConsolidado {
   /** Custo total — null quando nenhum custo do período carregou ainda. */
   custo: number | null
   lucroBruto: number | null
+  /** Acréscimo − desconto (R$) reais do frentista no período (combustível). */
+  acresDesc: number
   margemPct: number | null
   ticketMedio: number
   combustiveis: CombustivelRow[]
@@ -89,6 +94,7 @@ const compareRow = (a: FrentistaConsolidado, b: FrentistaConsolidado, key: SortK
     case 'faturamento': av = a.faturamento; bv = b.faturamento; break
     case 'custo': av = a.custo ?? -Infinity; bv = b.custo ?? -Infinity; break
     case 'lucroBruto': av = a.lucroBruto ?? -Infinity; bv = b.lucroBruto ?? -Infinity; break
+    case 'acresDesc': av = a.acresDesc; bv = b.acresDesc; break
     case 'margemPct': av = a.margemPct ?? -Infinity; bv = b.margemPct ?? -Infinity; break
     case 'ticketMedio': av = a.ticketMedio; bv = b.ticketMedio; break
     default: av = a.litros; bv = b.litros
@@ -102,7 +108,7 @@ const compareRow = (a: FrentistaConsolidado, b: FrentistaConsolidado, key: SortK
 const fmtPct = (v: number | null): string =>
   v === null ? '—' : `${v.toFixed(2).replace('.', ',')}%`
 
-const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
+const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props) => {
   const [sortKey, setSortKey] = useState<SortKey>('litros')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   // Filtro por combustível — multi-seleção por produtoCodigo. Vazio = todos.
@@ -198,24 +204,37 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
       }
     }
 
+    // Acréscimo − desconto REAIS (R$) por produto do frentista (func|prod).
+    const acrDescOf = (codigo: number, prod: number): number => {
+      const d = descAcrByFrentista?.get(`${codigo}|${prod}`)
+      return (d?.acrescimo ?? 0) - (d?.desconto ?? 0)
+    }
+
     const rows = Array.from(map.values()).map((acc) => {
+      // acc.fat vem BRUTO (o hook não abate o desconto no valorTotal — o lookup
+      // do desconto erra por mismatch de tipo no código do produto). O líquido
+      // = bruto + (acréscimo − desconto) EXATOS do item de venda → bate com o
+      // Vendas/Combustível. acc.comb já está filtrado por fuelSel.
+      const acresDesc = Array.from(acc.comb.keys()).reduce((s, prod) => s + acrDescOf(acc.codigo, prod), 0)
+      const faturamento = acc.fat + acresDesc
       const custo = acc.hasAnyCusto ? acc.custo : null
-      const lucroBruto = custo === null ? null : acc.fat - custo
-      const margemPct = lucroBruto === null || acc.fat <= 0 ? null : (lucroBruto / acc.fat) * 100
+      const lucroBruto = custo === null ? null : faturamento - custo
+      const margemPct = lucroBruto === null || faturamento <= 0 ? null : (lucroBruto / faturamento) * 100
       const combustiveis: CombustivelRow[] = Array.from(acc.comb.entries())
         .map(([produtoCodigo, c]) => {
+          const cFat = c.fat + acrDescOf(acc.codigo, produtoCodigo)
           const cCusto = c.hasCusto ? c.custo : null
-          const cLucro = cCusto === null ? null : c.fat - cCusto
+          const cLucro = cCusto === null ? null : cFat - cCusto
           return {
             produtoCodigo,
             nome: c.nome,
             litros: c.litros,
             abastecimentos: c.abast,
-            faturamento: c.fat,
+            faturamento: cFat,
             custo: cCusto ?? 0,
             lucroBruto: cLucro,
-            margemPct: cLucro === null || c.fat <= 0 ? null : (cLucro / c.fat) * 100,
-            ticketMedio: c.abast > 0 ? c.fat / c.abast : 0,
+            margemPct: cLucro === null || cFat <= 0 ? null : (cLucro / cFat) * 100,
+            ticketMedio: c.abast > 0 ? cFat / c.abast : 0,
           }
         })
         .sort((a, b) => b.litros - a.litros)
@@ -226,17 +245,18 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
         automotivo: acc.automotivo,
         abastecimentos: acc.abast,
         convertidos: acc.convertidos,
-        faturamento: acc.fat,
+        faturamento,
         custo,
         lucroBruto,
+        acresDesc,
         margemPct,
-        ticketMedio: acc.abast > 0 ? acc.fat / acc.abast : 0,
+        ticketMedio: acc.abast > 0 ? faturamento / acc.abast : 0,
         combustiveis,
       }
     })
     rows.sort((a, b) => compareRow(a, b, sortKey, sortDir))
     return rows
-  }, [abastecimentos, abastComCusto, sortKey, sortDir, fuelSel])
+  }, [abastecimentos, abastComCusto, sortKey, sortDir, fuelSel, descAcrByFrentista])
 
   // Combustíveis presentes no período (pras pills do filtro), por produto.
   // Ordena por família (Gasolina → Etanol → Diesel → resto) e depois por nome.
@@ -273,6 +293,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
       faturamento: fat,
       custo,
       lucroBruto: lucro,
+      acresDesc: frentistas.reduce((s, f) => s + f.acresDesc, 0),
       margemPct: lucro === null || fat <= 0 ? null : (lucro / fat) * 100,
       ticketMedio: abast > 0 ? fat / abast : 0,
     }
@@ -297,7 +318,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
 
   // Nº de colunas da tabela (pra colspans). 1 expand + # + nome + litros +
   // abast (+ convertidos?) + fat + custo + lucro + margem + ticket.
-  const colCount = showConvertidos ? 11 : 10
+  const colCount = showConvertidos ? 12 : 11
 
   return (
     <div className="space-y-5">
@@ -350,20 +371,28 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
+              {/* Títulos de grupo (padrão Operação · Financeiro · Eficiência) */}
+              <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-500">
+                <th colSpan={3} className="px-2 py-1.5" />
+                <th colSpan={showConvertidos ? 3 : 2} className="px-3 py-1.5 text-center">Operação</th>
+                <th colSpan={5} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Financeiro</th>
+                <th colSpan={1} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Eficiência</th>
+              </tr>
               <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <th className="w-8 px-2 py-2" />
                 <Th className="w-10">#</Th>
                 <ThSort label="Frentista" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />
-                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} />
-                <ThSort label="Abastec." k="abastecimentos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('abastecimentos')} />
+                <ThSort label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('litros')} help="Litros de combustível vendidos pelo frentista no período." />
+                <ThSort label="Abastec." k="abastecimentos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('abastecimentos')} help="Número de abastecimentos realizados pelo frentista." />
                 {showConvertidos && (
-                  <ThSort label="Convertidos" k="convertidos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('convertidos')} />
+                  <ThSort label="Convertidos" k="convertidos" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('convertidos')} help="Abastecimentos que casaram com um item de venda autorizado." />
                 )}
-                <ThSort label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('faturamento')} groupStart />
-                <ThSort label="Custo" k="custo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('custo')} />
-                <ThSort label="Lucro bruto" k="lucroBruto" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('lucroBruto')} />
-                <ThSort label="% Margem" k="margemPct" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('margemPct')} />
-                <ThSort label="Ticket méd." k="ticketMedio" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedio')} groupStart />
+                <ThSort label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('faturamento')} groupStart help="Faturamento líquido = Bruto + Acréscimo − Desconto (o desconto já está abatido)." />
+                <ThSort label="Custo" k="custo" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('custo')} help="CMV — custo da mercadoria vendida (preço de custo × litros)." />
+                <ThSort label="Lucro bruto" k="lucroBruto" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('lucroBruto')} help="Faturamento − Custo (CMV)." />
+                <ThSort label="Acrés./Desc." k="acresDesc" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('acresDesc')} help="Acréscimos − descontos reais do frentista no período (combustível). Valor negativo = desconto predominou." />
+                <ThSort label="% Margem" k="margemPct" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('margemPct')} help="(Lucro bruto ÷ faturamento) × 100." />
+                <ThSort label="Ticket méd." k="ticketMedio" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('ticketMedio')} groupStart help="Faturamento ÷ número de abastecimentos." />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -414,15 +443,18 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
                           </td>
                         )}
                         <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
-                          <BarCell value={f.faturamento} max={colMax.faturamento} formatted={formatCurrency(f.faturamento)} color="green" align="near" />
+                          <BarCell value={f.faturamento} max={colMax.faturamento} formatted={formatCurrencyInt(f.faturamento)} color="green" align="near" />
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                          {f.custo === null ? '—' : formatCurrency(f.custo)}
+                          {f.custo === null ? '—' : formatCurrencyInt(f.custo)}
                         </td>
                         <td className="px-2 py-2.5">
                           {f.lucroBruto === null
                             ? <div className="text-right text-sm text-gray-400">—</div>
-                            : <BarCell value={f.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrency(f.lucroBruto)} color="green" align="near" />}
+                            : <BarCell value={f.lucroBruto} max={colMax.lucroBruto} formatted={formatCurrencyInt(f.lucroBruto)} color="green" align="near" />}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">
+                          {f.acresDesc === 0 ? '—' : formatCurrencyInt(f.acresDesc)}
                         </td>
                         <td className={cn(
                           'px-4 py-2.5 text-right text-sm font-medium tabular-nums',
@@ -433,7 +465,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
                           {fmtPct(f.margemPct)}
                         </td>
                         <td className="border-l border-gray-200 px-2 py-2.5 dark:border-gray-700">
-                          <BarCell value={f.ticketMedio} max={colMax.ticketMedio} formatted={formatCurrency(f.ticketMedio)} color="amber" align="near" />
+                          <BarCell value={f.ticketMedio} max={colMax.ticketMedio} formatted={formatCurrencyInt(f.ticketMedio)} color="amber" align="near" />
                         </td>
                       </tr>
 
@@ -449,11 +481,12 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
                           <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatLiters(c.litros)}</td>
                           <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatNumber(c.abastecimentos)}</td>
                           {showConvertidos && <td />}
-                          <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums text-gray-600 dark:border-gray-700 dark:text-gray-400">{formatCurrency(c.faturamento)}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{c.lucroBruto === null ? '—' : formatCurrency(c.custo)}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{c.lucroBruto === null ? '—' : formatCurrency(c.lucroBruto)}</td>
+                          <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums text-gray-600 dark:border-gray-700 dark:text-gray-400">{formatCurrencyInt(c.faturamento)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{c.lucroBruto === null ? '—' : formatCurrencyInt(c.custo)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{c.lucroBruto === null ? '—' : formatCurrencyInt(c.lucroBruto)}</td>
+                          <td />
                           <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{fmtPct(c.margemPct)}</td>
-                          <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums text-gray-600 dark:border-gray-700 dark:text-gray-400">{formatCurrency(c.ticketMedio)}</td>
+                          <td className="border-l border-gray-200 px-4 py-2 text-right tabular-nums text-gray-600 dark:border-gray-700 dark:text-gray-400">{formatCurrencyInt(c.ticketMedio)}</td>
                         </tr>
                       ))}
                     </Fragment>
@@ -470,11 +503,12 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
                   <td className="px-4 py-2.5 text-right tabular-nums">{formatLiters(totals.litros)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totals.abastecimentos)}</td>
                   {showConvertidos && <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(totals.convertidos)}</td>}
-                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrency(totals.faturamento)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.custo === null ? '—' : formatCurrency(totals.custo)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.lucroBruto === null ? '—' : formatCurrency(totals.lucroBruto)}</td>
+                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totals.faturamento)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.custo === null ? '—' : formatCurrencyInt(totals.custo)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.lucroBruto === null ? '—' : formatCurrencyInt(totals.lucroBruto)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.acresDesc === 0 ? '—' : formatCurrencyInt(totals.acresDesc)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{fmtPct(totals.margemPct)}</td>
-                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrency(totals.ticketMedio)}</td>
+                  <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(totals.ticketMedio)}</td>
                 </tr>
               </tfoot>
             )}
@@ -513,9 +547,11 @@ interface ThSortProps {
   align?: 'left' | 'right' | 'center'
   /** Marca o início de um grupo de colunas — desenha um divisor vertical sutil. */
   groupStart?: boolean
+  /** Texto de ajuda ("?") ao lado do rótulo. */
+  help?: string
 }
 
-const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', groupStart }: ThSortProps) => {
+const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', groupStart, help }: ThSortProps) => {
   const isActive = sortKey === k
   return (
     <th className={cn(
@@ -523,21 +559,28 @@ const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', groupSta
       align === 'left' ? 'text-left' : align === 'center' ? 'text-center' : 'text-right',
       groupStart && 'border-l border-gray-200 dark:border-gray-700',
     )}>
-      <button
-        onClick={onClick}
-        className={cn(
-          'inline-flex items-center gap-1 transition-colors hover:text-gray-700 dark:hover:text-gray-200',
-          align === 'right' && 'flex-row-reverse',
-          isActive && 'text-gray-900 dark:text-gray-100'
-        )}
-      >
-        {label}
-        {isActive ? (
-          sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-30" />
-        )}
-      </button>
+      <span className={cn(
+        'inline-flex items-center gap-1',
+        align === 'right' && 'justify-end',
+        align === 'center' && 'justify-center',
+      )}>
+        <button
+          onClick={onClick}
+          className={cn(
+            'inline-flex items-center gap-1 transition-colors hover:text-gray-700 dark:hover:text-gray-200',
+            align === 'right' && 'flex-row-reverse',
+            isActive && 'text-gray-900 dark:text-gray-100'
+          )}
+        >
+          {label}
+          {isActive ? (
+            sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-30" />
+          )}
+        </button>
+        {help && <InfoHint text={help} />}
+      </span>
     </th>
   )
 }

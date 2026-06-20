@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { FileText, ChevronRight, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import InfoHint from '@/components/ui/InfoHint'
 
@@ -183,7 +183,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
                       <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform', exp && 'rotate-90')} />
                       <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-800 dark:text-gray-200" title={g.nome}>{g.nome}</span>
                       <span className="shrink-0 text-[11px] text-gray-400">{g.itens.length} nota{g.itens.length !== 1 ? 's' : ''}</span>
-                      <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(g.total)}</span>
+                      <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.total)}</span>
                     </button>
                     {exp && (
                       <div className="overflow-x-auto bg-gray-50/60 px-3 pb-2 dark:bg-gray-900/40">
@@ -204,7 +204,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
                                 <td className="px-3 py-1 tabular-nums">{brDate(it.movimento)}</td>
                                 <td className="px-3 py-1">{it.documento || '—'}</td>
                                 <td className="px-3 py-1 tabular-nums">{brDate(it.vencimento)}</td>
-                                <td className="px-3 py-1 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(it.valor)}</td>
+                                <td className="px-3 py-1 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(it.valor)}</td>
                               </tr>
                             ))}
                           </tbody>

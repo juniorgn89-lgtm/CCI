@@ -11,7 +11,7 @@ import {
   Truck, ListOrdered, Landmark, Sparkles, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import FornecedorPagarModal from '@/pages/Financeiro/components/FornecedorPagarModal'
 import InfoHint from '@/components/ui/InfoHint'
@@ -356,9 +356,9 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
                   <tr key={f.codigo} onClick={() => setDetalhe({ codigo: f.codigo, nome: f.nome })} className="cursor-pointer hover:bg-gray-50/70 dark:hover:bg-gray-800/40">
                     <td className="max-w-[280px] truncate px-4 py-2 font-medium text-gray-800 dark:text-gray-200" title={f.nome}>{f.nome}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{f.qtd}</td>
-                    <td className={cn('px-4 py-2 text-right tabular-nums', f.vencido > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400')}>{f.vencido > 0 ? formatCurrency(f.vencido) : '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{f.aVencer > 0 ? formatCurrency(f.aVencer) : '—'}</td>
-                    <td className="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(f.total)}</td>
+                    <td className={cn('px-4 py-2 text-right tabular-nums', f.vencido > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400')}>{f.vencido > 0 ? formatCurrencyInt(f.vencido) : '—'}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{f.aVencer > 0 ? formatCurrencyInt(f.aVencer) : '—'}</td>
+                    <td className="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(f.total)}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{m.totalPagar > 0 ? ((f.total / m.totalPagar) * 100).toFixed(1) : 0}%</td>
                   </tr>
                 ))}
@@ -386,7 +386,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
                     <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{numTitulo(r)}</td>
                     <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{brDate(onlyDate(r.dataMovimento))}</td>
                     <td className={cn('px-3 py-2 tabular-nums', r.statusTag === 'vencido' ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300')}>{brDate(onlyDate(r.vencimento))}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.saldoRestante)}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(r.saldoRestante)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.diasAtraso > 0 ? `${r.diasAtraso}d` : '—'}</td>
                     <td className="max-w-[140px] truncate px-3 py-2 text-gray-500 dark:text-gray-400" title={centroCusto(r)}>{centroCusto(r)}</td>
                     <td className="max-w-[140px] truncate px-3 py-2 text-gray-500 dark:text-gray-400" title={categoria(r)}>{categoria(r)}</td>

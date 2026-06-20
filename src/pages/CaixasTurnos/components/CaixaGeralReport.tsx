@@ -6,6 +6,7 @@ import useEmpresaAtual from '@/hooks/useEmpresaAtual'
 import { useFilterStore } from '@/store/filters'
 import {
   formatCurrency,
+  formatCurrencyInt,
   formatDate,
   formatNumber,
 } from '@/lib/formatters'
@@ -181,7 +182,7 @@ const CaixaGeralReport = () => {
                   <Td className="text-right text-gray-700 dark:text-gray-300">{fmtVol(b.afericao)}</Td>
                   <Td className="text-right text-gray-700 dark:text-gray-300">{fmtVol(b.volVendas)}</Td>
                   <Td className="text-right text-gray-700 dark:text-gray-300">{fmtPreco(b.precoMedio)}</Td>
-                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrency(b.totalLiquido)}</Td>
+                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrencyInt(b.totalLiquido)}</Td>
                 </tr>
               ))
             )}
@@ -195,7 +196,7 @@ const CaixaGeralReport = () => {
                 <Td className="text-right text-gray-900 dark:text-gray-100">{fmtVol(bicoTotais.afericao)}</Td>
                 <Td className="text-right text-gray-900 dark:text-gray-100">{fmtVol(bicoTotais.volVendas)}</Td>
                 <Td className="text-right" />
-                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(bicoTotais.totalLiquido)}</Td>
+                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(bicoTotais.totalLiquido)}</Td>
               </tr>
             </tfoot>
           )}
@@ -229,9 +230,9 @@ const CaixaGeralReport = () => {
                   <Td className="font-medium text-gray-900 dark:text-gray-100">{r.produtoNome}</Td>
                   <Td className="text-right text-gray-700 dark:text-gray-300">{fmtQty3(r.quantidade)}</Td>
                   <Td className="text-right text-gray-600 dark:text-gray-400">{fmtPreco(r.precoCustoMedio)}</Td>
-                  <Td className="text-right text-gray-700 dark:text-gray-300">{formatCurrency(r.totalCustoMedio)}</Td>
-                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrency(r.total)}</Td>
-                  <Td className={cn('text-right font-medium', r.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrency(r.margemBruta)}</Td>
+                  <Td className="text-right text-gray-700 dark:text-gray-300">{formatCurrencyInt(r.totalCustoMedio)}</Td>
+                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrencyInt(r.total)}</Td>
+                  <Td className={cn('text-right font-medium', r.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrencyInt(r.margemBruta)}</Td>
                   <Td className="text-right text-gray-600 dark:text-gray-400">
                     {r.saldo === null ? '—' : fmtVol(r.saldo)}
                   </Td>
@@ -245,9 +246,9 @@ const CaixaGeralReport = () => {
                 <Td className="text-gray-800 dark:text-gray-100">Total</Td>
                 <Td className="text-right text-gray-900 dark:text-gray-100">{fmtQty3(vendasCombustivelTotais.quantidade)}</Td>
                 <Td className="text-right" />
-                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(vendasCombustivelTotais.totalCusto)}</Td>
-                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(vendasCombustivelTotais.total)}</Td>
-                <Td className={cn('text-right', vendasCombustivelTotais.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrency(vendasCombustivelTotais.margemBruta)}</Td>
+                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(vendasCombustivelTotais.totalCusto)}</Td>
+                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(vendasCombustivelTotais.total)}</Td>
+                <Td className={cn('text-right', vendasCombustivelTotais.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrencyInt(vendasCombustivelTotais.margemBruta)}</Td>
                 <Td className="text-right" />
               </tr>
             </tfoot>
@@ -283,8 +284,8 @@ const CaixaGeralReport = () => {
                 <tr key={g.grupoNome} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                   <Td className="font-medium text-gray-900 dark:text-gray-100">{g.grupoNome}</Td>
                   <Td className="text-right text-gray-700 dark:text-gray-300">{fmtQty3(g.quantidade)}</Td>
-                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrency(g.total)}</Td>
-                  <Td className={cn('text-right font-medium', g.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrency(g.margemBruta)}</Td>
+                  <Td className="text-right font-medium text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.total)}</Td>
+                  <Td className={cn('text-right font-medium', g.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrencyInt(g.margemBruta)}</Td>
                 </tr>
               ))
             )}
@@ -294,8 +295,8 @@ const CaixaGeralReport = () => {
               <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-800/60">
                 <Td className="text-gray-800 dark:text-gray-100">Total</Td>
                 <Td className="text-right text-gray-900 dark:text-gray-100">{fmtQty3(vendasGruposTotais.quantidade)}</Td>
-                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(vendasGruposTotais.total)}</Td>
-                <Td className={cn('text-right', vendasGruposTotais.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrency(vendasGruposTotais.margemBruta)}</Td>
+                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(vendasGruposTotais.total)}</Td>
+                <Td className={cn('text-right', vendasGruposTotais.margemBruta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>{formatCurrencyInt(vendasGruposTotais.margemBruta)}</Td>
               </tr>
             </tfoot>
           )}
@@ -325,7 +326,7 @@ const CaixaGeralReport = () => {
                 <tr key={`${c.documento}-${i}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                   <Td className="font-medium text-gray-900 dark:text-gray-100">{c.responsavel}</Td>
                   <Td className="text-gray-600 dark:text-gray-400">{c.documento}</Td>
-                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(c.valor)}</Td>
+                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.valor)}</Td>
                   <Td className="text-right text-gray-600 dark:text-gray-400">{c.vencimento ? formatDate(c.vencimento) : '—'}</Td>
                 </tr>
               ))
@@ -336,7 +337,7 @@ const CaixaGeralReport = () => {
               <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-800/60">
                 <Td className="text-gray-800 dark:text-gray-100">Total</Td>
                 <Td />
-                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(cobrarTotal)}</Td>
+                <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(cobrarTotal)}</Td>
                 <Td />
               </tr>
             </tfoot>
@@ -360,14 +361,14 @@ const CaixaGeralReport = () => {
                 {entradas.map((e) => (
                   <tr key={e.nome} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                     <Td className="text-gray-700 dark:text-gray-300">{e.nome}</Td>
-                    <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(e.valor)}</Td>
+                    <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(e.valor)}</Td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-800/60">
                   <Td className="text-gray-800 dark:text-gray-100">Total Entradas</Td>
-                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(entradasTotal)}</Td>
+                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(entradasTotal)}</Td>
                 </tr>
               </tfoot>
             </table>
@@ -392,7 +393,7 @@ const CaixaGeralReport = () => {
                   saidas.map((s) => (
                     <tr key={s.nome} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                       <Td className="text-gray-700 dark:text-gray-300">{s.nome}</Td>
-                      <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(s.valor)}</Td>
+                      <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(s.valor)}</Td>
                     </tr>
                   ))
                 )}
@@ -400,7 +401,7 @@ const CaixaGeralReport = () => {
               <tfoot>
                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-800/60">
                   <Td className="text-gray-800 dark:text-gray-100">Total Saídas</Td>
-                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrency(saidasTotal)}</Td>
+                  <Td className="text-right text-gray-900 dark:text-gray-100">{formatCurrencyInt(saidasTotal)}</Td>
                 </tr>
               </tfoot>
             </table>

@@ -4,7 +4,7 @@ import {
   RotateCcw, ArrowUp, ArrowDown, Sparkles, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
 import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { TituloReceber } from '@/api/types/financeiro'
 import NotasPrazoNaoFaturadas from '@/pages/Financeiro/components/NotasPrazoNaoFaturadas'
@@ -437,8 +437,8 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
                     className="cursor-pointer hover:bg-gray-50/70 dark:hover:bg-gray-800/40"
                   >
                     <td className="max-w-[260px] truncate px-4 py-2 font-medium text-gray-800 dark:text-gray-200" title={c.nome}>{c.nome}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(c.totalAberto)}</td>
-                    <td className={cn('px-4 py-2 text-right tabular-nums', c.totalVencido > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400')}>{c.totalVencido > 0 ? formatCurrency(c.totalVencido) : '—'}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(c.totalAberto)}</td>
+                    <td className={cn('px-4 py-2 text-right tabular-nums', c.totalVencido > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400')}>{c.totalVencido > 0 ? formatCurrencyInt(c.totalVencido) : '—'}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.maxDiasAtraso > 0 ? `${c.maxDiasAtraso}d` : '—'}</td>
                     <td className="px-4 py-2 text-center tabular-nums text-gray-500 dark:text-gray-400">{c.ultimoPagamento ? brDate(c.ultimoPagamento) : '—'}</td>
                     <td className="px-4 py-2 text-center">
