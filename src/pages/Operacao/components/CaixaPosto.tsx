@@ -20,6 +20,7 @@ import { formatDateTimeBR } from '@/lib/datetime'
 import { cn, isPastPeriod } from '@/lib/utils'
 import type { CaixaResumo, PagamentoBreakdown, TurnoGroup, ApuradoPorDia, OperacaoKpiData } from '@/pages/Operacao/hooks/useOperacaoData'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
+import InfoHint from '@/components/ui/InfoHint'
 import TurnoDetalheModal from '@/pages/Operacao/components/TurnoDetalheModal'
 
 interface CaixaPostoProps {
@@ -104,16 +105,6 @@ const PdvBadge = ({ label }: { label: string }) => {
     </span>
   )
 }
-
-/** "?" de ajuda nos cards — tooltip no hover/foco (mesmo padrão da aba Produtividade). */
-const CardHelp = ({ text }: { text: string }) => (
-  <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label={text}>
-    <HelpCircle className="h-3.5 w-3.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200" />
-    <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
-      {text}
-    </span>
-  </span>
-)
 
 const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apuradoPorDia, activeTab: activeTabProp }: CaixaPostoProps) => {
   const { dataInicial, dataFinal } = useFilterStore()
@@ -429,7 +420,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apurado</p>
-              <CardHelp text="Soma do valor apurado de todos os caixas/turnos do período — vendas registradas pelo PDV em todos os setores (combustível, pista e conveniência)." />
+              <InfoHint align="start" text="Soma do valor apurado de todos os caixas/turnos do período — vendas registradas pelo PDV em todos os setores (combustível, pista e conveniência)." />
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -445,7 +436,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apresentado</p>
-              <CardHelp text="Soma de todas as formas de pagamento do período (dinheiro, cartão, Pix, a prazo etc.) registradas nas vendas. É como o faturamento foi recebido." />
+              <InfoHint align="start" text="Soma de todas as formas de pagamento do período (dinheiro, cartão, Pix, a prazo etc.) registradas nas vendas. É como o faturamento foi recebido." />
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/30">
               <Wallet className="h-5 w-5 text-sky-600 dark:text-sky-400" />
@@ -468,7 +459,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferença de Caixa</p>
-              <CardHelp text="Apresentado − Apurado dos caixas fechados (a mesma conta dos Turnos e da Conferência, que fecha por subtração). Vermelho = falta; âmbar = sobra. Só considera caixas fechados." />
+              <InfoHint align="start" text="Apresentado − Apurado dos caixas fechados (a mesma conta dos Turnos e da Conferência, que fecha por subtração). Vermelho = falta; âmbar = sobra. Só considera caixas fechados." />
             </div>
             <div className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg',
@@ -507,7 +498,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Abertos</p>
-              <CardHelp text="Quantos caixas/turnos ainda estão em andamento no período, sem fechamento conferido." />
+              <InfoHint align="start" text="Quantos caixas/turnos ainda estão em andamento no período, sem fechamento conferido." />
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
               <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
@@ -523,7 +514,7 @@ const CaixaPosto = ({ kpis, caixaResumo, pagamentoBreakdown, turnoGroups, apurad
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Caixas Fechados</p>
-              <CardHelp text="Quantos caixas/turnos já foram fechados e conferidos no período." />
+              <InfoHint align="start" text="Quantos caixas/turnos já foram fechados e conferidos no período." />
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
               <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />

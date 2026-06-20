@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { FileText, ChevronRight, AlertCircle, HelpCircle } from 'lucide-react'
+import { FileText, ChevronRight, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import InfoHint from '@/components/ui/InfoHint'
 
 interface Props {
   /** Snapshot de títulos a receber em aberto (filtra convertido=false aqui dentro). */
@@ -30,12 +31,6 @@ const numDoc = (r: ReceivableRow) => {
   return n ? String(n) : (d?.trim() || `#${r.tituloCodigo}`)
 }
 const getDoc = (r: ReceivableRow) => (r as unknown as { documento?: string }).documento?.trim() || ''
-
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-    <HelpCircle className="h-3.5 w-3.5" />
-  </span>
-)
 
 type Quick = 'todos' | 'atual' | 'proximo'
 
@@ -120,7 +115,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">
           <FileText className="h-4 w-4 text-gray-400" />
           Notas a prazo não faturadas
-          <Hint text="Títulos a receber em aberto ainda não convertidos em boleto/duplicata (convertido=false) — potencial de faturamento futuro." />
+          <InfoHint text="Títulos a receber em aberto ainda não convertidos em boleto/duplicata (convertido=false) — potencial de faturamento futuro." />
         </h3>
         <div className="flex flex-wrap items-center gap-1.5">
           <select

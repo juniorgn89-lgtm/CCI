@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, LineChart as LineChartIcon, HelpCircle } from 'lucide-react'
+import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, LineChart as LineChartIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
@@ -152,9 +153,7 @@ const CategoriaDetalheModal = ({
           <section className="rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               Indicadores
-              <span title="Resumo da categoria no período: volume, receita, projeção de fechamento, lucro, margem e médias por unidade." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <HelpCircle className="h-3 w-3" />
-              </span>
+              <InfoHint text="Resumo da categoria no período: volume, receita, projeção de fechamento, lucro, margem e médias por unidade." />
             </div>
             <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
               <Kpi Icon={Layers} label="Unidades" value={formatNumber(categoria.qtdVendida)} tooltip="Total de unidades vendidas na categoria no período." />
@@ -180,9 +179,7 @@ const CategoriaDetalheModal = ({
             <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               <Package className="h-3.5 w-3.5" />
               Top produtos da categoria
-              <span title="Top 5 produtos por faturamento. Por item: unidades, margem, custo total, preço médio (R$/un) e custo médio (R$/un); à direita, a cobertura de estoque (dias restantes)." className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <HelpCircle className="h-3 w-3" />
-              </span>
+              <InfoHint text="Top 5 produtos por faturamento. Por item: unidades, margem, custo total, preço médio (R$/un) e custo médio (R$/un); à direita, a cobertura de estoque (dias restantes)." />
             </div>
             {topProdutos.length === 0 ? (
               <p className="px-3 py-6 text-center text-xs text-gray-400">Sem produtos no período.</p>
@@ -247,17 +244,15 @@ const Kpi = ({
   value: string
   tone?: 'projecao'
   hint?: string
-  /** Tooltip nativo do navegador no card inteiro — usado pra explicar a métrica. */
+  /** Texto de ajuda exibido no "?" ao lado do label. */
   tooltip?: string
 }) => (
   <div
-    title={tooltip}
     className={cn(
       'rounded-lg border p-2.5',
       tone === 'projecao'
         ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 to-white dark:border-blue-900/50 dark:from-blue-950/30 dark:to-gray-900'
         : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
-      tooltip && 'cursor-help',
     )}
   >
     <div className="flex items-center justify-between">
@@ -268,11 +263,7 @@ const Kpi = ({
         )}
       >
         {label}
-        {tooltip && (
-          <span title={tooltip} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-            <HelpCircle className="h-3 w-3" />
-          </span>
-        )}
+        {tooltip && <InfoHint text={tooltip} />}
       </p>
       <Icon className={cn('h-3.5 w-3.5', tone === 'projecao' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400')} />
     </div>

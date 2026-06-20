@@ -1,8 +1,9 @@
-import { CheckCircle2, Layers, HelpCircle } from 'lucide-react'
+import { CheckCircle2, Layers } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { useFilterStore } from '@/store/filters'
 import { showsOnlyCompletoScope } from '@/lib/globalFilters'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 /* ─── Helpers de datas ─── */
 
@@ -130,13 +131,10 @@ const DataFilterModeSelect = () => {
           </button>
         )
       })}
-      <span
-        title="As vendas do dia atual só aparecem depois que o posto fecha/sincroniza na Quality — não é tempo real. 'Apurado' mostra só dias fechados; 'Completo' inclui o dia corrente conforme ele sincroniza."
-        className="ml-0.5 inline-flex cursor-help items-center text-gray-400 dark:text-gray-500"
-        aria-label="Sobre os dados do dia atual"
-      >
-        <HelpCircle className="h-3.5 w-3.5" />
-      </span>
+      <InfoHint
+        text="As vendas do dia atual só aparecem depois que o posto fecha/sincroniza na Quality — não é tempo real. 'Apurado' mostra só dias fechados; 'Completo' inclui o dia corrente conforme ele sincroniza."
+        className="ml-0.5"
+      />
     </div>
   )
 }

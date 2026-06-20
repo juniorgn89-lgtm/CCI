@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList, HelpCircle } from 'lucide-react'
+import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList } from 'lucide-react'
 import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
 import TanqueCard from '@/pages/Dashboard/components/TanqueCard'
 import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
@@ -245,11 +246,7 @@ const StatCard = ({ label, value, sub, icon: Icon, color, hint }: StatCardProps)
       <div className="min-w-0">
         <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           {label}
-          {hint && (
-            <span title={hint} className="inline-flex cursor-help text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-              <HelpCircle className="h-3 w-3" />
-            </span>
-          )}
+          {hint && <InfoHint text={hint} />}
         </p>
         <p className="mt-0.5 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
           {value}

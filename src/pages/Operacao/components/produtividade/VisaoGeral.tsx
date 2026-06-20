@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
-import { ArrowUp, ArrowDown, ArrowUpDown, HelpCircle, ChevronRight } from 'lucide-react'
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import BarCell from '@/components/tables/BarCell'
 import FrentistaDetalheModal from '@/pages/Operacao/components/produtividade/FrentistaDetalheModal'
@@ -307,12 +308,10 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Comparativo de Frentistas
               </h3>
-              <span className="group/help relative inline-flex cursor-help" tabIndex={0} aria-label="Como usar">
-                <HelpCircle className="h-3.5 w-3.5 text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200" />
-                <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
-                  Consolidado do período por frentista. Clique na seta pra ver a quebra por combustível, ou no nome pra abrir o detalhe diário por produto.
-                </span>
-              </span>
+              <InfoHint
+                text="Consolidado do período por frentista. Clique na seta pra ver a quebra por combustível, ou no nome pra abrir o detalhe diário por produto."
+                align="start"
+              />
             </div>
             <p className="mt-0.5 text-xs italic text-gray-400">
               Desempenho consolidado no período · expanda pra ver por combustível

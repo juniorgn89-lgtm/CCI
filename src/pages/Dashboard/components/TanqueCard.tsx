@@ -1,6 +1,7 @@
-import { ShoppingCart, TrendingDown, Info, HelpCircle } from 'lucide-react'
+import { ShoppingCart, TrendingDown, Info } from 'lucide-react'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 import type { ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 
 /** dd/MM/yy compacto pra a data da última compra. */
@@ -50,12 +51,7 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
           >
             {badge.label}
           </span>
-          <span
-            title="Nível atual do tanque (% da capacidade). Mostra a última compra (volume, data e custo) e a necessidade projetada até o fim do mês pelo consumo médio diário."
-            className="inline-flex cursor-help text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </span>
+          <InfoHint text="Nível atual do tanque (% da capacidade). Mostra a última compra (volume, data e custo) e a necessidade projetada até o fim do mês pelo consumo médio diário." />
         </div>
       </div>
 

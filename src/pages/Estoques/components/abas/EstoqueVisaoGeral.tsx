@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle, AlertCircle, RefreshCw, Package,
-  ShoppingCart, Boxes, Clock, Hourglass, DollarSign, HelpCircle,
+  ShoppingCart, Boxes, Clock, Hourglass, DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 
 interface Props {
@@ -17,13 +18,6 @@ interface Props {
 type SaldoFiltro = 'todos' | 'comSaldo' | 'zerado' | 'negativo'
 
 const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v)
-
-/** Ícone "?" com tooltip explicativo (hover). */
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-    <HelpCircle className="h-3.5 w-3.5" />
-  </span>
-)
 
 const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) => {
   const [saldoFiltro, setSaldoFiltro] = useState<SaldoFiltro>('todos')
@@ -83,7 +77,7 @@ const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) 
       <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
           Saldo
-          <Hint text="Filtra os produtos pelo saldo atual: todos, só com saldo (>0), zerados ou negativos." />
+          <InfoHint text="Filtra os produtos pelo saldo atual: todos, só com saldo (>0), zerados ou negativos." />
         </span>
         <Segmented
           value={saldoFiltro}
@@ -103,7 +97,7 @@ const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) 
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de produtos</span>
-              <Hint text="Nº de produtos não-combustíveis com saldo atual ou venda nos últimos 6 meses (no filtro de saldo selecionado)." />
+              <InfoHint text="Nº de produtos não-combustíveis com saldo atual ou venda nos últimos 6 meses (no filtro de saldo selecionado)." />
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
               <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -118,7 +112,7 @@ const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) 
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Quantidade em estoque</span>
-              <Hint text="Soma do saldo atual (em unidades) de todos os produtos do filtro. Não inclui combustível (medido em litros)." />
+              <InfoHint text="Soma do saldo atual (em unidades) de todos os produtos do filtro. Não inclui combustível (medido em litros)." />
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
               <Boxes className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
@@ -133,7 +127,7 @@ const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) 
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor total em estoque</span>
-              <Hint text="Saldo atual × custo médio (últimos 6 meses) de cada produto, somado. Quanto de capital está parado em estoque." />
+              <InfoHint text="Saldo atual × custo médio (últimos 6 meses) de cada produto, somado. Quanto de capital está parado em estoque." />
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
               <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -195,7 +189,7 @@ const EstoqueVisaoGeral = ({ data: allData, janelaDias, onNavigateTab }: Props) 
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Vão zerar em breve
               </h3>
-              <Hint text="Top 3 produtos mais perto de zerar, projetado pela média diária de vendas (saldo atual ÷ venda/dia). Vermelho < 7 dias." />
+              <InfoHint text="Top 3 produtos mais perto de zerar, projetado pela média diária de vendas (saldo atual ÷ venda/dia). Vermelho < 7 dias." />
               <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">
                 projeção pela média diária
               </span>
@@ -331,7 +325,7 @@ const MiniKpi = ({
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1">
           <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</span>
-          {hint && <Hint text={hint} />}
+          {hint && <InfoHint text={hint} />}
         </span>
         <div className={cn(
           'flex h-7 w-7 items-center justify-center rounded-md',

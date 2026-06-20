@@ -1,46 +1,9 @@
-import { useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { HelpCircle } from 'lucide-react'
+import { useState } from 'react'
 import BarCell from '@/components/tables/BarCell'
+import InfoHint from '@/components/ui/InfoHint'
 import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { calcularMaxes, type ReposicaoLinha, type ReposicaoMaxes } from '@/pages/Dashboard/components/reposicao'
-
-/** Tooltip via Portal — escapa do `overflow-x-auto` da tabela. */
-const InfoTooltip = ({ text }: { text: string }) => {
-  const [pos, setPos] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false })
-  const ref = useRef<HTMLSpanElement>(null)
-  const show = () => {
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    // Posiciona à esquerda do ícone, vertical-center.
-    setPos({ x: rect.left - 8, y: rect.top + rect.height / 2, visible: true })
-  }
-  const hide = () => setPos((p) => ({ ...p, visible: false }))
-  return (
-    <span
-      ref={ref}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      tabIndex={0}
-      aria-label="Por que está zero?"
-      className="inline-flex cursor-help"
-    >
-      <HelpCircle className="h-3 w-3 shrink-0" />
-      {pos.visible && typeof document !== 'undefined' && createPortal(
-        <span
-          style={{ left: pos.x, top: pos.y, transform: 'translate(-100%, -50%)', position: 'fixed', zIndex: 9999 }}
-          className="pointer-events-none w-56 rounded-md bg-gray-900 px-3 py-2 text-[11px] leading-snug text-white shadow-lg dark:bg-gray-700"
-        >
-          {text}
-        </span>,
-        document.body,
-      )}
-    </span>
-  )
-}
 
 interface ReposicaoTabelaProps {
   linhas: ReposicaoLinha[]
@@ -131,7 +94,7 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
                   ) : (
                     <span className="inline-flex h-6 w-full items-center justify-end gap-1 px-1.5 text-right text-xs tabular-nums text-gray-400 dark:text-gray-500">
                       {formatLiters(0)}
-                      <InfoTooltip text="Sem consumo registrado nesse tanque no período. Sem ritmo de venda, o sistema não consegue projetar quanto comprar." />
+                      <InfoHint text="Sem consumo registrado nesse tanque no período. Sem ritmo de venda, o sistema não consegue projetar quanto comprar." side="left" />
                     </span>
                   )}
                 </td>

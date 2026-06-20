@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, Trophy, TrendingDown, HelpCircle } from 'lucide-react'
+import { Search, Trophy, TrendingDown } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
+import HeaderHint from '@/components/tables/HeaderHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import { smoothedProjection, PROJECAO_TOOLTIP, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
@@ -46,17 +47,6 @@ const GROUP_COLORS = [
   'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-900/40',
   'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900/40',
 ]
-
-const ThWithHelp = ({ label, help, align = 'right' }: { label: string; help: string; align?: 'left' | 'right' }) => (
-  <th className={cn('px-4 py-2.5 font-medium', align === 'right' ? 'text-right' : 'text-left')}>
-    <span className="inline-flex items-center gap-1">
-      {label}
-      <span title={help} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-        <HelpCircle className="h-3 w-3" />
-      </span>
-    </span>
-  </th>
-)
 
 const ConvenienciaVisaoGeral = ({
   catalogProducts,
@@ -197,16 +187,16 @@ const ConvenienciaVisaoGeral = ({
             <table className="w-full text-sm">
               <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                 <tr>
-                  <ThWithHelp align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
-                  <ThWithHelp label="Unidades" help="Total de unidades vendidas na categoria." />
-                  <ThWithHelp label="Faturamento" help="Receita total da categoria (R$)." />
-                  <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP} />
-                  <ThWithHelp label="Custo" help="Custo total da categoria (R$)." />
-                  <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
-                  <ThWithHelp label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
-                  <ThWithHelp label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
-                  <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
-                  <ThWithHelp label="% mix" help="Participação da categoria no faturamento total da conveniência." />
+                  <HeaderHint align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
+                  <HeaderHint label="Unidades" help="Total de unidades vendidas na categoria." />
+                  <HeaderHint label="Faturamento" help="Receita total da categoria (R$)." />
+                  <HeaderHint label="Projeção" help={PROJECAO_TOOLTIP} />
+                  <HeaderHint label="Custo" help="Custo total da categoria (R$)." />
+                  <HeaderHint label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                  <HeaderHint label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
+                  <HeaderHint label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
+                  <HeaderHint label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
+                  <HeaderHint label="% mix" help="Participação da categoria no faturamento total da conveniência." />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -375,14 +365,14 @@ const ConvenienciaVisaoGeral = ({
             <table className="w-full text-sm">
               <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                 <tr>
-                  <ThWithHelp align="left" label="Produto" help="Nome do produto vendido." />
-                  <ThWithHelp align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
-                  <ThWithHelp label="Unidades" help="Quantidade total de unidades vendidas." />
-                  <ThWithHelp label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
-                  <ThWithHelp label="Faturamento" help="Receita total do produto (R$)." />
-                  <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
-                  <ThWithHelp label="Lucro bruto" help="Lucro bruto: (preço − custo) × quantidade (R$)." />
-                  <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
+                  <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />
+                  <HeaderHint align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
+                  <HeaderHint label="Unidades" help="Quantidade total de unidades vendidas." />
+                  <HeaderHint label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
+                  <HeaderHint label="Faturamento" help="Receita total do produto (R$)." />
+                  <HeaderHint label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
+                  <HeaderHint label="Lucro bruto" help="Lucro bruto: (preço − custo) × quantidade (R$)." />
+                  <HeaderHint label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

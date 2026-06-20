@@ -16,6 +16,7 @@ Consome a API REST da Quality Automação usando **exclusivamente GET** (exceç�
 | [PRD.md](PRD.md) | Product Requirement Document completo |
 | [TASKS.md](TASKS.md) | Lista de tarefas por sprint |
 | [SPEC-drilldown-litros-vendidos.md](SPEC-drilldown-litros-vendidos.md) | Spec do drill-down do cartão "Litros Vendidos" (reconciliação LMC) |
+| [SPEC-tooltip-padronizacao.md](SPEC-tooltip-padronizacao.md) | Padronização dos tooltips de ajuda ("?") — componente único InfoHint/HeaderHint |
 
 ## Stack
 

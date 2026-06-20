@@ -1,9 +1,8 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   Info, TrendingDown, TrendingUp, Minus, Radar, Calculator, Fuel, ShieldCheck,
   ShieldAlert, ShieldX, Gauge, AlertTriangle, Activity, Droplets, Target, Zap,
-  Lightbulb, ChevronDown, ChevronUp, CircleDollarSign, Flame, HelpCircle,
+  Lightbulb, ChevronDown, ChevronUp, CircleDollarSign, Flame,
 } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, ComposedChart, Bar, Line, XAxis, YAxis,
@@ -12,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { projecaoAvancada } from '@/lib/projection'
+import InfoHint from '@/components/ui/InfoHint'
 import type { AbastecimentoRow, FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 
 interface GuerraPrecoProps {
@@ -69,48 +69,6 @@ const TONE: Record<Tone, { pill: string; dot: string; text: string; grad: string
     dot: 'bg-gray-400', text: 'text-gray-500 dark:text-gray-400',
     grad: 'from-gray-400/10 to-transparent', glow: 'shadow-black/10', bar: 'bg-gray-400', hex: '#94a3b8',
   },
-}
-
-/** Ícone "?" com tooltip explicando como o número é calculado. O balão é
- * renderizado via PORTAL com posição `fixed` — assim escapa de qualquer
- * `overflow-hidden`/`overflow-auto` dos cards e não é cortado. Vira pra baixo
- * quando não há espaço acima (ex.: cards no topo da tela). `align` é aceito por
- * compatibilidade, mas o posicionamento é calculado pela posição do ícone. */
-const HelpTip = ({ text }: { text: string; align?: 'left' | 'center' | 'right' }) => {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [tip, setTip] = useState<{ top: number; left: number; below: boolean } | null>(null)
-  const show = () => {
-    const r = ref.current?.getBoundingClientRect()
-    if (!r) return
-    const below = r.top < 96 // pouco espaço acima → abre pra baixo
-    const left = Math.min(Math.max(r.left + r.width / 2, 116), window.innerWidth - 116)
-    setTip({ top: below ? r.bottom + 8 : r.top - 8, left, below })
-  }
-  const hide = () => setTip(null)
-  return (
-    <span
-      ref={ref}
-      tabIndex={0}
-      aria-label={text}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      className="inline-flex cursor-help align-middle"
-    >
-      <HelpCircle className="h-3 w-3 shrink-0 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
-      {tip &&
-        createPortal(
-          <span
-            style={{ position: 'fixed', top: tip.top, left: tip.left, transform: `translate(-50%, ${tip.below ? '0' : '-100%'})` }}
-            className="pointer-events-none z-[60] w-56 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white shadow-xl dark:bg-gray-800"
-          >
-            {text}
-          </span>,
-          document.body,
-        )}
-    </span>
-  )
 }
 
 /**
@@ -514,7 +472,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               sparkTone="blue"
               pill={{ tone: compTone, label: compLabel }}
               help="Preço médio ponderado pelos litros do período (faturamento ÷ litros). A variação compara a média dos últimos 7 dias com os 7 anteriores. A pílula classifica o preço recente vs. a média do período: abaixo = competitivo, acima = caro."
-              helpAlign="left"
               footer={<span>Competitividade <span className="text-gray-400">·</span> vs. sua média do período</span>}
             />
             <ExecCard
@@ -531,7 +488,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               sparkTone={margemTone}
               pill={{ tone: margemTone, label: margemLabel }}
               help={`Lucro bruto por litro = lucro ÷ litros. Margem % = lucro ÷ faturamento. Saúde: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica. Mínimo sustentável = preço médio × ${MARGEM_ATENCAO}%.`}
-              helpAlign="left"
               footer={<span>Mín. sustentável <span className="font-semibold text-gray-600 dark:text-gray-300">{moneyL(lbMinSustentavel)}</span> <span className="text-gray-400">(~{MARGEM_ATENCAO}%)</span></span>}
             />
             <ExecCard
@@ -547,7 +503,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               spark={sparkCusto}
               sparkTone={wow.custoDelta > 0.005 ? 'red' : 'emerald'}
               help="Custo médio por litro = (faturamento − lucro) ÷ litros. A variação compara os últimos 7 dias com os 7 anteriores. A projeção 7d extrapola essa tendência linearmente (não é previsão de reajuste do fornecedor)."
-              helpAlign="right"
               footer={
                 wow.hasPrev && Math.abs(wow.custoDelta) > 0.003 ? (
                   <span>Projeção 7d <span className="font-semibold text-gray-600 dark:text-gray-300">{moneyL(agg.precoCustoMedio * (1 + wow.custoDelta))}</span> <span className="text-gray-400">(tendência)</span></span>
@@ -569,7 +524,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               spark={sparkVol}
               sparkTone="blue"
               help="Litros por dia = total de litros ÷ dias com venda. A variação compara a média/dia dos últimos 7 dias com os 7 anteriores. Projeção 30d = litros/dia × 30. O impacto de -R$0,10 usa a elasticidade observada nos cortes anteriores."
-              helpAlign="right"
               footer={
                 <span>
                   Proj. 30d <span className="font-semibold text-gray-600 dark:text-gray-300">{formatLiters(agg.litrosDia * 30)}</span>
@@ -588,10 +542,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Simulador de corte de preço
               </h4>
-              <HelpTip
-                text="Aplica o corte do slider sobre o que ainda falta vender até o fim do mês (os dias já fechados não mudam). Compara 3 projeções de fechamento: sem alteração, com corte sem reação de volume e com corte + elasticidade estimada."
-                align="left"
-              />
+              <InfoHint text="Aplica o corte do slider sobre o que ainda falta vender até o fim do mês (os dias já fechados não mudam). Compara 3 projeções de fechamento: sem alteração, com corte sem reação de volume e com corte + elasticidade estimada." />
               <span className="text-[11px] text-gray-400">— arraste pra projetar o fechamento</span>
             </div>
 
@@ -647,28 +598,24 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                   label="Novo preço"
                   value={moneyL(sim.novoPreco)}
                   help="Preço médio de venda menos a redução aplicada no slider."
-                  helpAlign="left"
                 />
                 <SimStat
                   label="Nova L.B./L"
                   value={moneyL(sim.novoLb)}
                   tone={sim.belowBreakeven ? 'red' : sim.novoLb < lbMinSustentavel ? 'amber' : 'emerald'}
                   help="Lucro bruto por litro atual menos a redução (sai direto da margem). Abaixo de zero = preço no/abaixo do custo."
-                  helpAlign="right"
                 />
                 <SimStat
                   label="Margem / L"
                   value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(2).replace('.', ',')}%` : '—'}
                   tone={sim.margemFinal >= MARGEM_SAUDAVEL ? 'emerald' : sim.margemFinal >= MARGEM_ATENCAO ? 'amber' : 'red'}
                   help={`Nova L.B./litro ÷ novo preço. Cores: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica.`}
-                  helpAlign="left"
                 />
                 <SimStat
                   label="Volume p/ empatar"
                   value={sim.belowBreakeven ? '∞' : `+${pct1(sim.breakEvenGrowth)}`}
                   tone={sim.belowBreakeven ? 'red' : sim.breakEvenGrowth > 0.2 ? 'red' : sim.breakEvenGrowth > 0.1 ? 'amber' : 'emerald'}
                   help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1. Abaixo do break-even = impossível empatar (∞)."
-                  helpAlign="right"
                 />
               </div>
             </div>
@@ -681,7 +628,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                     <th className="px-3 py-2 text-left font-medium">
                       <span className="inline-flex items-center gap-1">
                         Projeção {horizonte.labelShort}
-                        <HelpTip text="Cada coluna projeta o fechamento somando o que já foi realizado + os dias que faltam. O corte só age sobre os dias futuros." align="left" />
+                        <InfoHint text="Cada coluna projeta o fechamento somando o que já foi realizado + os dias que faltam. O corte só age sobre os dias futuros." />
                       </span>
                     </th>
                     <th className="px-3 py-2 text-right font-medium">Sem alteração</th>
@@ -740,10 +687,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             <div className="mb-2 flex items-center gap-2">
               <Activity className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
               <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cenários estratégicos</h4>
-              <HelpTip
-                text="Três cortes-padrão (Conservador -R$0,05 · Esperado -R$0,10 · Agressivo -R$0,15) projetados até o fechamento do mês com a elasticidade estimada. Cada card mostra faturamento, lucro, margem e volume projetados, o break-even de volume e o risco. Inviável = corte abaixo do custo."
-                align="left"
-              />
+              <InfoHint text="Três cortes-padrão (Conservador -R$0,05 · Esperado -R$0,10 · Agressivo -R$0,15) projetados até o fechamento do mês com a elasticidade estimada. Cada card mostra faturamento, lucro, margem e volume projetados, o break-even de volume e o risco. Inviável = corte abaixo do custo." />
               <span className="text-[11px] text-gray-400">— projetados {horizonte.labelShort}</span>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -760,10 +704,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Curva de elasticidade</h4>
-                <HelpTip
-                  text="Para cada corte, a barra mostra o crescimento de volume necessário pra empatar o lucro: (L.B. atual ÷ (L.B. − corte)) − 1. Cor por risco (verde <10% · âmbar <20% · vermelho ≥20%). A linha azul é o crescimento estimado pela elasticidade observada."
-                  align="left"
-                />
+                <InfoHint text="Para cada corte, a barra mostra o crescimento de volume necessário pra empatar o lucro: (L.B. atual ÷ (L.B. − corte)) − 1. Cor por risco (verde <10% · âmbar <20% · vermelho ≥20%). A linha azul é o crescimento estimado pela elasticidade observada." />
               </div>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                 Quanto de volume a mais é preciso vender pra bancar cada corte (break-even).
@@ -804,8 +745,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 <p className="mt-1 flex items-center gap-1.5 text-[10px] text-gray-400">
                   <span className="inline-block h-0.5 w-4 rounded bg-blue-500" />
                   Linha azul = crescimento estimado pela elasticidade observada ({cortes.length} corte{cortes.length === 1 ? '' : 's'} no histórico).
-                  <HelpTip
-                    align="left"
+                  <InfoHint
                     text={`A elasticidade vem dos cortes de preço já ocorridos no período: para cada dia em que o preço caiu, mede-se a variação de litros vs. o dia anterior. Faz-se a média ponderada pela magnitude do corte → ${(elasticidade * 100).toFixed(2).replace('.', ',')}% de volume por R$1 de corte. O % de cada cenário = essa elasticidade × o corte (ex.: ${(elasticidade * 100).toFixed(2)}%/R$ × R$0,10 ≈ +${pct1(Math.max(0, elasticidade * 0.1))}). Sem cortes no histórico, não há estimativa.`}
                   />
                 </p>
@@ -817,10 +757,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-amber-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Alertas inteligentes</h4>
-                <HelpTip
-                  text="Avisos gerados automaticamente a partir dos dados do período: margem perto do piso, custo subindo, volume exigido agressivo, queda/alta de volume e elasticidade baixa. Não há dados de concorrentes."
-                  align="left"
-                />
+                <InfoHint text="Avisos gerados automaticamente a partir dos dados do período: margem perto do piso, custo subindo, volume exigido agressivo, queda/alta de volume e elasticidade baixa. Não há dados de concorrentes." />
               </div>
               <div className="mt-3 space-y-2">
                 {alertas.length === 0 ? (
@@ -852,10 +789,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
                 <TrendingDown className="h-4 w-4 text-red-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cortes de preço no período</h4>
-                <HelpTip
-                  text="Dias em que o preço médio caiu mais de R$0,005 vs. o dia anterior. As colunas de volume e L.B./litro comparam o dia do corte com o dia anterior — a leitura indica se o volume reagiu ao corte."
-                  align="left"
-                />
+                <InfoHint text="Dias em que o preço médio caiu mais de R$0,005 vs. o dia anterior. As colunas de volume e L.B./litro comparam o dia do corte com o dia anterior — a leitura indica se o volume reagiu ao corte." />
                 <span className="text-[11px] text-gray-400">— {cortes.length} {cortes.length === 1 ? 'dia' : 'dias'} com queda de preço</span>
               </div>
               <div className="overflow-x-auto">
@@ -998,10 +932,7 @@ const ViabilidadeHero = ({ viab, fuel }: { viab: ViabData; fuel: string }) => {
           <div>
             <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               Viabilidade da redução de preço · {fuel}
-              <HelpTip
-                text="Score 0–100 = média ponderada de 4 fatores: saúde da margem (34%), folga de elasticidade num corte de R$0,10 (30%), momentum de volume na semana (16%) e resposta histórica a cortes (20%). ≥66 viável · 40–65 cautela · <40 alto risco."
-                align="left"
-              />
+              <InfoHint text="Score 0–100 = média ponderada de 4 fatores: saúde da margem (34%), folga de elasticidade num corte de R$0,10 (30%), momentum de volume na semana (16%) e resposta histórica a cortes (20%). ≥66 viável · 40–65 cautela · <40 alto risco." />
             </p>
             <h3 className={cn('mt-0.5 text-xl font-bold', t.text)}>{viab.verdict}</h3>
             <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500 dark:text-gray-400">{viab.resumo}</p>
@@ -1063,10 +994,9 @@ interface ExecCardProps {
   pill?: { tone: Tone; label: string }
   footer: ReactNode
   help: string
-  helpAlign?: 'left' | 'center' | 'right'
 }
 
-const ExecCard = ({ id, Icon, tone, label, value, sub, delta, deltaLabel, deltaGoodWhenUp, spark, sparkTone, pill, footer, help, helpAlign }: ExecCardProps) => {
+const ExecCard = ({ id, Icon, tone, label, value, sub, delta, deltaLabel, deltaGoodWhenUp, spark, sparkTone, pill, footer, help }: ExecCardProps) => {
   const t = TONE[tone]
   const showDelta = delta !== undefined && Math.abs(delta) > 0.0001
   const up = (delta ?? 0) >= 0
@@ -1082,7 +1012,7 @@ const ExecCard = ({ id, Icon, tone, label, value, sub, delta, deltaLabel, deltaG
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
             {label}
-            <HelpTip text={help} align={helpAlign} />
+            <InfoHint text={help} />
           </span>
         </div>
         {pill && (
@@ -1128,11 +1058,11 @@ const ExecCard = ({ id, Icon, tone, label, value, sub, delta, deltaLabel, deltaG
   )
 }
 
-const SimStat = ({ label, value, tone, help, helpAlign }: { label: string; value: string; tone?: Tone; help: string; helpAlign?: 'left' | 'center' | 'right' }) => (
+const SimStat = ({ label, value, tone, help }: { label: string; value: string; tone?: Tone; help: string }) => (
   <div className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900">
     <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
       {label}
-      <HelpTip text={help} align={helpAlign} />
+      <InfoHint text={help} />
     </p>
     <p className={cn('mt-0.5 text-base font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
   </div>
@@ -1171,7 +1101,7 @@ const CenarioCard = ({ c }: { c: CenarioVM }) => {
       </div>
       <p className="mt-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gray-400">
         Novo preço
-        <HelpTip text="Preço médio de venda menos o corte-padrão deste cenário (Conservador -R$0,05 · Esperado -R$0,10 · Agressivo -R$0,15)." align="left" />
+        <InfoHint text="Preço médio de venda menos o corte-padrão deste cenário (Conservador -R$0,05 · Esperado -R$0,10 · Agressivo -R$0,15)." />
       </p>
       <p className="text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{moneyL(c.novoPreco)}</p>
 
@@ -1238,7 +1168,7 @@ const ProjecaoFechamento = ({ proj }: { proj: ProjData }) => {
       <div className="flex flex-wrap items-center gap-2">
         <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
         <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Projeção até o fechamento do mês</h4>
-        <HelpTip text="Cenário base, sem alteração de preço. Soma o que já foi realizado nos dias fechados com a projeção dos dias que faltam até o fim do mês." align="left" />
+        <InfoHint text="Cenário base, sem alteração de preço. Soma o que já foi realizado nos dias fechados com a projeção dos dias que faltam até o fim do mês." />
         {proj.isProjetada ? (
           <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-800"><CircleDollarSign className="h-3 w-3" />{proj.diasFechados} dias fechados</span>
@@ -1254,7 +1184,7 @@ const ProjecaoFechamento = ({ proj }: { proj: ProjData }) => {
             <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
               <it.Icon className="h-3 w-3" />
               {it.label}
-              <HelpTip text={it.help} align="left" />
+              <InfoHint text={it.help} />
             </p>
             <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{it.value}</p>
           </div>
@@ -1280,7 +1210,7 @@ const Row = ({ label, value, tone, extra, help }: { label: string; value: string
   <div className="flex items-center justify-between gap-2">
     <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
       {label}
-      {help && <HelpTip text={help} align="left" />}
+      {help && <InfoHint text={help} />}
     </span>
     <span className="flex items-baseline gap-1">
       <span className={cn('font-semibold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</span>

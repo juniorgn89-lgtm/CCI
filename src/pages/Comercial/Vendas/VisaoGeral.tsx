@@ -5,12 +5,13 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList,
 } from 'recharts'
-import { LayoutGrid, Fuel, Wrench, Store, Globe, DollarSign, TrendingUp, Percent, Receipt, HelpCircle } from 'lucide-react'
+import { LayoutGrid, Fuel, Wrench, Store, Globe, DollarSign, TrendingUp, Percent, Receipt } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
@@ -64,18 +65,6 @@ const SEGMENTS: SegmentInfo[] = [
   },
 ]
 
-/* ─── Ajuda "?" (tooltip nativo) — afforda explicação sem ocupar espaço.
- * `onClick` neutraliza navegação quando usado dentro de um <Link>. ─── */
-const HelpDot = ({ text }: { text: string }) => (
-  <span
-    title={text}
-    onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-    className="inline-flex cursor-help text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
-  >
-    <HelpCircle className="h-3 w-3" />
-  </span>
-)
-
 const fmtPct2 = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
 
 /* ─── Card de segmento (formato): Lucro bruto em destaque + 2 métricas
@@ -101,7 +90,7 @@ const SegmentCard = ({ label, Icon, iconBg, iconColor, cardBg, lucroBruto, prima
         <div className="min-w-0">
           <p className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
             {label}
-            <HelpDot text={tooltip} />
+            <InfoHint text={tooltip} />
           </p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">Lucro bruto</p>
         </div>
@@ -162,7 +151,7 @@ const KpiCard = ({ label, value, hint, tooltip, extra, Icon, iconBg, iconColor, 
     <div className="flex items-center justify-between">
       <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
         {label}
-        {tooltip && <HelpDot text={tooltip} />}
+        {tooltip && <InfoHint text={tooltip} />}
       </p>
       <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-5 w-5', iconColor)} />
@@ -647,7 +636,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Participação no faturamento
-                <HelpDot text="Quanto cada segmento (Combustível, Pista, Conveniência) representa do faturamento total do período. Passe o mouse nas fatias pra ver o valor em R$." />
+                <InfoHint text="Quanto cada segmento (Combustível, Pista, Conveniência) representa do faturamento total do período. Passe o mouse nas fatias pra ver o valor em R$." />
               </h3>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                 Quanto cada segmento representa do total
@@ -712,7 +701,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Margem por segmento
-                <HelpDot text="Margem bruta (%) de cada segmento = lucro bruto ÷ faturamento do segmento. Compara a rentabilidade entre Combustível, Pista e Conveniência." />
+                <InfoHint text="Margem bruta (%) de cada segmento = lucro bruto ÷ faturamento do segmento. Compara a rentabilidade entre Combustível, Pista e Conveniência." />
               </h3>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                 Combustível costuma ter margem menor; pista/conveniência puxam o LB

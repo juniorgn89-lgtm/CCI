@@ -1,5 +1,6 @@
-import { HelpCircle, type LucideIcon } from 'lucide-react'
+import { type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 interface MetricItem {
   label: string
@@ -51,11 +52,7 @@ const TableSummaryStrip = ({
         <div>
           <h3 className="flex items-center gap-1 text-sm font-bold text-gray-900 dark:text-gray-100">
             {title}
-            {titleHint && (
-              <span title={titleHint} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-                <HelpCircle className="h-3.5 w-3.5" />
-              </span>
-            )}
+            {titleHint && <InfoHint text={titleHint} />}
           </h3>
           {subtitle && (
             <p className="text-[11px] text-gray-500 dark:text-gray-400">

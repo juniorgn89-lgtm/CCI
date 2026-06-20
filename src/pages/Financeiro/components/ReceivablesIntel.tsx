@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle, CalendarClock, Timer, Percent, Wallet, Users,
-  RotateCcw, ArrowUp, ArrowDown, HelpCircle, Sparkles, X,
+  RotateCcw, ArrowUp, ArrowDown, Sparkles, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
@@ -9,6 +9,7 @@ import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFi
 import type { TituloReceber } from '@/api/types/financeiro'
 import NotasPrazoNaoFaturadas from '@/pages/Financeiro/components/NotasPrazoNaoFaturadas'
 import ClienteRiscoModal from '@/pages/Financeiro/components/ClienteRiscoModal'
+import InfoHint from '@/components/ui/InfoHint'
 
 interface Props {
   /** Snapshot de TODOS os títulos a receber em aberto (vencido + a vencer). */
@@ -33,13 +34,6 @@ const nomeCli = (r: { nomeCliente?: string; clienteCodigo: number }) => r.nomeCl
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-
-/** Ícone "?" com tooltip explicativo (hover). */
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-    <HelpCircle className="h-3.5 w-3.5" />
-  </span>
-)
 
 interface ClienteAgg {
   codigo: number
@@ -322,7 +316,7 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
             <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
               <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               Análise da carteira
-              <Hint text="Análise automática gerada por regras sobre os seus dados reais (não usa IA externa)." />
+              <InfoHint text="Análise automática gerada por regras sobre os seus dados reais (não usa IA externa)." />
             </h3>
             <button onClick={() => setShowAnalise(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
               <X className="h-4 w-4" />
@@ -415,7 +409,7 @@ const ReceivablesIntel = ({ data, duplicatas, pagos, pmr }: Props) => {
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Carteira por cliente · score de risco
-            <Hint text="Um cliente por linha: valor em aberto, vencido, maior atraso, último pagamento (6m), score (0–100) e status. Score = atraso atual + histórico de pontualidade + recorrência. Ordenado por valor em aberto." />
+            <InfoHint text="Um cliente por linha: valor em aberto, vencido, maior atraso, último pagamento (6m), score (0–100) e status. Score = atraso atual + histórico de pontualidade + recorrência. Ordenado por valor em aberto." />
           </h3>
           <span className="text-xs text-gray-400">{m.tabela.length} clientes</span>
         </div>
@@ -516,7 +510,7 @@ const ExecCard = ({
     <div className="flex items-center justify-between gap-2">
       <p className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
         <span className="truncate">{title}</span>
-        {hint && <Hint text={hint} />}
+        {hint && <InfoHint text={hint} />}
       </p>
       <div className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', TONES[tone])}>
         <Icon className="h-3.5 w-3.5" />

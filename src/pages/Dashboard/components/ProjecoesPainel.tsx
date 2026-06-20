@@ -1,7 +1,8 @@
-import { Droplets, Wrench, Store, Globe, LineChart, HelpCircle } from 'lucide-react'
+import { Droplets, Wrench, Store, Globe, LineChart } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
+import InfoHint from '@/components/ui/InfoHint'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
@@ -41,12 +42,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{label}</p>
         <p className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
           Lucro bruto
-          <span className="group relative inline-flex cursor-help" tabIndex={0} aria-label="O que é Lucro bruto?">
-            <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-            <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-60 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-[11px] font-normal normal-case leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-gray-700">
-              <strong>Faturamento − Custo</strong> dos produtos vendidos, somando todos os postos da rede. Não inclui despesas operacionais.
-            </span>
-          </span>
+          <InfoHint text="Faturamento − Custo dos produtos vendidos, somando todos os postos da rede. Não inclui despesas operacionais." />
         </p>
       </div>
       <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
@@ -143,9 +139,10 @@ const ProjecoesPainel = () => {
           <div>
             <p className="inline-flex items-center gap-1 text-sm font-semibold text-white">
               Projeção
-              <span title="Estimativa de fechamento do mês por setor: extrapolação linear do realizado (dias decorridos → dias totais do mês). É uma projeção, não o valor final." className="cursor-help text-white/60 hover:text-white">
-                <HelpCircle className="h-3 w-3" />
-              </span>
+              <InfoHint
+                text="Estimativa de fechamento do mês por setor: extrapolação linear do realizado (dias decorridos → dias totais do mês). É uma projeção, não o valor final."
+                className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
+              />
             </p>
             <p className="text-[11px] text-white/70">Fim do mês</p>
           </div>

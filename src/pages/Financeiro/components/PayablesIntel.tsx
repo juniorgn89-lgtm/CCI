@@ -8,12 +8,13 @@ import {
 } from 'recharts'
 import {
   AlertTriangle, CalendarClock, CalendarDays, Hash, Wallet, Banknote,
-  Truck, ListOrdered, Landmark, HelpCircle, Sparkles, X,
+  Truck, ListOrdered, Landmark, Sparkles, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import FornecedorPagarModal from '@/pages/Financeiro/components/FornecedorPagarModal'
+import InfoHint from '@/components/ui/InfoHint'
 
 interface Props {
   /** Snapshot de TODOS os títulos a pagar em aberto (vencido + a vencer). */
@@ -36,12 +37,6 @@ const categoria = (r: PayableRow) => getStr(r, 'planoContaGerencialDescricao')?.
 const numTitulo = (r: PayableRow) => getStr(r, 'numeroTitulo')?.trim() || `#${(r as unknown as { tituloPagarCodigo?: number }).tituloPagarCodigo ?? ''}`
 
 const DONUT_CORES = ['#2563eb', '#7c3aed', '#0891b2', '#ea580c', '#16a34a', '#9ca3af']
-
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-    <HelpCircle className="h-3.5 w-3.5" />
-  </span>
-)
 
 type Aba = 'atraso' | 'fornecedor' | 'vencimento'
 
@@ -179,7 +174,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
               <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />Análise de pagamentos
-              <Hint text="Análise automática gerada por regras sobre os seus dados reais (não usa IA externa)." />
+              <InfoHint text="Análise automática gerada por regras sobre os seus dados reais (não usa IA externa)." />
             </h3>
             <button onClick={() => setShowAnalise(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X className="h-4 w-4" /></button>
           </div>
@@ -274,7 +269,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
           <div className="mb-2 flex items-center gap-2">
             <ListOrdered className="h-4 w-4 text-gray-400" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Maiores fornecedores</h3>
-            <Hint text="Ranking de fornecedores por valor em aberto e participação no total a pagar." />
+            <InfoHint text="Ranking de fornecedores por valor em aberto e participação no total a pagar." />
           </div>
           {m.fornecedores.length === 0 ? <Empty /> : (
             <ol className="space-y-2">
@@ -296,7 +291,7 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
           <div className="mb-3 flex items-center gap-2">
             <Landmark className="h-4 w-4 text-gray-400" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Impacto no caixa</h3>
-            <Hint text="Saldo atual das contas ativas (/CONTA) menos o total a pagar em aberto = saldo projetado." />
+            <InfoHint text="Saldo atual das contas ativas (/CONTA) menos o total a pagar em aberto = saldo projetado." />
           </div>
           <div className="space-y-2 text-sm">
             <Row label="Saldo atual" value={formatCurrency(saldoEmCaixa)} />
@@ -449,7 +444,7 @@ const ExecCard = ({ title, Icon, tone, value, sub, hint }: {
   <section className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
     <div className="flex items-center justify-between gap-2">
       <p className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-        <span className="truncate">{title}</span>{hint && <Hint text={hint} />}
+        <span className="truncate">{title}</span>{hint && <InfoHint text={hint} />}
       </p>
       <div className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', TONES[tone])}><Icon className="h-3.5 w-3.5" /></div>
     </div>
@@ -463,7 +458,7 @@ const ChartCard = ({ title, Icon, hint, children }: { title: string; Icon: typeo
     <div className="mb-2 flex items-center gap-2">
       <Icon className="h-4 w-4 text-gray-400" />
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-      {hint && <Hint text={hint} />}
+      {hint && <InfoHint text={hint} />}
     </div>
     {children}
   </section>

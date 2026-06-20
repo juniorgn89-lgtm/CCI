@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { LineChart, TrendingUp, TrendingDown, CalendarCheck, CalendarClock, Gauge, ShieldCheck, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { LineChart, TrendingUp, TrendingDown, CalendarCheck, CalendarClock, Gauge, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react'
 import { ResponsiveContainer, ComposedChart, Area, Line } from 'recharts'
+import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt, formatDate } from '@/lib/formatters'
@@ -108,16 +109,11 @@ const ProjecaoExecutiva = ({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium text-white/90">Projeção fim do período</p>
-          <span
-            className="group/help relative inline-flex cursor-help"
-            tabIndex={0}
-            aria-label="Como a projeção é calculada"
-          >
-            <HelpCircle className="h-3.5 w-3.5 text-white/60 transition-colors hover:text-white" />
-            <span className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/help:opacity-100 group-focus/help:opacity-100 dark:bg-gray-800">
-              {PROJECAO_TOOLTIP_EXECUTIVA}
-            </span>
-          </span>
+          <InfoHint
+            text={PROJECAO_TOOLTIP_EXECUTIVA}
+            align="start"
+            className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
+          />
         </div>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
           <LineChart className="h-4 w-4 text-white" />

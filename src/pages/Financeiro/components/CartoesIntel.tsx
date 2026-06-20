@@ -5,7 +5,7 @@ import {
   ScatterChart, Scatter, ZAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
-import { AlertTriangle, CalendarClock, CalendarDays, Percent, CreditCard, HelpCircle, ChevronRight } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, Percent, CreditCard, ChevronRight } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchCartao } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -14,6 +14,7 @@ import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import type { Cartao } from '@/api/types/financeiro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import InfoHint from '@/components/ui/InfoHint'
 
 type Modalidade = 'Crédito' | 'Débito' | 'PIX' | 'Carteira Digital'
 const MODALIDADES: Modalidade[] = ['Crédito', 'Débito', 'PIX', 'Carteira Digital']
@@ -44,12 +45,6 @@ const PERIODO_OPCOES: { value: number; label: string }[] = [
   { value: 24, label: 'Últimos 24 meses' },
 ]
 const DEFAULT_MESES = 6
-
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300">
-    <HelpCircle className="h-3.5 w-3.5" />
-  </span>
-)
 
 type Aba = 'atraso' | 'vencer' | 'liquidados' | 'analise'
 
@@ -207,7 +202,7 @@ const CartoesIntel = () => {
           <div className="mb-1 flex items-center gap-2">
             <Percent className="h-4 w-4 text-gray-400" />
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Taxa média de recebimentos</h3>
-            <Hint text="Oscilação da taxa média (ponderada por valor) no período selecionado, separada por modalidade de recebimento." />
+            <InfoHint text="Oscilação da taxa média (ponderada por valor) no período selecionado, separada por modalidade de recebimento." />
           </div>
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos {mesesJanela} meses, por modalidade</p>
           <ResponsiveContainer width="100%" height={400}>
@@ -518,7 +513,7 @@ const ExecCard = ({ title, Icon, tone, value, sub, hint }: {
   <section className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
     <div className="flex items-center justify-between gap-2">
       <p className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-        <span className="truncate">{title}</span>{hint && <Hint text={hint} />}
+        <span className="truncate">{title}</span>{hint && <InfoHint text={hint} />}
       </p>
       <div className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', TONES[tone])}><Icon className="h-3.5 w-3.5" /></div>
     </div>

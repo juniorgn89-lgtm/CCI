@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, AlertTriangle, AlertCircle, CheckCircle2, AlertOctagon, HelpCircle } from 'lucide-react'
+import { Search, AlertTriangle, AlertCircle, CheckCircle2, AlertOctagon } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
+import InfoHint from '@/components/ui/InfoHint'
 import { formatCurrency } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
@@ -207,12 +208,7 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
           <div>
             <h3 className="flex items-center gap-1.5 text-base font-semibold text-gray-900 dark:text-gray-100">
               Necessidade de estoque
-              <span
-                title={`Compara o saldo atual com a média de venda dos últimos ${janelaDias} dias pra sugerir quanto comprar (cobertura de ${coberturaDias} dias). 'Comprar' = unidades sugeridas; 'Cobertura' = quantos dias o saldo atual dura no ritmo de venda. Status: Negativo (saldo < 0), Crítico, Baixo, OK ou Sem movimento.`}
-                className="inline-flex cursor-help text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-300"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </span>
+              <InfoHint text={`Compara o saldo atual com a média de venda dos últimos ${janelaDias} dias pra sugerir quanto comprar (cobertura de ${coberturaDias} dias). 'Comprar' = unidades sugeridas; 'Cobertura' = quantos dias o saldo atual dura no ritmo de venda. Status: Negativo (saldo < 0), Crítico, Baixo, OK ou Sem movimento.`} />
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Compara o saldo atual com a média de venda dos últimos {janelaDias} dias para sugerir compra de cobertura de {coberturaDias} dias

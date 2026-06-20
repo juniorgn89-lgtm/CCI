@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode, useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Search, HelpCircle, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
+import { Wrench, Package, TrendingUp, TrendingDown, DollarSign, Search, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -20,6 +20,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
+import HeaderHint from '@/components/tables/HeaderHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
@@ -75,41 +76,6 @@ const CATEGORIA_COLOR: Record<string, string> = {
   'Serviços': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
   'Outros': 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-900/40',
 }
-
-/**
- * Cabeçalho de coluna com ícone "?" — explica a métrica via tooltip no hover.
- * Mesmo helper usado em Combustivel.tsx; replicado aqui pra evitar import
- * cruzado entre páginas irmãs (poderia virar `@/components/tables/ThWithHelp`
- * quando uma terceira tela precisar).
- */
-const ThWithHelp = ({
-  label,
-  help,
-  align = 'right',
-  groupStart,
-}: {
-  label: string
-  help: string
-  align?: 'left' | 'right'
-  groupStart?: boolean
-}) => (
-  <th className={cn('px-4 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right', groupStart && 'border-l border-gray-200 dark:border-gray-700')}>
-    <span className={cn('inline-flex items-center gap-1', align === 'left' ? '' : 'justify-end')}>
-      {label}
-      <span className="group relative inline-flex cursor-help">
-        <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
-        <span
-          className={cn(
-            'pointer-events-none absolute top-full z-50 mt-1 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700',
-            align === 'left' ? 'left-0' : 'right-0',
-          )}
-        >
-          {help}
-        </span>
-      </span>
-    </span>
-  </th>
-)
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
@@ -961,15 +927,15 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                       <GroupTh label="Eficiência" colSpan={3} />
                     </tr>
                     <tr>
-                      <ThWithHelp align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
-                      <ThWithHelp label="Qtde" help="Total de unidades vendidas na categoria." />
-                      <ThWithHelp groupStart label="Faturamento" help="Receita total da categoria (R$)." />
-                      <ThWithHelp label="Custo" help="Custo total da categoria (R$)." />
-                      <ThWithHelp label="Lucro Bruto" help="Lucro bruto total: faturamento − custo (R$)." />
-                      <ThWithHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-                      <ThWithHelp groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
-                      <ThWithHelp label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
-                      <ThWithHelp label="L.B. Médio" help="Lucro bruto médio por unidade: lucro ÷ unidades." />
+                      <HeaderHint align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
+                      <HeaderHint label="Qtde" help="Total de unidades vendidas na categoria." />
+                      <HeaderHint groupStart label="Faturamento" help="Receita total da categoria (R$)." />
+                      <HeaderHint label="Custo" help="Custo total da categoria (R$)." />
+                      <HeaderHint label="Lucro Bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                      <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+                      <HeaderHint groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ unidades." />
+                      <HeaderHint label="Custo médio" help="Custo médio por unidade: custo ÷ unidades." />
+                      <HeaderHint label="L.B. Médio" help="Lucro bruto médio por unidade: lucro ÷ unidades." />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1135,14 +1101,14 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 <table className="w-full text-sm">
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
-                      <ThWithHelp align="left" label="Produto" help="Nome do produto vendido." />
-                      <ThWithHelp align="left" label="Categoria" help="Família PS- (filtros, lubrificantes, etc.)." />
-                      <ThWithHelp label="Unidades" help="Quantidade total de unidades vendidas." />
-                      <ThWithHelp label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
-                      <ThWithHelp label="Faturamento" help="Receita total do produto (R$)." />
-                      <ThWithHelp label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
-                      <ThWithHelp label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
-                      <ThWithHelp label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
+                      <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />
+                      <HeaderHint align="left" label="Categoria" help="Família PS- (filtros, lubrificantes, etc.)." />
+                      <HeaderHint label="Unidades" help="Quantidade total de unidades vendidas." />
+                      <HeaderHint label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
+                      <HeaderHint label="Faturamento" help="Receita total do produto (R$)." />
+                      <HeaderHint label="Projeção" help={PROJECAO_TOOLTIP_PRODUTO} />
+                      <HeaderHint label="Lucro bruto" help="Lucro bruto total: faturamento − custo (R$)." />
+                      <HeaderHint label="Margem %" help="(Lucro bruto ÷ faturamento) × 100." />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

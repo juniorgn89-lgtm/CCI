@@ -1,48 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Radar, TrendingDown, TrendingUp, Minus, Info, HelpCircle } from 'lucide-react'
+import { useMemo } from 'react'
+import { Radar, TrendingDown, TrendingUp, Minus, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatLiters } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import type { PostoData } from '../hooks/useNetworkData'
-
-/** Ícone "?" com tooltip via portal (fixed) — não é cortado por overflow e vira
- * pra baixo quando não há espaço acima. Aparece no hover e no foco. */
-const HelpTip = ({ text }: { text: string }) => {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [tip, setTip] = useState<{ top: number; left: number; below: boolean } | null>(null)
-  const show = () => {
-    const r = ref.current?.getBoundingClientRect()
-    if (!r) return
-    const below = r.top < 96
-    const left = Math.min(Math.max(r.left + r.width / 2, 116), window.innerWidth - 116)
-    setTip({ top: below ? r.bottom + 8 : r.top - 8, left, below })
-  }
-  const hide = () => setTip(null)
-  return (
-    <span
-      ref={ref}
-      tabIndex={0}
-      aria-label={text}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      className="ml-1 inline-flex cursor-help align-middle"
-    >
-      <HelpCircle className="h-3 w-3 shrink-0 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
-      {tip &&
-        createPortal(
-          <span
-            style={{ position: 'fixed', top: tip.top, left: tip.left, transform: `translate(-50%, ${tip.below ? '0' : '-100%'})` }}
-            className="pointer-events-none z-[60] w-56 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white shadow-xl dark:bg-gray-800"
-          >
-            {text}
-          </span>,
-          document.body,
-        )}
-    </span>
-  )
-}
 
 interface RadarComparativoProps {
   postos: PostoData[]
@@ -135,17 +96,17 @@ const RadarComparativo = ({ postos, networkAvg }: RadarComparativoProps) => {
           <table className="w-full text-xs">
             <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
               <tr>
-                <th className="px-4 py-2 text-left font-medium">Posto<HelpTip text="Nome do posto (unidade) e cidade/UF." /></th>
-                <th className="px-4 py-2 text-right font-medium">Litros<HelpTip text="Total de litros de combustível vendidos no período." /></th>
-                <th className="px-4 py-2 text-right font-medium">Part. %<HelpTip text="Participação do posto no volume total da rede (litros do posto ÷ litros da rede)." /></th>
-                <th className="px-4 py-2 text-right font-medium">Faturamento<HelpTip text="Faturamento de combustível do posto no período (soma do valor dos abastecimentos)." /></th>
-                <th className="px-4 py-2 text-right font-medium">Ticket méd.<HelpTip text="Valor médio por abastecimento (faturamento ÷ nº de abastecimentos)." /></th>
-                {stats.showMargem && <th className="px-4 py-2 text-right font-medium">Custo / L<HelpTip text="Custo médio por litro, calculado só sobre o volume com custo apurado nos abastecimentos." /></th>}
-                <th className="px-4 py-2 text-right font-medium">Preço médio / L<HelpTip text="Preço médio de venda por litro (faturamento ÷ litros) — média ponderada de todos os combustíveis. A barra é proporcional ao maior preço; a linha vertical marca a média da rede (corte)." /></th>
-                <th className="px-4 py-2 text-right font-medium">vs. rede<HelpTip text="Diferença do preço médio/L do posto vs. a média da rede (ponderada por volume). Negativo = mais barato; positivo = mais caro." /></th>
-                {stats.showMargem && <th className="px-4 py-2 text-right font-medium">Margem<HelpTip text="Margem percentual por litro (lucro ÷ faturamento), só sobre o volume com custo apurado." /></th>}
-                <th className="px-4 py-2 text-right font-medium">Índice<HelpTip text="Índice de competitividade 0–100: combina preço (mais barato = melhor), participação de volume e margem (quando há custo apurado). Maior = mais competitivo." /></th>
-                <th className="px-4 py-2 text-left font-medium">Posição<HelpTip text="Classificação do preço vs. a média da rede: Competitivo (abaixo da média), Na média, ou Acima da rede." /></th>
+                <th className="px-4 py-2 text-left font-medium">Posto<InfoHint className="ml-1" text="Nome do posto (unidade) e cidade/UF." /></th>
+                <th className="px-4 py-2 text-right font-medium">Litros<InfoHint className="ml-1" text="Total de litros de combustível vendidos no período." /></th>
+                <th className="px-4 py-2 text-right font-medium">Part. %<InfoHint className="ml-1" text="Participação do posto no volume total da rede (litros do posto ÷ litros da rede)." /></th>
+                <th className="px-4 py-2 text-right font-medium">Faturamento<InfoHint className="ml-1" text="Faturamento de combustível do posto no período (soma do valor dos abastecimentos)." /></th>
+                <th className="px-4 py-2 text-right font-medium">Ticket méd.<InfoHint className="ml-1" text="Valor médio por abastecimento (faturamento ÷ nº de abastecimentos)." /></th>
+                {stats.showMargem && <th className="px-4 py-2 text-right font-medium">Custo / L<InfoHint className="ml-1" text="Custo médio por litro, calculado só sobre o volume com custo apurado nos abastecimentos." /></th>}
+                <th className="px-4 py-2 text-right font-medium">Preço médio / L<InfoHint className="ml-1" text="Preço médio de venda por litro (faturamento ÷ litros) — média ponderada de todos os combustíveis. A barra é proporcional ao maior preço; a linha vertical marca a média da rede (corte)." /></th>
+                <th className="px-4 py-2 text-right font-medium">vs. rede<InfoHint className="ml-1" text="Diferença do preço médio/L do posto vs. a média da rede (ponderada por volume). Negativo = mais barato; positivo = mais caro." /></th>
+                {stats.showMargem && <th className="px-4 py-2 text-right font-medium">Margem<InfoHint className="ml-1" text="Margem percentual por litro (lucro ÷ faturamento), só sobre o volume com custo apurado." /></th>}
+                <th className="px-4 py-2 text-right font-medium">Índice<InfoHint className="ml-1" text="Índice de competitividade 0–100: combina preço (mais barato = melhor), participação de volume e margem (quando há custo apurado). Maior = mais competitivo." /></th>
+                <th className="px-4 py-2 text-left font-medium">Posição<InfoHint className="ml-1" text="Classificação do preço vs. a média da rede: Competitivo (abaixo da média), Na média, ou Acima da rede." /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -245,7 +206,7 @@ const SummaryCard = ({ tone, Icon, label, posto, value, hint, help }: {
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="flex items-center gap-1.5">
         <Icon className={cn('h-4 w-4', cls)} />
-        <span className="inline-flex items-center text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}<HelpTip text={help} /></span>
+        <span className="inline-flex items-center text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}<InfoHint className="ml-1" text={help} /></span>
       </div>
       <p className={cn('mt-1 text-xl font-bold tabular-nums', cls)}>{value}</p>
       <p className="truncate text-[11px] text-gray-600 dark:text-gray-300" title={posto}>{posto}</p>

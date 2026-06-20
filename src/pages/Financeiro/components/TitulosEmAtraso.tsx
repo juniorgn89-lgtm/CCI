@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { Users, Truck, HelpCircle } from 'lucide-react'
+import { Users, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
 interface Props {
@@ -170,11 +171,7 @@ const AtrasoCard = ({
             {cols.map((c) => <span key={c.key} className="w-24 shrink-0 text-right">{c.label}</span>)}
             <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-right">
               {totalLabel}
-              {totalHint && (
-                <span title={totalHint} aria-label={totalHint} className="inline-flex cursor-help text-gray-400">
-                  <HelpCircle className="h-3 w-3" />
-                </span>
-              )}
+              {totalHint && <InfoHint text={totalHint} />}
             </span>
           </div>
           <ul className="flex-1 divide-y divide-gray-100 px-5 dark:divide-gray-800">

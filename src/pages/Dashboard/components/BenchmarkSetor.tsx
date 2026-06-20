@@ -1,6 +1,8 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy, HelpCircle } from 'lucide-react'
+import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy } from 'lucide-react'
 import BarCell from '@/components/tables/BarCell'
+import HeaderHint from '@/components/tables/HeaderHint'
+import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
@@ -46,19 +48,6 @@ const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
 ]
 
 const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
-
-/** Cabeçalho de coluna com "?" (tooltip nativo). `groupStart` desenha o divisor
- * vertical sutil que separa os grupos (Operação · Financeiro · …). */
-const ThHelp = ({ label, help, align = 'right', groupStart }: { label: string; help: string; align?: 'left' | 'right'; groupStart?: boolean }) => (
-  <th className={cn('px-3 py-2', align === 'right' ? 'text-right' : 'text-left', groupStart && 'border-l border-gray-200 dark:border-gray-700')}>
-    <span className={cn('inline-flex items-center gap-1', align === 'right' && 'justify-end')}>
-      {label}
-      <span title={help} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-        <HelpCircle className="h-3 w-3" />
-      </span>
-    </span>
-  </th>
-)
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
@@ -331,9 +320,7 @@ const BenchmarkSetor = () => {
             <Layers className="h-4 w-4 text-gray-500" />
             <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Detalhamento de informações por setor
-              <span title={`Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ${cmpWord}.`} className="cursor-help text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <HelpCircle className="h-3.5 w-3.5" />
-              </span>
+              <InfoHint text={`Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ${cmpWord}.`} />
             </h3>
           </div>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -375,34 +362,34 @@ const BenchmarkSetor = () => {
               <GroupTh label="Eficiência" colSpan={3} />
             </tr>
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-              <ThHelp align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
+              <HeaderHint align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
               {/* Operação */}
-              <ThHelp label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              <HeaderHint label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
               {/* Financeiro */}
               {showFaturamento && (
-                <ThHelp groupStart label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
+                <HeaderHint groupStart label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
               )}
-              <ThHelp groupStart={!showFaturamento} label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
-              <ThHelp label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-              {isComb && <ThHelp label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
-              {isComb && <ThHelp label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
+              <HeaderHint groupStart={!showFaturamento} label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
+              <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
+              {isComb && <HeaderHint label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
+              {isComb && <HeaderHint label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
               {/* Comparativo */}
-              <ThHelp groupStart label={cmpLabel} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `Mesmo período do ${cmpWord} (volume).`} />
-              <ThHelp label="Variação" help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
-              <ThHelp label={cmpLabel} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
-              <ThHelp label="Variação" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
+              <HeaderHint groupStart label={cmpLabel} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `Mesmo período do ${cmpWord} (volume).`} />
+              <HeaderHint label="Variação" help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
+              <HeaderHint label={cmpLabel} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
+              <HeaderHint label="Variação" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
               {/* Eficiência */}
               {isComb ? (
                 <>
-                  <ThHelp groupStart label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-                  <ThHelp label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <ThHelp label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
+                  <HeaderHint groupStart label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <HeaderHint label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
+                  <HeaderHint label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
                 </>
               ) : (
                 <>
-                  <ThHelp groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-                  <ThHelp label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <ThHelp label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas)." />
+                  <HeaderHint groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <HeaderHint label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
+                  <HeaderHint label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas)." />
                 </>
               )}
             </tr>
