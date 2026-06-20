@@ -26,13 +26,6 @@ type SortKey =
   | 'ticketMedio'
 type SortDir = 'asc' | 'desc'
 
-const PRIMARY_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'litros', label: 'Litros' },
-  { key: 'abastecimentos', label: 'Abastec.' },
-  { key: 'faturamento', label: 'Faturamento' },
-  { key: 'lucroBruto', label: 'Lucro bruto' },
-]
-
 // ── Helpers ──
 const upper = (s: string) => (s ?? '').toUpperCase()
 const isAutomotivo = (n: string): boolean => {
@@ -40,6 +33,18 @@ const isAutomotivo = (n: string): boolean => {
   return u.includes('GASOLINA') || u.includes('ETANOL') || u.includes('ALCOOL') || u.includes('ÁLCOOL') ||
     u.includes('DIESEL') || u.includes('S-10') || u.includes('S10') || u.includes('S500')
 }
+
+/** Família só pra ORDENAR as pills (Gasolina → Etanol → Diesel → resto). */
+const fuelFamily = (nome: string): string | null => {
+  const u = upper(nome)
+  if (u.includes('GASOLINA')) return 'Gasolina'
+  if (u.includes('ETANOL') || u.includes('ALCOOL') || u.includes('ÁLCOOL')) return 'Etanol'
+  if (u.includes('DIESEL') || u.includes('S-10') || u.includes('S10') || u.includes('S500')) return 'Diesel'
+  return null
+}
+const FUEL_ORDER = ['Gasolina', 'Etanol', 'Diesel']
+/** Rótulo da pill — tira o ponto final do nome do cadastro ("GASOLINA COMUM."). */
+const fuelLabel = (nome: string) => (nome ?? '').replace(/\.+$/, '').trim()
 
 /** Quebra por combustível dentro de um frentista (visão expandida). */
 interface CombustivelRow {
@@ -99,6 +104,15 @@ const fmtPct = (v: number | null): string =>
 const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
   const [sortKey, setSortKey] = useState<SortKey>('litros')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  // Filtro por combustível — multi-seleção por produtoCodigo. Vazio = todos.
+  const [fuelSel, setFuelSel] = useState<Set<number>>(new Set())
+  const toggleFuel = (codigo: number) =>
+    setFuelSel((prev) => {
+      const next = new Set(prev)
+      if (next.has(codigo)) next.delete(codigo)
+      else next.add(codigo)
+      return next
+    })
   // Frentistas expandidos (mostram a quebra por combustível).
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   // Frentista aberto no modal de detalhe por produto/dia.
@@ -146,6 +160,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
 
     if (hasCusto) {
       for (const r of abastComCusto ?? []) {
+        if (fuelSel.size > 0 && !fuelSel.has(r.produtoCodigo)) continue
         const acc = ensure(r.frentistaCodigo, r.frentistaNome)
         acc.litros += r.litros
         acc.abast += 1
@@ -166,6 +181,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
     } else {
       // Fallback sem custo — só litros/fat/abast/ticket a partir das linhas cruas.
       for (const a of abastecimentos) {
+        if (fuelSel.size > 0 && !fuelSel.has(a.produtoCodigo)) continue
         const acc = ensure(a.frentistaCodigo, a.frentistaNome)
         acc.litros += a.litros
         acc.abast += 1
@@ -219,7 +235,24 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
     })
     rows.sort((a, b) => compareRow(a, b, sortKey, sortDir))
     return rows
-  }, [abastecimentos, abastComCusto, sortKey, sortDir])
+  }, [abastecimentos, abastComCusto, sortKey, sortDir, fuelSel])
+
+  // Combustíveis presentes no período (pras pills do filtro), por produto.
+  // Ordena por família (Gasolina → Etanol → Diesel → resto) e depois por nome.
+  const availableFuels = useMemo(() => {
+    const m = new Map<number, string>()
+    if ((abastComCusto?.length ?? 0) > 0) {
+      for (const r of abastComCusto ?? []) if (!m.has(r.produtoCodigo)) m.set(r.produtoCodigo, r.combustivelNome)
+    } else {
+      for (const a of abastecimentos) if (!m.has(a.produtoCodigo)) m.set(a.produtoCodigo, a.produtoNome)
+    }
+    const famIdx = (n: string) => {
+      const i = FUEL_ORDER.indexOf(fuelFamily(n) ?? '')
+      return i < 0 ? FUEL_ORDER.length : i
+    }
+    return [...m].map(([codigo, nome]) => ({ codigo, nome }))
+      .sort((a, b) => famIdx(a.nome) - famIdx(b.nome) || a.nome.localeCompare(b.nome))
+  }, [abastecimentos, abastComCusto])
 
   // Mostra a coluna "Convertidos" só quando há base de custo (de onde sai o
   // vínculo com a venda); sem ela, o valor seria sempre 0 e enganaria.
@@ -285,19 +318,31 @@ const VisaoGeral = ({ abastecimentos, abastComCusto }: Props) => {
               Desempenho consolidado no período · expanda pra ver por combustível
             </p>
           </div>
-          <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
-            {PRIMARY_OPTIONS.map((opt) => (
+          <div className="inline-flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+            <button
+              onClick={() => setFuelSel(new Set())}
+              className={cn(
+                'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                fuelSel.size === 0
+                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700'
+              )}
+            >
+              Todos
+            </button>
+            {availableFuels.map((f) => (
               <button
-                key={opt.key}
-                onClick={() => { setSortKey(opt.key); setSortDir('desc') }}
+                key={f.codigo}
+                onClick={() => toggleFuel(f.codigo)}
+                aria-pressed={fuelSel.has(f.codigo)}
                 className={cn(
                   'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                  sortKey === opt.key
+                  fuelSel.has(f.codigo)
                     ? 'bg-[#1e3a5f] text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700'
                 )}
               >
-                {opt.label}
+                {fuelLabel(f.nome)}
               </button>
             ))}
           </div>
