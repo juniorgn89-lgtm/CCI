@@ -14,15 +14,13 @@ import {
   Fuel,
   Wrench,
   Store,
+  ShoppingBag,
   GitCompareArrows,
   Radar,
   LayoutDashboard,
-  Wallet,
   ClipboardCheck,
   Receipt,
-  TrendingUp,
   Target,
-  Award,
   Package,
   RefreshCw,
   Boxes,
@@ -31,6 +29,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Activity,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -79,6 +78,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Visão Geral', to: '/dashboard', Icon: LayoutGrid },
     { label: 'Ao Vivo Rede', to: '/dashboard?tab=aovivo', Icon: Activity },
     { label: 'Reabastecimento', to: '/dashboard?tab=reabastecimento', Icon: Fuel },
+    { label: 'Produtividade', to: '/dashboard?tab=produtividade', Icon: BarChart3 },
   ],
   '/comercial/vendas': [
     { label: 'Visão Geral', to: '/comercial/vendas', Icon: LayoutGrid },
@@ -93,15 +93,14 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   ],
   '/caixas-turnos': [
     { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
-    { label: 'Turnos de Caixa', to: '/caixas-turnos?tab=turnos', Icon: Wallet },
     { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
     { label: 'Fechamento', to: '/caixas-turnos?tab=fechamento', Icon: Receipt },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
-    { label: 'Projeções', to: '/produtividade?tab=projecoes', Icon: TrendingUp },
+    { label: 'Frentistas', to: '/produtividade?tab=frentistas', Icon: Fuel },
+    { label: 'Vendedores', to: '/produtividade?tab=vendedores', Icon: ShoppingBag },
     { label: 'Metas', to: '/produtividade?tab=metas', Icon: Target },
-    { label: 'Destaques', to: '/produtividade?tab=destaques', Icon: Award },
   ],
   '/estoques': [
     { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },

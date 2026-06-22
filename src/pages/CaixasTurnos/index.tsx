@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { Wallet, LayoutDashboard, ClipboardCheck, Receipt } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Receipt } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -11,19 +11,17 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import { useCaixasLayout } from '@/store/moduleLayout'
-import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
-const CaixaPosto = lazy(() => import('@/pages/Operacao/components/CaixaPosto'))
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
 const CaixaGeralReport = lazy(() => import('@/pages/CaixasTurnos/components/CaixaGeralReport'))
 
-type CaixaTab = 'visao' | 'turnos' | 'conferencia'
+type CaixaTab = 'visao' | 'conferencia'
 const isCaixaTab = (v: string | null): v is CaixaTab =>
-  v === 'visao' || v === 'turnos' || v === 'conferencia'
+  v === 'visao' || v === 'conferencia'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -38,11 +36,7 @@ const TabFallback = () => (
 const CaixasTurnos = () => {
   const {
     kpis,
-    caixaResumo,
-    pagamentoBreakdown,
-    turnoGroups,
     conferenciaPdv,
-    apuradoPorDia,
     isLoading,
     hasEmpresa,
   } = useOperacaoData()
@@ -51,12 +45,10 @@ const CaixasTurnos = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useCaixasLayout()
   const isMobile = useIsMobile()
 
-  // Ícone/badge por aba — o resto (ordem/visibilidade) vem do store de layout.
-  const TAB_META: Record<string, { Icon: typeof Wallet }> = {
+  // Ícone por aba — o resto (ordem/visibilidade) vem do store de layout.
+  const TAB_META: Record<string, { Icon: typeof LayoutDashboard }> = {
     visao: { Icon: LayoutDashboard },
-    turnos: { Icon: Wallet },
     conferencia: { Icon: ClipboardCheck },
-    fechamento: { Icon: Receipt },
   }
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.
@@ -92,17 +84,7 @@ const CaixasTurnos = () => {
             tabs={visibleTabs.map((t) => ({
               id: t.id,
               label: t.label,
-              Icon: TAB_META[t.id]?.Icon ?? Wallet,
-              badge: t.id === 'turnos' ? (
-                <span className={cn(
-                  'rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
-                  caixaTab === 'turnos'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                )}>
-                  {turnoGroups.length}
-                </span>
-              ) : undefined,
+              Icon: TAB_META[t.id]?.Icon ?? LayoutDashboard,
             }))}
           />
         </PageHeaderTitle>
@@ -132,17 +114,8 @@ const CaixasTurnos = () => {
           <Suspense fallback={<TabFallback />}>
             {caixaTab === 'conferencia' ? (
               <ConferenciaPdv conferencia={conferenciaPdv} />
-            ) : caixaTab === 'visao' ? (
-              <CaixaGeralReport />
             ) : (
-              <CaixaPosto
-                kpis={kpis}
-                caixaResumo={caixaResumo}
-                pagamentoBreakdown={pagamentoBreakdown}
-                turnoGroups={turnoGroups}
-                apuradoPorDia={apuradoPorDia}
-                activeTab={caixaTab}
-              />
+              <CaixaGeralReport />
             )}
           </Suspense>
         )

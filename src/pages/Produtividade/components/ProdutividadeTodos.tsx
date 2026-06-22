@@ -1,13 +1,10 @@
-import { useState } from 'react'
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-} from 'recharts'
 import {
   Fuel, Wrench, Store, Globe, Users, Trophy, ShoppingBag, TrendingUp, TrendingDown,
-  Target, Sparkles, Pencil, Check, X, Award, ArrowUpRight, ArrowDownRight, Lightbulb,
+  Award, ArrowUpRight, ArrowDownRight, Lightbulb, Droplets, Gauge, Receipt, Ticket,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import useProdutividadeTodos, {
   type SegmentoResumo, type InsightTodos,
@@ -25,11 +22,10 @@ interface SegCardProps {
   cmpLabel: string
   loading: boolean
   navy?: boolean
-  /** Comparação com meta (só no card Global, quando há meta). */
-  metaPct?: number | null
+  help?: string
 }
 
-const SegCard = ({ label, Icon, iconBg, iconColor, resumo, cmpLabel, loading, navy, metaPct }: SegCardProps) => {
+const SegCard = ({ label, Icon, iconBg, iconColor, resumo, cmpLabel, loading, navy, help }: SegCardProps) => {
   const { faturamento, participacaoPct, variacaoPct } = resumo
   const positiva = (variacaoPct ?? 0) >= 0
   const Arrow = positiva ? TrendingUp : TrendingDown
@@ -43,7 +39,10 @@ const SegCard = ({ label, Icon, iconBg, iconColor, resumo, cmpLabel, loading, na
     )}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className={cn('text-sm font-semibold', navy ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>{label}</p>
+          <div className="flex items-center gap-1">
+            <p className={cn('text-sm font-semibold', navy ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>{label}</p>
+            {help && <InfoHint text={help} className={navy ? 'text-white/60 hover:text-white' : undefined} />}
+          </div>
           <p className={cn('text-[11px] uppercase tracking-wide', navy ? 'text-white/60' : 'text-gray-500 dark:text-gray-400')}>Faturamento</p>
         </div>
         <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', navy ? 'bg-white/15' : iconBg)}>
@@ -61,15 +60,8 @@ const SegCard = ({ label, Icon, iconBg, iconColor, resumo, cmpLabel, loading, na
 
       {!loading && (
         <div className={cn('mt-auto space-y-2 border-t pt-3', navy ? 'border-white/15' : 'border-gray-100 dark:border-gray-800')}>
-          {/* Participação (todos menos Global) ou meta (Global) */}
-          {navy ? (
-            metaPct != null ? (
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-white/60">Meta atingida</span>
-                <span className="font-semibold tabular-nums text-white">{metaPct.toFixed(0)}%</span>
-              </div>
-            ) : null
-          ) : (
+          {/* Participação (todos menos Global) */}
+          {!navy && (
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="text-gray-500 dark:text-gray-400">Participação</span>
               <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
@@ -115,7 +107,10 @@ const EquipeBigCard = ({ total, frentistas, vendedores, loading }: EquipeBigCard
   <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Equipe</p>
+        <div className="flex items-center gap-1">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Equipe</p>
+          <InfoHint text="Colaboradores ativos no período: frentistas (pista) + vendedores (conveniência)." />
+        </div>
         <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Colaboradores</p>
       </div>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
@@ -147,6 +142,40 @@ const EquipeBigCard = ({ total, frentistas, vendedores, loading }: EquipeBigCard
 )
 
 /* ─────────────────────────────────────────────────────────────
+ * Card menor de operação (Litros, Abastecimentos, Cupons, Ticket).
+ * ───────────────────────────────────────────────────────────── */
+interface SmallStatCardProps {
+  label: string
+  sub: string
+  Icon: typeof Droplets
+  iconBg: string
+  iconColor: string
+  value: string
+  loading: boolean
+  help?: string
+}
+
+const SmallStatCard = ({ label, sub, Icon, iconBg, iconColor, value, loading, help }: SmallStatCardProps) => (
+  <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+      <Icon className={cn('h-4 w-4', iconColor)} />
+    </div>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
+        {help && <InfoHint text={help} />}
+      </div>
+      {loading ? (
+        <Skeleton className="mt-1 h-6 w-20" />
+      ) : (
+        <p className="text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+      )}
+      <p className="text-[10px] text-gray-400 dark:text-gray-500">{sub}</p>
+    </div>
+  </div>
+)
+
+/* ─────────────────────────────────────────────────────────────
  * Cards de Destaque (3).
  * ───────────────────────────────────────────────────────────── */
 interface HighlightCardProps {
@@ -155,16 +184,18 @@ interface HighlightCardProps {
   accent: string
   iconBg: string
   iconColor: string
+  help?: string
   children: React.ReactNode
 }
 
-const HighlightCard = ({ title, Icon, accent, iconBg, iconColor, children }: HighlightCardProps) => (
+const HighlightCard = ({ title, Icon, accent, iconBg, iconColor, help, children }: HighlightCardProps) => (
   <div className={cn('rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900', accent)}>
     <div className="flex items-center gap-2">
       <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-4 w-4', iconColor)} />
       </div>
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</p>
+      {help && <InfoHint text={help} />}
     </div>
     <div className="mt-3">{children}</div>
   </div>
@@ -187,147 +218,14 @@ const VarPill = ({ pct }: { pct: number }) => {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Card de Meta (manual, localStorage).
- * ───────────────────────────────────────────────────────────── */
-interface MetaCardProps {
-  meta: number | null
-  realizado: number
-  setMeta: (v: number | null) => void
-  loading: boolean
-}
-
-const MetaCard = ({ meta, realizado, setMeta, loading }: MetaCardProps) => {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
-
-  const startEdit = () => {
-    setDraft(meta != null ? String(meta) : '')
-    setEditing(true)
-  }
-  const save = () => {
-    const n = Number(draft.replace(/\./g, '').replace(',', '.'))
-    setMeta(Number.isFinite(n) && n > 0 ? n : null)
-    setEditing(false)
-  }
-
-  const pct = meta && meta > 0 ? (realizado / meta) * 100 : 0
-  const atingida = pct >= 100
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
-            <Target className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Meta do período</p>
-        </div>
-        {!editing && (
-          <button
-            type="button"
-            onClick={startEdit}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            aria-label="Definir meta"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-
-      {editing ? (
-        <div className="mt-4 flex items-center gap-2">
-          <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-              placeholder="0,00"
-              className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-2 text-sm tabular-nums text-gray-900 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={save}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white transition-colors hover:bg-violet-700"
-            aria-label="Salvar meta"
-          >
-            <Check className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-500 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
-            aria-label="Cancelar"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      ) : meta == null ? (
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={startEdit}
-            className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
-          >
-            Defina uma meta
-          </button>
-          <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">Valor manual — não há meta de faturamento na API.</p>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-3">
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Realizado</p>
-              {loading ? (
-                <Skeleton className="mt-0.5 h-6 w-24" />
-              ) : (
-                <p className="text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(realizado)}</p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Meta</p>
-              <p className="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(meta)}</p>
-            </div>
-          </div>
-
-          {/* Barra de progresso */}
-          <div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  atingida ? 'bg-emerald-500' : 'bg-violet-500',
-                )}
-                style={{ width: `${Math.min(100, pct)}%` }}
-              />
-            </div>
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className={cn(
-                'text-xs font-semibold tabular-nums',
-                atingida ? 'text-emerald-600 dark:text-emerald-400' : 'text-violet-600 dark:text-violet-400',
-              )}>
-                {pct.toFixed(0)}%
-              </span>
-              <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                {atingida ? 'Meta atingida' : `Faltam ${formatCurrencyInt(Math.max(0, meta - realizado))}`}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────
  * Card de Insights automáticos.
  * ───────────────────────────────────────────────────────────── */
-const insightDot = (type: InsightTodos['type']): string =>
-  type === 'positive' ? 'bg-emerald-500' : type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+/** Agrupadores dos insights, na ordem de leitura: positivos → atenção → info. */
+const INSIGHT_GROUPS: { type: InsightTodos['type']; label: string; dot: string; text: string }[] = [
+  { type: 'positive', label: 'Positivos', dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+  { type: 'warning', label: 'Atenção', dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  { type: 'info', label: 'Informações', dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
+]
 
 const InsightsCard = ({ insights }: { insights: InsightTodos[] }) => (
   <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -340,39 +238,28 @@ const InsightsCard = ({ insights }: { insights: InsightTodos[] }) => (
     {insights.length === 0 ? (
       <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">Sem insights para o período.</p>
     ) : (
-      <ul className="mt-3 space-y-2.5">
-        {insights.map((ins, i) => (
-          <li key={i} className="flex items-start gap-2">
-            <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', insightDot(ins.type))} />
-            <span className="text-sm leading-snug text-gray-700 dark:text-gray-300">{ins.text}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-3 space-y-4">
+        {INSIGHT_GROUPS.map((g) => {
+          const items = insights.filter((ins) => ins.type === g.type)
+          if (items.length === 0) return null
+          return (
+            <div key={g.type}>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', g.dot)} />
+                <p className={cn('text-[11px] font-semibold uppercase tracking-wide', g.text)}>{g.label}</p>
+              </div>
+              <ul className="mt-1.5 space-y-1.5 pl-3">
+                {items.map((ins, i) => (
+                  <li key={i} className="text-sm leading-snug text-gray-700 dark:text-gray-300">{ins.text}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
     )}
   </div>
 )
-
-/* ─────────────────────────────────────────────────────────────
- * Tooltip do gráfico de evolução.
- * ───────────────────────────────────────────────────────────── */
-interface EvoTooltipPayload { name: string; value: number | null; color: string }
-const EvoTooltip = ({ active, payload, label }: { active?: boolean; payload?: EvoTooltipPayload[]; label?: string }) => {
-  if (!active || !payload || payload.length === 0) return null
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-md dark:border-gray-700 dark:bg-gray-900">
-      <p className="mb-1 font-semibold text-gray-900 dark:text-gray-100">{label}</p>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-          <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
-          <span className="ml-auto font-medium tabular-nums text-gray-900 dark:text-gray-100">
-            {p.value == null ? '—' : formatCurrency(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 /* ─────────────────────────────────────────────────────────────
  * Componente principal — modo "Todos".
@@ -382,12 +269,10 @@ const ProdutividadeTodos = () => {
   const {
     cmpLabel, global, combustivel, automotivos, conveniencia,
     totalColaboradores, qtdFrentistas, qtdVendedores,
-    campeaoFrentista, campeaoVendedor, melhorSetor,
-    evolucao, evolucaoSeries, evolucaoSemHistorico,
-    insights, meta, setMeta, isLoading,
+    litrosTotais, totalAbastecimentos, totalCupons, ticketMedioLoja,
+    campeaoFrentista, campeaoVendedor,
+    insights, isLoading,
   } = data
-
-  const metaPct = meta && meta > 0 ? (global.faturamento / meta) * 100 : null
 
   return (
     <div className="space-y-4">
@@ -396,33 +281,66 @@ const ProdutividadeTodos = () => {
         <SegCard
           label="Global" Icon={Globe} navy
           iconBg="" iconColor=""
-          resumo={global} cmpLabel={cmpLabel} loading={isLoading} metaPct={metaPct}
+          resumo={global} cmpLabel={cmpLabel} loading={isLoading}
+          help="Faturamento total da operação no período: Combustível + Automotivos + Conveniência."
         />
         <SegCard
           label="Combustível" Icon={Fuel}
           iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
           resumo={combustivel} cmpLabel={cmpLabel} loading={isLoading}
+          help="Faturamento de combustível (pista) no período. Participação = % sobre o faturamento global."
         />
         <SegCard
           label="Automotivos" Icon={Wrench}
           iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
           resumo={automotivos} cmpLabel={cmpLabel} loading={isLoading}
+          help="Faturamento de produtos automotivos (pista, grupo PS-) no período. Participação = % sobre o global."
         />
         <SegCard
           label="Conveniência" Icon={Store}
           iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
           resumo={conveniencia} cmpLabel={cmpLabel} loading={isLoading}
+          help="Faturamento da loja de conveniência no período. Participação = % sobre o faturamento global."
         />
         <EquipeBigCard total={totalColaboradores} frentistas={qtdFrentistas} vendedores={qtdVendedores} loading={isLoading} />
       </div>
 
-      {/* ── 3 cards de destaque ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* ── 4 cards menores de operação ── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <SmallStatCard
+          label="Litros" sub="Combustível vendido" Icon={Droplets}
+          iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
+          value={formatLiters(litrosTotais)} loading={isLoading}
+          help="Litros de combustível vendidos na pista no período."
+        />
+        <SmallStatCard
+          label="Abastecimentos" sub="Transações de pista" Icon={Gauge}
+          iconBg="bg-cyan-100 dark:bg-cyan-900/30" iconColor="text-cyan-600 dark:text-cyan-400"
+          value={formatNumber(totalAbastecimentos)} loading={isLoading}
+          help="Número de abastecimentos (transações de pista) no período."
+        />
+        <SmallStatCard
+          label="Cupons" sub="Conveniência" Icon={Receipt}
+          iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
+          value={formatNumber(totalCupons)} loading={isLoading}
+          help="Número de cupons (vendas) da loja de conveniência no período."
+        />
+        <SmallStatCard
+          label="Ticket médio" sub="Conveniência" Icon={Ticket}
+          iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
+          value={formatCurrency(ticketMedioLoja)} loading={isLoading}
+          help="Ticket médio da conveniência = faturamento da loja ÷ nº de cupons."
+        />
+      </div>
+
+      {/* ── 2 cards de destaque ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Frentista campeão */}
         <HighlightCard
           title="Frentista campeão" Icon={Trophy}
           accent="border-blue-200 dark:border-blue-900/40"
           iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
+          help="Frentista com maior faturamento (combustível) no período. Mostra litros e o campeão do mês anterior."
         >
           {campeaoFrentista ? (
             <>
@@ -450,6 +368,7 @@ const ProdutividadeTodos = () => {
           title="Vendedor campeão" Icon={Award}
           accent="border-emerald-200 dark:border-emerald-900/40"
           iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
+          help="Vendedor com maior faturamento na conveniência no período. Mostra itens, ticket e o campeão do mês anterior."
         >
           {campeaoVendedor ? (
             <>
@@ -469,93 +388,10 @@ const ProdutividadeTodos = () => {
           )}
         </HighlightCard>
 
-        {/* Melhor setor */}
-        <HighlightCard
-          title="Melhor setor" Icon={Sparkles}
-          accent="border-violet-200 dark:border-violet-900/40"
-          iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
-        >
-          {melhorSetor ? (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-base font-bold text-gray-900 dark:text-gray-100">{melhorSetor.nome}</p>
-                <VarPill pct={melhorSetor.variacaoPct} />
-              </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Maior evolução de faturamento vs {cmpLabel}.
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400 dark:text-gray-500">Sem comparativo disponível.</p>
-          )}
-        </HighlightCard>
       </div>
 
-      {/* ── Gráfico de evolução + Meta + Insights ── */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Gráfico (ocupa 2 colunas no xl) */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 xl:col-span-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-              <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evolução da Produtividade</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Faturamento por segmento — últimos 12 meses</p>
-            </div>
-          </div>
-
-          {evolucaoSemHistorico.length > 0 && (
-            <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-              {evolucaoSemHistorico.join(', ')} sem histórico mensal disponível — não plotado.
-            </p>
-          )}
-
-          {evolucao.length === 0 || evolucaoSeries.length === 0 ? (
-            <div className="mt-6 flex h-[260px] items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800/50">
-              <p className="text-sm text-gray-400 dark:text-gray-500">Sem série mensal para o período.</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={evolucao} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  {evolucaoSeries.map((s) => (
-                    <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={s.color} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={s.color} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} minTickGap={12} />
-                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrencyInt(v)} width={70} />
-                <Tooltip content={<EvoTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                {evolucaoSeries.map((s) => (
-                  <Area
-                    key={s.key}
-                    type="monotone"
-                    dataKey={s.key}
-                    name={s.label}
-                    stroke={s.color}
-                    strokeWidth={2.5}
-                    fill={`url(#grad-${s.key})`}
-                    connectNulls
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Meta + Insights empilhados */}
-        <div className="space-y-4">
-          <MetaCard meta={meta} realizado={global.faturamento} setMeta={setMeta} loading={isLoading} />
-          <InsightsCard insights={insights} />
-        </div>
-      </div>
+      {/* ── Insights ── */}
+      <InsightsCard insights={insights} />
     </div>
   )
 }

@@ -24,13 +24,15 @@ import { useDashboardLayout } from '@/store/moduleLayout'
 const TurnosAoVivo = lazy(() => import('@/pages/Dashboard/components/TurnosAoVivo'))
 const ReabastecimentoCard = lazy(() => import('@/pages/Dashboard/components/ReabastecimentoCard'))
 const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/BenchmarkSetor'))
+const ProdutividadeRede = lazy(() => import('@/pages/Dashboard/components/ProdutividadeRede'))
 
-type TabId = 'setor' | 'aovivo' | 'reabastecimento'
+type TabId = 'setor' | 'aovivo' | 'reabastecimento' | 'produtividade'
 
 const TAB_ICONS: Record<TabId, typeof Activity> = {
   setor: Layers,
   aovivo: Activity,
   reabastecimento: Fuel,
+  produtividade: BarChart3,
 }
 
 const TabSkeleton = () => (
@@ -67,7 +69,7 @@ const Dashboard = () => {
   // (Visão Geral / Ao Vivo Rede / Reabastecimento). 'setor' é o default (sem ?tab=).
   const [activeTab, setActiveTab] = useTabParam<TabId>(
     'setor',
-    (v): v is TabId => v === 'setor' || v === 'aovivo' || v === 'reabastecimento',
+    (v): v is TabId => v === 'setor' || v === 'aovivo' || v === 'reabastecimento' || v === 'produtividade',
   )
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
@@ -139,9 +141,9 @@ const Dashboard = () => {
           )}
 
           {/* Cards de segmento (Combustível, Automotivos, Conveniência, Global,
-              Projeção) — escondidos na aba "Ao Vivo Rede", que foca só nos
-              caixas abertos em tempo real. */}
-          {activeTab !== 'aovivo' && <ProjecoesPainel />}
+              Projeção) — escondidos na aba "Ao Vivo Rede" (foca caixas ao vivo)
+              e na "Produtividade" (tem seus próprios KPIs por unidade). */}
+          {activeTab !== 'aovivo' && activeTab !== 'produtividade' && <ProjecoesPainel />}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs) */}
           {visibleTabs.length > 0 && (
@@ -149,6 +151,7 @@ const Dashboard = () => {
               {activeTab === 'setor' && <BenchmarkSetor />}
               {activeTab === 'aovivo' && <TurnosAoVivo />}
               {activeTab === 'reabastecimento' && <ReabastecimentoCard />}
+              {activeTab === 'produtividade' && <ProdutividadeRede />}
             </Suspense>
           )}
         </>

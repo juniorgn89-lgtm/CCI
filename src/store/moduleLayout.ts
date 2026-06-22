@@ -83,6 +83,7 @@ export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-la
   { id: 'setor', label: 'Visão Geral', visible: true },
   { id: 'aovivo', label: 'Ao Vivo Rede', visible: true },
   { id: 'reabastecimento', label: 'Reabastecimento', visible: true },
+  { id: 'produtividade', label: 'Produtividade', visible: true },
 ])
 
 export const useConvenienciasLayout = createModuleLayoutStore('visor360-conveniencias-layout', [
@@ -118,15 +119,16 @@ export const useVendasLayout = createModuleLayoutStore('visor360-vendas-layout',
 
 export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout', [
   { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'turnos', label: 'Turnos de Caixa', visible: true },
   { id: 'conferencia', label: 'Conferência por PDV', visible: true },
 ])
 
-export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtividade-layout', [
+// -v2: reset limpo após trocar as sub-abas (Projeções/Metas/Destaques saíram;
+// Frentistas/Vendedores viraram abas ao lado da Visão Geral).
+export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtividade-layout-v2', [
   { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'projecoes', label: 'Projeções', visible: true },
+  { id: 'frentistas', label: 'Frentistas', visible: true },
+  { id: 'vendedores', label: 'Vendedores', visible: true },
   { id: 'metas', label: 'Metas', visible: true },
-  { id: 'destaques', label: 'Destaques', visible: true },
 ])
 
 export const useInteligenciaLayout = createModuleLayoutStore('visor360-inteligencia-layout', [

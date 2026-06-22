@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { BarChart3, Fuel, ShoppingBag, LayoutGrid } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -21,9 +21,9 @@ import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
 import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
 import ProdutividadeTodos from '@/pages/Produtividade/components/ProdutividadeTodos'
-import { cn } from '@/lib/utils'
 
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
+const MetasFrentistas = lazy(() => import('@/pages/Produtividade/components/MetasFrentistas'))
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -44,15 +44,14 @@ const ritmoPorHoraAtiva = (rows: AbastecimentoRow[]): number => {
 }
 
 /**
- * Página Produtividade — só header + DateRangeToolbar. KPIs e listas vivem
- * dentro do ProdutividadeTab, que tem suas próprias sub-tabs (Visão Geral,
- * Projeções, Metas, Destaques) seguindo o padrão Header → Tabs → Content.
+ * Página Produtividade — header + DateRangeToolbar + 3 abas: Visão Geral (rede),
+ * Frentistas (combustível) e Vendedores (conveniência), seguindo o padrão
+ * Header → Tabs → Content.
  */
 const Produtividade = () => {
   const {
     kpis,
     frentistaRows,
-    frentistaRowsPrev,
     abastecimentoRows,
     abastecimentoRowsPrev,
     isLoading,
@@ -62,7 +61,7 @@ const Produtividade = () => {
   const isMobile = useIsMobile()
   const [prodTab, setProdTab] = useTabParam<SubTab>(
     'visao',
-    (v): v is SubTab => v === 'visao' || v === 'projecoes' || v === 'metas' || v === 'destaques',
+    (v): v is SubTab => v === 'visao' || v === 'frentistas' || v === 'vendedores' || v === 'metas',
   )
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useProdutividadeLayout()
   const subTabByKey = useMemo(() => new Map(subTabs.map((t) => [t.key, t])), [])
@@ -71,8 +70,6 @@ const Produtividade = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
     setProdTab(visibleTabs[0].id as SubTab)
   }
-  // Alternador: Todos (visão global) · Frentistas (combustível) · Vendedores (conveniência).
-  const [modo, setModo] = useState<'todos' | 'frentistas' | 'vendedores'>('frentistas')
   // Produtividade do frentista usa SEMPRE a data de abastecimento como base
   // (sem o seletor Abast./Fiscal/Movimento). Fixa o modo ao montar a tela.
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
@@ -131,15 +128,12 @@ const Produtividade = () => {
       {hasEmpresa && visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs
-            active={modo !== 'frentistas' ? 'visao' : prodTab}
-            onChange={(id) => { if (modo === 'frentistas') setProdTab(id as SubTab) }}
+            active={prodTab}
+            onChange={(id) => setProdTab(id as SubTab)}
             tabs={visibleTabs.map((t) => ({
               id: t.id,
               label: t.label,
               Icon: subTabByKey.get(t.id as SubTab)?.icon ?? BarChart3,
-              // Só no modo Frentistas as sub-abas se aplicam; em Todos/Vendedores
-              // ficam visíveis porém desabilitadas (sem projeção/meta de loja).
-              disabled: modo !== 'frentistas' && t.id !== 'visao',
             }))}
           />
         </PageHeaderTitle>
@@ -147,7 +141,7 @@ const Produtividade = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
-      {hasEmpresa && modo === 'frentistas' && (
+      {hasEmpresa && (
         <HeaderTray>
           <ModuleSettings
             title="Produtividade"
@@ -162,54 +156,27 @@ const Produtividade = () => {
 
       {!hasEmpresa && <SelectCompanyState />}
 
-      {/* Alternador Frentistas (combustível) × Vendedores (conveniência) —
-          centralizado abaixo do cabeçalho. */}
-      {hasEmpresa && (
-        <div className="flex justify-center">
-          <div className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-            {([
-              { id: 'todos', label: 'Todos', Icon: LayoutGrid },
-              { id: 'frentistas', label: 'Frentistas', Icon: Fuel },
-              { id: 'vendedores', label: 'Vendedores', Icon: ShoppingBag },
-            ] as const).map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setModo(m.id)}
-                className={cn(
-                  'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-4 text-xs font-medium transition-all',
-                  modo === m.id
-                    ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-                )}
-              >
-                <m.Icon className="h-3.5 w-3.5" />
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {hasEmpresa && prodTab === 'visao' && <ProdutividadeTodos />}
+
+      {hasEmpresa && prodTab === 'vendedores' && <VendedoresConveniencia />}
+
+      {hasEmpresa && prodTab === 'metas' && (
+        <Suspense fallback={<TabFallback />}>
+          <MetasFrentistas />
+        </Suspense>
       )}
 
-      {hasEmpresa && modo === 'todos' && <ProdutividadeTodos />}
-
-      {hasEmpresa && modo === 'vendedores' && <VendedoresConveniencia />}
-
-      {hasEmpresa && modo === 'frentistas' && (
+      {hasEmpresa && prodTab === 'frentistas' && (
         showSkeleton ? (
           <TabFallback />
         ) : (
           <Suspense fallback={<TabFallback />}>
             <ProdutividadeTab
-              frentistaRows={frentistaRows}
-              frentistaRowsPrev={frentistaRowsPrev}
               abastecimentoRows={abastecimentoRows}
-              abastecimentoRowsPrev={abastecimentoRowsPrev}
               abastComCusto={abastComCusto}
               descAcrByFrentista={descAcrByFrentista}
               isLoading={isLoading}
               topKpis={topKpis}
-              active={prodTab}
             />
           </Suspense>
         )

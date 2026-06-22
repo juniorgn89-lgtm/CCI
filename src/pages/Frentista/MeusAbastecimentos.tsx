@@ -7,21 +7,12 @@ import { fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchFuncionarios, fetchFuncionarioMeta } from '@/api/endpoints/funcionarios'
+import { detectMetaTipo, type MetaTipo } from '@/lib/metaTipo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InsightBanner from '@/components/kpi/InsightBanner'
 import FrentistaPeriodBadges from '@/pages/Frentista/components/FrentistaPeriodBadges'
-
-/** Identifica o tipo da meta pela descrição livre cadastrada no Quality. */
-type MetaTipo = 'litros' | 'faturamento' | 'abastecimentos' | null
-const detectMetaTipo = (desc: string): MetaTipo => {
-  const d = (desc ?? '').toLowerCase()
-  if (d.includes('litro')) return 'litros'
-  if (d.includes('fatur') || d.includes('venda') || d.includes('receita')) return 'faturamento'
-  if (d.includes('abastec') || d.includes('atend')) return 'abastecimentos'
-  return null
-}
 
 /** Inclusivo: 01→05 = 5 dias. */
 const daysBetweenInclusive = (start: string, end: string): number => {

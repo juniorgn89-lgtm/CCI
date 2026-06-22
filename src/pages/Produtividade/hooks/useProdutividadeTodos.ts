@@ -79,6 +79,12 @@ export interface ProdutividadeTodosData {
   qtdFrentistas: number
   qtdVendedores: number
   totalColaboradores: number
+  /** Litros de combustível vendidos no período (pista). */
+  litrosTotais: number
+  /** Nº de abastecimentos (transações de pista). */
+  totalAbastecimentos: number
+  /** Nº de cupons da conveniência. */
+  totalCupons: number
   campeaoFrentista: CampeaoFrentista | null
   campeaoVendedor: CampeaoVendedor | null
   melhorSetor: MelhorSetor | null
@@ -112,7 +118,7 @@ const useProdutividadeTodos = (): ProdutividadeTodosData => {
   const hasEmpresa = empresaCodigos.length > 0
 
   const segmentos = useSegmentosFaturamento()
-  const { frentistaRows, frentistaRowsPrev, isLoading: lOper } = useOperacaoData()
+  const { kpis, frentistaRows, frentistaRowsPrev, isLoading: lOper } = useOperacaoData()
   const { rows: vendedores, rowsPrev: vendedoresPrev, totalFaturamento: vendTotalFat, totalCupons: vendTotalCupons, isLoading: lVend } = useVendedoresConveniencia()
   const { lbLitroData } = useAbastecimentosAnalytics()
   const { revenueData } = useConvenienceData()
@@ -211,6 +217,11 @@ const useProdutividadeTodos = (): ProdutividadeTodosData => {
     if (convByMes.size > 0) evolucaoSeries.push({ key: 'conveniencia', label: 'Conveniência', color: '#10b981' })
     const evolucaoSemHistorico = ['Automotivos']
 
+    // ── Operação (pista + loja) ──
+    const litrosTotais = kpis?.totalLitros ?? 0
+    const totalAbastecimentos = kpis?.totalAbastecimentos ?? 0
+    const totalCupons = vendTotalCupons
+
     // ── Ticket médio da loja (conveniência) ──
     const ticketMedioLoja = vendTotalCupons > 0 ? vendTotalFat / vendTotalCupons : 0
 
@@ -251,6 +262,9 @@ const useProdutividadeTodos = (): ProdutividadeTodosData => {
       qtdFrentistas,
       qtdVendedores,
       totalColaboradores,
+      litrosTotais,
+      totalAbastecimentos,
+      totalCupons,
       campeaoFrentista,
       campeaoVendedor,
       melhorSetor,
@@ -264,7 +278,7 @@ const useProdutividadeTodos = (): ProdutividadeTodosData => {
       isLoading: segmentos.isLoading || lOper || lVend,
       hasEmpresa,
     }
-  }, [segmentos, frentistaRows, frentistaRowsPrev, vendedores, vendedoresPrev, vendTotalFat, vendTotalCupons, lbLitroData, revenueData, meta, setMeta, lOper, lVend, hasEmpresa])
+  }, [segmentos, kpis, frentistaRows, frentistaRowsPrev, vendedores, vendedoresPrev, vendTotalFat, vendTotalCupons, lbLitroData, revenueData, meta, setMeta, lOper, lVend, hasEmpresa])
 }
 
 export default useProdutividadeTodos
