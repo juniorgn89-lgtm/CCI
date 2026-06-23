@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <!-- ───────── Sidebar ───────── -->
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Central da Rede</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Vendas</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Bombas</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Reabastecimento</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Fechamento de Caixa</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Produtividade</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#e0f2fe;color:#0c4a6e;font-weight:600">
+        <span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#0ea5e9"></span>
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span>
+        <span style="font-size:13px">Estoques</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Financeiro</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Qualidade de Dados</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Pessoas</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Inteligência</span>
+      </a>
+    </nav>
+
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px">
+      <div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div>
+      <span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span>
+    </div>
+  </aside>
+
+  <!-- ───────── Main ───────── -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+
+    <!-- Top bar -->
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg>
+        <div style="min-width:0">
+          <h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Estoques</h1>
+          <p style="margin:0;font-size:11px;color:#6b7280">Saldo atual e giro de produtos</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+          Posto Norte Sul
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        Visão Geral
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Estoque Geral</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Giro</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Média de Vendas</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Necessidade</div>
+    </div>
+
+    <!-- Content -->
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- ── Controles: saldo (esq) + janela (dir) ── -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af">Saldo</span>
+            <div style="display:inline-flex;padding:4px;gap:3px;background:#fff;border:1px solid #e5e7eb;border-radius:11px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+              <sc-for list="{{ saldoButtons }}" as="b" hint-placeholder-count="4">
+                <button type="button" onClick="{{ b.onClick }}" style="height:32px;padding:0 14px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ b.bg }};color:{{ b.color }}">{{ b.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              Janela
+            </span>
+            <div style="display:inline-flex;padding:3px;gap:2px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+              <sc-for list="{{ janelaButtons }}" as="j" hint-placeholder-count="3">
+                <button type="button" onClick="{{ j.onClick }}" style="height:30px;padding:0 12px;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:{{ j.bg }};color:{{ j.color }}">{{ j.label }}</button>
+              </sc-for>
+            </div>
+            <span style="font-size:11px;color:#9ca3af;font-variant-numeric:tabular-nums">{{ janelaPeriodo }}</span>
+          </div>
+        </div>
+
+        <!-- ── KPIs principais ── -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <!-- Valor total (hero navy) -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:linear-gradient(135deg,#1e3a5f,#27496f);border:1px solid rgba(30,58,95,.3);box-shadow:0 1px 2px rgba(0,0,0,.06)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#fff">Valor em estoque</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.6)">Capital parado</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">{{ kValor }}</p>
+            <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <svg viewBox="0 0 120 32" preserveAspectRatio="none" style="width:118px;height:30px;flex:none"><polyline points="{{ sparkPoints }}" fill="none" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+                <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(255,255,255,.15);color:#6ee7b7;font-variant-numeric:tabular-nums">{{ kTrend }}</span>
+              </div>
+            </sc-if>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)"><span style="font-size:11px;color:rgba(255,255,255,.6)">a custo médio · 6 meses · vs mês anterior</span></div>
+          </div>
+
+          <!-- Total de produtos -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Produtos</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Não-combustíveis</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ kProdutos }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">com saldo ou movimentação</span></div>
+          </div>
+
+          <!-- Quantidade -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Unidades</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Saldo somado</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ kUnidades }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">total de itens em estoque</span></div>
+          </div>
+
+          <!-- Giro médio -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Giro médio</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Janela {{ kJanelaLabel }}</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ kGiro }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">{{ kSemMov }} sem movimento</span></div>
+          </div>
+        </div>
+
+        <!-- ── Alarmes ── -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+          <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:14px;border-radius:14px;padding:16px 18px;background:#fff;border:1px solid {{ a.border }};box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer" style-hover="border-color:#cbd5e1;box-shadow:0 4px 14px rgba(0,0,0,.08)">
+              <div style="height:44px;width:44px;flex:none;border-radius:12px;background:{{ a.iconBg }};display:flex;align-items:center;justify-content:center"><span style="display:inline-flex">{{ a.icon }}</span></div>
+              <div style="min-width:0;flex:1">
+                <p style="margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">{{ a.label }}</p>
+                <p style="margin:2px 0 0;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ a.valColor }}">{{ a.value }}</p>
+                <p style="margin:1px 0 0;font-size:11px;color:#9ca3af">{{ a.sub }}</p>
+              </div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- ── Curva ABC + Capital girando/parado ── -->
+        <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <!-- Curva ABC -->
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="height:30px;width:30px;flex:none;border-radius:9px;background:#e0f2fe;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+                <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Curva ABC</h2>
+              </div>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Concentração do valor de estoque por classe</p>
+              <div style="margin-top:16px;display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px">
+                <sc-for list="{{ abcRows }}" as="a" hint-placeholder-count="3">
+                  <div style="height:100%;width:{{ a.barPct }}%;background:{{ a.color }}"></div>
+                </sc-for>
+              </div>
+              <div style="margin-top:15px;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ abcRows }}" as="a" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="height:10px;width:10px;border-radius:3px;flex:none;background:{{ a.color }}"></span>
+                    <span style="font-size:13px;font-weight:700;color:#111827;width:62px;flex:none">Classe {{ a.classe }}</span>
+                    <span style="font-size:12px;color:#6b7280;flex:1;min-width:0">{{ a.prodFmt }}</span>
+                    <span style="font-size:13px;font-weight:600;color:#111827;font-variant-numeric:tabular-nums">{{ a.valorFmt }}</span>
+                    <span style="font-size:12px;color:#9ca3af;width:36px;text-align:right;font-variant-numeric:tabular-nums">{{ a.valorPct }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- Capital girando vs parado -->
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="height:30px;width:30px;flex:none;border-radius:9px;background:#dcfce7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+                <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Capital em estoque</h2>
+              </div>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Quanto do valor está girando vs. parado</p>
+              <div style="margin-top:16px;display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px">
+                <sc-for list="{{ capSegs }}" as="c" hint-placeholder-count="3">
+                  <div style="height:100%;width:{{ c.pctNum }}%;background:{{ c.color }}"></div>
+                </sc-for>
+              </div>
+              <div style="margin-top:15px;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ capSegs }}" as="c" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="height:10px;width:10px;border-radius:3px;flex:none;background:{{ c.color }}"></span>
+                    <span style="font-size:13px;font-weight:600;color:#111827;width:62px;flex:none">{{ c.label }}</span>
+                    <span style="font-size:12px;color:#9ca3af;flex:1;min-width:0">{{ c.sub }}</span>
+                    <span style="font-size:13px;font-weight:600;color:#111827;font-variant-numeric:tabular-nums">{{ c.valorFmt }}</span>
+                    <span style="font-size:12px;color:#9ca3af;width:36px;text-align:right;font-variant-numeric:tabular-nums">{{ c.pct }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ── Vão zerar + Valor por categoria ── -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <!-- Vão zerar em breve -->
+          <sc-if value="{{ showZerar }}" hint-placeholder-val="{{ true }}">
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="height:30px;width:30px;flex:none;border-radius:9px;background:#fee2e2;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div>
+                <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Vão zerar em breve</h2>
+              </div>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Projeção pela média diária de vendas · saldo ÷ venda/dia</p>
+              <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ zerarRows }}" as="z" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:14px;padding:12px;border-radius:12px;background:{{ z.bg }};border:1px solid {{ z.border }}">
+                    <div style="text-align:center;flex:none;width:48px">
+                      <p style="margin:0;font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:{{ z.color }}">{{ z.dias }}</p>
+                      <p style="margin:2px 0 0;font-size:10px;font-weight:600;color:{{ z.color }}">dias</p>
+                    </div>
+                    <div style="min-width:0;flex:1">
+                      <p style="margin:0;font-size:13px;font-weight:600;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ z.nome }}</p>
+                      <div style="margin-top:6px;height:6px;background:#fff;border-radius:999px;overflow:hidden;border:1px solid #00000008"><div style="height:100%;border-radius:999px;width:{{ z.barPct }}%;background:{{ z.color }}"></div></div>
+                      <p style="margin:5px 0 0;font-size:11px;color:#6b7280;font-variant-numeric:tabular-nums">{{ z.saldo }} un. · {{ z.md }}/dia</p>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- Valor por categoria -->
+          <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="height:30px;width:30px;flex:none;border-radius:9px;background:#e0e7ff;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="7" y="13" width="3" height="5" rx="1"/><rect x="12" y="9" width="3" height="9" rx="1"/><rect x="17" y="5" width="3" height="13" rx="1"/></svg></div>
+                <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Valor por categoria</h2>
+              </div>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Onde o capital está parado · maiores categorias</p>
+              <div style="margin-top:16px;display:flex;flex-direction:column;gap:13px">
+                <sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+                  <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
+                      <span style="font-size:13px;font-weight:500;color:#374151">{{ c.nome }}</span>
+                      <span style="font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums"><strong style="color:#111827;font-weight:700">{{ c.valorFmt }}</strong> · {{ c.pctFmt }}</span>
+                    </div>
+                    <div style="height:8px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;border-radius:999px;width:{{ c.barPct }}%;background:{{ c.color }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { saldo: 'todos', janela: 30 };
+
+  renderVals() {
+    const setSaldo = (s) => this.setState({ saldo: s });
+    const setJanela = (j) => this.setState({ janela: j });
+    const saldo = this.state.saldo;
+    const janela = this.state.janela;
+
+    const fmtNum = (v) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v);
+    const fmtBRL = (v) => (v < 0 ? '−' : '') + 'R$ ' + Math.abs(Math.round(v)).toLocaleString('pt-BR');
+
+    // Snapshots por filtro de saldo (números agregados realistas de um posto).
+    const snaps = {
+      todos:    { produtos: 342, unidades: 18470, valor: 184230, negativos: 7, ruptura: 12, criticos: 23, semMov: 41, giro: 1.84 },
+      comSaldo: { produtos: 318, unidades: 18470, valor: 184230, negativos: 0, ruptura: 0,  criticos: 11, semMov: 41, giro: 1.98 },
+      zerado:   { produtos: 17,  unidades: 0,     valor: 0,      negativos: 0, ruptura: 12, criticos: 12, semMov: 0,  giro: 0 },
+      negativo: { produtos: 7,   unidades: -42,   valor: -1180,  negativos: 7, ruptura: 0,  criticos: 7,  semMov: 0,  giro: 0 },
+    };
+    const s = snaps[saldo];
+
+    // Janela ajusta o giro acumulado (30d base; 60/90 acumulam mais venda).
+    const janelaMult = janela === 90 ? 2.72 : janela === 60 ? 1.94 : 1;
+    const giroAj = s.giro * janelaMult;
+
+    // Período da janela (hoje − (N−1) … hoje).
+    const fmtD = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const fim = new Date();
+    const ini = new Date();
+    ini.setDate(ini.getDate() - (janela - 1));
+
+    const icon = (path, stroke) => React.createElement('svg',
+      { viewBox: '0 0 24 24', fill: 'none', stroke, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', style: { width: '22px', height: '22px' } },
+      path.split('|').map((d, i) => React.createElement('path', { key: i, d })));
+
+    const alerts = [
+      { label: 'Saldo negativo', value: fmtNum(s.negativos), sub: 'produto(s) com saldo < 0',
+        tone: s.negativos > 0 ? 'danger' : 'neutral' },
+      { label: 'Ruptura', value: fmtNum(s.ruptura), sub: 'zerado com vendas no 6m',
+        tone: s.ruptura > 0 ? 'warning' : 'neutral' },
+      { label: 'Necessidade crítica', value: fmtNum(s.criticos), sub: 'compra urgente',
+        tone: s.criticos > 0 ? 'danger' : 'neutral' },
+    ];
+    const toneStyle = {
+      danger: { border: '#fecaca', iconBg: '#fee2e2', valColor: '#b91c1c', stroke: '#dc2626' },
+      warning: { border: '#fde68a', iconBg: '#fef3c7', valColor: '#b45309', stroke: '#d97706' },
+      neutral: { border: '#e5e7eb', iconBg: '#f3f4f6', valColor: '#111827', stroke: '#6b7280' },
+    };
+    const alertIcons = {
+      'Saldo negativo': 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z|M12 9v4|M12 17h.01',
+      'Ruptura': 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z|M12 9v4|M12 17h.01',
+      'Necessidade crítica': 'M8 18h8|M3 6h2l2.5 12.5a1 1 0 0 0 1 .8h7a1 1 0 0 0 1-.8L21 6|M16 11l-4 4-4-4',
+    };
+    const alertsOut = alerts.map((a) => {
+      const t = toneStyle[a.tone];
+      return { ...a, border: t.border, iconBg: t.iconBg, valColor: t.valColor, icon: icon(alertIcons[a.label], t.stroke) };
+    });
+
+    // Produtos próximos de zerar (só fazem sentido com saldo positivo).
+    const showZerar = saldo === 'todos' || saldo === 'comSaldo';
+    const zerarRaw = [
+      { nome: 'Coca-Cola Lata 350ml', dias: 3, saldo: 48, md: 16.0 },
+      { nome: 'Heineken Long Neck 330ml', dias: 5, saldo: 30, md: 6.2 },
+      { nome: 'Água Mineral 500ml', dias: 11, saldo: 88, md: 8.0 },
+    ];
+    const zToneColor = (d) => d < 7 ? { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' } : d < 15 ? { color: '#b45309', bg: '#fffbeb', border: '#fde68a' } : { color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' };
+    const zerarRows = zerarRaw.map((z) => {
+      const t = zToneColor(z.dias);
+      return { nome: z.nome, dias: String(z.dias), saldo: fmtNum(z.saldo), md: z.md.toFixed(1).replace('.', ','),
+        color: t.color, bg: t.bg, border: t.border, barPct: Math.min(100, Math.round((z.dias / 30) * 100)) };
+    });
+
+    // Valor por categoria (capital parado).
+    const showCats = saldo === 'todos' || saldo === 'comSaldo';
+    const catPalette = ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#cbd5e1'];
+    const catRaw = [
+      { nome: 'Bebidas', valor: 62400 },
+      { nome: 'Tabacaria', valor: 38900 },
+      { nome: 'Mercearia', valor: 29700 },
+      { nome: 'Limpeza', valor: 18200 },
+      { nome: 'Higiene', valor: 12800 },
+      { nome: 'Outros', valor: 22230 },
+    ];
+    const catTotal = catRaw.reduce((a, c) => a + c.valor, 0);
+    const catMax = Math.max(...catRaw.map((c) => c.valor));
+    const cats = catRaw.map((c, i) => ({
+      nome: c.nome, valorFmt: fmtBRL(c.valor),
+      pctFmt: Math.round((c.valor / catTotal) * 100) + '%',
+      barPct: Math.round((c.valor / catMax) * 100), color: catPalette[i] ?? '#cbd5e1',
+    }));
+
+    // Sparkline do valor em estoque (6 meses, em mil R$).
+    const spark = [162, 171, 168, 175, 180, 184];
+    const sMin = Math.min(...spark), sMax = Math.max(...spark), sRange = (sMax - sMin) || 1;
+    const sparkPoints = spark.map((v, i) => `${(i / (spark.length - 1) * 116 + 2).toFixed(1)},${(30 - (v - sMin) / sRange * 26).toFixed(1)}`).join(' ');
+    const trendPct = (spark[spark.length - 1] - spark[spark.length - 2]) / spark[spark.length - 2] * 100;
+    const kTrend = (trendPct >= 0 ? '+' : '−') + Math.abs(trendPct).toFixed(1).replace('.', ',') + '%';
+
+    // Curva ABC (concentração de valor por classe).
+    const abcRaw = [
+      { classe: 'A', prod: 62, prodPct: 18, valor: 145500, valorPct: 79, color: '#1e3a5f' },
+      { classe: 'B', prod: 106, prodPct: 31, valor: 29500, valorPct: 16, color: '#3b82f6' },
+      { classe: 'C', prod: 174, prodPct: 51, valor: 9230, valorPct: 5, color: '#93c5fd' },
+    ];
+    const abcRows = abcRaw.map((a) => ({ classe: a.classe, color: a.color, prodFmt: `${a.prod} produtos · ${a.prodPct}%`, valorFmt: fmtBRL(a.valor), valorPct: a.valorPct + '%', barPct: a.valorPct }));
+
+    // Capital girando vs parado.
+    const capRaw = [
+      { label: 'Girando', valor: 128900, pct: 70, color: '#16a34a', sub: 'giro saudável' },
+      { label: 'Lento', valor: 33100, pct: 18, color: '#f59e0b', sub: 'giro baixo' },
+      { label: 'Parado', valor: 22230, pct: 12, color: '#ef4444', sub: 'sem movimento' },
+    ];
+    const capSegs = capRaw.map((c) => ({ label: c.label, valorFmt: fmtBRL(c.valor), pct: c.pct + '%', pctNum: c.pct, color: c.color, sub: c.sub }));
+
+    const mkSaldo = (key, label) => ({ label, onClick: () => setSaldo(key), bg: saldo === key ? '#1e3a5f' : 'transparent', color: saldo === key ? '#ffffff' : '#4b5563' });
+    const mkJanela = (key, label) => ({ label, onClick: () => setJanela(key), bg: janela === key ? '#1e3a5f' : 'transparent', color: janela === key ? '#ffffff' : '#4b5563' });
+
+    return {
+      saldoButtons: [mkSaldo('todos', 'Todo saldo'), mkSaldo('comSaldo', 'Com saldo'), mkSaldo('zerado', 'Zerados'), mkSaldo('negativo', 'Negativos')],
+      janelaButtons: [mkJanela(30, '30 dias'), mkJanela(60, '60 dias'), mkJanela(90, '90 dias')],
+      janelaPeriodo: `${fmtD(ini)} a ${fmtD(fim)}`,
+      kValor: fmtBRL(s.valor),
+      kProdutos: fmtNum(s.produtos),
+      kUnidades: fmtNum(s.unidades),
+      kGiro: giroAj.toFixed(2).replace('.', ','),
+      kJanelaLabel: janela + 'd',
+      kSemMov: fmtNum(s.semMov),
+      alerts: alertsOut,
+      showZerar, zerarRows,
+      showCats, cats,
+      sparkPoints, kTrend,
+      abcRows, capSegs,
+    };
+  }
+}
+</script>
+</body>
+</html>

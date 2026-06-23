@@ -323,11 +323,11 @@ const getVolumeCombustivel = async (
   }
 }
 
-/* ─── Tool 3: top produtos vendidos (geral / conveniência) ─── */
+/* ─── Tool 3: top produtos vendidos (geral / combustível / automotivos / conveniência) ─── */
 
 const getTopProdutos = async (
   ctx: ToolContext,
-  input: { dataInicial?: string; dataFinal?: string; limite?: number; categoria?: 'combustivel' | 'conveniencia'; empresaCodigo?: number[] },
+  input: { dataInicial?: string; dataFinal?: string; limite?: number; categoria?: 'combustivel' | 'conveniencia' | 'automotivos'; empresaCodigo?: number[] },
 ) => {
   const { dataInicial, dataFinal } = resolveDates(ctx, input.dataInicial, input.dataFinal)
   const empresas = resolveEmpresas(ctx, input.empresaCodigo)
@@ -359,10 +359,12 @@ const getTopProdutos = async (
     // Filtro defensivo (em caso do fallback sem filtro ter retornado todas).
     if (empresas.length > 0 && !empresasSet.has(i.empresaCodigo)) continue
     const p = produtoMap.get(i.produtoCodigo)
-    // Régua: combustível=tipoProduto "C"; conveniência=tipoGrupo "Conveniência".
+    // Régua: combustível=tipoProduto "C"; automotivos=grupo "Pista" (lubrificantes,
+    // filtros, aditivos, palhetas, peças); conveniência=tipoGrupo "Conveniência".
     const setor = classifySetor(p?.tipoProduto, p ? grupoTipo.get(p.grupoCodigo) : undefined)
     if (input.categoria === 'combustivel' && setor !== 'combustivel') continue
     if (input.categoria === 'conveniencia' && setor !== 'conveniencia') continue
+    if (input.categoria === 'automotivos' && setor !== 'automotivos') continue
     const nome = produtoLabel(p, i.produtoCodigo)
     const cur = por.get(i.produtoCodigo) ?? { produtoCodigo: i.produtoCodigo, nome, qtd: 0, faturamento: 0, setor }
     cur.qtd += i.quantidade
@@ -1076,7 +1078,7 @@ export const TOOL_DEFINITIONS: ClaudeToolDefinition[] = [
   {
     name: 'get_top_produtos',
     description:
-      'Retorna os produtos mais vendidos por faturamento em um período, JÁ COM o código interno do produto (`produto_codigo`) e o(s) código(s) de barras / EAN (`codigo_barras` = principal, `codigos_barras` = todos). Pode filtrar por categoria (combustivel ou conveniencia) e por empresa. Use pra "produtos mais vendidos da conveniência", "top 5 produtos da loja", e também pra "qual o código de barras do produto/lubrificante mais vendido" — o EAN vem no resultado. Se `codigo_barras` for null, o produto não tem EAN cadastrado (use o `produto_codigo`).',
+      'Retorna os produtos mais vendidos por faturamento em um período, JÁ COM o código interno do produto (`produto_codigo`) e o(s) código(s) de barras / EAN (`codigo_barras` = principal, `codigos_barras` = todos). Cada item traz `categoria` = o setor do produto (combustivel / automotivos / conveniencia). Pode filtrar por categoria e por empresa. Use `categoria: "automotivos"` pra produtos automotivos da loja/pista (lubrificantes, óleos, filtros, aditivos, palhetas, peças, kits) — eles NÃO aparecem na conveniência. Use pra "produtos mais vendidos da conveniência", "top 5 produtos da loja", "filtros/aditivos/palhetas mais vendidos", e "qual o código de barras do lubrificante mais vendido". Se `codigo_barras` for null, o produto não tem EAN cadastrado (use o `produto_codigo`).',
     input_schema: {
       type: 'object',
       properties: {
@@ -1085,8 +1087,8 @@ export const TOOL_DEFINITIONS: ClaudeToolDefinition[] = [
         limite: { type: 'number', description: 'Quantos itens retornar (max 25). Default 10.' },
         categoria: {
           type: 'string',
-          enum: ['combustivel', 'conveniencia'],
-          description: 'Filtra pra mostrar só combustíveis OU só conveniência. Omita pra ver tudo.',
+          enum: ['combustivel', 'automotivos', 'conveniencia'],
+          description: 'Filtra por setor: "combustivel", "automotivos" (lubrificantes/óleos/filtros/aditivos/palhetas/peças — loja/pista) ou "conveniencia" (alimentos/bebidas/cigarros). Omita pra ver tudo.',
         },
         empresaCodigo: {
           type: 'array',

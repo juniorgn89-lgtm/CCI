@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { LayoutDashboard, ClipboardCheck, Receipt } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Receipt, Scale } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -18,10 +18,11 @@ import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
 const CaixaGeralReport = lazy(() => import('@/pages/CaixasTurnos/components/CaixaGeralReport'))
+const DiferencasCaixa = lazy(() => import('@/pages/CaixasTurnos/components/DiferencasCaixa'))
 
-type CaixaTab = 'visao' | 'conferencia'
+type CaixaTab = 'visao' | 'conferencia' | 'diferencas'
 const isCaixaTab = (v: string | null): v is CaixaTab =>
-  v === 'visao' || v === 'conferencia'
+  v === 'visao' || v === 'conferencia' || v === 'diferencas'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -36,7 +37,6 @@ const TabFallback = () => (
 const CaixasTurnos = () => {
   const {
     kpis,
-    conferenciaPdv,
     isLoading,
     hasEmpresa,
   } = useOperacaoData()
@@ -49,6 +49,7 @@ const CaixasTurnos = () => {
   const TAB_META: Record<string, { Icon: typeof LayoutDashboard }> = {
     visao: { Icon: LayoutDashboard },
     conferencia: { Icon: ClipboardCheck },
+    diferencas: { Icon: Scale },
   }
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.
@@ -113,7 +114,9 @@ const CaixasTurnos = () => {
         ) : (
           <Suspense fallback={<TabFallback />}>
             {caixaTab === 'conferencia' ? (
-              <ConferenciaPdv conferencia={conferenciaPdv} />
+              <ConferenciaPdv />
+            ) : caixaTab === 'diferencas' ? (
+              <DiferencasCaixa />
             ) : (
               <CaixaGeralReport />
             )}

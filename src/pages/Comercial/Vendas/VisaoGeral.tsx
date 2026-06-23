@@ -14,7 +14,7 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatLitersShort } from '@/lib/formatters'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
@@ -292,6 +292,61 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
     }
   }, [segmentos])
 
+  // Composição por segmento (régua + % na régua + lista de valores sem %).
+  // `metric` = 'faturamento' | 'lucro'. Compartilhado pelos cards de
+  // Faturamento total e Lucro bruto total.
+  const renderComposicao = (metric: 'faturamento' | 'lucro') => {
+    const totalMetric = total[metric]
+    if (!(totalMetric > 0)) return null
+    return (
+      <>
+        {/* Régua de composição */}
+        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          {SEGMENTS.map((s) => {
+            const pct = (segmentos[s.id][metric] / totalMetric) * 100
+            return pct > 0 ? (
+              <span
+                key={s.id}
+                className="h-full"
+                style={{ width: `${pct}%`, backgroundColor: s.cor }}
+                title={`${s.nome}: ${pct.toFixed(2).replace('.', ',')}%`}
+              />
+            ) : null
+          })}
+        </div>
+        {/* % na régua */}
+        <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+          {SEGMENTS.map((s) => {
+            const pct = (segmentos[s.id][metric] / totalMetric) * 100
+            return (
+              <span key={s.id} className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.cor }} />
+                {pct.toFixed(2).replace('.', ',')}%
+              </span>
+            )
+          })}
+        </div>
+        {/* Valor por segmento (sem %), litros no Combustível */}
+        <div className="mt-2 space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
+          {SEGMENTS.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.cor }} />
+                {s.nome}
+                {s.id === 'combustivel' && segmentos.combustivel.litros > 0 && (
+                  <span className="text-gray-400 dark:text-gray-500">· {formatLitersShort(segmentos.combustivel.litros)}</span>
+                )}
+              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {formatCurrencyShort(segmentos[s.id][metric])}
+              </span>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
   /* ─── Projeções (faturamento + lucro bruto, fim do período) ───
    * Cada segmento usa sua série diária com smoothedProjection — uma chamada
    * pra faturamento e outra pra lucro bruto. Total = soma dos 3.
@@ -432,37 +487,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={isLoading}
               projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? formatCurrency(projecoes.fat.esperado) : undefined}
-              extra={
-                total.faturamento > 0 ? (
-                  <>
-                    {/* Stacked bar com a composição do faturamento */}
-                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      {SEGMENTS.map((s) => {
-                        const pct = (segmentos[s.id].faturamento / total.faturamento) * 100
-                        return pct > 0 ? (
-                          <span
-                            key={s.id}
-                            className="h-full"
-                            style={{ width: `${pct}%`, backgroundColor: s.cor }}
-                            title={`${s.nome}: ${pct.toFixed(2).replace('.', ',')}%`}
-                          />
-                        ) : null
-                      })}
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                      {SEGMENTS.map((s) => {
-                        const pct = (segmentos[s.id].faturamento / total.faturamento) * 100
-                        return (
-                          <span key={s.id} className="inline-flex items-center gap-1">
-                            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.cor }} />
-                            {pct.toFixed(2)}%
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </>
-                ) : null
-              }
+              extra={renderComposicao('faturamento')}
             />
             <KpiCard
               label="Lucro bruto total"
@@ -475,23 +500,7 @@ const ComercialVendasVisaoGeral = ({ embedded = false }: ComercialVendasVisaoGer
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={isLoading}
               projecao={projecoes.fat.diasRestantes > 0 && !isLoading ? formatCurrency(projecoes.projetadoLucroTotal) : undefined}
-              extra={
-                total.lucro > 0 ? (
-                  <div className="space-y-1 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
-                    {SEGMENTS.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.cor }} />
-                          {s.nome}
-                        </span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
-                          {formatCurrencyShort(segmentos[s.id].lucro)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null
-              }
+              extra={renderComposicao('lucro')}
             />
             <KpiCard
               label="Margem média"

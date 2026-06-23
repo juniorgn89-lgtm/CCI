@@ -120,6 +120,7 @@ export const useVendasLayout = createModuleLayoutStore('visor360-vendas-layout',
 export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout', [
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'conferencia', label: 'Conferência por PDV', visible: true },
+  { id: 'diferencas', label: 'Diferenças', visible: true },
 ])
 
 // -v2: reset limpo após trocar as sub-abas (Projeções/Metas/Destaques saíram;

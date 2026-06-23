@@ -652,6 +652,23 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       ? Math.round(diasPagamento.reduce((s, d) => s + d, 0) / diasPagamento.length)
       : null
 
+    // --- PMP (atraso médio de pagamento) — análogo ao PMR, nos pagáveis ---
+    // Reusa o snapshot `titulosPagarPend` (que já traz os PAGOS), sem fetch novo:
+    // média de (dataPagamento − vencimento) dos títulos pagos nos últimos 180d.
+    // Mesma base do PMR (dias vs vencimento; negativo = pago adiantado).
+    const diasPagamentoPagar: number[] = []
+    for (const t of titulosPagarPend) {
+      if ((t.situacao ?? '').toUpperCase() !== 'PAGO') continue
+      const pag = (t.dataPagamento ?? '').split('T')[0]
+      const venc = (t.vencimento ?? '').split('T')[0]
+      if (!pag || !venc || pag < pmrInicio || pag > hoje) continue
+      const dias = Math.round((new Date(pag).getTime() - new Date(venc).getTime()) / (1000 * 60 * 60 * 24))
+      if (dias >= -3650 && dias <= 3650) diasPagamentoPagar.push(dias)
+    }
+    const pmp = diasPagamentoPagar.length > 0
+      ? Math.round(diasPagamentoPagar.reduce((s, d) => s + d, 0) / diasPagamentoPagar.length)
+      : null
+
     // --- Cartão / Apps (/CARTAO) ---
     // Modalidade derivada da administradora (a API não traz um "tipo" explícito):
     //  - contém CREDITO/DEBITO/PIX → adquirente direto
@@ -741,8 +758,9 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       modoRecebimento,
       cartoesAVencer: cartoesPend,
       pmr,
+      pmp,
     }
-  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim, pmrInicio])
 
   return {
     ...computed,

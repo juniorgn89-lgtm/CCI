@@ -85,6 +85,31 @@ export const linearProjection = (
   input: Omit<SmoothedProjectionInput, 'window'>,
 ): SmoothedProjectionResult => smoothedProjection({ ...input, window: 0 })
 
+/**
+ * Fator de extrapolação LINEAR por dias até o fim do mês — para telas que só têm
+ * o AGREGADO do período (sem série diária). Multiplique o realizado por este
+ * fator pra projetar o fechamento: `projetado = realizado × fator`, onde
+ * `fator = dias totais até o fim do mês ÷ dias decorridos`.
+ *
+ * Equivale à projeção linear (média de todos os dias decorridos × dias
+ * restantes), só que derivada do total. Em período já FECHADO (passado),
+ * retorna 1 → projeção = realizado.
+ */
+export const monthEndFactor = (dataInicial: string, dataFinal: string): number => {
+  if (!dataInicial) return 1
+  const [y, m] = dataInicial.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  const monthEndISO = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  const now = new Date()
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const dia = (s: string) => { const [yy, mm, dd] = s.split('-').map(Number); return Date.UTC(yy, mm - 1, dd) }
+  const fimProj = dataFinal > monthEndISO ? dataFinal : monthEndISO
+  const fimReal = todayISO < dataFinal ? todayISO : dataFinal
+  const decorridos = Math.max(1, Math.round((dia(fimReal) - dia(dataInicial)) / 86_400_000) + 1)
+  const totais = Math.max(decorridos, Math.round((dia(fimProj) - dia(dataInicial)) / 86_400_000) + 1)
+  return totais / decorridos
+}
+
 /* ─── Projeção AVANÇADA (tendência + sazonalidade + cenários + confiabilidade) ─── */
 
 const weekdayOfIso = (iso: string): number => {

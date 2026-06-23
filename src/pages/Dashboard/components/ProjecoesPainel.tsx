@@ -1,27 +1,12 @@
 import { Droplets, Wrench, Store, Globe, LineChart } from 'lucide-react'
-import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
+import { monthEndFactor } from '@/lib/projection'
 
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
-
-/** Fator de extrapolação linear até o fim do mês (dias decorridos → dias totais). */
-const projFactor = (dataInicial: string, dataFinal: string): number => {
-  if (!dataInicial) return 1
-  const [y, m] = dataInicial.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  const monthEndISO = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-  const now = new Date()
-  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const dia = (s: string) => { const [yy, mm, dd] = s.split('-').map(Number); return Date.UTC(yy, mm - 1, dd) }
-  const fimProj = dataFinal > monthEndISO ? dataFinal : monthEndISO
-  const fimReal = todayISO < dataFinal ? todayISO : dataFinal
-  const decorridos = Math.max(1, Math.round((dia(fimReal) - dia(dataInicial)) / 86_400_000) + 1)
-  const totais = Math.max(decorridos, Math.round((dia(fimProj) - dia(dataInicial)) / 86_400_000) + 1)
-  return totais / decorridos
-}
 
 interface SegmentCardProps {
   label: string
@@ -73,13 +58,15 @@ const ProjecoesPainel = () => {
   const { combustivel, automotivos, conveniencia, global, isLoading } = useRedeSetores()
 
   // Projeção fim do mês — extrapolação linear simples (rede-wide) por setor.
-  const f = projFactor(dataInicial, dataFinal)
+  // `volume` = litros no Combustível e quantidade (unidades) em Automotivos/Conveniência.
+  const f = monthEndFactor(dataInicial, dataFinal)
   const projLinhas = [
-    { setor: 'Combustível', faturamento: combustivel.faturamento * f, lucroBruto: combustivel.lucroBruto * f, margem: combustivel.margem },
-    { setor: 'Automotivos', faturamento: automotivos.faturamento * f, lucroBruto: automotivos.lucroBruto * f, margem: automotivos.margem },
-    { setor: 'Conveniência', faturamento: conveniencia.faturamento * f, lucroBruto: conveniencia.lucroBruto * f, margem: conveniencia.margem },
+    { setor: 'Combustível', volume: combustivel.qtd * f, faturamento: combustivel.faturamento * f, lucroBruto: combustivel.lucroBruto * f, margem: combustivel.margem },
+    { setor: 'Automotivos', volume: automotivos.qtd * f, faturamento: automotivos.faturamento * f, lucroBruto: automotivos.lucroBruto * f, margem: automotivos.margem },
+    { setor: 'Conveniência', volume: conveniencia.qtd * f, faturamento: conveniencia.faturamento * f, lucroBruto: conveniencia.lucroBruto * f, margem: conveniencia.margem },
   ]
   const projTotal = {
+    // Total de volume é misto (litros + unidades) → não soma (mostra "—").
     faturamento: projLinhas.reduce((s, r) => s + r.faturamento, 0),
     lucroBruto: projLinhas.reduce((s, r) => s + r.lucroBruto, 0),
     margem: global.margem,
@@ -154,6 +141,7 @@ const ProjecoesPainel = () => {
           <thead>
             <tr className="border-b border-white/20 text-left text-white/60">
               <th className="py-1 font-medium">Setor</th>
+              <th className="py-1 text-right font-medium">Litros/Qtde</th>
               <th className="py-1 text-right font-medium">Faturamento</th>
               <th className="py-1 text-right font-medium">Lucro bruto</th>
               <th className="py-1 text-right font-medium">Margem</th>
@@ -163,6 +151,7 @@ const ProjecoesPainel = () => {
             {projLinhas.map((r) => (
               <tr key={r.setor} className="border-b border-white/10 last:border-b-0">
                 <td className="py-1">{r.setor}</td>
+                <td className="py-1 text-right tabular-nums">{formatNumber(Math.round(r.volume))}</td>
                 <td className="py-1 text-right tabular-nums">{formatCurrencyInt(r.faturamento)}</td>
                 <td className="py-1 text-right tabular-nums">{formatCurrencyInt(r.lucroBruto)}</td>
                 <td className="py-1 text-right tabular-nums">{fmtPct(r.margem)}</td>
@@ -170,6 +159,7 @@ const ProjecoesPainel = () => {
             ))}
             <tr className="font-semibold text-white">
               <td className="pt-1.5">Total</td>
+              <td className="pt-1.5 text-right tabular-nums text-white/50">—</td>
               <td className="pt-1.5 text-right tabular-nums">{formatCurrencyInt(projTotal.faturamento)}</td>
               <td className="pt-1.5 text-right tabular-nums">{formatCurrencyInt(projTotal.lucroBruto)}</td>
               <td className="pt-1.5 text-right tabular-nums">{fmtPct(projTotal.margem)}</td>

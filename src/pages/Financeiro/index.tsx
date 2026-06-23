@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { DollarSign, Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
@@ -12,6 +12,8 @@ import { useFinanceiroLayout } from '@/store/moduleLayout'
 import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
 import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
 import SaldoAbertoCards from '@/pages/Financeiro/components/SaldoAbertoCards'
+import AgingVencidos from '@/pages/Financeiro/components/AgingVencidos'
+import ProximosVencimentos from '@/pages/Financeiro/components/ProximosVencimentos'
 import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
 const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
@@ -79,11 +81,27 @@ const Financeiro = () => {
     modoRecebimento,
     cartoesAVencer,
     pmr,
+    pmp,
     receivablesPagos,
     saldoEmCaixa,
     isLoading,
     hasEmpresa,
   } = useFinanceData(localPeriod)
+
+  // Posição líquida (hero) — a receber em aberto (títulos + duplicatas) − a pagar.
+  const posicao = useMemo(() => {
+    const aReceber = receivablesAtraso.reduce((s, r) => s + r.valor, 0)
+      + duplicatasAberto.reduce((s, d) => s + d.saldoRestante, 0)
+    const aReceberVencido = receivablesAtraso.reduce((s, r) => (r.statusTag === 'vencido' ? s + r.valor : s), 0)
+      + duplicatasAberto.reduce((s, d) => (d.statusTag === 'vencido' ? s + d.saldoRestante : s), 0)
+    const aPagar = cardPagarAberto.total
+    return {
+      posicao: aReceber - aPagar,
+      aReceber,
+      aPagar,
+      vencidoTotal: aReceberVencido + cardPagarAberto.vencidoTotal,
+    }
+  }, [receivablesAtraso, duplicatasAberto, cardPagarAberto])
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
 
@@ -167,10 +185,15 @@ const Financeiro = () => {
                         <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
                       </div>
                       <SaldoAbertoCards
+                        posicao={posicao}
                         notasNaoFaturadas={cardNotasNaoFaturadas}
                         duplicatasAberto={cardDuplicatasAberto}
                         pagarAberto={cardPagarAberto}
                       />
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
+                        <AgingVencidos receivables={receivablesAtraso} payables={payablesAtraso} duplicatas={duplicatasAberto} />
+                        <ProximosVencimentos receivables={receivablesAtraso} payables={payablesAtraso} duplicatas={duplicatasAberto} />
+                      </div>
                       <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
                       <CartoesEModo
                         cartoesAppsAVencer={cartoesAppsAVencer}
@@ -179,6 +202,8 @@ const Financeiro = () => {
                         cartoesReceberCount={cartoesReceberCount}
                         carteiraDigitalItems={carteiraDigitalItems}
                         modoRecebimento={modoRecebimento}
+                        pmr={pmr}
+                        pmp={pmp}
                       />
                     </div>
                   )}

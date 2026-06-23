@@ -91,6 +91,12 @@ export interface EstoqueKpis {
   valorTotalEstoque: number
 }
 
+/** Ponto da série mensal do valor de estoque (sparkline da Visão Geral). */
+export interface EstoqueValorMensal {
+  mes: string // 'YYYY-MM'
+  valor: number
+}
+
 const DAYS_PER_MONTH = 30
 const MONTHS_LOOKBACK = 6
 
@@ -356,11 +362,22 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
       return n > 0 ? soma / n : null
     }
 
+    // Série mensal do VALOR de estoque (pro sparkline da Visão Geral): por mês,
+    // Σ(produtos) média dos snapshots do mês × custo de cadastro. Derivada do
+    // mesmo histórico (estoquePeriodo) já buscado — sem fetch novo.
+    const valorMensalMap = new Map<string, number>()
+    for (const m of months) valorMensalMap.set(m.ym, 0)
+
     // Construir analytics: itera produtos do catálogo, gera linha para cada não-combustível com algum dado
     const productAnalytics: ProductAnalyticsRow[] = []
     for (const produto of produtos) {
       // Excluir combustíveis
       if (produto.combustivel || produto.produtoLmcCodigo > 0) continue
+
+      // Excluir produtos SEM controle de estoque: o flag "Controle de Estoque"
+      // desmarcado no ERP Quality = `registraInventario === 'N'` (itens de USO E
+      // CONSUMO). Por regra, esses NÃO entram em NENHUMA aba do módulo Estoque.
+      if (produto.registraInventario === 'N') continue
 
       const saldoAtual = saldoAtualMap.get(produto.produtoCodigo) ?? 0
       const sales = salesMap.get(produto.produtoCodigo)
@@ -395,6 +412,18 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
       // coluna P. Custo), caindo no custo médio realizado quando não há cadastro.
       const custoValuation = precoCustoCadastro > 0 ? precoCustoCadastro : custoMedio
       const valorEstoque = saldoAtual * custoValuation
+
+      // Acumula o valor de estoque por mês (média dos snapshots do mês × custo).
+      if (history && history.byDate.size > 0) {
+        for (const m of months) {
+          let soma = 0
+          let n = 0
+          for (const [date, qtd] of history.byDate) {
+            if (date >= m.inicial && date <= m.final) { soma += qtd; n++ }
+          }
+          if (n > 0) valorMensalMap.set(m.ym, (valorMensalMap.get(m.ym) ?? 0) + (soma / n) * custoValuation)
+        }
+      }
 
       // Mês de pico
       let mesPico: string | null = null
@@ -507,7 +536,14 @@ const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias:
 
     const categorias = Array.from(new Set(productAnalytics.map((r) => r.categoria))).sort()
 
-    return { productAnalytics, kpis, categorias, months }
+    // Série pro sparkline — último mês ancorado no total ATUAL (Σ valorEstoque),
+    // pra a linha terminar no valor que o hero exibe.
+    const estoqueValorMensal = months.map((m, i) => ({
+      mes: m.ym,
+      valor: i === months.length - 1 ? valorTotalEstoque : (valorMensalMap.get(m.ym) ?? 0),
+    }))
+
+    return { productAnalytics, kpis, categorias, months, estoqueValorMensal }
   }, [produtosData, gruposData, produtoEstoqueData, estoqueExtratoData, estoquePeriodoData, vendaAggs, periodoInicial, periodoFinal, months, coberturaDias, janelaDias, janelaInicial])
 
   return {

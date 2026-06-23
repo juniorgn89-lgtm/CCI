@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import useCaixaGeral from '@/pages/CaixasTurnos/hooks/useCaixaGeral'
@@ -407,15 +408,20 @@ const CaixaGeralReport = () => {
             </table>
           </div>
         </div>
-        {/* Fechamento de Caixas: Diferenças */}
-        <div className="flex items-center justify-between border-t-2 border-gray-300 bg-gray-100 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-          <span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+        {/* Fechamento de Caixas: Diferenças — link pra aba Diferenças. */}
+        <Link
+          to="/caixas-turnos?tab=diferencas"
+          title="Abrir a aba Diferenças (sobras e faltas detalhadas)"
+          className="group flex items-center justify-between border-t-2 border-gray-300 bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+        >
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-200">
             Fechamento de Caixas: Diferenças
+            <ChevronRight className="h-3.5 w-3.5 text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
           </span>
           <span className={cn('text-sm font-bold tabular-nums', diferencasFechamento >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>
             {formatCurrency(diferencasFechamento)}
           </span>
-        </div>
+        </Link>
       </Section>
     </div>
   )

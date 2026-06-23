@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <!-- ───────── Sidebar ───────── -->
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Central da Rede</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Vendas</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Bombas</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Reabastecimento</span>
+      </a>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#e0f2fe;color:#0c4a6e;font-weight:600">
+        <span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#0ea5e9"></span>
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span>
+        <span style="font-size:13px">Fechamento de Caixa</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Produtividade</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Estoques</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Financeiro</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Qualidade de Dados</span>
+      </a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Pessoas</span>
+      </a>
+
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563">
+        <span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span>
+        <span style="font-size:13px;font-weight:500">Inteligência</span>
+      </a>
+    </nav>
+
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px">
+      <div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div>
+      <span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span>
+    </div>
+  </aside>
+
+  <!-- ───────── Main ───────── -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+
+    <!-- Top bar -->
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+        <div style="min-width:0">
+          <h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Fechamento de Caixa</h1>
+          <p style="margin:0;font-size:11px;color:#6b7280">Conferência de caixas e turnos</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          01–31 Mai 2025
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+          Posto Norte Sul
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Visão Geral</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Conferência por PDV</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+        Diferenças
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- ── KPI row ── -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <!-- Diferença líquida (navy) -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:linear-gradient(135deg,#1e3a5f,#27496f);border:1px solid rgba(30,58,95,.3);box-shadow:0 1px 2px rgba(0,0,0,.06)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#fff">Diferença líquida</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.6)">Sobras − Faltas</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#fca5a5;font-variant-numeric:tabular-nums">−R$ 1.053,60</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)"><span style="font-size:11px;color:rgba(255,255,255,.6)">Posto Norte Sul · Maio/2025</span></div>
+          </div>
+
+          <!-- Faltas -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #fecaca;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Faltas</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Dinheiro a menos</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#b91c1c;font-variant-numeric:tabular-nums">−R$ 1.409,50</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">em 31 caixas</span></div>
+          </div>
+
+          <!-- Sobras -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #bbf7d0;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Sobras</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Dinheiro a mais</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#15803d;font-variant-numeric:tabular-nums">+R$ 355,90</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">em 18 caixas</span></div>
+          </div>
+
+          <!-- Caixas com diferença -->
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div><p style="margin:0;font-size:13px;font-weight:600;color:#111827">Caixas com diferença</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">No período</p></div>
+              <div style="height:40px;width:40px;flex:none;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">38<span style="font-size:18px;font-weight:600;color:#9ca3af"> / 117</span></p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">32% dos caixas conferidos</span></div>
+          </div>
+        </div>
+
+        <!-- ── Tendência diária ── -->
+        <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Diferença por dia</h2>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Sobra (verde) acima · falta (vermelho) abaixo da linha</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:#6b7280">
+              <span style="display:inline-flex;align-items:center;gap:5px"><span style="height:9px;width:9px;border-radius:2px;background:#22c55e;display:inline-block"></span>sobra</span>
+              <span style="display:inline-flex;align-items:center;gap:5px"><span style="height:9px;width:9px;border-radius:2px;background:#ef4444;display:inline-block"></span>falta</span>
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;align-items:stretch;gap:3px;height:96px;border-top:1px dashed #e5e7eb;border-bottom:1px dashed #e5e7eb">
+            <sc-for list="{{ dayBars }}" as="d" hint-placeholder-count="22">
+              <div style="flex:1;display:flex;flex-direction:column;height:100%" title="{{ d.tip }}">
+                <div style="flex:1;display:flex;align-items:flex-end;justify-content:center"><div style="width:64%;border-radius:2px 2px 0 0;height:{{ d.posH }}px;background:#22c55e"></div></div>
+                <div style="height:1px;background:#cbd5e1"></div>
+                <div style="flex:1;display:flex;align-items:flex-start;justify-content:center"><div style="width:64%;border-radius:0 0 2px 2px;height:{{ d.negH }}px;background:#ef4444"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11px;color:#9ca3af"><span>01 Mai</span><span>15 Mai</span><span>31 Mai</span></div>
+        </div>
+
+        <!-- ── Por responsável + Por forma ── -->
+        <div style="display:grid;grid-template-columns:1.45fr 1fr;gap:16px">
+          <!-- Por responsável -->
+          <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+            <div style="padding:18px 20px 14px">
+              <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Diferença por responsável</h2>
+              <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Ordenado por {{ sortLabel }} · saldo de sobras e faltas</p>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="background:#f3f4f6;color:#6b7280;text-align:left">
+                  <th style="padding:9px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Responsável</th>
+                  <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right">Caixas</th>
+                  <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;width:180px">Saldo</th>
+                  <th style="padding:9px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right">Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ respRows }}" as="u" hint-placeholder-count="7">
+                  <tr style="border-top:1px solid #f3f4f6;background:{{ u.rowBg }}" style-hover="background:#eff6ff">
+                    <td style="padding:11px 20px;font-weight:600;color:#111827;white-space:nowrap">{{ u.nome }}</td>
+                    <td style="padding:11px 12px;text-align:right;color:#6b7280;font-variant-numeric:tabular-nums">{{ u.caixas }}</td>
+                    <td style="padding:11px 12px">
+                      <div style="display:flex;align-items:center;height:18px">
+                        <div style="flex:1;display:flex;justify-content:flex-end"><div style="height:9px;border-radius:5px 0 0 5px;width:{{ u.negPct }}%;background:#ef4444"></div></div>
+                        <div style="width:1px;height:16px;background:#cbd5e1;flex:none"></div>
+                        <div style="flex:1;display:flex;justify-content:flex-start"><div style="height:9px;border-radius:0 5px 5px 0;width:{{ u.posPct }}%;background:#22c55e"></div></div>
+                      </div>
+                    </td>
+                    <td style="padding:11px 20px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{{ u.liquidaColor }}">{{ u.liquidaFmt }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Por forma de pagamento -->
+          <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Onde está a diferença</h2>
+            <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Diferença líquida por forma de pagamento</p>
+            <div style="margin-top:18px;display:flex;flex-direction:column;gap:16px">
+              <sc-for list="{{ formaRows }}" as="f" hint-placeholder-count="4">
+                <div onClick="{{ f.onClick }}" style="border-radius:8px;padding:6px;margin:-6px;cursor:{{ f.cursor }}" style-hover="{{ f.hover }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+                    <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#374151">{{ f.nome }}<span style="display:{{ f.chipDisplay }};align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;background:#eff6ff;color:#2563eb">detalhar ›</span></span>
+                    <span style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ f.color }}">{{ f.valorFmt }}</span>
+                  </div>
+                  <div style="height:9px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;border-radius:999px;width:{{ f.barPct }}%;background:{{ f.barColor }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin:16px 0 0;padding-top:14px;border-top:1px solid #f3f4f6;font-size:12px;line-height:1.5;color:#6b7280">Concentração em <strong style="color:#b91c1c">Dinheiro</strong> sugere falha de troco/sangria — foco da conferência.</p>
+          </div>
+        </div>
+
+        <!-- ── Top caixas ── -->
+        <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+          <div style="padding:18px 20px 14px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Caixas com maior diferença</h2>
+            <p style="margin:3px 0 0;font-size:12px;color:#6b7280">Maiores divergências do período · por valor absoluto</p>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#f3f4f6;color:#6b7280;text-align:left">
+                <th style="padding:9px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Data</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Turno</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Caixa</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Responsável</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Forma</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right">Apurado</th>
+                <th style="padding:9px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right">Diferença</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ topRows }}" as="c" hint-placeholder-count="6">
+                <tr style="border-top:1px solid #f3f4f6;background:{{ c.rowBg }}" style-hover="background:#eff6ff">
+                  <td style="padding:11px 20px;color:#6b7280;font-variant-numeric:tabular-nums;white-space:nowrap">{{ c.data }}</td>
+                  <td style="padding:11px 16px;color:#374151">{{ c.turno }}</td>
+                  <td style="padding:11px 16px;color:#6b7280;font-variant-numeric:tabular-nums">{{ c.caixa }}</td>
+                  <td style="padding:11px 16px;font-weight:600;color:#111827;white-space:nowrap">{{ c.responsavel }}</td>
+                  <td style="padding:11px 16px"><span onClick="{{ c.formaOnClick }}" style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;cursor:{{ c.formaCursor }};background:{{ c.formaBadgeBg }};color:{{ c.formaBadgeText }}">{{ c.forma }}</span></td>
+                  <td style="padding:11px 16px;text-align:right;color:#374151;font-variant-numeric:tabular-nums">{{ c.apuradoFmt }}</td>
+                  <td style="padding:11px 20px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{{ c.difColor }}">{{ c.difFmt }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── Modal Detalhe do Cartão ── -->
+        <sc-if value="{{ cartaoOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeCartao }}" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(17,24,39,.5)">
+            <div onClick="{{ stopClick }}" style="width:100%;max-width:680px;background:#fff;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.28);overflow:hidden">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:22px 22px 0">
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                  <div style="height:36px;width:36px;flex:none;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></div>
+                  <div>
+                    <h3 style="margin:0;font-size:18px;font-weight:700;color:#111827">Detalhe do Cartão</h3>
+                    <p style="margin:4px 0 0;font-size:13px;color:#6b7280">Quebra por bandeira e débito/crédito (base: vendas autorizadas do período)</p>
+                  </div>
+                </div>
+                <button type="button" onClick="{{ closeCartao }}" aria-label="Fechar" style="height:34px;width:34px;flex:none;border-radius:50%;border:1px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280" style-hover="background:#f3f4f6;color:#111827"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:18px">
+                <thead>
+                  <tr style="border-top:1px solid #f1f3f5;border-bottom:1px solid #f1f3f5;color:#9ca3af;text-align:left">
+                    <th style="padding:9px 22px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Bandeira</th>
+                    <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Tipo</th>
+                    <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Administradora</th>
+                    <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:right">Transações</th>
+                    <th style="padding:9px 22px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ cartaoRows }}" as="b" hint-placeholder-count="5">
+                    <tr style="border-bottom:1px solid #f6f7f8">
+                      <td style="padding:12px 22px;font-weight:600;color:#111827;white-space:nowrap">{{ b.bandeira }}</td>
+                      <td style="padding:12px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:{{ b.tipoBg }};color:{{ b.tipoText }}">{{ b.tipo }}</span></td>
+                      <td style="padding:12px 12px;color:#6b7280">{{ b.adm }}</td>
+                      <td style="padding:12px 12px;text-align:right;color:#374151;font-variant-numeric:tabular-nums">{{ b.transacoes }}</td>
+                      <td style="padding:12px 22px;text-align:right;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;white-space:nowrap">{{ b.totalFmt }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+                <tfoot>
+                  <tr style="background:#f9fafb">
+                    <td colspan="4" style="padding:14px 22px;font-weight:700;color:#111827">Total cartão (vendido)</td>
+                    <td style="padding:14px 22px;text-align:right;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ cartaoTotalFmt }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1040},&quot;ordenarPor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Diferença líquida&quot;,&quot;Faltas&quot;,&quot;Sobras&quot;,&quot;Nº de caixas&quot;],&quot;default&quot;:&quot;Diferença líquida&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ordemPiorPrimeiro&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;ocultarSemDiferenca&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { cartaoOpen: false };
+  renderVals() {
+    const openCartao = () => this.setState({ cartaoOpen: true });
+    const ordenar = this.props.ordenarPor ?? 'Diferença líquida';
+    const piorPrimeiro = this.props.ordemPiorPrimeiro ?? true;
+    const ocultarSemDif = this.props.ocultarSemDiferenca ?? false;
+
+    // Sinal: faltas negativas, sobras positivas (R$).
+    const base = [
+      { nome: 'Valter Francisco da Silva', caixas: 16, sobras: 15.00,  faltas: -512.40 },
+      { nome: 'Sidney Nobre',              caixas: 18, sobras: 42.30,  faltas: -387.60 },
+      { nome: 'Juliano Pereira de Jesus',  caixas: 14, sobras: 5.00,   faltas: -210.80 },
+      { nome: 'Alessandro Odilia',         caixas: 15, sobras: 30.00,  faltas: -95.50 },
+      { nome: 'Eduardo Lannes Santucci',   caixas: 12, sobras: 88.90,  faltas: -120.00 },
+      { nome: 'Chytila da Silva Ferreira', caixas: 20, sobras: 64.50,  faltas: -45.20 },
+      { nome: 'Isaac Santos Machado',      caixas: 22, sobras: 110.20, faltas: -38.00 },
+    ].map((r) => ({ ...r, liquida: r.sobras + r.faltas }));
+
+    const fmtSigned = (v) => (v > 0.005 ? '+' : v < -0.005 ? '−' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const colorOf = (v) => v < -0.005 ? '#b91c1c' : v > 0.005 ? '#047857' : '#6b7280';
+
+    // Ordenação da tabela por responsável.
+    const key = ordenar === 'Faltas' ? 'faltas' : ordenar === 'Sobras' ? 'sobras' : ordenar === 'Nº de caixas' ? 'caixas' : 'liquida';
+    let items = ocultarSemDif ? base.filter((r) => Math.abs(r.liquida) > 0.005) : [...base];
+    items.sort((a, b) => {
+      // "Pior primeiro" = mais negativo no topo (exceto Sobras/Caixas, onde maior no topo).
+      if (key === 'sobras' || key === 'caixas') return piorPrimeiro ? b[key] - a[key] : a[key] - b[key];
+      return piorPrimeiro ? a[key] - b[key] : b[key] - a[key];
+    });
+
+    const maxAbs = Math.max(...base.map((r) => Math.abs(r.liquida)), 1);
+    const respRows = items.map((r, i) => ({
+      nome: r.nome,
+      caixas: r.caixas,
+      liquidaFmt: fmtSigned(r.liquida),
+      liquidaColor: colorOf(r.liquida),
+      negPct: r.liquida < 0 ? Math.round((Math.abs(r.liquida) / maxAbs) * 100) : 0,
+      posPct: r.liquida > 0 ? Math.round((r.liquida / maxAbs) * 100) : 0,
+      rowBg: i % 2 === 1 ? '#f9fafb' : '#ffffff',
+    }));
+
+    // Por forma de pagamento (líquida assinada).
+    const formas = [
+      { nome: 'Dinheiro', valor: -892.40 },
+      { nome: 'PIX', valor: -128.00 },
+      { nome: 'Cartão Crédito', valor: -78.30 },
+      { nome: 'Cartão Débito', valor: 45.10 },
+    ];
+    const maxForma = Math.max(...formas.map((f) => Math.abs(f.valor)), 1);
+    const formaRows = formas.map((f) => {
+      const isCartao = /cart/i.test(f.nome);
+      return {
+        nome: f.nome,
+        valorFmt: fmtSigned(f.valor),
+        color: colorOf(f.valor),
+        barColor: f.valor < 0 ? '#ef4444' : '#22c55e',
+        barPct: Math.max(3, Math.round((Math.abs(f.valor) / maxForma) * 100)),
+        onClick: isCartao ? openCartao : undefined,
+        cursor: isCartao ? 'pointer' : 'default',
+        hover: isCartao ? 'background:#f9fafb' : 'background:transparent',
+        chipDisplay: isCartao ? 'inline-flex' : 'none',
+      };
+    });
+
+    // Diferença por dia (R$ líquido), Maio.
+    const dias = [-22, 15, -8, 40, -287.4, 12, -34, 64.2, -18, 25, -156, 9, -42, 30, -132.8, 18, -58.5, 22, -12, 45, -198.6, 8];
+    const maxDay = Math.max(...dias.map((v) => Math.abs(v)), 1);
+    const dayBars = dias.map((v, i) => ({
+      posH: v > 0 ? Math.max(2, Math.round((v / maxDay) * 40)) : 0,
+      negH: v < 0 ? Math.max(2, Math.round((Math.abs(v) / maxDay) * 40)) : 0,
+      tip: `Dia ${i + 1}: ${fmtSigned(v)}`,
+    }));
+
+    // Caixas com maior diferença (valor absoluto).
+    const top = [
+      { data: '12/05', turno: 'Tarde', caixa: '#3', responsavel: 'Valter F. da Silva', forma: 'Dinheiro', apurado: 8420.50, dif: -287.40 },
+      { data: '23/05', turno: 'Manhã', caixa: '#1', responsavel: 'Sidney Nobre',       forma: 'Dinheiro', apurado: 7180.00, dif: -198.60 },
+      { data: '07/05', turno: 'Noite', caixa: '#2', responsavel: 'Juliano P. de Jesus',forma: 'PIX',      apurado: 5640.30, dif: -156.00 },
+      { data: '19/05', turno: 'Tarde', caixa: '#3', responsavel: 'Valter F. da Silva', forma: 'Dinheiro', apurado: 9110.80, dif: -132.80 },
+      { data: '15/05', turno: 'Manhã', caixa: '#1', responsavel: 'Isaac S. Machado',   forma: 'Dinheiro', apurado: 6890.20, dif: 64.20 },
+      { data: '28/05', turno: 'Noite', caixa: '#2', responsavel: 'Alessandro Odilia',  forma: 'Cartão Crédito', apurado: 4435.10, dif: -58.50 },
+    ];
+    const topRows = top.map((c, i) => {
+      const isCartao = /cart/i.test(c.forma);
+      return {
+        data: c.data, turno: c.turno, caixa: c.caixa, responsavel: c.responsavel, forma: c.forma,
+        apuradoFmt: 'R$ ' + c.apurado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        difFmt: fmtSigned(c.dif),
+        difColor: colorOf(c.dif),
+        rowBg: i % 2 === 1 ? '#f9fafb' : '#ffffff',
+        formaOnClick: isCartao ? openCartao : undefined,
+        formaCursor: isCartao ? 'pointer' : 'default',
+        formaBadgeBg: isCartao ? '#eff6ff' : '#f3f4f6',
+        formaBadgeText: isCartao ? '#2563eb' : '#4b5563',
+      };
+    });
+
+    const cartaoData = [
+      { bandeira: 'MAESTRO (GETNET)', tipo: 'Débito', adm: 'GET NET', transacoes: 38, total: 648.51 },
+      { bandeira: 'MASTERCARD CREDITO (GETNET)', tipo: 'Crédito', adm: 'GET NET', transacoes: 19, total: 493.18 },
+      { bandeira: 'VISA DEBITO (GETNET)', tipo: 'Débito', adm: 'GET NET', transacoes: 24, total: 422.19 },
+      { bandeira: 'VISA CREDITO (GETNET)', tipo: 'Crédito', adm: 'GET NET', transacoes: 7, total: 120.68 },
+      { bandeira: 'ELO DEBITO (GETNET)', tipo: 'Débito', adm: 'GET NET', transacoes: 5, total: 97.14 },
+    ];
+    const cartaoRows = cartaoData.map((b) => ({
+      bandeira: b.bandeira, tipo: b.tipo, adm: b.adm, transacoes: b.transacoes,
+      totalFmt: 'R$ ' + b.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      tipoBg: b.tipo === 'Crédito' ? '#dbeafe' : '#dcfce7',
+      tipoText: b.tipo === 'Crédito' ? '#1d4ed8' : '#15803d',
+    }));
+    const cartaoTotal = cartaoData.reduce((s, b) => s + b.total, 0);
+
+    return {
+      sortLabel: ordenar.toLowerCase(), respRows, formaRows, dayBars, topRows,
+      cartaoOpen: this.state.cartaoOpen,
+      closeCartao: () => this.setState({ cartaoOpen: false }),
+      stopClick: (e) => e.stopPropagation(),
+      cartaoRows,
+      cartaoTotalFmt: 'R$ ' + cartaoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    };
+  }
+}
+</script>
+</body>
+</html>

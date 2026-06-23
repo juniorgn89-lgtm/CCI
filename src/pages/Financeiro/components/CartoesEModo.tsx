@@ -1,6 +1,7 @@
-import { CreditCard, Wallet, Ban, ArrowDownUp } from 'lucide-react'
+import { CreditCard, Wallet, Clock, ArrowDownUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import type { CarteiraDigitalItem, ModoRecebimentoItem } from '@/pages/Financeiro/hooks/useFinanceData'
 
 interface Props {
@@ -10,7 +11,14 @@ interface Props {
   cartoesReceberCount: number
   carteiraDigitalItems: CarteiraDigitalItem[]
   modoRecebimento: ModoRecebimentoItem[]
+  /** Prazo médio de recebimento (dias vs vencimento; negativo = adiantado). */
+  pmr: number | null
+  /** Prazo médio de pagamento (dias vs vencimento; negativo = adiantado). */
+  pmp: number | null
 }
+
+/** Formata dias com sinal explícito (negativo = adiantado). */
+const fmtDias = (v: number | null): string => (v == null ? '—' : `${v} dia${Math.abs(v) === 1 ? '' : 's'}`)
 
 const MODALIDADE_COR: Record<string, string> = {
   'Crédito': 'bg-blue-500/70',
@@ -26,8 +34,11 @@ const MODALIDADE_COR: Record<string, string> = {
  *  - Tabela "Carteira de cartões e Apps — A vencer" (apps pendentes por administradora)
  *  - "Modo recebimento" (recebíveis do período por modalidade)
  */
-const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberLiquido, cartoesReceberCount, carteiraDigitalItems, modoRecebimento }: Props) => {
+const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberLiquido, cartoesReceberCount, carteiraDigitalItems, modoRecebimento, pmr, pmp }: Props) => {
   const maxModo = Math.max(...modoRecebimento.map((m) => m.valor), 0)
+  // Ciclo saudável: recebe ANTES de pagar (PMR < PMP). Só mostra a nota com os dois dados.
+  const cicloSaudavel = pmr != null && pmp != null && pmr < pmp
+  const folga = pmr != null && pmp != null ? pmp - pmr : null
 
   return (
     <div className="space-y-4">
@@ -41,13 +52,36 @@ const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberL
           Icon={Wallet}
           color="violet"
         />
-        <KpiCard
-          title="Cheques devolvidos"
-          value="—"
-          hint="Indisponível na integração Quality (sem GET)"
-          Icon={Ban}
-          color="gray"
-        />
+        {/* Ciclo financeiro — substitui o antigo "Cheques devolvidos". */}
+        <section className="flex flex-col rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                Ciclo financeiro
+                <InfoHint text="Prazo médio = média de dias entre o vencimento e o pagamento dos títulos pagos nos últimos 180 dias (negativo = pago adiantado). É o atraso/adiantamento médio, não o prazo do título." />
+              </p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">Prazos médios</p>
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              <Clock className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">PMR · receber</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{fmtDias(pmr)}</p>
+            </div>
+            <div className="border-l border-gray-100 pl-3 dark:border-gray-800">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">PMP · pagar</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{fmtDias(pmp)}</p>
+            </div>
+          </div>
+          {cicloSaudavel && folga != null && (
+            <p className="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              Recebe {folga} {folga === 1 ? 'dia' : 'dias'} antes de pagar — ciclo saudável
+            </p>
+          )}
+        </section>
       </div>
 
       {/* Carteira + Modo recebimento */}

@@ -1,11 +1,9 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell,
-  ScatterChart, Scatter, ZAxis,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
-import { AlertTriangle, CalendarClock, CalendarDays, Percent, CreditCard, ChevronRight } from 'lucide-react'
+import { AlertTriangle, Clock, Percent, CreditCard, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchCartao } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -14,7 +12,22 @@ import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/fo
 import type { Cartao } from '@/api/types/financeiro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import InfoHint from '@/components/ui/InfoHint'
+import {
+  IntelHeader, AnalisePanel, KpiHero, KpiCard, ChartCard, IntelTabs, Badge,
+} from '@/pages/Financeiro/components/shared/financeIntel'
+
+/**
+ * Flags dos cards bloqueados por DADO INDISPONÍVEL no /CARTAO (não inventar nº):
+ *  - ANTECIPAÇÃO: o antecipável (Σ a vencer) é real, mas o /CARTAO não traz a
+ *    TAXA DE ANTECIPAÇÃO contratada (% a.m.) nem prazo. Sem ela, líquido/custo
+ *    seriam inventados → card OCULTO. Quando o comercial informar a taxa real,
+ *    preencher `ANTECIPACAO_TAXA_AM` (% ao mês) e o card liga sozinho.
+ *  - CONCILIAÇÃO: exige valor PAGO × PREVISTO; o /CARTAO expõe só um `valor`
+ *    (sem o realizado divergente) → genuinamente underivável. Reabrir só se
+ *    surgir um endpoint de conciliação com os dois valores.
+ */
+const ANTECIPACAO_TAXA_AM: number | null = null
+const FEATURE_CONCILIACAO = false
 
 type Modalidade = 'Crédito' | 'Débito' | 'PIX' | 'Carteira Digital'
 const MODALIDADES: Modalidade[] = ['Crédito', 'Débito', 'PIX', 'Carteira Digital']
@@ -37,8 +50,7 @@ const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—
 const adminNome = (c: Cartao) => c.adiministradoraDescricao?.trim() || 'Outros'
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-/** Presets do seletor de período (em meses pra trás a partir de hoje). */
-const PERIODO_OPCOES: { value: number; label: string }[] = [
+const PERIODO_OPCOES = [
   { value: 3, label: 'Últimos 3 meses' },
   { value: 6, label: 'Últimos 6 meses' },
   { value: 12, label: 'Últimos 12 meses' },
@@ -46,13 +58,13 @@ const PERIODO_OPCOES: { value: number; label: string }[] = [
 ]
 const DEFAULT_MESES = 6
 
-type Aba = 'atraso' | 'vencer' | 'liquidados' | 'analise'
+type Aba = 'atraso' | 'vencer' | 'liquidados'
 
 /**
- * Cartões — análise de recebíveis de cartão (/CARTAO), espelhando o webPosto:
- * KPIs (em atraso / hoje / em aberto / taxa média), curva de taxa média por
- * modalidade (12m) e painel com recebíveis em atraso/a vencer/liquidados + análise.
- * Puxa 12 meses de cartões só quando a aba abre (query isolada).
+ * Cartões — Inteligência de recebíveis de cartão (/CARTAO), na mesma anatomia
+ * das abas Receber/Pagar (blocos de `shared/financeIntel`). KPIs (com delta da
+ * taxa), curva de taxa por modalidade, custo por bandeira (selo RENEGOCIAR) e
+ * painel com árvore Modalidade→Administradora. Read-only.
  */
 const CartoesIntel = () => {
   const { empresaCodigos } = useFilterStore()
@@ -60,16 +72,14 @@ const CartoesIntel = () => {
   const hasEmpresa = empresaCodigos.length > 0
   const hoje = todayISO()
   const [mesesJanela, setMesesJanela] = useState<number>(DEFAULT_MESES)
+  const [aba, setAba] = useState<Aba>('atraso')
+  const [showAnalise, setShowAnalise] = useState(false)
+
   const inicioWin = useMemo(() => {
     const d = new Date(`${hoje}T00:00:00`); d.setMonth(d.getMonth() - mesesJanela)
     return d.toISOString().split('T')[0]
   }, [hoje, mesesJanela])
 
-  const [aba, setAba] = useState<Aba>('atraso')
-
-  // Janela configurável (default 6m). maxPages alto pra NÃO truncar antes dos
-  // pendentes (mais recentes / código maior) — senão os KPIs zeram (só vinham os
-  // liquidados antigos). queryKey inclui inicioWin → recarrega ao trocar o período.
   const { data: cartoes = [], isLoading } = useQuery({
     queryKey: ['cartaoAnalytics', empresaCodigo, inicioWin, hoje],
     queryFn: () => fetchAllPages(
@@ -91,19 +101,18 @@ const CartoesIntel = () => {
     const totalHoje = sum(hojeArr)
     const totalAberto = sum(aVencer)
 
-    // Taxa média ponderada por valor (sobre recebíveis pendentes).
-    const baseTaxa = pend
-    const somaValor = baseTaxa.reduce((s, c) => s + c.valor, 0)
-    const taxaMedia = somaValor > 0 ? baseTaxa.reduce((s, c) => s + c.taxaPercentual * c.valor, 0) / somaValor : 0
+    // Taxa média + custo dos PENDENTES (ponderada por valor).
+    const somaValor = pend.reduce((s, c) => s + c.valor, 0)
+    const taxaMedia = somaValor > 0 ? pend.reduce((s, c) => s + c.taxaPercentual * c.valor, 0) / somaValor : 0
+    const custoPendente = pend.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
 
-    // Curva de taxa média por mês (12m) e modalidade — ponderada por valor.
+    // Série mensal por modalidade + GERAL — ponderada por valor.
     const base = new Date(`${hoje}T00:00:00`)
     const meses: { key: string; label: string }[] = []
     for (let i = mesesJanela - 1; i >= 0; i--) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
       meses.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MESES_ABREV[d.getMonth()] })
     }
-    // acumuladores [mesKey][modalidade] = {wsum, vsum}
     const acc = new Map<string, Map<Modalidade, { w: number; v: number }>>()
     for (const c of cartoes) {
       const mk = onlyDate(c.dataMovimento).slice(0, 7)
@@ -123,8 +132,18 @@ const CartoesIntel = () => {
       }
       return row
     })
+    // Série GERAL (todas as modalidades juntas) — base do delta de tendência.
+    const serieGeral = meses.map(({ key }) => {
+      const byMod = acc.get(key)
+      let w = 0, v = 0
+      if (byMod) for (const x of byMod.values()) { w += x.w; v += x.v }
+      return { mesKey: key, taxa: v > 0 ? w / v : null }
+    })
+    const comTaxa = serieGeral.filter((s) => s.taxa != null) as { mesKey: string; taxa: number }[]
+    const deltaTaxa = comTaxa.length >= 2 ? comTaxa[comTaxa.length - 1].taxa - comTaxa[0].taxa : null
+    const primeiroMesTaxa = comTaxa[0] ? MESES_ABREV[parseInt(comTaxa[0].mesKey.slice(5, 7), 10) - 1] : null
 
-    // --- Análise gráfica (todos os cartões da janela): volume, custo de taxa, taxa média ---
+    // Por modalidade + por administradora (volume/taxa/custo).
     const admAgg = new Map<string, { mod: Modalidade; volume: number; custo: number }>()
     const modAgg = new Map<Modalidade, { volume: number; custo: number }>()
     for (const c of cartoes) {
@@ -140,189 +159,213 @@ const CartoesIntel = () => {
       const x = modAgg.get(mod)!
       return { mod, volume: x.volume, custo: x.custo, taxa: x.volume > 0 ? (x.custo / x.volume) * 100 : 0 }
     })
-    const adminsArr = Array.from(admAgg, ([nome, x]) => ({ nome, mod: x.mod, volume: x.volume, custo: x.custo, taxa: x.volume > 0 ? (x.custo / x.volume) * 100 : 0 }))
-    const custoPorAdmin = [...adminsArr].sort((a, b) => b.custo - a.custo).slice(0, 10)
-    const taxaPorAdmin = [...adminsArr].filter((a) => a.volume > 0).sort((a, b) => b.volume - a.volume).slice(0, 10)
-    const scatter = adminsArr.filter((a) => a.volume > 0)
+    const bandeiras = Array.from(admAgg, ([nome, x]) => ({ nome, mod: x.mod, volume: x.volume, custo: x.custo, taxa: x.volume > 0 ? (x.custo / x.volume) * 100 : 0 }))
+      .sort((a, b) => b.custo - a.custo).slice(0, 8)
 
-    return { emAtraso, hojeArr, aVencer, liquidados, totalAtraso, totalHoje, totalAberto, taxaMedia, taxaSerie, modalResumo, custoPorAdmin, taxaPorAdmin, scatter }
+    return {
+      emAtraso, hojeArr, aVencer, liquidados,
+      totalAtraso, totalHoje, totalAberto, taxaMedia, custoPendente,
+      taxaSerie, deltaTaxa, primeiroMesTaxa, modalResumo, bandeiras,
+      antecipavel: totalAberto, // Σ a vencer — dado real (o custo é que falta).
+    }
   }, [cartoes, hoje, mesesJanela])
 
   if (!hasEmpresa) return null
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-2xl" />)}
         </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Skeleton className="h-80 w-full rounded-xl" />
-          <Skeleton className="h-80 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Skeleton className="h-72 w-full rounded-2xl" />
+          <Skeleton className="h-72 w-full rounded-2xl" />
         </div>
       </div>
     )
   }
 
+  const pendenteTotal = m.totalAtraso + m.totalHoje + m.totalAberto
+  const delta = m.deltaTaxa
+  const deltaBom = delta != null && delta <= 0 // queda de taxa = bom
+
+  // Análise automática (regras sobre o dado real).
+  const analise: string[] = []
+  analise.push(`A receber em cartão: ${formatCurrency(pendenteTotal)} pendentes — ${formatCurrency(m.totalAtraso)} em atraso e ${formatCurrency(m.totalAberto)} a vencer.`)
+  analise.push(`Taxa média ${m.taxaMedia.toFixed(2)}% (custo ${formatCurrency(m.custoPendente)} sobre os pendentes).`)
+  if (delta != null) analise.push(`A taxa média ${deltaBom ? 'caiu' : 'subiu'} ${Math.abs(delta).toFixed(2)}pp desde ${m.primeiroMesTaxa} — ${deltaBom ? 'tendência favorável' : 'atenção ao custo'}.`)
+  if (m.bandeiras[0]) analise.push(`Maior custo: ${m.bandeiras[0].nome} (${formatCurrency(m.bandeiras[0].custo)} em taxa, ${m.bandeiras[0].taxa.toFixed(2)}%).`)
+  const recomendacao = m.bandeiras.length >= 2
+    ? `Recomendação: priorize renegociar ${m.bandeiras[0].nome} e ${m.bandeiras[1].nome} — juntas concentram o maior custo de taxa do período.`
+    : 'Recomendação: sem concentração relevante de custo de taxa no momento.'
+
+  const periodoSelect = (
+    <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+      Período
+      <select
+        value={mesesJanela}
+        onChange={(e) => setMesesJanela(Number(e.target.value))}
+        className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+        aria-label="Período de análise"
+      >
+        {PERIODO_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  )
+
+  const abaRows = aba === 'atraso' ? m.emAtraso : aba === 'vencer' ? m.aVencer : m.liquidados
+  const maxModoVol = Math.max(...m.modalResumo.map((r) => r.volume), 0)
+  const maxBandCusto = Math.max(...m.bandeiras.map((b) => b.custo), 0)
+
   return (
-    <div className="space-y-3">
-      {/* Seletor de período */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          <CreditCard className="h-4 w-4 text-gray-400" />
-          Recebíveis de cartão
-        </h2>
-        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-          Período
-          <select
-            value={mesesJanela}
-            onChange={(e) => setMesesJanela(Number(e.target.value))}
-            className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-            aria-label="Período de análise"
-          >
-            {PERIODO_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-      </div>
+    <div className="space-y-4">
+      <IntelHeader title="Recebíveis de cartão" actionLabel="Analisar recebíveis" open={showAnalise} onToggle={() => setShowAnalise((v) => !v)} extra={periodoSelect} />
+      {showAnalise && <AnalisePanel title="Análise de recebíveis" insights={analise} recomendacao={recomendacao} onClose={() => setShowAnalise(false)} />}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <ExecCard title="Em atraso" Icon={AlertTriangle} tone="red" value={formatCurrency(m.totalAtraso)}
-          sub={`${m.emAtraso.length} recebíveis`} hint="Recebíveis de cartão pendentes com vencimento anterior a hoje." />
-        <ExecCard title="Recebíveis hoje" Icon={CalendarClock} tone="orange" value={formatCurrency(m.totalHoje)}
-          sub={`${m.hojeArr.length} recebíveis`} hint="Recebíveis de cartão com vencimento hoje." />
-        <ExecCard title="Em aberto" Icon={CalendarDays} tone="blue" value={formatCurrency(m.totalAberto)}
-          sub={`${m.aVencer.length} a vencer`} hint="Recebíveis de cartão pendentes com vencimento futuro." />
-        <ExecCard title="Taxa média" Icon={Percent} tone="violet" value={`${m.taxaMedia.toFixed(2)}%`}
-          sub="Ponderada por valor (pendentes)" hint="Média das taxas das administradoras, ponderada pelo valor dos recebíveis pendentes." />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {/* Taxa média de recebimentos (12m) */}
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-1 flex items-center gap-2">
-            <Percent className="h-4 w-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Taxa média de recebimentos</h3>
-            <InfoHint text="Oscilação da taxa média (ponderada por valor) no período selecionado, separada por modalidade de recebimento." />
+      {/* KPIs: hero + 3 */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiHero
+          label="A receber em cartão" sub="Recebíveis pendentes" Icon={CreditCard}
+          value={formatCurrency(pendenteTotal)}
+          lines={[
+            { label: 'Em atraso', value: formatCurrency(m.totalAtraso), valueClass: 'text-[#fca5a5]' },
+            { label: 'A vencer', value: formatCurrency(m.totalAberto) },
+          ]}
+          band={{ text: `Taxa média ${m.taxaMedia.toFixed(2)}% · custo ${formatCurrencyShort(m.custoPendente)}`, dotClass: 'bg-blue-400', textClass: 'text-blue-200' }}
+        />
+        <KpiCard
+          title="Em atraso" sub="Vencidos" Icon={AlertTriangle} iconClass="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+          value={formatCurrency(m.totalAtraso)} valueClass="text-[#b91c1c] dark:text-red-400" borderClass="border-[#fecaca] dark:border-red-900/40"
+          hint="Recebíveis de cartão pendentes com vencimento anterior a hoje."
+          footer={`${m.emAtraso.length} recebíve${m.emAtraso.length === 1 ? 'l' : 'is'}`}
+        />
+        <KpiCard
+          title="Recebíveis hoje" sub="Vence hoje" Icon={Clock} iconClass="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+          value={formatCurrency(m.totalHoje)} valueClass="text-[#c2410c] dark:text-orange-400" borderClass="border-[#fed7aa] dark:border-orange-900/40"
+          hint="Recebíveis de cartão com vencimento hoje."
+          footer={`${m.hojeArr.length} recebíve${m.hojeArr.length === 1 ? 'l' : 'is'}`}
+        />
+        <KpiCard
+          title="Taxa média" sub="Ponderada por valor" Icon={Percent} iconClass="bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
+          value={`${m.taxaMedia.toFixed(2).replace('.', ',')}%`} valueClass="text-[#6d28d9] dark:text-violet-400" borderClass="border-[#e9d5ff] dark:border-violet-900/40"
+          hint="Média das taxas das administradoras, ponderada pelo valor dos recebíveis pendentes. O delta compara o início e o fim do período."
+        >
+          <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+            {delta != null ? (
+              <>
+                <span className={cn('inline-flex items-center gap-0.5 font-semibold', deltaBom ? 'text-[#15803d] dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                  {deltaBom ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                  {Math.abs(delta).toFixed(2).replace('.', ',')}pp
+                </span>
+                <span className="text-gray-400">{deltaBom ? 'caindo' : 'subindo'} desde {m.primeiroMesTaxa}</span>
+              </>
+            ) : <span className="text-gray-400">sem histórico suficiente</span>}
           </div>
+        </KpiCard>
+      </div>
+
+      {/* Antecipação + Conciliação — OCULTOS (dado indisponível no /CARTAO). */}
+      {(ANTECIPACAO_TAXA_AM !== null || FEATURE_CONCILIACAO) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+          {ANTECIPACAO_TAXA_AM !== null && (
+            <section className="rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#ecfdf5] to-white p-5 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-gray-900">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#059669] dark:text-emerald-400">Antecipação disponível</p>
+              <p className="mt-1 text-[22px] font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {formatCurrency(m.antecipavel)} <span className="text-sm font-medium text-gray-500">líquido {formatCurrency(m.antecipavel * (1 - (ANTECIPACAO_TAXA_AM / 100)))}</span>
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">{m.aVencer.length} recebíveis a vencer · custo {ANTECIPACAO_TAXA_AM}% a.m.</p>
+            </section>
+          )}
+          {FEATURE_CONCILIACAO && (
+            <section className="rounded-2xl border border-[#fde68a] bg-white p-5 shadow-sm dark:border-amber-900/40 dark:bg-gray-900">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#d97706] dark:text-amber-400">Conciliação</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Requer endpoint com valor pago × previsto.</p>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Curva de taxa + Por modalidade */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
+        <ChartCard title="Taxa média de recebimentos" Icon={Percent} hint="Oscilação da taxa média (ponderada por valor) por modalidade no período.">
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos {mesesJanela} meses, por modalidade</p>
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart data={m.taxaSerie} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
               <YAxis tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 10 }} width={44} />
               <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              {MODALIDADES.map((mod) => (
-                <Line key={mod} type="monotone" dataKey={mod} stroke={MOD_COR[mod]} strokeWidth={2} dot={{ r: 2 }} />
-              ))}
+              {MODALIDADES.map((mod) => <Line key={mod} type="monotone" dataKey={mod} stroke={MOD_COR[mod]} strokeWidth={2} dot={{ r: 2 }} />)}
             </LineChart>
           </ResponsiveContainer>
-        </section>
+        </ChartCard>
 
-        {/* Painel com abas */}
-        <section className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 px-3 py-2 dark:border-gray-700">
-            {([['atraso', `Em atraso (${m.emAtraso.length})`], ['vencer', `A vencer (${m.aVencer.length})`], ['liquidados', `Liquidados (${m.liquidados.length})`], ['analise', 'Análise']] as [Aba, string][]).map(([v, label]) => (
-              <button key={v} onClick={() => setAba(v)} className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors', aba === v ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800')}>{label}</button>
-            ))}
-          </div>
-          <div className="max-h-[440px] min-h-[400px] overflow-auto">
-            {aba === 'analise' ? (
-              m.scatter.length === 0 ? <Empty /> : (
-                <div className="space-y-5 p-3">
-                  {/* Comparativo por modalidade */}
-                  <div>
-                    <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Comparativo por modalidade</h4>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-left text-[10px] uppercase tracking-wide text-gray-400">
-                          <th className="py-1 pr-3 font-medium">Modalidade</th>
-                          <th className="px-3 py-1 text-right font-medium">Volume</th>
-                          <th className="px-3 py-1 text-right font-medium">Taxa média</th>
-                          <th className="px-3 py-1 text-right font-medium">Custo de taxa</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                        {m.modalResumo.map((r) => (
-                          <tr key={r.mod}>
-                            <td className="py-1.5 pr-3"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: MOD_COR[r.mod] }} />{r.mod}</span></td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(r.volume)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.taxa.toFixed(2)}%</td>
-                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(r.custo)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Custo de taxa por bandeira */}
-                  <div>
-                    <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Custo de taxa por bandeira</h4>
-                    <p className="mb-1.5 text-[10px] text-gray-400">Quanto foi pago de taxa em cada administradora (top 10)</p>
-                    <ResponsiveContainer width="100%" height={Math.max(160, m.custoPorAdmin.length * 26)}>
-                      <BarChart data={m.custoPorAdmin} layout="vertical" margin={{ top: 4, right: 56, left: 8, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                        <XAxis type="number" tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fontSize: 10 }} />
-                        <YAxis type="category" dataKey="nome" width={140} tick={{ fontSize: 9 }} tickFormatter={(s: string) => (s.length > 20 ? s.slice(0, 19) + '…' : s)} />
-                        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                        <Bar dataKey="custo" radius={[0, 4, 4, 0]}>
-                          {m.custoPorAdmin.map((a) => <Cell key={a.nome} fill={MOD_COR[a.mod]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Taxa média por bandeira */}
-                  <div>
-                    <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Taxa média (%) por bandeira</h4>
-                    <p className="mb-1.5 text-[10px] text-gray-400">Maiores volumes (top 10)</p>
-                    <ResponsiveContainer width="100%" height={Math.max(160, m.taxaPorAdmin.length * 26)}>
-                      <BarChart data={m.taxaPorAdmin} layout="vertical" margin={{ top: 4, right: 36, left: 8, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                        <XAxis type="number" tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 10 }} />
-                        <YAxis type="category" dataKey="nome" width={140} tick={{ fontSize: 9 }} tickFormatter={(s: string) => (s.length > 20 ? s.slice(0, 19) + '…' : s)} />
-                        <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
-                        <Bar dataKey="taxa" radius={[0, 4, 4, 0]}>
-                          {m.taxaPorAdmin.map((a) => <Cell key={a.nome} fill={MOD_COR[a.mod]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Volume × taxa — onde negociar */}
-                  <div>
-                    <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Volume × taxa — onde negociar</h4>
-                    <p className="mb-1.5 text-[10px] text-gray-400">Canto superior direito = alto volume e alta taxa (prioridade)</p>
-                    <ResponsiveContainer width="100%" height={280}>
-                      <ScatterChart margin={{ top: 8, right: 16, left: 4, bottom: 16 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis type="number" dataKey="volume" name="Volume" tickFormatter={(v: number) => formatCurrencyShort(v)} tick={{ fontSize: 10 }}>
-                        </XAxis>
-                        <YAxis type="number" dataKey="taxa" name="Taxa" unit="%" tick={{ fontSize: 10 }} width={40} />
-                        <ZAxis type="number" dataKey="custo" range={[40, 400]} name="Custo" />
-                        <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(v, n) => (n === 'Taxa' ? `${Number(v).toFixed(2)}%` : formatCurrency(Number(v)))} labelFormatter={() => ''} />
-                        <Scatter data={m.scatter} fill="#2563eb">
-                          {m.scatter.map((a) => <Cell key={a.nome} fill={MOD_COR[a.mod]} fillOpacity={0.7} />)}
-                        </Scatter>
-                      </ScatterChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )
-            ) : (
-              <CartaoTreeTable
-                rows={aba === 'atraso' ? m.emAtraso : aba === 'vencer' ? m.aVencer : m.liquidados}
-                modo={aba}
-              />
-            )}
-          </div>
-        </section>
+        <ChartCard title="Por modalidade" Icon={CreditCard} hint="Volume, taxa média e custo de taxa por modalidade de recebimento.">
+          {m.modalResumo.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">Sem registros.</p> : (
+            <ul className="space-y-3">
+              {m.modalResumo.map((r) => {
+                const w = maxModoVol > 0 ? (r.volume / maxModoVol) * 100 : 0
+                return (
+                  <li key={r.mod}>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300"><span className="h-2 w-2 rounded-full" style={{ background: MOD_COR[r.mod] }} />{r.mod}</span>
+                      <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyShort(r.volume)}</span>
+                    </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-full rounded-full" style={{ width: `${w}%`, backgroundColor: MOD_COR[r.mod] }} /></div>
+                    <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                      <span>taxa {r.taxa.toFixed(2).replace('.', ',')}%</span>
+                      <span className="text-red-500">custo {formatCurrencyShort(r.custo)}</span>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </ChartCard>
       </div>
+
+      {/* Custo de taxa por bandeira (full-width, selo RENEGOCIAR nos 2 maiores) */}
+      <ChartCard title="Custo de taxa por bandeira" Icon={Percent} hint="Quanto foi pago de taxa em cada administradora/bandeira no período. As 2 de maior custo recebem o selo de renegociação.">
+        {m.bandeiras.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">Sem registros.</p> : (
+          <ul className="space-y-2.5">
+            {m.bandeiras.map((b, i) => {
+              const w = maxBandCusto > 0 ? (b.custo / maxBandCusto) * 100 : 0
+              return (
+                <li key={b.nome} className="flex items-center gap-3 text-xs">
+                  <span className="flex w-48 shrink-0 items-center gap-1.5">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: MOD_COR[b.mod] }} />
+                    <span className="truncate text-gray-700 dark:text-gray-300" title={b.nome}>{b.nome}</span>
+                    {i < 2 && <Badge cls="border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">🔴 Renegociar</Badge>}
+                  </span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-full rounded-full bg-red-500/70" style={{ width: `${w}%` }} /></div>
+                  <span className="w-16 shrink-0 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyShort(b.volume)}</span>
+                  <span className="w-14 shrink-0 text-right tabular-nums text-gray-500 dark:text-gray-400">{b.taxa.toFixed(2).replace('.', ',')}%</span>
+                  <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-red-600 dark:text-red-400">{formatCurrencyShort(b.custo)}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </ChartCard>
+
+      {/* Painel com abas + árvore */}
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <IntelTabs<Aba>
+          tabs={[{ id: 'atraso', label: 'Em atraso' }, { id: 'vencer', label: 'A vencer' }, { id: 'liquidados', label: 'Liquidados' }]}
+          active={aba}
+          onChange={setAba}
+          right={<span className="text-xs text-gray-400">{abaRows.length} recebíve{abaRows.length === 1 ? 'l' : 'is'}</span>}
+        />
+        <div className="max-h-[460px] overflow-auto">
+          <CartaoTreeTable rows={abaRows} modo={aba} />
+        </div>
+      </section>
     </div>
   )
 }
 
-/** Tabela em árvore: Tipo (modalidade) → Administradora. Clicar na administradora abre modal. */
+/** Tabela em árvore: Modalidade → Administradora. Clicar na administradora abre modal. */
 const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
   const [expMod, setExpMod] = useState<Set<Modalidade>>(() => new Set(MODALIDADES))
   const [detalhe, setDetalhe] = useState<{ nome: string; itens: Cartao[] } | null>(null)
@@ -365,17 +408,11 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
       <table className="w-full text-xs">
         <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800/80">
           <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <th className="px-3 py-2 font-medium">{liquid ? 'Modo recebimento / bandeira' : 'Administradora e bandeira'}</th>
-            {liquid ? (
-              <>
-                <th className="px-3 py-2 text-right font-medium">Valor bruto</th>
-                <th className="px-3 py-2 text-right font-medium">Valor líquido</th>
-                <th className="px-3 py-2 text-right font-medium">Valor taxa</th>
-                <th className="px-3 py-2 text-right font-medium">Taxa efetiva</th>
-              </>
-            ) : (
-              <th className="px-3 py-2 text-right font-medium">Valor</th>
-            )}
+            <th className="px-3 py-2 font-medium">Modalidade / administradora</th>
+            <th className="px-3 py-2 text-right font-medium">Bruto</th>
+            <th className="px-3 py-2 text-right font-medium">Taxa</th>
+            <th className="px-3 py-2 text-right font-medium">Líquido</th>
+            <th className="px-3 py-2 text-right font-medium">Taxa efetiva</th>
           </tr>
         </thead>
         <tbody>
@@ -383,62 +420,39 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
             const modOpen = expMod.has(g.mod)
             return (
               <Fragment key={g.mod}>
-                {/* Tipo (modalidade) */}
                 <tr className="border-t border-gray-100 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-800/50">
                   <td className="px-3 py-1.5">
                     <button onClick={() => toggleMod(g.mod)} className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
                       <ChevronRight className={cn('h-3.5 w-3.5 text-gray-400 transition-transform', modOpen && 'rotate-90')} />
+                      <span className="h-2 w-2 rounded-full" style={{ background: MOD_COR[g.mod] }} />
                       {g.mod}
                     </button>
                   </td>
-                  {liquid ? (
-                    <td className="px-3 py-1.5 text-right text-gray-400" colSpan={4} />
-                  ) : (
-                    <td className="px-3 py-1.5 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.bruto)}</td>
-                  )}
+                  <td className="px-3 py-1.5 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.bruto)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(g.taxa)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(g.liquido)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{g.efetiva.toFixed(2).replace('.', ',')}%</td>
                 </tr>
-                {modOpen && (
-                  <>
-                    {g.admins.map((a) => (
-                      <tr key={`${g.mod}|${a.nome}`} className="cursor-pointer hover:bg-blue-50/60 dark:hover:bg-blue-900/20" onClick={() => setDetalhe({ nome: a.nome, itens: a.itens })}>
-                        <td className="px-3 py-1.5">
-                          <span className="flex items-center gap-1.5 pl-4 font-medium text-gray-700 dark:text-gray-300">
-                            <span className="truncate" title={a.nome}>{a.nome}</span>
-                            <span className="text-[10px] text-gray-400">({a.itens.length})</span>
-                          </span>
-                        </td>
-                        {liquid ? (
-                          <>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(a.bruto)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(a.liquido)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(a.taxa)}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{a.efetiva.toFixed(2)}%</td>
-                          </>
-                        ) : (
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(a.bruto)}</td>
-                        )}
-                      </tr>
-                    ))}
-                    {liquid && (
-                      <tr className="border-t border-gray-200 bg-gray-50/50 font-semibold dark:border-gray-700 dark:bg-gray-800/30">
-                        <td className="px-3 py-1.5 pl-9 text-gray-500 dark:text-gray-400">Total</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.bruto)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(g.liquido)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(g.taxa)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{g.efetiva.toFixed(2)}%</td>
-                      </tr>
-                    )}
-                  </>
-                )}
+                {modOpen && g.admins.map((a) => (
+                  <tr key={`${g.mod}|${a.nome}`} className="cursor-pointer hover:bg-[#eff6ff] dark:hover:bg-blue-900/20" onClick={() => setDetalhe({ nome: a.nome, itens: a.itens })}>
+                    <td className="px-3 py-1.5">
+                      <span className="flex items-center gap-1.5 pl-6 font-medium text-gray-700 dark:text-gray-300">
+                        <span className="truncate" title={a.nome}>{a.nome}</span>
+                        <span className="text-[10px] text-gray-400">({a.itens.length})</span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(a.bruto)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(a.taxa)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(a.liquido)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{a.efetiva.toFixed(2).replace('.', ',')}%</td>
+                  </tr>
+                ))}
               </Fragment>
             )
           })}
         </tbody>
       </table>
-
-      {detalhe && (
-        <CartaoDetalheModal open={!!detalhe} onClose={() => setDetalhe(null)} nome={detalhe.nome} itens={detalhe.itens} modo={modo} />
-      )}
+      {detalhe && <CartaoDetalheModal open={!!detalhe} onClose={() => setDetalhe(null)} nome={detalhe.nome} itens={detalhe.itens} modo={modo} />}
     </>
   )
 }
@@ -448,7 +462,6 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
   const total = itens.reduce((s, c) => s + c.valor, 0)
   const totalTaxa = itens.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
   const taxaEfetiva = total > 0 ? (totalTaxa / total) * 100 : 0
-  // nº de colunas antes de "Taxa %" (pra alinhar o rótulo "Total" no rodapé).
   const leadCols = modo === 'liquidados' ? 5 : 4
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -499,28 +512,6 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
     </Dialog>
   )
 }
-
-const TONES = {
-  red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-  orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-  blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-  violet: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
-}
-
-const ExecCard = ({ title, Icon, tone, value, sub, hint }: {
-  title: string; Icon: typeof CreditCard; tone: keyof typeof TONES; value: string; sub: string; hint?: string
-}) => (
-  <section className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-center justify-between gap-2">
-      <p className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-        <span className="truncate">{title}</span>{hint && <InfoHint text={hint} />}
-      </p>
-      <div className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', TONES[tone])}><Icon className="h-3.5 w-3.5" /></div>
-    </div>
-    <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-    <p className="text-[10px] text-gray-400">{sub}</p>
-  </section>
-)
 
 const Empty = () => <p className="py-16 text-center text-sm text-gray-400">Sem registros.</p>
 

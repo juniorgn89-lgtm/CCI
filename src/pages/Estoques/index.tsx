@@ -92,10 +92,11 @@ const Estoques = () => {
   // estoque médio, média de venda e a necessidade de reabastecimento derivada.
   const [janelaDias, setJanelaDias] = useState<30 | 60 | 90>(30)
 
-  const { productAnalytics, categorias, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias)
+  const { productAnalytics, categorias, estoqueValorMensal, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias)
 
-  // Abas cuja métrica principal depende da janela móvel — mostram o seletor.
-  const showJanelaSelector = ['visao', 'giro', 'mediaVendas', 'necessidade'].includes(activeTab)
+  // Abas cuja métrica depende da janela e mostram o seletor NO PARENT. A Visão
+  // Geral tem o seletor na própria barra de controles → fica fora desta lista.
+  const showJanelaSelector = ['giro', 'mediaVendas', 'necessidade'].includes(activeTab)
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
   const showSkeleton = isLoading && productAnalytics.length === 0
@@ -170,7 +171,9 @@ const Estoques = () => {
                     <EstoqueVisaoGeral
                       data={productAnalytics}
                       categorias={categorias}
+                      valorMensal={estoqueValorMensal}
                       janelaDias={janelaDias}
+                      onJanelaChange={setJanelaDias}
                       onNavigateTab={setActiveTab}
                     />
                   )}

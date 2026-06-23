@@ -19,7 +19,7 @@ import {
   Radar,
   LayoutDashboard,
   ClipboardCheck,
-  Receipt,
+  Scale,
   Target,
   Package,
   RefreshCw,
@@ -94,7 +94,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/caixas-turnos': [
     { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
     { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
-    { label: 'Fechamento', to: '/caixas-turnos?tab=fechamento', Icon: Receipt },
+    { label: 'Diferenças', to: '/caixas-turnos?tab=diferencas', Icon: Scale },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },

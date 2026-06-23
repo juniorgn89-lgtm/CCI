@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
+import { difCaixa } from '@/lib/difCaixa'
 import CartaoDetalheModal from './CartaoDetalheModal'
 import CaixaSelect, { type CaixaOption } from './CaixaSelect'
 
@@ -47,15 +48,6 @@ const ContentSkeleton = () => (
 /** Chave única do caixa (caixaCodigo + dataMovimento). */
 const caixaKey = (c: { caixaCodigo: number; dataMovimento: string }) =>
   `${c.caixaCodigo}-${c.dataMovimento.substring(0, 10)}`
-
-/** Diferença exibida = apresentado − apurado CONFERIDO (mesma fonte
- *  /CAIXA_APRESENTADO, fecha por subtração igual à Conferência por PDV). Usar o
- *  apuradoConferido (não o apurado de VENDAS, que inclui a prazo) evita inflar a
- *  diferença em postos de pista. Sem dado de conferência, cai na oficial /CAIXA. */
-const difCaixa = (c: { apresentadoTotal: number | null; apuradoConferido: number | null; diferenca: number }): number =>
-  c.apresentadoTotal != null && c.apuradoConferido != null
-    ? c.apresentadoTotal - c.apuradoConferido
-    : c.diferenca
 
 /**
  * Aba "Visão Geral" do Fechamento de Caixa — dados reais via useOperacaoData.
