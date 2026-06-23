@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+  .vh-hint{position:relative;display:inline-flex;align-items:center;cursor:help}
+  .vh-hint .vh-tip{position:absolute;top:calc(100% + 8px);left:0;z-index:30;width:300px;padding:11px 13px;border-radius:10px;background:#1f2937;color:#f9fafb;font-size:11px;line-height:1.55;font-weight:400;box-shadow:0 10px 28px rgba(0,0,0,.22);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease;text-transform:none;letter-spacing:normal;pointer-events:none}
+  .vh-hint:hover .vh-tip{opacity:1;visibility:visible;transform:translateY(0)}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#e0f2fe;color:#0c4a6e;font-weight:600"><span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#0ea5e9"></span><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px">Central da Rede</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span style="font-size:13px;font-weight:500">Vendas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span><span style="font-size:13px;font-weight:500">Bombas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span><span style="font-size:13px;font-weight:600;color:#0c4a6e">Reabastecimento</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><span style="font-size:13px;font-weight:500">Fechamento de Caixa</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px;font-weight:500">Produtividade</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span><span style="font-size:13px;font-weight:500">Estoques</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span style="font-size:13px;font-weight:500">Financeiro</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span><span style="font-size:13px;font-weight:500">Qualidade de Dados</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span style="font-size:13px;font-weight:500">Pessoas</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span><span style="font-size:13px;font-weight:500">Inteligência</span></a>
+    </nav>
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px"><div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div><span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span></div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        <div style="min-width:0"><h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Central da Rede</h1><p style="margin:0;font-size:11px;color:#6b7280">Visão consolidada de todos os postos</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>6 postos</div>
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><span style="height:7px;width:7px;border-radius:50%;background:#10b981"></span>Atualizado agora</div>
+      </div>
+    </header>
+
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Visão Geral</div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Ao Vivo Rede</div>
+      <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 4px;margin-right:8px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg>Reabastecimento<span style="display:inline-flex;align-items:center;justify-content:center;height:16px;min-width:16px;padding:0 4px;border-radius:999px;background:#fee2e2;color:#dc2626;font-size:9px;font-weight:700">{{ totalAlertas }}</span></div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Produtividade</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- Sub-abas: Combustível · Automotivo · Conveniência -->
+        <div style="display:flex;justify-content:flex-start">
+          <div style="display:inline-flex;padding:4px;gap:3px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <sc-for list="{{ subTabs }}" as="s" hint-placeholder-count="3">
+              <button type="button" onClick="{{ s.onClick }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 18px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ s.bg }};color:{{ s.color }}">
+                <span style="display:inline-flex">{{ s.icon }}</span>{{ s.label }}
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:linear-gradient(135deg,#1e3a5f,#27496f);border:1px solid rgba(30,58,95,.3);box-shadow:0 1px 2px rgba(0,0,0,.06)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:13px;font-weight:600;color:#fff">{{ heroLabel }}</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.6)">{{ heroCaption }}</p></div><div style="height:40px;width:40px;flex:none;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div></div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">{{ heroValue }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:11px;color:rgba(255,255,255,.6)">{{ heroSub }}</span><span style="font-size:12px;font-weight:600;color:#fcd34d">{{ heroExtra }}</span></div>
+          </div>
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid {{ k.border }};box-shadow:0 1px 2px rgba(0,0,0,.04)">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:600;color:#111827">{{ k.titulo }}</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">{{ k.sub }}</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:{{ k.iconBg }};display:flex;align-items:center;justify-content:center">{{ k.icon }}</div></div>
+              <p style="margin:12px 0 0;font-size:24px;font-weight:700;color:{{ k.valueColor }};font-variant-numeric:tabular-nums">{{ k.value }}</p>
+              <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">{{ k.foot }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- Itens que precisam de atenção -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div><div style="display:flex;align-items:center;gap:6px"><h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">{{ itensTitulo }}</h2><span class="vh-hint"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span class="vh-tip">{{ ajudaItens }}</span></span></div><p style="margin:2px 0 0;font-size:12px;color:#6b7280">{{ itensSub }}</p></div>
+            <div style="display:inline-flex;padding:3px;gap:2px;background:#f3f4f6;border-radius:9px"><sc-for list="{{ filtroButtons }}" as="f" hint-placeholder-count="4"><button type="button" onClick="{{ f.onClick }}" style="height:28px;padding:0 12px;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:{{ f.bg }};color:{{ f.color }}">{{ f.label }}</button></sc-for></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ itens }}" as="t" hint-placeholder-count="6">
+              <div style="display:flex;flex-direction:column;border-radius:16px;border:1px solid #e5e7eb;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:18px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px">
+                  <div style="min-width:0"><p style="margin:0;font-size:15px;font-weight:700;color:#111827">{{ t.nome }}</p><p style="margin:1px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#6b7280">{{ t.sub }}</p></div>
+                  <span style="flex:none;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:{{ t.badgeBg }};color:{{ t.badgeText }}">{{ t.badge }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="flex:1;height:8px;border-radius:999px;background:#f3f4f6;overflow:hidden"><div style="height:100%;border-radius:999px;width:{{ t.pct }}%;background:{{ t.barColor }}"></div></div>
+                  <span style="flex:none;font-size:20px;font-weight:700;color:{{ t.pctColor }};font-variant-numeric:tabular-nums">{{ t.pctLabel }}</span>
+                </div>
+                <p style="margin:7px 0 0;font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums">{{ t.refLinha }}</p>
+                <div style="margin-top:auto;padding-top:13px;display:flex;flex-direction:column;gap:7px;border-top:1px solid #f3f4f6">
+                  <span style="display:inline-flex;align-items:flex-start;gap:6px;font-size:12px;color:#4b5563"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-top:1px;flex:none"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg><span>Última compra: <strong style="color:#111827">{{ t.compraVol }}</strong> em {{ t.compraData }}{{ t.compraValor }}</span></span>
+                  <span style="display:inline-flex;align-items:flex-start;gap:6px;font-size:12px;color:#1d4ed8"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-top:1px;flex:none"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg><span>Comprar: <strong style="color:#111827">{{ t.sugestaoFmt }}</strong> <span style="color:#60a5fa">· {{ t.cobertura }}</span></span></span>
+                  <sc-if value="{{ t.temValidade }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:flex-start;gap:6px;font-size:12px;color:#b45309"><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-top:1px;flex:none"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span>{{ t.validade }}</span></span></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- Reposição por posto -->
+        <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px 12px">
+            <div><div style="display:flex;align-items:center;gap:6px"><h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">{{ reposicaoTitulo }}</h2><span class="vh-hint"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span class="vh-tip">{{ ajudaReposicao }}</span></span></div><p style="margin:3px 0 0;font-size:12px;color:#6b7280">{{ reposicaoSub }}</p></div>
+            <span style="font-size:12px;color:#6b7280">{{ reposicaoTotalLabel }}: <strong style="color:#1d4ed8;font-variant-numeric:tabular-nums">{{ reposicaoTotal }}</strong></span>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ postos }}" as="p" hint-placeholder-count="3">
+              <div style="border-top:1px solid #f1f3f5">
+                <div style="display:flex;align-items:center;gap:8px;padding:12px 20px 8px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg><p style="margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151">{{ p.nome }}</p><span style="margin-left:auto;font-size:12px;color:#6b7280">Comprar <strong style="color:#1d4ed8;font-variant-numeric:tabular-nums">{{ p.totalFmt }}</strong></span></div>
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <thead><tr style="background:#fafafa;color:#6b7280;text-align:left">
+                    <th style="padding:7px 20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">{{ colProduto }}</th>
+                    <th style="padding:7px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">{{ colEstoque }}</th>
+                    <th style="padding:7px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:right">{{ colRef }}</th>
+                    <th style="padding:7px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">{{ colRitmo }}</th>
+                    <th style="padding:7px 20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">{{ colSugestao }}</th>
+                  </tr></thead>
+                  <tbody>
+                    <sc-for list="{{ p.linhas }}" as="l" hint-placeholder-count="3">
+                      <tr style="border-top:1px solid #f3f4f6">
+                        <td style="padding:9px 20px;font-weight:600;color:#111827;white-space:nowrap">{{ l.produto }}<span style="font-size:11px;color:#9ca3af;font-weight:400"> · {{ l.tanquesLabel }}</span></td>
+                        <td style="padding:9px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="width:84px;flex:none;height:14px;border-radius:4px;background:#f3f4f6;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ l.estoquePct }}%;background:{{ l.estoqueColor }}"></div></div><span style="font-size:12px;color:#374151;font-variant-numeric:tabular-nums">{{ l.estoqueFmt }}</span></div></td>
+                        <td style="padding:9px 12px;text-align:right;color:#9ca3af;font-variant-numeric:tabular-nums">{{ l.refFmt }}</td>
+                        <td style="padding:9px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="width:64px;flex:none;height:14px;border-radius:4px;background:#f3f4f6;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ l.ritmoPct }}%;background:#10b981"></div></div><span style="font-size:12px;color:#374151;font-variant-numeric:tabular-nums">{{ l.ritmoFmt }}</span></div></td>
+                        <td style="padding:9px 20px"><div style="display:flex;align-items:center;gap:8px"><div style="width:96px;flex:none;height:14px;border-radius:4px;background:#eff6ff;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ l.sugestaoPct }}%;background:#2563eb"></div></div><span style="font-size:12px;font-weight:600;color:#1d4ed8;font-variant-numeric:tabular-nums">{{ l.sugestaoFmt }}</span></div></td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border-top:1px solid #f1f3f5;padding:10px 20px"><p style="margin:0;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#9ca3af"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>{{ reposicaoNota }}</p></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1220}}">
+class Component extends DCLogic {
+  state = { sub: 'combustivel', filtro: 'todos' };
+
+  renderVals() {
+    const React = this.constructor.React || window.React;
+    const fmtL = (v) => Math.round(v).toLocaleString('pt-BR') + ' L';
+    const fmtU = (v) => Math.round(v).toLocaleString('pt-BR') + ' un';
+    const fmtBRL = (v) => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+    const icon = (path, stroke) => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', style: { width: '17px', height: '17px' } }, React.createElement('path', { d: path }));
+    const iconRaw = (children, stroke, w) => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', style: { width: (w || 17) + 'px', height: (w || 17) + 'px' } }, children);
+
+    const badgeMeta = (n) => n === 'critico' ? { badge: 'Crítico', badgeBg: '#fee2e2', badgeText: '#b91c1c', bar: '#ef4444', pctColor: '#b91c1c' }
+      : n === 'alerta' ? { badge: 'Alerta', badgeBg: '#fef3c7', badgeText: '#b45309', bar: '#f59e0b', pctColor: '#b45309' }
+      : n === 'ruptura' ? { badge: 'Ruptura', badgeBg: '#fee2e2', badgeText: '#b91c1c', bar: '#ef4444', pctColor: '#b91c1c' }
+      : { badge: 'Negativo', badgeBg: '#f3e8ff', badgeText: '#7e22ce', bar: '#a855f7', pctColor: '#7e22ce' };
+
+    // ---- Ícones reutilizados ----
+    const icAlert = iconRaw([React.createElement('path',{key:1,d:'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'}),React.createElement('path',{key:2,d:'M12 9v4'}),React.createElement('path',{key:3,d:'M12 17h.01'})],'#dc2626');
+    const icClock = iconRaw([React.createElement('circle',{key:1,cx:12,cy:12,r:10}),React.createElement('path',{key:2,d:'M12 6v6l4 2'})],'#d97706');
+    const icMinus = iconRaw([React.createElement('circle',{key:1,cx:12,cy:12,r:10}),React.createElement('path',{key:2,d:'M8 12h8'})],'#9333ea');
+    const icBox = iconRaw([React.createElement('path',{key:1,d:'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'}),React.createElement('path',{key:2,d:'m3.3 7 8.7 5 8.7-5'}),React.createElement('path',{key:3,d:'M12 22V12'})],'#dc2626');
+    const icCal = iconRaw([React.createElement('rect',{key:1,width:18,height:18,x:3,y:4,rx:2}),React.createElement('path',{key:2,d:'M16 2v4M8 2v4M3 10h18'})],'#d97706');
+
+    // ===================== DATASETS =====================
+    const DATA = {
+      combustivel: {
+        hero: { label: 'Total a comprar', caption: 'Até o fim do mês', value: '84.500 L', sub: '14 tanques · 4 postos', extra: '~R$ 487 mil' },
+        kpis: [
+          { titulo: 'Críticos', sub: 'Abaixo de 20%', value: '5', valueColor: '#b91c1c', border: '#fecaca', iconBg: '#fee2e2', icon: icAlert, foot: 'tanques · risco de ruptura' },
+          { titulo: 'Em alerta', sub: '20% a 30%', value: '9', valueColor: '#b45309', border: '#fde68a', iconBg: '#fef3c7', icon: icClock, foot: 'tanques · planejar compra' },
+          { titulo: 'Estoque negativo', sub: 'Inconsistência', value: '1', valueColor: '#7e22ce', border: '#e5e7eb', iconBg: '#f3e8ff', icon: icMinus, foot: 'conferir entrada de nota' },
+        ],
+        itensTitulo: 'Tanques que precisam de atenção', itensSub: 'Ordenados por criticidade · nível abaixo de 30%',
+        ajudaItens: 'Entram os tanques com nível abaixo de 30% da capacidade: crítico (< 20%, risco de ruptura), alerta (20–30%) e estoque negativo (estoque escritural < 0 — indica nota de entrada não lançada). Ordenados do menor nível ao maior.',
+        ajudaReposicao: 'Sugestão de compra = consumo médio diário × dias restantes do mês − estoque atual, consolidada por combustível. O ritmo/dia é a média de venda do período.',
+        unidade: 'litros',
+        itens: [
+          { nome: 'Tanque 03', sub: 'Gasolina Comum · Posto Centro', nivel: 'critico', pct: 8.4, pctLabel: '8,4%', ref: '1.260 L de 15.000 L', compraVol: '12.000 L', compraData: '28/05', compraValor: ' · R$ 71.880', sugestao: '13.800 L', cobertura: 'cobre ~2 dias' },
+          { nome: 'Tanque 01', sub: 'Diesel S10 · Posto Rodovia', nivel: 'critico', pct: 11.2, pctLabel: '11,2%', ref: '3.360 L de 30.000 L', compraVol: '20.000 L', compraData: '02/06', compraValor: ' · R$ 118.000', sugestao: '26.200 L', cobertura: 'cobre ~3 dias' },
+          { nome: 'Tanque 02', sub: 'Etanol · Posto Centro', nivel: 'critico', pct: 14.8, pctLabel: '14,8%', ref: '1.480 L de 10.000 L', compraVol: '8.000 L', compraData: '30/05', compraValor: ' · R$ 28.400', sugestao: '8.200 L', cobertura: 'cobre ~4 dias' },
+          { nome: 'Tanque 05', sub: 'Gasolina Aditivada · Posto Industrial', nivel: 'critico', pct: 17.1, pctLabel: '17,1%', ref: '2.565 L de 15.000 L', compraVol: '12.000 L', compraData: '01/06', compraValor: ' · R$ 73.200', sugestao: '12.100 L', cobertura: 'cobre ~5 dias' },
+          { nome: 'Tanque 02', sub: 'Gasolina Comum · Posto Rodovia', nivel: 'alerta', pct: 22.6, pctLabel: '22,6%', ref: '3.390 L de 15.000 L', compraVol: '12.000 L', compraData: '03/06', compraValor: ' · R$ 71.880', sugestao: '8.200 L', cobertura: 'cobre ~6 dias' },
+          { nome: 'Tanque 06', sub: 'Diesel S10 · Posto Industrial', nivel: 'alerta', pct: 25.3, pctLabel: '25,3%', ref: '7.590 L de 30.000 L', compraVol: '20.000 L', compraData: '04/06', compraValor: ' · R$ 118.000', sugestao: '6.400 L', cobertura: 'cobre ~8 dias' },
+          { nome: 'Tanque 07', sub: 'Gasolina Comum · Posto Serra', nivel: 'negativo', pct: 0, pctLabel: 'neg', ref: '−340 L de 15.000 L', compraVol: '12.000 L', compraData: '27/05', compraValor: '', sugestao: '14.200 L', cobertura: 'repor já' },
+        ],
+        reposicao: { titulo: 'Reposição de estoque por posto', sub: 'Consolidado por combustível · sugestão de compra', totalLabel: 'Total a comprar', total: '84.500 L', nota: 'Baseado no estoque escritural atual e no consumo médio diário de cada tanque',
+          cols: { produto: 'Produto', estoque: 'Estoque atual', ref: 'Capacidade', ritmo: 'Ritmo/dia', sugestao: 'Sugestão de compra' }, fmt: fmtL,
+          postos: [
+            { nome: 'Posto Rodovia', linhas: [ { produto: 'Diesel S10', n: 1, estoque: 3360, ref: 30000, ritmo: 8200, sugestao: 26200 }, { produto: 'Gasolina Comum', n: 1, estoque: 3390, ref: 15000, ritmo: 3100, sugestao: 8200 } ] },
+            { nome: 'Posto Centro', linhas: [ { produto: 'Gasolina Comum', n: 1, estoque: 1260, ref: 15000, ritmo: 4600, sugestao: 13800 }, { produto: 'Etanol', n: 1, estoque: 1480, ref: 10000, ritmo: 2100, sugestao: 8200 } ] },
+            { nome: 'Posto Industrial', linhas: [ { produto: 'Gasolina Aditivada', n: 1, estoque: 2565, ref: 15000, ritmo: 2700, sugestao: 12100 }, { produto: 'Diesel S10', n: 1, estoque: 7590, ref: 30000, ritmo: 3400, sugestao: 6400 } ] },
+          ] },
+      },
+      automotivo: {
+        hero: { label: 'Compra sugerida', caption: 'Reposição automotiva', value: 'R$ 38.400', sub: '32 itens · 3 postos', extra: '12 abaixo do ponto' },
+        kpis: [
+          { titulo: 'Abaixo do ponto', sub: 'Ponto de pedido', value: '12', valueColor: '#b45309', border: '#fde68a', iconBg: '#fef3c7', icon: icClock, foot: 'itens · planejar compra' },
+          { titulo: 'Em ruptura', sub: 'Estoque zerado', value: '3', valueColor: '#b91c1c', border: '#fecaca', iconBg: '#fee2e2', icon: icBox, foot: 'itens · venda perdida' },
+          { titulo: 'Curva A em risco', sub: 'Alto giro', value: '5', valueColor: '#1d4ed8', border: '#e5e7eb', iconBg: '#dbeafe', icon: ic_star(), foot: 'priorizar reposição' },
+        ],
+        itensTitulo: 'Itens que precisam de atenção', itensSub: 'Abaixo do ponto de pedido · ordenados por giro (curva ABC)',
+        ajudaItens: 'Por que estes itens? Entram os produtos cujo estoque caiu abaixo do ponto de pedido (nível que aciona a recompra). São priorizados pela curva ABC: itens A (alto giro/faturamento) primeiro — ruptura neles é venda perdida garantida. Ruptura = estoque zerado.',
+        ajudaReposicao: 'Sugestão (un) = (giro semanal × lead time do fornecedor + estoque de segurança) − estoque atual. Ponto de pedido e giro vêm do histórico de vendas de cada item.',
+        unidade: 'unidades',
+        itens: [
+          { nome: 'Óleo 15W40 Mineral', sub: 'Lubrificantes · Posto Rodovia', nivel: 'ruptura', pct: 0, pctLabel: '0 un', ref: '0 un · ponto de pedido 48', curva: 'A', compraVol: '120 un', compraData: '20/05', compraValor: ' · R$ 4.080', sugestao: '96 un', cobertura: 'curva A · alto giro' },
+          { nome: 'Filtro de Óleo FO-23', sub: 'Filtros · Posto Centro', nivel: 'ruptura', pct: 0, pctLabel: '0 un', ref: '0 un · ponto de pedido 30', curva: 'A', compraVol: '60 un', compraData: '18/05', compraValor: ' · R$ 1.140', sugestao: '60 un', cobertura: 'curva A · alto giro' },
+          { nome: 'Aditivo Radiador', sub: 'Aditivos · Posto Industrial', nivel: 'critico', pct: 18, pctLabel: '9 un', ref: '9 un · ponto de pedido 50', curva: 'B', compraVol: '72 un', compraData: '25/05', compraValor: ' · R$ 1.224', sugestao: '60 un', cobertura: 'cobre ~6 dias' },
+          { nome: 'Óleo 5W30 Sintético', sub: 'Lubrificantes · Posto Rodovia', nivel: 'critico', pct: 22, pctLabel: '11 un', ref: '11 un · ponto de pedido 50', curva: 'A', compraVol: '96 un', compraData: '22/05', compraValor: ' · R$ 6.720', sugestao: '72 un', cobertura: 'curva A · alto giro' },
+          { nome: 'Fluido de Freio DOT4', sub: 'Fluidos · Posto Centro', nivel: 'alerta', pct: 28, pctLabel: '14 un', ref: '14 un · ponto de pedido 50', curva: 'B', compraVol: '60 un', compraData: '24/05', compraValor: ' · R$ 1.020', sugestao: '48 un', cobertura: 'cobre ~9 dias' },
+          { nome: 'Palheta Limpador 20"', sub: 'Acessórios · Posto Industrial', nivel: 'alerta', pct: 30, pctLabel: '18 un', ref: '18 un · ponto de pedido 60', curva: 'C', compraVol: '48 un', compraData: '19/05', compraValor: '', sugestao: '42 un', cobertura: 'cobre ~10 dias' },
+        ],
+        reposicao: { titulo: 'Reposição automotiva por posto', sub: 'Consolidado por produto · sugestão de compra (un)', totalLabel: 'Compra sugerida', total: 'R$ 38.400', nota: 'Baseado no estoque atual, ponto de pedido e giro médio (curva ABC) de cada item',
+          cols: { produto: 'Produto', estoque: 'Estoque atual', ref: 'Ponto pedido', ritmo: 'Giro/sem', sugestao: 'Sugestão (un)' }, fmt: fmtU,
+          postos: [
+            { nome: 'Posto Rodovia', linhas: [ { produto: 'Óleo 15W40 Mineral', n: 1, estoque: 0, ref: 48, ritmo: 38, sugestao: 96 }, { produto: 'Óleo 5W30 Sintético', n: 1, estoque: 11, ref: 50, ritmo: 32, sugestao: 72 } ] },
+            { nome: 'Posto Centro', linhas: [ { produto: 'Filtro de Óleo FO-23', n: 1, estoque: 0, ref: 30, ritmo: 28, sugestao: 60 }, { produto: 'Fluido de Freio DOT4', n: 1, estoque: 14, ref: 50, ritmo: 16, sugestao: 48 } ] },
+            { nome: 'Posto Industrial', linhas: [ { produto: 'Aditivo Radiador', n: 1, estoque: 9, ref: 50, ritmo: 22, sugestao: 60 }, { produto: 'Palheta Limpador 20"', n: 1, estoque: 18, ref: 60, ritmo: 12, sugestao: 42 } ] },
+          ] },
+      },
+      conveniencia: {
+        hero: { label: 'Compra sugerida', caption: 'Reposição conveniência', value: 'R$ 22.700', sub: '48 itens · 4 postos', extra: '6 vencendo' },
+        kpis: [
+          { titulo: 'Abaixo do mínimo', sub: 'Estoque mínimo', value: '18', valueColor: '#b45309', border: '#fde68a', iconBg: '#fef3c7', icon: icClock, foot: 'itens · repor prateleira' },
+          { titulo: 'Em ruptura', sub: 'Estoque zerado', value: '4', valueColor: '#b91c1c', border: '#fecaca', iconBg: '#fee2e2', icon: icBox, foot: 'itens · venda perdida' },
+          { titulo: 'Vencendo', sub: 'Próx. 15 dias', value: '6', valueColor: '#c2410c', border: '#fed7aa', iconBg: '#ffedd5', icon: icCal, foot: 'itens · risco de perda' },
+        ],
+        itensTitulo: 'Itens que precisam de atenção', itensSub: 'Abaixo do mínimo ou perto de vencer · ordenados por giro',
+        ajudaItens: 'Por que estes itens? Reúne produtos abaixo do estoque mínimo (repor prateleira), em ruptura (zerados) e perto de vencer (próximos 15 dias). Itens vencendo recebem sugestão 0 — não comprar mais, escoar/promover o atual. Ordenados por giro (mais vendidos primeiro).',
+        ajudaReposicao: 'Sugestão (un) = giro semanal × cobertura desejada − estoque atual. Itens com validade próxima são excluídos da compra para evitar perda por vencimento.',
+        unidade: 'unidades',
+        itens: [
+          { nome: 'Cerveja Lata 350ml', sub: 'Bebidas · Posto Rodovia', nivel: 'ruptura', pct: 0, pctLabel: '0 un', ref: '0 un · mínimo 120', compraVol: '480 un', compraData: '21/05', compraValor: ' · R$ 1.440', sugestao: '360 un', cobertura: 'alto giro' },
+          { nome: 'Energético 250ml', sub: 'Bebidas · Posto Centro', nivel: 'ruptura', pct: 0, pctLabel: '0 un', ref: '0 un · mínimo 60', compraVol: '144 un', compraData: '19/05', compraValor: ' · R$ 1.008', sugestao: '120 un', cobertura: 'alto giro' },
+          { nome: 'Água Mineral 500ml', sub: 'Bebidas · Posto Industrial', nivel: 'critico', pct: 16, pctLabel: '19 un', ref: '19 un · mínimo 120', compraVol: '240 un', compraData: '24/05', compraValor: ' · R$ 360', sugestao: '216 un', cobertura: 'cobre ~3 dias' },
+          { nome: 'Salgadinho 100g', sub: 'Snacks · Posto Rodovia', nivel: 'vencendo', pct: 35, pctLabel: '28 un', ref: '28 un · mínimo 60', compraVol: '120 un', compraData: '12/05', compraValor: ' · R$ 600', sugestao: '0 un', cobertura: 'não repor', validade: 'Vence em 9 dias · revisar', temValidade: true },
+          { nome: 'Cigarro (maço)', sub: 'Tabacaria · Posto Centro', nivel: 'critico', pct: 20, pctLabel: '24 un', ref: '24 un · mínimo 100', compraVol: '200 un', compraData: '23/05', compraValor: ' · R$ 2.400', sugestao: '180 un', cobertura: 'alto giro' },
+          { nome: 'Chocolate Barra 90g', sub: 'Snacks · Posto Litoral', nivel: 'vencendo', pct: 42, pctLabel: '34 un', ref: '34 un · mínimo 60', compraVol: '96 un', compraData: '10/05', compraValor: '', sugestao: '0 un', cobertura: 'não repor', validade: 'Vence em 12 dias · promover', temValidade: true },
+        ],
+        reposicao: { titulo: 'Reposição conveniência por posto', sub: 'Consolidado por produto · sugestão de compra (un)', totalLabel: 'Compra sugerida', total: 'R$ 22.700', nota: 'Baseado no estoque atual, mínimo, giro e validade de cada item',
+          cols: { produto: 'Produto', estoque: 'Estoque atual', ref: 'Mínimo', ritmo: 'Giro/sem', sugestao: 'Sugestão (un)' }, fmt: fmtU,
+          postos: [
+            { nome: 'Posto Rodovia', linhas: [ { produto: 'Cerveja Lata 350ml', n: 1, estoque: 0, ref: 120, ritmo: 310, sugestao: 360 }, { produto: 'Salgadinho 100g', n: 1, estoque: 28, ref: 60, ritmo: 44, sugestao: 0 } ] },
+            { nome: 'Posto Centro', linhas: [ { produto: 'Energético 250ml', n: 1, estoque: 0, ref: 60, ritmo: 96, sugestao: 120 }, { produto: 'Cigarro (maço)', n: 1, estoque: 24, ref: 100, ritmo: 140, sugestao: 180 } ] },
+            { nome: 'Posto Industrial', linhas: [ { produto: 'Água Mineral 500ml', n: 1, estoque: 19, ref: 120, ritmo: 180, sugestao: 216 } ] },
+          ] },
+      },
+    };
+
+    function ic_star() {
+      return React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: '#2563eb', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', style: { width: '17px', height: '17px' } }, React.createElement('path', { d: 'm12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' }));
+    }
+
+    const sub = this.state.sub;
+    const d = DATA[sub];
+    const filtro = this.state.filtro;
+
+    // Filtro de status (depende do sub-tab).
+    const filtroOpts = sub === 'combustivel'
+      ? [['todos', 'Todos'], ['critico', 'Críticos'], ['alerta', 'Alerta'], ['negativo', 'Negativo']]
+      : [['todos', 'Todos'], ['ruptura', 'Ruptura'], ['critico', 'Críticos'], ['alerta', 'Alerta']];
+    const filtroButtons = filtroOpts.map(([k, l]) => ({ label: l, onClick: () => this.setState({ filtro: k }), bg: filtro === k ? '#1e3a5f' : 'transparent', color: filtro === k ? '#fff' : '#4b5563' }));
+
+    const matches = (t) => filtro === 'todos' ? true : (filtro === 'critico' ? (t.nivel === 'critico') : t.nivel === filtro);
+    const itens = d.itens.filter(matches).map((t) => {
+      const m = badgeMeta(t.nivel);
+      const badgeOverride = t.nivel === 'vencendo' ? { badge: 'Vencendo', badgeBg: '#ffedd5', badgeText: '#c2410c', bar: '#fb923c', pctColor: '#c2410c' } : m;
+      return {
+        nome: t.nome, sub: t.sub, badge: badgeOverride.badge, badgeBg: badgeOverride.badgeBg, badgeText: badgeOverride.badgeText,
+        barColor: badgeOverride.bar, pctColor: badgeOverride.pctColor, pct: Math.max(2, Math.min(100, t.pct)), pctLabel: t.pctLabel,
+        refLinha: t.ref, compraVol: t.compraVol, compraData: t.compraData, compraValor: t.compraValor || '',
+        sugestaoFmt: t.sugestao, cobertura: t.cobertura, temValidade: !!t.temValidade, validade: t.validade || '',
+      };
+    });
+
+    // Reposição.
+    const rep = d.reposicao;
+    const allLin = rep.postos.flatMap((p) => p.linhas);
+    const maxEst = Math.max(...allLin.map((l) => l.estoque), 1);
+    const maxRit = Math.max(...allLin.map((l) => l.ritmo), 1);
+    const maxSug = Math.max(...allLin.map((l) => l.sugestao), 1);
+    const postos = rep.postos.map((p) => ({
+      nome: p.nome,
+      totalFmt: rep.fmt(p.linhas.reduce((s, l) => s + l.sugestao, 0)),
+      linhas: p.linhas.map((l) => {
+        const pct = l.ref > 0 ? (l.estoque / l.ref) * 100 : 0;
+        const estoqueColor = l.estoque <= 0 ? '#ef4444' : pct < 40 ? '#ef4444' : pct < 70 ? '#f59e0b' : '#3b82f6';
+        return {
+          produto: l.produto, tanquesLabel: l.n + (sub === 'combustivel' ? (l.n === 1 ? ' tanque' : ' tanques') : (l.n === 1 ? ' item' : ' itens')),
+          estoqueFmt: rep.fmt(l.estoque), refFmt: rep.fmt(l.ref), ritmoFmt: rep.fmt(l.ritmo), sugestaoFmt: rep.fmt(l.sugestao),
+          estoquePct: Math.max(3, Math.round((Math.max(0, l.estoque) / maxEst) * 100)), estoqueColor,
+          ritmoPct: Math.max(3, Math.round((l.ritmo / maxRit) * 100)),
+          sugestaoPct: Math.max(3, Math.round((l.sugestao / maxSug) * 100)),
+        };
+      }),
+    }));
+
+    const subIcon = (name) => {
+      if (name === 'combustivel') return iconRaw([React.createElement('line',{key:1,x1:3,x2:15,y1:22,y2:22}),React.createElement('line',{key:2,x1:4,x2:14,y1:9,y2:9}),React.createElement('path',{key:3,d:'M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18'}),React.createElement('path',{key:4,d:'M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5'})], sub === name ? '#fff' : '#6b7280', 16);
+      if (name === 'automotivo') return iconRaw([React.createElement('path',{key:1,d:'M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2'}),React.createElement('circle',{key:2,cx:7,cy:17,r:2}),React.createElement('path',{key:3,d:'M9 17h6'}),React.createElement('circle',{key:4,cx:17,cy:17,r:2})], sub === name ? '#fff' : '#6b7280', 16);
+      return iconRaw([React.createElement('path',{key:1,d:'m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7'}),React.createElement('path',{key:2,d:'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8'}),React.createElement('path',{key:3,d:'M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4'}),React.createElement('path',{key:4,d:'M2 7h20'}),React.createElement('path',{key:5,d:'M12 7v5'})], sub === name ? '#fff' : '#6b7280', 16);
+    };
+    const mkSub = (key, label) => ({ label, icon: subIcon(key), onClick: () => this.setState({ sub: key, filtro: 'todos' }), bg: sub === key ? '#1e3a5f' : 'transparent', color: sub === key ? '#fff' : '#4b5563' });
+
+    return {
+      totalAlertas: sub === 'combustivel' ? '5' : sub === 'automotivo' ? '12' : '18',
+      subTabs: [mkSub('combustivel', 'Combustível'), mkSub('automotivo', 'Automotivo'), mkSub('conveniencia', 'Conveniência')],
+      heroLabel: d.hero.label, heroCaption: d.hero.caption, heroValue: d.hero.value, heroSub: d.hero.sub, heroExtra: d.hero.extra,
+      kpis: d.kpis,
+      itensTitulo: d.itensTitulo, itensSub: d.itensSub, filtroButtons, itens,
+      ajudaItens: d.ajudaItens, ajudaReposicao: d.ajudaReposicao,
+      reposicaoTitulo: rep.titulo, reposicaoSub: rep.sub, reposicaoTotalLabel: rep.totalLabel, reposicaoTotal: rep.total, reposicaoNota: rep.nota,
+      colProduto: rep.cols.produto, colEstoque: rep.cols.estoque, colRef: rep.cols.ref, colRitmo: rep.cols.ritmo, colSugestao: rep.cols.sugestao,
+      postos,
+    };
+  }
+}
+</script>
+</body>
+</html>
