@@ -39,13 +39,13 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
     ) : (
       <p className="mt-3 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
     )}
-    <div className="mt-3 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-      <div>
-        <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-gray-100">{primary.value}</p>
+    <div className="mt-3 flex items-start justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{primary.value}</p>
         <p className="text-[11px] text-gray-500 dark:text-gray-400">{primary.label}</p>
       </div>
-      <div>
-        <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-gray-100">{secondary.value}</p>
+      <div className="min-w-0 text-right">
+        <p className="truncate text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{secondary.value}</p>
         <p className="text-[11px] text-gray-500 dark:text-gray-400">{secondary.label}</p>
       </div>
     </div>

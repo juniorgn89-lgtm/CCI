@@ -263,7 +263,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
 
   // Saúde da margem atual.
   const margemTone: Tone = agg.margem >= MARGEM_SAUDAVEL ? 'emerald' : agg.margem >= MARGEM_ATENCAO ? 'amber' : 'red'
-  const margemLabel = margemTone === 'emerald' ? 'Saudável' : margemTone === 'amber' ? 'Atenção' : 'Crítica'
   // L.B./litro mínimo sustentável = preço médio × piso de margem (%).
   const lbMinSustentavel = agg.precoVendaMedio * (MARGEM_ATENCAO / 100)
 
@@ -397,7 +396,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
   const linhasDesc = [...serie].reverse()
   const maxCut = Math.max(0.2, Math.ceil(agg.lbLitro * 100) / 100)
   const sparkPreco = serie.map((d) => ({ v: d.precoVenda }))
-  const sparkLb = serie.map((d) => ({ v: d.lbLitro }))
   const sparkCusto = serie.map((d) => ({ v: d.precoCusto }))
   const sparkVol = serie.map((d) => ({ v: d.litros }))
 
@@ -456,8 +454,8 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
           {/* ── Projeção até o fechamento do mês (baseline, sem alteração) ── */}
           <ProjecaoFechamento proj={proj} />
 
-          {/* ── 4 cards executivos ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {/* ── 3 cards executivos ── */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <ExecCard
               id="preco"
               Icon={CircleDollarSign}
@@ -473,22 +471,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               pill={{ tone: compTone, label: compLabel }}
               help="Preço médio ponderado pelos litros do período (faturamento ÷ litros). A variação compara a média dos últimos 7 dias com os 7 anteriores. A pílula classifica o preço recente vs. a média do período: abaixo = competitivo, acima = caro."
               footer={<span>Competitividade <span className="text-gray-400">·</span> vs. sua média do período</span>}
-            />
-            <ExecCard
-              id="lb"
-              Icon={Gauge}
-              tone={margemTone}
-              label="L.B. / Litro"
-              value={moneyL(agg.lbLitro)}
-              sub={`Margem ${agg.margem.toFixed(2).replace('.', ',')}%`}
-              delta={wow.hasPrev ? wow.lbDelta : undefined}
-              deltaLabel="vs. semana ant."
-              deltaGoodWhenUp
-              spark={sparkLb}
-              sparkTone={margemTone}
-              pill={{ tone: margemTone, label: margemLabel }}
-              help={`Lucro bruto por litro = lucro ÷ litros. Margem % = lucro ÷ faturamento. Saúde: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica. Mínimo sustentável = preço médio × ${MARGEM_ATENCAO}%.`}
-              footer={<span>Mín. sustentável <span className="font-semibold text-gray-600 dark:text-gray-300">{moneyL(lbMinSustentavel)}</span> <span className="text-gray-400">(~{MARGEM_ATENCAO}%)</span></span>}
             />
             <ExecCard
               id="custo"
