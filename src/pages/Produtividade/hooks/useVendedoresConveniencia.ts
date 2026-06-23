@@ -36,11 +36,14 @@ export interface VendedoresData {
 type CacheRow = Awaited<ReturnType<typeof fetchVendasFuncionarioCache>>[number]
 type Meta = Map<number, { nome?: string; ativo?: boolean }>
 
-/** Agrega o cache de venda por funcionário (setor conveniência) em VendedorRow[]. */
-const aggregate = (cacheRows: CacheRow[], meta: Meta): VendedorRow[] => {
+/** Setor de loja exibível por vendedor (o combustível não vai por vendedor). */
+export type VendedorSetor = 'conveniencia' | 'automotivos'
+
+/** Agrega o cache de venda por funcionário (do `setor` pedido) em VendedorRow[]. */
+const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): VendedorRow[] => {
   const m = new Map<number, VendedorRow>()
   for (const r of cacheRows) {
-    if (r.setor !== 'conveniencia') continue
+    if (r.setor !== setor) continue
     const f = meta.get(r.funcionario_codigo)
     const cur = m.get(r.funcionario_codigo) ?? {
       funcionarioCodigo: r.funcionario_codigo,
@@ -70,7 +73,7 @@ const aggregate = (cacheRows: CacheRow[], meta: Meta): VendedorRow[] => {
  * pro nome. Mesmo período/postos do filtro global. Ticket médio = fat ÷ cupons
  *. Só vendas autorizadas (já filtrado na apuração).
  */
-const useVendedoresConveniencia = (): VendedoresData => {
+const useVendedoresConveniencia = (setor: VendedorSetor = 'conveniencia'): VendedoresData => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
 
@@ -108,8 +111,8 @@ const useVendedoresConveniencia = (): VendedoresData => {
 
   return useMemo(() => {
     const meta: Meta = new Map(funcionarios.map((f) => [f.funcionarioCodigo, f]))
-    const rows = aggregate(cacheRows, meta)
-    const rowsPrev = aggregate(cacheRowsPrev, meta)
+    const rows = aggregate(cacheRows, meta, setor)
+    const rowsPrev = aggregate(cacheRowsPrev, meta, setor)
 
     return {
       rows,
@@ -121,7 +124,7 @@ const useVendedoresConveniencia = (): VendedoresData => {
       isLoading,
       hasEmpresa,
     }
-  }, [cacheRows, cacheRowsPrev, funcionarios, isLoading, hasEmpresa])
+  }, [cacheRows, cacheRowsPrev, funcionarios, isLoading, hasEmpresa, setor])
 }
 
 export default useVendedoresConveniencia

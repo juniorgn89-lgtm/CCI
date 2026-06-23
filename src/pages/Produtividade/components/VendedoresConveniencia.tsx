@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Users, DollarSign, Receipt, TrendingUp, ShoppingBag, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -6,7 +6,13 @@ import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatNumber } 
 import InfoHint from '@/components/ui/InfoHint'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import BarCell from '@/components/tables/BarCell'
-import useVendedoresConveniencia, { type VendedorRow } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
+import useVendedoresConveniencia, { type VendedorRow, type VendedorSetor } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
+
+/** Setores de loja exibíveis por vendedor (combustível não vai por vendedor). */
+const SETOR_TABS: { id: VendedorSetor; label: string }[] = [
+  { id: 'conveniencia', label: 'Conveniências' },
+  { id: 'automotivos', label: 'Automotivos' },
+]
 
 type SortKey = 'nome' | 'itens' | 'cupons' | 'faturamento' | 'lucroBruto' | 'margemPct' | 'ticketMedio'
 type SortDir = 'asc' | 'desc'
@@ -27,7 +33,7 @@ const COLS: {
   { key: 'itens', label: 'Itens', bar: 'blue', help: 'Itens vendidos (Σ quantidade) pelo vendedor no período.', val: (r) => r.itens, fmt: (r) => formatNumber(r.itens) },
   { key: 'cupons', label: 'Cupons', bar: 'blue', help: 'Número de cupons (vendas) do vendedor no período.', val: (r) => r.cupons, fmt: (r) => formatNumber(r.cupons) },
   // Financeiro
-  { key: 'faturamento', label: 'Faturamento', bar: 'green', groupStart: true, help: 'Faturamento de conveniência do vendedor no período.', val: (r) => r.faturamento, fmt: (r) => formatCurrencyInt(r.faturamento) },
+  { key: 'faturamento', label: 'Faturamento', bar: 'green', groupStart: true, help: 'Faturamento do setor pelo vendedor no período.', val: (r) => r.faturamento, fmt: (r) => formatCurrencyInt(r.faturamento) },
   { key: 'lucroBruto', label: 'Lucro bruto', bar: 'green', help: 'Faturamento − custo (CMV) da mercadoria vendida.', val: (r) => r.lucroBruto, fmt: (r) => formatCurrencyInt(r.lucroBruto) },
   { key: 'margemPct', label: '% Margem', bar: null, help: '(Lucro bruto ÷ faturamento) × 100.', val: (r) => r.margemPct, fmt: (r) => fmtPct(r.margemPct) },
   // Eficiência
@@ -98,9 +104,11 @@ const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', groupSta
  * e postos do filtro global. Padronizado conforme o Comparativo de Frentistas.
  */
 const VendedoresConveniencia = () => {
-  const { rows, totalFaturamento, totalLucro, totalCupons, totalItens, isLoading, hasEmpresa } = useVendedoresConveniencia()
+  const [setor, setSetor] = useState<VendedorSetor>('conveniencia')
+  const { rows, totalFaturamento, totalLucro, totalCupons, totalItens, isLoading, hasEmpresa } = useVendedoresConveniencia(setor)
   const [sortKey, setSortKey] = useState<SortKey>('faturamento')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const setorLabel = setor === 'automotivos' ? 'automotivos' : 'conveniência'
 
   const handleColumnSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -113,8 +121,31 @@ const VendedoresConveniencia = () => {
 
   if (!hasEmpresa) return <SelectCompanyState />
 
+  // Toggle de setor — sempre visível (Automotivos pode vir vazio se o cache
+  // de funcionário ainda não foi re-apurado; o usuário precisa poder voltar).
+  const toggle = (
+    <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+      {SETOR_TABS.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => setSetor(t.id)}
+          className={cn(
+            'inline-flex h-7 items-center rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+            setor === t.id
+              ? 'bg-[#1e3a5f] text-white shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  let content: ReactNode
   if (isLoading) {
-    return (
+    content = (
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
@@ -122,60 +153,57 @@ const VendedoresConveniencia = () => {
         <Skeleton className="h-[400px] w-full rounded-xl" />
       </div>
     )
-  }
-
-  if (rows.length === 0) {
-    return (
+  } else if (rows.length === 0) {
+    content = (
       <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <ShoppingBag className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
-        <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Sem vendas de conveniência por vendedor no período</p>
+        <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Sem vendas de {setorLabel} por vendedor no período</p>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Reapure o período (Admin · Apuração) pra preencher o cache de vendedores.
         </p>
       </div>
     )
-  }
+  } else {
+    const ticketMedioGeral = totalCupons > 0 ? totalFaturamento / totalCupons : 0
+    const sorted = [...rows].sort((a, b) => {
+      if (sortKey === 'nome') return sortDir === 'asc' ? a.nome.localeCompare(b.nome) : b.nome.localeCompare(a.nome)
+      const av = a[sortKey] as number
+      const bv = b[sortKey] as number
+      return sortDir === 'asc' ? av - bv : bv - av
+    })
+    const colMax = Object.fromEntries(COLS.map((c) => [c.key, Math.max(...rows.map((r) => c.val(r)), 0)])) as Record<string, number>
 
-  const ticketMedioGeral = totalCupons > 0 ? totalFaturamento / totalCupons : 0
-  const sorted = [...rows].sort((a, b) => {
-    if (sortKey === 'nome') return sortDir === 'asc' ? a.nome.localeCompare(b.nome) : b.nome.localeCompare(a.nome)
-    const av = a[sortKey] as number
-    const bv = b[sortKey] as number
-    return sortDir === 'asc' ? av - bv : bv - av
-  })
-  const colMax = Object.fromEntries(COLS.map((c) => [c.key, Math.max(...rows.map((r) => c.val(r)), 0)])) as Record<string, number>
+    const totals = {
+      itens: totalItens,
+      cupons: totalCupons,
+      faturamento: totalFaturamento,
+      lucroBruto: totalLucro,
+      margemPct: totalFaturamento > 0 ? (totalLucro / totalFaturamento) * 100 : 0,
+      ticketMedio: ticketMedioGeral,
+    }
+    const totalFmt: Record<Exclude<SortKey, 'nome'>, string> = {
+      itens: formatNumber(totals.itens),
+      cupons: formatNumber(totals.cupons),
+      faturamento: formatCurrencyInt(totals.faturamento),
+      lucroBruto: formatCurrencyInt(totals.lucroBruto),
+      margemPct: fmtPct(totals.margemPct),
+      ticketMedio: formatCurrencyInt(totals.ticketMedio),
+    }
 
-  const totals = {
-    itens: totalItens,
-    cupons: totalCupons,
-    faturamento: totalFaturamento,
-    lucroBruto: totalLucro,
-    margemPct: totalFaturamento > 0 ? (totalLucro / totalFaturamento) * 100 : 0,
-    ticketMedio: ticketMedioGeral,
-  }
-  const totalFmt: Record<Exclude<SortKey, 'nome'>, string> = {
-    itens: formatNumber(totals.itens),
-    cupons: formatNumber(totals.cupons),
-    faturamento: formatCurrencyInt(totals.faturamento),
-    lucroBruto: formatCurrencyInt(totals.lucroBruto),
-    margemPct: fmtPct(totals.margemPct),
-    ticketMedio: formatCurrencyInt(totals.ticketMedio),
-  }
+    const activeLabel = COLS.find((c) => c.key === sortKey)?.label.toLowerCase() ?? (sortKey === 'nome' ? 'vendedor' : '')
 
-  const activeLabel = COLS.find((c) => c.key === sortKey)?.label.toLowerCase() ?? (sortKey === 'nome' ? 'vendedor' : '')
-
-  return (
-    <div className="space-y-3">
+    content = (
+      <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard icon={Users} label="Vendedores" value={formatNumber(rows.length)}
           sub={`${rows.filter((r) => r.ativo).length} ativos`} tint="from-blue-50/60 to-white dark:from-blue-950/30"
-          help="Vendedores com vendas de conveniência no período (e quantos estão ativos)." />
+          help={`Vendedores com vendas de ${setorLabel} no período (e quantos estão ativos).`} />
         <KpiCard icon={DollarSign} label="Faturamento (loja)" value={formatCurrencyShort(totalFaturamento)}
           sub={`Lucro ${formatCurrencyShort(totalLucro)}`} tint="from-emerald-50/60 to-white dark:from-emerald-950/30"
-          help="Faturamento total da conveniência no período · lucro bruto (faturamento − custo)." />
+          help={`Faturamento total de ${setorLabel} no período · lucro bruto (faturamento − custo).`} />
         <KpiCard icon={Receipt} label="Cupons" value={formatNumber(totalCupons)}
-          sub="vendas de conveniência" tint="from-violet-50/60 to-white dark:from-violet-950/30"
-          help="Número de cupons (vendas) da conveniência no período." />
+          sub={`vendas de ${setorLabel}`} tint="from-violet-50/60 to-white dark:from-violet-950/30"
+          help={`Número de cupons (vendas) de ${setorLabel} no período.`} />
         <KpiCard icon={TrendingUp} label="Ticket médio" value={formatCurrency(ticketMedioGeral)}
           sub="faturamento ÷ cupons" tint="from-amber-50/60 to-white dark:from-amber-950/30"
           help="Ticket médio da loja = faturamento ÷ número de cupons." />
@@ -187,12 +215,12 @@ const VendedoresConveniencia = () => {
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comparativo de Vendedores</h3>
               <InfoHint
-                text="Consolidado do período por vendedor da conveniência (cache de apuração). Clique nos cabeçalhos pra ordenar."
+                text={`Consolidado do período por vendedor de ${setorLabel} (cache de apuração). Clique nos cabeçalhos pra ordenar.`}
                 align="start"
               />
             </div>
             <p className="mt-0.5 text-xs italic text-gray-400">
-              Desempenho consolidado no período · conveniência
+              Desempenho consolidado no período · {setorLabel}
             </p>
           </div>
           <span className="text-xs text-gray-400">{rows.length} vendedores · ordenado por {activeLabel}</span>
@@ -276,6 +304,14 @@ const VendedoresConveniencia = () => {
           </table>
         </div>
       </div>
+      </>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {toggle}
+      {content}
     </div>
   )
 }
