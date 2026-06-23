@@ -205,8 +205,9 @@ const BenchmarkSetor = () => {
 
   const rede = useRedeSetores()
   // Rótulos do bloco "Comparativo" seguem o modo escolhido no filtro global.
-  const cmpLabel = rede.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
   const cmpWord = rede.comparisonMode === 'prevYear' ? 'ano anterior' : 'mês anterior'
+  // Sufixo curto pros títulos do Comparativo (cabe junto da métrica).
+  const cmpShort = rede.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const setorReal = setor === 'combustiveis' ? rede.combustivel : setor === 'automotivos' ? rede.automotivos : rede.conveniencia
   const data = useMemo<SetorData>(() => ({
     unidadeLabel: setorReal.unidadeLabel,
@@ -373,11 +374,11 @@ const BenchmarkSetor = () => {
               <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
               {isComb && <HeaderHint label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
               {isComb && <HeaderHint label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
-              {/* Comparativo */}
-              <HeaderHint groupStart label={cmpLabel} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `Mesmo período do ${cmpWord} (volume).`} />
-              <HeaderHint label="Variação" help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
-              <HeaderHint label={cmpLabel} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
-              <HeaderHint label="Variação" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
+              {/* Comparativo — métrica explícita na 1ª linha, "(mês/ano ant.)" na 2ª */}
+              <HeaderHint groupStart label={showFaturamento ? 'Faturamento' : data.unidadeLabel} sub={`(${cmpShort})`} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `${data.unidadeLabel} no mesmo período do ${cmpWord}.`} />
+              <HeaderHint label={`Var. ${showFaturamento ? 'faturamento' : data.unidadeLabel.toLowerCase()}`} help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
+              <HeaderHint label="Lucro bruto" sub={`(${cmpShort})`} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
+              <HeaderHint label="Var. lucro bruto" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
               {/* Eficiência */}
               {isComb ? (
                 <>

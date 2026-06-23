@@ -6,6 +6,8 @@ interface HeaderHintProps {
   label: string
   /** Texto de ajuda do "?". */
   help: string
+  /** Segunda linha opcional (menor/suave) — ex.: qualificador "(mês ant.)". */
+  sub?: string
   align?: 'left' | 'right' | 'center'
   /** Início de grupo de colunas — desenha o divisor vertical à esquerda. */
   groupStart?: boolean
@@ -17,7 +19,7 @@ interface HeaderHintProps {
  * Substitui os `ThWithHelp` locais espalhados pelas tabelas — mesmo contrato
  * (label/help/align/groupStart), tooltip único do sistema.
  */
-const HeaderHint = ({ label, help, align = 'right', groupStart, className }: HeaderHintProps) => (
+const HeaderHint = ({ label, help, sub, align = 'right', groupStart, className }: HeaderHintProps) => (
   <th
     className={cn(
       'px-4 py-2 font-medium',
@@ -36,6 +38,11 @@ const HeaderHint = ({ label, help, align = 'right', groupStart, className }: Hea
       {label}
       <InfoHint text={help} />
     </span>
+    {sub && (
+      <span className="mt-0.5 block whitespace-nowrap text-[10px] font-normal normal-case text-gray-400 dark:text-gray-500">
+        {sub}
+      </span>
+    )}
   </th>
 )
 
