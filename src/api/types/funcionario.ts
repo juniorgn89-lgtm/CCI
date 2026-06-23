@@ -24,7 +24,10 @@ export interface FuncionarioMeta {
 export interface Funcao {
   codigo: number
   funcaoCodigo: number
-  descricao: string
+  /** Nome do cargo (campo REAL da API — ex.: "FRENTISTA", "CAIXA."). */
+  nome: string
+  /** @deprecated A API não retorna este campo; use `nome`. */
+  descricao?: string
 }
 
 export interface Placares {

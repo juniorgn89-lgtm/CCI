@@ -59,7 +59,7 @@ const Mobile = () => {
   })
 
   const funcaoMap = new Map(
-    (funcoesData?.resultados ?? []).map((f) => [f.funcaoCodigo, f.descricao])
+    (funcoesData?.resultados ?? []).map((f) => [f.funcaoCodigo, f.nome])
   )
 
   const funcionarios = funcionariosData?.resultados ?? []

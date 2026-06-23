@@ -9,10 +9,18 @@ import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import TableSkeleton from '@/components/feedback/TableSkeleton'
 import EmptyState from '@/components/feedback/EmptyState'
 import useProdutividadeRede, {
-  type UnidadeProdutividade, type InsightRede,
+  type UnidadeProdutividade, type InsightRede, type ProdSetor,
 } from '@/pages/Dashboard/hooks/useProdutividadeRede'
 
 type SortMetric = 'prod' | 'faturamento' | 'litros'
+
+/** Abas de setor — cada uma tem o benchmark específico do setor. */
+const SETOR_TABS: { id: ProdSetor; label: string }[] = [
+  { id: 'geral', label: 'Geral' },
+  { id: 'combustivel', label: 'Combustíveis' },
+  { id: 'conveniencia', label: 'Conveniências' },
+  { id: 'automotivos', label: 'Automotivos' },
+]
 
 /** Faturamento grande → "R$ 9,66 mi" / "R$ 740 mil". */
 const fmtMi = (v: number): string => {
@@ -133,12 +141,6 @@ const SortBtn = ({ active, onClick, children }: { active: boolean; onClick: () =
 const metricValue = (u: UnidadeProdutividade, m: SortMetric): number =>
   m === 'faturamento' ? u.faturamento : m === 'litros' ? u.litros : u.prod
 
-const metricFmt = (v: number, m: SortMetric): string => {
-  if (m === 'litros') return `${formatNumber(v)} L`
-  if (m === 'faturamento') return fmtMi(v)
-  return `R$ ${Math.round(v / 1000)} mil`
-}
-
 /** ISO (UTC) → "DD/MM às HH:MM" no fuso local. */
 const fmtApurado = (iso: string): string => {
   const d = new Date(iso)
@@ -147,9 +149,15 @@ const fmtApurado = (iso: string): string => {
 }
 
 const ProdutividadeRede = () => {
-  const data = useProdutividadeRede()
-  const { unidades, faturamentoRede, colaboradoresRede, prodMedia, maisProdutiva, abaixoMedia, variacaoRedePct, cmpLabel, insights, apuradoAte, isLoading, hasData } = data
+  const [setorSel, setSetorSel] = useState<ProdSetor>('geral')
+  const data = useProdutividadeRede(setorSel)
+  const { unidades, headlineRede, denominadorRede, prodMedia, maisProdutiva, abaixoMedia, variacaoRedePct, cmpLabel, metric, insights, apuradoAte, isLoading, hasData } = data
   const [sort, setSort] = useState<SortMetric>('prod')
+
+  // Formatadores dirigidos pela métrica do setor (R$ vs litros).
+  const fmtStar = (v: number): string => metric.starKind === 'litros' ? `${formatNumber(Math.round(v))} L` : formatCurrencyInt(v)
+  const fmtHeadline = (v: number): string => metric.headlineKind === 'litros' ? `${formatNumber(Math.round(v))} L` : fmtMi(v)
+  const fmtMetric = (v: number, m: SortMetric): string => m === 'litros' ? `${formatNumber(v)} L` : m === 'faturamento' ? fmtMi(v) : fmtStar(v)
 
   const sorted = useMemo(
     () => [...unidades].sort((a, b) => metricValue(b, sort) - metricValue(a, sort)),
@@ -182,9 +190,26 @@ const ProdutividadeRede = () => {
 
   return (
     <div className="space-y-4">
-      {/* Frescor: a apuração do dia corrente fecha ao longo do dia (cron). */}
-      {apuradoAte && (
-        <div className="flex justify-end">
+      {/* Flag de setor (benchmark específico) + frescor da apuração */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+          {SETOR_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setSetorSel(t.id)}
+              className={cn(
+                'inline-flex h-7 items-center rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+                setorSel === t.id
+                  ? 'bg-[#1e3a5f] text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {apuradoAte && (
           <span
             className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-gray-400 dark:text-gray-500"
             title="Os números vêm da apuração da rede. O dia corrente é re-apurado ao longo do dia, então pode ficar levemente atrás da tela de Vendas (ao vivo)."
@@ -192,8 +217,8 @@ const ProdutividadeRede = () => {
             <Clock className="h-3 w-3" />
             Apurado até {fmtApurado(apuradoAte)}
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── 4 KPI cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -202,17 +227,17 @@ const ProdutividadeRede = () => {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <p className="text-[13px] font-semibold text-white">Faturamento da rede</p>
-                <InfoHint text="Faturamento somado de todos os postos da rede no período · variação vs período comparativo." className="text-white/60 hover:text-white" />
+                <p className="text-[13px] font-semibold text-white">{metric.headlineLabel}</p>
+                <InfoHint text="Total da rede no período (soma de todos os postos) · variação vs período comparativo." className="text-white/60 hover:text-white" />
               </div>
               <p className="text-[11px] uppercase tracking-wide text-white/60">Período atual</p>
             </div>
             <Chip Icon={Network} bg="bg-white/15" color="text-white/90" />
           </div>
-          <p className="mt-3 text-3xl font-bold tabular-nums text-white">{fmtMi(faturamentoRede)}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums text-white">{fmtHeadline(headlineRede)}</p>
           <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/15 pt-3">
             <span className="text-[11px] text-white/60">
-              {total} {total === 1 ? 'unidade' : 'unidades'} · {formatNumber(colaboradoresRede)} colaboradores
+              {total} {total === 1 ? 'unidade' : 'unidades'} · {formatNumber(denominadorRede)} {metric.denomWord}
             </span>
             {variacaoRedePct !== null && (
               <span className={cn(
@@ -231,17 +256,17 @@ const ProdutividadeRede = () => {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Mais produtiva</p>
-                <InfoHint text="Posto com maior faturamento por colaborador (faturamento ÷ equipe) no período." />
+                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{metric.kpiMaisLabel}</p>
+                <InfoHint text={`Posto com maior ${metric.starLabel.toLowerCase()} no período.`} />
               </div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">R$ por colaborador</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">{metric.starLabel}</p>
             </div>
             <Chip Icon={Trophy} bg="bg-[#dbeafe] dark:bg-blue-900/30" color="text-[#2563eb] dark:text-blue-400" />
           </div>
           <p className="mt-3 truncate text-xl font-bold text-gray-900 dark:text-gray-100">{maisProdutiva?.nome ?? '—'}</p>
           <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-            <span className="text-[11px] text-gray-400">por colaborador</span>
-            <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(maisProdutiva?.prod ?? 0)}</span>
+            <span className="text-[11px] text-gray-400">{metric.starLabel}</span>
+            <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmtStar(maisProdutiva?.prod ?? 0)}</span>
           </div>
         </KpiBase>
 
@@ -250,16 +275,16 @@ const ProdutividadeRede = () => {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Produtividade média</p>
-                <InfoHint text="Produtividade média da rede = faturamento total ÷ total de colaboradores." />
+                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{metric.kpiMediaLabel}</p>
+                <InfoHint text={metric.hasPerColab ? `Produtividade média da rede = ${metric.headlineLabel.toLowerCase()} ÷ total de ${metric.denomWord}.` : 'Faturamento médio de automotivos por posto.'} />
               </div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">Faturamento / colaborador</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">{metric.starLabel}</p>
             </div>
             <Chip Icon={Gauge} bg="bg-[#ede9fe] dark:bg-violet-900/30" color="text-[#7c3aed] dark:text-violet-400" />
           </div>
-          <p className="mt-3 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(prodMedia)}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmtStar(prodMedia)}</p>
           <div className="mt-auto border-t border-gray-100 pt-3 dark:border-gray-800">
-            <span className="text-[11px] text-gray-400">média da rede no período</span>
+            <span className="text-[11px] text-gray-400">{metric.kpiMediaSub}</span>
           </div>
         </KpiBase>
 
@@ -268,8 +293,8 @@ const ProdutividadeRede = () => {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Abaixo da média</p>
-                <InfoHint text="Posto com a menor produtividade (R$/colaborador) no período — % abaixo da média da rede." />
+                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{metric.kpiAbaixoLabel}</p>
+                <InfoHint text={`Posto com a menor ${metric.starLabel.toLowerCase()} no período — % abaixo da média da rede.`} />
               </div>
               <p className="text-[11px] uppercase tracking-wide text-gray-400">Requer atenção</p>
             </div>
@@ -277,7 +302,7 @@ const ProdutividadeRede = () => {
           </div>
           <p className="mt-3 truncate text-xl font-bold text-gray-900 dark:text-gray-100">{abaixoMedia?.nome ?? '—'}</p>
           <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-            <span className="text-[11px] tabular-nums text-gray-400">{formatCurrencyInt(abaixoMedia?.prod ?? 0)} / colab</span>
+            <span className="text-[11px] tabular-nums text-gray-400">{fmtStar(abaixoMedia?.prod ?? 0)}{metric.hasPerColab ? ` / ${metric.starKind === 'litros' ? 'frent.' : metric.denomWord === 'caixas' ? 'caixa' : 'colab'}` : ''}</span>
             {abaixoPct !== null && (
               <span className="text-sm font-bold tabular-nums text-[#b45309] dark:text-amber-400">
                 {abaixoPct >= 0 ? '+' : ''}{abaixoPct.toFixed(0)}%
@@ -321,10 +346,10 @@ const ProdutividadeRede = () => {
                   <span className="inline-flex items-center justify-end gap-1"><SortBtn active={sort === 'litros'} onClick={() => setSort('litros')}>Litros</SortBtn><InfoHint text="Litros de combustível vendidos no posto no período." /></span>
                 </th>
                 <th className="px-4 py-2.5 text-right font-semibold">
-                  <span className="inline-flex items-center justify-end gap-1">Colab.<InfoHint text="Funcionários ativos do posto — denominador da produtividade (R$/colaborador)." /></span>
+                  <span className="inline-flex items-center justify-end gap-1">{metric.denomLabel}<InfoHint text={metric.denomHelp} /></span>
                 </th>
                 <th className="px-4 py-2.5 text-right font-semibold">
-                  <span className="inline-flex items-center justify-end gap-1"><SortBtn active={sort === 'prod'} onClick={() => setSort('prod')}>R$ / colaborador</SortBtn><InfoHint text="Métrica-estrela = faturamento ÷ colaboradores. Cor pela faixa de produtividade (alta/média/baixa), fixa pelo ranking." /></span>
+                  <span className="inline-flex items-center justify-end gap-1"><SortBtn active={sort === 'prod'} onClick={() => setSort('prod')}>{metric.starLabel}</SortBtn><InfoHint text={metric.starHelp} /></span>
                 </th>
                 <th className="px-4 py-2.5 text-right font-semibold">
                   <span className="inline-flex items-center justify-end gap-1">Ticket médio<InfoHint text="Ticket médio do posto = faturamento ÷ itens vendidos." /></span>
@@ -354,10 +379,10 @@ const ProdutividadeRede = () => {
                   <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{u.nome}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(u.faturamento)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(u.litros)} L</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(u.colaboradores)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(u.denominador)}</td>
                   <td className="px-4 py-2.5 text-right">
                     <span className={cn('inline-block min-w-[96px] rounded-md px-2.5 py-1 text-right font-bold tabular-nums', heatmapByRank(u.prodRank, total))}>
-                      {formatCurrencyInt(u.prod)}
+                      {fmtStar(u.prod)}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(u.ticketMedio)}</td>
@@ -393,7 +418,7 @@ const ProdutividadeRede = () => {
                       style={{ width: `${w}%`, backgroundColor: BAR_PALETTE[Math.min(i, BAR_PALETTE.length - 1)] }}
                     />
                   </div>
-                  <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300">{metricFmt(v, sort)}</span>
+                  <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300">{fmtMetric(v, sort)}</span>
                 </div>
               )
             })}

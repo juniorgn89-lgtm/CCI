@@ -148,7 +148,13 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
   postos: [],
 })
 
-const useRedeSetores = (): RedeSetoresData => {
+/**
+ * @param options.enabled quando `false`, NÃO dispara os fetches pesados (venda
+ *   da rede, produtos, grupos) — usado p/ carregar setor sob demanda (ex.: aba
+ *   Produtividade só precisa disso em Conveniências/Automotivos). Default `true`.
+ */
+const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
+  const gate = options?.enabled ?? true
   const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const rede = useTenantStore((s) => s.rede)
 
@@ -188,11 +194,13 @@ const useRedeSetores = (): RedeSetoresData => {
   const { data: produtosData, isLoading: lProd } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
+    enabled: gate,
     staleTime: 30 * 60 * 1000,
   })
   const { data: gruposData, isLoading: lGrp } = useQuery({
     queryKey: ['grupos'],
     queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
+    enabled: gate,
     staleTime: 30 * 60 * 1000,
   })
 
@@ -200,7 +208,7 @@ const useRedeSetores = (): RedeSetoresData => {
   const { data: closedRows = [], isLoading: lClosed } = useQuery({
     queryKey: ['rede-vendas-closed', rede?.id, codes.join(','), closedIni, closedEnd],
     queryFn: () => fetchVendasCache({ empresaCodigos: codes, dataInicial: closedIni, dataFinal: closedEnd }),
-    enabled: hasRede && !!split.closedDays,
+    enabled: gate && hasRede && !!split.closedDays,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -216,19 +224,19 @@ const useRedeSetores = (): RedeSetoresData => {
       )
       return all.flat()
     },
-    enabled: hasRede && !!split.todayPart,
+    enabled: gate && hasRede && !!split.todayPart,
     staleTime: 60 * 1000,
   })
 
   // Cruzamento /VENDA (situacao='A') do "hoje" live — exclui cancelados
   // (VENDA_ITEM não traz o flag). O cache fechado já vem filtrado da apuração.
-  const { autorizados: autToday } = useVendaCodigosAutorizados(codes, todayIni, todayEnd, hasRede && !!split.todayPart)
+  const { autorizados: autToday } = useVendaCodigosAutorizados(codes, todayIni, todayEnd, gate && hasRede && !!split.todayPart)
 
   // Ano anterior (cache — período fechado).
   const { data: anoAntRows = [], isLoading: lPrev } = useQuery({
     queryKey: ['rede-vendas-anoant', rede?.id, codes.join(','), anoAntIni, anoAntFim],
     queryFn: () => fetchVendasCache({ empresaCodigos: codes, dataInicial: anoAntIni, dataFinal: anoAntFim }),
-    enabled: hasRede,
+    enabled: gate && hasRede,
     staleTime: 5 * 60 * 1000,
   })
 
