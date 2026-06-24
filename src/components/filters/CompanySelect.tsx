@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ChevronDown } from 'lucide-react'
+import { Building2, ChevronDown, Network } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useFilters } from '@/hooks/useFilters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -28,19 +28,33 @@ const CompanySelect = () => {
   // restrição vê todas; supervisor/frentista restrito vê só as permitidas.
   const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
 
-  const handleSelect = (codigo: number) => {
-    setEmpresas([codigo])
-    setOpen(false)
+  // `[]` = "Todos os postos" → a rede inteira consolidada. É a mesma semântica
+  // que o Dashboard/Central já usa (matchesEmpresa trata lista vazia como rede
+  // toda permitida). Selecionar N postos consolida exatamente esse subconjunto.
+  const allSelected = empresaCodigos.length === 0
+
+  // Liga/desliga um posto da seleção. Desmarcar o último volta pra "Todos" (rede
+  // consolidada) — evita estado vazio sem dado.
+  const toggle = (codigo: number) => {
+    if (empresaCodigos.includes(codigo)) {
+      setEmpresas(empresaCodigos.filter((c) => c !== codigo))
+    } else {
+      setEmpresas([...empresaCodigos, codigo])
+    }
   }
 
+  const selectAll = () => setEmpresas([])
+
   const getLabel = (): string => {
-    if (empresaCodigos.length === 0) return 'Selecione o posto'
+    if (allSelected) return 'Todos os postos'
     if (empresaCodigos.length === 1) {
       const empresa = empresas.find((e) => e.codigo === empresaCodigos[0])
       return empresa?.fantasia ?? 'Empresa'
     }
-    return `${empresaCodigos.length} empresas`
+    return `${empresaCodigos.length} postos`
   }
+
+  const TriggerIcon = allSelected ? Network : Building2
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -52,7 +66,7 @@ const CompanySelect = () => {
           disabled={isLoading}
         >
           <span className="flex items-center gap-1.5 truncate">
-            <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
+            <TriggerIcon className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
             <span className="truncate">{isLoading ? 'Carregando...' : getLabel()}</span>
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
@@ -63,11 +77,29 @@ const CompanySelect = () => {
           <span className="text-xs text-gray-500">Selecione o posto</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+
+        {/* Todos os postos → rede consolidada ([]). Manter o menu aberto pra
+            permitir refinar a seleção sem reabrir. */}
+        <DropdownMenuCheckboxItem
+          checked={allSelected}
+          onCheckedChange={() => selectAll()}
+          onSelect={(e) => e.preventDefault()}
+        >
+          <span className="flex items-center gap-1.5">
+            <Network className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+            <span className="font-medium">Todos os postos</span>
+            <span className="text-[10px] text-gray-400">rede consolidada</span>
+          </span>
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
         {empresas.map((empresa) => (
           <DropdownMenuCheckboxItem
             key={empresa.codigo}
             checked={empresaCodigos.includes(empresa.codigo)}
-            onCheckedChange={() => handleSelect(empresa.codigo)}
+            onCheckedChange={() => toggle(empresa.codigo)}
+            onSelect={(e) => e.preventDefault()}
           >
             {empresa.fantasia}
           </DropdownMenuCheckboxItem>
