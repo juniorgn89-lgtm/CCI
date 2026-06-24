@@ -19,7 +19,6 @@ import {
   Radar,
   LayoutDashboard,
   ClipboardCheck,
-  Scale,
   Target,
   Package,
   RefreshCw,
@@ -92,10 +91,8 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Cadu IA', to: '/inteligencia?tab=assistente', Icon: Sparkles },
   ],
   '/caixas-turnos': [
-    { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
+    { label: 'Fechamento por exceção', to: '/caixas-turnos', Icon: Sparkles },
     { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
-    { label: 'Diferenças', to: '/caixas-turnos?tab=diferencas', Icon: Scale },
-    { label: 'Fechamento por exceção', to: '/caixas-turnos?tab=excecao', Icon: Sparkles },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },

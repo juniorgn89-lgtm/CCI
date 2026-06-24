@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { LayoutDashboard, ClipboardCheck, Receipt, Scale, Sparkles } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Receipt, Sparkles } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -17,13 +17,14 @@ import useIsMobile from '@/hooks/useIsMobile'
 import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
-const CaixaGeralReport = lazy(() => import('@/pages/CaixasTurnos/components/CaixaGeralReport'))
-const DiferencasCaixa = lazy(() => import('@/pages/CaixasTurnos/components/DiferencasCaixa'))
 const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
 
-type CaixaTab = 'visao' | 'conferencia' | 'diferencas' | 'excecao'
+// Módulo consolidado: Fechamento por exceção (landing) + Conferência por PDV.
+// Visão Geral (Caixa Geral) e Diferenças foram removidas — a Diferenças virou o
+// Panorama dentro da Exceção. ?tab inválido cai no default (excecao).
+type CaixaTab = 'excecao' | 'conferencia'
 const isCaixaTab = (v: string | null): v is CaixaTab =>
-  v === 'visao' || v === 'conferencia' || v === 'diferencas' || v === 'excecao'
+  v === 'excecao' || v === 'conferencia'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -42,16 +43,14 @@ const CaixasTurnos = () => {
     hasEmpresa,
   } = useOperacaoData()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
-  const [caixaTab, setCaixaTab] = useTabParam<CaixaTab>('visao', isCaixaTab)
+  const [caixaTab, setCaixaTab] = useTabParam<CaixaTab>('excecao', isCaixaTab)
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useCaixasLayout()
   const isMobile = useIsMobile()
 
   // Ícone por aba — o resto (ordem/visibilidade) vem do store de layout.
   const TAB_META: Record<string, { Icon: typeof LayoutDashboard }> = {
-    visao: { Icon: LayoutDashboard },
-    conferencia: { Icon: ClipboardCheck },
-    diferencas: { Icon: Scale },
     excecao: { Icon: Sparkles },
+    conferencia: { Icon: ClipboardCheck },
   }
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.
@@ -117,12 +116,8 @@ const CaixasTurnos = () => {
           <Suspense fallback={<TabFallback />}>
             {caixaTab === 'conferencia' ? (
               <ConferenciaPdv />
-            ) : caixaTab === 'diferencas' ? (
-              <DiferencasCaixa />
-            ) : caixaTab === 'excecao' ? (
-              <FechamentoExcecao />
             ) : (
-              <CaixaGeralReport />
+              <FechamentoExcecao />
             )}
           </Suspense>
         )

@@ -117,11 +117,12 @@ export const useVendasLayout = createModuleLayoutStore('visor360-vendas-layout',
   { id: 'conveniencia', label: 'Conveniência', visible: true },
 ])
 
-export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout', [
-  { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'conferencia', label: 'Conferência por PDV', visible: true },
-  { id: 'diferencas', label: 'Diferenças', visible: true },
+// -v2: consolidação do módulo — Visão Geral e Diferenças saíram (Diferenças virou
+// o Panorama da Exceção). Storekey nova = defaults limpos pros usuários existentes,
+// com Fechamento por exceção como 1ª aba (landing).
+export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout-v2', [
   { id: 'excecao', label: 'Fechamento por exceção', visible: true },
+  { id: 'conferencia', label: 'Conferência por PDV', visible: true },
 ])
 
 // -v2: reset limpo após trocar as sub-abas (Projeções/Metas/Destaques saíram;

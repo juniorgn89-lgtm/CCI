@@ -62,8 +62,8 @@ const AppRoutes = () => {
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Suspense fallback={<RouteFallback />}><Reabastecimento /></Suspense>} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
-          {/* Fechamentos foi consolidado em Fechamento de Caixa (aba "Fechamento"). */}
-          <Route path="/fechamento-caixa" element={<Navigate to="/caixas-turnos?tab=fechamento" replace />} />
+          {/* Fechamentos foi consolidado em Fechamento de Caixa (landing = Fechamento por exceção). */}
+          <Route path="/fechamento-caixa" element={<Navigate to="/caixas-turnos?tab=excecao" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
