@@ -172,10 +172,10 @@ const FechamentoExcecao = () => {
         </div>
       ) : (
         <>
-        {/* Nota — o que a Fila é (vs Panorama) */}
-        <div className="flex items-start gap-2.5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/40">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-          <p className="text-[12px] leading-relaxed text-gray-600 dark:text-gray-400">
+        {/* Nota — o que a Fila é (vs Panorama). Mesma aparência índigo do Panorama. */}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[#e0e7ff] bg-[#eef2ff] px-4 py-3 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#4338ca] dark:text-indigo-400" />
+          <p className="text-[12px] leading-relaxed text-[#3730a3] dark:text-indigo-300">
             Cada linha é <strong>UM caixa</strong> que estourou a tolerância (Revisar/Investigar) — caixas <strong>dentro da banda não aparecem</strong> aqui. O <strong>saldo total da rede</strong> (tudo somado, sobras − faltas) está no <strong>Panorama</strong>. Fila = agir nos casos; Panorama = entender o todo.
           </p>
         </div>
