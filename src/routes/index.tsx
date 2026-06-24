@@ -17,8 +17,6 @@ const Bombas = lazy(() => import('@/pages/Bombas'))
 const Reabastecimento = lazy(() => import('@/pages/Reabastecimento'))
 const CaixasTurnos = lazy(() => import('@/pages/CaixasTurnos'))
 const Produtividade = lazy(() => import('@/pages/Produtividade'))
-const Comercial = lazy(() => import('@/pages/Comercial'))
-const ComercialVendas = lazy(() => import('@/pages/Comercial/Vendas'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Pessoas = lazy(() => import('@/pages/Pessoas'))
@@ -55,10 +53,6 @@ const AppRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
-          <Route path="/combustiveis" element={<Navigate to="/comercial/vendas?tab=combustivel" replace />} />
-          <Route path="/abastecimentos" element={<Navigate to="/comercial/vendas?tab=combustivel" replace />} />
-          <Route path="/produtos" element={<Navigate to="/comercial/vendas?tab=conveniencia" replace />} />
-          <Route path="/conveniencias" element={<Navigate to="/comercial/vendas?tab=conveniencia" replace />} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Suspense fallback={<RouteFallback />}><Reabastecimento /></Suspense>} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
@@ -70,18 +64,8 @@ const AppRoutes = () => {
           <Route path="/bombas" element={<Suspense fallback={<RouteFallback />}><Bombas /></Suspense>} />
           <Route path="/caixas-turnos" element={<Suspense fallback={<RouteFallback />}><CaixasTurnos /></Suspense>} />
           <Route path="/produtividade" element={<Suspense fallback={<RouteFallback />}><Produtividade /></Suspense>} />
-          {/* Redirects do antigo /operacao (foi quebrado em 3 módulos) — preserva
-              deep links de notificações e URLs salvas. */}
+          {/* /operacao foi quebrado em módulos próprios — só Bombas sobrou como rota. */}
           <Route path="/operacao" element={<Navigate to="/bombas" replace />} />
-          <Route path="/operacao/combustivel" element={<Navigate to="/comercial/vendas?tab=combustivel" replace />} />
-          <Route path="/operacao/pista" element={<Navigate to="/comercial/vendas?tab=pista" replace />} />
-          <Route path="/operacao/mix" element={<Navigate to="/comercial/vendas" replace />} />
-          <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
-          <Route path="/comercial/vendas" element={<Suspense fallback={<RouteFallback />}><ComercialVendas /></Suspense>} />
-          {/* Sub-rotas antigas (pré-tabs) — redirecionam pra ?tab= correspondente. */}
-          <Route path="/comercial/vendas/combustivel" element={<Navigate to="/comercial/vendas?tab=combustivel" replace />} />
-          <Route path="/comercial/vendas/pista" element={<Navigate to="/comercial/vendas?tab=pista" replace />} />
-          <Route path="/comercial/vendas/conveniencia" element={<Navigate to="/comercial/vendas?tab=conveniencia" replace />} />
           <Route path="/mobile" element={<Suspense fallback={<RouteFallback />}><Mobile /></Suspense>} />
           <Route path="/configuracoes" element={<Suspense fallback={<RouteFallback />}><Configuracoes /></Suspense>} />
           <Route path="/admin/frentistas" element={<Suspense fallback={<RouteFallback />}><AdminFrentistas /></Suspense>} />
@@ -90,6 +74,8 @@ const AppRoutes = () => {
           <Route path="/admin/apuracao" element={<Suspense fallback={<RouteFallback />}><AdminApuracao /></Suspense>} />
           <Route path="/admin/assistente" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
           <Route path="/selecionar-rede" element={<Suspense fallback={<RouteFallback />}><SelecionarRede /></Suspense>} />
+          {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Route>
 

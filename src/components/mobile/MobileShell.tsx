@@ -55,7 +55,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const initials = userName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?'
   const go = (path: string) => { setProfileOpen(false); navigate(path) }
 
-  // Central da Rede é sempre rede-wide → barra de filtro SÓ com data (sem posto).
+  // Central da Rede agora é o hub: a Visão Geral é rede-wide, mas as abas de
+  // vendas detalham um posto → o seletor de posto fica disponível (default
+  // "Todos os postos").
   const isCentral = pathname === '/dashboard'
   const showFilterBar = showFilters
 
@@ -67,10 +69,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const postoResumo = empresaCodigos.length === 1
     ? (empresaNome || '1 posto')
     : empresaCodigos.length === 0 ? 'Todos os postos' : `${empresaCodigos.length} postos`
-  // Central não tem filtro de posto → resumo só com o período.
-  const filterResumo = isCentral
-    ? periodLabel(dataInicial, dataFinal)
-    : `${postoResumo} · ${periodLabel(dataInicial, dataFinal)}`
+  const filterResumo = `${postoResumo} · ${periodLabel(dataInicial, dataFinal)}`
 
   return (
     <div className="flex h-[100dvh] flex-col bg-gray-50 dark:bg-gray-950">
@@ -134,7 +133,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
       </main>
 
       <MobileBottomNav items={items} />
-      <MobileFilterSheet open={filterOpen} onOpenChange={setFilterOpen} hideCompanySelect={isCentral} />
+      <MobileFilterSheet open={filterOpen} onOpenChange={setFilterOpen} />
 
       {/* Perfil + configurações (básico) + apuração — abre ao tocar na logo. */}
       <Sheet open={profileOpen} onOpenChange={setProfileOpen}>

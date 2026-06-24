@@ -18,7 +18,6 @@ export interface ModuloInfo {
 
 export const MODULOS: ModuloInfo[] = [
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
-  { id: 'comercial', label: 'Comercial · Vendas', path: '/comercial' },
   { id: 'bombas', label: 'Bombas', path: '/bombas' },
   { id: 'caixas-turnos', label: 'Fechamento de Caixa', path: '/caixas-turnos' },
   { id: 'produtividade', label: 'Produtividade', path: '/produtividade' },

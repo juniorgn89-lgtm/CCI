@@ -52,8 +52,8 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           {
             n: 1,
             title: 'Filtros do topo',
-            exemplo: 'Junho · 01/06 a 30/06 · Completo · vs mês ant.',
-            comoLer: 'Período, escopo (Completo = apurado + dia de hoje ao vivo) e comparativo (vs mês ou ano anterior). Tudo na tela reage a esses filtros.',
+            exemplo: 'Junho · 01/06 a 23/06 (apurado) · vs mês ant.',
+            comoLer: 'Período e comparativo (vs mês ou ano anterior). Ao abrir, o sistema já vem no apurado (1º → ontem, dados fechados). Pra incluir o dia de hoje ao vivo, basta estender a data final até hoje. Tudo na tela reage a esses filtros.',
           },
           {
             n: 2,
@@ -94,50 +94,10 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           },
         ],
       },
-      // Aba "Reabastecimento"
-      reabastecimento: {
-        tela: 'Central da Rede · Reabastecimento',
-        intro: 'Nível dos tanques de combustível e quanto comprar até o fim do mês. Os valores abaixo são fictícios.',
-        sections: [
-          {
-            n: 1,
-            title: 'Nível do tanque',
-            exemplo: 'Tanque Exemplo · 13% · 1.900 L de 15.000 L',
-            comoLer: 'Quanto resta no tanque (% e litros). A cor indica a criticidade: vermelho = crítico, âmbar = alerta, verde = ok.',
-          },
-          {
-            n: 2,
-            title: 'Última compra',
-            exemplo: 'Última compra: 2.000 L em 08/06 · R$ 11.000',
-            comoLer: 'Volume, data e valor estimado da última entrada de combustível (nota fiscal) daquele tanque.',
-          },
-          {
-            n: 3,
-            title: 'Comprar até fim do mês',
-            exemplo: 'Comprar 3.300 L · (estoque atual cobre ~6 dias)',
-            comoLer: 'Sugestão de compra até o fim do mês (consumo médio × dias restantes − estoque), e por quantos dias o estoque atual ainda cobre.',
-          },
-        ],
-      },
-    },
-  },
-
-  '/comercial/vendas': {
-    defaultTab: 'visao',
-    tabs: {
-      visao: {
-        tela: 'Vendas · Visão Geral',
-        intro: 'Mix consolidado do posto — combustível + pista + conveniência juntos. Os números abaixo são exemplos fictícios.',
-        sections: [
-          { n: 1, title: 'KPIs do topo', exemplo: 'Faturamento R$ 520.000 · Lucro bruto R$ 78.000 · Margem 15% · Ticket médio R$ 24', comoLer: 'Totais do posto somando os 3 segmentos. "Proj. fim do mês" estima o fechamento pelo ritmo dos dias já apurados; o Ticket médio é só da conveniência.' },
-          { n: 2, title: 'Cards por segmento', exemplo: 'Combustível L.B. R$ 40.000 · Automotivos R$ 12.000 · Conveniência R$ 26.000 · Global R$ 78.000', comoLer: 'Lucro bruto em destaque + margem/faturamento de cada segmento. Clique no card pra abrir o detalhe da aba correspondente.' },
-          { n: 3, title: 'Participação no faturamento', exemplo: 'Combustível 78% · Conveniência 14% · Automotivos 8%', comoLer: 'Quanto cada segmento pesa no faturamento total. Combustível domina o volume; pista e conveniência puxam a margem.' },
-          { n: 4, title: 'Margem por segmento', exemplo: 'Conveniência 49% · Automotivos 32% · Combustível 9%', comoLer: 'Rentabilidade de cada segmento (lucro ÷ faturamento). Mostra quem segura a margem mesmo vendendo menos.' },
-        ],
-      },
+      // Aba "Combustível" (detalhe por posto)
       combustivel: {
-        tela: 'Vendas · Combustível',
-        intro: 'Litros, faturamento, margem e mix por tipo de combustível, da venda fiscal. Os números abaixo são fictícios.',
+        tela: 'Central da Rede · Combustível',
+        intro: 'Litros, faturamento, margem e mix por tipo de combustível de UM posto (escolha o posto no filtro), da venda fiscal. Os números abaixo são fictícios.',
         sections: [
           { n: 1, title: 'KPIs do topo', exemplo: 'Litros 120.000 L · Lucro bruto R$ 40.000 · Margem 9% · L.B./Litro R$ 0,33', comoLer: 'Volume e rentabilidade do combustível no período, comparados ao período anterior. "Proj. fim do mês" estima o fechamento.' },
           { n: 2, title: 'Projeção (Ver detalhes)', exemplo: 'Faturamento projetado R$ 430.000 → expande por combustível', comoLer: 'Projeta faturamento e lucro até o fim do mês; "Ver detalhes" quebra a projeção por tipo de combustível.' },
@@ -145,9 +105,10 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           { n: 4, title: 'Detalhamento (sub-abas)', exemplo: '01/06 · 4.200 L · R$ 30.000 · margem 9% · var. semanal +5%', comoLer: 'Tabela com Realizado dia a dia, por combustível, Últimos 12 meses e Análise semanal. Clique numa data pra ver o detalhe do dia.' },
         ],
       },
+      // Aba "Pista" (detalhe por posto)
       pista: {
-        tela: 'Vendas · Pista',
-        intro: 'Produtos automotivos da pista — filtros, óleos, aditivos, baterias e acessórios. Os números abaixo são fictícios.',
+        tela: 'Central da Rede · Pista',
+        intro: 'Produtos automotivos da pista de UM posto (escolha o posto no filtro) — filtros, óleos, aditivos, baterias e acessórios. Os números abaixo são fictícios.',
         sections: [
           { n: 1, title: 'KPIs do topo', exemplo: 'Faturamento R$ 38.000 · Lucro bruto R$ 12.000 · Margem 32% · Ticket médio R$ 45', comoLer: 'Totais dos automotivos no período vs o anterior. Ticket médio = faturamento ÷ nº de vendas.' },
           { n: 2, title: 'Mix por categoria', exemplo: 'Lubrificantes 45% · Filtros 20% · Aditivos 15% · Acessórios 12% · Baterias 8%', comoLer: 'Quanto cada família de produto pesa no faturamento da pista.' },
@@ -155,9 +116,10 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           { n: 4, title: 'Catálogo — busca e filtros', exemplo: 'Buscar "óleo" · Lubrificantes · estoque crítico', comoLer: 'Na sub-aba Catálogo dá pra filtrar por nome, categoria e situação de estoque. Sem filtro mostra o Top 20.' },
         ],
       },
+      // Aba "Conveniência" (detalhe por posto)
       conveniencia: {
-        tela: 'Vendas · Conveniência',
-        intro: 'Loja de conveniência — faturamento, margem, Pareto, Curva ABC e catálogo. Os números abaixo são fictícios.',
+        tela: 'Central da Rede · Conveniência',
+        intro: 'Loja de conveniência de UM posto (escolha o posto no filtro) — faturamento, margem, Pareto, Curva ABC e catálogo. Os números abaixo são fictícios.',
         sections: [
           { n: 1, title: 'KPIs do topo', exemplo: 'Faturamento R$ 72.000 · Lucro bruto R$ 35.000 · Margem 49% · Ticket médio R$ 24', comoLer: 'Totais da loja com variação vs o período anterior. Ticket médio = faturamento ÷ nº de atendimentos (cupons).' },
           { n: 2, title: 'Contexto nos cards', exemplo: 'Itens 3.100 · Atendimentos 2.950 · Mês anterior R$ 68.000', comoLer: 'Cada card traz o valor do período anterior, a diferença, itens vendidos e nº de atendimentos.' },

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutGrid, Fuel, Wrench, Store } from 'lucide-react'
+import { Fuel, Wrench, Store } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -9,15 +9,14 @@ interface NavItem {
 }
 
 const items: NavItem[] = [
-  { to: '/comercial/vendas', label: 'Visão Geral', Icon: LayoutGrid },
   { to: '/comercial/vendas/combustivel', label: 'Combustível', Icon: Fuel },
   { to: '/comercial/vendas/pista', label: 'Pista', Icon: Wrench },
   { to: '/comercial/vendas/conveniencia', label: 'Conveniência', Icon: Store },
 ]
 
 /**
- * Switcher entre as abas de Comercial · Vendas — Visão Geral, Combustível,
- * Pista e Conveniência. Mesma estética do OperacaoNav.
+ * Switcher entre as abas de Comercial · Vendas — Combustível, Pista e
+ * Conveniência. Mesma estética do OperacaoNav.
  */
 const VendasNav = () => {
   const { pathname } = useLocation()

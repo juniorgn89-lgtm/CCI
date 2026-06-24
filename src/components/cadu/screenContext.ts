@@ -11,7 +11,7 @@ const GLOSSARIO_GLOBAL = `Termos comuns do Visor360:
 - Lucro bruto: faturamento − custo (CMV).
 - Ticket médio: faturamento ÷ nº de cupons (atendimentos).
 - "vs mês/ano anterior": comparação com o mesmo período anterior.
-- Apurado vs Completo: "Apurado" usa o cache de apuração (fechado); "Completo" lê ao vivo da API.`
+- Apurado vs Completo: ao abrir, o período já vem "apurado" (1º → ontem, só dias fechados, do cache de apuração). Quando a data final alcança o dia de hoje (ou adiante), o dia corrente entra ao vivo da API ("completo") — não há mais botão de escopo; é definido pela data final.`
 
 interface ScreenInfo {
   /** Prefixo da rota (startsWith). */
@@ -21,14 +21,6 @@ interface ScreenInfo {
 }
 
 const SCREENS: ScreenInfo[] = [
-  {
-    path: '/comercial/vendas',
-    label: 'Vendas',
-    glossario: `Abas: Visão Geral, Combustível, Pista, Conveniência.
-- Card "Projeção fim do período": faturamento estimado até o fim do mês (ver cenários no glossário global).
-- Catálogo de Produtos: por produto — Ref. (código de referência), Preço médio, Custo médio, Qtd vendida, Cobertura (dias que o estoque dura no ritmo de venda), Faturamento, Projeção, Margem %, Status.
-- Pista = produtos automotivos (lubrificantes, aditivos); Conveniência = loja.`,
-  },
   {
     path: '/estoques',
     label: 'Estoques',
@@ -80,7 +72,9 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/dashboard',
     label: 'Central da Rede',
-    glossario: `Visão consolidada da rede: faturamento, margem, comparativos e ranking de postos.`,
+    glossario: `Hub da rede. Abas: Visão Geral (consolidado rede-wide: faturamento, margem, comparativos, ranking de postos), Combustível, Pista e Conveniência (detalham UM posto — escolha o posto no filtro; em "Todos os postos" pedem a seleção), e Ao Vivo Rede (caixas abertos agora).
+- Pista = produtos automotivos (lubrificantes, aditivos); Conveniência = loja.
+- Card "Projeção fim do período": faturamento estimado até o fim do mês (ver cenários no glossário global).`,
   },
   {
     path: '/pessoas',

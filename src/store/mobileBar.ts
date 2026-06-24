@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-/** Bottom-nav padrão (paths): Central · Vendas · Caixas · Inteligência. */
-export const DEFAULT_BAR = ['/dashboard', '/comercial/vendas', '/caixas-turnos', '/inteligencia']
+/** Bottom-nav padrão (paths): Central · Bombas · Caixas · Inteligência.
+ *  (Vendas saiu — virou abas da Central.) */
+export const DEFAULT_BAR = ['/dashboard', '/bombas', '/caixas-turnos', '/inteligencia']
 
 interface MobileBarState {
   /** Até 4 paths fixados na bottom-nav. */
@@ -29,7 +30,15 @@ export const useMobileBar = create<MobileBarState>()(
     }),
     {
       name: 'visor360.bar',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      // v1: /comercial/vendas saiu (virou abas da Central). Remove o path morto
+      // das barras já persistidas; se esvaziar, volta ao padrão.
+      migrate: (persisted) => {
+        const state = persisted as MobileBarState | undefined
+        const bar = (state?.bar ?? DEFAULT_BAR).filter((p) => p !== '/comercial/vendas')
+        return { ...(state ?? {}), bar: bar.length > 0 ? bar : DEFAULT_BAR } as MobileBarState
+      },
     },
   ),
 )

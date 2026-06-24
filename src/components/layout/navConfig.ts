@@ -1,6 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Gauge, Receipt,
-  Network, LineChart, ShieldAlert, UsersRound, Fuel,
+  Network, ShieldAlert, UsersRound, Fuel,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -32,7 +32,6 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Posto',
     items: [
-      { label: 'Vendas', path: '/comercial/vendas', icon: LineChart },
       { label: 'Bombas', path: '/bombas', icon: Gauge },
       { label: 'Reabastecimento', path: '/reabastecimento', icon: Fuel },
       { label: 'Fechamento de Caixa', path: '/caixas-turnos', icon: Receipt },

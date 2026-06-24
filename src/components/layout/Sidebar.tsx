@@ -28,7 +28,6 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Activity,
-  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -75,15 +74,10 @@ interface SubOption {
 const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/dashboard': [
     { label: 'Visão Geral', to: '/dashboard', Icon: LayoutGrid },
+    { label: 'Combustível', to: '/dashboard?tab=combustivel', Icon: Fuel },
+    { label: 'Pista', to: '/dashboard?tab=pista', Icon: Wrench },
+    { label: 'Conveniência', to: '/dashboard?tab=conveniencia', Icon: Store },
     { label: 'Ao Vivo Rede', to: '/dashboard?tab=aovivo', Icon: Activity },
-    { label: 'Reabastecimento', to: '/dashboard?tab=reabastecimento', Icon: Fuel },
-    { label: 'Produtividade', to: '/dashboard?tab=produtividade', Icon: BarChart3 },
-  ],
-  '/comercial/vendas': [
-    { label: 'Visão Geral', to: '/comercial/vendas', Icon: LayoutGrid },
-    { label: 'Combustível', to: '/comercial/vendas?tab=combustivel', Icon: Fuel },
-    { label: 'Pista', to: '/comercial/vendas?tab=pista', Icon: Wrench },
-    { label: 'Conveniência', to: '/comercial/vendas?tab=conveniencia', Icon: Store },
   ],
   '/inteligencia': [
     { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
@@ -124,6 +118,7 @@ const Sidebar = () => {
   const profileFullName = useAuthStore((s) => s.fullName)
   const isMaster = useAuthStore((s) => s.isMaster)
   const canApurar = useAuthStore((s) => s.canApurar)
+  const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -321,6 +316,11 @@ const Sidebar = () => {
             if (!id) return true
             return modulosPermitidos.includes(id)
           })
+        }
+        // Reabastecimento (standalone) é gateado por sua própria permissão —
+        // espelha o padrão de gate por módulo (nível de nav). Master sempre vê.
+        if (!canVerReabastecimento) {
+          items = items.filter((item) => item.path !== '/reabastecimento')
         }
       }
       return { ...group, items }

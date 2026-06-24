@@ -54,7 +54,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 14,
+        version: 17,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -79,11 +79,16 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 
 /* ─── Module stores ─── */
 
+// v15: Reabastecimento e Produtividade saíram da Central. v17: as 3 abas de
+// Vendas (Combustível/Pista/Conveniência, por-posto) entraram na Central, que
+// virou o hub único. O bump de versão acima força o migrate a re-sincronizar os
+// layouts persistidos com estes defaults (adiciona ids novos, remove desconhecidos).
 export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-layout', [
   { id: 'setor', label: 'Visão Geral', visible: true },
+  { id: 'combustivel', label: 'Combustível', visible: true },
+  { id: 'pista', label: 'Pista', visible: true },
+  { id: 'conveniencia', label: 'Conveniência', visible: true },
   { id: 'aovivo', label: 'Ao Vivo Rede', visible: true },
-  { id: 'reabastecimento', label: 'Reabastecimento', visible: true },
-  { id: 'produtividade', label: 'Produtividade', visible: true },
 ])
 
 export const useConvenienciasLayout = createModuleLayoutStore('visor360-conveniencias-layout', [
@@ -110,13 +115,8 @@ export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-
   { id: 'agenda', label: 'Agenda', visible: true },
 ])
 
-export const useVendasLayout = createModuleLayoutStore('visor360-vendas-layout', [
-  { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'combustivel', label: 'Combustível', visible: true },
-  { id: 'pista', label: 'Pista', visible: true },
-  { id: 'conveniencia', label: 'Conveniência', visible: true },
-])
-
+// v16: Visão Geral saiu do Vendas (Combustível é o novo landing). O bump de
+// versão acima força o migrate a derrubar a aba dos layouts já persistidos.
 // -v2: consolidação do módulo — Visão Geral e Diferenças saíram (Diferenças virou
 // o Panorama da Exceção). Storekey nova = defaults limpos pros usuários existentes,
 // com Fechamento por exceção como 1ª aba (landing).

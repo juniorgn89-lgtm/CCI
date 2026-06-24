@@ -3,26 +3,22 @@ import { useQuery } from '@tanstack/react-query'
 import { Droplet, TrendingUp, Percent, Gauge, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy, CalendarRange } from 'lucide-react'
 import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
-import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
-import VisaoGeralTabMobile from '@/pages/Comercial/Vendas/VisaoGeralTabMobile'
 import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 import { useFilterStore } from '@/store/filters'
 import { fimDoMesIso, projecaoAvancada } from '@/lib/projection'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import { ScrollTabs, KpiCard, Section, MarginPill, ProgressBar, Badge } from '@/components/mobile/primitives'
+import { KpiCard, Section, MarginPill, ProgressBar, Badge } from '@/components/mobile/primitives'
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { BarChartMobile, AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard, NoCostNote } from '@/components/mobile/states'
 import { brlShort, brl, liters, litersShort, pct, periodoMes, variacaoPct } from '@/components/mobile/format'
 
-const TABS = [
-  { id: 'geral', label: 'Visão Geral' },
-  { id: 'combustivel', label: 'Combustível' },
-  { id: 'pista', label: 'Pista' },
-  { id: 'conveniencia', label: 'Conveniência' },
-]
+/**
+ * Abas mobile de vendas (por-posto) — Combustível e Conveniência. Compartilhadas
+ * entre a Central (hub) e o VendasMobile legado. Pista vive em PistaTabMobile.
+ */
 
 const Detail = ({ label, value }: { label: string; value: string }) => (
   <div className="flex items-center justify-between">
@@ -31,7 +27,7 @@ const Detail = ({ label, value }: { label: string; value: string }) => (
   </div>
 )
 
-const CombustivelTab = () => {
+export const CombustivelTab = () => {
   const fuel = useFuelVendaAnalytics()
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
@@ -142,8 +138,7 @@ const CombustivelTab = () => {
   )
 }
 
-/* ── Aba Conveniência ── */
-const ConvenienciaTab = () => {
+export const ConvenienciaTab = () => {
   const conv = useConvenienceData()
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
@@ -229,28 +224,3 @@ const ConvenienciaTab = () => {
     </div>
   )
 }
-
-/**
- * Vendas — versão mobile, abas roláveis. Todas as abas prontas: Visão Geral
- * (mix), Combustível, Pista e Conveniência.
- */
-const VendasMobile = () => {
-  const [tab, setTab] = useState('geral')
-  return (
-    <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Vendas</h1>
-      <ScrollTabs tabs={TABS} value={tab} onChange={setTab} />
-      {tab === 'geral' ? (
-        <VisaoGeralTabMobile />
-      ) : tab === 'combustivel' ? (
-        <CombustivelTab />
-      ) : tab === 'pista' ? (
-        <PistaTabMobile />
-      ) : (
-        <ConvenienciaTab />
-      )}
-    </div>
-  )
-}
-
-export default VendasMobile

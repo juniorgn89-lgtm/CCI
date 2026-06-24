@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DollarSign, Droplet, Percent, TrendingUp, Layers, Trophy, Fuel, Wrench, Store, CreditCard, Receipt } from 'lucide-react'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
@@ -7,17 +7,19 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchFormasPagamentoCache, fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 import { offsetPeriod, todayLocal } from '@/lib/period'
-import { KpiCard, Section, MarginPill, ProgressBar, DeltaBadge } from '@/components/mobile/primitives'
+import { KpiCard, Section, MarginPill, ProgressBar, DeltaBadge, ScrollTabs } from '@/components/mobile/primitives'
 import ProjecaoSection, { type ProjMetric } from '@/components/mobile/ProjecaoSection'
 import { DonutMobile, AreaChartMobile } from '@/components/mobile/charts'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brl, brlShort, litersShort, liters, pct, variacaoPct } from '@/components/mobile/format'
+import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
+import { CombustivelTab, ConvenienciaTab } from '@/pages/Comercial/Vendas/mobileTabs'
 
 /**
- * Central da Rede — versão mobile. Rede-wide, venda fiscal (useRedeSetores, já
- * alinhado). Sem barra de filtro de posto (visão consolidada).
+ * Visão Geral da Central — versão mobile. Rede-wide, venda fiscal
+ * (useRedeSetores). É a 1ª aba do hub mobile (ver CentralMobile abaixo).
  */
-const CentralMobile = () => {
+const CentralOverview = () => {
   const rede = useRedeSetores()
   const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
@@ -123,8 +125,6 @@ const CentralMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-
       <div className="grid grid-cols-2 gap-2">
         <KpiCard span2 big label="Faturamento da Rede" tone="emerald" Icon={DollarSign}
           value={brlShort(global.faturamento)} delta={variacaoPct(global.faturamento, agg.fatAA)} deltaLabel={cmpLabel}
@@ -192,6 +192,39 @@ const CentralMobile = () => {
           right={<span className="text-[10.5px] text-gray-400">faturamento · 12m</span>}>
           <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={160} />
         </Section>
+      )}
+    </div>
+  )
+}
+
+/* ── Hub mobile: Visão Geral (rede) + abas de vendas por-posto ── */
+
+const CENTRAL_TABS = [
+  { id: 'geral', label: 'Visão Geral' },
+  { id: 'combustivel', label: 'Combustível' },
+  { id: 'pista', label: 'Pista' },
+  { id: 'conveniencia', label: 'Conveniência' },
+]
+
+/**
+ * Central da Rede — hub mobile. Aba "Visão Geral" é rede-wide; Combustível/
+ * Pista/Conveniência detalham UM posto (sob "Todos" pedem a seleção de um posto,
+ * via o seletor exposto na barra de filtro do MobileShell).
+ */
+const CentralMobile = () => {
+  const [tab, setTab] = useState('geral')
+  return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+      <ScrollTabs tabs={CENTRAL_TABS} value={tab} onChange={setTab} />
+      {tab === 'geral' ? (
+        <CentralOverview />
+      ) : tab === 'combustivel' ? (
+        <CombustivelTab />
+      ) : tab === 'pista' ? (
+        <PistaTabMobile />
+      ) : (
+        <ConvenienciaTab />
       )}
     </div>
   )
