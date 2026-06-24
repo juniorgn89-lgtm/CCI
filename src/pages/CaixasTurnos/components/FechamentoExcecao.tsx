@@ -375,6 +375,15 @@ const Panorama = () => {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Nota explicativa — o que é falta/sobra e como os 2 cortes se relacionam */}
+      <div className="flex items-start gap-2.5 rounded-2xl border border-[#e0e7ff] bg-[#eef2ff] px-4 py-3 dark:border-indigo-900/50 dark:bg-indigo-950/20 lg:col-span-2">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#4338ca] dark:text-indigo-400" />
+        <p className="text-[12px] leading-relaxed text-[#3730a3] dark:text-indigo-300">
+          <strong>Falta (−)</strong> = o operador entregou <strong>menos</strong> dinheiro do que o sistema esperava · <strong>Sobra (+)</strong> = entregou <strong>mais</strong>.
+          {' '}<strong>“Por responsável”</strong> mostra <strong>quem</strong> está com diferença; <strong>“Onde está a diferença”</strong> mostra o <strong>líquido por forma</strong> — as sobras e faltas se cancelam, por isso o total da rede fica pequeno e quase tudo aparece em <strong>Dinheiro</strong> (a única forma contada à mão). São a mesma diferença por ângulos diferentes.
+        </p>
+      </div>
+
       {/* Por responsável */}
       <Card titulo="Por responsável" sub="Líquido de diferença no período · sobra ▲ / falta ▼">
         <div className="space-y-2">
