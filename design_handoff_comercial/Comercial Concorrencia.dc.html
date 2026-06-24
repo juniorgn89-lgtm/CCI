@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+  input.cc{width:100%;height:34px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:0 9px;font-family:inherit;font-size:13px;font-weight:600;color:#0f172a;outline:none;text-align:right;font-variant-numeric:tabular-nums}
+  input.cc:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px;font-weight:500">Central da Rede</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span style="font-size:13px;font-weight:500">Vendas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span><span style="font-size:13px;font-weight:500">Bombas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px;font-weight:500">Produtividade</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span><span style="font-size:13px;font-weight:500">Estoques</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span style="font-size:13px;font-weight:500">Financeiro</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#e0f2fe;color:#0c4a6e;font-weight:600"><span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#0ea5e9"></span><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg></span><span style="font-size:13px">Comercial</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span><span style="font-size:13px;font-weight:500">Inteligência</span></a>
+    </nav>
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px"><div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div><span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span></div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>
+        <div style="min-width:0"><h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Comercial</h1><p style="margin:0;font-size:11px;color:#6b7280">Concorrência · inteligência de preço de praça</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Atualizado hoje</div>
+      </div>
+    </header>
+
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Oportunidades</div>
+      <div style="display:flex;align-items:center;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Projeção de LB</div>
+      <div style="display:flex;align-items:center;height:44px;padding:0 4px;margin-right:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Margem por posto</div>
+      <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 4px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 3v18h18"/><path d="m7 16 4-8 4 5 4-9"/></svg>Concorrência</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- Seletor de posto -->
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#6b7280"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Meu posto:</span>
+          <sc-for list="{{ postos }}" as="p" hint-placeholder-count="4"><button type="button" onClick="{{ p.onClick }}" style="height:32px;padding:0 13px;border:1px solid {{ p.border }};border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:{{ p.bg }};color:{{ p.color }}">{{ p.nome }}</button></sc-for>
+        </div>
+
+        <!-- Flag -->
+        <div style="display:flex;align-items:center;gap:14px;border-radius:14px;border:1px solid {{ flagBorder }};background:{{ flagBg }};padding:14px 18px">
+          <div style="height:38px;width:38px;flex:none;border-radius:11px;background:{{ flagIconBg }};display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-size:13px;font-weight:700;color:#111827">Usar preços de concorrência nas análises da rede</p>
+            <p style="margin:2px 0 0;font-size:12px;color:#6b7280">{{ flagDesc }}</p>
+          </div>
+          <button type="button" onClick="{{ toggleFlag }}" style="position:relative;flex:none;width:48px;height:28px;border:none;border-radius:999px;cursor:pointer;background:{{ flagTrack }};transition:background .15s"><span style="position:absolute;top:3px;left:{{ flagKnobLeft }};height:22px;width:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s"></span></button>
+        </div>
+        <sc-if value="{{ flagOn }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:-8px;padding:0 4px">
+            <span style="font-size:11px;color:#6b7280">Alimenta:</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:#eff6ff;border:1px solid #bfdbfe;font-size:11px;font-weight:600;color:#1d4ed8">Oportunidades</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:#eff6ff;border:1px solid #bfdbfe;font-size:11px;font-weight:600;color:#1d4ed8">Margem por posto</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:#eff6ff;border:1px solid #bfdbfe;font-size:11px;font-weight:600;color:#1d4ed8">Projeção de LB</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:#eef2ff;border:1px solid #c7d2fe;font-size:11px;font-weight:600;color:#4f46e5">Leitura do especialista</span>
+          </div>
+        </sc-if>
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:20px;background:linear-gradient(135deg,#1e3a5f,#27496f);border:1px solid rgba(30,58,95,.3);box-shadow:0 1px 2px rgba(0,0,0,.06)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:13px;font-weight:600;color:#fff">Índice de preço</p><p style="margin:2px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.6)">Meu posto vs praça</p></div><div style="height:40px;width:40px;flex:none;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M3 3v18h18"/><path d="m7 16 4-8 4 5 4-9"/></svg></div></div>
+            <p style="margin:14px 0 0;font-size:30px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums">{{ indice }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)"><span style="font-size:11px;color:rgba(255,255,255,.6)">{{ indiceLabel }} (100 = média do mercado)</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #bbf7d0;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:700;color:#111827">Onde posso subir?</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Abaixo da praça</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:18px;font-weight:700;color:#111827">{{ subirFuel }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#15803d;font-weight:600">{{ subirGap }} abaixo da média</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #fecaca;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:700;color:#111827">Onde estou caro?</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Risco de volume</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#fee2e2;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:18px;font-weight:700;color:#111827">{{ caroFuel }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#b91c1c;font-weight:600">{{ caroGap }}</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #fde68a;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:700;color:#111827">Ganho de pricing</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Teto · alinhar à praça</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:22px;font-weight:700;color:#b45309;font-variant-numeric:tabular-nums">{{ ganho }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">/mês · sem perder competitividade</span></div>
+          </div>
+        </div>
+
+        <!-- Tabela de concorrentes editável -->
+        <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px 12px">
+            <div><h2 style="margin:0;font-size:15px;font-weight:600;color:#111827">Concorrentes perto do {{ postoSel }} <span style="font-size:12px;font-weight:500;color:#9ca3af">· {{ compCount }} na praça</span></h2><p style="margin:3px 0 0;font-size:12px;color:#6b7280">Edite nº de postos e preços — a análise recalcula na hora. Média ponderada por nº de postos.</p></div>
+            <button type="button" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border:1px solid #e5e7eb;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:#fff;color:#374151" style-hover="background:#f9fafb"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M5 12h14M12 5v14"/></svg>Concorrente</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#f3f4f6;color:#6b7280;text-align:left">
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Concorrente</th>
+                <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:center;width:92px">Nº postos</th>
+                <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right;width:110px">Gasolina</th>
+                <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right;width:110px">Aditivada</th>
+                <th style="padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right;width:110px">Diesel S10</th>
+                <th style="padding:9px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;text-align:right;width:110px">Etanol</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ comps }}" as="c" hint-placeholder-count="4">
+                <tr style="border-top:1px solid #f3f4f6;background:{{ c.rowBg }}">
+                  <td style="padding:8px 16px;font-weight:600;color:#111827;white-space:nowrap">{{ c.nome }}</td>
+                  <td style="padding:8px 12px"><input class="cc" style="text-align:center" value="{{ c.qtd }}" onInput="{{ c.onQtd }}"></td>
+                  <td style="padding:8px 12px"><input class="cc" value="{{ c.comum }}" onInput="{{ c.onComum }}"></td>
+                  <td style="padding:8px 12px"><input class="cc" value="{{ c.adit }}" onInput="{{ c.onAdit }}"></td>
+                  <td style="padding:8px 12px"><input class="cc" value="{{ c.diesel }}" onInput="{{ c.onDiesel }}"></td>
+                  <td style="padding:8px 16px"><input class="cc" value="{{ c.etanol }}" onInput="{{ c.onEtanol }}"></td>
+                </tr>
+              </sc-for>
+              <tr style="border-top:2px solid #e5e7eb;background:#eff6ff">
+                <td style="padding:11px 16px;font-weight:700;color:#1d4ed8;white-space:nowrap">★ {{ postoSel }}</td>
+                <td style="padding:11px 12px;text-align:center;font-weight:600;color:#1d4ed8;font-variant-numeric:tabular-nums">1</td>
+                <td style="padding:11px 12px;text-align:right;font-weight:700;color:#1d4ed8;font-variant-numeric:tabular-nums">{{ meu.comum }}</td>
+                <td style="padding:11px 12px;text-align:right;font-weight:700;color:#1d4ed8;font-variant-numeric:tabular-nums">{{ meu.adit }}</td>
+                <td style="padding:11px 12px;text-align:right;font-weight:700;color:#1d4ed8;font-variant-numeric:tabular-nums">{{ meu.diesel }}</td>
+                <td style="padding:11px 16px;text-align:right;font-weight:700;color:#1d4ed8;font-variant-numeric:tabular-nums">{{ meu.etanol }}</td>
+              </tr>
+              <tr style="border-top:1px solid #e5e7eb;background:#fafafa">
+                <td style="padding:9px 16px;font-size:12px;color:#6b7280">Média do mercado (ponderada)</td>
+                <td style="padding:9px 12px;text-align:center;font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums">{{ totalPostos }}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums">{{ mkt.comum }}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums">{{ mkt.adit }}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums">{{ mkt.diesel }}</td>
+                <td style="padding:9px 16px;text-align:right;font-size:12px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums">{{ mkt.etanol }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Posição por combustível -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+          <sc-for list="{{ analise }}" as="a" hint-placeholder-count="4">
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:18px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <h3 style="margin:0;font-size:14px;font-weight:600;color:#111827">{{ a.nome }}</h3>
+                <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:{{ a.tagBg }};color:{{ a.tagText }}">{{ a.tag }}</span>
+              </div>
+              <!-- barra min—média—max com meu marcador -->
+              <div style="margin-top:18px;position:relative;height:40px">
+                <div style="position:absolute;top:17px;left:0;right:0;height:6px;border-radius:999px;background:linear-gradient(90deg,#dcfce7,#fef9c3,#fee2e2)"></div>
+                <div style="position:absolute;top:13px;left:{{ a.myPct }}%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center"><div style="height:14px;width:14px;border-radius:50%;background:#1e3a5f;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div></div>
+                <span style="position:absolute;top:30px;left:{{ a.myPct }}%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:700;color:#1e3a5f">você {{ a.meuFmt }}</span>
+                <span style="position:absolute;top:0;left:0;font-size:10px;color:#9ca3af">mín {{ a.minFmt }}</span>
+                <span style="position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#9ca3af">média {{ a.avgFmt }}</span>
+                <span style="position:absolute;top:0;right:0;font-size:10px;color:#9ca3af">máx {{ a.maxFmt }}</span>
+              </div>
+              <div style="margin-top:16px;display:flex;align-items:flex-end;gap:1px;height:30px">
+                <sc-for list="{{ a.hist }}" as="h" hint-placeholder-count="30"><div style="flex:1;border-radius:1px;background:{{ h.color }};height:{{ h.h }}px"></div></sc-for>
+              </div>
+              <div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:10px;color:#9ca3af">meu preço · últimos 30 dias</span><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:{{ a.chgColor }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>alterado {{ a.chgLabel }}</span></div>
+              <p style="margin:13px 0 0;font-size:12.5px;line-height:1.5;color:#374151"><strong style="color:{{ a.recColor }}">{{ a.recTitulo }}</strong> {{ a.recTexto }}</p>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- Nota -->
+        <div style="display:flex;align-items:flex-start;gap:10px;border-radius:12px;border:1px dashed #cbd5e1;background:#fff;padding:13px 16px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <p style="margin:0;font-size:12px;line-height:1.5;color:#64748b"><strong style="color:#475569">Como ler.</strong> A média do mercado é <strong>ponderada por nº de postos</strong> — um concorrente com 8 unidades pesa mais na praça que um com 1. Quando você está <strong>abaixo da praça</strong>, há teto pra subir margem sem perder competitividade; <strong>acima</strong>, é risco de volume. Com o flag ligado, esses preços viram a referência das abas Oportunidades, Margem e Projeção — substituindo a média interna da rede.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = {
+    flagOn: true,
+    posto: 'Posto Itapoá',
+    data: {
+      'Posto Itapoá': {
+        meu: { comum: 6.16, adit: 6.42, diesel: 6.27, etanol: 4.86 },
+        vol: { comum: 122000, adit: 34000, diesel: 99000, etanol: 33000 },
+        comps: [
+          { nome: 'Posto Ipê', qtd: '2', comum: '6,24', adit: '6,55', diesel: '6,39', etanol: '4,95' },
+          { nome: 'Rede Brilho', qtd: '3', comum: '6,15', adit: '6,45', diesel: '6,28', etanol: '4,85' },
+          { nome: 'Auto Posto Lima', qtd: '1', comum: '6,29', adit: '6,59', diesel: '6,42', etanol: '4,99' },
+        ],
+      },
+      'Posto Centro': {
+        meu: { comum: 6.20, adit: 6.46, diesel: 6.33, etanol: 4.90 },
+        vol: { comum: 110000, adit: 30000, diesel: 88000, etanol: 28000 },
+        comps: [
+          { nome: 'Petro Sul', qtd: '4', comum: '6,19', adit: '6,49', diesel: '6,34', etanol: '4,92' },
+          { nome: 'Posto Trevo', qtd: '2', comum: '6,22', adit: '6,52', diesel: '6,37', etanol: '4,96' },
+        ],
+      },
+      'Posto Serra': {
+        meu: { comum: 6.09, adit: 6.34, diesel: 6.12, etanol: 4.79 },
+        vol: { comum: 58000, adit: 16000, diesel: 48000, etanol: 20000 },
+        comps: [
+          { nome: 'Rede Brilho', qtd: '3', comum: '6,18', adit: '6,46', diesel: '6,30', etanol: '4,88' },
+          { nome: 'Posto Montanha', qtd: '2', comum: '6,21', adit: '6,50', diesel: '6,33', etanol: '4,93' },
+          { nome: 'Auto Posto Lima', qtd: '1', comum: '6,26', adit: '6,56', diesel: '6,40', etanol: '4,97' },
+        ],
+      },
+      'Posto Avenida': {
+        meu: { comum: 6.22, adit: 6.50, diesel: 6.36, etanol: 4.93 },
+        vol: { comum: 132000, adit: 38000, diesel: 105000, etanol: 37000 },
+        comps: [
+          { nome: 'Posto Ipê', qtd: '2', comum: '6,20', adit: '6,52', diesel: '6,34', etanol: '4,91' },
+          { nome: 'Petro Sul', qtd: '3', comum: '6,17', adit: '6,47', diesel: '6,31', etanol: '4,89' },
+        ],
+      },
+    },
+  };
+
+  renderVals() {
+    const sel = this.state.data[this.state.posto];
+    const meu = sel.meu;
+    const vol = sel.vol;
+    const labels = { comum: 'Gasolina comum', adit: 'Gasolina aditivada', diesel: 'Diesel S10', etanol: 'Etanol' };
+    const fuels = ['comum', 'adit', 'diesel', 'etanol'];
+    const num = (s) => { const v = parseFloat(String(s).replace(',', '.')); return isNaN(v) ? 0 : v; };
+    const fmt = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
+    const fmtC = (v) => 'R$ ' + v.toFixed(3).replace('.', ',');
+
+    const comps = sel.comps;
+    const setComp = (i, field, value) => this.setState((s) => ({ data: { ...s.data, [s.posto]: { ...s.data[s.posto], comps: s.data[s.posto].comps.map((x, j) => j === i ? { ...x, [field]: value } : x) } } }));
+
+    // mercado ponderado por nº postos
+    const totalPostos = comps.reduce((a, c) => a + num(c.qtd), 0) || 1;
+    const mkt = {}; const mktMin = {}; const mktMax = {};
+    fuels.forEach((f) => {
+      let sum = 0; const vals = [];
+      comps.forEach((c) => { const p = num(c[f]); const q = num(c.qtd); sum += p * q; if (p > 0) vals.push(p); });
+      mkt[f] = sum / totalPostos;
+      mktMin[f] = Math.min(...vals); mktMax[f] = Math.max(...vals);
+    });
+
+    // KPIs
+    const idxFuel = fuels.map((f) => meu[f] / mkt[f]);
+    const indiceVal = (idxFuel.reduce((a, b) => a + b, 0) / fuels.length) * 100;
+
+    let subirF = null, subirGap = 0, caroF = null, caroGap = -1, ganho = 0;
+    fuels.forEach((f) => {
+      const gap = mkt[f] - meu[f]; // positivo = estou abaixo da média (posso subir)
+      if (gap > subirGap) { subirGap = gap; subirF = f; }
+      if (-gap > caroGap) { caroGap = -gap; caroF = f; }
+      if (gap > 0) ganho += gap * vol[f];
+    });
+
+    const compRows = comps.map((c, i) => ({
+      nome: c.nome, qtd: c.qtd, comum: c.comum, adit: c.adit, diesel: c.diesel, etanol: c.etanol,
+      rowBg: i % 2 === 1 ? '#f9fafb' : '#fff',
+      onQtd: (e) => setComp(i, 'qtd', e.target.value),
+      onComum: (e) => setComp(i, 'comum', e.target.value),
+      onAdit: (e) => setComp(i, 'adit', e.target.value),
+      onDiesel: (e) => setComp(i, 'diesel', e.target.value),
+      onEtanol: (e) => setComp(i, 'etanol', e.target.value),
+    }));
+
+    const analise = fuels.map((f) => {
+      const lo = mktMin[f], hi = mktMax[f], range = (hi - lo) || 1;
+      const myPct = Math.max(2, Math.min(98, ((meu[f] - lo) / range) * 100));
+      const gap = mkt[f] - meu[f];
+      let tag, tagBg, tagText, recTitulo, recColor, recTexto;
+      if (meu[f] <= lo) {
+        tag = 'Mais barato'; tagBg = '#dcfce7'; tagText = '#15803d';
+        recTitulo = 'Você é o mais competitivo.'; recColor = '#15803d';
+        recTexto = 'Há teto para subir até ' + fmtC(lo - 0.01) + ' (1¢ abaixo do 2º menor) e ainda liderar preço — ganho de margem sem perder o posto de mais barato.';
+      } else if (gap > 0.02) {
+        tag = 'Abaixo da praça'; tagBg = '#dcfce7'; tagText = '#15803d';
+        recTitulo = 'Abaixo da média em ' + fmtC(gap) + '.'; recColor = '#15803d';
+        recTexto = 'Espaço para reajuste gradual rumo à média (' + fmt(mkt[f]) + ') mantendo competitividade. Subir em passos de R$ 0,02–0,03 monitorando volume.';
+      } else if (gap >= -0.02) {
+        tag = 'Alinhado'; tagBg = '#fef9c3'; tagText = '#a16207';
+        recTitulo = 'Alinhado ao mercado.'; recColor = '#a16207';
+        recTexto = 'Preço em linha com a praça. Mexer só se o custo de compra mudar — aqui a alavanca é negociar custo, não preço.';
+      } else {
+        tag = 'Acima da praça'; tagBg = '#fee2e2'; tagText = '#b91c1c';
+        recTitulo = 'Acima da média em ' + fmtC(-gap) + '.'; recColor = '#b91c1c';
+        recTexto = 'Risco de perder volume para o concorrente mais barato (' + fmt(lo) + '). Avaliar reduzir ou reforçar diferenciação (conveniência, fidelidade).';
+      }
+      // histórico 30 dias do MEU preço (step na última alteração)
+      const lastChg = { comum: 3, adit: 11, diesel: 18, etanol: 6 };
+      const lc = lastChg[f];
+      const step = Math.max(0.03, Math.round(meu[f] * 0.012 * 100) / 100);
+      const hmin = meu[f] - step, hmax = meu[f];
+      const hist = Array.from({ length: 30 }, (_, d) => {
+        const daysAgo = 29 - d;
+        const p = daysAgo >= lc ? hmin : hmax;
+        return { h: Math.round(6 + ((p - hmin) / (step || 1)) * 16), color: daysAgo >= lc ? '#cbd5e1' : '#2563eb' };
+      });
+      const stale = lc > 14;
+      const chgDay = 24 - lc;
+      return {
+        nome: labels[f], tag, tagBg, tagText, myPct,
+        meuFmt: fmt(meu[f]), minFmt: fmt(lo), avgFmt: fmt(mkt[f]), maxFmt: fmt(hi),
+        recTitulo, recColor, recTexto,
+        hist, chgColor: stale ? '#b45309' : '#6b7280',
+        chgLabel: 'há ' + lc + ' dias · ' + (chgDay < 10 ? '0' + chgDay : chgDay) + '/06' + (stale ? ' · parado' : ''),
+      };
+    });
+
+    const flagOn = this.state.flagOn;
+    return {
+      meu: { comum: fmt(meu.comum), adit: fmt(meu.adit), diesel: fmt(meu.diesel), etanol: fmt(meu.etanol) },
+      mkt: { comum: fmt(mkt.comum), adit: fmt(mkt.adit), diesel: fmt(mkt.diesel), etanol: fmt(mkt.etanol) },
+      totalPostos,
+      comps: compRows,
+      indice: Math.round(indiceVal),
+      indiceLabel: indiceVal < 100 ? 'mais barato que a praça' : indiceVal > 100 ? 'mais caro que a praça' : 'na média',
+      subirFuel: subirF ? labels[subirF] : '—', subirGap: fmtC(subirGap),
+      caroFuel: caroGap > 0.02 ? labels[caroF] : 'Nenhum', caroGap: caroGap > 0.02 ? fmtC(caroGap) + ' acima da média' : 'tudo competitivo',
+      ganho: '+R$ ' + (ganho / 1000).toFixed(0) + ' mil',
+      analise,
+      flagOn,
+      toggleFlag: () => this.setState((s) => ({ flagOn: !s.flagOn })),
+      flagBg: flagOn ? 'linear-gradient(135deg,#eff6ff,#fff)' : '#fff',
+      flagBorder: flagOn ? '#bfdbfe' : '#e5e7eb',
+      flagIconBg: flagOn ? '#2563eb' : '#9ca3af',
+      flagDesc: flagOn ? 'Ligado — as análises da rede usam o preço de praça como referência (em vez da média interna).' : 'Desligado — as análises usam a média interna da rede como referência.',
+      flagTrack: flagOn ? '#2563eb' : '#cbd5e1',
+      flagKnobLeft: flagOn ? '23px' : '3px',
+      postoSel: this.state.posto,
+      compCount: comps.length,
+      postos: Object.keys(this.state.data).map((n) => ({ nome: n, onClick: () => this.setState({ posto: n }), bg: n === this.state.posto ? '#1e3a5f' : '#fff', color: n === this.state.posto ? '#fff' : '#4b5563', border: n === this.state.posto ? '#1e3a5f' : '#e5e7eb' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

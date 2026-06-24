@@ -28,6 +28,9 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Activity,
+  TrendingUp,
+  Trophy,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -78,6 +81,12 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Pista', to: '/dashboard?tab=pista', Icon: Wrench },
     { label: 'Conveniência', to: '/dashboard?tab=conveniencia', Icon: Store },
     { label: 'Ao Vivo Rede', to: '/dashboard?tab=aovivo', Icon: Activity },
+  ],
+  '/comercial': [
+    { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },
+    { label: 'Projeção de LB', to: '/comercial?tab=projecao', Icon: TrendingUp },
+    { label: 'Margem por posto', to: '/comercial?tab=margem', Icon: Trophy },
+    { label: 'Concorrência', to: '/comercial?tab=concorrencia', Icon: Building2 },
   ],
   '/inteligencia': [
     { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
