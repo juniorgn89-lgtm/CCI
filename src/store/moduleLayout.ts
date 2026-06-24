@@ -54,7 +54,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 13,
+        version: 14,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -121,6 +121,7 @@ export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout',
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'conferencia', label: 'Conferência por PDV', visible: true },
   { id: 'diferencas', label: 'Diferenças', visible: true },
+  { id: 'excecao', label: 'Fechamento por exceção', visible: true },
 ])
 
 // -v2: reset limpo após trocar as sub-abas (Projeções/Metas/Destaques saíram;

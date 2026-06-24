@@ -95,6 +95,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Visão Geral', to: '/caixas-turnos', Icon: LayoutDashboard },
     { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
     { label: 'Diferenças', to: '/caixas-turnos?tab=diferencas', Icon: Scale },
+    { label: 'Fechamento por exceção', to: '/caixas-turnos?tab=excecao', Icon: Sparkles },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },

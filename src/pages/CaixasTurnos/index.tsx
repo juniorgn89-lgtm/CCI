@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import useTabParam from '@/hooks/useTabParam'
-import { LayoutDashboard, ClipboardCheck, Receipt, Scale } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Receipt, Scale, Sparkles } from 'lucide-react'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -19,10 +19,11 @@ import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
 const CaixaGeralReport = lazy(() => import('@/pages/CaixasTurnos/components/CaixaGeralReport'))
 const DiferencasCaixa = lazy(() => import('@/pages/CaixasTurnos/components/DiferencasCaixa'))
+const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
 
-type CaixaTab = 'visao' | 'conferencia' | 'diferencas'
+type CaixaTab = 'visao' | 'conferencia' | 'diferencas' | 'excecao'
 const isCaixaTab = (v: string | null): v is CaixaTab =>
-  v === 'visao' || v === 'conferencia' || v === 'diferencas'
+  v === 'visao' || v === 'conferencia' || v === 'diferencas' || v === 'excecao'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -50,6 +51,7 @@ const CaixasTurnos = () => {
     visao: { Icon: LayoutDashboard },
     conferencia: { Icon: ClipboardCheck },
     diferencas: { Icon: Scale },
+    excecao: { Icon: Sparkles },
   }
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.
@@ -117,6 +119,8 @@ const CaixasTurnos = () => {
               <ConferenciaPdv />
             ) : caixaTab === 'diferencas' ? (
               <DiferencasCaixa />
+            ) : caixaTab === 'excecao' ? (
+              <FechamentoExcecao />
             ) : (
               <CaixaGeralReport />
             )}
