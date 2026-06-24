@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { TrendingUp, BarChart3, ArrowUp, ArrowDown } from 'lucide-react'
+import { TrendingUp, BarChart3, ArrowUp, ArrowDown, Droplet, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyShort, formatLitersShort } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -19,6 +19,8 @@ const ddmm = (iso: string) => { const [, m, d] = iso.split('-'); return `${d}/${
 /** L.B./litro com 3 casas. */
 const lbL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 const pct1 = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+/** R$ com sinal explícito (+/−). */
+const sgn = (v: number) => `${v >= 0 ? '+' : '−'}${formatCurrencyShort(Math.abs(v))}`
 
 const DeltaTag = ({ v }: { v: number | null }) => {
   if (v == null) return null
@@ -57,6 +59,22 @@ const ProjecaoLB = () => {
     const ap = prev.reduce((s, v) => s + v, 0) / prev.length
     return ap > 0 ? ((ac - ap) / ap) * 100 : null
   }, [occ, data.dailyPrev, wd])
+
+  // "De onde vem o ganho": decompõe a Δ da última ocorrência vs a anterior em
+  // efeito VOLUME (Δlitros × margem anterior) + efeito MARGEM (Δmargem/L × litros
+  // atual). Soma exata = ΔLB. Responde se o ganho veio de litro ou de R$/L.
+  const decomp = useMemo(() => {
+    if (occ.length < 2) return null
+    const last = occ[occ.length - 1]
+    const prev = occ[occ.length - 2]
+    if (last.litros <= 0 || prev.litros <= 0) return null
+    const mPrev = prev.lb / prev.litros
+    const mLast = last.lb / last.litros
+    const volEffect = (last.litros - prev.litros) * mPrev
+    const margEffect = (mLast - mPrev) * last.litros
+    const deltaLB = last.lb - prev.lb
+    return { last, prev, mPrev, mLast, volEffect, margEffect, deltaLB }
+  }, [occ])
 
   // "Quem puxou": última ocorrência por posto vs ocorrência anterior.
   const quemPuxou = useMemo(() => {
@@ -177,6 +195,53 @@ const ProjecaoLB = () => {
           </div>
         )}
       </div>
+
+      {/* De onde vem o ganho — decomposição volume × margem (sustentabilidade) */}
+      {decomp && (() => {
+        const { volEffect, margEffect, deltaLB } = decomp
+        const wdLabel = WD.find((w) => w.wd === wd)?.label.toLowerCase() ?? 'dia'
+        const margemLed = deltaLB >= 0 && margEffect > volEffect
+        const volumeLed = deltaLB >= 0 && volEffect > 0 && margEffect <= 0
+        const reading = deltaLB < 0
+          ? `LB caiu ${sgn(deltaLB)} vs a ${wdLabel} anterior — ${Math.abs(margEffect) >= Math.abs(volEffect) ? 'a margem' : 'o volume'} puxou pra baixo.`
+          : margemLed
+            ? 'Ganho puxado por MARGEM (melhor R$/L) — crescimento mais sustentável que volume puro.'
+            : volumeLed
+              ? 'Ganho veio de VOLUME; a margem recuou — monitore pra não trocar lucro por litro.'
+              : 'Ganho misto — volume e margem somaram juntos.'
+        return (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">De onde vem o ganho</h3>
+              <span className="text-[11px] text-gray-400">{ddmm(decomp.last.data)} vs {ddmm(decomp.prev.data)} · volume × margem</span>
+            </div>
+            <p className="mb-3 text-[12px] text-gray-500 dark:text-gray-400">
+              Variação de LB de <span className="font-semibold tabular-nums">{sgn(deltaLB)}</span> — quanto veio de vender mais litro vs melhorar o R$/L.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/30">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  <Droplet className="h-3.5 w-3.5" /> Por volume
+                </div>
+                <p className={cn('mt-1 text-xl font-bold tabular-nums', volEffect >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600 dark:text-red-400')}>{sgn(volEffect)}</p>
+                <p className="text-[11px] text-gray-400">{formatLitersShort(decomp.last.litros)} vs {formatLitersShort(decomp.prev.litros)}</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/30">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  <Percent className="h-3.5 w-3.5" /> Por margem
+                </div>
+                <p className={cn('mt-1 text-xl font-bold tabular-nums', margEffect >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{sgn(margEffect)}</p>
+                <p className="text-[11px] text-gray-400">{lbL(decomp.mLast)} vs {lbL(decomp.mPrev)} /L</p>
+              </div>
+            </div>
+            <p className={cn('mt-3 rounded-lg px-3 py-2 text-[12px] font-medium',
+              margemLed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300'
+                : 'bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300')}>
+              {reading}
+            </p>
+          </div>
+        )
+      })()}
 
       {/* Barras diárias do mês (dia-da-semana destacado) */}
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
