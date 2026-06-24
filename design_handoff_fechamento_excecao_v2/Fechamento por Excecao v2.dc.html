@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+  @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px;font-weight:500">Central da Rede</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span style="font-size:13px;font-weight:500">Vendas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span><span style="font-size:13px;font-weight:500">Bombas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span><span style="font-size:13px;font-weight:500">Reabastecimento</span></a>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#e0f2fe;color:#0c4a6e;font-weight:600"><span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#0ea5e9"></span><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><span style="font-size:13px">Fechamento de Caixa</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px;font-weight:500">Produtividade</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span><span style="font-size:13px;font-weight:500">Estoques</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span style="font-size:13px;font-weight:500">Financeiro</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span><span style="font-size:13px;font-weight:500">Qualidade de Dados</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span><span style="font-size:13px;font-weight:500">Inteligência</span></a>
+    </nav>
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px"><div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div><span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span></div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+        <div style="min-width:0"><h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Fechamento de Caixa</h1><p style="margin:0;font-size:11px;color:#6b7280">Conferência, diferenças e fechamento assistido</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>23 Jun 2026<svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>6 unidades</div>
+      </div>
+    </header>
+
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 4px;margin-right:8px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg>Fechamento por exceção<span style="display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 7px;border-radius:999px;background:#eef2ff;color:#4f46e5;font-size:9px;font-weight:700;letter-spacing:.03em">IA · F2</span></div>
+      <div style="display:flex;align-items:center;gap:7px;height:44px;padding:0 4px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Conferência PDV</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- Banner explicativo -->
+        <div style="display:flex;align-items:center;gap:14px;border-radius:14px;border:1px solid #c7d2fe;background:linear-gradient(135deg,#eef2ff,#fff);padding:14px 18px">
+          <div style="height:38px;width:38px;flex:none;border-radius:11px;background:#4f46e5;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#111827">Você só precisa olhar <strong style="color:#4f46e5">{{ excecaoCount }} de {{ totalCaixas }} caixas</strong>. O restante foi conferido e bate dentro da tolerância.</p>
+            <p style="margin:2px 0 0;font-size:12px;color:#6b7280">A IA classifica e explica cada diferença a partir dos valores já apurados pelo sistema — ela <strong>não recalcula</strong> nada. Agora com <strong>histórico de 90 dias</strong>: recorrência por operador e tolerância adaptativa por PDV.</p>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex:none;padding:6px 11px;border-radius:999px;background:#fff;border:1px solid #e0e7ff;font-size:11px;font-weight:600;color:#4f46e5"><span style="height:7px;width:7px;border-radius:50%;background:#22c55e;animation:pulseDot 1.6s infinite"></span>Análise read-only</span>
+        </div>
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:600;color:#111827">Caixas do dia</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">6 unidades · 3 turnos</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:24px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ totalCaixas }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">{{ conferidosLabel }}</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #bbf7d0;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:600;color:#111827">Conferidos OK</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Dentro da tolerância</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M20 6 9 17l-5-5"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:24px;font-weight:700;color:#15803d;font-variant-numeric:tabular-nums">{{ okCount }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">{{ okPct }}% dos caixas · sem ação</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #fde68a;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:600;color:#111827">Revisar</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Causa provável</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:24px;font-weight:700;color:#b45309;font-variant-numeric:tabular-nums">{{ revisarCount }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">diferença explicável</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;border-radius:16px;padding:18px;background:#fff;border:1px solid #fecaca;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div><p style="margin:0;font-size:12px;font-weight:600;color:#111827">Investigar</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Risco elevado</p></div><div style="height:34px;width:34px;flex:none;border-radius:10px;background:#fee2e2;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div></div>
+            <p style="margin:12px 0 0;font-size:24px;font-weight:700;color:#b91c1c;font-variant-numeric:tabular-nums">{{ investigarCount }}</p>
+            <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f3f4f6"><span style="font-size:11px;color:#6b7280">recorrência ou valor alto</span></div>
+          </div>
+        </div>
+
+        <!-- Toggle Fila ↔ Panorama -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="display:inline-flex;padding:4px;gap:3px;background:#fff;border:1px solid #e5e7eb;border-radius:11px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+            <sc-for list="{{ viewTabs }}" as="v" hint-placeholder-count="2"><button type="button" onClick="{{ v.onClick }}" style="display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 16px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ v.bg }};color:{{ v.color }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="{{ v.icon }}"/></svg>{{ v.label }}</button></sc-for>
+          </div>
+          <p style="margin:0;font-size:12px;color:#9ca3af">{{ viewHint }}</p>
+        </div>
+
+        <!-- Split: fila + detalhe -->
+        <sc-if value="{{ showFila }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:start">
+
+          <!-- Fila de exceção -->
+          <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 18px;border-bottom:1px solid #f1f3f5">
+              <div><h2 style="margin:0;font-size:14px;font-weight:600;color:#111827">Fila de exceção</h2><p style="margin:2px 0 0;font-size:11px;color:#9ca3af">Ordenada por severidade · clique para ver a análise</p></div>
+              <div style="display:inline-flex;padding:3px;gap:2px;background:#f3f4f6;border-radius:9px"><sc-for list="{{ filtros }}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{ f.onClick }}" style="height:26px;padding:0 10px;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;background:{{ f.bg }};color:{{ f.color }}">{{ f.label }}</button></sc-for></div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ fila }}" as="c" hint-placeholder-count="6">
+                <button type="button" onClick="{{ c.onClick }}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 18px;border:none;border-top:1px solid #f3f4f6;border-left:3px solid {{ c.accent }};cursor:pointer;font-family:inherit;background:{{ c.bg }}" style-hover="background:#f8fafc">
+                  <div style="height:36px;width:36px;flex:none;border-radius:10px;background:{{ c.iconBg }};display:flex;align-items:center;justify-content:center;color:{{ c.iconColor }};font-size:13px;font-weight:700">{{ c.iniciais }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:7px"><span style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.operador }}</span><span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:9px;font-weight:700;letter-spacing:.02em;background:{{ c.tagBg }};color:{{ c.tagText }};text-transform:uppercase;flex:none">{{ c.tag }}</span></div>
+                    <p style="margin:2px 0 0;font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.local }} · {{ c.causa }}</p>
+                  </div>
+                  <div style="flex:none;text-align:right">
+                    <p style="margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ c.difColor }}">{{ c.difFmt }}</p>
+                    <div style="margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:4px"><span style="font-size:9px;color:#9ca3af">confiança</span><span style="font-size:10px;font-weight:700;color:{{ c.confColor }};font-variant-numeric:tabular-nums">{{ c.conf }}%</span></div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- Painel copiloto -->
+          <div style="position:sticky;top:0;border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid #f1f3f5;background:linear-gradient(135deg,#1e3a5f,#27496f)">
+              <div style="height:30px;width:30px;flex:none;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></div>
+              <div style="flex:1;min-width:0"><p style="margin:0;font-size:13px;font-weight:700;color:#fff">Copiloto de fechamento</p><p style="margin:1px 0 0;font-size:11px;color:rgba(255,255,255,.6)">{{ detalhe.operador }} · {{ detalhe.local }}</p></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;flex:none;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.14);font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.03em">{{ detalhe.tag }}</span>
+            </div>
+
+            <div style="padding:18px">
+              <!-- números -->
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#f1f3f5;border-radius:12px;overflow:hidden;border:1px solid #f1f3f5">
+                <div style="background:#fff;padding:12px 14px"><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Apresentado</p><p style="margin:3px 0 0;font-size:16px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ detalhe.apresentado }}</p></div>
+                <div style="background:#fff;padding:12px 14px"><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Apurado</p><p style="margin:3px 0 0;font-size:16px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ detalhe.apurado }}</p></div>
+                <div style="background:#fff;padding:12px 14px"><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">Diferença</p><p style="margin:3px 0 0;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ detalhe.difColor }}">{{ detalhe.difFmt }}</p></div>
+              </div>
+              <p style="margin:8px 0 0;font-size:10px;color:#9ca3af;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Valores apurados pelo sistema · a IA não recalcula</p>
+
+              <!-- tolerância adaptativa (Fase 2) -->
+              <div style="margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:#eef2ff;border:1px solid #e0e7ff">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none"><path d="M3 3v18h18"/><path d="m7 12 3-3 3 3 5-5"/></svg>
+                <p style="margin:0;flex:1;font-size:11.5px;line-height:1.4;color:#3730a3"><strong>Tolerância adaptativa {{ detalhe.tolPosto }}: {{ detalhe.tolBanda }}</strong> <span style="color:#6b7280">(aprendida de 90d). {{ detalhe.tolNota }}</span></p>
+              </div>
+
+              <!-- causa provável -->
+              <div style="margin-top:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><p style="margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">Causa provável</p><span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:{{ detalhe.tierBg }};color:{{ detalhe.tierText }}">{{ detalhe.tierLabel }}</span></div>
+                <div style="margin-top:7px;display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:11px;background:{{ detalhe.causaBg }};border:1px solid {{ detalhe.causaBorder }}">
+                  <div style="height:26px;width:26px;flex:none;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center">{{ detalhe.causaIcon }}</div>
+                  <div style="flex:1;min-width:0"><p style="margin:0;font-size:13px;font-weight:600;color:#111827">{{ detalhe.causa }}</p><p style="margin:3px 0 0;font-size:12px;line-height:1.5;color:#4b5563">{{ detalhe.causaDetalhe }}</p></div>
+                </div>
+                <div style="margin-top:9px;display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#6b7280;white-space:nowrap">Confiança</span><div style="flex:1;height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;border-radius:999px;width:{{ detalhe.conf }}%;background:{{ detalhe.confColor }}"></div></div><span style="font-size:11px;font-weight:700;color:{{ detalhe.confColor }};font-variant-numeric:tabular-nums">{{ detalhe.conf }}%</span></div>
+              </div>
+
+              <!-- evidências -->
+              <div style="margin-top:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px"><p style="margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">Como a IA chegou aqui</p><span style="display:inline-flex;align-items:center;gap:9px"><span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#9ca3af"><span style="height:7px;width:7px;border-radius:2px;background:#16a34a"></span>dado atual</span><span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#9ca3af"><span style="height:7px;width:7px;border-radius:2px;background:#6366f1"></span>histórico</span></span></div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <sc-for list="{{ detalhe.evidencias }}" as="e" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:flex-start;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="{{ e.icon }}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex:none;margin-top:2px"><path d="M20 6 9 17l-5-5"/></svg><p style="margin:0;flex:1;font-size:12.5px;line-height:1.5;color:#374151">{{ e.t }} <span style="display:inline-block;margin-left:2px;padding:0 6px;border-radius:999px;font-size:9px;font-weight:700;vertical-align:1px;background:{{ e.markerBg }};color:{{ e.markerColor }}">{{ e.marker }}</span></p></div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- histórico do operador (Fase 2) -->
+              <div style="margin-top:16px;padding:13px 14px;border-radius:12px;background:#f8fafc;border:1px solid #eef2f6">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <p style="margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">Histórico do operador</p>
+                  <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#e0e7ff;color:#4338ca;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Fase 2 · 90 dias</span>
+                </div>
+                <!-- sparkline -->
+                <div style="margin-top:11px;height:46px;display:flex;align-items:stretch;gap:3px">
+                  <sc-for list="{{ detalhe.historico }}" as="h" hint-placeholder-count="12">
+                    <div style="flex:1;display:flex;flex-direction:column" title="{{ h.tip }}">
+                      <div style="height:22px;display:flex;align-items:flex-end"><div style="width:100%;height:{{ h.upH }}px;border-radius:2px 2px 0 0;background:{{ h.color }}"></div></div>
+                      <div style="height:2px;background:#d1d5db"></div>
+                      <div style="height:22px;display:flex;align-items:flex-start"><div style="width:100%;height:{{ h.downH }}px;border-radius:0 0 2px 2px;background:{{ h.color }}"></div></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;font-size:9px;color:#9ca3af"><span>12 aberturas atrás</span><span>hoje</span></div>
+                <!-- padrão detectado -->
+                <div style="margin-top:11px;display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-radius:10px;background:{{ detalhe.padraoBg }};border:1px solid {{ detalhe.padraoBorder }}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="{{ detalhe.recColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none;margin-top:1px"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                  <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600;line-height:1.4;color:#111827">{{ detalhe.padrao }}</p><p style="margin:3px 0 0;font-size:12px;line-height:1.45;color:#4b5563">{{ detalhe.recorrencia }}</p></div>
+                </div>
+                <!-- métricas do operador, normalizadas por exposição -->
+                <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                  <div style="text-align:center;padding:7px 4px;border-radius:9px;background:#fff;border:1px solid #f1f3f5"><p style="margin:0;font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ detalhe.histCount }}</p><p style="margin:1px 0 0;font-size:9px;color:#9ca3af;line-height:1.2">caixas c/ dif (90d)</p></div>
+                  <div style="text-align:center;padding:7px 4px;border-radius:9px;background:#fff;border:1px solid #f1f3f5"><p style="margin:0;font-size:15px;font-weight:700;color:{{ detalhe.histTaxaColor }};font-variant-numeric:tabular-nums">{{ detalhe.histTaxa }}</p><p style="margin:1px 0 0;font-size:9px;color:#9ca3af;line-height:1.2">taxa vs total</p></div>
+                  <div style="text-align:center;padding:7px 4px;border-radius:9px;background:#fff;border:1px solid #f1f3f5"><p style="margin:0;font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums">{{ detalhe.histRede }}</p><p style="margin:1px 0 0;font-size:9px;color:#9ca3af;line-height:1.2">média da rede</p></div>
+                </div>
+              </div>
+
+              <!-- ações sugeridas -->
+              <div style="margin-top:16px;display:flex;gap:8px">
+                <button type="button" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ detalhe.primBg }};color:#fff" style-hover="filter:brightness(1.06)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M20 6 9 17l-5-5"/></svg>{{ detalhe.primLabel }}</button>
+                <button type="button" style="flex:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:#fff;color:#374151" style-hover="background:#f9fafb"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>{{ detalhe.secLabel }}</button>
+              </div>
+              <p style="margin:9px 0 0;font-size:10.5px;line-height:1.45;color:#9ca3af;display:flex;align-items:flex-start;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Sugestão de ação. A decisão e o registro do fechamento são sempre do gestor — neste protótipo nada é gravado.</p>
+
+              <!-- feedback -->
+              <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e5e7eb;display:flex;align-items:center;gap:10px">
+                <p style="margin:0;flex:1;font-size:12px;font-weight:500;color:{{ detalhe.confColor }}">{{ detalhe.fbMsg }}</p>
+                <button type="button" onClick="{{ detalhe.fbUp }}" style="display:inline-flex;align-items:center;justify-content:center;height:32px;width:38px;border:1px solid {{ detalhe.upBorder }};border-radius:9px;cursor:pointer;background:{{ detalhe.upBg }};color:{{ detalhe.upColor }}" style-hover="background:#f0fdf4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg></button>
+                <button type="button" onClick="{{ detalhe.fbDown }}" style="display:inline-flex;align-items:center;justify-content:center;height:32px;width:38px;border:1px solid {{ detalhe.downBorder }};border-radius:9px;cursor:pointer;background:{{ detalhe.downBg }};color:{{ detalhe.downColor }}" style-hover="background:#fef2f2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        </sc-if>
+
+        <!-- Panorama (cortes da antiga aba Diferenças) -->
+        <sc-if value="{{ showPanorama }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <!-- Por responsável -->
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:18px">
+              <h3 style="margin:0;font-size:14px;font-weight:600;color:#111827">Por responsável</h3>
+              <p style="margin:2px 0 0;font-size:11px;color:#9ca3af">Líquido de diferença no período · sobra ▲ / falta ▼</p>
+              <div style="margin-top:16px;display:flex;flex-direction:column;gap:13px">
+                <sc-for list="{{ panResponsavel }}" as="r" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="width:104px;flex:none;font-size:12px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.nome }}</span>
+                    <div style="flex:1;position:relative;height:18px">
+                      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#e5e7eb"></div>
+                      <div style="position:absolute;top:2px;height:14px;border-radius:3px;{{ r.barCss }};background:{{ r.barColor }}"></div>
+                    </div>
+                    <span style="width:74px;flex:none;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ r.valColor }}">{{ r.valFmt }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <!-- Onde está (por forma) -->
+            <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:18px">
+              <h3 style="margin:0;font-size:14px;font-weight:600;color:#111827">Onde está a diferença</h3>
+              <p style="margin:2px 0 0;font-size:11px;color:#9ca3af">Líquido por forma de pagamento</p>
+              <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+                <sc-for list="{{ panForma }}" as="f" hint-placeholder-count="5">
+                  <button type="button" onClick="{{ f.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:6px 8px;margin:0 -8px;border:none;border-radius:9px;cursor:pointer;background:transparent;font-family:inherit" style-hover="background:#f8fafc">
+                    <span style="height:28px;width:28px;flex:none;border-radius:8px;background:{{ f.iconBg }};display:flex;align-items:center;justify-content:center;font-size:13px">{{ f.icon }}</span>
+                    <span style="flex:1;min-width:0;font-size:13px;font-weight:500;color:#374151">{{ f.nome }}</span>
+                    <span style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ f.valColor }}">{{ f.valFmt }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex:none"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <!-- Por dia -->
+          <div style="border-radius:16px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:18px">
+            <h3 style="margin:0;font-size:14px;font-weight:600;color:#111827">Diferença por dia</h3>
+            <p style="margin:2px 0 0;font-size:11px;color:#9ca3af">Líquido diário · 30 dias · sobra ▲ verde / falta ▼ vermelho</p>
+            <div style="margin-top:18px;display:flex;align-items:stretch;gap:3px;height:96px">
+              <sc-for list="{{ panDia }}" as="d" hint-placeholder-count="30">
+                <div style="flex:1;display:flex;flex-direction:column" title="{{ d.tip }}">
+                  <div style="height:46px;display:flex;align-items:flex-end"><div style="width:100%;height:{{ d.upH }}px;border-radius:2px 2px 0 0;background:{{ d.color }}"></div></div>
+                  <div style="height:2px;background:#e5e7eb"></div>
+                  <div style="height:46px;display:flex;align-items:flex-start"><div style="width:100%;height:{{ d.downH }}px;border-radius:0 0 2px 2px;background:{{ d.color }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <p style="margin:0;font-size:11px;color:#9ca3af;display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Panorama incorpora os cortes agregados da antiga aba <strong>Diferenças</strong> — explorar (aqui) e agir (Fila) num só lugar.</p>
+        </div>
+        </sc-if>
+
+        <!-- Modal forma → bandeiras -->
+        <sc-if value="{{ formaModalAberto }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ fecharFormaModal }}" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(17,24,39,.5)">
+            <div onClick="{{ stopFormaClick }}" style="width:100%;max-width:480px;background:#fff;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.28);overflow:hidden">
+              <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid #f1f3f5">
+                <span style="height:38px;width:38px;flex:none;border-radius:11px;background:{{ fmIconBg }};display:flex;align-items:center;justify-content:center;font-size:18px">{{ fmIcon }}</span>
+                <div style="flex:1;min-width:0"><h3 style="margin:0;font-size:16px;font-weight:700;color:#111827">{{ fmNome }}</h3><p style="margin:2px 0 0;font-size:12px;color:#6b7280">{{ fmKind }} · líquido de diferença</p></div>
+                <span style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ fmTotalColor }}">{{ fmTotalFmt }}</span>
+              </div>
+              <div style="padding:14px 20px 18px;display:flex;flex-direction:column;gap:13px">
+                <sc-for list="{{ fmDet }}" as="d" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="width:128px;flex:none;font-size:13px;font-weight:500;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.nome }}</span>
+                    <div style="flex:1;height:14px;background:#f3f4f6;border-radius:5px;overflow:hidden"><div style="height:100%;border-radius:5px;width:{{ d.pct }}%;background:{{ d.barColor }}"></div></div>
+                    <span style="width:78px;flex:none;text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ d.valColor }}">{{ d.valFmt }}</span>
+                  </div>
+                </sc-for>
+                <p style="margin:4px 0 0;font-size:10.5px;color:#9ca3af;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Valores apurados pelo sistema · read-only</p>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Nota de rodapé conceitual -->
+        <div style="display:flex;align-items:flex-start;gap:10px;border-radius:12px;border:1px dashed #cbd5e1;background:#fff;padding:13px 16px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <p style="margin:0;font-size:12px;line-height:1.5;color:#64748b"><strong style="color:#475569">Conceito Nível 1 · Fase 2 (read-only).</strong> O motor determinístico calcula apurado e diferença; a IA <strong>classifica, explica e prioriza</strong> — nunca recalcula. A Fase 2 acrescenta <strong>recorrência histórica (90d)</strong> e <strong>tolerância adaptativa por PDV</strong> (a banda de “OK” é aprendida do histórico de cada posto, não uma constante). Auto-aprovação e lançamento de ajuste seguem como passo futuro (escrita + auditoria); os “OK” entram em amostragem de auditoria.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = { filtro: 'todos', sel: null, feedback: {}, view: 'fila', formaModal: null };
+
+  renderVals() {
+    const fmtBRL = (v) => (v < 0 ? '−' : '+') + 'R$ ' + Math.abs(v).toFixed(2).replace('.', ',');
+    const fmtAbs = (v) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const casos = [
+      {
+        operador: 'Marcos Vinícius', iniciais: 'MV', local: 'Posto Rodovia · 2º turno', tag: 'Investigar', sev: 3,
+        apresentado: 14820.50, apurado: 14628.10, conf: 91,
+        causa: 'Sangria não lançada', causaIcon: '💸', tier: 'misto', causaDetalhe: 'A falta de R$ 192,40 está 100% em dinheiro e não há cupom de sangria no turno — padrão típico de retirada de cofre não lançada no PDV.',
+        evidencias: [
+          { t: 'Diferença concentrada 100% em dinheiro — formas eletrônicas batem ao centavo.', now: true },
+          { t: 'Nenhum cupom de sangria registrado no turno da diferença.', now: true },
+          { t: 'Valor compatível com retiradas de troco típicas deste turno (R$ 150–250).', now: false },
+        ],
+        recorrencia: '3 das últimas 6 aberturas com falta em dinheiro (R$ 210, R$ 178, R$ 192). Taxa 36% vs 9% da rede — padrão sistemático.',
+        hist: { serie: [0, -30, 0, -178, 12, 0, -210, 0, -45, -8, -190, -192.4], padrao: 'Falta em dinheiro recorrente neste operador', count: 9, total: 25, taxa: '36%', rede: '9%', alto: true, tolPosto: 'Posto Rodovia', tolBanda: '±R$ 22', tolNota: 'Esta falta (R$ 192) está ~9× a banda do PDV — bem fora do normal.' },
+        primLabel: 'Marcar p/ investigar', secLabel: 'Abrir detalhe do caixa',
+      },
+      {
+        operador: 'Patrícia Lemos', iniciais: 'PL', local: 'Posto Avenida · 1º turno', tag: 'Revisar', sev: 2,
+        apresentado: 9342.00, apurado: 9298.30, conf: 88,
+        causa: 'PIX recebido não baixado', causaIcon: '📲', tier: 'agora', causaDetalhe: 'Falta de R$ 43,70 do lado do dinheiro com sobra equivalente esperada no PIX — provável venda recebida via PIX e registrada como dinheiro.',
+        evidencias: [
+          { t: 'Falta em dinheiro (R$ 43,70) ≈ sobra em PIX do mesmo turno.', now: true },
+          { t: 'Há 1 transação PIX de R$ 43,70 sem venda vinculada.', now: true },
+          { t: 'Concentração no horário de pico (11h–13h), maior taxa de erro.', now: false },
+        ],
+        recorrencia: '1ª divergência da operadora em 90 dias. Taxa 4% — abaixo da média da rede. Provável erro pontual, não conduta.',
+        hist: { serie: [0, 0, 8, 0, 0, -5, 0, 0, 0, 6, 0, -43.7], padrao: 'Sem padrão — operadora consistente', count: 2, total: 48, taxa: '4%', rede: '9%', alto: false, tolPosto: 'Posto Avenida', tolBanda: '±R$ 35', tolNota: 'R$ 43,70 mal acima da banda — divergência pontual.' },
+        primLabel: 'Aceitar explicação', secLabel: 'Abrir detalhe do caixa',
+      },
+      {
+        operador: 'Bruno Carvalho', iniciais: 'BC', local: 'Posto Industrial · 3º turno', tag: 'Revisar', sev: 2,
+        apresentado: 21560.80, apurado: 21620.80, conf: 84,
+        causa: 'Taxa de cartão divergente', causaIcon: '💳', tier: 'agora', causaDetalhe: 'Sobra de R$ 60,00 do lado do crédito: a taxa efetiva da adquirente veio 0,3 p.p. menor que a contratada cadastrada.',
+        evidencias: [
+          { t: 'Sobra isolada na forma Crédito; demais formas batem.', now: true },
+          { t: 'Taxa efetiva 1,9% vs 2,2% cadastrada na conciliação.', now: true },
+          { t: 'Mesma adquirente apresentou desvio em 4 caixas hoje.', now: false },
+        ],
+        recorrencia: 'Sobra em cartão reincidente, mas ligada à adquirente (aparece em vários PDVs) — não atribuível ao operador.',
+        hist: { serie: [0, 40, 0, 55, 0, 0, 48, 60, 0, 52, 0, 60], padrao: 'Sobra em cartão — origem na adquirente, não no operador', count: 6, total: 22, taxa: '27%', rede: '9%', alto: false, tolPosto: 'Posto Industrial', tolBanda: '±R$ 40', tolNota: 'Padrão entre PDVs da mesma adquirente — revisar cadastro de taxa.' },
+        primLabel: 'Aceitar explicação', secLabel: 'Rever taxa',
+      },
+      {
+        operador: 'Sandra Rocha', iniciais: 'SR', local: 'Posto Centro · 1º turno', tag: 'Revisar', sev: 1,
+        apresentado: 7180.40, apurado: 7165.90, conf: 79,
+        causa: 'Arredondamento de troco', causaIcon: '🪙', tier: 'hist', causaDetalhe: 'Falta de R$ 14,50, compatível com arredondamentos de troco ao longo do turno — dentro do desvio histórico do PDV.',
+        evidencias: [
+          { t: 'Diferença pequena e diluída em dinheiro.', now: true },
+          { t: 'Abaixo do desvio-padrão diário deste PDV (R$ 22).', now: false },
+          { t: 'Sem concentração em nenhuma transação específica.', now: true },
+        ],
+        recorrencia: 'Ruído de troco dentro do normal do PDV. Taxa 7%, próxima da média da rede.',
+        hist: { serie: [0, -8, 0, 6, 0, -11, 0, 0, -9, 0, -7, -14.5], padrao: 'Variação de troco dentro do esperado', count: 5, total: 70, taxa: '7%', rede: '9%', alto: false, tolPosto: 'Posto Centro', tolBanda: '±R$ 18', tolNota: 'R$ 14,50 dentro da banda — quase entraria em OK.' },
+        primLabel: 'Aceitar explicação', secLabel: 'Abrir detalhe do caixa',
+      },
+      {
+        operador: 'Diego Almeida', iniciais: 'DA', local: 'Posto Litoral · 2º turno', tag: 'Investigar', sev: 3,
+        apresentado: 12940.00, apurado: 13190.00, conf: 86,
+        causa: 'Venda não registrada', causaIcon: '🧾', tier: 'misto', causaDetalhe: 'Sobra de R$ 250,00 em dinheiro sem venda correspondente — possível abastecimento cobrado e não lançado no PDV.',
+        evidencias: [
+          { t: 'Sobra alta e "redonda" (R$ 250) só em dinheiro.', now: true },
+          { t: 'Sem estorno ou cancelamento que justifique a sobra.', now: true },
+          { t: 'Volume de bomba do turno > vendas registradas (requer conciliação de encerrante).', now: false },
+        ],
+        recorrencia: '2ª sobra alta deste operador em 15 dias (taxa 18% vs 9% da rede). Sobra também é risco — investigar conciliação de bomba.',
+        hist: { serie: [0, 0, 120, 0, 0, -20, 0, 180, 0, 0, 90, 250], padrao: 'Sobras altas reincidentes em dinheiro', count: 5, total: 28, taxa: '18%', rede: '9%', alto: true, tolPosto: 'Posto Litoral', tolBanda: '±R$ 30', tolNota: 'Sobra R$ 250 ~8× a banda — investigar conciliação de bomba.' },
+        primLabel: 'Marcar p/ investigar', secLabel: 'Abrir detalhe do caixa',
+      },
+      {
+        operador: 'Camila Souza', iniciais: 'CS', local: 'Posto Serra · 3º turno', tag: 'Revisar', sev: 1,
+        apresentado: 5610.30, apurado: 5621.10, conf: 81,
+        causa: 'Diferença de moedas', causaIcon: '🪙', tier: 'hist', causaDetalhe: 'Falta de R$ 10,80 em dinheiro, compatível com fundo de troco — sem impacto material.',
+        evidencias: [
+          { t: 'Valor baixo, só em dinheiro.', now: true },
+          { t: 'Formas eletrônicas conciliadas.', now: true },
+          { t: 'Dentro da tolerância flexível do PDV (base histórica).', now: false },
+        ],
+        recorrencia: 'Sem recorrência. Caixa quase limpo — candidato a auto-OK com tolerância adaptativa um pouco maior.',
+        hist: { serie: [0, 0, -6, 0, 0, 0, -9, 0, 0, -7, 0, -10.8], padrao: 'Sem recorrência — caixa quase limpo', count: 3, total: 64, taxa: '5%', rede: '9%', alto: false, tolPosto: 'Posto Serra', tolBanda: '±R$ 15', tolNota: 'R$ 10,80 dentro da banda — candidato a auto-OK.' },
+        primLabel: 'Aceitar explicação', secLabel: 'Abrir detalhe do caixa',
+      },
+    ];
+
+    const totalCaixas = 47;
+    const okCount = totalCaixas - casos.length;
+    const investigarCount = casos.filter((c) => c.tag === 'Investigar').length;
+    const revisarCount = casos.filter((c) => c.tag === 'Revisar').length;
+
+    const tagStyle = (tag) => tag === 'Investigar'
+      ? { accent: '#dc2626', iconBg: '#fee2e2', iconColor: '#b91c1c', tagBg: '#fee2e2', tagText: '#b91c1c', causaBg: '#fef2f2', causaBorder: '#fecaca', prim: '#b91c1c' }
+      : { accent: '#f59e0b', iconBg: '#fef3c7', iconColor: '#b45309', tagBg: '#fef3c7', tagText: '#b45309', causaBg: '#fffbeb', causaBorder: '#fde68a', prim: '#1e3a5f' };
+    const confColor = (c) => c >= 88 ? '#15803d' : c >= 82 ? '#b45309' : '#6b7280';
+
+    // Filtro.
+    const filtro = this.state.filtro;
+    const idxAll = casos.map((c, i) => i);
+    const visIdx = idxAll.filter((i) => filtro === 'todos' ? true : filtro === 'investigar' ? casos[i].tag === 'Investigar' : casos[i].tag === 'Revisar')
+      .sort((a, b) => casos[b].sev - casos[a].sev || Math.abs(casos[b].apresentado - casos[b].apurado) - Math.abs(casos[a].apresentado - casos[a].apurado));
+
+    const selIdx = (this.state.sel != null && visIdx.includes(this.state.sel)) ? this.state.sel : (visIdx[0] ?? 0);
+    const setSel = (i) => this.setState({ sel: i });
+
+    const fila = visIdx.map((i) => {
+      const c = casos[i]; const ts = tagStyle(c.tag); const dif = c.apresentado - c.apurado;
+      const isSel = i === selIdx;
+      return {
+        onClick: () => setSel(i), iniciais: c.iniciais, operador: c.operador, local: c.local, causa: c.causa,
+        tag: c.tag, tagBg: ts.tagBg, tagText: ts.tagText, accent: ts.accent, iconBg: ts.iconBg, iconColor: ts.iconColor,
+        bg: isSel ? '#eff6ff' : '#fff',
+        difFmt: fmtBRL(dif), difColor: dif < 0 ? '#b91c1c' : '#15803d',
+        conf: c.conf, confColor: confColor(c.conf),
+      };
+    });
+
+    const mkFiltro = (key, label) => ({ label, onClick: () => this.setState({ filtro: key }), bg: filtro === key ? '#1e3a5f' : 'transparent', color: filtro === key ? '#fff' : '#4b5563' });
+
+    const tierMeta = (t) => t === 'agora' ? { label: 'Verificável agora', bg: '#dcfce7', text: '#15803d' }
+      : t === 'hist' ? { label: 'Requer histórico', bg: '#e0e7ff', text: '#4338ca' }
+      : { label: 'Verificável + histórico', bg: '#fef3c7', text: '#b45309' };
+
+    const evMeta = (now) => now
+      ? { icon: '#16a34a', label: 'dado atual', labelColor: '#16a34a', labelBg: '#f0fdf4' }
+      : { icon: '#6366f1', label: 'histórico', labelColor: '#4338ca', labelBg: '#eef2ff' };
+
+    const setFeedback = (v) => this.setState((s) => ({ feedback: { ...s.feedback, [selIdx]: v } }));
+    const fb = this.state.feedback[selIdx] ?? null;
+
+    const d = casos[selIdx]; const ts = tagStyle(d.tag); const dif = d.apresentado - d.apurado;
+    const tm = tierMeta(d.tier);
+    const detalhe = {
+      operador: d.operador, local: d.local, tag: d.tag,
+      apresentado: fmtAbs(d.apresentado), apurado: fmtAbs(d.apurado),
+      difFmt: fmtBRL(dif), difColor: dif < 0 ? '#b91c1c' : '#15803d',
+      causa: d.causa, causaIcon: d.causaIcon, causaDetalhe: d.causaDetalhe, causaBg: ts.causaBg, causaBorder: ts.causaBorder,
+      tierLabel: tm.label, tierBg: tm.bg, tierText: tm.text,
+      conf: d.conf, confColor: confColor(d.conf),
+      evidencias: d.evidencias.map((e) => { const m = evMeta(e.now); return { t: e.t, icon: m.icon, marker: m.label, markerColor: m.labelColor, markerBg: m.labelBg }; }),
+      recorrencia: d.recorrencia,
+      recColor: d.tag === 'Investigar' ? '#b91c1c' : '#6b7280',
+      historico: (() => {
+        const s = d.hist.serie; const mx = Math.max(...s.map((v) => Math.abs(v)), 1);
+        return s.map((v, i) => {
+          const mag = Math.round((Math.abs(v) / mx) * 20);
+          const isLast = i === s.length - 1;
+          const color = v === 0 ? '#e5e7eb' : v < 0 ? (isLast ? '#dc2626' : '#fca5a5') : (isLast ? '#16a34a' : '#86efac');
+          return { upH: v > 0 ? Math.max(2, mag) : 0, downH: v < 0 ? Math.max(2, mag) : 0, color, tip: (v === 0 ? 'OK' : (v < 0 ? '−' : '+') + 'R$ ' + Math.abs(v)) + (isLast ? ' · hoje' : '') };
+        });
+      })(),
+      padrao: d.hist.padrao, padraoBg: d.hist.alto ? '#fef2f2' : '#f8fafc', padraoBorder: d.hist.alto ? '#fecaca' : '#eef2f6',
+      histCount: d.hist.count, histTaxa: d.hist.taxa, histRede: d.hist.rede,
+      histTaxaColor: d.hist.alto ? '#b91c1c' : '#6b7280',
+      tolPosto: d.hist.tolPosto, tolBanda: d.hist.tolBanda, tolNota: d.hist.tolNota,
+      primLabel: d.primLabel, secLabel: d.secLabel, primBg: ts.prim,
+      upBg: fb === 'up' ? '#dcfce7' : '#fff', upBorder: fb === 'up' ? '#86efac' : '#e5e7eb', upColor: fb === 'up' ? '#15803d' : '#6b7280',
+      downBg: fb === 'down' ? '#fee2e2' : '#fff', downBorder: fb === 'down' ? '#fca5a5' : '#e5e7eb', downColor: fb === 'down' ? '#b91c1c' : '#6b7280',
+      fbMsg: fb === 'up' ? 'Obrigado — explicação confirmada. Isso treina a classificação.' : fb === 'down' ? 'Anotado — a causa será revista. Seu retorno melhora o modelo.' : 'Esta explicação ajudou?',
+      fbUp: () => setFeedback('up'), fbDown: () => setFeedback('down'),
+    };
+
+    return {
+      totalCaixas, okCount, okPct: Math.round((okCount / totalCaixas) * 100),
+      conferidosLabel: okCount + ' conferidos · ' + casos.length + ' em exceção',
+      excecaoCount: casos.length, revisarCount, investigarCount,
+      filtros: [mkFiltro('todos', 'Todos'), mkFiltro('investigar', 'Investigar'), mkFiltro('revisar', 'Revisar')],
+      fila, detalhe,
+      ...this.panoramaVals(fmtBRL, casos),
+    };
+  }
+
+  panoramaVals(fmtBRL, casos) {
+    const view = this.state.view;
+    const mkView = (key, label, icon) => ({ label, icon, onClick: () => this.setState({ view: key }), bg: view === key ? '#1e3a5f' : 'transparent', color: view === key ? '#fff' : '#4b5563' });
+    const fmtSigned = (v) => (v < 0 ? '−' : '+') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Por responsável (líquido no período) — barra divergente em torno do zero central.
+    const respRaw = [
+      { nome: 'Marcos Vinícius', v: -612 }, { nome: 'Diego Almeida', v: 540 }, { nome: 'Bruno Carvalho', v: 220 },
+      { nome: 'Patrícia Lemos', v: -44 }, { nome: 'Sandra Rocha', v: -58 }, { nome: 'Camila Souza', v: -32 },
+    ].sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+    const respMax = Math.max(...respRaw.map((r) => Math.abs(r.v)));
+    const panResponsavel = respRaw.map((r) => {
+      const pct = (Math.abs(r.v) / respMax) * 50;
+      const pos = r.v >= 0;
+      return { nome: r.nome, valFmt: fmtSigned(r.v), valColor: pos ? '#15803d' : '#b91c1c',
+        barColor: pos ? '#86efac' : '#fca5a5',
+        barCss: pos ? ('left:50%;width:' + pct + '%') : ('right:50%;width:' + pct + '%') };
+    });
+
+    // Onde está (por forma).
+    const formaRaw = [
+      { nome: 'Dinheiro', icon: '💵', iconBg: '#dcfce7', v: -742, kind: 'Por posto', det: [
+        { nome: 'Posto Rodovia', v: -402 }, { nome: 'Posto Industrial', v: -210 }, { nome: 'Posto Centro', v: -58 }, { nome: 'Posto Avenida', v: -40 }, { nome: 'Posto Serra', v: -32 } ] },
+      { nome: 'PIX', icon: '📲', iconBg: '#e0f2fe', v: 96, kind: 'Por posto', det: [
+        { nome: 'Posto Avenida', v: 44 }, { nome: 'Posto Litoral', v: 30 }, { nome: 'Posto Centro', v: 22 } ] },
+      { nome: 'Crédito', icon: '💳', iconBg: '#ede9fe', v: 280, kind: 'Por bandeira', det: [
+        { nome: 'Visa', v: 160 }, { nome: 'Mastercard', v: 90 }, { nome: 'Elo', v: 30 }, { nome: 'American Express', v: 0 } ] },
+      { nome: 'Débito', icon: '🏧', iconBg: '#fef3c7', v: -38, kind: 'Por bandeira', det: [
+        { nome: 'Visa Electron', v: -24 }, { nome: 'Maestro', v: -14 } ] },
+      { nome: 'Voucher/Frota', icon: '🎫', iconBg: '#f3e8ff', v: 12, kind: 'Por emissor', det: [
+        { nome: 'Ticket Log', v: 8 }, { nome: 'Goodcard', v: 4 } ] },
+    ];
+    const setForma = (i) => this.setState({ formaModal: i });
+    const panForma = formaRaw.map((f, i) => ({ nome: f.nome, icon: f.icon, iconBg: f.iconBg, valFmt: fmtSigned(f.v), valColor: f.v >= 0 ? '#15803d' : '#b91c1c', onClick: () => setForma(i) }));
+
+    // Modal de forma → bandeiras/detalhe.
+    const fmIdx = this.state.formaModal;
+    const fm = fmIdx != null ? formaRaw[fmIdx] : null;
+    const detMax = fm ? Math.max(...fm.det.map((d) => Math.abs(d.v)), 1) : 1;
+
+    // Por dia (30 dias).
+    const diaRaw = [0, -40, 0, 60, -120, 0, 0, 30, -210, 0, 90, 0, -60, 0, 0, 180, -45, 0, -30, 0, 250, 0, -190, 0, 0, 40, -80, 0, 120, -250];
+    const diaMax = Math.max(...diaRaw.map((v) => Math.abs(v)), 1);
+    const panDia = diaRaw.map((v, i) => {
+      const mag = v === 0 ? 0 : Math.max(3, Math.round((Math.abs(v) / diaMax) * 44));
+      return { upH: v > 0 ? mag : 0, downH: v < 0 ? mag : 0, color: v === 0 ? '#eef2f6' : v > 0 ? '#86efac' : '#fca5a5', tip: 'Dia ' + (i + 1) + ': ' + (v === 0 ? 'sem dif.' : fmtSigned(v)) };
+    });
+
+    return {
+      viewTabs: [mkView('fila', 'Fila de exceção', 'M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z'), mkView('panorama', 'Panorama', 'M3 3v18h18M18 17V9M13 17V5M8 17v-3')],
+      showFila: view === 'fila', showPanorama: view === 'panorama',
+      viewHint: view === 'fila' ? 'O que olhar e por quê — priorizado' : 'Onde estão as diferenças — visão agregada',
+      panResponsavel, panForma, panDia,
+      formaModalAberto: fm != null,
+      fecharFormaModal: () => this.setState({ formaModal: null }),
+      stopFormaClick: (e) => e.stopPropagation(),
+      fmNome: fm?.nome ?? '', fmIcon: fm?.icon ?? '', fmIconBg: fm?.iconBg ?? '#f3f4f6',
+      fmKind: fm?.kind ?? '', fmTotalFmt: fm ? fmtSigned(fm.v) : '', fmTotalColor: fm && fm.v >= 0 ? '#15803d' : '#b91c1c',
+      fmDet: fm ? fm.det.map((d) => ({ nome: d.nome, valFmt: d.v === 0 ? 'R$ 0,00' : fmtSigned(d.v), valColor: d.v > 0 ? '#15803d' : d.v < 0 ? '#b91c1c' : '#9ca3af', barColor: d.v > 0 ? '#86efac' : d.v < 0 ? '#fca5a5' : '#e5e7eb', pct: Math.max(3, Math.round((Math.abs(d.v) / detMax) * 100)) })) : [],
+    };
+  }
+}
+</script>
+</body>
+</html>
