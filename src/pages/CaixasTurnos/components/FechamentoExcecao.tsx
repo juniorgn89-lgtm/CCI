@@ -238,9 +238,11 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
 }) => {
   const m = CLASSE_META[sel.classe]; const fb = feedback[sel.key]; const ac = acao[sel.key]
   const h = sel.historico
+  const [detalhe, setDetalhe] = useState(false)
   const onFb = (v: Feedback) => setFeedback(writeFeedback(sel.key, v))
 
   return (
+    <>
     <div className="lg:sticky lg:top-4 lg:self-start">
       <div className="overflow-hidden rounded-2xl border border-gray-200 shadow-sm dark:border-gray-700">
         <div className="flex items-center justify-between gap-2 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-5 py-4">
@@ -341,7 +343,7 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
               ) : (
                 <button type="button" onClick={() => setAcao({ ...acao, [sel.key]: 'aceito' })} className={cn('flex-1 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors', ac === 'aceito' ? 'bg-[#1e3a5f] text-white' : 'bg-[#1e3a5f]/10 text-[#1e3a5f] hover:bg-[#1e3a5f]/20 dark:bg-blue-900/30 dark:text-blue-300')}>{ac === 'aceito' ? '✓ Explicação aceita' : 'Aceitar explicação'}</button>
               )}
-              <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-[12.5px] font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">{sel.isCartao ? 'Rever taxa' : 'Abrir detalhe do caixa'} <ArrowUpRight className="h-3.5 w-3.5" /></button>
+              <button type="button" onClick={() => setDetalhe(true)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-[12.5px] font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">{sel.isCartao ? 'Rever taxa' : 'Abrir detalhe do caixa'} <ArrowUpRight className="h-3.5 w-3.5" /></button>
             </div>
             <p className="text-[10px] text-gray-400">A decisão e o registro são do gestor — nada é gravado.</p>
           </div>
@@ -357,8 +359,57 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
         </div>
       </div>
     </div>
+    {detalhe && <CaixaDetalheModal sel={sel} onClose={() => setDetalhe(false)} />}
+    </>
   )
 }
+
+/* ── Modal "detalhe do caixa" — apresentado × apurado × diferença por forma ── */
+const CaixaDetalheModal = ({ sel, onClose }: { sel: ExcecaoCaixa; onClose: () => void }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Detalhe do caixa · {sel.operador}</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">{sel.pdvLabel} · {sel.turno} · {sel.data.split('-').reverse().join('/')}</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"><X className="h-4 w-4" /></button>
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto p-5">
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr className="border-b border-gray-100 text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
+              <th className="py-1.5 text-left font-medium">Forma</th>
+              <th className="py-1.5 text-right font-medium">Apresentado</th>
+              <th className="py-1.5 text-right font-medium">Apurado</th>
+              <th className="py-1.5 text-right font-medium">Diferença</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+            {sel.formasDetalhe.map((f) => (
+              <tr key={f.nome}>
+                <td className="py-1.5 text-gray-700 dark:text-gray-300">{f.nome}</td>
+                <td className="py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(f.apresentado)}</td>
+                <td className="py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(f.apurado)}</td>
+                <td className={cn('py-1.5 text-right font-semibold tabular-nums', Math.abs(f.diferenca) < 0.005 ? 'text-gray-400' : f.diferenca < 0 ? 'text-[#b91c1c]' : 'text-[#15803d]')}>{Math.abs(f.diferenca) < 0.005 ? formatCurrency(0) : fmtDif(f.diferenca)}</td>
+              </tr>
+            ))}
+            {sel.formasDetalhe.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-xs text-gray-400">Sem quebra por forma para este caixa.</td></tr>}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-200 font-semibold dark:border-gray-700">
+              <td className="py-2 text-gray-800 dark:text-gray-200">Total</td>
+              <td className="py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{sel.apresentado != null ? formatCurrency(sel.apresentado) : '—'}</td>
+              <td className="py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{formatCurrency(sel.apurado)}</td>
+              <td className={cn('py-2 text-right tabular-nums', sel.diferenca < 0 ? 'text-[#b91c1c]' : 'text-[#15803d]')}>{fmtDif(sel.diferenca)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p className="mt-4 flex items-center gap-1 text-[10px] text-gray-400"><Lock className="h-3 w-3" /> Valores apurados pelo sistema · read-only, nada é gravado.</p>
+      </div>
+    </div>
+  </div>
+)
 
 /* ── Barra divergente em torno do zero ── */
 const Divergente = ({ valor, max }: { valor: number; max: number }) => {

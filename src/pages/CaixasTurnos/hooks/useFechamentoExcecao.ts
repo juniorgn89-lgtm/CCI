@@ -101,6 +101,8 @@ export interface ExcecaoCaixa {
   historico: HistoricoOperador
   formaDominante: string | null
   isCartao: boolean
+  /** Quebra do caixa por forma (apresentado × apurado × diferença) — p/ o modal "detalhe do caixa". */
+  formasDetalhe: { nome: string; apresentado: number; apurado: number; diferenca: number }[]
 }
 
 export interface FechamentoExcecaoData {
@@ -334,7 +336,8 @@ const useFechamentoExcecao = (): FechamentoExcecaoData => {
 
       if (Math.abs(dif) <= tol) { okCount++; continue }
 
-      const formas: FormaDif[] = (confByCaixa.get(c.caixaCodigo)?.formas ?? []).map((f) => ({ nome: f.nome, diferenca: f.diferenca }))
+      const formasFull = confByCaixa.get(c.caixaCodigo)?.formas ?? []
+      const formas: FormaDif[] = formasFull.map((f) => ({ nome: f.nome, diferenca: f.diferenca }))
       const causa = analisarCausa(dif, formas, taxaContratadaMediaPct)
       const historico = hist90.histByOp.get(c.funcionarioCodigo) ?? emptyHist
       const classe: ExcecaoClasse = Math.abs(dif) >= investigarValor(apuradoBase) || historico.alta ? 'investigar' : 'revisar'
@@ -368,6 +371,7 @@ const useFechamentoExcecao = (): FechamentoExcecaoData => {
         historico,
         formaDominante: causa.formaDominante,
         isCartao: causa.isCartao,
+        formasDetalhe: formasFull.map((f) => ({ nome: f.nome, apresentado: f.apresentado, apurado: f.apurado, diferenca: f.diferenca })),
       })
     }
 
