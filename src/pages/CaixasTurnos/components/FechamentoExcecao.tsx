@@ -171,6 +171,14 @@ const FechamentoExcecao = () => {
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Todos dentro da banda adaptativa no período. Lembre: os OK entram em amostragem de auditoria.</p>
         </div>
       ) : (
+        <>
+        {/* Nota — o que a Fila é (vs Panorama) */}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/40">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+          <p className="text-[12px] leading-relaxed text-gray-600 dark:text-gray-400">
+            Cada linha é <strong>UM caixa</strong> que estourou a tolerância (Revisar/Investigar) — caixas <strong>dentro da banda não aparecem</strong> aqui. O <strong>saldo total da rede</strong> (tudo somado, sobras − faltas) está no <strong>Panorama</strong>. Fila = agir nos casos; Panorama = entender o todo.
+          </p>
+        </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
           {/* Fila */}
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -210,6 +218,7 @@ const FechamentoExcecao = () => {
           </div>
           {sel && <CopilotoPanel sel={sel} baseCaveat={baseCaveat} feedback={feedback} setFeedback={setFeedback} acao={acao} setAcao={setAcao} />}
         </div>
+        </>
       )}
 
       {/* Nota conceitual */}
