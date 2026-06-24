@@ -131,7 +131,7 @@ const FechamentoExcecao = () => {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4f46e5] text-white"><Sparkles className="h-5 w-5" /></div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Você só precisa olhar <span className="text-[#4338ca] dark:text-indigo-400">{totalFila} de {totalCaixas} caixas</span>. O restante foi conferido e bate dentro da tolerância.</p>
-            <p className="mt-0.5 text-[12.5px] text-gray-600 dark:text-gray-400">A IA classifica e explica cada diferença a partir dos valores já apurados pelo sistema — ela <strong>não recalcula</strong> nada. Agora com <strong>histórico de 90 dias</strong>: recorrência por operador e tolerância adaptativa por PDV.</p>
+            <p className="mt-0.5 text-[12.5px] text-gray-600 dark:text-gray-400">A IA classifica e explica cada diferença a partir dos valores já apurados pelo sistema — ela <strong>não recalcula</strong> nada. <strong>Só caixas fechados entram aqui</strong> (abertos não têm diferença a conciliar). Agora com <strong>histórico de 90 dias</strong>: recorrência por operador e tolerância adaptativa por PDV.</p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-gray-900 dark:text-emerald-400">
@@ -142,7 +142,7 @@ const FechamentoExcecao = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Caixas do dia" secondary={`${unidades} unidades · ${turnos} turnos`} value={String(totalCaixas)} sub={`${okCount} conferidos · ${totalFila} em exceção`} tone="neutral" Icon={Wallet} />
+        <Kpi label="Caixas do dia" secondary={`Apenas fechados · ${unidades} un · ${turnos} turnos`} value={String(totalCaixas)} sub={`${okCount} conferidos · ${totalFila} em exceção`} tone="neutral" Icon={Wallet} />
         <Kpi label="Conferidos OK" secondary="dentro da tolerância" value={String(okCount)} sub={`${okPct}% dos caixas · sem ação`} tone="ok" Icon={Check} />
         <Kpi label="Revisar" secondary="causa provável" value={String(revisarCount)} sub="diferença explicável" tone="revisar" Icon={Info} />
         <Kpi label="Investigar" secondary="risco elevado" value={String(investigarCount)} sub="recorrência ou valor alto" tone="investigar" Icon={AlertTriangle} />
