@@ -27,6 +27,9 @@ export interface Oportunidade {
   /** de → para (margem/L) — só na alavanca de margem. */
   margemAtual: number | null
   margemAlvo: number | null
+  /** Fração do gap fechada no cenário base (0.7 margem, 0.5 conv) — usada pelo
+   *  "Simular" what-if: o potencial é linear na fração, então escala direto. */
+  fracBase: number
   comoEstimou: string[]
   risco: string
 }
@@ -98,6 +101,7 @@ const useOportunidades = (): OportunidadesData => {
           confianca: conf,
           margemAtual: atual,
           margemAlvo: alvo,
+          fracBase: 0.7,
           comoEstimou: [
             `${p.posto} pratica ${lbL(atual)} de margem no ${pr.produto} — ${belowPct.toFixed(0)}% abaixo da média da rede (${lbL(avg)}).`,
             `Volume de ${Math.round(pr.qtd).toLocaleString('pt-BR')} L no período: cada R$ 0,01/L recuperado = ${milShort(pr.qtd * 0.01)}.`,
@@ -129,6 +133,7 @@ const useOportunidades = (): OportunidadesData => {
         confianca: 72,
         margemAtual: null,
         margemAlvo: null,
+        fracBase: 0.5,
         comoEstimou: [
           `A loja do ${p.posto} roda ${p.margem.toFixed(0)}% de margem — ${(gapPct).toFixed(0)} p.p. abaixo da média da rede (${convAvgPct.toFixed(0)}%).`,
           `Faturamento de loja de ${milShort(p.faturamento)} no período.`,

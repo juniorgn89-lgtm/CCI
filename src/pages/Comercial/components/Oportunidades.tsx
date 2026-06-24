@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Sparkles, TrendingUp, Percent, Zap, Fuel, ShoppingBag, ArrowRight,
-  Check, AlertTriangle, Lock,
+  Check, AlertTriangle, Lock, SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,6 +15,14 @@ const ALAVANCA_META: Record<Alavanca, { label: string; Icon: typeof Fuel; chip: 
 
 const DetailPanel = ({ op }: { op: Oportunidade }) => {
   const meta = ALAVANCA_META[op.alavanca]
+  // Simular = what-if READ-ONLY: o potencial é linear na fração do gap fechada,
+  // então recalcula em memória ao trocar a fração. Nada é gravado.
+  const [frac, setFrac] = useState(op.fracBase)
+  const opts = op.alavanca === 'margem' ? [0.5, 0.7, 0.9, 1] : [0.5, 0.75, 1]
+  const fullGap = op.margemAtual != null && op.margemAlvo != null ? (op.margemAlvo - op.margemAtual) / op.fracBase : null
+  const potencialSim = op.potencial * (frac / op.fracBase)
+  const alvoSim = op.margemAtual != null && fullGap != null ? op.margemAtual + frac * fullGap : null
+  const isBase = Math.abs(frac - op.fracBase) < 1e-9
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
       <div className="flex items-center gap-2 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-4 py-3 text-white">
@@ -33,8 +41,11 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80 dark:text-emerald-400/80">Lucro adicional estimado</p>
             <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-gray-900 dark:text-emerald-300">confiança {op.confianca}%</span>
           </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">+{milShort(op.potencial)}<span className="text-sm font-medium text-emerald-700/70">/período</span></p>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-700/70 dark:text-emerald-400/70">estimativa · teto (volume constante)</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">+{milShort(potencialSim)}<span className="text-sm font-medium text-emerald-700/70">/período</span></p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-700/70 dark:text-emerald-400/70">estimativa · teto (volume constante)</p>
+            {!isBase && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">what-if {Math.round(frac * 100)}% · base +{milShort(op.potencial)}</span>}
+          </div>
         </div>
 
         {/* de → para (só margem) */}
@@ -47,7 +58,7 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
             <ArrowRight className="h-4 w-4 text-gray-300" />
             <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 text-center dark:border-blue-900/40 dark:bg-blue-950/20">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">Margem-alvo</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">{lbL(op.margemAlvo)}<span className="text-xs text-blue-400">/L</span></p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">{lbL(alvoSim ?? op.margemAlvo)}<span className="text-xs text-blue-400">/L</span></p>
             </div>
           </div>
         )}
@@ -70,18 +81,33 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
           <p className="text-[11.5px] leading-snug text-amber-800 dark:text-amber-300"><span className="font-semibold">Risco:</span> {op.risco}</p>
         </div>
 
-        {/* ações — read-only (execução = roadmap). Não escrevem nada. */}
-        <div className="flex items-center gap-2 pt-1">
-          <button type="button" disabled title="Execução na pista é roadmap — o módulo é read-only (diagnóstico e priorização)"
-            className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-400 dark:border-gray-700">
-            <Lock className="h-3.5 w-3.5" /> Criar plano
-          </button>
-          <button type="button" disabled title="Simulação interativa é roadmap"
-            className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-400 dark:border-gray-700">
-            Simular
-          </button>
+        {/* Simular = what-if read-only (recalcula em memória; não grava nada). */}
+        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+          <div className="mb-2 flex items-center gap-1.5">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-gray-500" />
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Simular — fechar % do gap</p>
+            <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-gray-800">what-if · não grava</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {opts.map((f) => (
+              <button key={f} type="button" onClick={() => setFrac(f)}
+                className={cn('flex-1 rounded-md px-2 py-1.5 text-[12px] font-semibold tabular-nums transition-colors',
+                  Math.abs(frac - f) < 1e-9 ? 'bg-[#2563eb] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300')}>
+                {Math.round(f * 100)}%
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">
+            Fechando <span className="font-semibold">{Math.round(frac * 100)}%</span> do gap → ganho estimado <span className="font-bold text-emerald-600 dark:text-emerald-400">+{milShort(potencialSim)}</span>{!isBase && <span className="text-gray-400"> (base {Math.round(op.fracBase * 100)}%)</span>}
+          </p>
         </div>
-        <p className="text-center text-[10px] text-gray-400">Ações são roadmap — a IA diagnostica e prioriza; a decisão e a execução são do gestor.</p>
+
+        {/* Criar plano — roadmap (implica escrita/persistência); fica desabilitado. */}
+        <button type="button" disabled title="Execução na pista é roadmap — o módulo é read-only (diagnóstico e priorização)"
+          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-400 dark:border-gray-700">
+          <Lock className="h-3.5 w-3.5" /> Criar plano <span className="text-[10px] font-normal">(roadmap)</span>
+        </button>
+        <p className="text-center text-[10px] text-gray-400">A IA diagnostica, prioriza e simula; a decisão e a execução são do gestor.</p>
       </div>
     </div>
   )
@@ -213,7 +239,7 @@ const Oportunidades = () => {
           </div>
         </div>
 
-        {selecionada ? <DetailPanel op={selecionada} /> : (
+        {selecionada ? <DetailPanel key={selecionada.id} op={selecionada} /> : (
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-gray-200 p-10 text-center text-[12px] text-gray-400 dark:border-gray-700">
             Selecione uma oportunidade para ver a análise.
           </div>
