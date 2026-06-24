@@ -10,6 +10,7 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 
 const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'))
+const ProjecaoLB = lazy(() => import('@/pages/Comercial/components/ProjecaoLB'))
 
 type TabId = 'oportunidades' | 'projecao' | 'margem' | 'concorrencia'
 
@@ -100,8 +101,8 @@ const Comercial = () => {
 
       <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
         {activeTab === 'margem' && <MargemPosto />}
+        {activeTab === 'projecao' && <ProjecaoLB />}
         {activeTab === 'oportunidades' && <EmConstrucao label="Oportunidades" />}
-        {activeTab === 'projecao' && <EmConstrucao label="Projeção de LB" />}
         {activeTab === 'concorrencia' && <EmConstrucao label="Concorrência" />}
       </Suspense>
     </div>
