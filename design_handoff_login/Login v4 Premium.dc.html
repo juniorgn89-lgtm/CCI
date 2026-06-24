@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes floatA{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(220%)}}
+  @keyframes risefill{from{height:0}}
+</style>
+</helmet>
+
+<div style="display:flex;min-height:100vh;width:100%;background:#fff">
+
+  <!-- ───── ESQUERDA: marca + produto ───── -->
+  <div style="position:relative;display:flex;flex-direction:column;justify-content:space-between;width:52%;flex:none;overflow:hidden;padding:44px;background:radial-gradient(125% 120% at 75% 0%,#27496f 0%,#1a3050 40%,#0e1d30 100%)">
+    <div style="position:absolute;inset:0;opacity:.55;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:44px 44px"></div>
+    <div style="position:absolute;top:-110px;right:-90px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.3),transparent 70%);animation:floatA 14s ease-in-out infinite"></div>
+
+    <!-- brand -->
+    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:11px">
+      <div style="height:40px;width:40px;flex:none;border-radius:11px;background:linear-gradient(140deg,#2563eb,#1d4ed8);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(37,99,235,.5)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      </div>
+      <div style="font-size:21px;font-weight:800;letter-spacing:-.02em;color:#fff">Visor<span style="color:#60a5fa">360</span></div>
+    </div>
+
+    <!-- centro -->
+    <div style="position:relative;z-index:2;max-width:480px">
+      <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.3);margin-bottom:20px">
+        <span style="height:6px;width:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80"></span>
+        <span style="font-size:11px;font-weight:600;letter-spacing:.02em;color:#bfdbfe">Plataforma de gestão de postos</span>
+      </div>
+      <h2 style="margin:0;font-size:36px;font-weight:800;line-height:1.12;letter-spacing:-.025em;color:#fff">Toda a sua rede,<br>sob controle.</h2>
+      <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:rgba(226,232,240,.7)">Combustíveis, conveniência, fechamento de caixa e lucratividade — indicadores em tempo real, com a inteligência que antecipa o que precisa da sua atenção.</p>
+
+      <!-- mockup premium -->
+      <div style="position:relative;margin-top:30px;border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);padding:16px;backdrop-filter:blur(6px);box-shadow:0 28px 70px rgba(0,0,0,.4);overflow:hidden">
+        <!-- shimmer sweep -->
+        <div style="position:absolute;top:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);animation:shimmer 5s ease-in-out 1.2s infinite"></div>
+        <div style="position:relative;display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="height:8px;width:8px;border-radius:50%;background:#ef4444;opacity:.85"></span>
+            <span style="height:8px;width:8px;border-radius:50%;background:#f59e0b;opacity:.85"></span>
+            <span style="height:8px;width:8px;border-radius:50%;background:#22c55e;opacity:.85"></span>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,.45)">Central da Rede · tempo real</span>
+        </div>
+        <div style="position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);padding:11px"><p style="margin:0;font-size:9px;color:rgba(255,255,255,.5)">Faturamento</p><p style="margin:5px 0 0;font-size:16px;font-weight:800;color:#fff">R$ 9,66 mi</p><p style="margin:3px 0 0;font-size:9px;font-weight:600;color:#6ee7b7">▲ 4,8% vs mês ant.</p></div>
+          <div style="border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);padding:11px"><p style="margin:0;font-size:9px;color:rgba(255,255,255,.5)">Margem bruta</p><p style="margin:5px 0 0;font-size:16px;font-weight:800;color:#fff">18,4%</p><p style="margin:3px 0 0;font-size:9px;font-weight:600;color:#6ee7b7">▲ 0,6 p.p.</p></div>
+          <div style="border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);padding:11px"><p style="margin:0;font-size:9px;color:rgba(255,255,255,.5)">Caixas a revisar</p><p style="margin:5px 0 0;font-size:16px;font-weight:800;color:#fff">6</p><p style="margin:3px 0 0;font-size:9px;font-weight:600;color:#fcd34d">de 47 · exceção</p></div>
+        </div>
+        <div style="position:relative;margin-top:10px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.07);padding:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><span style="font-size:10px;color:rgba(255,255,255,.55)">Faturamento · 7 dias</span><span style="font-size:10px;font-weight:600;color:#6ee7b7">+12%</span></div>
+          <div style="display:flex;align-items:flex-end;gap:6px;height:50px">
+            <div style="flex:1;height:42%;border-radius:3px 3px 0 0;background:rgba(96,165,250,.4);animation:risefill 1s ease-out .9s both"></div>
+            <div style="flex:1;height:60%;border-radius:3px 3px 0 0;background:rgba(96,165,250,.5);animation:risefill 1s ease-out 1s both"></div>
+            <div style="flex:1;height:50%;border-radius:3px 3px 0 0;background:rgba(96,165,250,.45);animation:risefill 1s ease-out 1.1s both"></div>
+            <div style="flex:1;height:78%;border-radius:3px 3px 0 0;background:#2563eb;animation:risefill 1s ease-out 1.2s both"></div>
+            <div style="flex:1;height:64%;border-radius:3px 3px 0 0;background:rgba(96,165,250,.55);animation:risefill 1s ease-out 1.3s both"></div>
+            <div style="flex:1;height:92%;border-radius:3px 3px 0 0;background:#2563eb;animation:risefill 1s ease-out 1.4s both"></div>
+            <div style="flex:1;height:72%;border-radius:3px 3px 0 0;background:rgba(96,165,250,.6);animation:risefill 1s ease-out 1.5s both"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- rodapé: trust signals -->
+    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:22px">
+      <div style="display:flex;align-items:center;gap:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/></svg><span style="font-size:11px;color:rgba(226,232,240,.6)">Dados criptografados</span></div>
+      <div style="display:flex;align-items:center;gap:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span style="font-size:11px;color:rgba(226,232,240,.6)">Atualização em tempo real</span></div>
+      <span style="margin-left:auto;font-size:11px;color:rgba(226,232,240,.35)">© {{ ano }} CCI</span>
+    </div>
+  </div>
+
+  <!-- ───── DIREITA: formulário ───── -->
+  <div style="display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;background:#fbfcfe">
+    <div style="width:100%;max-width:380px">
+
+      <div style="margin-bottom:26px">
+        <h1 style="margin:0;font-size:25px;font-weight:800;letter-spacing:-.02em;color:#0f172a">Bem-vindo de volta</h1>
+        <p style="margin:7px 0 0;font-size:14px;color:#64748b">Acesse o portal da sua rede de postos.</p>
+      </div>
+
+      <!-- tabs -->
+      <div style="display:flex;gap:4px;padding:4px;border-radius:11px;background:#eef2f6;border:1px solid #e2e8f0">
+        <button type="button" onClick="{{ setGerente }}" style="display:flex;flex:1;align-items:center;justify-content:center;gap:7px;height:38px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ gerenteTabBg }};color:{{ gerenteTabColor }};box-shadow:{{ gerenteTabShadow }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+          Gerente
+        </button>
+        <button type="button" onClick="{{ setFrentista }}" style="display:flex;flex:1;align-items:center;justify-content:center;gap:7px;height:38px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:{{ frentistaTabBg }};color:{{ frentistaTabColor }};box-shadow:{{ frentistaTabShadow }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Frentista
+        </button>
+      </div>
+
+      <!-- form gerente -->
+      <sc-if value="{{ isGerente }}" hint-placeholder-val="{{ true }}">
+        <form style="margin-top:22px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:6px">E-mail</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              <input type="email" placeholder="seu@email.com" style="width:100%;height:46px;border-radius:11px;border:1px solid #e2e8f0;background:#fff;padding:0 14px 0 40px;font-family:inherit;font-size:14px;color:#0f172a;outline:none;box-shadow:0 1px 2px rgba(15,23,42,.04)" style-focus="border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)">
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="font-size:12px;font-weight:600;color:#334155">Senha</label><a href="#" style="font-size:12px;font-weight:600;color:#2563eb;text-decoration:none">Esqueci</a></div>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" placeholder="Sua senha" style="width:100%;height:46px;border-radius:11px;border:1px solid #e2e8f0;background:#fff;padding:0 42px 0 40px;font-family:inherit;font-size:14px;color:#0f172a;outline:none;box-shadow:0 1px 2px rgba(15,23,42,.04)" style-focus="border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;cursor:pointer"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          </div>
+          <button type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;height:46px;width:100%;margin-top:6px;border:none;border-radius:11px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 10px 24px rgba(37,99,235,.34)" style-hover="filter:brightness(1.07)">
+            Entrar no portal
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+      </sc-if>
+
+      <!-- form frentista -->
+      <sc-if value="{{ isFrentista }}" hint-placeholder-val="{{ false }}">
+        <form style="margin-top:22px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:6px">Código</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" placeholder="Seu código" style="width:100%;height:46px;border-radius:11px;border:1px solid #e2e8f0;background:#fff;padding:0 14px 0 40px;font-family:inherit;font-size:14px;color:#0f172a;outline:none;box-shadow:0 1px 2px rgba(15,23,42,.04)" style-focus="border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.12)">
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:6px">PIN</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" placeholder="Seu PIN" style="width:100%;height:46px;border-radius:11px;border:1px solid #e2e8f0;background:#fff;padding:0 14px 0 40px;font-family:inherit;font-size:14px;color:#0f172a;outline:none;box-shadow:0 1px 2px rgba(15,23,42,.04)" style-focus="border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.12)">
+            </div>
+          </div>
+          <button type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;height:46px;width:100%;margin-top:6px;border:none;border-radius:11px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 10px 24px rgba(22,163,74,.34)" style-hover="filter:brightness(1.07)">
+            Entrar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:2px"><span style="flex:1;height:1px;background:#e2e8f0"></span><span style="font-size:11px;color:#94a3b8">ou use o QR code no totem</span><span style="flex:1;height:1px;background:#e2e8f0"></span></div>
+        </form>
+      </sc-if>
+
+      <p style="margin:24px 0 0;text-align:center;font-size:12px;color:#94a3b8">Problemas para acessar? <a href="#" style="font-weight:600;color:#2563eb;text-decoration:none">Fale com o suporte</a></p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:820}}">
+class Component extends DCLogic {
+  state = { mode: 'gerente' };
+  renderVals() {
+    const m = this.state.mode;
+    const isG = m === 'gerente';
+    return {
+      ano: new Date().getFullYear(),
+      isGerente: isG, isFrentista: !isG,
+      setGerente: () => this.setState({ mode: 'gerente' }),
+      setFrentista: () => this.setState({ mode: 'frentista' }),
+      gerenteTabBg: isG ? '#ffffff' : 'transparent',
+      gerenteTabColor: isG ? '#1e3a5f' : '#64748b',
+      gerenteTabShadow: isG ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+      frentistaTabBg: !isG ? '#ffffff' : 'transparent',
+      frentistaTabColor: !isG ? '#16a34a' : '#64748b',
+      frentistaTabShadow: !isG ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+    };
+  }
+}
+</script>
+</body>
+</html>
