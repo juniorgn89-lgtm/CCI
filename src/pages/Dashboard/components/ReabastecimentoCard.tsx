@@ -1,168 +1,135 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Clock, Building2, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Fuel, Car, ShoppingBag, Building2, Clock } from 'lucide-react'
 import { formatLiters } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
-import { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/reposicao'
+import { aggregarPorProduto, calcularMaxes } from '@/pages/Dashboard/components/reposicao'
+import SubTabSwitcher, { type SubTab } from '@/pages/Dashboard/components/reabastecimento/SubTabSwitcher'
+import StatusFilter from '@/pages/Dashboard/components/reabastecimento/StatusFilter'
+import KpiHero from '@/pages/Dashboard/components/reabastecimento/KpiHero'
+import KpiStatusCard from '@/pages/Dashboard/components/reabastecimento/KpiStatusCard'
+import ReposicaoItemCard from '@/pages/Dashboard/components/reabastecimento/ReposicaoItemCard'
+import { combustivelView } from '@/pages/Dashboard/components/reabastecimento/combustivelView'
+import type { ReposicaoSetor } from '@/pages/Dashboard/components/reabastecimento/types'
 
-// A Central só lista tanques baixos (crítico/alerta), então não há filtro "OK".
-// 'negativo' é ortogonal aos níveis — filtra por estoqueAtual < 0 (operador
-// não baixou nota de entrada ou houve erro contábil).
+// 'negativo' é ortogonal aos níveis — filtra por estoqueAtual < 0.
 type FilterStatus = 'todos' | 'critico' | 'alerta' | 'negativo'
 
-interface ResumoPosto {
-  empresaCodigo: number
-  empresaNome: string
-  linhas: ReposicaoLinha[]
-  totalSugestao: number
-}
-
 /**
- * Painel de Reabastecimento na Central da Rede — visão "Resumo": relatório de
- * reposição por posto (consolidado por combustível, estilo planilha).
- * Renderiza só quando há ao menos 1 tanque abaixo de 30%.
- *
- * Visibilidade é controlada pelo Dashboard (isMaster || canVerReabastecimento).
+ * Aba "Reabastecimento" da Central da Rede — 3 sub-abas (Fase 1: Combustível;
+ * Automotivo/Conveniência em breve). Combustível usa `useReabastecimento` →
+ * `combustivelView` (view-model compartilhado) → blocos burros. A tabela de
+ * reposição por posto é a mesma de antes (idêntica). Visibilidade controlada
+ * pelo Dashboard (permissão canVerReabastecimento).
  */
 const ReabastecimentoCard = () => {
-  // includeDetalhes=true puxa LMC dos últimos 90 dias pra preencher
-  // ultimaCompra + necessidadeFimDoMes em cada tanque baixo.
-  const { baixos, criticos, isLoading } = useReabastecimento({ includeDetalhes: true })
-  const [expanded, setExpanded] = useState(true)
+  const [sub, setSub] = useState<ReposicaoSetor>('combustivel')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos')
+  const { baixos, criticos, isLoading } = useReabastecimento({ includeDetalhes: true })
 
-  // Resumo estável pro cabeçalho do painel.
-  const postosCount = useMemo(() => new Set(baixos.map((t) => t.empresaCodigo)).size, [baixos])
+  const view = useMemo(() => combustivelView(baixos, criticos), [baixos, criticos])
+  const filteredItems = view.items.filter((i) => filterStatus === 'todos' || i.status === filterStatus)
 
-  // Helper de predicate do filtro de status.
-  const matchesStatus = (t: ReabastTanque, f: FilterStatus): boolean => {
-    if (f === 'todos') return true
-    if (f === 'negativo') return t.estoqueAtual < 0
-    return t.nivel === f
-  }
-
-  // Resumo de reposição: por posto, e dentro de cada posto consolidado por
-  // combustível (estilo relatório "Reposição de Estoque").
-  const resumoPostos = useMemo<ResumoPosto[]>(() => {
+  // Resumo de reposição por posto (consolidado por combustível) — idêntico ao atual.
+  const resumoPostos = useMemo(() => {
+    const matches = (t: ReabastTanque): boolean => {
+      if (filterStatus === 'todos') return true
+      if (filterStatus === 'negativo') return t.estoqueAtual < 0
+      return t.estoqueAtual >= 0 && t.nivel === filterStatus
+    }
     const postoMap = new Map<number, { empresaNome: string; tanques: ReabastTanque[] }>()
     for (const t of baixos) {
-      if (!matchesStatus(t, filterStatus)) continue
+      if (!matches(t)) continue
       const g = postoMap.get(t.empresaCodigo) ?? { empresaNome: t.empresaNome, tanques: [] }
       g.tanques.push(t)
       postoMap.set(t.empresaCodigo, g)
     }
-    const arr: ResumoPosto[] = Array.from(postoMap.entries()).map(([empresaCodigo, g]) => ({
-      empresaCodigo,
-      empresaNome: g.empresaNome,
-      linhas: aggregarPorProduto(g.tanques),
-      totalSugestao: g.tanques.reduce((s, t) => s + t.necessidadeFimDoMes, 0),
-    }))
-    return arr.sort((a, b) => b.totalSugestao - a.totalSugestao)
+    return Array.from(postoMap.entries())
+      .map(([empresaCodigo, g]) => ({
+        empresaCodigo,
+        empresaNome: g.empresaNome,
+        linhas: aggregarPorProduto(g.tanques),
+        totalSugestao: g.tanques.reduce((s, t) => s + t.necessidadeFimDoMes, 0),
+      }))
+      .sort((a, b) => b.totalSugestao - a.totalSugestao)
   }, [baixos, filterStatus])
-
-  const totalSugestao = resumoPostos.reduce((s, rp) => s + rp.totalSugestao, 0)
-  // Máximos globais (todos os postos) — barras das tabelas compartilham a mesma
-  // escala, viabilizando comparação visual cross-posto.
   const resumoMaxes = useMemo(() => calcularMaxes(resumoPostos), [resumoPostos])
 
-  if (isLoading || baixos.length === 0) return null
+  const subTabs: SubTab[] = [
+    { id: 'combustivel', label: 'Combustível', Icon: Fuel },
+    { id: 'automotivo', label: 'Automotivo', Icon: Car, disabled: true },
+    { id: 'conveniencia', label: 'Conveniência', Icon: ShoppingBag, disabled: true },
+  ]
+
+  if (isLoading) return null
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className={cn(
-          'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/60 dark:hover:bg-gray-800/40',
-          expanded && 'border-b border-gray-100 dark:border-gray-800',
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Reabastecimento</h2>
-            {criticos.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                <AlertTriangle className="h-2.5 w-2.5" />
-                {criticos.length} crítico{criticos.length === 1 ? '' : 's'}
-              </span>
-            )}
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
-              · {postosCount} {postosCount === 1 ? 'posto' : 'postos'}
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Tanques com estoque baixo · crítico abaixo de 20% · alerta abaixo de 30% · clique pra {expanded ? 'minimizar' : 'expandir'}
-          </p>
-        </div>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-gray-400 transition-transform',
-            expanded && 'rotate-180',
-          )}
-        />
-      </button>
+    <section className="space-y-4">
+      <div className="flex justify-center">
+        <SubTabSwitcher tabs={subTabs} active={sub} onChange={setSub} />
+      </div>
 
-      {expanded && (
+      {sub !== 'combustivel' ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 p-10 text-center text-sm text-gray-400 dark:border-gray-700">
+          Em breve.
+        </div>
+      ) : baixos.length === 0 ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <Fuel className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
+          <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Todos os tanques abastecidos</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Nenhum tanque abaixo de 30% no momento.</p>
+        </div>
+      ) : (
         <>
-          {/* Filtro de status + total a comprar */}
-          <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
-            <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-              {(
-                [
-                  { v: 'todos', l: 'Todos' },
-                  { v: 'critico', l: 'Críticos' },
-                  { v: 'alerta', l: 'Alerta' },
-                  { v: 'negativo', l: 'Negativo' },
-                ] as { v: FilterStatus; l: string }[]
-              ).map((opt) => (
-                <button
-                  key={opt.v}
-                  onClick={() => setFilterStatus(opt.v)}
-                  className={cn(
-                    'inline-flex h-7 items-center rounded-md px-3 text-xs font-medium transition-colors',
-                    filterStatus === opt.v
-                      ? 'bg-[#1e3a5f] text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50',
-                  )}
-                >
-                  {opt.l}
-                </button>
+          {/* KPIs: hero navy + 3 status */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiHero hero={view.hero} />
+            {view.kpis.map((k) => <KpiStatusCard key={k.label} kpi={k} />)}
+          </div>
+
+          {/* Itens que precisam de atenção */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">{view.itemsTitulo}</h3>
+                  <InfoHint text={view.itemsCriterio} align="start" />
+                </div>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{view.itemsSubtitulo}</p>
+              </div>
+              <StatusFilter options={view.statusFilters} active={filterStatus} onChange={(id) => setFilterStatus(id as FilterStatus)} />
+            </div>
+            {filteredItems.length === 0 ? (
+              <p className="mt-6 text-center text-xs text-gray-400">Sem itens nesse filtro.</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredItems.map((it) => <ReposicaoItemCard key={it.id} item={it} />)}
+              </div>
+            )}
+          </div>
+
+          {/* Reposição por posto — tabela idêntica à anterior */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Reposição por posto</h3>
+              <InfoHint text={view.reposicaoFormula} align="start" />
+            </div>
+            <div className="mt-3 space-y-4">
+              {resumoPostos.map((rp) => (
+                <div key={rp.empresaCodigo}>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                    <p className="truncate text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">{rp.empresaNome}</p>
+                    <span className="ml-auto text-[11px] text-gray-500 dark:text-gray-400">
+                      Comprar <span className="font-semibold tabular-nums text-blue-700 dark:text-blue-400">{formatLiters(rp.totalSugestao)}</span>
+                    </span>
+                  </div>
+                  <ReposicaoTabela linhas={rp.linhas} maxes={resumoMaxes} />
+                </div>
               ))}
             </div>
-
-            <span className="ml-auto text-[11px] text-gray-500 dark:text-gray-400">
-              Total a comprar:{' '}
-              <span className="font-semibold tabular-nums text-blue-700 dark:text-blue-400">
-                {formatLiters(totalSugestao)}
-              </span>
-            </span>
-          </div>
-
-          {/* Resumo: relatório de reposição por posto */}
-          <div className="space-y-4 px-4 py-3">
-            {resumoPostos.map((rp) => (
-              <div key={rp.empresaCodigo}>
-                <div className="mb-1.5 flex items-center gap-2">
-                  <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                  <p className="truncate text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                    {rp.empresaNome}
-                  </p>
-                  <span className="ml-auto text-[11px] text-gray-500 dark:text-gray-400">
-                    Comprar{' '}
-                    <span className="font-semibold tabular-nums text-blue-700 dark:text-blue-400">
-                      {formatLiters(rp.totalSugestao)}
-                    </span>
-                  </span>
-                </div>
-                <ReposicaoTabela linhas={rp.linhas} maxes={resumoMaxes} />
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-gray-100 px-4 py-2 dark:border-gray-800">
-            <p className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
+            <p className="mt-3 flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
               <Clock className="h-3 w-3" />
               Baseado no estoque escritural atual de cada tanque
             </p>
