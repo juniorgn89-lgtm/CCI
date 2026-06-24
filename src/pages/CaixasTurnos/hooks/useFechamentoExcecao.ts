@@ -105,6 +105,10 @@ export interface ExcecaoCaixa {
 
 export interface FechamentoExcecaoData {
   totalCaixas: number
+  /** Postos (PDVs) distintos entre os caixas fechados. */
+  unidades: number
+  /** Turnos distintos entre os caixas fechados. */
+  turnos: number
   okCount: number
   okPct: number
   revisarCount: number
@@ -373,6 +377,8 @@ const useFechamentoExcecao = (): FechamentoExcecaoData => {
     const totalCaixas = fechados.length
     return {
       totalCaixas,
+      unidades: new Set(fechados.map((c) => c.pdvLabel)).size,
+      turnos: new Set(fechados.map((c) => c.turno)).size,
       okCount,
       okPct: totalCaixas > 0 ? Math.round((okCount / totalCaixas) * 100) : 0,
       revisarCount: fila.filter((f) => f.classe === 'revisar').length,

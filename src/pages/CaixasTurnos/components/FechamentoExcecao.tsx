@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Sparkles, Lock, CreditCard, Check, AlertTriangle, RotateCcw, ThumbsUp, ThumbsDown,
   ArrowUpRight, Info, ShieldCheck, BarChart3, TrendingUp, ChevronRight, Building2, X,
+  Wallet, Banknote, Ticket, QrCode,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
@@ -12,9 +14,18 @@ import useFechamentoExcecao, {
   type ExcecaoCaixa, type ExcecaoClasse, type CausaTier, type EvidenciaTier, type SparkPonto,
 } from '@/pages/CaixasTurnos/hooks/useFechamentoExcecao'
 import useDiferencasCaixa from '@/pages/CaixasTurnos/hooks/useDiferencasCaixa'
-import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 import { isCartaoForma } from '@/lib/difCaixa'
+
+/** Ícone + cor por forma de pagamento (visual igual ao mockup). */
+const formaIcon = (nome: string): { Icon: LucideIcon; text: string; bg: string } => {
+  const u = (nome ?? '').toUpperCase()
+  if (u.includes('DINHEIRO')) return { Icon: Banknote, text: 'text-[#15803d]', bg: 'bg-[#dcfce7] dark:bg-emerald-900/30' }
+  if (u.includes('PIX')) return { Icon: QrCode, text: 'text-[#0d9488]', bg: 'bg-[#ccfbf1] dark:bg-teal-900/30' }
+  if (isCartaoForma(nome)) return { Icon: CreditCard, text: 'text-[#4338ca]', bg: 'bg-[#e0e7ff] dark:bg-indigo-900/30' }
+  if (u.includes('VOUCHER') || u.includes('FROTA') || u.includes('VALE')) return { Icon: Ticket, text: 'text-[#b45309]', bg: 'bg-[#fef3c7] dark:bg-amber-900/30' }
+  return { Icon: Wallet, text: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800' }
+}
 
 /* ── Feedback 👍/👎 em localStorage (por caixa, sobrevive reload; sem backend) ── */
 const FEEDBACK_KEY = 'visor360.excecao.feedback'
@@ -45,12 +56,20 @@ const TIER_META: Record<EvidenciaTier, { label: string; text: string; bg: string
   historico: { label: 'histórico', text: 'text-[#4338ca] dark:text-indigo-400', bg: 'bg-[#eef2ff] dark:bg-indigo-900/20' },
 }
 
-const Kpi = ({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone: 'neutral' | ExcecaoClasse }) => {
+const Kpi = ({ label, secondary, value, sub, tone, Icon }: { label: string; secondary: string; value: string; sub?: string; tone: 'neutral' | ExcecaoClasse; Icon: LucideIcon }) => {
   const meta = tone === 'neutral' ? null : CLASSE_META[tone]
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-      <p className={cn('mt-1.5 text-2xl font-bold tabular-nums', meta ? meta.text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
+    <div className={cn('rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900', meta ? meta.border : 'border-gray-200 dark:border-gray-700')}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold text-gray-900 dark:text-gray-100">{label}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{secondary}</p>
+        </div>
+        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', meta ? meta.bg : 'bg-gray-100 dark:bg-gray-800')}>
+          <Icon className={cn('h-4 w-4', meta ? meta.text : 'text-gray-500')} />
+        </div>
+      </div>
+      <p className={cn('mt-2 text-2xl font-bold tabular-nums', meta ? meta.text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
       {sub && <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{sub}</p>}
     </div>
   )
@@ -82,7 +101,7 @@ const Sparkline = ({ serie }: { serie: SparkPonto[] }) => {
 
 const FechamentoExcecao = () => {
   const data = useFechamentoExcecao()
-  const { totalCaixas, okCount, okPct, revisarCount, investigarCount, fila, toleranciaLabel, baseCaveat, isLoading, hasEmpresa } = data
+  const { totalCaixas, unidades, turnos, okCount, okPct, revisarCount, investigarCount, fila, toleranciaLabel, baseCaveat, isLoading, hasEmpresa } = data
   const [vista, setVista] = useState<'fila' | 'panorama'>('fila')
   const [filtro, setFiltro] = useState<'todos' | 'investigar' | 'revisar'>('todos')
   const [selKey, setSelKey] = useState<string | null>(null)
@@ -111,8 +130,8 @@ const FechamentoExcecao = () => {
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4f46e5] text-white"><Sparkles className="h-5 w-5" /></div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Você só precisa olhar <span className="text-[#4338ca] dark:text-indigo-400">{totalFila} de {totalCaixas} caixas</span>.</p>
-            <p className="mt-0.5 text-[12.5px] text-gray-600 dark:text-gray-400">A IA classifica e prioriza — <strong>não recalcula valores</strong> e <strong>nada é automático</strong>.</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Você só precisa olhar <span className="text-[#4338ca] dark:text-indigo-400">{totalFila} de {totalCaixas} caixas</span>. O restante foi conferido e bate dentro da tolerância.</p>
+            <p className="mt-0.5 text-[12.5px] text-gray-600 dark:text-gray-400">A IA classifica e explica cada diferença a partir dos valores já apurados pelo sistema — ela <strong>não recalcula</strong> nada. Agora com <strong>histórico de 90 dias</strong>: recorrência por operador e tolerância adaptativa por PDV.</p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-gray-900 dark:text-emerald-400">
@@ -123,10 +142,10 @@ const FechamentoExcecao = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Caixas do dia" value={String(totalCaixas)} tone="neutral" />
-        <Kpi label="Conferidos OK" value={String(okCount)} sub={`${okPct}% · sem ação`} tone="ok" />
-        <Kpi label="Revisar" value={String(revisarCount)} tone="revisar" />
-        <Kpi label="Investigar" value={String(investigarCount)} tone="investigar" />
+        <Kpi label="Caixas do dia" secondary={`${unidades} unidades · ${turnos} turnos`} value={String(totalCaixas)} sub={`${okCount} conferidos · ${totalFila} em exceção`} tone="neutral" Icon={Wallet} />
+        <Kpi label="Conferidos OK" secondary="dentro da tolerância" value={String(okCount)} sub={`${okPct}% dos caixas · sem ação`} tone="ok" Icon={Check} />
+        <Kpi label="Revisar" secondary="causa provável" value={String(revisarCount)} sub="diferença explicável" tone="revisar" Icon={Info} />
+        <Kpi label="Investigar" secondary="risco elevado" value={String(investigarCount)} sub="recorrência ou valor alto" tone="investigar" Icon={AlertTriangle} />
       </div>
 
       {/* Toggle Fila ↔ Panorama */}
@@ -195,8 +214,8 @@ const FechamentoExcecao = () => {
 
       {/* Nota conceitual */}
       <div className="rounded-2xl border border-dashed border-gray-300 px-5 py-4 text-[12px] leading-relaxed text-gray-500 dark:border-gray-700 dark:text-gray-400">
-        <span className="inline-flex items-center gap-1 font-semibold text-gray-600 dark:text-gray-300"><Info className="h-3.5 w-3.5" /> Nível 1 — copiloto read-only.</span>{' '}
-        A IA classifica e explica; <strong>não grava nada</strong>. Os caixas OK <strong>não são definitivos</strong> — entram em amostragem de auditoria aleatória. Auto-aprovação e ajuste são fase futura (escrita + auditoria). Tolerância: {toleranciaLabel}
+        <span className="inline-flex items-center gap-1 font-semibold text-gray-600 dark:text-gray-300"><Info className="h-3.5 w-3.5" /> Conceito Nível 1 · Fase 2 (read-only).</span>{' '}
+        O motor determinístico calcula apurado e diferença; a IA classifica, explica e prioriza — <strong>nunca recalcula</strong>. A Fase 2 acrescenta <strong>recorrência histórica (90d)</strong> e <strong>tolerância adaptativa por PDV</strong><InfoHint text={toleranciaLabel} /> (a banda de "OK" é aprendida do histórico de cada posto, não uma constante). Auto-aprovação e lançamento de ajuste seguem como passo futuro (escrita + auditoria); os "OK" entram em amostragem de auditoria.
       </div>
     </div>
   )
@@ -347,21 +366,7 @@ const Divergente = ({ valor, max }: { valor: number; max: number }) => {
 /* ── Panorama (cortes da antiga Diferenças) ── */
 const Panorama = () => {
   const dif = useDiferencasCaixa()
-  const { conferenciaPdv } = useOperacaoData()
   const [modal, setModal] = useState<{ forma: string; isCartao: boolean; valor: number } | null>(null)
-
-  // Split de cada forma por POSTO (diferença), pro modal de formas não-cartão.
-  const formaPorPosto = useMemo(() => {
-    const m = new Map<string, Map<string, number>>()
-    for (const conf of conferenciaPdv) {
-      for (const f of conf.formas) {
-        const byP = m.get(f.nome) ?? new Map<string, number>()
-        byP.set(conf.pdvLabel, (byP.get(conf.pdvLabel) ?? 0) + f.diferenca)
-        m.set(f.nome, byP)
-      }
-    }
-    return m
-  }, [conferenciaPdv])
 
   const maxResp = Math.max(1, ...dif.porResponsavel.map((r) => Math.abs(r.liquido)))
   const maxDia = Math.max(1, ...dif.porDia.map((d) => Math.abs(d.valor)))
@@ -371,7 +376,7 @@ const Panorama = () => {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* Por responsável */}
-      <Card titulo="Por responsável" hint="Líquido (sobra − falta) por operador no período. Barra divergente em torno do zero.">
+      <Card titulo="Por responsável" sub="Líquido de diferença no período · sobra ▲ / falta ▼">
         <div className="space-y-2">
           {respOrd.map((r) => (
             <div key={r.nome} className="flex items-center gap-2">
@@ -385,22 +390,26 @@ const Panorama = () => {
       </Card>
 
       {/* Onde está a diferença (por forma) */}
-      <Card titulo="Onde está a diferença" hint="Líquido por forma de pagamento. Clique numa linha pra ver a composição.">
+      <Card titulo="Onde está a diferença" sub="Líquido por forma de pagamento">
         <div className="space-y-1">
-          {dif.porForma.map((f) => (
-            <button key={f.nome} type="button" onClick={() => !f.isNaoConferido && setModal({ forma: f.nome, isCartao: f.isCartao, valor: f.valor })}
-              className={cn('flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left', f.isNaoConferido ? 'cursor-default' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}>
-              <span className="flex-1 truncate text-[12.5px] text-gray-700 dark:text-gray-300">{f.nome}</span>
-              <span className={cn('text-[12.5px] font-semibold tabular-nums', f.valor < 0 ? 'text-[#b91c1c]' : 'text-[#15803d]')}>{fmtDif(f.valor)}</span>
-              {!f.isNaoConferido && <ChevronRight className="h-3.5 w-3.5 text-gray-300" />}
-            </button>
-          ))}
+          {dif.porForma.map((f) => {
+            const ic = formaIcon(f.nome)
+            return (
+              <button key={f.nome} type="button" onClick={() => !f.isNaoConferido && setModal({ forma: f.nome, isCartao: f.isCartao, valor: f.valor })}
+                className={cn('flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left', f.isNaoConferido ? 'cursor-default' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}>
+                <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', ic.bg)}><ic.Icon className={cn('h-4 w-4', ic.text)} /></span>
+                <span className="flex-1 truncate text-[12.5px] font-medium text-gray-700 dark:text-gray-300">{f.nome}</span>
+                <span className={cn('text-[12.5px] font-semibold tabular-nums', f.valor < 0 ? 'text-[#b91c1c]' : 'text-[#15803d]')}>{fmtDif(f.valor)}</span>
+                {!f.isNaoConferido && <ChevronRight className="h-3.5 w-3.5 text-gray-300" />}
+              </button>
+            )
+          })}
           {dif.porForma.length === 0 && <p className="text-center text-xs text-gray-400">Sem diferenças por forma.</p>}
         </div>
       </Card>
 
       {/* Diferença por dia */}
-      <Card titulo="Diferença por dia" hint="Líquido por dia (últimos 30 dias). Sobra ▲ verde / falta ▼ vermelho." full>
+      <Card titulo="Diferença por dia" sub="Líquido diário · 30 dias · sobra ▲ verde / falta ▼ vermelho" full>
         <div className="flex h-32 items-center gap-1">
           {diaOrd.map((d) => {
             const hh = Math.max(2, Math.round((Math.abs(d.valor) / maxDia) * 52)); const up = d.valor >= 0
@@ -418,14 +427,15 @@ const Panorama = () => {
 
       <p className="text-[11px] italic text-gray-400 lg:col-span-2">Panorama incorpora os cortes agregados da antiga aba Diferenças.</p>
 
-      {modal && <FormaModal modal={modal} caixaCodigos={dif.caixaCodigos} pdvByCaixa={dif.pdvByCaixa} formaPorPosto={formaPorPosto} onClose={() => setModal(null)} />}
+      {modal && <FormaModal modal={modal} caixaCodigos={dif.caixaCodigos} pdvByCaixa={dif.pdvByCaixa} formaPorPosto={dif.formaPorPosto} onClose={() => setModal(null)} />}
     </div>
   )
 }
 
-const Card = ({ titulo, hint, full, children }: { titulo: string; hint: string; full?: boolean; children: React.ReactNode }) => (
+const Card = ({ titulo, sub, full, children }: { titulo: string; sub: string; full?: boolean; children: React.ReactNode }) => (
   <div className={cn('rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900', full && 'lg:col-span-2')}>
-    <div className="flex items-center gap-1.5"><h3 className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">{titulo}</h3><InfoHint text={hint} align="start" /></div>
+    <h3 className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">{titulo}</h3>
+    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{sub}</p>
     <div className="mt-3">{children}</div>
   </div>
 )
@@ -434,7 +444,7 @@ const Card = ({ titulo, hint, full, children }: { titulo: string; hint: string; 
 const FormaModal = ({ modal, caixaCodigos, pdvByCaixa, formaPorPosto, onClose }: {
   modal: { forma: string; isCartao: boolean; valor: number }
   caixaCodigos: number[]; pdvByCaixa: Map<number, string>
-  formaPorPosto: Map<string, Map<string, number>>
+  formaPorPosto: Map<string, { posto: string; valor: number }[]>
   onClose: () => void
 }) => {
   const ehCartao = modal.isCartao || isCartaoForma(modal.forma)
@@ -443,11 +453,8 @@ const FormaModal = ({ modal, caixaCodigos, pdvByCaixa, formaPorPosto, onClose }:
   const tipoClicado = /CRED/i.test(modal.forma) ? 'Crédito' : /DEB/i.test(modal.forma) ? 'Débito' : null
   const linhasCartao = useMemo(() => card.linhas.filter((l) => !tipoClicado || l.tipo === tipoClicado), [card.linhas, tipoClicado])
 
-  const linhasPosto = useMemo(() => {
-    const byP = formaPorPosto.get(modal.forma)
-    if (!byP) return []
-    return Array.from(byP.entries()).map(([posto, valor]) => ({ posto, valor })).filter((x) => Math.abs(x.valor) > 0.005).sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor))
-  }, [formaPorPosto, modal.forma])
+  // Já vem no escopo certo (fechados + dedup) do useDiferencasCaixa → soma = linha.
+  const linhasPosto = formaPorPosto.get(modal.forma) ?? []
 
   const tipo = ehCartao ? 'Composição por bandeira' : 'Por posto'
   const maxV = ehCartao ? Math.max(1, ...linhasCartao.map((l) => l.valor)) : Math.max(1, ...linhasPosto.map((l) => Math.abs(l.valor)))

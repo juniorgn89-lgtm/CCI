@@ -54,6 +54,8 @@ export interface DiferencasCaixaData {
   kpis: DifKpis
   porResponsavel: RespRow[]
   porForma: FormaRow[]
+  /** Quebra de cada forma por POSTO (mesmo escopo da porForma) — pro modal. */
+  formaPorPosto: Map<string, { posto: string; valor: number }[]>
   /** Nº de caixas fechados com diferença mas sem quebra por forma. */
   naoConferidoCount: number
   porDia: DiaPoint[]
@@ -106,7 +108,12 @@ const useDiferencasCaixa = (): DiferencasCaixaData => {
     const porResponsavel = Array.from(respMap.values())
 
     // ── Por forma (+ balde "Não conferido" residual) ──
+    // formaPostoMap: quebra de cada forma por POSTO — derivada NO MESMO laço
+    // (fechados + confByCaixa deduplicado), pra o modal do Panorama somar
+    // EXATAMENTE o valor da linha de forma. (Antes o modal iterava o
+    // conferenciaPdv cru → escopo/dedup divergentes → valor não batia.)
     const formaMap = new Map<string, number>()
+    const formaPostoMap = new Map<string, Map<string, number>>()
     let semQuebraCount = 0
     for (const c of fechados) {
       const conf = confByCaixa.get(c.caixaCodigo)
@@ -117,7 +124,17 @@ const useDiferencasCaixa = (): DiferencasCaixaData => {
       }
       for (const f of conf!.formas) {
         formaMap.set(f.nome, (formaMap.get(f.nome) ?? 0) + f.diferenca)
+        const byP = formaPostoMap.get(f.nome) ?? new Map<string, number>()
+        byP.set(c.pdvLabel, (byP.get(c.pdvLabel) ?? 0) + f.diferenca)
+        formaPostoMap.set(f.nome, byP)
       }
+    }
+    const formaPorPosto = new Map<string, { posto: string; valor: number }[]>()
+    for (const [nome, byP] of formaPostoMap) {
+      formaPorPosto.set(nome, Array.from(byP.entries())
+        .map(([posto, valor]) => ({ posto, valor }))
+        .filter((x) => Math.abs(x.valor) > EPS)
+        .sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor)))
     }
     const somaFormas = Array.from(formaMap.values()).reduce((s, v) => s + v, 0)
     const porForma: FormaRow[] = Array.from(formaMap.entries())
@@ -175,6 +192,7 @@ const useDiferencasCaixa = (): DiferencasCaixaData => {
       kpis: { liquida, faltas, faltasCount, sobras, sobrasCount, comDiferenca, totalConferidos: fechados.length },
       porResponsavel,
       porForma,
+      formaPorPosto,
       naoConferidoCount: semQuebraCount,
       porDia,
       topCaixas,
