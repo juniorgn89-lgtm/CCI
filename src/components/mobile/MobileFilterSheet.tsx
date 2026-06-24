@@ -2,7 +2,6 @@ import { useLocation } from 'react-router-dom'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import CompanySelect from '@/components/filters/CompanySelect'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import DataFilterModeSelect from '@/components/filters/DataFilterModeSelect'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
 import { showsComparison } from '@/lib/globalFilters'
 
@@ -35,7 +34,6 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
       <div className="mt-4 space-y-4">
         {!hideCompanySelect && <Field label="Posto"><CompanySelect /></Field>}
         <Field label="Período"><DateRangeToolbar stacked /></Field>
-        <Field label="Escopo"><DataFilterModeSelect /></Field>
         {showComparison && <Field label="Comparativo"><ComparisonSelect /></Field>}
       </div>
       <button
