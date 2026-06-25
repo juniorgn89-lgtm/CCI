@@ -20,6 +20,15 @@ interface ProjecaoExecutivaProps {
   onToggleExpanded?: () => void
 }
 
+/** Formato compacto pros números densos do card — cabe em telas estreitas sem
+ *  perder a distinção entre os cenários (R$ 1,53 mi vs 1,56 vs 1,59 mi). */
+const compact = (v: number): string => {
+  const a = Math.abs(v)
+  if (a >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2).replace('.', ',')} mi`
+  if (a >= 1_000) return `R$ ${Math.round(v / 1_000)} mil`
+  return formatCurrencyInt(v)
+}
+
 const CONFIA: Record<Confiabilidade, { label: string; cls: string }> = {
   alta: { label: 'Confiança alta', cls: 'bg-emerald-400/20 text-emerald-100 ring-emerald-300/30' },
   media: { label: 'Confiança média', cls: 'bg-amber-400/20 text-amber-100 ring-amber-300/30' },
@@ -53,13 +62,13 @@ const ScenarioCell = ({ label, value, valueClass, highlight, align, tip }: {
 }) => (
   <div
     className={cn(
-      'group/cen relative cursor-help rounded-lg px-2 py-1.5 text-center',
+      'group/cen relative min-w-0 cursor-help rounded-lg px-1.5 py-1.5 text-center',
       highlight ? 'bg-white/20 ring-1 ring-white/30' : 'bg-white/10',
     )}
     tabIndex={0}
   >
-    <p className={cn('text-[9px] uppercase tracking-wide', highlight ? 'text-white/70' : 'text-white/55')}>{label}</p>
-    <p className={cn('text-xs tabular-nums', highlight ? 'font-bold text-white' : 'font-semibold text-white/90', valueClass)}>{value}</p>
+    <p className={cn('truncate text-[9px] uppercase tracking-wide', highlight ? 'text-white/70' : 'text-white/55')}>{label}</p>
+    <p className={cn('truncate text-xs tabular-nums', highlight ? 'font-bold text-white' : 'font-semibold text-white/90', valueClass)}>{value}</p>
     <span
       className={cn(
         'pointer-events-none absolute bottom-full z-50 mb-2 w-56 rounded-md bg-gray-900 px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/cen:opacity-100 group-focus/cen:opacity-100 dark:bg-gray-800',
@@ -166,20 +175,20 @@ const ProjecaoExecutiva = ({
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
                   <ScenarioCell
                     label="Conservador"
-                    value={formatCurrencyInt(fat.conservador)}
+                    value={compact(fat.conservador)}
                     align="left"
                     tip={tipConservador}
                   />
                   <ScenarioCell
                     label="Esperado"
-                    value={formatCurrencyInt(fat.esperado)}
+                    value={compact(fat.esperado)}
                     highlight
                     align="center"
                     tip={tipEsperado}
                   />
                   <ScenarioCell
                     label="Otimista"
-                    value={formatCurrencyInt(fat.otimista)}
+                    value={compact(fat.otimista)}
                     valueClass="text-emerald-200"
                     align="right"
                     tip={tipOtimista}
@@ -191,7 +200,7 @@ const ProjecaoExecutiva = ({
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 <Chip icon={CalendarCheck} label="Dias fechados" value={String(fat.diasFechados)} />
                 <Chip icon={CalendarClock} label="Dias restantes" value={String(fat.diasRestantes)} />
-                <Chip icon={Gauge} label="Média / dia" value={formatCurrencyInt(fat.mediaDiaria)} />
+                <Chip icon={Gauge} label="Média / dia" value={compact(fat.mediaDiaria)} />
                 <Chip
                   icon={up ? TrendingUp : TrendingDown}
                   label="Tendência"
