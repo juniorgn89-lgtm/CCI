@@ -261,9 +261,20 @@ const toDuplicataRow = (d: Duplicata, hoje: string): DuplicataRow => {
   }
 }
 
+/**
+ * Filtra um dataset rede-wide pelo subconjunto de postos do filtro. `[]` = Todos
+ * (rede inteira); subconjunto = só os selecionados. Memoizado pra estabilidade
+ * das deps a jusante. Como a busca é rede-wide (keyed por período), trocar de
+ * posto re-agrega no cliente sem refetch.
+ */
+const useSubset = <T extends { empresaCodigo: number }>(arr: T[], codes: number[]): T[] =>
+  useMemo(
+    () => (codes.length === 0 ? arr : arr.filter((r) => codes.includes(r.empresaCodigo))),
+    [arr, codes],
+  )
+
 const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
 
   // Primitivos do filtro local pra dependências estáveis do useMemo (evita
@@ -272,8 +283,9 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const lpInicio = localPeriod?.dataInicial ?? ''
   const lpFim = localPeriod?.dataFinal ?? ''
 
+  // Sem empresaCodigo → a Quality retorna a REDE inteira (confirmado). Filtramos
+  // o subconjunto no cliente (useSubset). queries keyed por período/'rede'.
   const filterParams = {
-    empresaCodigo: empresaCodigo ?? undefined,
     dataInicial,
     dataFinal,
   }
@@ -287,47 +299,46 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // baixo (~100/1000); sem paginação postos com volume médio perdiam a maior
   // parte do período no fluxo de caixa (só os primeiros N movimentos voltavam).
   const {
-    data: titulosReceber = [],
+    data: titulosReceberRaw = [],
     isLoading: isLoadingReceber,
   } = useQuery({
-    queryKey: ['titulosReceber', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['titulosReceber', 'rede', dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosReceber({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   const {
-    data: titulosPagar = [],
+    data: titulosPagarRaw = [],
     isLoading: isLoadingPagar,
   } = useQuery({
-    queryKey: ['titulosPagar', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['titulosPagar', 'rede', dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   const {
-    data: movimentos = [],
+    data: movimentosRaw = [],
     isLoading: isLoadingMovimentos,
   } = useQuery({
-    queryKey: ['movimentosConta', empresaCodigo, dataInicial, dataFinal],
+    queryKey: ['movimentosConta', 'rede', dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchMovimentosConta({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // Período anterior — só pros KPIs comparativos, paginado igual.
-  const { data: movimentosPrev = [] } = useQuery({
-    queryKey: ['movimentosConta', empresaCodigo, prevDataInicial, prevDataFinal],
+  const { data: movimentosPrevRaw = [] } = useQuery({
+    queryKey: ['movimentosConta', 'rede', prevDataInicial, prevDataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchMovimentosConta({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: prevDataInicial,
         dataFinal: prevDataFinal,
         ultimoCodigo: p.ultimoCodigo,
@@ -335,17 +346,17 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // Recebíveis de cartão (/CARTAO) DO PERÍODO — alimenta o "Modo recebimento".
-  const { data: cartoes = [] } = useQuery({
-    queryKey: ['cartao', empresaCodigo, dataInicial, dataFinal],
+  const { data: cartoesRaw = [] } = useQuery({
+    queryKey: ['cartao', 'rede', dataInicial, dataFinal],
     queryFn: () => fetchAllPages(
       (p) => fetchCartao({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // --- Snapshot de PENDENTES (independe do período selecionado) ---
@@ -363,11 +374,10 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // antigos (parcelados/atrasos da administradora). Cobre o "a receber" do webPosto.
   const cartaoSnapInicio = offsetDateByDays(hojeStr, 1095)
 
-  const { data: titulosReceberPend = [], isLoading: isLoadingReceberPend } = useQuery({
-    queryKey: ['titulosReceberPend', empresaCodigo],
+  const { data: titulosReceberPendRaw = [], isLoading: isLoadingReceberPend } = useQuery({
+    queryKey: ['titulosReceberPend', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosReceber({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
         dataFinal: SNAPSHOT_FIM,
         apenasPendente: true,
@@ -376,7 +386,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // Sem `apenasPendente`: esse flag da Quality retorna SÓ situação "Aberto" e
@@ -384,11 +394,10 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // webPosto soma em "A pagar". Trazemos tudo na janela e filtramos por saldo no
   // toPayableRow. staleTime alto porque o payload é grande (todos os títulos do
   // período, não só os abertos).
-  const { data: titulosPagarPend = [], isLoading: isLoadingPagarPend } = useQuery({
-    queryKey: ['titulosPagarPend', empresaCodigo],
+  const { data: titulosPagarPendRaw = [], isLoading: isLoadingPagarPend } = useQuery({
+    queryKey: ['titulosPagarPend', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
         dataFinal: SNAPSHOT_FIM,
         ultimoCodigo: p.ultimoCodigo,
@@ -396,17 +405,16 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 30,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
     staleTime: 5 * 60 * 1000,
   })
 
   // Duplicatas EM ABERTO (snapshot) — /DUPLICATA não baixadas (pendente=true).
   // Mesma janela ampla dos demais pendentes (podem estar vencidas há tempo).
-  const { data: duplicatasPend = [], isLoading: isLoadingDuplicatasPend } = useQuery({
-    queryKey: ['duplicatasPend', empresaCodigo],
+  const { data: duplicatasPendRaw = [], isLoading: isLoadingDuplicatasPend } = useQuery({
+    queryKey: ['duplicatasPend', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchDuplicatas({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: SNAPSHOT_INICIO,
         dataFinal: SNAPSHOT_FIM,
         apenasPendente: true,
@@ -415,14 +423,13 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
-  const { data: cartoesPend = [] } = useQuery({
-    queryKey: ['cartaoPend', empresaCodigo],
+  const { data: cartoesPendRaw = [] } = useQuery({
+    queryKey: ['cartaoPend', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchCartao({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: cartaoSnapInicio,
         dataFinal: hojeStr,
         apenasPendente: true,
@@ -431,17 +438,16 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // Títulos a receber PAGOS nos últimos 6 meses (filtro por data de pagamento) —
   // base pro PMR (prazo médio de recebimento = pagamento − movimento).
   const pmrInicio = offsetDateByDays(hojeStr, 180)
-  const { data: titulosReceberPagos = [] } = useQuery({
-    queryKey: ['titulosReceberPagos', empresaCodigo],
+  const { data: titulosReceberPagosRaw = [] } = useQuery({
+    queryKey: ['titulosReceberPagos', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosReceber({
-        empresaCodigo: empresaCodigo ?? undefined,
         dataInicial: pmrInicio,
         dataFinal: hojeStr,
         dataFiltro: 'PAGAMENTO',
@@ -450,18 +456,31 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
 
   // Saldo em caixa/banco (/CONTA) — pro card "Impacto no Caixa" da aba Pagar.
-  const { data: contas = [] } = useQuery({
-    queryKey: ['contas', empresaCodigo],
+  const { data: contasRaw = [] } = useQuery({
+    queryKey: ['contas', 'rede'],
     queryFn: () => fetchAllPages(
-      (p) => fetchContas({ empresaCodigo: empresaCodigo ?? undefined, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      (p) => fetchContas({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 20,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
+
+  // Recorta cada dataset rede-wide pelo subconjunto de postos do filtro (`[]`=Todos).
+  const titulosReceber = useSubset(titulosReceberRaw, empresaCodigos)
+  const titulosPagar = useSubset(titulosPagarRaw, empresaCodigos)
+  const movimentos = useSubset(movimentosRaw, empresaCodigos)
+  const movimentosPrev = useSubset(movimentosPrevRaw, empresaCodigos)
+  const cartoes = useSubset(cartoesRaw, empresaCodigos)
+  const titulosReceberPend = useSubset(titulosReceberPendRaw, empresaCodigos)
+  const titulosPagarPend = useSubset(titulosPagarPendRaw, empresaCodigos)
+  const duplicatasPend = useSubset(duplicatasPendRaw, empresaCodigos)
+  const cartoesPend = useSubset(cartoesPendRaw, empresaCodigos)
+  const titulosReceberPagos = useSubset(titulosReceberPagosRaw, empresaCodigos)
+  const contas = useSubset(contasRaw, empresaCodigos)
   const saldoEmCaixa = contas.filter((c) => c.ativo).reduce((s, c) => s + (c.saldoAtual ?? 0), 0)
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos

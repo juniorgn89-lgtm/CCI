@@ -92,7 +92,7 @@ const TitulosList = <T extends { statusTag: string; diasAtraso: number }>({
  * vencidos + fluxo resumido), A Receber, A Pagar (listas filtráveis) e Fluxo.
  */
 const FinanceiroMobile = () => {
-  const { kpis, receivablesData, payablesData, cashFlowData, cashFlowTotals, cashFlowPrevTotals, isLoading, hasEmpresa } = useFinanceData()
+  const { kpis, receivablesData, payablesData, cashFlowData, cashFlowTotals, cashFlowPrevTotals, isLoading } = useFinanceData()
   const [tab, setTab] = useState('geral')
 
   const fluxoChart = useMemo(
@@ -100,14 +100,6 @@ const FinanceiroMobile = () => {
     [cashFlowData],
   )
 
-  if (!hasEmpresa) {
-    return (
-      <div className="space-y-3 pb-2">
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
-        <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver o financeiro." />
-      </div>
-    )
-  }
   if (isLoading || !kpis) return <LoadingScreen message="Carregando financeiro…" />
 
   const resultadoTone: Tone = cashFlowTotals.saldo < 0 ? 'rose' : 'emerald'

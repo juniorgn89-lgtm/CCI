@@ -68,8 +68,6 @@ type Aba = 'atraso' | 'vencer' | 'liquidados'
  */
 const CartoesIntel = () => {
   const { empresaCodigos } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
   const hoje = todayISO()
   const [mesesJanela, setMesesJanela] = useState<number>(DEFAULT_MESES)
   const [aba, setAba] = useState<Aba>('atraso')
@@ -80,14 +78,19 @@ const CartoesIntel = () => {
     return d.toISOString().split('T')[0]
   }, [hoje, mesesJanela])
 
-  const { data: cartoes = [], isLoading } = useQuery({
-    queryKey: ['cartaoAnalytics', empresaCodigo, inicioWin, hoje],
+  // Rede-wide (omitir empresaCodigo) + filtro de subconjunto no cliente.
+  const { data: cartoesRaw = [], isLoading } = useQuery({
+    queryKey: ['cartaoAnalytics', 'rede', inicioWin, hoje],
     queryFn: () => fetchAllPages(
-      (p) => fetchCartao({ empresaCodigo: empresaCodigo ?? undefined, dataInicial: inicioWin, dataFinal: hoje, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      (p) => fetchCartao({ dataInicial: inicioWin, dataFinal: hoje, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 120,
     ),
-    enabled: hasEmpresa,
+    enabled: true,
   })
+  const cartoes = useMemo(
+    () => (empresaCodigos.length === 0 ? cartoesRaw : cartoesRaw.filter((c) => empresaCodigos.includes(c.empresaCodigo))),
+    [cartoesRaw, empresaCodigos],
+  )
 
   const m = useMemo(() => {
     const pend = cartoes.filter((c) => c.pendente)
@@ -170,7 +173,6 @@ const CartoesIntel = () => {
     }
   }, [cartoes, hoje, mesesJanela])
 
-  if (!hasEmpresa) return null
   if (isLoading) {
     return (
       <div className="space-y-4">

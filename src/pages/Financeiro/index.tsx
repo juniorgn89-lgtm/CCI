@@ -1,7 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { DollarSign, Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -85,7 +84,6 @@ const Financeiro = () => {
     receivablesPagos,
     saldoEmCaixa,
     isLoading,
-    hasEmpresa,
   } = useFinanceData(localPeriod)
 
   // Posição líquida (hero) — a receber em aberto (títulos + duplicatas) − a pagar.
@@ -125,7 +123,7 @@ const Financeiro = () => {
           </div>
         </div>
       </PageHeaderTitle>
-      {hasEmpresa && visibleTabs.length > 0 && (
+      {visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs
             active={activeTab}
@@ -160,11 +158,8 @@ const Financeiro = () => {
       <HeaderTray>
         <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
-      {/* Empty state: no empresa selected */}
-      {!hasEmpresa && <SelectCompanyState />}
-
-      {/* Main content */}
-      {hasEmpresa && (
+      {/* Conteúdo — consolidado rede-wide (respeita o filtro de posto). */}
+      {(
         <>
           {visibleTabs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
