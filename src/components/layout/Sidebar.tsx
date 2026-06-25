@@ -31,6 +31,7 @@ import {
   TrendingUp,
   Trophy,
   Building2,
+  Sun,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -262,6 +263,13 @@ const Sidebar = () => {
   const handleConfiguracoes = () => {
     setMenuOpen(false)
     navigate('/configuracoes')
+  }
+
+  // Reabre o briefing matinal na hora (sem mexer no banco): zera o "visto hoje"
+  // no store → o modal (montado no AppLayout) volta a abrir.
+  const handleReabrirBriefing = () => {
+    setMenuOpen(false)
+    useAuthStore.getState().setBriefingSeenToday(false)
   }
 
   const handleAssistente = () => {
@@ -565,6 +573,15 @@ const Sidebar = () => {
                   Configurações
                 </span>
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
+              </button>
+
+              <button
+                role="menuitem"
+                onClick={handleReabrirBriefing}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Sun className="h-4 w-4 text-gray-500" />
+                Briefing do dia
               </button>
 
               {isSupervisor && (
