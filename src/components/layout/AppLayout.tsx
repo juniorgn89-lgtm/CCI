@@ -13,6 +13,7 @@ import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
 import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
+import useDataUpdating from '@/hooks/useDataUpdating'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { useAuthStore } from '@/store/auth'
@@ -58,6 +59,9 @@ const AppLayout = () => {
   // Período alterado e não aplicado → embaça o conteúdo (a TopBar com o botão
   // Visualizar fica nítida, virando o foco da tela).
   const filterDirty = useTopbarUi((s) => s.filterDirty)
+  // Recorte APLICADO mudou e os dados estão sendo buscados → pulsa o conteúdo
+  // ("atualizando"). Os filtros/topbar ficam nítidos (fora do <main>).
+  const dataUpdating = useDataUpdating()
 
   // ESC sai do modo foco (UX padrão pra reading mode).
   useEffect(() => {
@@ -167,7 +171,9 @@ const AppLayout = () => {
         {welcomeModal}
         <LoadingOverlay />
         <ErrorBoundary key={pathname}>
-          <Outlet />
+          <div className={cn(dataUpdating && 'animate-pulse')}>
+            <Outlet />
+          </div>
         </ErrorBoundary>
       </MobileShell>
     )
@@ -255,6 +261,9 @@ const AppLayout = () => {
               // Tabelas largas mantêm seu próprio overflow-x-auto interno.
               'flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
               filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
+              // Atualizando (recorte aplicado mudou): pulsa o conteúdo. Não
+              // combina com filterDirty (um é antes de aplicar, outro depois).
+              !filterDirty && dataUpdating && 'animate-pulse',
             )}
           >
             <LoadingOverlay />

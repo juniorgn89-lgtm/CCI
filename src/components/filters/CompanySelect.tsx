@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, ChevronDown, Network } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -14,9 +14,22 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
+/** Compara duas listas de códigos sem se importar com a ordem. */
+const sameCodes = (a: number[], b: number[]): boolean =>
+  a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i])
+
 const CompanySelect = () => {
   const [open, setOpen] = useState(false)
   const { empresaCodigos, setEmpresas } = useFilters()
+
+  // Rascunho local: a seleção só é APLICADA (e dispara fetch) ao clicar em
+  // "Aplicar". Sem isso, cada checkbox recarregava os dados na hora.
+  const [draft, setDraft] = useState<number[]>(empresaCodigos)
+  // Ressincroniza o rascunho com o aplicado toda vez que o menu abre (descarta
+  // rascunhos não aplicados de uma abertura anterior).
+  useEffect(() => {
+    if (open) setDraft(empresaCodigos)
+  }, [open, empresaCodigos])
 
   const { data: empresasData, isLoading } = useQuery({
     queryKey: ['empresas'],
@@ -31,30 +44,39 @@ const CompanySelect = () => {
   // `[]` = "Todos os postos" → a rede inteira consolidada. É a mesma semântica
   // que o Dashboard/Central já usa (matchesEmpresa trata lista vazia como rede
   // toda permitida). Selecionar N postos consolida exatamente esse subconjunto.
-  const allSelected = empresaCodigos.length === 0
+  // O estado dos checkboxes reflete o RASCUNHO (não o aplicado).
+  const allSelected = draft.length === 0
 
-  // Liga/desliga um posto da seleção. Desmarcar o último volta pra "Todos" (rede
-  // consolidada) — evita estado vazio sem dado.
+  // Liga/desliga um posto NO RASCUNHO (não aplica ainda).
   const toggle = (codigo: number) => {
-    if (empresaCodigos.includes(codigo)) {
-      setEmpresas(empresaCodigos.filter((c) => c !== codigo))
+    if (draft.includes(codigo)) {
+      setDraft(draft.filter((c) => c !== codigo))
     } else {
-      setEmpresas([...empresaCodigos, codigo])
+      setDraft([...draft, codigo])
     }
   }
 
-  const selectAll = () => setEmpresas([])
+  const selectAll = () => setDraft([])
 
+  // Aplica o rascunho → dispara o fetch uma única vez e fecha o menu.
+  const dirty = !sameCodes(draft, empresaCodigos)
+  const apply = () => {
+    if (dirty) setEmpresas(draft)
+    setOpen(false)
+  }
+
+  // Rótulo do gatilho = seleção APLICADA (não o rascunho). 1–2 postos: nomes
+  // com "·"; 3+: colapsa pra contagem.
   const getLabel = (): string => {
-    if (allSelected) return 'Todos os postos'
-    if (empresaCodigos.length === 1) {
-      const empresa = empresas.find((e) => e.codigo === empresaCodigos[0])
-      return empresa?.fantasia ?? 'Empresa'
-    }
-    return `${empresaCodigos.length} postos`
+    if (empresaCodigos.length === 0) return 'Todos'
+    const nomes = empresaCodigos
+      .map((c) => empresas.find((e) => e.codigo === c)?.fantasia)
+      .filter((n): n is string => !!n)
+    if (nomes.length === 0) return 'Todos'
+    return nomes.length <= 2 ? nomes.join(' · ') : `${nomes.length} postos`
   }
 
-  const TriggerIcon = allSelected ? Network : Building2
+  const TriggerIcon = empresaCodigos.length === 0 ? Network : Building2
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -97,13 +119,27 @@ const CompanySelect = () => {
         {empresas.map((empresa) => (
           <DropdownMenuCheckboxItem
             key={empresa.codigo}
-            checked={empresaCodigos.includes(empresa.codigo)}
+            checked={draft.includes(empresa.codigo)}
             onCheckedChange={() => toggle(empresa.codigo)}
             onSelect={(e) => e.preventDefault()}
           >
             {empresa.fantasia}
           </DropdownMenuCheckboxItem>
         ))}
+
+        <DropdownMenuSeparator />
+
+        {/* Aplica a seleção de uma vez — o fetch só dispara aqui. */}
+        <div className="px-2 py-1.5">
+          <Button
+            size="sm"
+            className="h-7 w-full bg-[#1e3a5f] text-[11px] text-white hover:bg-[#1e3a5f]/90"
+            onClick={apply}
+            disabled={!dirty}
+          >
+            {dirty ? 'Aplicar' : 'Aplicado'}
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Eye, Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import MonthRangeSelect from '@/components/filters/MonthRangeSelect'
+import PeriodPresetSelect from '@/components/filters/PeriodPresetSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
 import { useTopbarUi } from '@/store/topbarUi'
@@ -108,10 +108,11 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
         liveLock && 'pointer-events-none opacity-40',
       )}
     >
-      <MonthRangeSelect
-        draftIni={draftIni}
-        draftFim={draftFim}
-        onChange={(ini, fim) => commitBoth(ini, fim)}
+      <PeriodPresetSelect
+        dataInicial={draftIni}
+        dataFinal={draftFim}
+        onApply={(ini, fim) => setPeriodo(ini, fim)}
+        onCustomChange={(ini, fim) => commitBoth(ini, fim)}
       />
       <div className="relative">
         <Input

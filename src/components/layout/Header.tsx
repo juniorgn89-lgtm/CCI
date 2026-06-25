@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -33,12 +32,11 @@ const formatRelativeTime = (date: Date): string => {
 }
 
 const Header = ({ onMobileMenuOpen }: HeaderProps) => {
-  const { pathname } = useLocation()
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  // Seletor de posto ao lado da rede (todas as telas). Esconde na Central da
-  // Rede (/dashboard, rede-wide) e quando o usuário só tem 1 posto permitido.
+  // Seletor de posto ao lado da rede (todas as telas, incl. Central — a Central
+  // consolida qualquer subconjunto). Some só quando o usuário tem 1 posto.
   // Query cacheada (queryKey ['empresas']) — deduplica com outras instâncias.
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
@@ -47,20 +45,26 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const liveLock = useTopbarUi((s) => s.liveLock)
-  const showCompanySelect = pathname !== '/dashboard' && empresasPermitidas.length !== 1
+  const showCompanySelect = empresasPermitidas.length !== 1
 
-  // Rótulo central (apagado) — qual POSTO o usuário está vendo. Sem posto
-  // selecionado (ex.: Central da Rede), cai pro nome da rede como contexto.
+  // Rótulo central (apagado) — qual POSTO o usuário está vendo. Regra de nome:
+  // "Todos" quando rede-wide ([]); o nome de CADA posto selecionado quando há
+  // seleção (truncado por CSS se a lista for longa).
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const tenantNome = useTenantStore((s) => s.rede?.nome)
+  const fantasiasSel = empresaCodigos
+    .map((c) => empresasPermitidas.find((e) => e.codigo === c)?.fantasia)
+    .filter((n): n is string => !!n)
+  // 1–2 postos: nomes com "·"; 3+: colapsa pra contagem (evita fila truncada).
   const postoNome =
-    empresaCodigos.length === 1
-      ? empresasPermitidas.find((e) => e.codigo === empresaCodigos[0])?.fantasia ?? null
-      : empresaCodigos.length > 1
-        ? `${empresaCodigos.length} postos`
-        : null
-  // Na Central da Rede (/dashboard) a visão é rede-wide — não mostra posto.
-  const contextoLabel = pathname === '/dashboard' ? null : postoNome ?? tenantNome ?? null
+    empresaCodigos.length === 0 || fantasiasSel.length === 0
+      ? null
+      : fantasiasSel.length <= 2
+        ? fantasiasSel.join(' · ')
+        : `${fantasiasSel.length} postos`
+  // "Todos" ([]) mostra o NOME DA REDE em todas as telas (incl. Central) — fica
+  // claro que é a rede consolidada. Fallback "Todos" só se não houver nome de rede.
+  const contextoLabel = postoNome ?? (tenantNome ?? 'Todos')
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
