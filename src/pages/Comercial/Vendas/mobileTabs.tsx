@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Droplet, TrendingUp, Percent, Gauge, ChevronDown, Store, Ticket, ShoppingBag, Layers, Trophy, CalendarRange } from 'lucide-react'
-import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
+import useFuelVendaCacheAnalytics from '@/pages/Operacao/hooks/useFuelVendaCacheAnalytics'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 import { useFilterStore } from '@/store/filters'
@@ -28,7 +28,7 @@ const Detail = ({ label, value }: { label: string; value: string }) => (
 )
 
 export const CombustivelTab = () => {
-  const fuel = useFuelVendaAnalytics()
+  const fuel = useFuelVendaCacheAnalytics()
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const periodo = useMemo(() => periodoMes(dataInicial, dataFinal), [dataInicial, dataFinal])
@@ -39,7 +39,8 @@ export const CombustivelTab = () => {
   const { data: evoRows = [] } = useQuery({
     queryKey: ['comb-evol', empresaCodigos.join(','), evoIni, dataFinal],
     queryFn: () => fetchApuracaoDiaria({ empresaCodigos, dataInicial: evoIni, dataFinal }),
-    enabled: empresaCodigos.length > 0,
+    // Rede-wide quando []=Todos (fetchApuracaoDiaria sem `.in()` = rede via RLS).
+    enabled: true,
     staleTime: 10 * 60 * 1000,
   })
   const evolucao = useMemo(() => {
@@ -61,7 +62,6 @@ export const CombustivelTab = () => {
   }, [fuel.dailyData, dataInicial])
 
   if (fuel.isLoading) return <LoadingScreen message="Carregando combustível…" />
-  if (!fuel.hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os dados de combustível." />
   if (fuel.kpis.litros <= 0) return <EmptyCard />
 
   const k = fuel.kpis
@@ -145,7 +145,6 @@ export const ConvenienciaTab = () => {
   const cmpLabel = conv.kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
 
   if (conv.isLoading) return <LoadingScreen message="Carregando conveniência…" />
-  if (!conv.hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os dados de conveniência." />
   const k = conv.kpis
   if (!k || k.faturamento <= 0) return <EmptyCard />
 

@@ -20,6 +20,10 @@ interface UseAbastCacheInput {
   empresaCodigo: number | null
   /** Lista total de empresas permitidas pra essa rede (usado p/ HIT quando empresaCodigo=null). */
   empresasPermitidasCount: number
+  /** Liga/desliga o cache inteiro (probes + fetch). Default true. `false` evita o
+   * SELECT rede-wide pesado em apuracao_abastecimentos (que pode dar statement
+   * timeout) quando não há um posto único selecionado. */
+  enabled?: boolean
 }
 
 export interface UseAbastCacheResult {
@@ -39,14 +43,14 @@ export interface UseAbastCacheResult {
  */
 const useAbastCache = (input: UseAbastCacheInput): UseAbastCacheResult => {
   const rede = useTenantStore((s) => s.rede)
-  const { dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount } = input
+  const { dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount, enabled = true } = input
 
   const split = useMemo(
     () => splitPeriodAtToday(dataInicial, dataFinal),
     [dataInicial, dataFinal]
   )
 
-  const isEligible = !!rede && !!split.closedDays && empresasPermitidasCount > 0
+  const isEligible = enabled && !!rede && !!split.closedDays && empresasPermitidasCount > 0
 
   const closedIni = split.closedDays?.dataInicial ?? ''
   const closedEnd = split.closedDays?.dataFinal ?? ''

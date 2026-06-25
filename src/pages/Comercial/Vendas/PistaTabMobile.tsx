@@ -2,11 +2,11 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Wrench, Percent, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
-import { fetchVendaItens } from '@/api/endpoints/vendas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { useTenantStore } from '@/store/tenant'
 import { classifySetor } from '@/lib/setorClassification'
 import { useFilterStore } from '@/store/filters'
-import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { formatNumber } from '@/lib/formatters'
@@ -36,8 +36,7 @@ const categoriaDoGrupo = (nome: string): string => {
  */
 const PistaTabMobile = () => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
+  const rede = useTenantStore((s) => s.rede)
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   const hoje = todayLocal()
@@ -56,19 +55,45 @@ const PistaTabMobile = () => {
     queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
   })
-  const { data: vendaItens = [], isLoading } = useQuery({
-    queryKey: ['vendaItens-pista', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial, dataFinal, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
-    enabled: hasEmpresa && empresaCodigo !== null,
+
+  // Vendas CONSOLIDADAS via cache (apuracao_vendas, setor=automotivos). Rede-wide
+  // (RLS) keyed só pelo range → posto re-agrega no cliente. Só dias fechados.
+  const splitCur = splitPeriodAtToday(dataInicial, dataFinal)
+  const curIni = splitCur.closedDays?.dataInicial ?? ''
+  const curEnd = splitCur.closedDays?.dataFinal ?? ''
+  const { data: cacheCur = [], isLoading } = useQuery({
+    queryKey: ['pista-cache-vendas', rede?.id, curIni, curEnd],
+    queryFn: () => fetchVendasCache({ dataInicial: curIni, dataFinal: curEnd }),
+    enabled: !!rede && !!curIni && !!curEnd,
+    staleTime: 5 * 60 * 1000,
   })
-  const { data: vendaItensPrev = [] } = useQuery({
-    queryKey: ['vendaItens-pista-prev', empresaCodigo, prevInicial, prevFinal],
-    queryFn: () => fetchAllPages((p) => fetchVendaItens({ empresaCodigo: empresaCodigo!, dataInicial: prevInicial, dataFinal: prevFinal, usaProdutoLmc: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
-    enabled: hasEmpresa && empresaCodigo !== null,
+  const { data: cachePrev = [] } = useQuery({
+    queryKey: ['pista-cache-vendas', rede?.id, prevInicial, prevFinal],
+    queryFn: () => fetchVendasCache({ dataInicial: prevInicial, dataFinal: prevFinal }),
+    enabled: !!rede && !!prevInicial && !!prevFinal,
+    staleTime: 5 * 60 * 1000,
   })
-  // Cruzamento /VENDA (situacao='A') — exclui cancelados (VENDA_ITEM não tem o flag).
-  const { autorizados, isLoading: isLoadingAut } = useVendaCodigosAutorizados(empresaCodigos, dataInicial, dataFinal, hasEmpresa)
-  const { autorizados: autorizadosPrev } = useVendaCodigosAutorizados(empresaCodigos, prevInicial, prevFinal, hasEmpresa)
+
+  // Rows do cache (automotivos, posto selecionado) → itens agregados. Ticket
+  // médio vem do `cupons` (distinto por empresa+dia+setor), dedup por dia.
+  const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+  const toItens = (rows: ApuracaoVendaRow[]) =>
+    rows
+      .filter((r) => r.setor === 'automotivos' && match(r.empresa_codigo) && r.quantidade !== 0)
+      .map((r) => ({ produtoCodigo: r.produto_codigo, quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo, dataMovimento: r.data }))
+  const sumCupons = (rows: ApuracaoVendaRow[]): number => {
+    const byDay = new Map<string, number>()
+    for (const r of rows) {
+      if (r.setor !== 'automotivos' || !match(r.empresa_codigo) || r.cupons <= 0) continue
+      byDay.set(`${r.empresa_codigo}|${r.data}`, r.cupons)
+    }
+    let t = 0
+    for (const v of byDay.values()) t += v
+    return t
+  }
+  const vendaItens = useMemo(() => toItens(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const vendaItensPrev = useMemo(() => toItens(cachePrev), [cachePrev, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const data = useMemo(() => {
     if (!produtosData || !gruposData) return null
@@ -85,9 +110,7 @@ const PistaTabMobile = () => {
     const porProduto = new Map<number, { nome: string; categoria: string; quantidade: number; faturamento: number; custo: number }>()
     const fatDaily = new Map<string, number>()
     const lucroDaily = new Map<string, number>()
-    const vendasSet = new Set<number>()
     for (const it of vendaItens) {
-      if (!autorizados.has(it.vendaCodigo)) continue
       const pista = pistaProdutos.get(it.produtoCodigo)
       if (!pista) continue
       const prev = porProduto.get(it.produtoCodigo) ?? { nome: pista.nome, categoria: pista.categoria, quantidade: 0, faturamento: 0, custo: 0 }
@@ -95,7 +118,6 @@ const PistaTabMobile = () => {
       prev.faturamento += it.totalVenda
       prev.custo += it.totalCusto
       porProduto.set(it.produtoCodigo, prev)
-      if (it.vendaCodigo) vendasSet.add(it.vendaCodigo)
       const day = it.dataMovimento?.slice(0, 10)
       if (day) {
         fatDaily.set(day, (fatDaily.get(day) ?? 0) + it.totalVenda)
@@ -123,13 +145,12 @@ const PistaTabMobile = () => {
     const totalFat = produtosVendidos.reduce((s, p) => s + p.faturamento, 0)
     const totalCusto = produtosVendidos.reduce((s, p) => s + p.custo, 0)
     const totalQtd = produtosVendidos.reduce((s, p) => s + p.quantidade, 0)
-    const ticket = vendasSet.size > 0 ? totalFat / vendasSet.size : 0
+    const ticket = cuponsAtual > 0 ? totalFat / cuponsAtual : 0
 
     // Comparativo (mesma régua, período anterior).
     const prevSet = new Set([...pistaProdutos.keys()])
     let prevFat = 0
     for (const it of vendaItensPrev) {
-      if (!autorizadosPrev.has(it.vendaCodigo)) continue
       if (prevSet.has(it.produtoCodigo)) prevFat += it.totalVenda
     }
 
@@ -161,10 +182,9 @@ const PistaTabMobile = () => {
       },
       maxCategoria: Math.max(...categorias.map((c) => c.faturamento), 0),
     }
-  }, [produtosData, gruposData, vendaItens, vendaItensPrev, autorizados, autorizadosPrev, dataInicial])
+  }, [produtosData, gruposData, vendaItens, vendaItensPrev, cuponsAtual, dataInicial])
 
-  if (!hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os dados de pista." />
-  if (isLoading || isLoadingAut || !data) return <LoadingScreen message="Carregando pista…" />
+  if (isLoading || !data) return <LoadingScreen message="Carregando pista…" />
   const { kpis: k } = data
   if (k.faturamento <= 0) return <EmptyCard title="Sem vendas de pista" desc="Não há vendas de automotivos (pista) no período e posto selecionados." />
 

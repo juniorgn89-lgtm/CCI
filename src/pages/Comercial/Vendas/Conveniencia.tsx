@@ -4,7 +4,6 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -128,6 +127,8 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
   const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
   const { dataInicial } = useFilterStore()
+  // Consolidado rede-wide: `single1Posto` libera o saldo de estoque (por-posto).
+  const single1Posto = useFilterStore((s) => s.empresaCodigos.length === 1)
 
   const {
     kpis,
@@ -139,7 +140,6 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     salesByDay,
     vendaItens,
     isLoading,
-    hasEmpresa,
   } = useConvenienceData()
 
   const cmpLabelFull = kpis?.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
@@ -212,9 +212,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
         </>
       )}
 
-      {!embedded && !hasEmpresa && <SelectCompanyState />}
-
-      {hasEmpresa && (
+      {(
         <>
           {/* KPIs no topo — estilo Pista (5 cards com gradiente) */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -450,7 +448,16 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                 )}
                 {activeTab === 'pareto' && <div className="p-4"><ParetoAnalysis products={catalogProducts} /></div>}
                 {activeTab === 'abc' && <div className="p-4"><CurvaABC products={catalogProducts} /></div>}
-                {activeTab === 'catalogo' && <div className="p-4"><ProductCatalog products={catalogProducts} gruposList={gruposList} /></div>}
+                {activeTab === 'catalogo' && (
+                  <div className="p-4">
+                    {!single1Posto && (
+                      <p className="mb-3 text-[11px] text-gray-400 dark:text-gray-500">
+                        Visão consolidada da rede. O saldo de estoque (snapshot por-posto) aparece ao selecionar 1 posto.
+                      </p>
+                    )}
+                    <ProductCatalog products={catalogProducts} gruposList={gruposList} />
+                  </div>
+                )}
               </Suspense>
             )}
           </section>

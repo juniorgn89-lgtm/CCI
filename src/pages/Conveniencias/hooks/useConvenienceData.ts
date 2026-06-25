@@ -1,16 +1,16 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
-import { fetchVendaItens } from '@/api/endpoints/vendas'
+import { useTenantStore } from '@/store/tenant'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
-import useVendasCache, { aggregateItensToVendaAgg, type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
+import { type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
-import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -200,10 +200,18 @@ const getEvolutionRange = (dataInicial: string, months: number) => {
 
 /* ── Hook ────────────────────────────────────────────────── */
 
-const useConvenienceData = () => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
+const useConvenienceData = (empresaCodigoOverride?: number | null) => {
+  const { empresaCodigos: filterCodes, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  // Posto explícito (telas com seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
   const hasEmpresa = empresaCodigos.length > 0
+  // Consolidado rede-wide (cache apuracao_vendas). `single1Posto` libera o único
+  // bloco por-posto que não consolida: saldo de estoque.
+  const rede = useTenantStore((s) => s.rede)
+  const single1Posto = empresaCodigos.length === 1
+  const empresaEstoque = single1Posto ? empresaCodigos[0] : null
   const isPrevYear = comparisonMode === 'prevYear'
   // Comparativo "mesmos dias decorridos": corta o fim em hoje antes
   // de deslocar, pra mês corrente parcial não comparar contra período cheio do passado.
@@ -251,133 +259,72 @@ const useConvenienceData = () => {
     return set
   }, [produtosData, gruposData])
 
-  // Cache de vendas (apuracao_vendas) pra current + prev + evolução.
-  // HIT = pula fetch live; MISS = fetch live como antes (sem regressão).
-  const vendasCacheCurrent = useVendasCache({ dataInicial, dataFinal, empresaCodigo, empresasPermitidasCount: 1, convProdutoCodigos })
-  const vendasCachePrev = useVendasCache({ dataInicial: prevMonth.dataInicial, dataFinal: prevMonth.dataFinal, empresaCodigo, empresasPermitidasCount: 1, convProdutoCodigos })
-  const vendasCacheCmp = useVendasCache({ dataInicial: cmp.dataInicial, dataFinal: cmp.dataFinal, empresaCodigo, empresasPermitidasCount: 1, convProdutoCodigos })
-  const vendasCacheEvo = useVendasCache({ dataInicial: evolutionRange.dataInicial, dataFinal: evolutionRange.dataFinal, empresaCodigo, empresasPermitidasCount: 1, convProdutoCodigos })
-
-  const filterParams = {
-    empresaCodigo: empresaCodigo ?? undefined,
-    dataInicial,
-    dataFinal,
-    usaProdutoLmc: false,
-  }
-
-  // Current period venda itens (non-fuel) — live só quando cache MISS.
-  const { data: vendaItensData, isLoading: l1 } = useQuery({
-    queryKey: ['vendaItensAll', empresaCodigo, dataInicial, dataFinal],
-    queryFn: () => fetchAllPages(
-      (p) => fetchVendaItens({ ...filterParams, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      1000, 50
-    ),
-    enabled: hasEmpresa && !vendasCacheCurrent.isCacheHit && !vendasCacheCurrent.isChecking,
+  // Vendas CONSOLIDADAS via cache (apuracao_vendas, setor=conveniencia). Fetch
+  // rede-wide (RLS) keyed só pelo range → trocar de posto re-agrega no cliente
+  // (instantâneo). Só dias FECHADOS no período corrente; prev/cmp/evo históricos.
+  const splitCur = splitPeriodAtToday(dataInicial, dataFinal)
+  const curIni = splitCur.closedDays?.dataInicial ?? ''
+  const curEnd = splitCur.closedDays?.dataFinal ?? ''
+  const { data: curRows = [], isLoading: l1 } = useQuery({
+    queryKey: ['conv-cache-vendas', rede?.id, curIni, curEnd],
+    queryFn: () => fetchVendasCache({ dataInicial: curIni, dataFinal: curEnd }),
+    enabled: !!rede && !!curIni && !!curEnd,
     staleTime: 5 * 60 * 1000,
   })
-
-  // Previous month venda itens (for KPI comparison) — live só quando cache MISS.
-  const { data: prevMonthData, isLoading: l2 } = useQuery({
-    queryKey: ['vendaItensAll', empresaCodigo, prevMonth.dataInicial, prevMonth.dataFinal],
-    queryFn: () => fetchAllPages(
-      (p) => fetchVendaItens({
-        empresaCodigo: empresaCodigo ?? undefined,
-        dataInicial: prevMonth.dataInicial,
-        dataFinal: prevMonth.dataFinal,
-        usaProdutoLmc: false,
-        ultimoCodigo: p.ultimoCodigo,
-        limite: p.limite,
-      }),
-      1000, 50
-    ),
-    enabled: hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking,
+  const { data: prevRows = [], isLoading: l2 } = useQuery({
+    queryKey: ['conv-cache-vendas', rede?.id, prevMonth.dataInicial, prevMonth.dataFinal],
+    queryFn: () => fetchVendasCache({ dataInicial: prevMonth.dataInicial, dataFinal: prevMonth.dataFinal }),
+    enabled: !!rede && !!prevMonth.dataInicial && !!prevMonth.dataFinal,
     staleTime: 5 * 60 * 1000,
   })
-
-  // Período comparativo (KPI deltas) — só fetcha quando 'vs ano ant.'; no modo
-  // 'mês ant.' o cmp coincide com o prevMonth e reaproveitamos prevMonthData.
-  const { data: cmpData } = useQuery({
-    queryKey: ['vendaItensAll', empresaCodigo, cmp.dataInicial, cmp.dataFinal],
-    queryFn: () => fetchAllPages(
-      (p) => fetchVendaItens({
-        empresaCodigo: empresaCodigo ?? undefined,
-        dataInicial: cmp.dataInicial,
-        dataFinal: cmp.dataFinal,
-        usaProdutoLmc: false,
-        ultimoCodigo: p.ultimoCodigo,
-        limite: p.limite,
-      }),
-      1000, 50
-    ),
-    enabled: hasEmpresa && isPrevYear && !vendasCacheCmp.isCacheHit && !vendasCacheCmp.isChecking,
+  const { data: cmpRows = [] } = useQuery({
+    queryKey: ['conv-cache-vendas', rede?.id, cmp.dataInicial, cmp.dataFinal],
+    queryFn: () => fetchVendasCache({ dataInicial: cmp.dataInicial, dataFinal: cmp.dataFinal }),
+    enabled: !!rede && isPrevYear && !!cmp.dataInicial && !!cmp.dataFinal,
     staleTime: 5 * 60 * 1000,
   })
-
-  // Historical months for evolution chart (fills gap between prevMonth and current)
-  const { data: evolutionData, isLoading: l6 } = useQuery({
-    queryKey: ['vendaItensAll', empresaCodigo, evolutionRange.dataInicial, evolutionRange.dataFinal],
-    queryFn: () => fetchAllPages(
-      (p) => fetchVendaItens({
-        empresaCodigo: empresaCodigo ?? undefined,
-        dataInicial: evolutionRange.dataInicial,
-        dataFinal: evolutionRange.dataFinal,
-        usaProdutoLmc: false,
-        ultimoCodigo: p.ultimoCodigo,
-        limite: p.limite,
-      }),
-      1000, 50
-    ),
-    enabled: hasEmpresa && !vendasCacheEvo.isCacheHit && !vendasCacheEvo.isChecking,
+  const { data: evoRows = [], isLoading: l6 } = useQuery({
+    queryKey: ['conv-cache-vendas', rede?.id, evolutionRange.dataInicial, evolutionRange.dataFinal],
+    queryFn: () => fetchVendasCache({ dataInicial: evolutionRange.dataInicial, dataFinal: evolutionRange.dataFinal }),
+    enabled: !!rede && !!evolutionRange.dataInicial && !!evolutionRange.dataFinal,
     staleTime: 10 * 60 * 1000,
   })
 
-  // Stock levels (direct call, not fetchAllPages — API returns flat list)
+  // Estoque — snapshot POR-POSTO (não consolida na rede); só com 1 posto.
   const { data: estoqueRaw, isLoading: l5 } = useQuery({
-    queryKey: ['produtoEstoque', empresaCodigo],
+    queryKey: ['produtoEstoque', empresaEstoque],
     queryFn: () => fetchProdutoEstoque({
-      empresaCodigo: empresaCodigo!,
+      empresaCodigo: empresaEstoque!,
       limite: 1000,
     }),
-    enabled: hasEmpresa && empresaCodigo !== null,
+    enabled: empresaEstoque !== null,
     staleTime: 5 * 60 * 1000,
   })
 
-  // Cruzamento /VENDA (situacao='A') por janela — exclui cancelados no live
-  // (cache MISS). Gateado por MISS pra não buscar /VENDA quando o cache serve.
-  const empresasAut = empresaCodigo != null ? [empresaCodigo] : []
-  const { autorizados: autCurrent } = useVendaCodigosAutorizados(empresasAut, dataInicial, dataFinal, hasEmpresa && !vendasCacheCurrent.isCacheHit && !vendasCacheCurrent.isChecking)
-  const { autorizados: autPrev } = useVendaCodigosAutorizados(empresasAut, prevMonth.dataInicial, prevMonth.dataFinal, hasEmpresa && !vendasCachePrev.isCacheHit && !vendasCachePrev.isChecking)
-  const { autorizados: autCmp } = useVendaCodigosAutorizados(empresasAut, cmp.dataInicial, cmp.dataFinal, hasEmpresa && isPrevYear && !vendasCacheCmp.isCacheHit && !vendasCacheCmp.isChecking)
-  const { autorizados: autEvo } = useVendaCodigosAutorizados(empresasAut, evolutionRange.dataInicial, evolutionRange.dataFinal, hasEmpresa && !vendasCacheEvo.isCacheHit && !vendasCacheEvo.isChecking)
-
-  const isLoading =
-    (l1 && !vendasCacheCurrent.isCacheHit) ||
-    (l2 && !vendasCachePrev.isCacheHit) ||
-    (l6 && !vendasCacheEvo.isCacheHit) ||
-    vendasCacheCurrent.isChecking ||
-    vendasCachePrev.isChecking ||
-    vendasCacheEvo.isChecking ||
-    l3 || l4 || l5
+  const isLoading = l1 || l2 || l6 || l3 || l4 || (single1Posto && l5)
 
   const computed = useMemo(() => {
-    // Vendas vêm do cache Supabase quando HIT; senão, agregadas do live.
-    const filterEmpresa = (i: { empresaCodigo: number }) =>
-      empresaCodigo == null || i.empresaCodigo === empresaCodigo
-    const vendaAggs = vendasCacheCurrent.isCacheHit
-      ? vendasCacheCurrent.vendas
-      : aggregateItensToVendaAgg((vendaItensData ?? []).filter(filterEmpresa), convProdutoCodigos, autCurrent)
-    const prevAggs = vendasCachePrev.isCacheHit
-      ? vendasCachePrev.vendas
-      : aggregateItensToVendaAgg((prevMonthData ?? []).filter(filterEmpresa), convProdutoCodigos, autPrev)
+    // Vendas vêm do cache (apuracao_vendas), consolidadas rede-wide e filtradas
+    // pelo posto selecionado (`[]` = rede; subconjunto = recorte). setor carimbado.
+    const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const toAggs = (rows: ApuracaoVendaRow[]): VendaAgg[] =>
+      rows
+        .filter((r) => r.setor === 'conveniencia' && matchPosto(r.empresa_codigo))
+        .map((r) => ({
+          empresaCodigo: r.empresa_codigo,
+          data: r.data,
+          produtoCodigo: r.produto_codigo,
+          quantidade: r.quantidade,
+          totalVenda: r.total_venda,
+          totalCusto: r.total_custo,
+          linhas: r.linhas,
+          cupons: r.cupons ?? 0,
+        }))
+    const vendaAggs = toAggs(curRows)
+    const prevAggs = toAggs(prevRows)
     // Comparativo mode-aware — coincide com prevAggs quando 'mês ant.'
-    const cmpAggs = !isPrevYear
-      ? prevAggs
-      : (vendasCacheCmp.isCacheHit
-          ? vendasCacheCmp.vendas
-          : aggregateItensToVendaAgg((cmpData ?? []).filter(filterEmpresa), convProdutoCodigos, autCmp))
-    const histAggs = vendasCacheEvo.isCacheHit
-      ? vendasCacheEvo.vendas
-      : aggregateItensToVendaAgg((evolutionData ?? []).filter(filterEmpresa), convProdutoCodigos, autEvo)
+    const cmpAggs = !isPrevYear ? prevAggs : toAggs(cmpRows)
+    const histAggs = toAggs(evoRows)
     const produtos = produtosData ?? []
     const grupos = gruposData ?? []
     const estoque = estoqueRaw?.resultados ?? []
@@ -965,24 +912,20 @@ const useConvenienceData = () => {
       gruposList,
     }
   }, [
-    vendaItensData, prevMonthData, cmpData, evolutionData, produtosData, gruposData, estoqueRaw, empresaCodigo,
+    curRows, prevRows, cmpRows, evoRows, produtosData, gruposData, estoqueRaw, empresaCodigos,
     dataInicial, dataFinal, comparisonMode, isPrevYear, convProdutoCodigos,
-    vendasCacheCurrent.isCacheHit, vendasCacheCurrent.vendas,
-    vendasCachePrev.isCacheHit, vendasCachePrev.vendas,
-    vendasCacheCmp.isCacheHit, vendasCacheCmp.vendas,
-    vendasCacheEvo.isCacheHit, vendasCacheEvo.vendas,
-    autCurrent, autPrev, autCmp, autEvo,
   ])
 
   return {
     ...computed,
     isLoading,
     hasEmpresa,
-    // "Instantâneo": vendas vieram do snapshot mensal (apuracao_vendas).
-    isCacheHit: vendasCacheCurrent.isCacheHit,
-    // Vendas brutas — usadas por modals que precisam reagregar por dia/categoria
-    // sem refetch. Filtra pela empresa atual.
-    vendaItens: (vendaItensData ?? []).filter((v) => v.empresaCodigo === empresaCodigo),
+    // Consolidado a partir do cache (apuracao_vendas) — sempre "instantâneo".
+    isCacheHit: true,
+    // Vendas brutas não são mais expostas (cache é agregado); os modals
+    // reagregam a partir de `salesByDay`/`productsByGroup`. Mantido como [] por
+    // compatibilidade — já era vazio quando o cache dava HIT.
+    vendaItens: [],
   }
 }
 

@@ -7,7 +7,6 @@ import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
-import type { VendaItem } from '@/api/types/venda'
 
 export interface CategoriaData {
   nome: string
@@ -29,9 +28,9 @@ interface CategoriaDetalheModalProps {
     faturamento: number
     custo: number
   }>
-  /** Vendas brutas (VendaItem) filtradas pra produtos dessa categoria.
-   * Usado pra computar a distribuição diária e validar contagens. */
-  vendasDaCategoria: VendaItem[]
+  /** Vendas (agregadas por dia·produto) filtradas pra produtos dessa categoria.
+   * Usado pra computar a distribuição diária. Shape mínimo (cache ou item cru). */
+  vendasDaCategoria: Array<{ dataMovimento: string; quantidade: number; totalVenda: number }>
   /** Saldo atual de estoque por produtoCodigo. Vazio = sem dados de estoque
    * (serviços, categorias sem reposição) → badge não é exibido. */
   estoquePorProduto: Map<number, number>

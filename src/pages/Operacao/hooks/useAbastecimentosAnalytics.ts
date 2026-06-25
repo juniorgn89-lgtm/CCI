@@ -158,10 +158,17 @@ export interface ProjectionMeta {
   scaleFactor: number
 }
 
-const useAbastecimentosAnalytics = () => {
+const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
-  const hasEmpresa = empresaCodigos.length > 0
-  const empresaCodigoSingle = empresaCodigos.length === 1 ? empresaCodigos[0] : null
+  // Posto explícito (telas com seletor por-posto). `undefined` = legado (filtro).
+  // `scopedCodes` = recorte efetivo; `empresaCodigoSingle` = posto único (raw).
+  const scopedCodes = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : empresaCodigos
+  const hasEmpresa = scopedCodes.length > 0
+  const empresaCodigoSingle = empresaCodigoOverride !== undefined
+    ? empresaCodigoOverride
+    : (empresaCodigos.length === 1 ? empresaCodigos[0] : null)
   // Critério de data dos abastecimentos (Abast./Fiscal/Movimento). Igual ao
   // useOperacaoData: cache só vale no modo FISCAL; nos demais busca live com
   // o tipoData certo. Mantém as colunas da Produtividade no mesmo critério.
@@ -194,24 +201,31 @@ const useAbastecimentosAnalytics = () => {
   // ~250k linhas paginadas em chunks de 1000, dando >2min só pra ler.
   // Em vez disso, lemos `apuracao_diaria` agregado por dia × empresa
   // (~360 linhas / posto / ano), que basta pro gráfico mensal de L.B./Litro.
+  // Raw de abast (rows/dia-a-dia/por-frentista) só faz sentido com UM posto —
+  // rede-wide seria um SELECT gigante em apuracao_abastecimentos (statement
+  // timeout). Sob "Todos"/subconjunto, desligamos o raw; o gráfico de 12 meses
+  // (evolution = apuracao_diaria, leve) continua funcionando rede-wide.
+  const rawSingle = empresaCodigoSingle != null
   const abastCacheCurrent = useAbastCache({
     dataInicial,
     dataFinal,
     empresaCodigo: empresaCodigoSingle,
     empresasPermitidasCount,
+    enabled: rawSingle,
   })
   const abastCachePrev = useAbastCache({
     dataInicial: prevMonthInicial,
     dataFinal: prevMonthFinal,
     empresaCodigo: empresaCodigoSingle,
     empresasPermitidasCount,
+    enabled: rawSingle,
   })
 
   // Current period — live só quando cache MISS (ou fora do modo FISCAL).
   const { data: abastLive = [], isLoading: isLoadingAbastLive } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal, tipoData: abastTipoData }),
-    enabled: !cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking),
+    enabled: rawSingle && (!cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking)),
     placeholderData: keepPreviousData,
   })
 
@@ -219,7 +233,7 @@ const useAbastecimentosAnalytics = () => {
   const { data: prevMonthLive = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, tipoData: abastTipoData }),
-    enabled: !cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking),
+    enabled: rawSingle && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
     retry: false,
   })
 
@@ -283,7 +297,7 @@ const useAbastecimentosAnalytics = () => {
     queryFn: () =>
       fetchAllPages(
         (p) => fetchLmc({
-          empresaCodigo: hasEmpresa ? empresaCodigos : undefined,
+          empresaCodigo: hasEmpresa ? scopedCodes : undefined,
           dataInicial: lmcDataInicial, dataFinal,
           ultimoCodigo: p.ultimoCodigo, limite: p.limite,
         }),
@@ -292,13 +306,15 @@ const useAbastecimentosAnalytics = () => {
     // Só dispara LMC DEPOIS que a checagem do cache terminou — evita
     // fetch redundante enquanto isChecking=true e abastecimentos=[].
     // Cancela quando descobrimos que o cache tem custo embutido.
-    enabled: (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
+    enabled: rawSingle && (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
 
   // Custo médio (CMV) + desconto por produto, do /VENDA_ITEM (mesma fonte).
   // Substitui o custo do LMC; quando o produto não casa, cai no LMC (fallback).
-  const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(empresaCodigos, dataInicial, dataFinal)
+  // Custo do raw só importa com 1 posto (raw ligado); sob "Todos"/subconjunto
+  // passamos [] pra não disparar VENDA_ITEM à toa (raw está desligado).
+  const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(rawSingle ? scopedCodes : [], dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
   const { data: produtosData } = useQuery({
@@ -434,7 +450,7 @@ const useAbastecimentosAnalytics = () => {
     const netFatOf = (a: { codigoProduto: number; valorTotal: number }): number =>
       a.valorTotal - descOf(a)
 
-    const matchEmpresa = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const matchEmpresa = (code: number) => scopedCodes.length === 0 || scopedCodes.includes(code)
     const validProduct = (a: { codigoProduto: number }) => Number(a.codigoProduto) > 0
     // Abasts com data futura são erros de digitação no Quality — não entram
     // nos KPIs/agregados mas são reportados separadamente na UI pra que o
@@ -798,7 +814,7 @@ const useAbastecimentosAnalytics = () => {
     })
 
     return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
-  }, [abastecimentos, prevMonthAbast, evolutionDaily, fuelProdutoData, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, hasEmpresa, dataInicial, dataFinal])
+  }, [abastecimentos, prevMonthAbast, evolutionDaily, fuelProdutoData, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, empresaCodigoOverride, hasEmpresa, dataInicial, dataFinal])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
     if (!dataInicial || !dataFinal) {

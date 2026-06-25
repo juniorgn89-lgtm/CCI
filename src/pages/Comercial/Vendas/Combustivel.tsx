@@ -8,7 +8,6 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
@@ -16,9 +15,8 @@ import { fuelLabel } from '@/lib/fuel'
 import { formatCurrency, formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
-import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import useFuelVendaAnalytics from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
+import useFuelVendaCacheAnalytics from '@/pages/Operacao/hooks/useFuelVendaCacheAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
@@ -202,17 +200,18 @@ interface ComercialVendasCombustivelProps {
 
 const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombustivelProps = {}) => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
-  const hasEmpresa = empresaCodigos.length > 0
+  // Consolidado rede-wide: a aba renderiza sempre (Todos/subconjunto/1 posto).
+  // `single1Posto` libera os blocos operacionais por-posto (ritmo bomba/frentista).
+  const single1Posto = empresaCodigos.length === 1
   const empresaNome = useEmpresaNome()
-  const { kpis, isLoading: isLoadingKpis } = useOperacaoData()
-  const cmpLabel = kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-  // ABASTECIMENTO continua só pro operacional: `rows` (modal de frentistas/
-  // bombas/hora) e `lbLitroData` (gráfico 12 meses — migra na fase do cache).
+  const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+  // ABASTECIMENTO só pro operacional por-posto: `rows` (modal de frentistas/
+  // bombas/hora — só com 1 posto) e `lbLitroData` (gráfico 12 meses, rede-wide).
   const { rows, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
-  // VENDA fiscal — fonte das métricas de VALOR: KPIs,
-  // mix, ranking, projeção, tabela dia a dia e por combustível.
-  const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros } = useFuelVendaAnalytics()
-  const showSkeleton = useShowSkeleton(isLoadingKpis, !!kpis)
+  // VENDA fiscal CONSOLIDADA (cache apuracao_vendas) — fonte das métricas de
+  // VALOR: KPIs, mix, ranking, projeção, tabela dia a dia e por combustível.
+  const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros, isLoading: isLoadingValor } = useFuelVendaCacheAnalytics()
+  const showSkeleton = useShowSkeleton(isLoadingValor, fuelTypeData.length > 0)
 
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
@@ -691,9 +690,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         </>
       )}
 
-      {!embedded && !hasEmpresa && <SelectCompanyState />}
-
-      {hasEmpresa && (
+      {(
         <>
           {/* KPIs principais — 4 cards + Projeção (5º) ocupando a largura
               toda. Em mobile/tablet empilha em 2 ou 3 cols. `items-stretch`
@@ -847,7 +844,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               dataFinal={projecaoCombustivel.dataFinalProjecao}
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
-              loading={isLoadingAnalytics || isLoadingKpis}
+              loading={isLoadingValor}
             />
           </div>
 
@@ -885,7 +882,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             </div>
 
             {/* Loading state — único pra todas as abas */}
-            {isLoadingAnalytics ? (
+            {(isLoadingValor || isLoadingAnalytics) ? (
               <div className="space-y-2 p-5">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Skeleton key={i} className="h-10 rounded-md" />
@@ -1057,6 +1054,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
+                      {!single1Posto && (
+                        <p className="px-5 pt-3 text-[11px] text-gray-400 dark:text-gray-500">
+                          Visão consolidada da rede. Selecione 1 posto para abrir o ritmo de bomba/frentista por combustível.
+                        </p>
+                      )}
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
@@ -1105,8 +1107,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 {mix.map((f) => (
                                   <tr
                                     key={f.produtoCodigo}
-                                    className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
-                                    onClick={() => setSelectedFuel(f)}
+                                    className={cn(
+                                      single1Posto && 'cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30',
+                                    )}
+                                    onClick={single1Posto ? () => setSelectedFuel(f) : undefined}
                                   >
                                     <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                                       <span className="flex items-center gap-2">
