@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -191,6 +191,23 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
 )
 
 /* ─── Página ─── */
+
+/** Dropdown de filtro por combustível — substitui a barra de pílulas (que ficava
+ * cheia com a rede toda). Compacto e limpo. Mostra `fuelLabel` (sem o "." do cadastro). */
+const FuelSelect = ({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) => (
+  <div className="relative inline-flex items-center">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+    >
+      {options.map((opt) => (
+        <option key={opt} value={opt}>{opt === 'Todos' ? 'Todos os combustíveis' : fuelLabel(opt)}</option>
+      ))}
+    </select>
+    <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-gray-400" />
+  </div>
+)
 
 interface ComercialVendasCombustivelProps {
   /** Quando `true`, não renderiza PageHeaderTitle/Actions/SelectCompanyState/VendasNav
@@ -894,26 +911,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                 {detalheTab === 'dia' && (
                   <>
                     <div className="flex justify-center px-4 pt-3">
-                      <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-                        {fuelOptions.map((opt) => {
-                          const isActive = diaFuelFilter === opt
-                          return (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => setDiaFuelFilter(opt)}
-                              className={cn(
-                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                isActive
-                                  ? 'bg-[#1e3a5f] text-white shadow-sm'
-                                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
-                              )}
-                            >
-                              {fuelLabel(opt)}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <FuelSelect options={fuelOptions} value={diaFuelFilter} onChange={setDiaFuelFilter} />
                     </div>
                     {detalheDiaADia.days.length === 0 ? (
                       <div className="px-5 py-12 text-center text-sm text-gray-400">
@@ -1184,26 +1182,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     <div className="p-4">
                       {lbLitroData.monthlyFuels.length > 0 && (
                         <div className="mb-4 flex justify-center">
-                          <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-                            {mesesFuelOptions.map((opt) => {
-                              const isActive = mesesFuelFilter === opt
-                              return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => setMesesFuelFilter(opt)}
-                                  className={cn(
-                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                    isActive
-                                      ? 'bg-[#1e3a5f] text-white shadow-sm'
-                                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
-                                  )}
-                                >
-                                  {fuelLabel(opt)}
-                                </button>
-                              )
-                            })}
-                          </div>
+                          <FuelSelect options={mesesFuelOptions} value={mesesFuelFilter} onChange={setMesesFuelFilter} />
                         </div>
                       )}
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -1328,26 +1307,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     <div className="p-4">
                       {/* Filtro de combustível — pílula centralizada (padrão das demais abas) */}
                       <div className="mb-4 flex justify-center">
-                        <div className="inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-                          {fuelOptions.map((opt) => {
-                            const isActive = semanalFuelFilter === opt
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => setSemanalFuelFilter(opt)}
-                                className={cn(
-                                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                  isActive
-                                    ? 'bg-[#1e3a5f] text-white shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
-                                )}
-                              >
-                                {fuelLabel(opt)}
-                              </button>
-                            )
-                          })}
-                        </div>
+                        <FuelSelect options={fuelOptions} value={semanalFuelFilter} onChange={setSemanalFuelFilter} />
                       </div>
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       {/* Left: chart "Litros vendidos por dia" */}
