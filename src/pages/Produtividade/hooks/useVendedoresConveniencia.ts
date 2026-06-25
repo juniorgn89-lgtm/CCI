@@ -73,8 +73,15 @@ const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): Ven
  * pro nome. Mesmo período/postos do filtro global. Ticket médio = fat ÷ cupons
  *. Só vendas autorizadas (já filtrado na apuração).
  */
-const useVendedoresConveniencia = (setor: VendedorSetor = 'conveniencia'): VendedoresData => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+const useVendedoresConveniencia = (
+  setor: VendedorSetor = 'conveniencia',
+  empresaCodigoOverride?: number | null,
+): VendedoresData => {
+  const { empresaCodigos: filterCodes, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  // Posto explícito (seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
   const hasEmpresa = empresaCodigos.length > 0
 
   // Período de comparação (mês/ano ant.), com "mesmos dias decorridos".

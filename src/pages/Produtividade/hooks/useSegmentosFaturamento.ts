@@ -47,8 +47,12 @@ const EMPTY_SET: Set<number> = new Set()
  * antes de deslocar), igual aos hooks de combustível e conveniência — assim os
  * 3 segmentos comparam contra a mesma janela.
  */
-const useSegmentosFaturamento = (): SegmentosFaturamento => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+const useSegmentosFaturamento = (empresaCodigoOverride?: number | null): SegmentosFaturamento => {
+  const { empresaCodigos: filterCodes, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  // Posto explícito (seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
   const empresaCodigo = empresaCodigos[0] ?? null
   const hasEmpresa = empresaCodigos.length > 0
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
@@ -63,8 +67,8 @@ const useSegmentosFaturamento = (): SegmentosFaturamento => {
 
   // ── Combustível + Conveniência: reusam os hooks existentes (queryKeys
   // compartilhadas → uma fetch serve as duas telas). ──
-  const { kpis: fuelKpis, cmp: fuelCmp, isLoading: isLoadingFuel } = useFuelVendaAnalytics()
-  const { kpis: convKpis, isLoading: isLoadingConv } = useConvenienceData()
+  const { kpis: fuelKpis, cmp: fuelCmp, isLoading: isLoadingFuel } = useFuelVendaAnalytics(empresaCodigoOverride)
+  const { kpis: convKpis, isLoading: isLoadingConv } = useConvenienceData(empresaCodigoOverride)
 
   // ── Automotivos (pista): catálogo de produtos + grupos (mesmas queryKeys da
   // Visão Geral e demais telas). ──

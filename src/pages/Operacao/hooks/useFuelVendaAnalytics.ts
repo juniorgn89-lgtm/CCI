@@ -89,8 +89,12 @@ export interface FuelVendaKpis {
   count: number
 }
 
-const useFuelVendaAnalytics = () => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+const useFuelVendaAnalytics = (empresaCodigoOverride?: number | null) => {
+  const { empresaCodigos: filterCodes, dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  // Posto explícito (telas com seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
   const hasEmpresa = empresaCodigos.length > 0
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   // Comparativo "mesmos dias decorridos": corta o fim em hoje antes

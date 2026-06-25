@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Users, Receipt, Trophy, Target } from 'lucide-react'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useMetasStore } from '@/store/metas'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 import { formatNumber } from '@/lib/formatters'
@@ -23,8 +27,21 @@ const TABS = [{ id: 'ranking', label: 'Ranking' }, { id: 'metas', label: 'Metas'
  * realizado por frentista — mês anterior ou manual). Mesmos números do desktop.
  */
 const ProdutividadeMobile = () => {
-  const { kpis, frentistaRows, frentistaRowsPrev, isLoading, hasEmpresa } = useOperacaoData()
-  const { rows: abastComCusto } = useAbastecimentosAnalytics()
+  // Produtividade de frentista é por-posto → um posto por vez, com seletor.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
+  const { kpis, frentistaRows, frentistaRowsPrev, isLoading } = useOperacaoData(selectedCodigo)
+  const { rows: abastComCusto } = useAbastecimentosAnalytics(selectedCodigo)
   const { manualMode, metas, setManualMode, setMeta } = useMetasStore()
   const [tab, setTab] = useState('ranking')
   const [sort, setSort] = useState<SortKey>('litros')
@@ -71,9 +88,37 @@ const ProdutividadeMobile = () => {
       .sort((a, b) => b.litros - a.litros)
   }, [frentistaRows, prevByCodigo, manualMode, metas])
 
-  if (!hasEmpresa) return <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver a produtividade dos frentistas." />
-  if (isLoading || !kpis) return <LoadingScreen message="Carregando produtividade…" />
-  if (ranking.length === 0) return <EmptyCard title="Sem abastecimentos" desc="Não há abastecimentos no período e posto selecionados." />
+  const postoTabs = postos.length > 1 ? (
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      {postos.map((e) => (
+        <button
+          key={e.codigo}
+          type="button"
+          onClick={() => setActiveCodigo(e.codigo)}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+            e.codigo === selectedCodigo
+              ? 'bg-[#1e3a5f] text-white'
+              : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
+          )}
+        >
+          {e.fantasia}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  const wrap = (inner: ReactNode) => (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+      {postoTabs}
+      {inner}
+    </div>
+  )
+
+  if (postos.length === 0) return wrap(<EmptyCard title="Sem posto" desc="Nenhum posto disponível." />)
+  if (isLoading || !kpis) return wrap(<LoadingScreen message="Carregando produtividade…" />)
+  if (ranking.length === 0) return wrap(<EmptyCard title="Sem abastecimentos" desc="Não há abastecimentos no período e posto selecionados." />)
 
   const maxLitros = Math.max(...ranking.map((r) => r.litros), 0)
   const top = ranking[0]
@@ -81,6 +126,7 @@ const ProdutividadeMobile = () => {
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+      {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard label="Frentistas ativos" tone="blue" Icon={Users} value={formatNumber(kpis.frentistasAtivos)} />

@@ -113,15 +113,19 @@ const toResumo = (seg: SegmentoFaturamento, globalFat: number): SegmentoResumo =
  * participação %, tendências, campeões, melhor setor, evolução 12m e insights.
  * Tudo GET/cache (React Query deduplica as fetches com as demais telas).
  */
-const useProdutividadeTodos = (): ProdutividadeTodosData => {
-  const { empresaCodigos } = useFilterStore()
+const useProdutividadeTodos = (empresaCodigoOverride?: number | null): ProdutividadeTodosData => {
+  const { empresaCodigos: filterCodes } = useFilterStore()
+  // Posto explícito (seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
   const hasEmpresa = empresaCodigos.length > 0
 
-  const segmentos = useSegmentosFaturamento()
-  const { kpis, frentistaRows, frentistaRowsPrev, isLoading: lOper } = useOperacaoData()
-  const { rows: vendedores, rowsPrev: vendedoresPrev, totalFaturamento: vendTotalFat, totalCupons: vendTotalCupons, isLoading: lVend } = useVendedoresConveniencia()
-  const { lbLitroData } = useAbastecimentosAnalytics()
-  const { revenueData } = useConvenienceData()
+  const segmentos = useSegmentosFaturamento(empresaCodigoOverride)
+  const { kpis, frentistaRows, frentistaRowsPrev, isLoading: lOper } = useOperacaoData(empresaCodigoOverride)
+  const { rows: vendedores, rowsPrev: vendedoresPrev, totalFaturamento: vendTotalFat, totalCupons: vendTotalCupons, isLoading: lVend } = useVendedoresConveniencia(undefined, empresaCodigoOverride)
+  const { lbLitroData } = useAbastecimentosAnalytics(empresaCodigoOverride)
+  const { revenueData } = useConvenienceData(empresaCodigoOverride)
   const { meta, setMeta } = useMetaFaturamento(empresaCodigos)
 
   return useMemo(() => {

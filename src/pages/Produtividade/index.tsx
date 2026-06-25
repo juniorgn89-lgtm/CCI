@@ -1,8 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import useTabParam from '@/hooks/useTabParam'
 import { BarChart3 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
@@ -49,6 +52,20 @@ const ritmoPorHoraAtiva = (rows: AbastecimentoRow[]): number => {
  * Header → Tabs → Content.
  */
 const Produtividade = () => {
+  // Produtividade de frentista é por-posto (frentista trabalha numa loja). Mostra
+  // UM posto por vez, com seletor quando o filtro tem mais de um (Todos/subconjunto).
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
   const {
     kpis,
     frentistaRows,
@@ -56,7 +73,7 @@ const Produtividade = () => {
     abastecimentoRowsPrev,
     isLoading,
     hasEmpresa,
-  } = useOperacaoData()
+  } = useOperacaoData(selectedCodigo)
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
   const [prodTab, setProdTab] = useTabParam<SubTab>(
@@ -80,7 +97,7 @@ const Produtividade = () => {
 
   // Linhas com custo por abastecimento (lucro bruto), do useAbastecimentosAnalytics
   // (LMC/cache). Alimentam o Lucro bruto por dia da tabela; "—" até o custo chegar.
-  const { rows: abastComCusto, descAcrByFrentista } = useAbastecimentosAnalytics()
+  const { rows: abastComCusto, descAcrByFrentista } = useAbastecimentosAnalytics(selectedCodigo)
 
   const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
   const ritmoPrev = useMemo(() => ritmoPorHoraAtiva(abastecimentoRowsPrev), [abastecimentoRowsPrev])
@@ -154,15 +171,40 @@ const Produtividade = () => {
         </HeaderTray>
       )}
 
-      {!hasEmpresa && <SelectCompanyState />}
+      {/* Seletor de posto — só quando o filtro tem mais de um (Todos/subconjunto). */}
+      {postos.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {postos.map((e) => (
+            <button
+              key={e.codigo}
+              type="button"
+              onClick={() => setActiveCodigo(e.codigo)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
+                e.codigo === selectedCodigo
+                  ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
+                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+              )}
+            >
+              {e.fantasia}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {hasEmpresa && prodTab === 'visao' && <ProdutividadeTodos />}
+      {postos.length === 0 && (
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          Nenhum posto disponível.
+        </p>
+      )}
 
-      {hasEmpresa && prodTab === 'vendedores' && <VendedoresConveniencia />}
+      {hasEmpresa && prodTab === 'visao' && <ProdutividadeTodos empresaCodigo={selectedCodigo} />}
+
+      {hasEmpresa && prodTab === 'vendedores' && <VendedoresConveniencia empresaCodigo={selectedCodigo} />}
 
       {hasEmpresa && prodTab === 'metas' && (
         <Suspense fallback={<TabFallback />}>
-          <MetasFrentistas />
+          <MetasFrentistas empresaCodigo={selectedCodigo} />
         </Suspense>
       )}
 

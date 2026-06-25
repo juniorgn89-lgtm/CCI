@@ -103,9 +103,9 @@ const ThSort = ({ label, k, sortKey, sortDir, onClick, align = 'right', groupSta
  * lendo o cache apuracao_vendas_funcionario (setor conveniência). Mesmo período
  * e postos do filtro global. Padronizado conforme o Comparativo de Frentistas.
  */
-const VendedoresConveniencia = () => {
+const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
   const [setor, setSetor] = useState<VendedorSetor>('conveniencia')
-  const { rows, totalFaturamento, totalLucro, totalCupons, totalItens, isLoading, hasEmpresa } = useVendedoresConveniencia(setor)
+  const { rows, totalFaturamento, totalLucro, totalCupons, totalItens, isLoading, hasEmpresa } = useVendedoresConveniencia(setor, empresaCodigo)
   const [sortKey, setSortKey] = useState<SortKey>('faturamento')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const setorLabel = setor === 'automotivos' ? 'automotivos' : 'conveniência'

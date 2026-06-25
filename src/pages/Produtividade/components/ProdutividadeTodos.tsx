@@ -264,8 +264,8 @@ const InsightsCard = ({ insights }: { insights: InsightTodos[] }) => (
 /* ─────────────────────────────────────────────────────────────
  * Componente principal — modo "Todos".
  * ───────────────────────────────────────────────────────────── */
-const ProdutividadeTodos = () => {
-  const data = useProdutividadeTodos()
+const ProdutividadeTodos = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
+  const data = useProdutividadeTodos(empresaCodigo)
   const {
     cmpLabel, global, combustivel, automotivos, conveniencia,
     totalColaboradores, qtdFrentistas, qtdVendedores,

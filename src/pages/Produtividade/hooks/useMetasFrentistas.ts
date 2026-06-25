@@ -59,9 +59,13 @@ const overlaps = (mIni: string, mFim: string, pIni: string, pFim: string): boole
  *    classificado por `detectMetaTipo`), escolhendo a linha cujo período cobre o
  *    filtro. Sem cadastro → meta 0 ("s/ meta"). NÃO há gravação.
  */
-const useMetasFrentistas = (metrica: MetricaMeta): MetasFrentistasData => {
-  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
-  const { frentistaRows, abastecimentoRows, isLoading: lOper, hasEmpresa } = useOperacaoData()
+const useMetasFrentistas = (metrica: MetricaMeta, empresaCodigoOverride?: number | null): MetasFrentistasData => {
+  const { empresaCodigos: filterCodes, dataInicial, dataFinal } = useFilterStore()
+  // Posto explícito (seletor) tem prioridade; senão o filtro global.
+  const empresaCodigos = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : filterCodes
+  const { frentistaRows, abastecimentoRows, isLoading: lOper, hasEmpresa } = useOperacaoData(empresaCodigoOverride)
 
   const { data: metasRaw = [], isLoading: lMetas } = useQuery({
     queryKey: ['funcionario-meta', empresaCodigos.join(','), dataInicial, dataFinal],

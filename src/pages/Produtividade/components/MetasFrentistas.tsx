@@ -88,12 +88,12 @@ const Th = ({ label, k, sortKey, sortDir, onClick, align = 'right', help }: {
   )
 }
 
-const MetasFrentistas = () => {
+const MetasFrentistas = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
   const [metrica, setMetrica] = useState<MetricaMeta>('abastecimentos')
   const [sortKey, setSortKey] = useState<SortKey>('pct')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const { dataInicial, dataFinal } = useFilterStore()
-  const data = useMetasFrentistas(metrica)
+  const data = useMetasFrentistas(metrica, empresaCodigo)
   const { rows, metaTotal, realizadoTotal, pctGeral, comMeta, bateram, entre80e100, abaixo80, destaque, atencao, isLoading, hasEmpresa } = data
 
   const handleSort = (k: SortKey) => {
