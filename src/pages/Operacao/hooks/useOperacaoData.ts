@@ -263,10 +263,12 @@ const offsetMonths = (dateStr: string, monthsBack: number): string => {
 
 /* ── Hook ────────────────────────────────────────────────── */
 
-const useOperacaoData = () => {
+const useOperacaoData = (empresaCodigoOverride?: number | null) => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
+  // Operação é por-posto. `undefined` = legado (1º posto do filtro); um número =
+  // posto explícito (telas que mostram um posto por vez via seletor).
+  const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)
+  const hasEmpresa = empresaCodigo !== null
   const isPrevYear = comparisonMode === 'prevYear'
   // Critério de data dos abastecimentos (espelha Abast./Fiscal/Movimento do
   // webPosto). 'ABAST' = default da API (omite tipoData). O cache do Supabase é

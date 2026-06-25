@@ -17,6 +17,8 @@ import type { BombaRow } from '@/pages/Operacao/hooks/useOperacaoData'
 interface ControleBombasProps {
   bombaRows: BombaRow[]
   bombaRowsPrev: BombaRow[]
+  /** Posto ativo (config/manutenção são por-posto). `undefined` = 1º do filtro. */
+  empresaCodigo?: number | null
 }
 
 type WearStatus = 'ok' | 'warn' | 'critical' | 'sem-registro'
@@ -61,9 +63,9 @@ const formatBrDate = (yyyymmdd: string): string => {
   return `${d}/${m}/${y}`
 }
 
-const ControleBombas = ({ bombaRows, bombaRowsPrev }: ControleBombasProps) => {
+const ControleBombas = ({ bombaRows, bombaRowsPrev, empresaCodigo: empresaCodigoProp }: ControleBombasProps) => {
   const { empresaCodigos } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
+  const empresaCodigo = empresaCodigoProp !== undefined ? empresaCodigoProp : (empresaCodigos[0] ?? null)
 
   const { mode, manutencoes, configs, setMode, setManutencao, clearManutencao } = useManutencaoStore()
   const config = getConfigOrDefault(configs, empresaCodigo)

@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Gauge, Droplets, Activity, Trophy, ChevronDown } from 'lucide-react'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, ProgressBar, Badge } from '@/components/mobile/primitives'
@@ -20,7 +24,20 @@ const Detail = ({ label, value }: { label: string; value: string }) => (
  * (ilha/fabricante/modelo). Mesmos números do desktop.
  */
 const BombaMobile = () => {
-  const { bombaRows, bombaRowsPrev, isLoading, hasEmpresa } = useOperacaoData()
+  // Bomba é por-posto → um posto por vez, com seletor quando o filtro tem mais.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
+  const { bombaRows, bombaRowsPrev, isLoading } = useOperacaoData(selectedCodigo)
   const [open, setOpen] = useState<number | null>(null)
 
   const stats = useMemo(() => {
@@ -33,20 +50,51 @@ const BombaMobile = () => {
     return { ativas, totalLitros, totalAbast, totalLitrosPrev, totalAbastPrev, maxLitros, top: ativas[0] ?? null }
   }, [bombaRows, bombaRowsPrev])
 
-  if (!hasEmpresa) {
-    return (
-      <div className="space-y-3 pb-2">
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
-        <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver as bombas." />
-      </div>
-    )
-  }
-  if (isLoading) return <LoadingScreen message="Carregando bombas…" />
-  if (stats.ativas.length === 0) return <EmptyCard title="Sem bombeamento" desc="Nenhuma bomba com abastecimentos no período." />
+  const postoTabs = postos.length > 1 ? (
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      {postos.map((e) => (
+        <button
+          key={e.codigo}
+          type="button"
+          onClick={() => setActiveCodigo(e.codigo)}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+            e.codigo === selectedCodigo
+              ? 'bg-[#1e3a5f] text-white'
+              : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
+          )}
+        >
+          {e.fantasia}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  if (postos.length === 0) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
+    </div>
+  )
+  if (isLoading) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      {postoTabs}
+      <LoadingScreen message="Carregando bombas…" />
+    </div>
+  )
+  if (stats.ativas.length === 0) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      {postoTabs}
+      <EmptyCard title="Sem bombeamento" desc="Nenhuma bomba com abastecimentos no período." />
+    </div>
+  )
 
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard span2 big label="Litros bombeados" tone="blue" Icon={Droplets}
