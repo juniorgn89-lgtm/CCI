@@ -22,9 +22,20 @@ const fmtDia = (iso: string): string => (iso ? iso.slice(0, 10).split('-').rever
  */
 const ReabastecimentoMobile = () => {
   const { empresaCodigos } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
-  const { tanques, isLoading } = useReabastecimento({ empresaCodigo, includeDetalhes: true })
+  // Consolidado: 1 posto → escopa no hook; Todos/subconjunto → rede-wide + filtro
+  // client-side (cada tanque carrega empresaNome). Tanque é físico por-posto, então
+  // a "rede" é a lista de todos os tanques de todos os postos do filtro.
+  const single1Posto = empresaCodigos.length === 1
+  const { tanques: tanquesRaw, isLoading } = useReabastecimento({
+    empresaCodigo: single1Posto ? empresaCodigos[0] : null,
+    includeDetalhes: true,
+  })
+  const tanques = useMemo(
+    () => empresaCodigos.length === 0
+      ? tanquesRaw
+      : tanquesRaw.filter((t) => empresaCodigos.includes(t.empresaCodigo)),
+    [tanquesRaw, empresaCodigos],
+  )
 
   const resumo = useMemo(() => {
     let critico = 0, alerta = 0, ok = 0, necessidade = 0, volume = 0, valor = 0
@@ -44,14 +55,6 @@ const ReabastecimentoMobile = () => {
     return { critico, alerta, ok, necessidade, volume, valor, coberturaMedia: comDias > 0 ? somaDias / comDias : 0 }
   }, [tanques])
 
-  if (!hasEmpresa || empresaCodigo === null) {
-    return (
-      <div className="space-y-3 pb-2">
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Reabastecimento</h1>
-        <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver os tanques." />
-      </div>
-    )
-  }
   if (isLoading) return <LoadingScreen message="Carregando tanques…" />
   if (tanques.length === 0) return <EmptyCard title="Sem tanques" desc="Nenhum tanque cadastrado pro posto selecionado." />
 
@@ -82,7 +85,9 @@ const ReabastecimentoMobile = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{t.produtoNome}</p>
-                    <p className="truncate text-[10.5px] text-gray-400 dark:text-gray-500">{t.tanqueNome}</p>
+                    <p className="truncate text-[10.5px] text-gray-400 dark:text-gray-500">
+                      {!single1Posto ? `${t.empresaNome} · ` : ''}{t.tanqueNome}
+                    </p>
                   </div>
                   <Badge tone={cfg.tone}>{cfg.label} · {Math.round(t.nivelPct)}%</Badge>
                 </div>
