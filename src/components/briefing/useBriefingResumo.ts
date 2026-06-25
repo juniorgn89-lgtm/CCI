@@ -7,8 +7,12 @@ import { todayLocal } from '@/lib/period'
 
 /**
  * Digest do Briefing Matinal: apurado de ONTEM (rede-wide, postos permitidos) —
- * Lucro Bruto, Margem e Litros de combustível — comparado ao MESMO DIA da semana
- * passada (ontem − 7d). Tudo FATO, do cache `apuracao_diaria`. Read-only.
+ * Lucro Bruto, Litros e Lucro/litro (LB÷litros) — comparado ao MESMO DIA da
+ * semana passada (ontem − 7d). Tudo FATO, do cache `apuracao_diaria`. Read-only.
+ *
+ * NÃO expõe margem% (era frágil: inflava p/ ~88-100% quando o custo do dia vinha
+ * incompleto). O setor lê Lucro/litro. Também expõe a decomposição volume×margem
+ * (efeito de cada um na variação de LB) p/ a frase de leitura determinística.
  */
 
 const isoMinusDays = (iso: string, n: number) => {
@@ -29,11 +33,18 @@ export interface BriefingResumo {
   diaSemana: string
   lb: number
   litros: number
-  margem: number
-  /** Δ% LB e litros vs mesmo dia da semana passada; Δ p.p. da margem. */
+  /** Lucro por litro (R$/L) = LB ÷ litros — métrica que o setor lê. */
+  lbPorLitro: number
+  /** Δ% vs mesmo dia da semana passada. */
   deltaLB: number | null
   deltaLitros: number | null
-  deltaMargemPp: number | null
+  deltaLbPorLitroPct: number | null
+  /** Δ absoluto do lucro/litro (R$/L) — usado na frase de leitura. */
+  deltaLbPorLitroAbs: number | null
+  /** Decomposição da ΔLB: efeito volume (Δlitros × R$/L ant.) + efeito margem
+   *  (ΔR$/L × litros atual). A soma = ΔLB. */
+  volumeEffect: number
+  marginEffect: number
 }
 
 const useBriefingResumo = (enabled: boolean): BriefingResumo => {
@@ -60,14 +71,13 @@ const useBriefingResumo = (enabled: boolean): BriefingResumo => {
 
   return useMemo(() => {
     const agg = (data: string) => {
-      let lb = 0, litros = 0, fat = 0
+      let lb = 0, litros = 0
       for (const r of rows) {
         if (r.data !== data) continue
         lb += r.fuel_lucro_bruto
         litros += r.fuel_litros
-        fat += r.fuel_faturamento
       }
-      return { lb, litros, fat, margem: fat > 0 ? (lb / fat) * 100 : 0 }
+      return { lb, litros, lbPorLitro: litros > 0 ? lb / litros : 0 }
     }
     const cur = agg(ontem)
     const prev = agg(semanaPassada)
@@ -79,10 +89,13 @@ const useBriefingResumo = (enabled: boolean): BriefingResumo => {
       diaSemana: weekdayName(ontem),
       lb: cur.lb,
       litros: cur.litros,
-      margem: cur.margem,
+      lbPorLitro: cur.lbPorLitro,
       deltaLB: pctDelta(cur.lb, prev.lb),
       deltaLitros: pctDelta(cur.litros, prev.litros),
-      deltaMargemPp: prev.margem > 0 ? cur.margem - prev.margem : null,
+      deltaLbPorLitroPct: prev.lbPorLitro > 0 ? ((cur.lbPorLitro - prev.lbPorLitro) / prev.lbPorLitro) * 100 : null,
+      deltaLbPorLitroAbs: prev.litros > 0 ? cur.lbPorLitro - prev.lbPorLitro : null,
+      volumeEffect: (cur.litros - prev.litros) * prev.lbPorLitro,
+      marginEffect: (cur.lbPorLitro - prev.lbPorLitro) * cur.litros,
     }
   }, [rows, ontem, semanaPassada, isLoading])
 }

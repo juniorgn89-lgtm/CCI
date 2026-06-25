@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;-webkit-font-smoothing:antialiased}
+  @keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes sunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  .filtRow:hover{background:#f8fafc !important}
+</style>
+</helmet>
+
+<div style="position:relative;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:linear-gradient(135deg,#0f2238,#1e3a5f 55%,#27496f);overflow:hidden">
+
+  <!-- backdrop dashboard blur hint -->
+  <div style="position:absolute;inset:0;background:radial-gradient(60% 50% at 78% 18%,rgba(56,116,203,.28),transparent),radial-gradient(50% 40% at 12% 88%,rgba(20,140,90,.18),transparent)"></div>
+  <div style="position:absolute;inset:0;backdrop-filter:blur(2px);background:rgba(8,18,32,.34)"></div>
+
+  <!-- MODAL -->
+  <div style="position:relative;width:560px;max-width:100%;background:#fff;border-radius:22px;box-shadow:0 32px 80px -12px rgba(5,14,28,.55),0 0 0 1px rgba(255,255,255,.06);overflow:hidden;animation:modalIn .42s cubic-bezier(.16,1,.3,1)">
+
+    <!-- HEADER navy -->
+    <div style="position:relative;padding:22px 24px 20px;background:linear-gradient(135deg,#1e3a5f,#27496f);overflow:hidden">
+      <div style="position:absolute;top:-40px;right:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(245,197,24,.16),transparent 68%)"></div>
+      <button type="button" onClick="{{ onClose }}" aria-label="Fechar" style="position:absolute;top:16px;right:16px;height:30px;width:30px;border:none;border-radius:9px;background:rgba(255,255,255,.12);color:#cbd5e1;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:rgba(255,255,255,.2);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:16px;height:16px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <div style="display:flex;align-items:center;gap:13px;position:relative">
+        <div style="height:46px;width:46px;flex:none;border-radius:14px;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px -4px rgba(245,158,11,.6)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;animation:sunPulse 4s ease-in-out infinite"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></div>
+        <div style="min-width:0">
+          <p style="margin:0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)">Quarta · 25 jun 2026</p>
+          <h2 style="margin:2px 0 0;font-size:21px;font-weight:700;color:#fff;letter-spacing:-.01em">Bom dia, Administrador</h2>
+        </div>
+      </div>
+      <p style="margin:13px 0 0;font-size:13px;line-height:1.5;color:rgba(255,255,255,.72);position:relative">Aqui está o resumo de ontem — e um atalho pra começar sua análise do dia.</p>
+    </div>
+
+    <!-- BODY -->
+    <div style="padding:22px 24px 8px">
+
+      <!-- KPI hero block -->
+      <p style="margin:0 0 10px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;display:flex;align-items:center;gap:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Combustível · ontem (quarta) vs quarta passada</p>
+
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:1px;background:#eef1f5;border:1px solid #eef1f5;border-radius:16px;overflow:hidden">
+        <!-- hero: Lucro Bruto -->
+        <div style="background:linear-gradient(160deg,#f0f6ff,#fff);padding:16px 18px">
+          <p style="margin:0;font-size:11px;font-weight:600;color:#64748b">Lucro bruto</p>
+          <p style="margin:8px 0 0;font-size:30px;font-weight:800;letter-spacing:-.02em;color:#1e3a5f;font-variant-numeric:tabular-nums;line-height:1">R$ 222<span style="font-size:18px;font-weight:700;color:#64748b">K</span></p>
+          <div style="margin-top:9px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#dcfce7"><svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="m5 12 7-7 7 7M12 19V5"/></svg><span style="font-size:12px;font-weight:700;color:#15803d;font-variant-numeric:tabular-nums">+7,4%</span></div>
+        </div>
+        <!-- lucro/litro -->
+        <div style="background:#fff;padding:16px 16px">
+          <p style="margin:0;font-size:11px;font-weight:600;color:#64748b">Lucro / litro</p>
+          <p style="margin:8px 0 0;font-size:21px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;line-height:1">R$ 0,41<span style="font-size:13px;color:#94a3b8">/L</span></p>
+          <div style="margin-top:9px;display:inline-flex;align-items:center;gap:3px"><svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><path d="m5 12 7-7 7 7M12 19V5"/></svg><span style="font-size:11.5px;font-weight:600;color:#15803d;font-variant-numeric:tabular-nums">+9,3%</span></div>
+        </div>
+        <!-- vs meta -->
+        <div style="background:#fff;padding:16px 16px">
+          <p style="margin:0;font-size:11px;font-weight:600;color:#64748b">vs meta do dia</p>
+          <p style="margin:8px 0 0;font-size:21px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;line-height:1">92<span style="font-size:13px;color:#94a3b8">%</span></p>
+          <div style="margin-top:9px;display:inline-flex;align-items:center;gap:4px"><span style="height:8px;width:54px;border-radius:999px;background:#e5e7eb;overflow:hidden;display:inline-block;position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:92%;border-radius:999px;background:#15803d"></span></span></div>
+        </div>
+      </div>
+
+      <!-- leitura -->
+      <div style="margin-top:12px;display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:12px;background:#f0f6ff;border:1px solid #dbeafe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex:none;margin-top:1px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg>
+        <p style="margin:0;font-size:12.5px;line-height:1.5;color:#1e3a5f"><strong>Lucro subiu puxado por margem</strong> (+R$ 0,03/L), não por volume — os litros caíram 1,7%. Ganho saudável.</p>
+      </div>
+
+      <!-- Ajustar análise -->
+      <p style="margin:18px 0 9px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;display:flex;align-items:center;gap:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 6h18M7 12h10M11 18h2"/></svg>Ajustar análise</p>
+
+      <div style="border:1px solid #f1f3f5;border-radius:12px;overflow:hidden">
+          <div class="filtRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-bottom:1px solid #f1f3f5">
+            <span style="font-size:12px;font-weight:600;color:#6b7280">Período</span>
+            <div style="display:inline-flex;padding:3px;gap:2px;background:#f1f3f5;border-radius:9px">
+              <span style="padding:5px 12px;border-radius:7px;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600">Mês atual</span>
+              <span style="padding:5px 12px;border-radius:7px;color:#64748b;font-size:12px;font-weight:600">Mês passado</span>
+            </div>
+          </div>
+          <div class="filtRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-bottom:1px solid #f1f3f5">
+            <span style="font-size:12px;font-weight:600;color:#6b7280">Escopo</span>
+            <div style="display:inline-flex;padding:3px;gap:2px;background:#f1f3f5;border-radius:9px">
+              <span style="padding:5px 12px;border-radius:7px;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600">Fechado (até ontem)</span>
+              <span style="padding:5px 12px;border-radius:7px;color:#64748b;font-size:12px;font-weight:600">Aberto (inclui hoje)</span>
+            </div>
+          </div>
+          <div class="filtRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-bottom:1px solid #f1f3f5">
+            <span style="font-size:12px;font-weight:600;color:#6b7280">Módulo</span>
+            <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:12.5px;font-weight:600;color:#374151">Central da Rede <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="filtRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px">
+            <span style="font-size:12px;font-weight:600;color:#6b7280">Posto</span>
+            <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:12.5px;font-weight:600;color:#374151">Todos os postos <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+        </div>
+
+      <p style="margin:13px 2px 0;font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Vai analisar 01/06/2026 – 24/06/2026</p>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px 20px;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+        <span style="position:relative;height:18px;width:18px;border-radius:5px;border:1.5px solid #cbd5e1;background:#fff;display:inline-flex;align-items:center;justify-content:center"></span>
+        <span style="font-size:12px;color:#94a3b8">Não mostrar de novo hoje</span>
+      </label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" onClick="{{ onClose }}" style="height:40px;padding:0 16px;border:none;border-radius:11px;background:transparent;color:#64748b;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="background:#f1f5f9;color:#334155">Fechar</button>
+        <button type="button" onClick="{{ onClose }}" style="height:40px;padding:0 20px;border:none;border-radius:11px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 20px -6px rgba(37,99,235,.6)" style-hover="filter:brightness(1.07)">Analisar<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:960,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = { aberto: false, fechado: true };
+  renderVals() {
+    return {
+      aberto: this.state.aberto,
+      chevron: this.state.aberto ? 'rotate(180deg)' : 'rotate(0deg)',
+      resumoFiltros: 'Mês atual · Fechado · Central da Rede · Todos',
+      onToggle: () => this.setState((s) => ({ aberto: !s.aberto })),
+      onClose: () => {},
+    };
+  }
+}
+</script>
+</body>
+</html>
