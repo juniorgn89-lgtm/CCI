@@ -17,6 +17,7 @@ import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActio
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { useAuthStore } from '@/store/auth'
 import WelcomeModal from '@/components/onboarding/WelcomeModal'
+import BriefingModal from '@/components/briefing/BriefingModal'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
 import { showsGlobalFilters } from '@/lib/globalFilters'
@@ -175,6 +176,8 @@ const AppLayout = () => {
   return (
     <div className="flex h-screen flex-col bg-gray-100 dark:bg-gray-950">
       {welcomeModal}
+      {/* Briefing matinal — só no shell web (decisão de produto); abre 1×/dia. */}
+      {authUser && <BriefingModal />}
       {/* Barra de topo de largura total — logo+nome na ponta esquerda (fixos,
           fora do menu que recolhe, estilo Gmail) + rede/posto + cluster direito. */}
       <Header onMobileMenuOpen={() => setMobileOpen(true)} />

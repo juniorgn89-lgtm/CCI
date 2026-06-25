@@ -49,6 +49,12 @@ interface AuthState {
    * evita flash. Persistido por USUÁRIO no Supabase (não por dispositivo).
    */
   onboardingSeen: boolean
+  /**
+   * Se o briefing matinal já foi visto HOJE (de `profiles.last_briefing_date`
+   * === data de hoje). Default `true` (não mostra) até o bootstrap confirmar
+   * que a última exibição não é hoje. Persistido por USUÁRIO no Supabase.
+   */
+  briefingSeenToday: boolean
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
@@ -57,6 +63,7 @@ interface AuthState {
   setCanVerReabastecimento: (v: boolean) => void
   setFullName: (name: string | null) => void
   setOnboardingSeen: (v: boolean) => void
+  setBriefingSeenToday: (v: boolean) => void
   setLoaded: () => void
 }
 
@@ -71,6 +78,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   canVerReabastecimento: false,
   fullName: null,
   onboardingSeen: true,
+  briefingSeenToday: true,
   setAuth: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
@@ -80,5 +88,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setFullName: (fullName) => set({ fullName }),
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
+  setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),
   setLoaded: () => set({ isLoading: false }),
 }))

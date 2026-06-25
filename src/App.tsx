@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
+import { todayLocal } from '@/lib/period'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,6 +127,15 @@ const loadTenantForUser = async () => {
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)
       useAuthStore.getState().setOnboardingSeen(!!typed.onboarding_seen)
+      // Briefing matinal: query SEPARADA e resiliente — a coluna last_briefing_date
+      // pode não existir ainda (docs/supabase-briefing.sql não rodada). Um erro
+      // aqui NÃO quebra o login; só mantém o briefing oculto (default `true`).
+      const { data: br, error: brErr } = await supabase
+        .from('profiles').select('last_briefing_date').eq('user_id', user.id).maybeSingle()
+      if (!brErr && br) {
+        const lastBriefing = (br as { last_briefing_date: string | null }).last_briefing_date
+        useAuthStore.getState().setBriefingSeenToday(lastBriefing === todayLocal())
+      }
       return
     }
 
