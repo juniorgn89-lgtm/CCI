@@ -134,9 +134,6 @@ export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtiv
   { id: 'metas', label: 'Metas', visible: true },
 ])
 
-export const useInteligenciaLayout = createModuleLayoutStore('visor360-inteligencia-layout', [
-  { id: 'analise', label: 'Análise & Comparação', visible: true },
-  { id: 'radar', label: 'Radar de Preços', visible: true },
-  { id: 'assistente', label: 'Cadu IA', visible: true },
-])
+// Inteligência não tem mais layout de abas: a Análise & Comparação foi removida
+// e o Radar de Preços foi pro módulo Comercial — sobrou só o Cadu IA.
 
