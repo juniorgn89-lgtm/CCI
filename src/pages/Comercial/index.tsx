@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { TrendingUp, Flag, Sparkles, BarChart3, Trophy, Building2 } from 'lucide-react'
+import { TrendingUp, Flag, Sparkles, BarChart3, Trophy, Building2, Radar } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useComercialFlags } from '@/store/comercialFlags'
+import useIsMobile from '@/hooks/useIsMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -13,18 +14,21 @@ const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'
 const ProjecaoLB = lazy(() => import('@/pages/Comercial/components/ProjecaoLB'))
 const Oportunidades = lazy(() => import('@/pages/Comercial/components/Oportunidades'))
 const Concorrencia = lazy(() => import('@/pages/Comercial/components/Concorrencia'))
+const RadarPrecos = lazy(() => import('@/pages/Comercial/components/RadarPrecos'))
+const RadarMobile = lazy(() => import('@/pages/Comercial/RadarMobile'))
 
-type TabId = 'oportunidades' | 'projecao' | 'margem' | 'concorrencia'
+type TabId = 'oportunidades' | 'projecao' | 'margem' | 'concorrencia' | 'radar'
 
 const TABS: { id: TabId; label: string; Icon: typeof Trophy; subtitle: string }[] = [
   { id: 'oportunidades', label: 'Oportunidades', Icon: Sparkles, subtitle: 'Oportunidades de lucro priorizadas por IA' },
   { id: 'projecao', label: 'Projeção de LB', Icon: BarChart3, subtitle: 'Projeção de lucro bruto e evolução semanal' },
   { id: 'margem', label: 'Margem por posto', Icon: Trophy, subtitle: 'Ranking de lucratividade por unidade' },
   { id: 'concorrencia', label: 'Concorrência', Icon: Building2, subtitle: 'Inteligência de preço de praça' },
+  { id: 'radar', label: 'Radar de Preços', Icon: Radar, subtitle: 'Guerra de preço — margem, elasticidade e simulação até o fechamento' },
 ]
 
 const isTabId = (v: string | null): v is TabId =>
-  v === 'oportunidades' || v === 'projecao' || v === 'margem' || v === 'concorrencia'
+  v === 'oportunidades' || v === 'projecao' || v === 'margem' || v === 'concorrencia' || v === 'radar'
 
 /** Faixa azul do flag global — estado ÚNICO (useComercialFlags), no topo de
  *  TODAS as abas. Ligado → análises usam preço de praça; desligado → média
@@ -62,6 +66,7 @@ const FlagBand = () => {
 const Comercial = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
   const meta = TABS.find((t) => t.id === activeTab) ?? TABS[0]
+  const isMobile = useIsMobile()
 
   return (
     <div className="space-y-4">
@@ -88,14 +93,16 @@ const Comercial = () => {
         <DateRangeToolbar />
       </PageHeaderActions>
 
-      {/* Flag global — no topo de todas as abas */}
-      <FlagBand />
+      {/* Flag global — no topo de todas as abas, EXCETO Radar (que usa dados da
+          própria rede, não preço de praça). */}
+      {activeTab !== 'radar' && <FlagBand />}
 
       <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
         {activeTab === 'margem' && <MargemPosto />}
         {activeTab === 'projecao' && <ProjecaoLB />}
         {activeTab === 'oportunidades' && <Oportunidades />}
         {activeTab === 'concorrencia' && <Concorrencia />}
+        {activeTab === 'radar' && (isMobile ? <RadarMobile /> : <RadarPrecos />)}
       </Suspense>
     </div>
   )
