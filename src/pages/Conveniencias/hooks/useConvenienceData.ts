@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
 import { useTenantStore } from '@/store/tenant'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
@@ -210,6 +212,10 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   // Consolidado rede-wide (cache apuracao_vendas). `single1Posto` libera o único
   // bloco por-posto que não consolida: saldo de estoque.
   const rede = useTenantStore((s) => s.rede)
+  // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira).
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
+  const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
   const single1Posto = empresaCodigos.length === 1
   const empresaEstoque = single1Posto ? empresaCodigos[0] : null
   const isPrevYear = comparisonMode === 'prevYear'
@@ -306,7 +312,7 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   const computed = useMemo(() => {
     // Vendas vêm do cache (apuracao_vendas), consolidadas rede-wide e filtradas
     // pelo posto selecionado (`[]` = rede; subconjunto = recorte). setor carimbado.
-    const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const matchPosto = (code: number) => empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     const toAggs = (rows: ApuracaoVendaRow[]): VendaAgg[] =>
       rows
         .filter((r) => r.setor === 'conveniencia' && matchPosto(r.empresa_codigo))
@@ -912,7 +918,7 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
       gruposList,
     }
   }, [
-    curRows, prevRows, cmpRows, evoRows, produtosData, gruposData, estoqueRaw, empresaCodigos,
+    curRows, prevRows, cmpRows, evoRows, produtosData, gruposData, estoqueRaw, empresaCodigos, permittedCodes,
     dataInicial, dataFinal, comparisonMode, isPrevYear, convProdutoCodigos,
   ])
 

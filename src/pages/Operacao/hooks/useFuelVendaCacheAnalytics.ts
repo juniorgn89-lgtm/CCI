@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useTenantStore } from '@/store/tenant'
 import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { offsetPeriod, todayLocal } from '@/lib/period'
+import { fuelLabel } from '@/lib/fuel'
 import type {
   FuelVendaRow,
   FuelVendaFuelType,
@@ -39,6 +42,12 @@ const useFuelVendaCacheAnalytics = () => {
   const rede = useTenantStore((s) => s.rede)
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
+  // "Todos" ([]) = todos os postos PERMITIDOS (profiles), não a rede RLS inteira.
+  // O cache vem rede-wide (RLS = rede toda); sem este recorte, a aba somaria
+  // postos fora da permissão e divergiria da Visão Geral.
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
 
   // Comparativo "mesmos dias decorridos": corta o fim em hoje antes de deslocar.
   const hoje = todayLocal()
@@ -77,9 +86,15 @@ const useFuelVendaCacheAnalytics = () => {
 
   return useMemo(() => {
     const matchEmpresa = (code: number) =>
-      empresaCodigos.length === 0 || empresaCodigos.includes(code)
+      empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     const isFuel = (r: ApuracaoVendaRow) => r.setor === 'combustivel'
-    const nome = (r: ApuracaoVendaRow) => r.produto_nome || `Produto ${r.produto_codigo}`
+    // Normaliza o nome (tira "." final e espaços) pra mesclar variações de
+    // cadastro entre postos ("GASOLINA COMUM." vs "GASOLINA COMUM") — sem isso, a
+    // consolidação rede-wide vira pills/linhas duplicadas no filtro.
+    const nome = (r: ApuracaoVendaRow) => {
+      const raw = r.produto_nome || `Produto ${r.produto_codigo}`
+      return fuelLabel(raw) || raw
+    }
 
     // Linhas do período (já agregadas por empresa/dia/produto no cache).
     const rows: FuelVendaRow[] = []
@@ -194,7 +209,7 @@ const useFuelVendaCacheAnalytics = () => {
     }
 
     return { rows, rowsSemanaAnt, dailyData, fuelTypeData, kpis, cmp, semanaAntLitros, hasEmpresa: true, isLoading }
-  }, [curRows, prevRows, semRows, empresaCodigos, isLoading])
+  }, [curRows, prevRows, semRows, empresaCodigos, permittedCodes, isLoading])
 }
 
 export default useFuelVendaCacheAnalytics

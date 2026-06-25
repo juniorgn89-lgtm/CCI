@@ -8,6 +8,8 @@ import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { useTenantStore } from '@/store/tenant'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { offsetPeriod, todayLocal } from '@/lib/period'
@@ -167,6 +169,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const single1Posto = empresaCodigos.length === 1
   const empresaEstoque = single1Posto ? empresaCodigos[0] : null
   const rede = useTenantStore((s) => s.rede)
+  // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira) — senão a aba
+  // somaria postos fora da permissão e divergiria da Visão Geral.
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
+  const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
   const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
@@ -250,7 +257,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   // Rows do cache (automotivos, posto selecionado) → "itens" agregados que os
   // memos já consomem (vendaCodigo dispensado). `[]` = rede; subconjunto = recorte.
   const toAggItens = (rows: ApuracaoVendaRow[]): AggItem[] => {
-    const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const match = (code: number) => empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     return rows
       .filter((r) => r.setor === 'automotivos' && match(r.empresa_codigo) && r.quantidade !== 0)
       .map((r) => ({
@@ -265,7 +272,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   // Cupons distintos com produto de pista (dedup por empresa+dia — o valor é
   // desnormalizado por linha). Denominador do ticket médio.
   const sumCupons = (rows: ApuracaoVendaRow[]): number => {
-    const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const match = (code: number) => empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     const byDay = new Map<string, number>()
     for (const r of rows) {
       if (r.setor !== 'automotivos' || !match(r.empresa_codigo) || r.cupons <= 0) continue
@@ -275,10 +282,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     for (const v of byDay.values()) t += v
     return t
   }
-  const vendaItens = useMemo(() => toAggItens(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const vendaItensPrev = useMemo(() => toAggItens(cachePrev), [cachePrev, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const cuponsPrev = useMemo(() => sumCupons(cachePrev), [cachePrev, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const vendaItens = useMemo(() => toAggItens(cacheCur), [cacheCur, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
+  const vendaItensPrev = useMemo(() => toAggItens(cachePrev), [cachePrev, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
+  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
+  const cuponsPrev = useMemo(() => sumCupons(cachePrev), [cachePrev, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cruza tudo: pista produtos + vendas, agrupado por categoria
   const computed = useMemo(() => {

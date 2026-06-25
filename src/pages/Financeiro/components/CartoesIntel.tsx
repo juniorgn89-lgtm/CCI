@@ -6,6 +6,8 @@ import {
 import { AlertTriangle, Clock, Percent, CreditCard, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchCartao } from '@/api/endpoints/financeiro'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
@@ -68,6 +70,10 @@ type Aba = 'atraso' | 'vencer' | 'liquidados'
  */
 const CartoesIntel = () => {
   const { empresaCodigos } = useFilterStore()
+  // "Todos" ([]) = postos PERMITIDOS, não a rede inteira retornada pela Quality.
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
+  const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
   const hoje = todayISO()
   const [mesesJanela, setMesesJanela] = useState<number>(DEFAULT_MESES)
   const [aba, setAba] = useState<Aba>('atraso')
@@ -88,8 +94,10 @@ const CartoesIntel = () => {
     enabled: true,
   })
   const cartoes = useMemo(
-    () => (empresaCodigos.length === 0 ? cartoesRaw : cartoesRaw.filter((c) => empresaCodigos.includes(c.empresaCodigo))),
-    [cartoesRaw, empresaCodigos],
+    () => (empresaCodigos.length === 0
+      ? cartoesRaw.filter((c) => permittedCodes.has(c.empresaCodigo))
+      : cartoesRaw.filter((c) => empresaCodigos.includes(c.empresaCodigo))),
+    [cartoesRaw, empresaCodigos, permittedCodes],
   )
 
   const m = useMemo(() => {

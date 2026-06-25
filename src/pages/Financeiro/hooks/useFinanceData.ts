@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao, fetchContas, fetchDuplicatas } from '@/api/endpoints/financeiro'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { MovimentoConta, TituloReceber, TituloPagar, Duplicata } from '@/api/types/financeiro'
 
@@ -276,6 +278,14 @@ const useSubset = <T extends { empresaCodigo: number }>(arr: T[], codes: number[
 const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
   const hasEmpresa = empresaCodigos.length > 0
+  // "Todos" ([]) = postos PERMITIDOS, não a rede inteira (a Quality retorna a rede
+  // toda quando empresaCodigo é omitido). Sem isto, somaria postos fora da permissão.
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
+  const scopedCodes = useMemo(
+    () => (empresaCodigos.length > 0 ? empresaCodigos : empresasPermitidas.map((e) => e.codigo)),
+    [empresaCodigos, empresasPermitidas],
+  )
 
   // Primitivos do filtro local pra dependências estáveis do useMemo (evita
   // recomputar a cada render por causa de objeto recriado no componente pai).
@@ -470,17 +480,17 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   })
 
   // Recorta cada dataset rede-wide pelo subconjunto de postos do filtro (`[]`=Todos).
-  const titulosReceber = useSubset(titulosReceberRaw, empresaCodigos)
-  const titulosPagar = useSubset(titulosPagarRaw, empresaCodigos)
-  const movimentos = useSubset(movimentosRaw, empresaCodigos)
-  const movimentosPrev = useSubset(movimentosPrevRaw, empresaCodigos)
-  const cartoes = useSubset(cartoesRaw, empresaCodigos)
-  const titulosReceberPend = useSubset(titulosReceberPendRaw, empresaCodigos)
-  const titulosPagarPend = useSubset(titulosPagarPendRaw, empresaCodigos)
-  const duplicatasPend = useSubset(duplicatasPendRaw, empresaCodigos)
-  const cartoesPend = useSubset(cartoesPendRaw, empresaCodigos)
-  const titulosReceberPagos = useSubset(titulosReceberPagosRaw, empresaCodigos)
-  const contas = useSubset(contasRaw, empresaCodigos)
+  const titulosReceber = useSubset(titulosReceberRaw, scopedCodes)
+  const titulosPagar = useSubset(titulosPagarRaw, scopedCodes)
+  const movimentos = useSubset(movimentosRaw, scopedCodes)
+  const movimentosPrev = useSubset(movimentosPrevRaw, scopedCodes)
+  const cartoes = useSubset(cartoesRaw, scopedCodes)
+  const titulosReceberPend = useSubset(titulosReceberPendRaw, scopedCodes)
+  const titulosPagarPend = useSubset(titulosPagarPendRaw, scopedCodes)
+  const duplicatasPend = useSubset(duplicatasPendRaw, scopedCodes)
+  const cartoesPend = useSubset(cartoesPendRaw, scopedCodes)
+  const titulosReceberPagos = useSubset(titulosReceberPagosRaw, scopedCodes)
+  const contas = useSubset(contasRaw, scopedCodes)
   const saldoEmCaixa = contas.filter((c) => c.ativo).reduce((s, c) => s + (c.saldoAtual ?? 0), 0)
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
