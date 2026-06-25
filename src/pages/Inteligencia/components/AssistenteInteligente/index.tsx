@@ -1,19 +1,15 @@
 import { useState } from 'react'
-import { MessageSquare, Clock, LayoutDashboard, Activity, ShieldCheck, ShieldOff, AlertTriangle, Loader2 } from 'lucide-react'
+import { MessageSquare, Activity, ShieldCheck, ShieldOff, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CaduAvatar from './CaduAvatar'
 import ChatPanel from './ChatPanel'
-import HistoricoPanel from './HistoricoPanel'
-import DashboardPanel from './DashboardPanel'
 import MonitorPanel from './MonitorPanel'
 import { useRedeAssistente } from './hooks/useRedeAssistente'
 
-type SubTab = 'chat' | 'historico' | 'dashboard' | 'monitor'
+type SubTab = 'chat' | 'monitor'
 
 const SUB_TABS: { key: SubTab; label: string; icon: typeof MessageSquare; desc: string }[] = [
   { key: 'chat', label: 'Chat', icon: MessageSquare, desc: 'Pergunte em linguagem natural' },
-  { key: 'historico', label: 'Histórico', icon: Clock, desc: 'Perguntas anteriores' },
-  { key: 'dashboard', label: 'Dashboard IA', icon: LayoutDashboard, desc: 'Gráficos sob demanda' },
   { key: 'monitor', label: 'Monitor', icon: Activity, desc: 'Tool calls e auditoria' },
 ]
 
@@ -71,8 +67,6 @@ const AssistenteInteligente = () => {
       {/* Conteúdo */}
       <div>
         {sub === 'chat' && <ChatPanel />}
-        {sub === 'historico' && <HistoricoPanel onOpen={() => setSub('chat')} />}
-        {sub === 'dashboard' && <DashboardPanel />}
         {sub === 'monitor' && <MonitorPanel />}
       </div>
     </div>
