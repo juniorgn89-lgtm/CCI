@@ -99,8 +99,8 @@ const Sparkline = ({ serie }: { serie: SparkPonto[] }) => {
   )
 }
 
-const FechamentoExcecao = () => {
-  const data = useFechamentoExcecao()
+const FechamentoExcecao = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
+  const data = useFechamentoExcecao(empresaCodigo)
   const { totalCaixas, unidades, turnos, okCount, okPct, revisarCount, investigarCount, fila, toleranciaLabel, baseCaveat, isLoading, hasEmpresa } = data
   const [vista, setVista] = useState<'fila' | 'panorama'>('fila')
   const [filtro, setFiltro] = useState<'todos' | 'investigar' | 'revisar'>('todos')

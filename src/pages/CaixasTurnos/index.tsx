@@ -1,8 +1,12 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import useTabParam from '@/hooks/useTabParam'
 import { LayoutDashboard, ClipboardCheck, Receipt, Sparkles } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
@@ -37,11 +41,25 @@ const TabFallback = () => (
  * tabelas vivem dentro do CaixaPosto (que tem suas próprias tabs).
  */
 const CaixasTurnos = () => {
+  // Caixa/turno é por-posto (conferência e fechamento se conciliam por loja).
+  // Mostra UM posto por vez, com seletor quando o filtro tem mais de um.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
   const {
     kpis,
     isLoading,
     hasEmpresa,
-  } = useOperacaoData()
+  } = useOperacaoData(selectedCodigo)
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const [caixaTab, setCaixaTab] = useTabParam<CaixaTab>('excecao', isCaixaTab)
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useCaixasLayout()
@@ -107,7 +125,32 @@ const CaixasTurnos = () => {
         </HeaderTray>
       )}
 
-      {!hasEmpresa && <SelectCompanyState />}
+      {/* Seletor de posto — só quando o filtro tem mais de um (Todos/subconjunto). */}
+      {postos.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {postos.map((e) => (
+            <button
+              key={e.codigo}
+              type="button"
+              onClick={() => setActiveCodigo(e.codigo)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
+                e.codigo === selectedCodigo
+                  ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
+                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+              )}
+            >
+              {e.fantasia}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {postos.length === 0 && (
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          Nenhum posto disponível.
+        </p>
+      )}
 
       {hasEmpresa && (
         showSkeleton ? (
@@ -115,9 +158,9 @@ const CaixasTurnos = () => {
         ) : (
           <Suspense fallback={<TabFallback />}>
             {caixaTab === 'conferencia' ? (
-              <ConferenciaPdv />
+              <ConferenciaPdv empresaCodigo={selectedCodigo} />
             ) : (
-              <FechamentoExcecao />
+              <FechamentoExcecao empresaCodigo={selectedCodigo} />
             )}
           </Suspense>
         )

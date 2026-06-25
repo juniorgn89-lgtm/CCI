@@ -54,11 +54,11 @@ const caixaKey = (c: { caixaCodigo: number; dataMovimento: string }) =>
  * Seletor de caixas próprio (turnoRows), KPIs agregados, formas de pagamento,
  * frentistas envolvidos e listagem de sobras/faltas por caixa.
  */
-const VisaoGeral = () => {
+const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const empresaKey = empresaCodigos.join(',')
+  const empresaKey = empresaCodigo != null ? String(empresaCodigo) : empresaCodigos.join(',')
 
-  const { turnoRows, conferenciaPdv, isLoading } = useOperacaoData()
+  const { turnoRows, conferenciaPdv, isLoading } = useOperacaoData(empresaCodigo)
   const showSkeleton = useShowSkeleton(isLoading, turnoRows.length > 0)
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])

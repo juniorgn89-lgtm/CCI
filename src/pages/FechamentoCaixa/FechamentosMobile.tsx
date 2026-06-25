@@ -3,8 +3,11 @@ import {
   Receipt, DollarSign, TrendingUp, Wallet, Scale, CreditCard, Users,
   AlertTriangle, Check, ChevronDown,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import useOperacaoData, { type TurnoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatNumber, formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, Segmented, Badge } from '@/components/mobile/primitives'
@@ -135,9 +138,20 @@ const CaixaPicker = ({ caixas, selectedKeys, onChange, includeAbertos, onInclude
  * sobras/faltas. Mesmos cálculos da Visão Geral desktop.
  */
 const FechamentosMobile = () => {
+  // Fechamento é por-posto → um posto por vez, com seletor quando há mais de um.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const empresaKey = empresaCodigos.join(',')
-  const { turnoRows, isLoading } = useOperacaoData()
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+  const empresaKey = selectedCodigo != null ? String(selectedCodigo) : ''
+  const { turnoRows, isLoading } = useOperacaoData(selectedCodigo)
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [includeAbertos, setIncludeAbertos] = useState(false)
@@ -258,6 +272,25 @@ const FechamentosMobile = () => {
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Fechamentos</h1>
+      {postos.length > 1 && (
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+          {postos.map((e) => (
+            <button
+              key={e.codigo}
+              type="button"
+              onClick={() => setActiveCodigo(e.codigo)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+                e.codigo === selectedCodigo
+                  ? 'bg-[#1e3a5f] text-white'
+                  : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
+              )}
+            >
+              {e.fantasia}
+            </button>
+          ))}
+        </div>
+      )}
 
       <CaixaPicker
         caixas={caixasFiltrados}

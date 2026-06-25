@@ -116,8 +116,8 @@ const ContentSkeleton = () => (
  * vinda de `conferenciaPdv` (/CAIXA_APRESENTADO). Multi-turno, status por caixa,
  * drill-down e KPIs (só conferidos). Tudo GET/read-only.
  */
-const ConferenciaPdv = () => {
-  const { turnoRows, conferenciaPdv, isLoading, hasEmpresa } = useOperacaoData()
+const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) => {
+  const { turnoRows, conferenciaPdv, isLoading, hasEmpresa } = useOperacaoData(empresaCodigo)
   const showSkeleton = useShowSkeleton(isLoading, turnoRows.length > 0)
 
   const [filterPdv, setFilterPdv] = useState<'todos' | 'pista' | 'conveniencia'>('todos')

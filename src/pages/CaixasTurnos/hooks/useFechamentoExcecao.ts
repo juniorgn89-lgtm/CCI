@@ -223,16 +223,21 @@ const analisarCausa = (dif: number, formas: FormaDif[], taxaContratada: number |
   }
 }
 
-const useFechamentoExcecao = (): FechamentoExcecaoData => {
-  const { turnoRows, conferenciaPdv, isLoading, hasEmpresa } = useOperacaoData()
+const useFechamentoExcecao = (empresaCodigoOverride?: number | null): FechamentoExcecaoData => {
+  const { turnoRows, conferenciaPdv, isLoading, hasEmpresa } = useOperacaoData(empresaCodigoOverride)
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  // Postos em escopo: um posto explícito (seletor da tela) tem prioridade; senão
+  // o filtro global. Caixa/turno é por-posto → a tela escolhe qual.
+  const scopedCodes = empresaCodigoOverride !== undefined
+    ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
+    : empresaCodigos
 
   // Taxa contratada média da rede (ponderada por valor) — /CARTAO do período.
   const { data: taxaContratadaMediaPct = null } = useQuery({
-    queryKey: ['excecao-cartao-taxa', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryKey: ['excecao-cartao-taxa', scopedCodes.join(','), dataInicial, dataFinal],
     queryFn: async () => {
       const lists = await Promise.all(
-        (empresaCodigos.length > 0 ? empresaCodigos : [undefined]).map((ec) =>
+        (scopedCodes.length > 0 ? scopedCodes : [undefined]).map((ec) =>
           fetchCartao({ empresaCodigo: ec, dataInicial, dataFinal, limite: 1000 }).then((r) => r.resultados ?? []),
         ),
       )
@@ -250,10 +255,10 @@ const useFechamentoExcecao = (): FechamentoExcecaoData => {
   const hoje = todayLocal()
   const ini90 = useMemo(() => minusDays(hoje, JANELA_HISTORICO_DIAS), [hoje])
   const { data: hist90Raw = [] } = useQuery({
-    queryKey: ['excecao-hist90', empresaCodigos.join(','), ini90, hoje],
+    queryKey: ['excecao-hist90', scopedCodes.join(','), ini90, hoje],
     queryFn: async () => {
       const lists = await Promise.all(
-        (empresaCodigos.length > 0 ? empresaCodigos : []).map((ec) =>
+        (scopedCodes.length > 0 ? scopedCodes : []).map((ec) =>
           fetchAllPages(
             (p) => fetchCaixas({ empresaCodigo: ec, dataInicial: ini90, dataFinal: hoje, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
             1000, 30,
