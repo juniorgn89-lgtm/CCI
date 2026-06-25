@@ -124,6 +124,9 @@ const Login = () => {
         />
 
         <div className="relative z-10 flex flex-1 flex-col px-14 py-12">
+          {/* Coluna centralizada (espelha o form da direita) — evita o conteúdo
+              grudar na borda esquerda do painel navy. */}
+          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
           {/* Topo: marca */}
           <BrandMark light />
 
@@ -212,6 +215,7 @@ const Login = () => {
             <p className="mt-3 text-[11px] text-white/30">
               &copy; {new Date().getFullYear()} CCI · Visor360
             </p>
+          </div>
           </div>
         </div>
       </aside>
