@@ -14,7 +14,6 @@ import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { useConvenienciasLayout } from '@/store/moduleLayout'
 // Conteúdo das abas em chunks separados (recharts/treemap só baixam quando a
 // aba é aberta). Os KPIs do topo continuam instantâneos.
@@ -137,7 +136,6 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
     isLoading,
     hasEmpresa,
   } = useConvenienceData()
-  const empresaNome = useEmpresaNome()
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
@@ -152,18 +150,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
           <PageHeaderTitle placement="header">
             <div className="flex items-center gap-2.5">
               <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              <Store className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                    Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
-                  </h1>
-                  <FocusModeToggle />
-                </div>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  Vendas, catálogo, estoque e análise de performance da loja
-                </p>
-              </div>
+              <FocusModeToggle />
             </div>
           </PageHeaderTitle>
           <HeaderTray>

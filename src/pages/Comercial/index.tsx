@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
-import { TrendingUp, Flag, Sparkles, BarChart3, Trophy, Building2, Radar } from 'lucide-react'
+import { Flag, Sparkles, BarChart3, Trophy, Building2, Radar } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useComercialFlags } from '@/store/comercialFlags'
 import useIsMobile from '@/hooks/useIsMobile'
+import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -65,7 +66,6 @@ const FlagBand = () => {
 
 const Comercial = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
-  const meta = TABS.find((t) => t.id === activeTab) ?? TABS[0]
   const isMobile = useIsMobile()
 
   return (
@@ -73,11 +73,7 @@ const Comercial = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <TrendingUp className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Comercial</h1>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{meta.subtitle}</p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
 

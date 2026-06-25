@@ -129,16 +129,7 @@ const Estoques = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <Warehouse className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
-              <FocusModeToggle />
-            </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Saldo atual e giro de produtos
-            </p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
       {hasEmpresa && visibleTabs.length > 0 && (

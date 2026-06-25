@@ -39,7 +39,6 @@ const Bombas = () => {
   const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
     ? activeCodigo
     : (postos[0]?.codigo ?? null)
-  const selectedNome = postos.find((p) => p.codigo === selectedCodigo)?.fantasia ?? null
 
   const { kpis, bombaRows, bombaRowsPrev, isLoading, hasEmpresa } = useOperacaoData(selectedCodigo)
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
@@ -64,18 +63,7 @@ const Bombas = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <Gauge className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Bombas{selectedNome ? ` · ${selectedNome}` : ''}
-              </h1>
-              <FocusModeToggle />
-            </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Volume bombeado, ranking e manutenção
-            </p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
       <PageHeaderActions>

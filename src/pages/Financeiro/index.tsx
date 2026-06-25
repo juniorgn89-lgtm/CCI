@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { DollarSign, Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
+import { Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -111,16 +111,7 @@ const Financeiro = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <DollarSign className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
-              <FocusModeToggle />
-            </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Títulos, cartões e fluxo de caixa
-            </p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
       {visibleTabs.length > 0 && (

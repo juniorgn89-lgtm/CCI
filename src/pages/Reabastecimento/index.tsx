@@ -1,11 +1,9 @@
-import { Fuel } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import NivelTanquesCard from '@/pages/Dashboard/components/NivelTanquesCard'
 import useIsMobile from '@/hooks/useIsMobile'
 import ReabastecimentoMobile from '@/pages/Reabastecimento/ReabastecimentoMobile'
@@ -18,7 +16,6 @@ import ReabastecimentoMobile from '@/pages/Reabastecimento/ReabastecimentoMobile
  */
 const Reabastecimento = () => {
   const { empresaCodigos } = useFilterStore()
-  const empresaNome = useEmpresaNome()
   const isMobile = useIsMobile()
 
   const { data: empresasData } = useQuery({
@@ -39,18 +36,7 @@ const Reabastecimento = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <Fuel className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Reabastecimento{empresaNome ? ` · ${empresaNome}` : ''}
-              </h1>
-              <FocusModeToggle />
-            </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Nível dos tanques, última compra e projeção até o fim do mês
-            </p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
 

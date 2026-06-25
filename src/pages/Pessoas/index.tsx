@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { UsersRound, Search, Crown, Shield, User, Fuel } from 'lucide-react'
+import { Search, Crown, Shield, User, Fuel } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -165,18 +165,7 @@ const Pessoas = () => {
       <PageHeaderTitle placement="header">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <UsersRound className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                Pessoas
-              </h1>
-              <FocusModeToggle />
-            </div>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Equipe da rede — gerentes, supervisores e frentistas
-            </p>
-          </div>
+          <FocusModeToggle />
         </div>
       </PageHeaderTitle>
 

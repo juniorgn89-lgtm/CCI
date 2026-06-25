@@ -1,5 +1,4 @@
 import { lazy, Suspense } from 'react'
-import { Brain } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -38,11 +37,8 @@ const Inteligencia = () => {
       <TopBar
         className="sticky -top-4 z-30 -mx-4 -mt-4 md:-top-5 md:-mx-6 md:-mt-5"
         title={
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1e3a5f]">
-              <Brain className="h-4 w-4 text-white" />
-            </div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Inteligência da Rede</h1>
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
             <FocusModeToggle />
           </div>
         }
