@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { TrendingUp, Flag, Sparkles, BarChart3, Trophy, Building2, Hammer } from 'lucide-react'
+import { TrendingUp, Flag, Sparkles, BarChart3, Trophy, Building2 } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +12,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'))
 const ProjecaoLB = lazy(() => import('@/pages/Comercial/components/ProjecaoLB'))
 const Oportunidades = lazy(() => import('@/pages/Comercial/components/Oportunidades'))
+const Concorrencia = lazy(() => import('@/pages/Comercial/components/Concorrencia'))
 
 type TabId = 'oportunidades' | 'projecao' | 'margem' | 'concorrencia'
 
@@ -58,16 +59,6 @@ const FlagBand = () => {
   )
 }
 
-const EmConstrucao = ({ label }: { label: string }) => (
-  <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
-    <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800">
-      <Hammer className="h-6 w-6 text-gray-400" />
-    </span>
-    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</p>
-    <p className="mt-1 text-[12px] text-gray-400">Em construção — próxima aba do módulo.</p>
-  </div>
-)
-
 const Comercial = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
   const meta = TABS.find((t) => t.id === activeTab) ?? TABS[0]
@@ -104,7 +95,7 @@ const Comercial = () => {
         {activeTab === 'margem' && <MargemPosto />}
         {activeTab === 'projecao' && <ProjecaoLB />}
         {activeTab === 'oportunidades' && <Oportunidades />}
-        {activeTab === 'concorrencia' && <EmConstrucao label="Concorrência" />}
+        {activeTab === 'concorrencia' && <Concorrencia />}
       </Suspense>
     </div>
   )
