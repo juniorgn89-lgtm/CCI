@@ -155,7 +155,7 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
  */
 const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
   const gate = options?.enabled ?? true
-  const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
+  const { dataInicial, dataFinal, comparisonMode, empresaCodigos } = useFilterStore()
   const rede = useTenantStore((s) => s.rede)
 
   const split = useMemo(() => splitPeriodAtToday(dataInicial, dataFinal), [dataInicial, dataFinal])
@@ -243,6 +243,14 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
   return useMemo<RedeSetoresData>(() => {
     const isLoading = lProd || lGrp || lClosed || lToday || lPrev
 
+    // Filtro de posto (client-side): respeita empresaCodigos SEM refetch — os
+    // dados já vêm rede-wide do cache, então mudar a seleção só re-agrega aqui.
+    // `[]` = Todos os postos (rede inteira). Consistente com a Central.
+    const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const closedRowsF = closedRows.filter((r) => matchPosto(r.empresa_codigo))
+    const todayItensF = todayItens.filter((it) => matchPosto(it.empresaCodigo))
+    const anoAntRowsF = anoAntRows.filter((r) => matchPosto(r.empresa_codigo))
+
     // Conjuntos de classificação (alias-expandido pros aliases de combustível).
     const isFuel = new Set<number>()
     const isPista = new Set<number>()
@@ -278,7 +286,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const nomeDe = (cacheNome: string | null | undefined, pc: number): string =>
       cacheNome || nomeProduto.get(pc) || `Produto ${pc}`
 
-    const curr: VendaAgg[] = closedRows
+    const curr: VendaAgg[] = closedRowsF
       .filter((r) => r.setor !== 'outros')  // 'outros' fica fora dos setores
       .map((r) => ({
         empresaCodigo: r.empresa_codigo, produtoCodigo: r.produto_codigo,
@@ -286,7 +294,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo,
         acrescimos: r.acrescimos ?? 0, descontos: r.descontos ?? 0,
       }))
-    for (const it of todayItens) {
+    for (const it of todayItensF) {
       if (it.quantidade <= 0) continue
       if (!autToday.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const setor = classify(it.produtoCodigo, isFuel, isPista)
@@ -305,7 +313,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     // total do ano anterior fica subestimado).
     const seKey = (s: SetorId, e: number) => `${s}|${e}`
     const prevBySE = new Map<string, Map<number, { qtd: number; lucro: number; fat: number; nome: string }>>()
-    for (const r of anoAntRows) {
+    for (const r of anoAntRowsF) {
       if (r.setor === 'outros') continue  // 'outros' fica fora dos setores
       const s = setorOf(r.setor, r.produto_codigo)
       const k = seKey(s, r.empresa_codigo)
@@ -341,7 +349,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const cuponsByES = new Map<string, number>()
     {
       const seenDay = new Set<string>()
-      for (const r of closedRows) {
+      for (const r of closedRowsF) {
         if (r.setor === 'outros') continue
         const s = setorOf(r.setor, r.produto_codigo)
         const dayKey = `${r.empresa_codigo}|${r.data}|${s}`
@@ -351,7 +359,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         cuponsByES.set(esk, (cuponsByES.get(esk) ?? 0) + (r.cupons ?? 0))
       }
       const todaySets = new Map<string, Set<number>>()
-      for (const it of todayItens) {
+      for (const it of todayItensF) {
         if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
         const s = classify(it.produtoCodigo, isFuel, isPista)
         const esk = `${it.empresaCodigo}|${s}`
@@ -371,7 +379,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const cuponsByEG = new Map<string, number>()
     {
       const seenG = new Set<string>()
-      for (const r of closedRows) {
+      for (const r of closedRowsF) {
         if (r.setor === 'outros' || r.setor === 'combustivel') continue
         const pk = `${r.empresa_codigo}|${r.produto_codigo}`
         cuponsByEP.set(pk, (cuponsByEP.get(pk) ?? 0) + (r.cupons_produto ?? 0))
@@ -384,7 +392,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       }
       const pSets = new Map<string, Set<number>>()
       const gSets = new Map<string, Set<number>>()
-      for (const it of todayItens) {
+      for (const it of todayItensF) {
         if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
         if (classify(it.produtoCodigo, isFuel, isPista) === 'combustivel') continue
         const pk = `${it.empresaCodigo}|${it.produtoCodigo}`
@@ -518,7 +526,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       isLoading,
       hasRede,
     }
-  }, [closedRows, todayItens, autToday, anoAntRows, produtosData, gruposData, nomePorEmpresa, hasRede, comparisonMode, lProd, lGrp, lClosed, lToday, lPrev])
+  }, [closedRows, todayItens, autToday, anoAntRows, empresaCodigos, produtosData, gruposData, nomePorEmpresa, hasRede, comparisonMode, lProd, lGrp, lClosed, lToday, lPrev])
 }
 
 export default useRedeSetores

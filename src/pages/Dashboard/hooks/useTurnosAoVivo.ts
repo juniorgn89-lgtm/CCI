@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
@@ -28,15 +29,23 @@ export interface EmpresaAoVivo {
 }
 
 const useTurnosAoVivo = () => {
-  const { dataInicial, dataFinal } = useFilterStore()
+  const { dataInicial, dataFinal, empresaCodigos } = useFilterStore()
 
   const { data: empresasData, isLoading: loadingEmpresas } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 30 * 60 * 1000,
   })
-  // Filtra pelas empresas permitidas do user logado (profiles.empresa_codigos)
-  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  // Filtra pelas empresas permitidas (profiles.empresa_codigos) e DEPOIS pelo
+  // filtro de posto da Central (empresaCodigos). `[]` = Todos os postos. Narrar
+  // reduz as queries ao vivo (1 por posto), então também é mais leve.
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const empresas = useMemo(
+    () => empresaCodigos.length === 0
+      ? empresasPermitidas
+      : empresasPermitidas.filter((e) => empresaCodigos.includes(e.empresaCodigo)),
+    [empresasPermitidas, empresaCodigos],
+  )
 
   // Caixas por empresa — query primária (leve), refresh frequente para o "ao vivo"
   const caixasQueries = useQueries({

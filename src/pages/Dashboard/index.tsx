@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BarChart3, Activity, Layers, Fuel, Wrench, Store } from 'lucide-react'
+import { Activity, Layers, Fuel, Wrench, Store } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
@@ -15,7 +15,6 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useDashboardLayout } from '@/store/moduleLayout'
 
@@ -30,8 +29,9 @@ const Conveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 
 type TabId = 'setor' | 'aovivo' | 'combustivel' | 'pista' | 'conveniencia'
 
-// Abas que detalham UM posto — sob "Todos os postos" pedem a seleção de um posto.
-const SALES_TABS: TabId[] = ['combustivel', 'pista', 'conveniencia']
+// Combustível, Pista e Conveniência agora são CONSOLIDADOS (cache apuracao_vendas)
+// → renderizam rede-wide sempre, respeitando o filtro de posto. Nenhuma aba pede
+// mais a seleção de um posto único (o gate SelectCompanyState foi removido).
 
 const TAB_ICONS: Record<TabId, typeof Activity> = {
   setor: Layers,
@@ -53,8 +53,6 @@ const TabSkeleton = () => (
 
 const Dashboard = () => {
   const { dataFinal } = useFilterStore()
-  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const hasEmpresa = empresaCodigos.length > 0
   useDashboardData() // dispara prefetch (cache de apuração + dependências)
   const isMobile = useIsMobile()
 
@@ -100,21 +98,9 @@ const Dashboard = () => {
           {/* Piloto: título + Modo Foco sobem pro Header (à esquerda do ☰). */}
           <PageHeaderTitle placement="header">
             <div className="flex items-center gap-2.5">
-              {/* Divisor sutil separando o logo do título do módulo. */}
+              {/* Título do módulo removido — só o botão Modo Foco (à esquerda do ☰). */}
               <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              {/* Ícone leve (sem badge navy) referenciando a tela atual. */}
-              <BarChart3 className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-                  <FocusModeToggle />
-                </div>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  {periodIsPast
-                    ? 'Resumo consolidado do período selecionado'
-                    : 'Acompanhamento dos postos em tempo real'}
-                </p>
-              </div>
+              <FocusModeToggle />
             </div>
           </PageHeaderTitle>
           {/* Abas continuam na TopBar (slot esquerdo padrão). */}
@@ -152,14 +138,9 @@ const Dashboard = () => {
               vendas por-posto têm seus próprios painéis/projeções. */}
           {activeTab === 'setor' && <ProjecoesPainel />}
 
-          {/* Abas de vendas detalham UM posto: sob "Todos os postos" ([]) pedem
-              a seleção de um posto (as abas rede-wide seguem funcionando). */}
-          {visibleTabs.length > 0 && SALES_TABS.includes(activeTab) && !hasEmpresa && (
-            <SelectCompanyState />
-          )}
-
-          {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs) */}
-          {visibleTabs.length > 0 && (!SALES_TABS.includes(activeTab) || hasEmpresa) && (
+          {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs). Todas as
+              abas de vendas são consolidadas (cache) → renderizam rede-wide. */}
+          {visibleTabs.length > 0 && (
             <Suspense fallback={<TabSkeleton />}>
               {activeTab === 'setor' && <BenchmarkSetor />}
               {activeTab === 'aovivo' && <TurnosAoVivo />}
