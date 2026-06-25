@@ -37,9 +37,9 @@ export interface UseQualidadeArquivadosResult {
   canArchive: boolean
 }
 
-const useQualidadeArquivados = (): UseQualidadeArquivadosResult => {
+const useQualidadeArquivados = (empresaCodigoOverride?: number | null): UseQualidadeArquivadosResult => {
   const { empresaCodigos } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
+  const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)
   const rede = useTenantStore((s) => s.rede)
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()

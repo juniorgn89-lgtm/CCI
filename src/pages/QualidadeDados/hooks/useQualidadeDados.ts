@@ -136,10 +136,12 @@ const daysBetween = (a: string, b: string): number => {
 
 /* ─── Hook ─── */
 
-const useQualidadeDados = (): QualidadeData => {
+const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
+  // Fraude/Sherlock é por-posto (investiga as transações de UM posto). A tela
+  // escolhe qual via seletor. `undefined` = legado (1º do filtro).
+  const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)
+  const hasEmpresa = empresaCodigo !== null
 
   // Reaproveita cache do módulo Vendas/Operação
   const { rows: abastRows, inconsistenciasFuturas, isLoading: isLoadingAbast } = useAbastecimentosAnalytics()

@@ -1,7 +1,12 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ShieldAlert, AlertTriangle, Info, CheckCircle2, Fuel, Search, Wallet, Boxes, Landmark } from 'lucide-react'
 import useQualidadeDados from '@/pages/QualidadeDados/hooks/useQualidadeDados'
 import type { QualidadeIssue } from '@/pages/QualidadeDados/hooks/useQualidadeDados'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, Badge, type Tone } from '@/components/mobile/primitives'
@@ -19,17 +24,56 @@ const SEV: Record<IssueSeverity, { tone: Tone; label: string; bar: string }> = {
  * descrição). O detalhe item-a-item e o arquivamento ficam no desktop.
  */
 const QualidadeMobile = () => {
-  const q = useQualidadeDados()
+  // Fraude é por-posto → um posto por vez, com seletor quando há mais de um.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
 
-  if (!q.hasEmpresa) {
+  const q = useQualidadeDados(selectedCodigo)
+
+  const postoTabs = postos.length > 1 ? (
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      {postos.map((e) => (
+        <button
+          key={e.codigo}
+          type="button"
+          onClick={() => setActiveCodigo(e.codigo)}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+            e.codigo === selectedCodigo
+              ? 'bg-[#1e3a5f] text-white'
+              : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
+          )}
+        >
+          {e.fantasia}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  if (postos.length === 0) {
     return (
       <div className="space-y-3 pb-2">
         <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
-        <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra rodar a verificação." />
+        <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
       </div>
     )
   }
-  if (q.isLoading) return <LoadingScreen message="Verificando os dados…" />
+  if (q.isLoading) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
+      {postoTabs}
+      <LoadingScreen message="Verificando os dados…" />
+    </div>
+  )
 
   const cats: { key: keyof typeof catData; label: string; Icon: typeof Fuel }[] = [
     { key: 'abastecimentos', label: 'Abastecimentos', Icon: Fuel },
@@ -56,6 +100,7 @@ const QualidadeMobile = () => {
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
+      {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard label="Inconsistências" tone="navy" Icon={ShieldAlert} value={formatNumber(q.totalIssues)} />
