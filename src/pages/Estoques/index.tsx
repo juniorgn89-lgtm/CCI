@@ -1,9 +1,13 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Warehouse, Package, RefreshCw, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import ModuleSettings from '@/components/layout/ModuleSettings'
+// (SelectCompanyState removido — Estoques renderiza por posto, sem gate)
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -92,7 +96,22 @@ const Estoques = () => {
   // estoque médio, média de venda e a necessidade de reabastecimento derivada.
   const [janelaDias, setJanelaDias] = useState<30 | 60 | 90>(30)
 
-  const { productAnalytics, categorias, estoqueValorMensal, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias)
+  // Estoque é FÍSICO por-posto → a tela mostra UM posto por vez, com seletor de
+  // posto quando o filtro tem mais de um (Todos/subconjunto). Respeita o filtro
+  // sem alterar o estado global.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
+  const { productAnalytics, categorias, estoqueValorMensal, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias, selectedCodigo)
 
   // Abas cuja métrica depende da janela e mostram o seletor NO PARENT. A Visão
   // Geral tem o seletor na própria barra de controles → fica fora desta lista.
@@ -138,7 +157,33 @@ const Estoques = () => {
           webPosto, cujo "Qtd" não muda com a data). Histórico fixo de 6m é
           interno. Sem DateRangeToolbar aqui → a barra de período não aparece. */}
 
-      {!hasEmpresa && <SelectCompanyState />}
+      {/* Seletor de posto — estoque é por-posto; mostra UM posto por vez. Aparece
+          só quando o filtro tem mais de um posto (Todos/subconjunto). */}
+      {postos.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {postos.map((e) => (
+            <button
+              key={e.codigo}
+              type="button"
+              onClick={() => setActiveCodigo(e.codigo)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
+                e.codigo === selectedCodigo
+                  ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
+                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+              )}
+            >
+              {e.fantasia}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {postos.length === 0 && (
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          Nenhum posto disponível.
+        </p>
+      )}
 
       {hasEmpresa && (
         <>

@@ -129,10 +129,16 @@ const buildLast6Months = (): MonthRange[] => {
   return ranges
 }
 
-const useEstoqueAnalytics = (coberturaDias: number = DAYS_PER_MONTH, janelaDias: number = DAYS_PER_MONTH) => {
+const useEstoqueAnalytics = (
+  coberturaDias: number = DAYS_PER_MONTH,
+  janelaDias: number = DAYS_PER_MONTH,
+  // Posto explícito (estoque é por-posto → a tela escolhe qual). `undefined` =
+  // legado (1º posto do filtro). `null` = nenhum selecionado.
+  empresaCodigoOverride?: number | null,
+) => {
   const { empresaCodigos } = useFilterStore()
-  const empresaCodigo = empresaCodigos[0] ?? null
-  const hasEmpresa = empresaCodigos.length > 0
+  const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)
+  const hasEmpresa = empresaCodigo !== null
 
   // Janela móvel (30/60/90 dias) que controla SÓ as métricas de volume: vendas
   // na janela, estoque médio, giro, média de venda e a necessidade derivada.

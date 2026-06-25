@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Warehouse, Package, AlertTriangle, RefreshCw, Boxes } from 'lucide-react'
 import useEstoqueAnalytics, { type ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/formatters'
 import { KpiCard, Section, ScrollTabs, Badge, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
@@ -36,7 +41,20 @@ const fmtDias = (n: number) => (isFinite(n) ? `${Math.round(n)}d` : '∞')
  * (parados — menor giro com capital empatado).
  */
 const EstoqueMobile = () => {
-  const { productAnalytics, kpis, isLoading, hasEmpresa } = useEstoqueAnalytics(30)
+  // Estoque é por-posto → um posto por vez, com seletor quando o filtro tem mais.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const postos = empresaCodigos.length === 0
+    ? empresasPermitidas
+    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const postoCodes = postos.map((p) => p.codigo)
+  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
+    ? activeCodigo
+    : (postos[0]?.codigo ?? null)
+
+  const { productAnalytics, kpis, isLoading } = useEstoqueAnalytics(30, 30, selectedCodigo)
   const [tab, setTab] = useState('repor')
 
   const { repor, porValor, parados, counts } = useMemo(() => {
@@ -55,16 +73,48 @@ const EstoqueMobile = () => {
     return { repor, porValor, parados, counts }
   }, [productAnalytics])
 
-  if (!hasEmpresa) {
+  const postoTabs = postos.length > 1 ? (
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      {postos.map((e) => (
+        <button
+          key={e.codigo}
+          type="button"
+          onClick={() => setActiveCodigo(e.codigo)}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+            e.codigo === selectedCodigo
+              ? 'bg-[#1e3a5f] text-white'
+              : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
+          )}
+        >
+          {e.fantasia}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  if (postos.length === 0) {
     return (
       <div className="space-y-3 pb-2">
         <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
-        <EmptyCard title="Selecione um posto" desc="Escolha um posto no filtro pra ver o estoque." />
+        <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
       </div>
     )
   }
-  if (isLoading) return <LoadingScreen message="Carregando estoque…" />
-  if (productAnalytics.length === 0) return <EmptyCard title="Sem produtos" desc="Não há produtos de estoque pro posto selecionado." />
+  if (isLoading) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      {postoTabs}
+      <LoadingScreen message="Carregando estoque…" />
+    </div>
+  )
+  if (productAnalytics.length === 0) return (
+    <div className="space-y-3 pb-2">
+      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      {postoTabs}
+      <EmptyCard title="Sem produtos" desc="Não há produtos de estoque pro posto selecionado." />
+    </div>
+  )
 
   const Row = ({ p, right, sub }: { p: ProductAnalyticsRow; right: React.ReactNode; sub: string }) => (
     <div className="flex items-center gap-2 px-3.5 py-2.5">
@@ -79,6 +129,7 @@ const EstoqueMobile = () => {
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard span2 big label="Valor em estoque" tone="navy" Icon={Warehouse} value={brlShort(kpis.valorTotalEstoque)} sub={`${formatNumber(kpis.totalProdutos)} produtos`} />
