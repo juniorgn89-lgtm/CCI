@@ -19,7 +19,7 @@ import {
  * FATO: meu preço, volume, gap vs praça. ESTIMATIVA (rotulada): potencial (teto)
  * = gap × volume a custo/volume constante. Read-only: nada é escrito.
  */
-export type Alavanca = 'praca' | 'conveniencia'
+export type Alavanca = 'praca' | 'margem' | 'conveniencia'
 
 export interface Oportunidade {
   id: string
@@ -97,7 +97,8 @@ const useOportunidades = (): OportunidadesData => {
       precosByEmpresa.set(r.empresa_codigo, arr)
     }
 
-    const margemOps: Oportunidade[] = []
+    const pracaOps: Oportunidade[] = []
+    const pracaCovered = new Set<string>() // `${empresa}|${slug}` com praça → fora do fallback de rede
     for (const p of comb.postos) {
       const rows = precosByEmpresa.get(p.empresaCodigo)
       if (!rows || rows.length === 0) continue
@@ -134,6 +135,7 @@ const useOportunidades = (): OportunidadesData => {
       for (const [slug, my] of myBySlug) {
         const a = agg.get(slug)
         if (!a || a.den <= 0 || my.volume <= 0) continue
+        pracaCovered.add(`${p.empresaCodigo}|${slug}`) // tem praça → não cai no fallback de rede
         const praca = a.num / a.den
         const gap = praca - my.preco // >0 = posso subir até a praça
         if (gap <= 0.005) continue // já na praça ou acima
@@ -141,7 +143,7 @@ const useOportunidades = (): OportunidadesData => {
         if (potencial < 300) continue
         const label = FUEL_LABEL[slug]
         const conf = Math.round(Math.max(40, Math.min(90, 90 - a.stale * 4))) // cai ~4pp/dia de defasagem da praça
-        margemOps.push({
+        pracaOps.push({
           id: `p-${p.empresaCodigo}-${slug}`,
           alavanca: 'praca',
           titulo: 'Preço abaixo da praça',
@@ -159,6 +161,61 @@ const useOportunidades = (): OportunidadesData => {
             `Praça observada há ${a.stale}d (confiança ${conf}%). Mesma base do "Ganho de pricing" da aba Concorrência.`,
           ],
           risco: 'Alinhar à praça assume volume pouco sensível (sem elasticidade — roadmap). Subir gradual e monitorar volume/frota.',
+        })
+      }
+    }
+
+    // ── Alavanca MARGEM vs REDE (coexistência): posto × combustível abaixo da
+    // média da rede. Pula combustível que já tem oportunidade de PRAÇA (régua
+    // melhor) → sem dupla contagem. Sem praça cadastrada, TODOS entram aqui — é o
+    // comportamento "por rede" de antes.
+    const fuelTot = new Map<number, { lb: number; litros: number }>()
+    for (const p of comb.postos) {
+      for (const pr of p.produtos) {
+        const t = fuelTot.get(pr.produtoCodigo) ?? { lb: 0, litros: 0 }
+        t.lb += pr.lucroBruto
+        t.litros += pr.qtd
+        fuelTot.set(pr.produtoCodigo, t)
+      }
+    }
+    const fuelAvg = (cod: number) => {
+      const t = fuelTot.get(cod)
+      return t && t.litros > 0 ? t.lb / t.litros : 0
+    }
+    const redeOps: Oportunidade[] = []
+    const minVol = comb.qtd * 0.005 // ignora combustível irrelevante (<0,5% do volume)
+    for (const p of comb.postos) {
+      for (const pr of p.produtos) {
+        if (pr.precoCusto <= 0 || pr.qtd < minVol) continue
+        const slug = classifyFuelSlug(pr.produto)
+        if (slug && pracaCovered.has(`${p.empresaCodigo}|${slug}`)) continue // já coberto pela praça
+        const avg = fuelAvg(pr.produtoCodigo)
+        const atual = pr.lbPorUnidade
+        const gap = avg - atual
+        if (gap <= 0.005) continue // já na média ou acima
+        const alvo = atual + 0.7 * gap // alvo conservador (70% do caminho)
+        const potencial = (alvo - atual) * pr.qtd
+        if (potencial < 300) continue
+        const belowPct = avg > 0 ? (gap / avg) * 100 : 0
+        const conf = Math.round(Math.min(90, 70 + Math.min(18, (pr.qtd / Math.max(1, comb.qtd)) * 100)))
+        redeOps.push({
+          id: `m-${p.empresaCodigo}-${pr.produtoCodigo}`,
+          alavanca: 'margem',
+          titulo: 'Margem de bomba abaixo da rede',
+          posto: p.posto,
+          empresaCodigo: p.empresaCodigo,
+          subtitulo: `${p.posto} · ${pr.produto} · margem ${lbL(atual)} vs ${lbL(avg)} da rede`,
+          potencial,
+          confianca: conf,
+          margemAtual: atual,
+          margemAlvo: alvo,
+          fracBase: 0.7,
+          comoEstimou: [
+            `${p.posto} pratica ${lbL(atual)} de margem no ${pr.produto} — ${belowPct.toFixed(0)}% abaixo da média da rede (${lbL(avg)}).`,
+            `Volume de ${Math.round(pr.qtd).toLocaleString('pt-BR')} L no período: cada R$ 0,01/L recuperado = ${milShort(pr.qtd * 0.01)}.`,
+            `Alvo conservador ${lbL(alvo)} (70% do caminho até a média) × volume = estimativa de ${milShort(potencial)}.`,
+          ],
+          risco: 'Comparação interna (vs média da rede), não com a concorrência local. Pode haver motivo legítimo (mais concorrência/frota). Cadastre a praça pra a régua local.',
         })
       }
     }
@@ -194,7 +251,7 @@ const useOportunidades = (): OportunidadesData => {
       })
     }
 
-    const oportunidades = [...margemOps, ...convOps].sort((a, b) => b.potencial - a.potencial)
+    const oportunidades = [...pracaOps, ...redeOps, ...convOps].sort((a, b) => b.potencial - a.potencial)
     const potencialTotal = oportunidades.reduce((s, o) => s + o.potencial, 0)
 
     const totalByAlavanca = new Map<Alavanca, number>()
@@ -204,8 +261,8 @@ const useOportunidades = (): OportunidadesData => {
       if (!maiorAlavanca || total > maiorAlavanca.total) maiorAlavanca = { alavanca, total }
     }
 
-    // ação rápida = maior potencial entre as de "1 ajuste" (alavanca de praça).
-    const acaoRapida = oportunidades.find((o) => o.alavanca === 'praca') ?? null
+    // ação rápida = maior potencial entre as de "1 ajuste" (preço: praça ou rede).
+    const acaoRapida = oportunidades.find((o) => o.alavanca === 'praca' || o.alavanca === 'margem') ?? null
 
     return {
       isLoading: rede.isLoading,
