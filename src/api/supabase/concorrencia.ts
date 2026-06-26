@@ -86,6 +86,26 @@ export const fetchConcorrenciaPrecos = async (params: {
   return (data ?? []) as ConcorrenciaPrecoRow[]
 }
 
+/** Lê as observações de TODA a rede a partir de `desde` (yyyy-MM-dd), sem filtro
+ *  de empresa (RLS restringe à rede do usuário). Usado pela Oportunidades pra
+ *  rodar a análise de praça por posto em todos os postos numa leitura só. */
+export const fetchConcorrenciaPrecosRede = async (params: {
+  desde: string
+}): Promise<ConcorrenciaPrecoRow[]> => {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('concorrencia_precos')
+    .select('*')
+    .gte('observado_em', params.desde)
+    .order('observado_em', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.warn('[concorrencia] fetch rede error:', error.message)
+    return []
+  }
+  return (data ?? []) as ConcorrenciaPrecoRow[]
+}
+
 /** INSERT de uma observação (append-only). RLS exige permissão + escopo de empresa. */
 export const insertConcorrenciaPrecos = async (
   rows: ConcorrenciaPrecoInsert[],

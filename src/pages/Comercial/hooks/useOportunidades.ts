@@ -1,17 +1,25 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
-import { useComercialFlags } from '@/store/comercialFlags'
+import { useTenantStore } from '@/store/tenant'
+import { useFilterStore } from '@/store/filters'
+import {
+  fetchConcorrenciaPrecosRede, classifyFuelSlug, FUEL_LABEL,
+  type FuelSlug, type ConcorrenciaPrecoRow,
+} from '@/api/supabase/concorrencia'
 
 /**
- * Fila priorizada de oportunidades de lucro. Orquestra 2 alavancas com dado
- * sólido (Margem de bomba + Conveniência). Frota fora do MVP (sem desconto de
- * contrato na API).
+ * Fila priorizada de oportunidades de lucro. Duas alavancas:
+ *  - PRAÇA (por posto): combustível em que o posto está abaixo da praça LOCAL
+ *    dele → alinhar ao preço de praça vale gap × volume. Mesma fórmula do
+ *    "Ganho de pricing" da aba Concorrência (consistência entre módulos). Posto
+ *    SEM praça cadastrada NÃO gera oportunidade (não há régua confiável).
+ *  - CONVENIÊNCIA: margem da loja abaixo da média da rede.
  *
- * FATO: margem/L, volume, gap vs média. ESTIMATIVA (rotulada): o `potencialMes`
- * (teto) — gap × volume assumindo volume constante; alvo CONSERVADOR (70% do
- * caminho até a média), nunca o "preço ótimo". Read-only: nada é escrito.
+ * FATO: meu preço, volume, gap vs praça. ESTIMATIVA (rotulada): potencial (teto)
+ * = gap × volume a custo/volume constante. Read-only: nada é escrito.
  */
-export type Alavanca = 'margem' | 'conveniencia'
+export type Alavanca = 'praca' | 'conveniencia'
 
 export interface Oportunidade {
   id: string
@@ -24,7 +32,7 @@ export interface Oportunidade {
   potencial: number
   /** 0–100. Maior quando o dado é mais sólido (volume alto, cobertura de custo). */
   confianca: number
-  /** de → para (margem/L) — só na alavanca de margem. */
+  /** de → para: meu preço → praça (R$/L) — só na alavanca de praça. */
   margemAtual: number | null
   margemAlvo: number | null
   /** Fração do gap fechada no cenário base (0.7 margem, 0.5 conv) — usada pelo
@@ -51,63 +59,106 @@ export interface OportunidadesData {
 const lbL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 const milShort = (v: number) =>
   v >= 1000 ? `R$ ${(v / 1000).toFixed(1).replace('.', ',')} mil` : `R$ ${Math.round(v)}`
+const isoMinusDays = (iso: string, n: number): string => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d - n)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+const diffDays = (fromIso: string, toIso: string): number =>
+  Math.round((new Date(`${toIso}T00:00:00`).getTime() - new Date(`${fromIso}T00:00:00`).getTime()) / 86_400_000)
 
 const useOportunidades = (): OportunidadesData => {
   const rede = useRedeSetores()
-  const usarPraca = useComercialFlags((s) => s.usarPrecoPraca)
+  const redeId = useTenantStore((s) => s.rede?.id ?? null)
+  const dataFinal = useFilterStore((s) => s.dataFinal)
+  const desde = useMemo(() => isoMinusDays(dataFinal, 30), [dataFinal])
+
+  // Preço de praça de TODA a rede (últimos 30d) — rede-wide numa leitura só.
+  const { data: pracaRows = [] } = useQuery({
+    queryKey: ['oportunidades-praca-rede', redeId, desde],
+    queryFn: () => fetchConcorrenciaPrecosRede({ desde }),
+    enabled: !!redeId,
+    staleTime: 60 * 1000,
+  })
 
   return useMemo(() => {
     const comb = rede.combustivel
     const conv = rede.conveniencia
 
-    // ── Alavanca Margem de bomba: posto × combustível abaixo da média da rede ──
-    // média/L da rede por combustível (ponderada por volume).
-    const fuelTot = new Map<number, { lb: number; litros: number; nome: string }>()
-    for (const p of comb.postos) {
-      for (const pr of p.produtos) {
-        const t = fuelTot.get(pr.produtoCodigo) ?? { lb: 0, litros: 0, nome: pr.produto }
-        t.lb += pr.lucroBruto
-        t.litros += pr.qtd
-        fuelTot.set(pr.produtoCodigo, t)
-      }
-    }
-    const fuelAvg = (cod: number) => {
-      const t = fuelTot.get(cod)
-      return t && t.litros > 0 ? t.lb / t.litros : 0
+    // ── Alavanca PRAÇA: posto × combustível abaixo da praça LOCAL dele ──
+    // Preço de praça por (posto, slug): última observação por concorrente, média
+    // ponderada pelo nº de postos dele. MESMA fórmula do "Ganho de pricing" da
+    // aba Concorrência → os números batem entre os módulos. Posto sem praça
+    // cadastrada não entra (sem régua confiável, sem oportunidade).
+    const precosByEmpresa = new Map<number, ConcorrenciaPrecoRow[]>()
+    for (const r of pracaRows) {
+      const arr = precosByEmpresa.get(r.empresa_codigo) ?? []
+      arr.push(r)
+      precosByEmpresa.set(r.empresa_codigo, arr)
     }
 
     const margemOps: Oportunidade[] = []
-    const minVol = comb.qtd * 0.005 // ignora combustível irrelevante (<0,5% do volume)
     for (const p of comb.postos) {
+      const rows = precosByEmpresa.get(p.empresaCodigo)
+      if (!rows || rows.length === 0) continue
+
+      // praça ATUAL + frescor por slug: max(observado_em → created_at) por concorrente.
+      const atualByKey = new Map<string, ConcorrenciaPrecoRow>()
+      for (const r of rows) {
+        const key = `${r.concorrente_nome}|${r.combustivel}`
+        const prev = atualByKey.get(key)
+        if (!prev || r.observado_em > prev.observado_em || (r.observado_em === prev.observado_em && r.created_at > prev.created_at)) {
+          atualByKey.set(key, r)
+        }
+      }
+      const agg = new Map<FuelSlug, { num: number; den: number; stale: number }>()
+      for (const r of atualByKey.values()) {
+        const a = agg.get(r.combustivel) ?? { num: 0, den: 0, stale: 0 }
+        a.num += r.preco * r.concorrente_postos
+        a.den += r.concorrente_postos
+        a.stale = Math.max(a.stale, diffDays(r.observado_em, dataFinal))
+        agg.set(r.combustivel, a)
+      }
+
+      // meu preço/volume por slug (precoVenda ponderado por volume).
+      const myBySlug = new Map<FuelSlug, { preco: number; volume: number }>()
       for (const pr of p.produtos) {
-        if (pr.precoCusto <= 0 || pr.qtd < minVol) continue
-        const avg = fuelAvg(pr.produtoCodigo)
-        const atual = pr.lbPorUnidade
-        const gap = avg - atual
-        if (gap <= 0.005) continue // já na média ou acima
-        const alvo = atual + 0.7 * gap // alvo conservador (70% do caminho)
-        const potencial = (alvo - atual) * pr.qtd
+        const slug = classifyFuelSlug(pr.produto)
+        if (!slug || pr.precoVenda <= 0) continue
+        const cur = myBySlug.get(slug) ?? { preco: 0, volume: 0 }
+        cur.preco = cur.volume + pr.qtd > 0 ? (cur.preco * cur.volume + pr.precoVenda * pr.qtd) / (cur.volume + pr.qtd) : pr.precoVenda
+        cur.volume += pr.qtd
+        myBySlug.set(slug, cur)
+      }
+
+      for (const [slug, my] of myBySlug) {
+        const a = agg.get(slug)
+        if (!a || a.den <= 0 || my.volume <= 0) continue
+        const praca = a.num / a.den
+        const gap = praca - my.preco // >0 = posso subir até a praça
+        if (gap <= 0.005) continue // já na praça ou acima
+        const potencial = gap * my.volume // alinhar à praça, custo constante (= Concorrência)
         if (potencial < 300) continue
-        const belowPct = avg > 0 ? (gap / avg) * 100 : 0
-        const conf = Math.round(Math.min(90, 70 + Math.min(18, (pr.qtd / Math.max(1, comb.qtd)) * 100)))
+        const label = FUEL_LABEL[slug]
+        const conf = Math.round(Math.max(40, Math.min(90, 90 - a.stale * 4))) // cai ~4pp/dia de defasagem da praça
         margemOps.push({
-          id: `m-${p.empresaCodigo}-${pr.produtoCodigo}`,
-          alavanca: 'margem',
-          titulo: 'Margem de bomba abaixo da rede',
+          id: `p-${p.empresaCodigo}-${slug}`,
+          alavanca: 'praca',
+          titulo: 'Preço abaixo da praça',
           posto: p.posto,
           empresaCodigo: p.empresaCodigo,
-          subtitulo: `${p.posto} · ${pr.produto} · margem ${lbL(atual)} vs ${lbL(avg)} da rede`,
+          subtitulo: `${p.posto} · ${label} · meu ${lbL(my.preco)} vs praça ${lbL(praca)}`,
           potencial,
           confianca: conf,
-          margemAtual: atual,
-          margemAlvo: alvo,
-          fracBase: 0.7,
+          margemAtual: my.preco,
+          margemAlvo: praca,
+          fracBase: 1, // base = alinhar 100% à praça (igual ao "Ganho de pricing" da Concorrência)
           comoEstimou: [
-            `${p.posto} pratica ${lbL(atual)} de margem no ${pr.produto} — ${belowPct.toFixed(0)}% abaixo da média da rede (${lbL(avg)}).`,
-            `Volume de ${Math.round(pr.qtd).toLocaleString('pt-BR')} L no período: cada R$ 0,01/L recuperado = ${milShort(pr.qtd * 0.01)}.`,
-            `Alvo conservador ${lbL(alvo)} (70% do caminho até a média) × volume = estimativa de ${milShort(potencial)}.`,
+            `${p.posto} pratica ${lbL(my.preco)} no ${label} — ${lbL(gap)}/L ABAIXO da praça local (${lbL(praca)}).`,
+            `Volume de ${Math.round(my.volume).toLocaleString('pt-BR')} L no período: alinhar à praça = ${lbL(gap)}/L × volume = ${milShort(potencial)}.`,
+            `Praça observada há ${a.stale}d (confiança ${conf}%). Mesma base do "Ganho de pricing" da aba Concorrência.`,
           ],
-          risco: 'Combustível sensível a preço/frota — subir gradual e monitorar volume; o alvo já fica abaixo do líder pra preservar competitividade.',
+          risco: 'Alinhar à praça assume volume pouco sensível (sem elasticidade — roadmap). Subir gradual e monitorar volume/frota.',
         })
       }
     }
@@ -153,8 +204,8 @@ const useOportunidades = (): OportunidadesData => {
       if (!maiorAlavanca || total > maiorAlavanca.total) maiorAlavanca = { alavanca, total }
     }
 
-    // ação rápida = maior potencial entre as de "1 ajuste" (alavanca de margem).
-    const acaoRapida = oportunidades.find((o) => o.alavanca === 'margem') ?? null
+    // ação rápida = maior potencial entre as de "1 ajuste" (alavanca de praça).
+    const acaoRapida = oportunidades.find((o) => o.alavanca === 'praca') ?? null
 
     return {
       isLoading: rede.isLoading,
@@ -164,9 +215,10 @@ const useOportunidades = (): OportunidadesData => {
       redeMargemL: comb.lucroPorUnidade,
       maiorAlavanca,
       acaoRapida,
-      pracaIndisponivel: usarPraca, // praça só ganha base na aba 4
+      // Sem nenhuma praça cadastrada → a alavanca de preço não tem régua.
+      pracaIndisponivel: pracaRows.length === 0,
     }
-  }, [rede, usarPraca])
+  }, [rede, pracaRows, dataFinal])
 }
 
 // reexport util de formatação curta pro componente
