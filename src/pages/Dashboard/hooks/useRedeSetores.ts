@@ -109,6 +109,9 @@ export interface RedeSetoresData {
   combustivel: RedeSetor
   automotivos: RedeSetor
   conveniencia: RedeSetor
+  /** Série DIÁRIA de lucro bruto global (3 setores) — base do consolidado
+   *  (cache fechado + hoje live), por dia. Alimenta a régua de projeção. */
+  dailyLB: { data: string; lb: number }[]
   global: {
     faturamento: number
     custo: number
@@ -307,6 +310,28 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         quantidade: it.quantidade, totalVenda: it.totalVenda, totalCusto: custo,
         acrescimos: it.totalAcrescimo ?? 0, descontos: it.totalDesconto ?? 0 })
     }
+
+    // Série DIÁRIA de lucro bruto global (3 setores) — MESMA base do consolidado
+    // (cache fechado + hoje live), mantendo o eixo de DIA que a agregação por
+    // produto descarta. Alimenta a régua de projeção da Visão Geral (forma real).
+    const dailyMap = new Map<string, number>()
+    for (const r of closedRowsF) {
+      if (r.setor === 'outros') continue
+      dailyMap.set(r.data, (dailyMap.get(r.data) ?? 0) + (r.total_venda - r.total_custo))
+    }
+    for (const it of todayItensF) {
+      if (it.quantidade <= 0 || !autToday.has(it.vendaCodigo)) continue
+      const dia = (it.dataMovimento || '').slice(0, 10)
+      if (!dia) continue
+      const setor = classify(it.produtoCodigo, isFuel, isPista)
+      const custo = setor === 'combustivel'
+        ? it.precoCusto * it.quantidade
+        : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
+      dailyMap.set(dia, (dailyMap.get(dia) ?? 0) + (it.totalVenda - custo))
+    }
+    const dailyLB = Array.from(dailyMap.entries())
+      .map(([data, lb]) => ({ data, lb }))
+      .sort((a, b) => a.data.localeCompare(b.data))
 
     // Ano anterior por (setor|empresa) → Map<produto, { qtd, lucro, nome }>. Guardar
     // por produto permite incluir itens que venderam SÓ no ano passado (senão o
@@ -511,7 +536,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const gCupons = combustivel.cupons + automotivos.cupons + conveniencia.cupons
 
     return {
-      combustivel, automotivos, conveniencia,
+      combustivel, automotivos, conveniencia, dailyLB,
       global: {
         faturamento: gFat,
         custo: gCusto,

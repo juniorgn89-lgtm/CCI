@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Régua de projeção (Central da Rede · Visão Geral) — entrada do gráfico. */
+@keyframes chartIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Dark mode: fix native form controls */
 .dark {
   color-scheme: dark;
