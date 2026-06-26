@@ -59,6 +59,10 @@ const MovimentoFiscalValidacao = () => {
   const { hasEmpresa, isLoading, movimento, fiscal, porFuel } = useFuelMovimentoValidacao()
   const [expanded, setExpanded] = useState(false)
 
+  // Só aparece com EXATAMENTE 1 posto (hasEmpresa já = length === 1). Com a rede
+  // toda ou mais de um posto, some por completo (sem o aviso "selecione 1 posto").
+  if (!hasEmpresa) return null
+
   const gapLitros = movimento.litros - fiscal.litros
   const gapPct = movimento.litros > 0 ? (gapLitros / movimento.litros) * 100 : 0
   const hasGap = gapLitros >= EPS
@@ -67,15 +71,6 @@ const MovimentoFiscalValidacao = () => {
 
   // ── Linha-selo (sempre visível) ──
   const seal = (() => {
-    if (!hasEmpresa) {
-      return (
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-          <GitCompareArrows className="h-4 w-4 shrink-0" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Movimento × Fiscal</span>
-          <span className="text-sm">· Selecione 1 posto para verificar</span>
-        </div>
-      )
-    }
     if (isLoading) {
       return (
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">

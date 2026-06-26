@@ -56,7 +56,9 @@ const useFuelMovimentoValidacao = (empresaCodigoOverride?: number | null) => {
   const empresaCodigos = empresaCodigoOverride !== undefined
     ? (empresaCodigoOverride !== null ? [empresaCodigoOverride] : [])
     : filterCodes
-  const hasEmpresa = empresaCodigos.length > 0
+  // Só vale com EXATAMENTE 1 posto: o selo é ao vivo (rede-wide ou multi-posto
+  // seria pesado e perde o sentido "verificar este posto"). Sem isso, não busca.
+  const hasEmpresa = empresaCodigos.length === 1
   const codesKey = empresaCodigos.join(',')
 
   const { data: produtosData } = useQuery({
