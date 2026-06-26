@@ -47,6 +47,8 @@ export interface ConcorrenciaData {
   ganhoPricing: number
   freshnessMaxStaleDays: number | null
   hasPraca: boolean
+  /** Autor do último lançamento por concorrente (quem lançou · data). */
+  autores: Record<string, { porNome: string | null; em: string }>
 }
 
 const isoMinusDays = (iso: string, n: number) => {
@@ -182,6 +184,16 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
     }
     const indiceGeral = somaIdxDen > 0 ? (somaIdxNum / somaIdxDen) * 100 : null
 
+    // Autor do ÚLTIMO lançamento por concorrente (max created_at) — "quem lançou".
+    const autores: Record<string, { porNome: string | null; em: string }> = {}
+    const autorAt: Record<string, string> = {}
+    for (const r of precos) {
+      if (!autores[r.concorrente_nome] || r.created_at > autorAt[r.concorrente_nome]) {
+        autores[r.concorrente_nome] = { porNome: r.created_by_nome, em: r.observado_em }
+        autorAt[r.concorrente_nome] = r.created_at
+      }
+    }
+
     return {
       isLoading: (lP && precos.length === 0) || rede.isLoading,
       redeId,
@@ -193,6 +205,7 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
       ganhoPricing,
       freshnessMaxStaleDays,
       hasPraca: atualByKey.size > 0,
+      autores,
     }
   }, [rede, precos, fuelRows, empresaCodigo, hoje, redeId, lP])
 }

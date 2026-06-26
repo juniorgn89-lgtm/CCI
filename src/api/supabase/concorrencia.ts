@@ -52,7 +52,13 @@ export interface ConcorrenciaPrecoRow {
   fonte: FonteConcorrencia
   observacao: string | null
   created_by: string
+  /** Nome/email do autor, denormalizado no insert (quem lançou). */
+  created_by_nome: string | null
   created_at: string
+  /** Soft-delete: preenchido quando o concorrente é excluído (NULL = ativo). */
+  deleted_at: string | null
+  deleted_by: string | null
+  deleted_by_nome: string | null
 }
 
 export type ConcorrenciaPrecoInsert = {
@@ -64,6 +70,8 @@ export type ConcorrenciaPrecoInsert = {
   preco: number
   fonte?: FonteConcorrencia
   observacao?: string | null
+  /** Nome/email de quem está lançando (denormalizado p/ exibir sem ler profiles). */
+  created_by_nome?: string | null
 }
 
 /** Lê as observações do posto a partir de `desde` (yyyy-MM-dd). RLS restringe à rede. */
@@ -76,6 +84,7 @@ export const fetchConcorrenciaPrecos = async (params: {
     .from('concorrencia_precos')
     .select('*')
     .eq('empresa_codigo', params.empresaCodigo)
+    .is('deleted_at', null) // só concorrentes ativos
     .gte('observado_em', params.desde)
     .order('observado_em', { ascending: true })
     .order('created_at', { ascending: true })
@@ -96,6 +105,7 @@ export const fetchConcorrenciaPrecosRede = async (params: {
   const { data, error } = await supabase
     .from('concorrencia_precos')
     .select('*')
+    .is('deleted_at', null) // só concorrentes ativos
     .gte('observado_em', params.desde)
     .order('observado_em', { ascending: true })
     .order('created_at', { ascending: true })
@@ -107,24 +117,62 @@ export const fetchConcorrenciaPrecosRede = async (params: {
 }
 
 /**
- * Apaga TODAS as observações de um concorrente num posto (limpeza/correção —
- * ex.: cadastro de teste). RLS: só master (policy "concorrencia delete master").
- * Usa `.select()` pra contar as linhas removidas: 0 sem erro = RLS bloqueou
- * (sem permissão), já que um DELETE filtrado por RLS não acusa erro.
+ * SOFT-DELETE de um concorrente num posto (marca deleted_at em todas as
+ * observações ATIVAS dele). Preserva o histórico e registra quem/quando (o
+ * trigger carimba deleted_at/deleted_by; `porNome` é o rótulo p/ exibir).
+ * RLS: só master (policy de UPDATE). `.select()` conta as linhas afetadas:
+ * 0 sem erro = RLS bloqueou (sem permissão).
  */
 export const deleteConcorrente = async (params: {
+  empresaCodigo: number
+  concorrenteNome: string
+  porNome?: string | null
+}): Promise<{ ok: boolean; count?: number; error?: string }> => {
+  if (!supabase) return { ok: false, error: 'Sem conexão com o banco.' }
+  const { data, error } = await supabase
+    .from('concorrencia_precos')
+    .update({ deleted_at: new Date().toISOString(), deleted_by_nome: params.porNome ?? null })
+    .eq('empresa_codigo', params.empresaCodigo)
+    .eq('concorrente_nome', params.concorrenteNome)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, count: data?.length ?? 0 }
+}
+
+/** Restaura um concorrente soft-deletado (deleted_at → NULL). Master-only. */
+export const restoreConcorrente = async (params: {
   empresaCodigo: number
   concorrenteNome: string
 }): Promise<{ ok: boolean; count?: number; error?: string }> => {
   if (!supabase) return { ok: false, error: 'Sem conexão com o banco.' }
   const { data, error } = await supabase
     .from('concorrencia_precos')
-    .delete()
+    .update({ deleted_at: null })
     .eq('empresa_codigo', params.empresaCodigo)
     .eq('concorrente_nome', params.concorrenteNome)
+    .not('deleted_at', 'is', null)
     .select('id')
   if (error) return { ok: false, error: error.message }
   return { ok: true, count: data?.length ?? 0 }
+}
+
+/** Lê os concorrentes EXCLUÍDOS (soft-deletados) de um posto — auditoria "quem excluiu". */
+export const fetchConcorrenciaExcluidos = async (params: {
+  empresaCodigo: number
+}): Promise<ConcorrenciaPrecoRow[]> => {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('concorrencia_precos')
+    .select('*')
+    .eq('empresa_codigo', params.empresaCodigo)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+  if (error) {
+    console.warn('[concorrencia] fetch excluidos error:', error.message)
+    return []
+  }
+  return (data ?? []) as ConcorrenciaPrecoRow[]
 }
 
 /** INSERT de uma observação (append-only). RLS exige permissão + escopo de empresa. */

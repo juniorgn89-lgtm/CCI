@@ -1,32 +1,43 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X, Trash2, Check,
+  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X, Trash2, Check, History, RotateCcw, User, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
 import { useTenantStore } from '@/store/tenant'
+import { useAuthStore } from '@/store/auth'
 import { useComercialFlags } from '@/store/comercialFlags'
 import {
-  insertConcorrenciaPrecos, deleteConcorrente, type ConcorrenciaPrecoInsert, type FuelSlug,
+  insertConcorrenciaPrecos, deleteConcorrente, restoreConcorrente, fetchConcorrenciaExcluidos,
+  type ConcorrenciaPrecoInsert, type FuelSlug,
 } from '@/api/supabase/concorrencia'
 import useConcorrencia, { type FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
 
 const r3 = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
+/** yyyy-MM-dd | ISO → DD/MM/YYYY (só a parte de data). */
+const dataBR = (iso?: string | null): string => {
+  if (!iso) return '—'
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return d ? `${d}/${m}/${y}` : iso
+}
 const epochDay = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86_400_000 }
 
 /* ── Editor de praça (tabela editável → INSERT append-only). Keyed por posto. ── */
 const PrecoEditor = ({
-  fuels, atual, empresaCodigo, redeId,
+  fuels, atual, autores, empresaCodigo, redeId,
 }: {
   fuels: FuelView[]
   atual: Map<string, { postos: number; precos: Partial<Record<FuelSlug, number>> }>
+  autores: Record<string, { porNome: string | null; em: string }>
   empresaCodigo: number
   redeId: string | null
 }) => {
   const qc = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const meuNome = user?.email ?? null
   const slugs = fuels.map((f) => f.slug)
   type Draft = { postos: string; precos: Partial<Record<FuelSlug, string>> }
   const seed = useMemo(() => {
@@ -46,7 +57,7 @@ const PrecoEditor = ({
 
   const handleDelete = async (nome: string) => {
     setDelBusy(true); setMsg(null)
-    const res = await deleteConcorrente({ empresaCodigo, concorrenteNome: nome })
+    const res = await deleteConcorrente({ empresaCodigo, concorrenteNome: nome, porNome: meuNome })
     setDelBusy(false); setPendingDel(null)
     if (!res.ok) {
       setMsg({ ok: false, text: res.error?.includes('row-level security') ? 'Sem permissão para excluir (só master).' : (res.error ?? 'Erro ao excluir.') })
@@ -56,6 +67,7 @@ const PrecoEditor = ({
     setDraft((d) => { const nd = { ...d }; delete nd[nome]; return nd })
     setMsg({ ok: true, text: `Concorrente "${nome}" excluído.` })
     qc.invalidateQueries({ queryKey: ['concorrencia', empresaCodigo] })
+    qc.invalidateQueries({ queryKey: ['concorrencia-excluidos', empresaCodigo] })
   }
 
   const setPreco = (nome: string, slug: FuelSlug, val: string) =>
@@ -77,7 +89,7 @@ const PrecoEditor = ({
         if (!isFinite(v) || v <= 0) continue
         const cur = base?.precos[slug]
         if (cur != null && Math.abs(cur - v) < 0.0005) continue // inalterado
-        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome.trim(), concorrente_postos: Math.max(1, Math.round(parse(d.postos)) || 1), preco: v, fonte: 'observado' })
+        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome.trim(), concorrente_postos: Math.max(1, Math.round(parse(d.postos)) || 1), preco: v, fonte: 'observado', created_by_nome: meuNome })
       }
     }
     // novos concorrentes
@@ -87,7 +99,7 @@ const PrecoEditor = ({
       for (const slug of slugs) {
         const v = parse(n.precos[slug])
         if (!isFinite(v) || v <= 0) continue
-        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome, concorrente_postos: Math.max(1, Math.round(parse(n.postos)) || 1), preco: v, fonte: 'observado' })
+        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome, concorrente_postos: Math.max(1, Math.round(parse(n.postos)) || 1), preco: v, fonte: 'observado', created_by_nome: meuNome })
       }
     }
     if (rows.length === 0) { setSaving(false); setMsg({ ok: false, text: 'Nada alterado pra salvar.' }); return }
@@ -141,6 +153,13 @@ const PrecoEditor = ({
                   )}
                   <span>{nome}</span>
                 </div>
+                {autores[nome] && (
+                  <span className="mt-0.5 flex items-center gap-1 pl-[1.875rem] text-[10px] font-normal text-gray-400 dark:text-gray-500"
+                    title="Quem fez o último lançamento de preço deste concorrente">
+                    <User className="h-2.5 w-2.5 shrink-0" />
+                    {autores[nome].porNome ?? 'autor não registrado'} · {dataBR(autores[nome].em)}
+                  </span>
+                )}
               </td>
               <td className="px-2 py-2 text-center">
                 <input value={draft[nome].postos} onChange={(e) => setDraft((d) => ({ ...d, [nome]: { ...d[nome], postos: e.target.value } }))}
@@ -227,6 +246,68 @@ const MiniHistorico = ({ f }: { f: FuelView }) => {
       {f.minhaSerie.length > 1 && <polyline points={line} fill="none" stroke="#2563eb" strokeWidth="1.6" />}
       {f.pontos.map((p, i) => <circle key={i} cx={sx(p.data)} cy={sy(p.preco)} r="2.4" fill="#94a3b8" />)}
     </svg>
+  )
+}
+
+/* ── Auditoria: concorrentes excluídos (soft-delete) — quem excluiu + restaurar ── */
+const HistoricoExclusoes = ({ empresaCodigo }: { empresaCodigo: number }) => {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const { data: rows = [] } = useQuery({
+    queryKey: ['concorrencia-excluidos', empresaCodigo],
+    queryFn: () => fetchConcorrenciaExcluidos({ empresaCodigo }),
+    staleTime: 60 * 1000,
+  })
+  // 1 entrada por concorrente (soft-delete marca todas as linhas dele): pega a
+  // exclusão mais recente (max deleted_at).
+  const itens = useMemo(() => {
+    const m = new Map<string, { nome: string; porNome: string | null; em: string }>()
+    for (const r of rows) {
+      const cur = m.get(r.concorrente_nome)
+      if (!cur || (r.deleted_at ?? '') > cur.em) {
+        m.set(r.concorrente_nome, { nome: r.concorrente_nome, porNome: r.deleted_by_nome, em: r.deleted_at ?? '' })
+      }
+    }
+    return [...m.values()].sort((a, b) => b.em.localeCompare(a.em))
+  }, [rows])
+
+  if (itens.length === 0) return null
+
+  const restaurar = async (nome: string) => {
+    setBusy(nome)
+    await restoreConcorrente({ empresaCodigo, concorrenteNome: nome })
+    setBusy(null)
+    qc.invalidateQueries({ queryKey: ['concorrencia', empresaCodigo] })
+    qc.invalidateQueries({ queryKey: ['concorrencia-excluidos', empresaCodigo] })
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left">
+        <History className="h-4 w-4 text-gray-400" />
+        <span className="text-[12px] font-semibold text-gray-700 dark:text-gray-200">Histórico de exclusões</span>
+        <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400">{itens.length}</span>
+        <ChevronDown className={cn('ml-auto h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="divide-y divide-gray-50 border-t border-gray-100 dark:divide-gray-800/60 dark:border-gray-800">
+          {itens.map((it) => (
+            <div key={it.nome} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-[12px]">
+              <span className="font-medium text-gray-700 line-through dark:text-gray-300">{it.nome}</span>
+              <span className="text-[11px] text-gray-400">
+                excluído por <strong className="font-semibold text-gray-500 dark:text-gray-400">{it.porNome ?? 'não registrado'}</strong> em {dataBR(it.em)}
+              </span>
+              <button type="button" onClick={() => restaurar(it.nome)} disabled={busy === it.nome}
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                <RotateCcw className="h-3 w-3" /> {busy === it.nome ? 'Restaurando…' : 'Restaurar'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -326,10 +407,13 @@ const Concorrencia = () => {
 
       {/* Tabela editável de praça */}
       {posto != null && data.byFuel.length > 0 ? (
-        <PrecoEditor key={posto} fuels={data.byFuel} atual={atualPivot} empresaCodigo={posto} redeId={redeId} />
+        <PrecoEditor key={posto} fuels={data.byFuel} atual={atualPivot} autores={data.autores} empresaCodigo={posto} redeId={redeId} />
       ) : (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">Sem combustíveis pra esse posto no período.</div>
       )}
+
+      {/* Auditoria: concorrentes excluídos (quem excluiu + restaurar) */}
+      {posto != null && <HistoricoExclusoes empresaCodigo={posto} />}
 
       {/* Histórico 30d + frescor */}
       {fuelChart && (
