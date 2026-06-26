@@ -6,6 +6,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLitersShort } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { Skeleton } from '@/components/ui/skeleton'
 import useComercialData, { type ComercialPostoRow } from '@/pages/Comercial/hooks/useComercialData'
 
@@ -167,7 +168,9 @@ const MargemPosto = () => {
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <RealizadoChave />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           tone="navy" Icon={Percent}
           label="Margem média da rede" sub={`ponderada por volume · ${data.postos.length} unidades`}
@@ -193,6 +196,7 @@ const MargemPosto = () => {
           foot="no período · 3 piores → média (volume constante)"
           help="Estimativa (teto) do lucro adicional no período se os 3 piores postos subissem até a média da rede, com volume constante. Não pressupõe vender mais litros."
         />
+        </div>
       </div>
 
       {/* Selo de frescor do custo (verde/discreto quando fresco; escala se velho) */}

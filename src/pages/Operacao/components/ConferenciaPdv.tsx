@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 import CartaoDetalheModal from '@/pages/FechamentoCaixa/components/CartaoDetalheModal'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import type { ConferenciaForma } from '@/pages/Operacao/hooks/useOperacaoData'
 
 const EPS = 0.005
@@ -261,7 +262,9 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
       </div>
 
       {/* ── KPIs (somam só conferidos do escopo) ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <RealizadoChave />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard navy label="Apresentado" sub="Declarado no caixa" Icon={CreditCard}
           value={formatCurrencyInt(kpis.apresentado)} footer={`${visiveis.length} ${visiveis.length === 1 ? 'PDV' : 'PDVs'} · ${turnoLabel}`} />
         <KpiCard label="Apurado" sub="Sistema" Icon={Banknote}
@@ -274,6 +277,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
           chipBg="bg-[#fef3c7] dark:bg-amber-900/30" chipColor="text-[#d97706] dark:text-amber-400"
           value={`${kpis.comDivergencia} / ${kpis.conferidos}`}
           footer={kpis.pendentes > 0 ? `${kpis.pendentes} PDV${kpis.pendentes === 1 ? '' : 's'} pendente${kpis.pendentes === 1 ? '' : 's'}` : 'exigem atenção'} />
+        </div>
       </div>
 
       {/* ── Banner "Tudo conferido" ── */}

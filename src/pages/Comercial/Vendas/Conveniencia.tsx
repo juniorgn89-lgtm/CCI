@@ -6,6 +6,7 @@ import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
@@ -230,7 +231,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
       {(
         <>
           {/* KPIs no topo — estilo Pista (5 cards com gradiente) */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+          <div className="lg:col-span-4">
+          <RealizadoChave />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Faturamento"
               help="Receita das vendas de produtos de conveniência no período — base fiscal, vendas autorizadas."
@@ -328,6 +332,8 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               }
             />
 
+            </div>
+            </div>
             <ProjecaoExecutiva
               fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}

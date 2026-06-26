@@ -12,6 +12,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -680,7 +681,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       {(
         <>
           {/* KPIs principais — 4 cards ocupando a largura toda (estilo Combustível) */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+          <div className="lg:col-span-4">
+          <RealizadoChave />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Faturamento"
               help="Receita das vendas de produtos automotivos (pista) no período — base fiscal, vendas autorizadas."
@@ -786,6 +790,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 ) : null
               }
             />
+            </div>
+            </div>
             <ProjecaoExecutiva
               fat={projecaoPista.fat}
               projetadoLucro={projecaoPista.projetadoLucro}

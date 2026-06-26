@@ -10,6 +10,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
@@ -174,7 +175,10 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
       {hasEmpresa && (
         <>
           {/* KPIs principais — sempre visíveis acima das abas */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+          <div className="lg:col-span-4">
+          <RealizadoChave />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Faturamento"
               value={showSkeleton || !kpis ? '—' : formatCurrencyInt(kpis.faturamento)}
@@ -300,6 +304,8 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
               }
             />
 
+            </div>
+            </div>
             {/* Projeção fim do período — componente shared do módulo Vendas */}
             <ProjecaoCard
               realizadoFaturamento={kpis?.faturamento ?? 0}

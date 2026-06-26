@@ -6,6 +6,7 @@ import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatNumber } 
 import InfoHint from '@/components/ui/InfoHint'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import BarCell from '@/components/tables/BarCell'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import useVendedoresConveniencia, { type VendedorRow, type VendedorSetor } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
 
 /** Setores de loja exibíveis por vendedor (combustível não vai por vendedor). */
@@ -194,6 +195,8 @@ const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | nu
 
     content = (
       <>
+      <div>
+      <RealizadoChave />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard icon={Users} label="Vendedores" value={formatNumber(rows.length)}
           sub={`${rows.filter((r) => r.ativo).length} ativos`} tint="from-blue-50/60 to-white dark:from-blue-950/30"
@@ -207,6 +210,7 @@ const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | nu
         <KpiCard icon={TrendingUp} label="Ticket médio" value={formatCurrency(ticketMedioGeral)}
           sub="faturamento ÷ cupons" tint="from-amber-50/60 to-white dark:from-amber-950/30"
           help="Ticket médio da loja = faturamento ÷ número de cupons." />
+      </div>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

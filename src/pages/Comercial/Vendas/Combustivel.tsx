@@ -26,6 +26,7 @@ import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
 import InfoHint from '@/components/ui/InfoHint'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import { projecaoAvancada } from '@/lib/projection'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
@@ -779,8 +780,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               (default) iguala a altura dos 5 cards. */}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
             {/* Os 4 KPIs num sub-grid próprio: esticam entre si (altura igual)
-               e o sub-grid estica até a altura da coluna da projeção. */}
-            <div className="grid grid-cols-2 gap-3 lg:col-span-4 lg:grid-cols-4">
+               e o sub-grid estica até a altura da coluna da projeção. A chave
+               abraça SÓ os 4 KPIs de realizado — a Projeção (5ª col) fica fora. */}
+            <div className="lg:col-span-4">
+            <RealizadoChave />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
               help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados. Clique para a conferência físico × fiscal (perda/sobra)."
@@ -919,6 +923,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                 ) : null
               }
             />
+            </div>
             </div>
             <ProjecaoExecutiva
               fat={projecaoCombustivel.fat}
