@@ -1,0 +1,45 @@
+-- ============================================================================
+-- Otimização de Performance — Fase 1, Item 4
+-- Índice ausente do reader paginado de apuracao_abastecimentos.
+-- ============================================================================
+--
+-- CONTEXTO
+-- `fetchAbastecimentosCache` (src/api/supabase/apuracao.ts) é o reader da MAIOR
+-- tabela (1 linha por abastecimento, ~10k+/mês/posto). Ele filtra por
+-- `data_fiscal` (range) e pagina por KEYSET ordenando por `abastecimento_codigo`
+-- (`.order('abastecimento_codigo').gt(cursor)`). O comentário no código cita um
+-- "índice composto ~250ms/page" que NA VERDADE NÃO EXISTE no schema — só há
+-- `(rede_id, data_fiscal)` e `(rede_id, empresa_codigo, data_fiscal)`. Sem um
+-- índice que lidere o keyset, cada página faz bitmap-scan do range + Sort por
+-- `abastecimento_codigo` + filtro `> cursor`.
+--
+-- O QUE ESTE ÍNDICE FAZ
+-- `(rede_id, data_fiscal, abastecimento_codigo)` deixa o filtro por data E a
+-- ordenação/keyset saírem do MESMO índice, em ordem — a paginação vira leitura
+-- de um stream já ordenado (sem Sort por página). NÃO muda dados nem resultados;
+-- só acelera a leitura. Transparente.
+--
+-- COMO APLICAR (Supabase → SQL Editor)
+-- Rode o bloco abaixo. CONCURRENTLY não bloqueia escrita/leitura da tabela
+-- durante a criação (a apuração/cron continua rodando). NÃO rode dentro de uma
+-- transação (CONCURRENTLY não é permitido em transação).
+--
+-- COMO REVERTER
+-- DROP INDEX CONCURRENTLY IF EXISTS public.idx_apuracao_abast_rede_data_abastcod;
+-- ============================================================================
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_apuracao_abast_rede_data_abastcod
+  ON public.apuracao_abastecimentos (rede_id, data_fiscal, abastecimento_codigo);
+
+-- Verificação opcional pós-criação (deve listar o índice acima):
+--   SELECT indexname FROM pg_indexes
+--   WHERE tablename = 'apuracao_abastecimentos';
+--
+-- Conferência de uso (rodar uma leitura da tela Operação/Bombas e checar):
+--   EXPLAIN ANALYZE
+--   SELECT * FROM apuracao_abastecimentos
+--   WHERE rede_id = '<REDE>' AND data_fiscal BETWEEN '2026-06-01' AND '2026-06-30'
+--   ORDER BY abastecimento_codigo
+--   LIMIT 1000;
+-- Espera-se "Index Scan using idx_apuracao_abast_rede_data_abastcod" em vez de
+-- "Bitmap Heap Scan ... + Sort".

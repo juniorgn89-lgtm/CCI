@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore, type ComparisonMode } from '@/store/filters'
-import { useTenantStore } from '@/store/tenant'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import { type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
@@ -211,7 +211,6 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   const hasEmpresa = empresaCodigos.length > 0
   // Consolidado rede-wide (cache apuracao_vendas). `single1Posto` libera o único
   // bloco por-posto que não consolida: saldo de estoque.
-  const rede = useTenantStore((s) => s.rede)
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira).
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
@@ -271,30 +270,12 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   const splitCur = splitPeriodAtToday(dataInicial, dataFinal)
   const curIni = splitCur.closedDays?.dataInicial ?? ''
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
-  const { data: curRows = [], isLoading: l1 } = useQuery({
-    queryKey: ['conv-cache-vendas', rede?.id, curIni, curEnd],
-    queryFn: () => fetchVendasCache({ dataInicial: curIni, dataFinal: curEnd }),
-    enabled: !!rede && !!curIni && !!curEnd,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: prevRows = [], isLoading: l2 } = useQuery({
-    queryKey: ['conv-cache-vendas', rede?.id, prevMonth.dataInicial, prevMonth.dataFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: prevMonth.dataInicial, dataFinal: prevMonth.dataFinal }),
-    enabled: !!rede && !!prevMonth.dataInicial && !!prevMonth.dataFinal,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: cmpRows = [] } = useQuery({
-    queryKey: ['conv-cache-vendas', rede?.id, cmp.dataInicial, cmp.dataFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: cmp.dataInicial, dataFinal: cmp.dataFinal }),
-    enabled: !!rede && isPrevYear && !!cmp.dataInicial && !!cmp.dataFinal,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: evoRows = [], isLoading: l6 } = useQuery({
-    queryKey: ['conv-cache-vendas', rede?.id, evolutionRange.dataInicial, evolutionRange.dataFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: evolutionRange.dataInicial, dataFinal: evolutionRange.dataFinal }),
-    enabled: !!rede && !!evolutionRange.dataInicial && !!evolutionRange.dataFinal,
-    staleTime: 10 * 60 * 1000,
-  })
+  // Fetch rede-wide COMPARTILHADO (chave canônica) — mesma leitura que Combustível
+  // e Automotivo reaproveitam via React Query (ver useRedeVendasCache).
+  const { data: curRows = [], isLoading: l1 } = useRedeVendasCache(curIni, curEnd)
+  const { data: prevRows = [], isLoading: l2 } = useRedeVendasCache(prevMonth.dataInicial, prevMonth.dataFinal)
+  const { data: cmpRows = [] } = useRedeVendasCache(cmp.dataInicial, cmp.dataFinal, { enabled: isPrevYear })
+  const { data: evoRows = [], isLoading: l6 } = useRedeVendasCache(evolutionRange.dataInicial, evolutionRange.dataFinal, { staleTime: 10 * 60 * 1000 })
 
   // Estoque — snapshot POR-POSTO (não consolida na rede); só com 1 posto.
   const { data: estoqueRaw, isLoading: l5 } = useQuery({

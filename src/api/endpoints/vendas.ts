@@ -76,7 +76,9 @@ export const fetchVendaCodigosAutorizados = async (params: {
   const vendas = await fetchAllPages(
     (p) => fetchVendas({ ...params, situacao: 'A', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
     1000,
-    2000,
+    // Bound de segurança contra runaway. O loop já para na última página (menos
+    // que `limite`); 200 páginas = 200k vendas/posto/período, muito acima do real.
+    200,
   )
   const set = new Set<number>()
   for (const v of vendas) if (v.vendaCodigo != null) set.add(v.vendaCodigo)
@@ -97,7 +99,7 @@ export const fetchVendaCodigosCancelados = async (params: {
   const vendas = await fetchAllPages(
     (p) => fetchVendas({ ...params, situacao: 'C', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
     1000,
-    2000,
+    200, // mesmo bound de segurança do autorizados
   )
   const set = new Set<number>()
   for (const v of vendas) if (v.vendaCodigo != null) set.add(v.vendaCodigo)

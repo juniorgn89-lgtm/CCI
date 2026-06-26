@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useTenantStore } from '@/store/tenant'
-import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -39,7 +39,6 @@ const shiftDays = (dateStr: string, days: number): string => {
  *    continua por-posto (live) e só aparece com 1 posto selecionado.
  */
 const useFuelVendaCacheAnalytics = () => {
-  const rede = useTenantStore((s) => s.rede)
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   // "Todos" ([]) = todos os postos PERMITIDOS (profiles), não a rede RLS inteira.
@@ -63,26 +62,12 @@ const useFuelVendaCacheAnalytics = () => {
   const closedIni = split.closedDays?.dataInicial ?? ''
   const closedEnd = split.closedDays?.dataFinal ?? ''
 
-  // Fetch rede-wide (sem empresaCodigos → todas as permitidas via RLS), keyed só
-  // pelo range → mudar o filtro de posto re-agrega no cliente, sem refetch.
-  const { data: curRows = [], isLoading } = useQuery({
-    queryKey: ['fuel-cache-vendas', rede?.id, closedIni, closedEnd],
-    queryFn: () => fetchVendasCache({ dataInicial: closedIni, dataFinal: closedEnd }),
-    enabled: !!rede && !!closedIni && !!closedEnd,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: prevRows = [] } = useQuery({
-    queryKey: ['fuel-cache-vendas', rede?.id, prevInicial, prevFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: prevInicial, dataFinal: prevFinal }),
-    enabled: !!rede && !!prevInicial && !!prevFinal,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: semRows = [] } = useQuery({
-    queryKey: ['fuel-cache-vendas', rede?.id, semanaAntInicial, semanaAntFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: semanaAntInicial, dataFinal: semanaAntFinal }),
-    enabled: !!rede && !!semanaAntInicial && !!semanaAntFinal,
-    staleTime: 5 * 60 * 1000,
-  })
+  // Fetch rede-wide COMPARTILHADO (chave canônica) — Conveniência e Automotivo
+  // reaproveitam a MESMA leitura via React Query em vez de rebaixá-la sob chave
+  // privada. Mudar o filtro de posto re-agrega no cliente, sem refetch.
+  const { data: curRows = [], isLoading } = useRedeVendasCache(closedIni, closedEnd)
+  const { data: prevRows = [] } = useRedeVendasCache(prevInicial, prevFinal)
+  const { data: semRows = [] } = useRedeVendasCache(semanaAntInicial, semanaAntFinal)
 
   return useMemo(() => {
     const matchEmpresa = (code: number) =>

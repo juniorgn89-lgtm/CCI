@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Wrench, Percent, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
-import { useTenantStore } from '@/store/tenant'
+import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { classifySetor } from '@/lib/setorClassification'
 import { useFilterStore } from '@/store/filters'
 import { offsetPeriod, todayLocal } from '@/lib/period'
@@ -36,7 +36,6 @@ const categoriaDoGrupo = (nome: string): string => {
  */
 const PistaTabMobile = () => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode } = useFilterStore()
-  const rede = useTenantStore((s) => s.rede)
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   const hoje = todayLocal()
@@ -61,18 +60,9 @@ const PistaTabMobile = () => {
   const splitCur = splitPeriodAtToday(dataInicial, dataFinal)
   const curIni = splitCur.closedDays?.dataInicial ?? ''
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
-  const { data: cacheCur = [], isLoading } = useQuery({
-    queryKey: ['pista-cache-vendas', rede?.id, curIni, curEnd],
-    queryFn: () => fetchVendasCache({ dataInicial: curIni, dataFinal: curEnd }),
-    enabled: !!rede && !!curIni && !!curEnd,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: cachePrev = [] } = useQuery({
-    queryKey: ['pista-cache-vendas', rede?.id, prevInicial, prevFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: prevInicial, dataFinal: prevFinal }),
-    enabled: !!rede && !!prevInicial && !!prevFinal,
-    staleTime: 5 * 60 * 1000,
-  })
+  // Fetch rede-wide COMPARTILHADO (chave canônica) — ver useRedeVendasCache.
+  const { data: cacheCur = [], isLoading } = useRedeVendasCache(curIni, curEnd)
+  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal)
 
   // Rows do cache (automotivos, posto selecionado) → itens agregados. Ticket
   // médio vem do `cupons` (distinto por empresa+dia+setor), dedup por dia.

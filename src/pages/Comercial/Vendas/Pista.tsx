@@ -6,8 +6,8 @@ import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoque } from '@/api/endpoints/estoques'
 import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { fetchVendasCache, splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
-import { useTenantStore } from '@/store/tenant'
+import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
@@ -170,7 +170,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   // libera o único bloco por-posto que não consolida: saldo de estoque.
   const single1Posto = empresaCodigos.length === 1
   const empresaEstoque = single1Posto ? empresaCodigos[0] : null
-  const rede = useTenantStore((s) => s.rede)
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira) — senão a aba
   // somaria postos fora da permissão e divergiria da Visão Geral.
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
@@ -245,18 +244,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const splitCur = splitPeriodAtToday(dataInicial, dataFinal)
   const curIni = splitCur.closedDays?.dataInicial ?? ''
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
-  const { data: cacheCur = [], isLoading: isLoadingVendas } = useQuery({
-    queryKey: ['pista-cache-vendas', rede?.id, curIni, curEnd],
-    queryFn: () => fetchVendasCache({ dataInicial: curIni, dataFinal: curEnd }),
-    enabled: !!rede && !!curIni && !!curEnd,
-    staleTime: 5 * 60 * 1000,
-  })
-  const { data: cachePrev = [] } = useQuery({
-    queryKey: ['pista-cache-vendas', rede?.id, prevInicial, prevFinal],
-    queryFn: () => fetchVendasCache({ dataInicial: prevInicial, dataFinal: prevFinal }),
-    enabled: !!rede && !!prevInicial && !!prevFinal,
-    staleTime: 5 * 60 * 1000,
-  })
+  // Fetch rede-wide COMPARTILHADO (chave canônica) — mesma leitura que Combustível
+  // e Conveniência reaproveitam via React Query (ver useRedeVendasCache).
+  const { data: cacheCur = [], isLoading: isLoadingVendas } = useRedeVendasCache(curIni, curEnd)
+  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal)
 
   // Rows do cache (automotivos, posto selecionado) → "itens" agregados que os
   // memos já consomem (vendaCodigo dispensado). `[]` = rede; subconjunto = recorte.

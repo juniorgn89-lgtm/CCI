@@ -42,22 +42,36 @@ export const fetchApuracaoDiaria = async (params: FetchParams): Promise<Apuracao
   if (!supabase) return []
   const __t0 = perfNow()
 
-  let query = supabase
-    .from('apuracao_diaria')
-    .select('*')
-    .gte('data', params.dataInicial)
-    .lte('data', params.dataFinal)
-
-  if (params.empresaCodigos.length > 0) {
-    query = query.in('empresa_codigo', params.empresaCodigos)
+  // Paginação por .range() + ORDER BY estável. SEM isto o SELECT do Supabase
+  // trunca em 1000 linhas e leituras multi-mês/multi-posto perdem dias
+  // silenciosamente (ex.: 5 postos × 365 dias = 1825 linhas). Mesmo padrão dos
+  // demais readers paginados. Não muda os dados — só deixa de truncar.
+  const pageSize = 1000
+  let from = 0
+  const all: ApuracaoDiariaRow[] = []
+  for (;;) {
+    let query = supabase
+      .from('apuracao_diaria')
+      .select('*')
+      .gte('data', params.dataInicial)
+      .lte('data', params.dataFinal)
+      .order('data', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoDiariaRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
   }
-
-  const { data, error } = await query
-  if (error) {
-    console.warn('[apuracao] fetch error:', error.message)
-    return []
-  }
-  return perfDone('fetchApuracaoDiaria', 'apuracao_diaria', (data ?? []) as ApuracaoDiariaRow[], __t0)
+  return perfDone('fetchApuracaoDiaria', 'apuracao_diaria', all, __t0)
 }
 
 /**
