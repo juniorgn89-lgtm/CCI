@@ -9,6 +9,8 @@ import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
+import WeekNav from '@/components/tables/WeekNav'
+import { groupDaysByWeek, weekChipLabel } from '@/lib/weekGroups'
 import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
@@ -126,6 +128,8 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   const { dataFinal } = useFilterStore()
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
   const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
+  // Semana ativa da tabela dia a dia (chave = 2ª-feira; null = mais recente).
+  const [activeMonday, setActiveMonday] = useState<string | null>(null)
   const { dataInicial } = useFilterStore()
   // Consolidado rede-wide: `single1Posto` libera o saldo de estoque (por-posto).
   const single1Posto = useFilterStore((s) => s.empresaCodigos.length === 1)
@@ -180,6 +184,17 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
       lbMedio: Math.max(...days.map((d) => (d.qtd > 0 ? d.lucro / d.qtd : 0)), 0),
     }
   }, [realizadoDiaADia])
+
+  // Semanas (seg–dom) da tabela dia a dia + semana ativa (default = mais recente).
+  const semanas = useMemo(() => groupDaysByWeek(realizadoDiaADia.days, (d) => d.data), [realizadoDiaADia.days])
+  const activeWeekIdx = useMemo(() => {
+    if (activeMonday) {
+      const i = semanas.findIndex((s) => s.monday === activeMonday)
+      if (i >= 0) return i
+    }
+    return semanas.length - 1
+  }, [semanas, activeMonday])
+  const semanaAtiva = semanas[activeWeekIdx]
 
   return (
     <div className="space-y-6">
@@ -365,10 +380,12 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
             ) : (
               <Suspense fallback={<div className="p-4"><RouteFallback /></div>}>
                 {activeTab === 'diadia' && (
-                  realizadoDiaADia.days.length === 0 ? (
+                  semanas.length === 0 ? (
                     <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    <WeekNav weeks={semanas} activeIdx={activeWeekIdx} onSelect={setActiveMonday} />
+                    <div className={cn('overflow-x-auto', semanas.length <= 1 && 'pt-3')}>
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
@@ -390,7 +407,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {realizadoDiaADia.days.map((d) => (
+                          {semanaAtiva?.days.map((d) => (
                             <tr
                               key={d.data}
                               className="cursor-pointer text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40"
@@ -419,21 +436,44 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                               </td>
                             </tr>
                           ))}
-                          {/* Total */}
-                          <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                            <td className="px-3 py-2.5">Total</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(realizadoDiaADia.total.qtd))}</td>
-                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(realizadoDiaADia.total.fat)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.custo)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(realizadoDiaADia.total.lucro)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.fat > 0 ? `${((realizadoDiaADia.total.lucro / realizadoDiaADia.total.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
-                            <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.fat / realizadoDiaADia.total.qtd) : '—'}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.custo / realizadoDiaADia.total.qtd) : '—'}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums">{realizadoDiaADia.total.qtd > 0 ? formatCurrency(realizadoDiaADia.total.lucro / realizadoDiaADia.total.qtd) : '—'}</td>
-                          </tr>
+                          {/* Subtotal da SEMANA visível + Total do PERÍODO (discreto) */}
+                          {semanaAtiva && (() => {
+                            const sub = semanaAtiva.days.reduce(
+                              (a, d) => ({ qtd: a.qtd + d.qtd, fat: a.fat + d.fat, custo: a.custo + d.custo, lucro: a.lucro + d.lucro }),
+                              { qtd: 0, fat: 0, custo: 0, lucro: 0 },
+                            )
+                            const tot = realizadoDiaADia.total
+                            return (
+                              <>
+                                <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                                  <td className="px-3 py-2.5">Semana <span className="ml-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">{weekChipLabel(semanaAtiva.min, semanaAtiva.max)}</span></td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(sub.qtd))}</td>
+                                  <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(sub.fat)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.custo)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.lucro)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{sub.fat > 0 ? `${((sub.lucro / sub.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
+                                  <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{sub.qtd > 0 ? formatCurrency(sub.fat / sub.qtd) : '—'}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{sub.qtd > 0 ? formatCurrency(sub.custo / sub.qtd) : '—'}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{sub.qtd > 0 ? formatCurrency(sub.lucro / sub.qtd) : '—'}</td>
+                                </tr>
+                                <tr className="bg-gray-50/60 text-xs text-gray-500 dark:bg-gray-800/40 dark:text-gray-400">
+                                  <td className="px-3 py-1.5 font-medium">Período <span className="ml-1 text-[11px]">{realizadoDiaADia.days.length} dias</span></td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(Math.round(tot.qtd))}</td>
+                                  <td className="border-l border-gray-200 px-3 py-1.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(tot.fat)}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(tot.custo)}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(tot.lucro)}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{tot.fat > 0 ? `${((tot.lucro / tot.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'}</td>
+                                  <td className="border-l border-gray-200 px-3 py-1.5 text-right tabular-nums dark:border-gray-700">{tot.qtd > 0 ? formatCurrency(tot.fat / tot.qtd) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{tot.qtd > 0 ? formatCurrency(tot.custo / tot.qtd) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums">{tot.qtd > 0 ? formatCurrency(tot.lucro / tot.qtd) : '—'}</td>
+                                </tr>
+                              </>
+                            )
+                          })()}
                         </tbody>
                       </table>
                     </div>
+                    </>
                   )
                 )}
                 {activeTab === 'grupo' && (

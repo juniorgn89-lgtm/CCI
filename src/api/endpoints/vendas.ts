@@ -83,5 +83,26 @@ export const fetchVendaCodigosAutorizados = async (params: {
   return set
 }
 
+/**
+ * Conjunto de `vendaCodigo` CANCELADOS no período (`/VENDA` com `situacao='C'`).
+ * Espelha `fetchVendaCodigosAutorizados`. Usado pra definir a base "Movimento"
+ * (todo movimento de PDV MENOS canceladas) na validação Movimento × Fiscal.
+ */
+export const fetchVendaCodigosCancelados = async (params: {
+  empresaCodigo?: number
+  dataInicial?: string
+  dataFinal?: string
+  tipoData?: 'EMISSAO' | 'ENTRADA'
+}): Promise<Set<number>> => {
+  const vendas = await fetchAllPages(
+    (p) => fetchVendas({ ...params, situacao: 'C', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+    1000,
+    2000,
+  )
+  const set = new Set<number>()
+  for (const v of vendas) if (v.vendaCodigo != null) set.add(v.vendaCodigo)
+  return set
+}
+
 export const fetchVendaFormasPagamento = (params?: FetchVendaFormasPagamentoParams) =>
   client.get<PaginatedResponse<VendaFormaPagamento>>('/VENDA_FORMA_PAGAMENTO', { params }).then((res) => res.data)
