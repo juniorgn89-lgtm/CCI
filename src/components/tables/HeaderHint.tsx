@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
 
 interface HeaderHintProps {
-  /** Rótulo da coluna. */
-  label: string
+  /** Rótulo da coluna. String simples ou JSX com `<br />` para quebra em 2 linhas. */
+  label: ReactNode
   /** Texto de ajuda do "?". */
   help: string
   /** Segunda linha opcional (menor/suave) — ex.: qualificador "(mês ant.)". */
@@ -22,7 +23,7 @@ interface HeaderHintProps {
 const HeaderHint = ({ label, help, sub, align = 'right', groupStart, className }: HeaderHintProps) => (
   <th
     className={cn(
-      'px-4 py-2 font-medium',
+      'px-3 py-2 font-medium',
       align === 'left' ? 'text-left' : align === 'center' ? 'text-center' : 'text-right',
       groupStart && 'border-l border-gray-200 dark:border-gray-700',
       className,
@@ -35,7 +36,15 @@ const HeaderHint = ({ label, help, sub, align = 'right', groupStart, className }
         align === 'center' && 'justify-center',
       )}
     >
-      {label}
+      <span
+        className={cn(
+          'leading-tight',
+          align === 'right' && 'text-right',
+          align === 'center' && 'text-center',
+        )}
+      >
+        {label}
+      </span>
       <InfoHint text={help} />
     </span>
     {sub && (

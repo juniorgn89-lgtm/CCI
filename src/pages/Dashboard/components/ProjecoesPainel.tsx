@@ -198,9 +198,18 @@ const ProjecoesPainel = () => {
   })()
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       {!expanded && (
-        <>
+        <div className="md:col-span-2 xl:col-span-4">
+          {/* Chave (estilo "legend") abraça SÓ os cartões de realizado — a Projeção
+              fica de fora. O rótulo, cru, corta a linha no topo centralizado. */}
+          <div className="relative mb-2 h-3 rounded-t-xl border-x border-t border-gray-200 dark:border-gray-700">
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-50 px-2.5 text-[11px] font-medium text-gray-400 dark:bg-gray-900 dark:text-gray-500">
+              Realizado · Período Selecionado
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SegmentCard
             label="Combustível" Icon={Droplets} cardBg="bg-white dark:bg-gray-900"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
@@ -229,7 +238,8 @@ const ProjecoesPainel = () => {
             primary={{ label: 'Faturamento', value: formatCurrencyInt(global.faturamento) }}
             secondary={{ label: 'Margem', value: fmtPct(global.margem) }}
           />
-        </>
+          </div>
+        </div>
       )}
 
       {/* Painel Projeção (navy) — col-span-2 (fechado) → col-span total (aberto). */}
@@ -375,6 +385,7 @@ const ProjecoesPainel = () => {
         {/* Sem botão de rodapé — o toggle fica na pílula do topo. */}
         {!expanded && <div className="pb-4" />}
       </div>
+    </div>
     </div>
   )
 }

@@ -51,7 +51,7 @@ const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
-  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
     {label}
   </th>
 )
@@ -118,34 +118,33 @@ const DataRow = ({
   const lucroVar = variacaoPct(vals.lucroBruto, vals.lucroBrutoAnoAnterior)
   const txt = small ? 'text-xs ' : ''
   const pad = small ? 'py-1.5' : 'py-2'
-  const antCls = cn('px-3 text-right tabular-nums', pad, small ? 'text-xs text-gray-400' : 'text-gray-500')
-  const trailCls = cn('px-3 text-right tabular-nums', pad, txt)
-  const numCls = cn('px-3 text-right tabular-nums', pad)
+  const antCls = cn('px-2 text-right tabular-nums', pad, small ? 'text-xs text-gray-400' : 'text-gray-500')
+  const trailCls = cn('px-2 text-right tabular-nums', pad, txt)
+  const numCls = cn('px-2 text-right tabular-nums', pad)
   const gStart = 'border-l border-gray-200 dark:border-gray-700'  // divisor entre grupos
   return (
     <tr onClick={onClick} aria-selected={selected} className={rowClass}>
       {label}
       {/* Operação */}
       {plain
-        ? <td className={numCls}>{formatNumber(Math.round(vals.qtd))}</td>
-        : <td className="px-2 py-1"><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={cn(numCls, 'pl-7')}>{formatNumber(Math.round(vals.qtd))}</td>
+        : <td className={cn('px-1.5 py-1 pl-7')}><BarCell value={vals.qtd} max={maxes.qtd} formatted={formatNumber(Math.round(vals.qtd))} color="blue" align="near" maxWidthPct={barPct} /></td>}
       {/* Financeiro */}
       {showFaturamento && (plain
         ? <td className={cn(numCls, gStart)}>{formatCurrencyInt(vals.faturamento)}</td>
-        : <td className={cn('px-2 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrencyInt(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
+        : <td className={cn('px-1.5 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrencyInt(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
       {plain
         ? <td className={cn(numCls, !showFaturamento && gStart)}>{formatCurrencyInt(vals.lucroBruto)}</td>
-        : <td className={cn('px-2 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
+        : <td className={cn('px-1.5 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
       {plain
         ? <td className={numCls}>{fmtPct(vals.margem)}</td>
-        : <td className="px-2 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
-      {isComb && <td className={antCls}>{formatCurrencyInt(vals.acrescimos)}</td>}
-      {isComb && <td className={antCls}>{formatCurrencyInt(vals.descontos)}</td>}
+        : <td className="px-1.5 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
+      {isComb && <td className={antCls}>{formatCurrencyInt(vals.acrescimos - vals.descontos)}</td>}
       {/* Comparativo */}
       <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrencyInt(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
-      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
+      <td className={cn('px-2 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
       <td className={antCls}>{formatCurrencyInt(vals.lucroBrutoAnoAnterior)}</td>
-      <td className={cn('px-3 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
+      <td className={cn('px-2 text-right', pad)}><VariacaoBadge value={lucroVar} /></td>
       {/* Eficiência */}
       {isComb ? (
         <>
@@ -358,39 +357,38 @@ const BenchmarkSetor = () => {
             <tr className="text-gray-400 dark:text-gray-500">
               <th className="px-3 py-1.5" />
               <GroupTh first label="Operação" colSpan={1} />
-              <GroupTh label="Financeiro" colSpan={showFaturamento ? 3 : 4} />
+              <GroupTh label="Financeiro" colSpan={2 + (showFaturamento ? 1 : 0) + (isComb ? 1 : 0)} />
               <GroupTh label="Comparativo" colSpan={4} />
               <GroupTh label="Eficiência" colSpan={3} />
             </tr>
             <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
               <HeaderHint align="left" label="Empresa" help="Posto da rede. Clique pra expandir os grupos de produtos." />
               {/* Operação */}
-              <HeaderHint label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
+              <HeaderHint className="pl-7" label={data.unidadeLabel} help={data.unidadeLabel === 'Litros' ? 'Volume vendido no período (L).' : 'Unidades vendidas no período.'} />
               {/* Financeiro */}
               {showFaturamento && (
                 <HeaderHint groupStart label="Faturamento" help="Faturamento bruto no período (R$): Σ preço de venda × quantidade." />
               )}
-              <HeaderHint groupStart={!showFaturamento} label="Lucro Bruto" help="Faturamento − custo (CMV) no período (R$)." />
+              <HeaderHint groupStart={!showFaturamento} label={<>Lucro<br />Bruto</>} help="Faturamento − custo (CMV) no período (R$)." />
               <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-              {isComb && <HeaderHint label="Acréscimos" help="Σ dos acréscimos aplicados nas vendas no período (R$)." />}
-              {isComb && <HeaderHint label="Descontos" help="Σ dos descontos concedidos nas vendas no período (R$)." />}
+              {isComb && <HeaderHint label="Acrés./Desc." help="Acréscimos − descontos das vendas no período (R$). Valor negativo = desconto predominou." />}
               {/* Comparativo — métrica explícita na 1ª linha, "(mês/ano ant.)" na 2ª */}
               <HeaderHint groupStart label={showFaturamento ? 'Faturamento' : data.unidadeLabel} sub={`(${cmpShort})`} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `${data.unidadeLabel} no mesmo período do ${cmpWord}.`} />
-              <HeaderHint label={`Var. ${showFaturamento ? 'faturamento' : data.unidadeLabel.toLowerCase()}`} help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
+              <HeaderHint label={<>Var.<br />{showFaturamento ? 'faturamento' : data.unidadeLabel.toLowerCase()}</>} help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />
               <HeaderHint label="Lucro bruto" sub={`(${cmpShort})`} help={`Lucro bruto no mesmo período do ${cmpWord} (R$).`} />
-              <HeaderHint label="Var. lucro bruto" help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
+              <HeaderHint label={<>Var. lucro<br />bruto</>} help={`Variação % do lucro bruto vs o ${cmpWord}.`} />
               {/* Eficiência */}
               {isComb ? (
                 <>
-                  <HeaderHint groupStart label="Preço venda" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-                  <HeaderHint label="Preço custo" help="Custo médio por unidade: custo ÷ quantidade." />
+                  <HeaderHint groupStart label={<>Preço<br />venda</>} help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <HeaderHint label={<>Preço<br />custo</>} help="Custo médio por unidade: custo ÷ quantidade." />
                   <HeaderHint label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
                 </>
               ) : (
                 <>
-                  <HeaderHint groupStart label="Preço médio" help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-                  <HeaderHint label="Custo médio" help="Custo médio por unidade: custo ÷ quantidade." />
-                  <HeaderHint label="Ticket médio" help="Faturamento ÷ nº de cupons (vendas)." />
+                  <HeaderHint groupStart label={<>Preço<br />médio</>} help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <HeaderHint label={<>Custo<br />médio</>} help="Custo médio por unidade: custo ÷ quantidade." />
+                  <HeaderHint label={<>Ticket<br />médio</>} help="Faturamento ÷ nº de cupons (vendas)." />
                 </>
               )}
             </tr>
