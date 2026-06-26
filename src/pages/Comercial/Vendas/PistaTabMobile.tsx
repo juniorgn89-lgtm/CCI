@@ -186,7 +186,7 @@ const PistaTabMobile = () => {
 
   if (isLoading || !data) return <LoadingScreen message="Carregando pista…" />
   const { kpis: k } = data
-  if (k.faturamento <= 0) return <EmptyCard title="Sem vendas de pista" desc="Não há vendas de automotivos (pista) no período e posto selecionados." />
+  if (k.faturamento <= 0) return <EmptyCard title="Sem vendas automotivas" desc="Não há vendas de automotivos no período e posto selecionados." />
 
   const projMetrics: ProjMetric[] = [
     { label: 'Faturamento', realizado: k.faturamento, proj: data.proj.fat, fmt: brlShort },

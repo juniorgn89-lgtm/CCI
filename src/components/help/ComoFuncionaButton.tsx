@@ -107,7 +107,7 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
       },
       // Aba "Pista" (detalhe por posto)
       pista: {
-        tela: 'Central da Rede · Pista',
+        tela: 'Central da Rede · Automotivo',
         intro: 'Produtos automotivos da pista de UM posto (escolha o posto no filtro) — filtros, óleos, aditivos, baterias e acessórios. Os números abaixo são fictícios.',
         sections: [
           { n: 1, title: 'KPIs do topo', exemplo: 'Faturamento R$ 38.000 · Lucro bruto R$ 12.000 · Margem 32% · Ticket médio R$ 45', comoLer: 'Totais dos automotivos no período vs o anterior. Ticket médio = faturamento ÷ nº de vendas.' },

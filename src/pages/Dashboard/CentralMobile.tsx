@@ -202,7 +202,7 @@ const CentralOverview = () => {
 const CENTRAL_TABS = [
   { id: 'geral', label: 'Visão Geral' },
   { id: 'combustivel', label: 'Combustível' },
-  { id: 'pista', label: 'Pista' },
+  { id: 'pista', label: 'Automotivo' },
   { id: 'conveniencia', label: 'Conveniência' },
 ]
 

@@ -72,8 +72,8 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/dashboard',
     label: 'Central da Rede',
-    glossario: `Hub da rede. Abas: Visão Geral (consolidado rede-wide: faturamento, margem, comparativos, ranking de postos), Combustível, Pista e Conveniência (detalham UM posto — escolha o posto no filtro; em "Todos os postos" pedem a seleção), e Ao Vivo Rede (caixas abertos agora).
-- Pista = produtos automotivos (lubrificantes, aditivos); Conveniência = loja.
+    glossario: `Hub da rede. Abas: Visão Geral (consolidado rede-wide: faturamento, margem, comparativos, ranking de postos), Combustível, Automotivo e Conveniência (consolidados rede-wide, respeitando o filtro de posto), e Ao Vivo Rede (caixas abertos agora).
+- Automotivo = produtos automotivos (lubrificantes, aditivos); Conveniência = loja.
 - Card "Projeção fim do período": faturamento estimado até o fim do mês (ver cenários no glossário global).`,
   },
   {

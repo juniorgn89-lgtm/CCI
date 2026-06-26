@@ -10,7 +10,7 @@ interface NavItem {
 
 const items: NavItem[] = [
   { to: '/comercial/vendas/combustivel', label: 'Combustível', Icon: Fuel },
-  { to: '/comercial/vendas/pista', label: 'Pista', Icon: Wrench },
+  { to: '/comercial/vendas/pista', label: 'Automotivo', Icon: Wrench },
   { to: '/comercial/vendas/conveniencia', label: 'Conveniência', Icon: Store },
 ]
 

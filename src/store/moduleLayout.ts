@@ -54,7 +54,9 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
       }),
       {
         name: storeName,
-        version: 17,
+        // v18: aba "Pista" renomeada pra "Automotivo" (o migrate re-sincroniza o
+        // label dos layouts persistidos a partir dos defaults).
+        version: 18,
         migrate: (persisted, version) => {
           if (version < 6 || !persisted) return { tabs: defaultTabs }
           const state = persisted as { tabs: ModuleTab[] }
@@ -86,7 +88,7 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-layout', [
   { id: 'setor', label: 'Visão Geral', visible: true },
   { id: 'combustivel', label: 'Combustível', visible: true },
-  { id: 'pista', label: 'Pista', visible: true },
+  { id: 'pista', label: 'Automotivo', visible: true },
   { id: 'conveniencia', label: 'Conveniência', visible: true },
   { id: 'aovivo', label: 'Ao Vivo Rede', visible: true },
 ])
