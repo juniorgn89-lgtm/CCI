@@ -3,6 +3,8 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import AppRoutes from '@/routes'
 import PwaUpdatePrompt from '@/components/feedback/PwaUpdatePrompt'
+import { initPerf } from '@/lib/perf/initPerf'
+import { PerfScreenTracker, PerfProfiler } from '@/lib/perf/PerfInstruments'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -179,11 +181,16 @@ const loadTenantForUser = async () => {
 
 const App = () => {
   useAuthBootstrap()
+  // Harness de medição de performance (no-op sem a flag visor360.perf).
+  useEffect(() => { initPerf() }, [])
 
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <AppRoutes />
+        <PerfScreenTracker />
+        <PerfProfiler id="page">
+          <AppRoutes />
+        </PerfProfiler>
         <PwaUpdatePrompt />
       </QueryClientProvider>
     </BrowserRouter>

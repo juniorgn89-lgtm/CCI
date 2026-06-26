@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { perfNow, perfDone } from '@/lib/perf/perfStore'
 import type { Abastecimento, LMC } from '@/api/types/combustivel'
 import type { Produto } from '@/api/types/produto'
 import type { VendaResumo, VendaFormaPagamento, VendaItem } from '@/api/types/venda'
@@ -39,6 +40,7 @@ interface FetchParams {
  */
 export const fetchApuracaoDiaria = async (params: FetchParams): Promise<ApuracaoDiariaRow[]> => {
   if (!supabase) return []
+  const __t0 = perfNow()
 
   let query = supabase
     .from('apuracao_diaria')
@@ -55,7 +57,7 @@ export const fetchApuracaoDiaria = async (params: FetchParams): Promise<Apuracao
     console.warn('[apuracao] fetch error:', error.message)
     return []
   }
-  return (data ?? []) as ApuracaoDiariaRow[]
+  return perfDone('fetchApuracaoDiaria', 'apuracao_diaria', (data ?? []) as ApuracaoDiariaRow[], __t0)
 }
 
 /**
@@ -328,6 +330,7 @@ export const fetchAbastecimentosCache = async (
   params: FetchAbastCacheParams
 ): Promise<AbastecimentoCacheRow[]> => {
   if (!supabase) return []
+  const __t0 = perfNow()
   const all: AbastecimentoCacheRow[] = []
   const pageSize = 1000
   let cursor = -1
@@ -358,7 +361,7 @@ export const fetchAbastecimentosCache = async (
     if (rows.length < pageSize) break
     cursor = rows[rows.length - 1].abastecimento_codigo
   }
-  return all
+  return perfDone('fetchAbastecimentosCache', 'apuracao_abastecimentos', all, __t0)
 }
 
 /** Upsert em lote. Idempotente via PK (rede, empresa, abastecimento_codigo). */
@@ -505,6 +508,7 @@ export type ApuracaoFuelProdutoUpsert = Omit<ApuracaoFuelProdutoRow, 'computed_a
 /** Lê o cache de combustível por produto do período (RLS restringe à rede). */
 export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<ApuracaoFuelProdutoRow[]> => {
   if (!supabase) return []
+  const __t0 = perfNow()
   let query = supabase
     .from('apuracao_fuel_diaria')
     .select('*')
@@ -532,7 +536,7 @@ export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<Apur
     if (rows.length < pageSize) break
     from += pageSize
   }
-  return all
+  return perfDone('fetchApuracaoFuelDiaria', 'apuracao_fuel_diaria', all, __t0)
 }
 
 /** UPSERT em lote do cache de combustível por produto. */
@@ -936,6 +940,7 @@ export const fetchVendasCache = async (
   params: FetchCaixasCacheParams,
 ): Promise<ApuracaoVendaRow[]> => {
   if (!supabase) return []
+  const __t0 = perfNow()
   const all: ApuracaoVendaRow[] = []
   const pageSize = 1000
   let from = 0
@@ -974,7 +979,7 @@ export const fetchVendasCache = async (
     const prev = byKey.get(k)
     if (!prev || (r.computed_at ?? '') > (prev.computed_at ?? '')) byKey.set(k, r)
   }
-  return Array.from(byKey.values())
+  return perfDone('fetchVendasCache', 'apuracao_vendas', Array.from(byKey.values()), __t0)
 }
 
 /**
