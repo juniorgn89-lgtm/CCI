@@ -6,6 +6,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
+import InfoHint from '@/components/ui/InfoHint'
 import { useTenantStore } from '@/store/tenant'
 import { useComercialFlags } from '@/store/comercialFlags'
 import {
@@ -91,7 +92,9 @@ const PrecoEditor = ({
         <thead>
           <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
             <th className="px-3 py-2 font-semibold">Concorrente</th>
-            <th className="px-2 py-2 text-center font-semibold">nº postos</th>
+            <th className="px-2 py-2 text-center font-semibold">
+              <span className="inline-flex items-center gap-1">nº postos<InfoHint text="Quantos postos o concorrente opera — peso na média de praça ponderada (concorrente com mais postos pesa mais)." /></span>
+            </th>
             {fuels.map((f) => <th key={f.slug} className="px-2 py-2 text-right font-semibold">{f.label}</th>)}
           </tr>
         </thead>
@@ -251,24 +254,24 @@ const Concorrencia = () => {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-transparent bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-4 text-white shadow-sm">
           <div className="flex items-start justify-between">
-            <div><p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Índice de preço</p><p className="text-[10px] text-white/50">meu vs praça · 100 = média</p></div>
+            <div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Índice de preço</p><InfoHint className="text-white/60 hover:text-white" text="Seu preço médio vs a média de praça (ponderada pelo nº de postos de cada concorrente), em base 100. Abaixo de 100 = mais barato que a praça; acima = mais caro." /></div><p className="text-[10px] text-white/50">meu vs praça · 100 = média</p></div>
             <DollarSign className="h-4 w-4 text-white/70" />
           </div>
           <p className="mt-2 text-3xl font-bold tabular-nums">{data.indiceGeral != null ? Math.round(data.indiceGeral) : '—'}</p>
           <p className="mt-1 text-[11px] text-white/60">{data.indiceGeral != null ? (data.indiceGeral < 100 ? 'mais barato que a praça' : data.indiceGeral > 100 ? 'mais caro que a praça' : 'na média') : 'cadastre a praça'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde posso subir</p><TrendingUp className="h-4 w-4 text-emerald-500" /></div>
+          <div className="flex items-center justify-between"><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde posso subir</p><InfoHint text="Combustível onde você está mais abaixo da praça — há espaço pra subir o preço sem perder competitividade." /></div><TrendingUp className="h-4 w-4 text-emerald-500" /></div>
           <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{data.ondePossoSubir?.label ?? 'Nenhum'}</p>
           <p className="mt-0.5 text-[11px] text-gray-500">{data.ondePossoSubir ? `${r3(data.ondePossoSubir.gap)}/L abaixo da praça` : 'tudo na praça ou acima'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde estou caro</p><TrendingDown className="h-4 w-4 text-red-500" /></div>
+          <div className="flex items-center justify-between"><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde estou caro</p><InfoHint text="Combustível onde você está mais acima da praça — risco de perder volume/frota pra concorrência." /></div><TrendingDown className="h-4 w-4 text-red-500" /></div>
           <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{data.ondeEstouCaro?.label ?? 'Nenhum'}</p>
           <p className="mt-0.5 text-[11px] text-gray-500">{data.ondeEstouCaro ? `${r3(Math.abs(data.ondeEstouCaro.gap))}/L acima · risco de volume` : 'tudo competitivo'}</p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/10">
-          <div className="flex items-center justify-between"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80 dark:text-amber-400/80">Ganho de pricing</p><p className="text-[10px] text-amber-700/60">teto · alinhar à praça</p></div></div>
+          <div className="flex items-center justify-between"><div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80 dark:text-amber-400/80">Ganho de pricing</p><InfoHint className="text-amber-600/70 hover:text-amber-700 dark:text-amber-400/70" text="Estimativa (teto) do lucro adicional se você alinhasse à praça os combustíveis em que está mais barato, sem ficar acima do mercado." /></div><p className="text-[10px] text-amber-700/60">teto · alinhar à praça</p></div></div>
           <p className="mt-2 text-2xl font-bold tabular-nums text-amber-700 dark:text-amber-400">+{formatCurrencyInt(data.ganhoPricing)}</p>
           <p className="mt-0.5 text-[10px] text-amber-700/70">estimativa · sem perder competitividade</p>
         </div>
@@ -286,7 +289,10 @@ const Concorrencia = () => {
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Histórico de 30 dias</h3>
+              <div className="flex items-center gap-1">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Histórico de 30 dias</h3>
+                <InfoHint text="Evolução do preço nos últimos 30 dias. A linha azul é o seu preço médio realizado (fato); os pontos cinza são observações de preço dos concorrentes registradas na tabela acima." />
+              </div>
               <p className="text-[11px] text-gray-400">Sua linha = preço médio realizado (fato) · pontos = observações de concorrentes</p>
             </div>
             <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">

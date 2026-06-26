@@ -32,10 +32,10 @@ const frescorTone = (staleDays: number | null) => {
 }
 
 const KpiCard = ({
-  label, sub, value, foot, tone = 'plain', Icon,
+  label, sub, value, foot, tone = 'plain', Icon, help,
 }: {
   label: string; sub?: string; value: React.ReactNode; foot?: React.ReactNode
-  tone?: 'plain' | 'navy' | 'green' | 'red' | 'amber'; Icon: typeof Percent
+  tone?: 'plain' | 'navy' | 'green' | 'red' | 'amber'; Icon: typeof Percent; help?: string
 }) => {
   const navy = tone === 'navy'
   return (
@@ -49,7 +49,10 @@ const KpiCard = ({
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className={cn('text-[11px] font-semibold uppercase tracking-wide', navy ? 'text-white/70' : 'text-gray-400')}>{label}</p>
+          <div className="flex items-center gap-1">
+            <p className={cn('text-[11px] font-semibold uppercase tracking-wide', navy ? 'text-white/70' : 'text-gray-400')}>{label}</p>
+            {help && <InfoHint className={navy ? 'text-white/60 hover:text-white' : undefined} text={help} />}
+          </div>
           {sub && <p className={cn('text-[10px]', navy ? 'text-white/50' : 'text-gray-400')}>{sub}</p>}
         </div>
         <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', navy ? 'bg-white/10' : 'bg-gray-100 dark:bg-gray-800')}>
@@ -170,21 +173,25 @@ const MargemPosto = () => {
           label="Margem média da rede" sub={`ponderada por volume · ${data.postos.length} unidades`}
           value={margemL(data.redeMargemL)}
           foot={<>LB total {formatCurrencyInt(data.redeLucroBruto)} · {formatLitersShort(data.redeLitros)}</>}
+          help="Margem média da rede em R$/L, ponderada pelo volume de cada posto (lucro bruto total ÷ litros totais). Usa o custo de reposição da última carga (LMC)."
         />
         <KpiCard
           Icon={Trophy} label="Maior margem" sub="melhor posto" tone="green"
           value={data.best ? margemL(data.best.margemL) : '—'}
           foot={data.best?.posto}
+          help="Posto com a maior margem por litro no período."
         />
         <KpiCard
           Icon={TrendingDown} label="Menor margem" sub="requer atenção" tone="red"
           value={data.worst ? margemL(data.worst.margemL) : '—'}
           foot={data.worst ? `${data.worst.posto} · ${data.worst.vsRedePct.toFixed(0)}% vs rede` : ''}
+          help="Posto com a menor margem por litro — o que mais puxa a média da rede pra baixo."
         />
         <KpiCard
           Icon={ArrowUpRight} label="Ganho potencial" sub="estimativa · teto" tone="amber"
           value={`+${formatCurrencyInt(data.ganhoPotencial3Piores)}`}
           foot="no período · 3 piores → média (volume constante)"
+          help="Estimativa (teto) do lucro adicional no período se os 3 piores postos subissem até a média da rede, com volume constante. Não pressupõe vender mais litros."
         />
       </div>
 
@@ -242,7 +249,10 @@ const MargemPosto = () => {
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Ranking de margem por posto</h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Ranking de margem por posto</h3>
+              <InfoHint text="Postos ordenados por margem/L (ou lucro bruto/volume, conforme o botão). Colunas: volume vendido, lucro bruto, margem/L e variação vs a média da rede. Clique numa unidade pra abrir o detalhe por combustível." />
+            </div>
             <p className="text-[11px] text-gray-400">Clique numa unidade pra abrir o drill por combustível</p>
           </div>
           <div className="flex items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">

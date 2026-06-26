@@ -130,21 +130,30 @@ const ProjecaoLB = () => {
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Melhor que a semana passada?</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Melhor que a semana passada?</p>
+            <InfoHint text="Variação do LB do mesmo dia da semana: a última ocorrência vs a anterior (ex.: esta terça vs a terça passada). Comparar o mesmo dia neutraliza a sazonalidade." />
+          </div>
           <p className="text-[10px] text-gray-400">var. semanal · mesmo dia</p>
           <p className={cn('mt-2 text-2xl font-bold tabular-nums', (varSemanal ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{varSemanal != null ? pct1(varSemanal) : '—'}</p>
           <p className="mt-1 text-[11px] text-gray-500">{occ.length >= 2 ? `${ddmm(occ[occ.length - 1].data)} vs ${ddmm(occ[occ.length - 2].data)}` : 'amostra insuficiente'}</p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Minha margem/litro</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Minha margem/litro</p>
+            <InfoHint text="Lucro bruto por litro nos dias fechados do mês (LB ÷ litros). É o R$ que sobra por litro vendido, já descontado o custo de reposição." />
+          </div>
           <p className="text-[10px] text-gray-400">L.B. por litro · dias fechados</p>
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{lbL(data.lbPorLitro)}<span className="text-sm font-medium text-gray-400">/L</span></p>
           <p className="mt-1 text-[11px] text-gray-500">{formatLitersShort(data.dailyCurr.reduce((s, d) => s + d.litros, 0))} no mês</p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Melhor que o mês passado?</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Melhor que o mês passado?</p>
+            <InfoHint text="Compara a média do dia-da-semana selecionado neste mês com a média do mesmo dia no mês anterior." />
+          </div>
           <p className="text-[10px] text-gray-400">{WD.find((w) => w.wd === wd)?.label}s · este mês vs anterior</p>
           <p className={cn('mt-2 text-2xl font-bold tabular-nums', (vsMesPassado ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{vsMesPassado != null ? pct1(vsMesPassado) : '—'}</p>
           <p className="mt-1 text-[11px] text-gray-500">média dos {WD.find((w) => w.wd === wd)?.label.toLowerCase()}s</p>
@@ -212,7 +221,10 @@ const ProjecaoLB = () => {
         return (
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">De onde vem o ganho</h3>
+              <div className="flex items-center gap-1">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">De onde vem o ganho</h3>
+                <InfoHint text="Decompõe a variação de LB entre as duas últimas ocorrências do dia em efeito VOLUME (mais/menos litros) e efeito MARGEM (melhor/pior R$/L). A soma dá a variação total — mostra se o ganho veio de litro ou de preço." />
+              </div>
               <span className="text-[11px] text-gray-400">{ddmm(decomp.last.data)} vs {ddmm(decomp.prev.data)} · volume × margem</span>
             </div>
             <p className="mb-3 text-[12px] text-gray-500 dark:text-gray-400">
@@ -266,7 +278,10 @@ const ProjecaoLB = () => {
       {quemPuxou.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Quem puxou o resultado da última {WD.find((w) => w.wd === wd)?.label.toLowerCase()}</h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Quem puxou o resultado da última {WD.find((w) => w.wd === wd)?.label.toLowerCase()}</h3>
+              <InfoHint text="Contribuição de cada posto para o LB da última ocorrência do dia, e a variação vs a semana anterior. Ordenado pela contribuição." />
+            </div>
             <span className="text-[11px] text-gray-400">contribuição por posto · vs semana anterior</span>
           </div>
           <div className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">
