@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle,
+  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
@@ -130,8 +130,15 @@ const PrecoEditor = ({
           {novos.map((n) => (
             <tr key={n.id} className="bg-emerald-50/30 dark:bg-emerald-950/10">
               <td className="px-3 py-2">
-                <input value={n.nome} onChange={(e) => setNovos((ns) => ns.map((x) => x.id === n.id ? { ...x, nome: e.target.value } : x))} placeholder="Nome do concorrente"
-                  className="w-36 rounded border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800" />
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => setNovos((ns) => ns.filter((x) => x.id !== n.id))}
+                    aria-label="Remover concorrente"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <input value={n.nome} onChange={(e) => setNovos((ns) => ns.map((x) => x.id === n.id ? { ...x, nome: e.target.value } : x))} placeholder="Nome do concorrente"
+                    className="w-36 rounded border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800" />
+                </div>
               </td>
               <td className="px-2 py-2 text-center">
                 <input value={n.postos} onChange={(e) => setNovos((ns) => ns.map((x) => x.id === n.id ? { ...x, postos: e.target.value } : x))}
