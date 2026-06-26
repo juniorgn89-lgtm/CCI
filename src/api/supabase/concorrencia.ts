@@ -106,6 +106,27 @@ export const fetchConcorrenciaPrecosRede = async (params: {
   return (data ?? []) as ConcorrenciaPrecoRow[]
 }
 
+/**
+ * Apaga TODAS as observações de um concorrente num posto (limpeza/correção —
+ * ex.: cadastro de teste). RLS: só master (policy "concorrencia delete master").
+ * Usa `.select()` pra contar as linhas removidas: 0 sem erro = RLS bloqueou
+ * (sem permissão), já que um DELETE filtrado por RLS não acusa erro.
+ */
+export const deleteConcorrente = async (params: {
+  empresaCodigo: number
+  concorrenteNome: string
+}): Promise<{ ok: boolean; count?: number; error?: string }> => {
+  if (!supabase) return { ok: false, error: 'Sem conexão com o banco.' }
+  const { data, error } = await supabase
+    .from('concorrencia_precos')
+    .delete()
+    .eq('empresa_codigo', params.empresaCodigo)
+    .eq('concorrente_nome', params.concorrenteNome)
+    .select('id')
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, count: data?.length ?? 0 }
+}
+
 /** INSERT de uma observação (append-only). RLS exige permissão + escopo de empresa. */
 export const insertConcorrenciaPrecos = async (
   rows: ConcorrenciaPrecoInsert[],

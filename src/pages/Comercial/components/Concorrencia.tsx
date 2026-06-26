@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X,
+  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X, Trash2, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
@@ -10,7 +10,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import { useTenantStore } from '@/store/tenant'
 import { useComercialFlags } from '@/store/comercialFlags'
 import {
-  insertConcorrenciaPrecos, type ConcorrenciaPrecoInsert, type FuelSlug,
+  insertConcorrenciaPrecos, deleteConcorrente, type ConcorrenciaPrecoInsert, type FuelSlug,
 } from '@/api/supabase/concorrencia'
 import useConcorrencia, { type FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
 
@@ -40,6 +40,23 @@ const PrecoEditor = ({
   const [novos, setNovos] = useState<{ id: number; nome: string; postos: string; precos: Partial<Record<FuelSlug, string>> }[]>([])
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  // Exclusão de concorrente salvo (master-only via RLS): confirmação inline por linha.
+  const [pendingDel, setPendingDel] = useState<string | null>(null)
+  const [delBusy, setDelBusy] = useState(false)
+
+  const handleDelete = async (nome: string) => {
+    setDelBusy(true); setMsg(null)
+    const res = await deleteConcorrente({ empresaCodigo, concorrenteNome: nome })
+    setDelBusy(false); setPendingDel(null)
+    if (!res.ok) {
+      setMsg({ ok: false, text: res.error?.includes('row-level security') ? 'Sem permissão para excluir (só master).' : (res.error ?? 'Erro ao excluir.') })
+      return
+    }
+    if ((res.count ?? 0) === 0) { setMsg({ ok: false, text: 'Sem permissão para excluir (só master).' }); return }
+    setDraft((d) => { const nd = { ...d }; delete nd[nome]; return nd })
+    setMsg({ ok: true, text: `Concorrente "${nome}" excluído.` })
+    qc.invalidateQueries({ queryKey: ['concorrencia', empresaCodigo] })
+  }
 
   const setPreco = (nome: string, slug: FuelSlug, val: string) =>
     setDraft((d) => ({ ...d, [nome]: { ...d[nome], precos: { ...d[nome].precos, [slug]: val } } }))
@@ -101,7 +118,30 @@ const PrecoEditor = ({
         <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
           {nomes.map((nome) => (
             <tr key={nome}>
-              <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{nome}</td>
+              <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">
+                <div className="flex items-center gap-1.5">
+                  {pendingDel === nome ? (
+                    <span className="inline-flex items-center gap-1">
+                      <button type="button" onClick={() => handleDelete(nome)} disabled={delBusy}
+                        aria-label={`Confirmar exclusão de ${nome}`}
+                        className="inline-flex h-6 items-center gap-1 rounded bg-red-600 px-1.5 text-[10px] font-semibold text-white hover:bg-red-700 disabled:opacity-60">
+                        <Check className="h-3 w-3" /> {delBusy ? 'Excluindo…' : 'Excluir'}
+                      </button>
+                      <button type="button" onClick={() => setPendingDel(null)} aria-label="Cancelar exclusão"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setPendingDel(nome)}
+                      aria-label={`Excluir concorrente ${nome}`}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-gray-600 dark:hover:bg-red-950/30 dark:hover:text-red-400">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <span>{nome}</span>
+                </div>
+              </td>
               <td className="px-2 py-2 text-center">
                 <input value={draft[nome].postos} onChange={(e) => setDraft((d) => ({ ...d, [nome]: { ...d[nome], postos: e.target.value } }))}
                   className="w-12 rounded border border-gray-200 bg-white px-1.5 py-1 text-center tabular-nums dark:border-gray-700 dark:bg-gray-800" inputMode="numeric" />
