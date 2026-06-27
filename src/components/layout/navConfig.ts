@@ -30,6 +30,13 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: 'Análise',
+    items: [
+      { label: 'Comercial', path: '/comercial', icon: TrendingUp },
+      { label: 'Inteligência', path: '/inteligencia', icon: Brain },
+    ],
+  },
+  {
     title: 'Posto',
     items: [
       { label: 'Bombas', path: '/bombas', icon: Gauge },
@@ -45,13 +52,6 @@ export const navGroups: NavGroup[] = [
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
       { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
-    ],
-  },
-  {
-    title: 'Análise',
-    items: [
-      { label: 'Comercial', path: '/comercial', icon: TrendingUp },
-      { label: 'Inteligência', path: '/inteligencia', icon: Brain },
     ],
   },
 ]
