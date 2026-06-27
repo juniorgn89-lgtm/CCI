@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair } from 'lucide-react'
+import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair, ChevronRight } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import useGestaoPrecos, { type GestaoPrecoRow, type GestaoPrecosData } from '@/pages/Dashboard/hooks/useGestaoPrecos'
 import { BASE_DESVIO_LABEL, BASE_MIX_NOTE, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
@@ -55,6 +56,8 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
   rows: GestaoPrecoRow[]; cedidoGlobal: number; entidade: 'produto' | 'posto'
 }) => {
   const ent = entidade === 'produto' ? { col: 'Produto', plural: 'Produtos' } : { col: 'Empresa', plural: 'Postos' }
+  const outroLabel = entidade === 'produto' ? 'Posto' : 'Produto'
+  const [aberto, setAberto] = useState<GestaoPrecoRow | null>(null)
   const agg = useMemo(() => {
     let vol = 0, tabW = 0, pratW = 0
     for (const r of rows) { vol += r.volume; tabW += r.precoTabelaMedio * r.volume; pratW += r.precoPraticadoMedio * r.volume }
@@ -109,8 +112,11 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
               const sev = severidadeCedido(r.pctCedido)
               const cedeu = r.desvioMedio > 0.0005
               return (
-                <tr key={r.key} className={SEV_ROW[sev]}>
-                  <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{r.label}</td>
+                <tr key={r.key} onClick={() => setAberto(r)} title={`Ver de onde ${r.label} cedeu`}
+                  className={cn('cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40', SEV_ROW[sev])}>
+                  <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">
+                    <span className="inline-flex items-center gap-1">{r.label}<ChevronRight className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" /></span>
+                  </td>
                   <td className="px-2 py-2 text-center">
                     {cedeu ? (
                       <span className={cn('rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide dark:bg-gray-800', SEV_TEXT[sev])}>Cedeu</span>
@@ -155,6 +161,47 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
           </div>
         </div>
       )}
+
+      {/* Modal "de onde cedeu" — quebra pela outra dimensão */}
+      <Dialog open={!!aberto} onOpenChange={(o) => { if (!o) setAberto(null) }}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden rounded-2xl p-0">
+          {aberto && (
+            <>
+              <div className="border-b border-gray-100 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-5 py-3.5 text-white dark:border-gray-800">
+                <DialogTitle className="text-[15px] font-bold">De onde cedeu — {aberto.label}</DialogTitle>
+                <DialogDescription className="mt-0.5 text-[12px] text-white/70">
+                  −{formatCurrencyInt(aberto.lbCedido)} cedido · quebra por {outroLabel.toLowerCase()}
+                </DialogDescription>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto">
+                <table className="w-full text-[12.5px]">
+                  <thead className="sticky top-0 bg-white dark:bg-gray-900">
+                    <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
+                      <th className="px-4 py-2 font-semibold">{outroLabel}</th>
+                      <th className="px-2 py-2 text-right font-semibold">Desvio R$/L</th>
+                      <th className="px-2 py-2 text-right font-semibold">Volume</th>
+                      <th className="px-4 py-2 text-right font-semibold">LB cedido</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
+                    {aberto.detalhe.map((d) => (
+                      <tr key={d.key}>
+                        <td className="px-4 py-2 font-medium text-gray-800 dark:text-gray-200">{d.label}</td>
+                        <td className={cn('px-2 py-2 text-right tabular-nums', d.desvioMedio > 0.0005 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r3(d.desvioMedio)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatLiters(d.volume)}</td>
+                        <td className={cn('px-4 py-2 text-right font-bold tabular-nums', d.lbCedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{d.lbCedido > 0 ? `−${formatCurrencyInt(d.lbCedido)}` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="border-t border-gray-100 px-5 py-2.5 text-[10.5px] text-gray-400 dark:border-gray-800">
+                {BASE_DESVIO_LABEL} · só abastecimentos com preço de tabela.
+              </p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

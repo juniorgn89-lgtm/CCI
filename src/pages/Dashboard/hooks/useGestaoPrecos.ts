@@ -53,6 +53,18 @@ export interface GestaoPrecoRow {
   lbPotencial: number
   /** cedido ÷ potencial × 100 (DERIVADO). */
   pctCedido: number
+  /** "De onde cedeu": quebra pela OUTRA dimensão (produto→postos; posto→produtos). */
+  detalhe: GestaoPrecoDetalhe[]
+}
+
+export interface GestaoPrecoDetalhe {
+  key: number
+  label: string
+  volume: number
+  precoTabelaMedio: number
+  precoPraticadoMedio: number
+  desvioMedio: number
+  lbCedido: number
 }
 
 export interface GestaoPrecosData {
@@ -167,10 +179,22 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       }
     }
 
-    // Acumula desvio por produto e por posto. Cobertura conta TODOS os
-    // abastecimentos válidos; só os com preço de tabela entram na conta.
+    // Acumula desvio por produto e por posto + a MATRIZ produto×posto (pro
+    // drill "de onde cedeu"). Cobertura conta TODOS os abastecimentos válidos;
+    // só os com preço de tabela entram na conta.
+    const add = (acc: Acc, q: number, pc: number, vu: number, ced: number, gan: number) => {
+      acc.vol += q; acc.tabelaW += pc * q; acc.pratW += vu * q; acc.cedido += ced; acc.ganho += gan
+    }
+    const bump = (m: Map<number, Map<number, Acc>>, k1: number, k2: number, q: number, pc: number, vu: number, ced: number, gan: number) => {
+      const inner = m.get(k1) ?? new Map<number, Acc>()
+      const acc = inner.get(k2) ?? blank()
+      add(acc, q, pc, vu, ced, gan)
+      inner.set(k2, acc); m.set(k1, inner)
+    }
     const porProduto = new Map<number, Acc>()
     const porPosto = new Map<number, Acc>()
+    const xProduto = new Map<number, Map<number, Acc>>() // produto → posto → acc
+    const xPosto = new Map<number, Map<number, Acc>>()   // posto → produto → acc
     let totalFills = 0
     let comTabela = 0
 
@@ -187,25 +211,27 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       const cedido = Math.max(0, desvioUnit) * a.quantidade
       const ganho = Math.max(0, -desvioUnit) * a.quantidade
       const canon = resolveProd(a.codigoProduto, a.codigoBico)
+      const q = a.quantidade, pc = a.precoCadastro, vu = a.valorUnitario
 
-      const accP = porProduto.get(canon) ?? blank()
-      accP.vol += a.quantidade
-      accP.tabelaW += a.precoCadastro * a.quantidade
-      accP.pratW += a.valorUnitario * a.quantidade
-      accP.cedido += cedido
-      accP.ganho += ganho
-      porProduto.set(canon, accP)
-
-      const accE = porPosto.get(a.empresaCodigo) ?? blank()
-      accE.vol += a.quantidade
-      accE.tabelaW += a.precoCadastro * a.quantidade
-      accE.pratW += a.valorUnitario * a.quantidade
-      accE.cedido += cedido
-      accE.ganho += ganho
-      porPosto.set(a.empresaCodigo, accE)
+      const accP = porProduto.get(canon) ?? blank(); add(accP, q, pc, vu, cedido, ganho); porProduto.set(canon, accP)
+      const accE = porPosto.get(a.empresaCodigo) ?? blank(); add(accE, q, pc, vu, cedido, ganho); porPosto.set(a.empresaCodigo, accE)
+      bump(xProduto, canon, a.empresaCodigo, q, pc, vu, cedido, ganho)
+      bump(xPosto, a.empresaCodigo, canon, q, pc, vu, cedido, ganho)
     }
 
-    const toRow = (key: number, label: string, acc: Acc, lbRealizado: number): GestaoPrecoRow => {
+    // Detalhe (quebra pela outra dimensão), ordenado por cedido desc.
+    const toDetalhe = (inner: Map<number, Acc> | undefined, nome: (k: number) => string): GestaoPrecoDetalhe[] =>
+      Array.from(inner?.entries() ?? [])
+        .map(([k, acc]) => {
+          const tab = acc.vol > 0 ? acc.tabelaW / acc.vol : 0
+          const prat = acc.vol > 0 ? acc.pratW / acc.vol : 0
+          return { key: k, label: nome(k), volume: acc.vol, precoTabelaMedio: tab, precoPraticadoMedio: prat, desvioMedio: tab - prat, lbCedido: acc.cedido }
+        })
+        .sort((a, b) => b.lbCedido - a.lbCedido)
+    const nomeProdutoDe = (k: number) => nomeProduto.get(k) ?? `Produto ${k}`
+    const nomePostoDe = (k: number) => nomePosto.get(k) ?? `Posto ${k}`
+
+    const toRow = (key: number, label: string, acc: Acc, lbRealizado: number, detalhe: GestaoPrecoDetalhe[]): GestaoPrecoRow => {
       const precoTabelaMedio = acc.vol > 0 ? acc.tabelaW / acc.vol : 0
       const precoPraticadoMedio = acc.vol > 0 ? acc.pratW / acc.vol : 0
       const lbNet = acc.cedido - acc.ganho
@@ -223,15 +249,16 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         lbRealizado,
         lbPotencial,
         pctCedido: lbPotencial > 0 ? (acc.cedido / lbPotencial) * 100 : 0,
+        detalhe,
       }
     }
 
     const byProduto = Array.from(porProduto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomeProduto.get(codigo) ?? `Produto ${codigo}`, acc, lbPorProduto.get(codigo) ?? 0))
+      .map(([codigo, acc]) => toRow(codigo, nomeProdutoDe(codigo), acc, lbPorProduto.get(codigo) ?? 0, toDetalhe(xProduto.get(codigo), nomePostoDe)))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const byPosto = Array.from(porPosto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomePosto.get(codigo) ?? `Posto ${codigo}`, acc, lbPorPosto.get(codigo) ?? 0))
+      .map(([codigo, acc]) => toRow(codigo, nomePostoDe(codigo), acc, lbPorPosto.get(codigo) ?? 0, toDetalhe(xPosto.get(codigo), nomeProdutoDe)))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const gCedido = byPosto.reduce((s, r) => s + r.lbCedido, 0)
