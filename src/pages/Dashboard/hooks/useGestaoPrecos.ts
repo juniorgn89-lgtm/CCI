@@ -1,0 +1,234 @@
+import { useMemo, useState } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useFilterStore } from '@/store/filters'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
+import { PRECO_CADASTRO_MIN } from '@/lib/gestaoPrecos'
+
+/**
+ * Gestão de Preços (Central da Rede) — sub-fase 1.1: derivação do DESVIO de
+ * preço por produto e por posto. Tudo read-only.
+ *
+ * Desvio (FATO, base FÍSICA /ABASTECIMENTO): `preco_cadastro − valor_unitario`,
+ * carimbado no abastecimento. LB cedido (DERIVADO) = Σ desvio>0 × volume
+ * (cedido-only é a manchete — decisão 2; o `lbNet` traz cedido − ganho pro
+ * tooltip). LB realizado (FATO, base FISCAL) vem do `useRedeSetores`; por isso
+ * `lbPotencial = realizado + cedido` cruza bases — ver BASE_MIX_NOTE.
+ *
+ * FONTE (1.1): live `/ABASTECIMENTO` (sempre traz o preço de tabela). O cache
+ * `apuracao_abastecimentos` só ganha `preco_cadastro` após o deploy do cron +
+ * re-apuração; o cache-first entra então. A `cobertura` (% de abastecimentos
+ * com preço de tabela) acompanha o número desde o 1º render — número sem
+ * cobertura visível, não.
+ *
+ * Combustível só (o `/ABASTECIMENTO` é fuel-only).
+ */
+
+export interface GestaoPrecoRow {
+  /** produtoCodigo (byProduto) ou empresaCodigo (byPosto). */
+  key: number
+  label: string
+  /** Litros no escopo (FATO). */
+  volume: number
+  /** Preço de tabela médio, ponderado por volume (FATO). */
+  precoTabelaMedio: number
+  /** Preço praticado médio, ponderado por volume (FATO). */
+  precoPraticadoMedio: number
+  /** Tabela − praticado, R$/L (DERIVADO). >0 = cedeu; <0 = vendeu acima. */
+  desvioMedio: number
+  /** Σ desvio>0 × volume — cedido (DERIVADO, manchete). */
+  lbCedido: number
+  /** Σ desvio<0 × volume — vendeu acima (DERIVADO). */
+  lbGanho: number
+  /** cedido − ganho (DERIVADO, tooltip). */
+  lbNet: number
+  /** LB realizado (FATO, base fiscal — useRedeSetores). */
+  lbRealizado: number
+  /** realizado + cedido (DERIVADO, cruza bases). */
+  lbPotencial: number
+  /** cedido ÷ potencial × 100 (DERIVADO). */
+  pctCedido: number
+}
+
+export interface GestaoPrecosData {
+  isLoading: boolean
+  /** Honestidade do fallback: quantos abastecimentos têm preço de tabela. */
+  cobertura: { totalFills: number; comTabela: number; pct: number }
+  byProduto: GestaoPrecoRow[]
+  byPosto: GestaoPrecoRow[]
+  global: { volume: number; lbRealizado: number; lbCedido: number; lbPotencial: number; pctCedido: number }
+}
+
+interface Acc {
+  vol: number
+  tabelaW: number   // Σ preco_cadastro × qtd
+  pratW: number     // Σ valor_unitario × qtd
+  cedido: number
+  ganho: number
+}
+const blank = (): Acc => ({ vol: 0, tabelaW: 0, pratW: 0, cedido: 0, ganho: 0 })
+
+const useGestaoPrecos = (): GestaoPrecosData => {
+  const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
+  const [nowTs] = useState(() => Date.now())
+  const rede = useRedeSetores()
+
+  const { data: empresasData } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => fetchEmpresas({ limite: 200 }),
+    staleTime: 30 * 60 * 1000,
+  })
+  const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+
+  // Catálogo p/ nome do produto + bridge de aliases (codigoProduto do
+  // abastecimento → produtoCodigo canônico que o useRedeSetores usa).
+  const { data: produtosData } = useQuery({
+    queryKey: ['produtos'],
+    queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
+    staleTime: 30 * 60 * 1000,
+  })
+
+  // Live /ABASTECIMENTO (rede-wide; o endpoint ignora empresaCodigo → filtra no
+  // cliente). Traz preco_cadastro/tabelaPrecoA-C sempre.
+  const { data: abastRaw = [], isLoading: loadingAbast } = useQuery({
+    queryKey: ['gestao-precos-abast', dataInicial, dataFinal],
+    queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
+    enabled: !!dataInicial && !!dataFinal,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
+  return useMemo(() => {
+    // Escopo de postos = filtro global (ou todos os permitidos quando vazio).
+    const permitSet = new Set(permitidas.map((e) => e.codigo))
+    const inScope = (code: number) =>
+      permitSet.has(code) && (empresaCodigos.length === 0 || empresaCodigos.includes(code))
+    const nomePosto = new Map(permitidas.map((e) => [e.codigo, e.fantasia]))
+
+    // Nome do produto + alias → canônico.
+    const nomeProduto = new Map<number, string>()
+    const aliasCanonico = new Map<number, number>()
+    for (const p of produtosData ?? []) {
+      const canon = p.produtoCodigo
+      for (const c of [p.produtoCodigo, p.produtoLmcCodigo, p.codigo]) {
+        if (typeof c === 'number' && c > 0) {
+          aliasCanonico.set(c, canon)
+          if (!nomeProduto.has(c)) nomeProduto.set(c, p.nome)
+        }
+      }
+    }
+    const canonOf = (codigo: number) => aliasCanonico.get(codigo) ?? codigo
+
+    const todayISO = new Date(nowTs).toISOString().slice(0, 10)
+    const notFuture = (a: { dataFiscal?: string; dataHoraAbastecimento?: string }) => {
+      const dF = (a.dataFiscal ?? '').slice(0, 10)
+      const dH = (a.dataHoraAbastecimento ?? '').slice(0, 10)
+      return !(dF && dF > todayISO) && !(dH && dH > todayISO)
+    }
+
+    // LB realizado (fato fiscal) por posto e por produto (canônico), no MESMO
+    // escopo (o useRedeSetores já respeita o filtro global).
+    const lbPorPosto = new Map<number, number>()
+    const lbPorProduto = new Map<number, number>()
+    for (const p of rede.combustivel.postos) {
+      if (!inScope(p.empresaCodigo)) continue
+      lbPorPosto.set(p.empresaCodigo, (lbPorPosto.get(p.empresaCodigo) ?? 0) + p.lucroBruto)
+      for (const pr of p.produtos) {
+        const canon = canonOf(pr.produtoCodigo)
+        lbPorProduto.set(canon, (lbPorProduto.get(canon) ?? 0) + pr.lucroBruto)
+      }
+    }
+
+    // Acumula desvio por produto e por posto. Cobertura conta TODOS os
+    // abastecimentos válidos; só os com preço de tabela entram na conta.
+    const porProduto = new Map<number, Acc>()
+    const porPosto = new Map<number, Acc>()
+    let totalFills = 0
+    let comTabela = 0
+
+    for (const a of abastRaw) {
+      if (a.afericao) continue
+      if (!inScope(a.empresaCodigo)) continue
+      if (a.quantidade <= 0) continue
+      if (!notFuture(a)) continue
+      totalFills++
+      if (a.precoCadastro <= PRECO_CADASTRO_MIN || a.valorUnitario <= 0) continue
+      comTabela++
+
+      const desvioUnit = a.precoCadastro - a.valorUnitario
+      const cedido = Math.max(0, desvioUnit) * a.quantidade
+      const ganho = Math.max(0, -desvioUnit) * a.quantidade
+      const canon = canonOf(a.codigoProduto)
+
+      const accP = porProduto.get(canon) ?? blank()
+      accP.vol += a.quantidade
+      accP.tabelaW += a.precoCadastro * a.quantidade
+      accP.pratW += a.valorUnitario * a.quantidade
+      accP.cedido += cedido
+      accP.ganho += ganho
+      porProduto.set(canon, accP)
+
+      const accE = porPosto.get(a.empresaCodigo) ?? blank()
+      accE.vol += a.quantidade
+      accE.tabelaW += a.precoCadastro * a.quantidade
+      accE.pratW += a.valorUnitario * a.quantidade
+      accE.cedido += cedido
+      accE.ganho += ganho
+      porPosto.set(a.empresaCodigo, accE)
+    }
+
+    const toRow = (key: number, label: string, acc: Acc, lbRealizado: number): GestaoPrecoRow => {
+      const precoTabelaMedio = acc.vol > 0 ? acc.tabelaW / acc.vol : 0
+      const precoPraticadoMedio = acc.vol > 0 ? acc.pratW / acc.vol : 0
+      const lbNet = acc.cedido - acc.ganho
+      const lbPotencial = lbRealizado + acc.cedido
+      return {
+        key,
+        label,
+        volume: acc.vol,
+        precoTabelaMedio,
+        precoPraticadoMedio,
+        desvioMedio: precoTabelaMedio - precoPraticadoMedio,
+        lbCedido: acc.cedido,
+        lbGanho: acc.ganho,
+        lbNet,
+        lbRealizado,
+        lbPotencial,
+        pctCedido: lbPotencial > 0 ? (acc.cedido / lbPotencial) * 100 : 0,
+      }
+    }
+
+    const byProduto = Array.from(porProduto.entries())
+      .map(([codigo, acc]) => toRow(codigo, nomeProduto.get(codigo) ?? `Produto ${codigo}`, acc, lbPorProduto.get(codigo) ?? 0))
+      .sort((a, b) => b.lbCedido - a.lbCedido)
+
+    const byPosto = Array.from(porPosto.entries())
+      .map(([codigo, acc]) => toRow(codigo, nomePosto.get(codigo) ?? `Posto ${codigo}`, acc, lbPorPosto.get(codigo) ?? 0))
+      .sort((a, b) => b.lbCedido - a.lbCedido)
+
+    const gCedido = byPosto.reduce((s, r) => s + r.lbCedido, 0)
+    const gRealizado = byPosto.reduce((s, r) => s + r.lbRealizado, 0)
+    const gVol = byPosto.reduce((s, r) => s + r.volume, 0)
+    const gPotencial = gRealizado + gCedido
+
+    return {
+      isLoading: loadingAbast || rede.isLoading,
+      cobertura: { totalFills, comTabela, pct: totalFills > 0 ? (comTabela / totalFills) * 100 : 0 },
+      byProduto,
+      byPosto,
+      global: {
+        volume: gVol,
+        lbRealizado: gRealizado,
+        lbCedido: gCedido,
+        lbPotencial: gPotencial,
+        pctCedido: gPotencial > 0 ? (gCedido / gPotencial) * 100 : 0,
+      },
+    }
+  }, [abastRaw, produtosData, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
+}
+
+export default useGestaoPrecos
