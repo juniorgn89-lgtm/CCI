@@ -327,6 +327,15 @@ export interface AbastecimentoCacheRow {
    * Nullable porque rows antigos (antes da migration) não têm.
    */
   preco_custo: number | null
+  /**
+   * Preço de TABELA carimbado no abastecimento — base do desvio de Gestão de
+   * Preços (desvio = preco_cadastro − valor_unitario). NULL = pré-migration /
+   * sem tabela → excluído da conta (cobertura visível na tela).
+   */
+  preco_cadastro: number | null
+  tabela_preco_a: number | null
+  tabela_preco_b: number | null
+  tabela_preco_c: number | null
 }
 
 export type AbastecimentoCacheUpsert = Omit<AbastecimentoCacheRow, 'computed_at'>
@@ -353,7 +362,7 @@ export const fetchAbastecimentosCache = async (
     // já é filtrado por RLS, e a economia de payload acumula em 10k rows).
     let query = supabase
       .from('apuracao_abastecimentos')
-      .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario,valor_total,placa,preco_custo')
+      .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario,valor_total,placa,preco_custo,preco_cadastro,tabela_preco_a,tabela_preco_b,tabela_preco_c')
       .gte('data_fiscal', params.dataInicial)
       .lte('data_fiscal', params.dataFinal)
       .order('abastecimento_codigo', { ascending: true })
@@ -464,6 +473,11 @@ export const abastecimentoToCacheRow = (
   valor_total: a.valorTotal,
   placa: a.placa || null,
   preco_custo: costMap?.get(`${a.empresaCodigo}-${a.codigoProduto}`) ?? null,
+  // Preço de tabela carimbado (Gestão de Preços). 0/ausente → null (= sem cadastro).
+  preco_cadastro: a.precoCadastro || null,
+  tabela_preco_a: a.tabelaPrecoA || null,
+  tabela_preco_b: a.tabelaPrecoB || null,
+  tabela_preco_c: a.tabelaPrecoC || null,
 })
 
 /** Mapeia row do cache → Abastecimento (shape da API Quality) pra reuso a jusante. */
@@ -479,10 +493,12 @@ export const cacheRowToAbastecimento = (r: AbastecimentoCacheRow): Abastecimento
   codigoFrentista: r.codigo_frentista ?? 0,
   afericao: false,
   vendaItemCodigo: 0,
-  precoCadastro: 0,
-  tabelaPrecoA: 0,
-  tabelaPrecoB: 0,
-  tabelaPrecoC: 0,
+  // Preço de tabela carimbado na apuração (Gestão de Preços). NULL → 0; a tela
+  // exclui 0 da conta (= sem cadastro de preço pra aquele abastecimento).
+  precoCadastro: r.preco_cadastro ?? 0,
+  tabelaPrecoA: r.tabela_preco_a ?? 0,
+  tabelaPrecoB: r.tabela_preco_b ?? 0,
+  tabelaPrecoC: r.tabela_preco_c ?? 0,
   empresaCodigo: r.empresa_codigo,
   dataHoraAbastecimento: r.data_hora_abastecimento ?? '',
   stringAll: '',

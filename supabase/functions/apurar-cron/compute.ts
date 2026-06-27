@@ -22,6 +22,11 @@ export interface Abastecimento {
   /** Teste de bomba — não é venda; excluído da apuração. */
   afericao?: boolean
   precoCusto?: number
+  /** Preço de TABELA carimbado no abastecimento — base do desvio de Gestão de Preços. */
+  precoCadastro?: number
+  tabelaPrecoA?: number
+  tabelaPrecoB?: number
+  tabelaPrecoC?: number
 }
 
 export interface LMC {
@@ -127,6 +132,8 @@ export interface AbastecimentoCacheUpsert {
   codigo_produto: number | null; codigo_frentista: number | null; codigo_bico: number | null
   quantidade: number; valor_unitario: number; valor_total: number
   placa: string | null; preco_custo: number | null
+  preco_cadastro: number | null
+  tabela_preco_a: number | null; tabela_preco_b: number | null; tabela_preco_c: number | null
 }
 
 export interface CaixaCacheUpsert {
@@ -469,6 +476,10 @@ export const abastecimentoToCacheRow = (
   valor_total: a.valorTotal,
   placa: a.placa || null,
   preco_custo: costMap?.get(`${a.empresaCodigo}-${a.codigoProduto}`) ?? null,
+  preco_cadastro: a.precoCadastro ?? null,
+  tabela_preco_a: a.tabelaPrecoA ?? null,
+  tabela_preco_b: a.tabelaPrecoB ?? null,
+  tabela_preco_c: a.tabelaPrecoC ?? null,
 })
 
 export const caixaToCacheRow = (c: Caixa, redeId: string): CaixaCacheUpsert => ({
