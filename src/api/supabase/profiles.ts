@@ -6,6 +6,12 @@ export interface ProfileRow {
   full_name: string | null
   role: 'user' | 'supervisor'
   approved: boolean
+  /**
+   * Usuário ativo. false = inativado (bloqueia login, preserva o registro).
+   * Opcional: rows lidos antes da migration não têm a coluna → tratar
+   * `ativo !== false` como ativo.
+   */
+  ativo?: boolean
   is_master: boolean
   rede_id: string | null
   /**
@@ -55,6 +61,16 @@ export const updateProfileApproved = async (userId: string, approved: boolean) =
   const { error } = await supabase
     .from('profiles')
     .update({ approved })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Inativa/reativa um usuário (ativo=false bloqueia o login; preserva o registro). */
+export const updateProfileAtivo = async (userId: string, ativo: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase
+    .from('profiles')
+    .update({ ativo })
     .eq('user_id', userId)
   if (error) throw error
 }

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
   updateProfileRole,
   updateProfileApproved,
+  updateProfileAtivo,
   updateProfileRedeId,
   updateProfileEmpresas,
   updateProfileModulos,
@@ -102,6 +103,24 @@ const Usuarios = () => {
     setBusyUserId(row.user_id)
     try {
       await updateProfileApproved(row.user_id, !row.approved)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleToggleAtivo = async (row: ProfileRow) => {
+    if (row.user_id === myUser?.id) {
+      alert('Você não pode inativar a própria conta.')
+      return
+    }
+    const inativando = row.ativo !== false
+    if (inativando && !confirm(`Inativar ${row.full_name || row.email}? Ele perde o acesso ao sistema, mas o registro é preservado — dá pra reativar depois.`)) return
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfileAtivo(row.user_id, !inativando)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -411,7 +430,7 @@ const Usuarios = () => {
                       <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
                       <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
                       <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
-                      <th className="w-16 px-3 py-2.5 text-right font-medium">Excluir</th>
+                      <th className="w-24 px-3 py-2.5 text-right font-medium">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -429,6 +448,7 @@ const Usuarios = () => {
                         onEditModulos={() => setEditingModulosFor(p)}
                         onTogglePodeApurar={() => handleTogglePodeApurar(p)}
                         onTogglePodeReabast={() => handleTogglePodeReabast(p)}
+                        onToggleAtivo={() => handleToggleAtivo(p)}
                         onDelete={() => handleDelete(p)}
                       />
                     ))}
@@ -691,10 +711,12 @@ interface UserRowProps {
   onEditModulos: () => void
   onTogglePodeApurar: () => void
   onTogglePodeReabast: () => void
+  onToggleAtivo: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onDelete }: UserRowProps) => {
+  const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
     : null
@@ -713,6 +735,11 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             {isSelf && (
               <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 você
+              </span>
+            )}
+            {inativo && (
+              <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                inativo
               </span>
             )}
           </div>
@@ -926,28 +953,52 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
         )}
       </td>
 
-      {/* Ações — lixeira (desabilitada pra você mesmo e pra master) */}
+      {/* Ações — inativar/ativar + excluir (desabilitadas pra você mesmo e master) */}
       <td className="px-4 py-3 text-right">
-        <button
-          onClick={onDelete}
-          disabled={busy || isSelf || p.is_master}
-          title={
-            isSelf
-              ? 'Você não pode excluir a própria conta'
-              : p.is_master
-                ? 'Administrador não pode ser excluído'
-                : 'Excluir usuário'
-          }
-          aria-label={`Excluir ${p.full_name || p.email}`}
-          className={cn(
-            'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
-            (busy || isSelf || p.is_master)
-              ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
-              : 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20',
-          )}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            onClick={onToggleAtivo}
+            disabled={busy || isSelf || p.is_master}
+            title={
+              isSelf
+                ? 'Você não pode inativar a própria conta'
+                : p.is_master
+                  ? 'Administrador não pode ser inativado'
+                  : inativo ? 'Reativar usuário' : 'Inativar usuário (bloqueia acesso, preserva o registro)'
+            }
+            aria-label={`${inativo ? 'Reativar' : 'Inativar'} ${p.full_name || p.email}`}
+            className={cn(
+              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+              (busy || isSelf || p.is_master)
+                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
+                : inativo
+                  ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-400 dark:hover:bg-emerald-900/20'
+                  : 'border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-400 dark:hover:bg-amber-900/20',
+            )}
+          >
+            {inativo ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={busy || isSelf || p.is_master}
+            title={
+              isSelf
+                ? 'Você não pode excluir a própria conta'
+                : p.is_master
+                  ? 'Administrador não pode ser excluído'
+                  : 'Excluir usuário'
+            }
+            aria-label={`Excluir ${p.full_name || p.email}`}
+            className={cn(
+              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+              (busy || isSelf || p.is_master)
+                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
+                : 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20',
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
   )

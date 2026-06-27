@@ -40,13 +40,17 @@ export const useAuth = () => {
     if (!supabase) return false
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return false
+    // Acesso exige approved=true E ativo!=false. Usa select('*') de propósito:
+    // não dá 400 quando a coluna `ativo` ainda não existe (pré-migration) — aí
+    // `data.ativo` vem undefined e `!== false` trata como ATIVO (gate tolerante,
+    // não trava ninguém antes de rodar a SQL).
     const { data, error } = await supabase
       .from('profiles')
-      .select('approved')
+      .select('*')
       .eq('user_id', user.id)
       .single()
     if (error) return false
-    return data?.approved === true
+    return data?.approved === true && data?.ativo !== false
   }
 
   const login = useCallback(
@@ -79,7 +83,7 @@ export const useAuth = () => {
       const approved = await isCurrentUserApproved()
       if (!approved) {
         await supabase.auth.signOut()
-        setError('Sua conta está aguardando aprovação do Gerente Geral.')
+        setError('Sua conta está inativa ou aguardando aprovação do Gerente Geral.')
         return
       }
 
