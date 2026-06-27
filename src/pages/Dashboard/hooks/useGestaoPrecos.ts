@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -92,6 +93,23 @@ const useGestaoPrecos = (): GestaoPrecosData => {
     staleTime: 30 * 60 * 1000,
   })
 
+  // Bicos do escopo — ponte bico → produtoCodigo do catálogo. O /ABASTECIMENTO
+  // (físico) nem sempre traz um codigoProduto que casa direto com o catálogo/
+  // venda; resolver pelo bico é o caminho confiável (igual ao useOperacaoData).
+  const scopeCodes = useMemo(() => {
+    const permit = permitidas.map((e) => e.codigo)
+    return empresaCodigos.length > 0 ? permit.filter((c) => empresaCodigos.includes(c)) : permit
+  }, [permitidas, empresaCodigos])
+  const { data: bicosData = [] } = useQuery({
+    queryKey: ['gestao-precos-bicos', scopeCodes.join(',')],
+    queryFn: async () => {
+      const per = await Promise.all(scopeCodes.map((c) => fetchBicos({ empresaCodigo: c, limite: 1000 }).then((r) => r.resultados)))
+      return per.flat()
+    },
+    enabled: scopeCodes.length > 0,
+    staleTime: 30 * 60 * 1000,
+  })
+
   // Live /ABASTECIMENTO (rede-wide; o endpoint ignora empresaCodigo → filtra no
   // cliente). Traz preco_cadastro/tabelaPrecoA-C sempre.
   const { data: abastRaw = [], isLoading: loadingAbast } = useQuery({
@@ -122,6 +140,12 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       }
     }
     const canonOf = (codigo: number) => aliasCanonico.get(codigo) ?? codigo
+
+    // Bico → produtoCodigo (catálogo). Resolve o produto físico do abastecimento.
+    const bicoToProduto = new Map<number, number>()
+    for (const b of bicosData) bicoToProduto.set(b.bicoCodigo, b.produtoCodigo)
+    const resolveProd = (codigoProduto: number, codigoBico: number) =>
+      canonOf(bicoToProduto.get(codigoBico) ?? codigoProduto)
 
     const todayISO = new Date(nowTs).toISOString().slice(0, 10)
     const notFuture = (a: { dataFiscal?: string; dataHoraAbastecimento?: string }) => {
@@ -162,7 +186,7 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       const desvioUnit = a.precoCadastro - a.valorUnitario
       const cedido = Math.max(0, desvioUnit) * a.quantidade
       const ganho = Math.max(0, -desvioUnit) * a.quantidade
-      const canon = canonOf(a.codigoProduto)
+      const canon = resolveProd(a.codigoProduto, a.codigoBico)
 
       const accP = porProduto.get(canon) ?? blank()
       accP.vol += a.quantidade
@@ -228,7 +252,7 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         pctCedido: gPotencial > 0 ? (gCedido / gPotencial) * 100 : 0,
       },
     }
-  }, [abastRaw, produtosData, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
+  }, [abastRaw, produtosData, bicosData, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
 }
 
 export default useGestaoPrecos

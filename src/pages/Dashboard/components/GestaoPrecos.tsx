@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair } from 'lucide-react'
-import useGestaoPrecos, { type GestaoPrecoRow } from '@/pages/Dashboard/hooks/useGestaoPrecos'
-import { BASE_DESVIO_LABEL, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
+import useGestaoPrecos, { type GestaoPrecoRow, type GestaoPrecosData } from '@/pages/Dashboard/hooks/useGestaoPrecos'
+import { BASE_DESVIO_LABEL, BASE_MIX_NOTE, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,10 +22,10 @@ const SEV_ROW: Record<SeveridadeCedido, string> = {
 }
 
 type SubId = 'produto' | 'empresa' | 'lb' | 'cliente' | 'tabelas'
-const SUB_TABS: { id: SubId; label: string; lock?: boolean; soon?: boolean }[] = [
+const SUB_TABS: { id: SubId; label: string; lock?: boolean }[] = [
   { id: 'produto', label: 'Por produto' },
-  { id: 'empresa', label: 'Por empresa', soon: true },
-  { id: 'lb', label: 'Impacto no LB', soon: true },
+  { id: 'empresa', label: 'Por empresa' },
+  { id: 'lb', label: 'Impacto no LB' },
   { id: 'cliente', label: 'Por cliente', lock: true },
   { id: 'tabelas', label: 'Tabelas cadastradas', lock: true },
 ]
@@ -50,8 +50,11 @@ const Kpi = ({ label, value, sub, tone, help }: {
   </div>
 )
 
-/* ── Aba "Por produto" ── */
-const PorProduto = ({ rows, cedidoGlobal }: { rows: GestaoPrecoRow[]; cedidoGlobal: number }) => {
+/* ── Aba de desvio (serve "Por produto" e "Por empresa") ── */
+const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
+  rows: GestaoPrecoRow[]; cedidoGlobal: number; entidade: 'produto' | 'posto'
+}) => {
+  const ent = entidade === 'produto' ? { col: 'Produto', plural: 'Produtos' } : { col: 'Empresa', plural: 'Postos' }
   const agg = useMemo(() => {
     let vol = 0, tabW = 0, pratW = 0
     for (const r of rows) { vol += r.volume; tabW += r.precoTabelaMedio * r.volume; pratW += r.precoPraticadoMedio * r.volume }
@@ -83,8 +86,8 @@ const PorProduto = ({ rows, cedidoGlobal }: { rows: GestaoPrecoRow[]; cedidoGlob
         <Kpi label="Concentração do vazamento" tone="navy" value={agg.top?.label ?? '—'}
           sub={agg.top ? `${pct1(agg.conc)} do cedido · ${formatCurrencyInt(agg.top.lbCedido)}` : ''}
           help="Produto que mais puxa o desconto concedido — onde a recuperação tem maior alavancagem." />
-        <Kpi label="Produtos com desvio" tone="amber" value={String(rows.filter((r) => r.lbCedido > 0).length)}
-          sub={`de ${rows.length} no período`} help="Quantos combustíveis tiveram ao menos um abastecimento abaixo da tabela." />
+        <Kpi label={`${ent.plural} com desvio`} tone="amber" value={String(rows.filter((r) => r.lbCedido > 0).length)}
+          sub={`de ${rows.length} no período`} help={`Quantos ${ent.plural.toLowerCase()} tiveram ao menos um abastecimento abaixo da tabela.`} />
       </div>
 
       {/* Tabela praticado × tabela */}
@@ -92,7 +95,8 @@ const PorProduto = ({ rows, cedidoGlobal }: { rows: GestaoPrecoRow[]; cedidoGlob
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
-              <th className="px-3 py-2 font-semibold">Produto</th>
+              <th className="px-3 py-2 font-semibold">{ent.col}</th>
+              <th className="px-2 py-2 text-center font-semibold">Situação</th>
               <th className="px-2 py-2 text-right font-semibold">Tabela</th>
               <th className="px-2 py-2 text-right font-semibold">Praticado</th>
               <th className="px-2 py-2 text-right font-semibold">Desvio R$/L</th>
@@ -106,9 +110,15 @@ const PorProduto = ({ rows, cedidoGlobal }: { rows: GestaoPrecoRow[]; cedidoGlob
               const cedeu = r.desvioMedio > 0.0005
               return (
                 <tr key={r.key} className={SEV_ROW[sev]}>
-                  <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">
-                    {r.label}
-                    {cedeu && <span className={cn('ml-2 text-[10px] font-bold uppercase tracking-wide', SEV_TEXT[sev])}>cedeu</span>}
+                  <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{r.label}</td>
+                  <td className="px-2 py-2 text-center">
+                    {cedeu ? (
+                      <span className={cn('rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide dark:bg-gray-800', SEV_TEXT[sev])}>Cedeu</span>
+                    ) : r.desvioMedio < -0.0005 ? (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Acima</span>
+                    ) : (
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400">Na tabela</span>
+                    )}
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{r3(r.precoTabelaMedio)}</td>
                   <td className="px-2 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{r3(r.precoPraticadoMedio)}</td>
@@ -149,12 +159,80 @@ const PorProduto = ({ rows, cedidoGlobal }: { rows: GestaoPrecoRow[]; cedidoGlob
   )
 }
 
-const SoonCard = ({ fase }: { fase: string }) => (
-  <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
-    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Em construção</p>
-    <p className="mt-1 text-[12px] text-gray-400">{fase}</p>
-  </div>
-)
+/* ── Aba "Impacto no LB" (cards por posto + Origem 1 balde) ── */
+const PostoImpactoCard = ({ p, maior, disciplinado }: { p: GestaoPrecoRow; maior: boolean; disciplinado: boolean }) => {
+  const sev = severidadeCedido(p.pctCedido)
+  const total = p.lbPotencial > 0 ? p.lbPotencial : p.lbRealizado + p.lbCedido
+  const realPct = total > 0 ? (p.lbRealizado / total) * 100 : 100
+  const cedPct = total > 0 ? (p.lbCedido / total) * 100 : 0
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold text-gray-800 dark:text-gray-100">{p.label}</p>
+          <p className={cn('text-[20px] font-extrabold tabular-nums', SEV_TEXT[sev])}>−{formatCurrencyInt(p.lbCedido)}</p>
+          <p className="text-[11px] text-gray-400">{pct1(p.pctCedido)} do LB potencial</p>
+        </div>
+        {maior && <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-300">maior impacto</span>}
+        {disciplinado && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">mais disciplinado</span>}
+      </div>
+      {/* barra realizado (navy) × cedido (vermelho) = potencial */}
+      <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+        <div className="h-full bg-[#1e3a5f]" style={{ width: `${realPct}%` }} />
+        <div className="h-full bg-red-500" style={{ width: `${cedPct}%` }} />
+      </div>
+      <div className="mt-1.5 flex items-center justify-between text-[10.5px] tabular-nums text-gray-500 dark:text-gray-400">
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#1e3a5f] align-middle" />Realizado {formatCurrencyInt(p.lbRealizado)}</span>
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-red-500 align-middle" />Cedido {formatCurrencyInt(p.lbCedido)}</span>
+        <span className="font-semibold text-gray-700 dark:text-gray-300">Potencial {formatCurrencyInt(p.lbPotencial)}</span>
+      </div>
+      {/* Origem — 1 balde na Fase 1 (split por frota = 1.5) */}
+      {p.lbCedido > 0 && (
+        <div className="mt-3 border-t border-gray-100 pt-2 dark:border-gray-800">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Origem</p>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] dark:border-gray-700 dark:bg-gray-800">
+            <span className="font-medium text-gray-600 dark:text-gray-300">Ajuste de bomba · tabela geral</span>
+            <span className="font-bold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(p.lbCedido)}</span>
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const ImpactoLB = ({ byPosto, global }: { byPosto: GestaoPrecoRow[]; global: GestaoPrecosData['global'] }) => {
+  const comCedido = byPosto.filter((p) => p.lbCedido > 0)
+  const maiorKey = comCedido.length ? [...comCedido].sort((a, b) => b.pctCedido - a.pctCedido)[0].key : null
+  const discKey = comCedido.length ? [...comCedido].sort((a, b) => a.pctCedido - b.pctCedido)[0].key : null
+  const gSev = severidadeCedido(global.pctCedido)
+
+  if (byPosto.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900">
+        Sem dado de desvio no período/escopo.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi label="LB realizado" tone="navy" value={formatCurrencyInt(global.lbRealizado)} sub="apurado no período (fiscal)" help="Lucro bruto realizado da rede (base fiscal, useRedeSetores) no escopo do filtro." />
+        <Kpi label="Impacto dos descontos" tone="red" value={`−${formatCurrencyInt(global.lbCedido)}`} sub="cedido por ajuste de bomba" help="Total cedido por vender abaixo da tabela (Σ desvio>0 × volume). Derivado · base física." />
+        <Kpi label="LB potencial" tone="green" value={formatCurrencyInt(global.lbPotencial)} sub="realizado + cedido" help="O que o LB seria sem o ajuste de bomba abaixo da tabela. Derivado — cruza base fiscal + física." />
+        <Kpi label="% do LB cedido" tone={gSev === 'alto' ? 'red' : gSev === 'medio' ? 'amber' : 'green'} value={pct1(global.pctCedido)} sub="cedido ÷ potencial" help="Fração do LB potencial que vazou por desconto de bomba." />
+      </div>
+
+      <p className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+        ⚠️ {BASE_MIX_NOTE}
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {byPosto.map((p) => <PostoImpactoCard key={p.key} p={p} maior={p.key === maiorKey} disciplinado={p.key === discKey && p.key !== maiorKey} />)}
+      </div>
+    </div>
+  )
+}
 
 const GestaoPrecos = () => {
   const data = useGestaoPrecos()
@@ -219,11 +297,11 @@ const GestaoPrecos = () => {
           <Skeleton className="h-64 rounded-2xl" />
         </div>
       ) : sub === 'produto' ? (
-        <PorProduto rows={data.byProduto} cedidoGlobal={data.global.lbCedido} />
+        <AbaDesvio rows={data.byProduto} cedidoGlobal={data.global.lbCedido} entidade="produto" />
       ) : sub === 'empresa' ? (
-        <SoonCard fase="Por empresa — Fase 1.3" />
+        <AbaDesvio rows={data.byPosto} cedidoGlobal={data.global.lbCedido} entidade="posto" />
       ) : sub === 'lb' ? (
-        <SoonCard fase="Impacto no LB — Fase 1.4" />
+        <ImpactoLB byPosto={data.byPosto} global={data.global} />
       ) : (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
           <Lock className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
