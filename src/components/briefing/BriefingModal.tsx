@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Sun, X, BarChart3, Sparkles, SlidersHorizontal, Calendar, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react'
+import { Sun, X, SlidersHorizontal, Calendar, ArrowRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -12,7 +12,6 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { MODULOS } from '@/lib/modulos'
 import { todayLocal } from '@/lib/period'
-import { formatCurrencyShort, formatLitersShort } from '@/lib/formatters'
 import useBriefingResumo from '@/components/briefing/useBriefingResumo'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -32,21 +31,12 @@ const dataExtenso = (iso: string) => {
   return `${wd} · ${d} ${MESES[m - 1].toUpperCase()} ${y}`
 }
 const ddmmyyyy = (iso: string) => iso.split('-').reverse().join('/')
+/** yyyy-MM-dd → DD/MM (sem ano). */
+const ddmm = (iso: string) => iso.split('-').slice(1).reverse().join('/')
 /** R$/L com 2 casas (padrão do design do briefing). */
 const rl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
 /** Renderiza texto com **trechos** em negrito. */
 const rich = (s: string) => s.split('**').map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>))
-
-const DeltaPill = ({ v }: { v: number | null }) => {
-  if (v == null) return <span className="text-[10px] text-gray-400">sem base</span>
-  const up = v >= 0
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums',
-      up ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300')}>
-      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{up ? '+' : ''}{v.toFixed(1)}%
-    </span>
-  )
-}
 
 const BriefingModal = () => {
   const navigate = useNavigate()
@@ -108,18 +98,24 @@ const BriefingModal = () => {
     return { ini, fim }
   }, [periodo, escopo])
 
-  // Frase de leitura DETERMINÍSTICA (decomposição volume × margem da ΔLB).
+  // Frase de leitura DETERMINÍSTICA (decomposição volume × margem da ΔLB). Sempre
+  // começa pelo PERÍODO COMPARADO (ontem vs mesmo dia da semana passada + data),
+  // já que os KPIs foram removidos e a frase carrega o contexto.
   const leitura = useMemo(() => {
-    const { volumeEffect: vol, marginEffect: marg, deltaLB, deltaLitros, deltaLbPorLitroAbs } = resumo
+    const { volumeEffect: vol, marginEffect: marg, deltaLB, deltaLitros, deltaLbPorLitroAbs, diaSemana, ontem } = resumo
     if (!resumo.hasData || deltaLB == null) return null
+    const cmpRef = `**${diaSemana} passada (${ddmm(isoMinusDays(ontem, 7))})**`
     const litrosTxt = deltaLitros != null ? `os litros ${deltaLitros >= 0 ? 'subiram' : 'caíram'} ${Math.abs(deltaLitros).toFixed(1)}%` : null
     const rlTxt = deltaLbPorLitroAbs != null ? `${deltaLbPorLitroAbs >= 0 ? '+' : '−'}${rl(Math.abs(deltaLbPorLitroAbs))}/L` : null
     if (deltaLB >= 0) {
-      if (marg > vol) return `Lucro subiu puxado por **margem**${rlTxt ? ` (${rlTxt})` : ''}, não por volume${litrosTxt ? ` — ${litrosTxt}` : ''}. Ganho saudável.`
-      if (vol > 0 && marg <= 0) return `Lucro subiu por **volume**${litrosTxt ? ` (${litrosTxt})` : ''}; a margem por litro recuou${rlTxt ? ` (${rlTxt})` : ''}. Atenção pra não trocar lucro por litro.`
-      return `Lucro subiu — **volume e margem** somaram${litrosTxt ? ` (${litrosTxt})` : ''}.`
+      const motivo = marg > vol
+        ? `, puxado por **margem**${rlTxt ? ` (${rlTxt})` : ''} e não por volume${litrosTxt ? ` — ${litrosTxt}` : ''}`
+        : (vol > 0 && marg <= 0)
+          ? ` por **volume**${litrosTxt ? ` (${litrosTxt})` : ''}; a margem por litro recuou${rlTxt ? ` (${rlTxt})` : ''}`
+          : ` — **volume e margem** somaram${litrosTxt ? ` (${litrosTxt})` : ''}`
+      return `Vs ${cmpRef}: o lucro subiu **${deltaLB.toFixed(1)}%**${motivo}.`
     }
-    return `Lucro caiu ${Math.abs(deltaLB).toFixed(1)}% vs a ${resumo.diaSemana} passada — ${Math.abs(marg) >= Math.abs(vol) ? '**a margem por litro**' : '**o volume**'} puxou pra baixo.`
+    return `Vs ${cmpRef}: o lucro caiu **${Math.abs(deltaLB).toFixed(1)}%** — ${Math.abs(marg) >= Math.abs(vol) ? '**a margem por litro**' : '**o volume**'} puxou pra baixo${litrosTxt ? ` (${litrosTxt})` : ''}.`
   }, [resumo])
 
   const dismiss = () => {
@@ -173,45 +169,19 @@ const BriefingModal = () => {
 
         {/* Body */}
         <div className="space-y-3 px-6 py-4">
-          {/* Label de contexto */}
-          <p className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide text-gray-400">
-            <BarChart3 className="h-3.5 w-3.5" /> Combustível · ontem ({resumo.diaSemana}) vs {resumo.diaSemana} passada
-          </p>
-
-          {/* KPIs */}
+          {/* Leitura do dia (frase determinística). KPIs removidos — a frase
+              carrega o período comparado + a variação. */}
           {resumo.isLoading ? (
-            <div className="h-24 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-12 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
           ) : !resumo.hasData ? (
-            <div className="rounded-2xl border border-gray-200 p-4 text-center text-[12px] text-gray-400 dark:border-gray-700">
+            <div className="rounded-xl border border-gray-200 p-4 text-center text-[12px] text-gray-400 dark:border-gray-700">
               Ontem ainda não fechou no cache de apuração — confira mais tarde.
             </div>
-          ) : (
-            <div className="grid grid-cols-[1.5fr_1fr_1fr] overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
-              <div className="border-r border-gray-100 bg-gradient-to-br from-[#f0f6ff] to-white p-3.5 dark:border-gray-800 dark:from-blue-950/20 dark:to-gray-900">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Lucro bruto</p>
-                <p className="mt-0.5 text-[30px] font-extrabold leading-none tabular-nums text-[#1e3a5f] dark:text-blue-200">{formatCurrencyShort(resumo.lb)}</p>
-                <div className="mt-1.5"><DeltaPill v={resumo.deltaLB} /></div>
-              </div>
-              <div className="border-r border-gray-100 p-3.5 dark:border-gray-800">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Lucro / litro</p>
-                <p className="mt-0.5 text-[21px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{rl(resumo.lbPorLitro)}<span className="text-xs font-medium text-gray-400">/L</span></p>
-                <div className="mt-1.5"><DeltaPill v={resumo.deltaLbPorLitroPct} /></div>
-              </div>
-              <div className="p-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Litros</p>
-                <p className="mt-0.5 text-[21px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatLitersShort(resumo.litros)}</p>
-                <div className="mt-1.5"><DeltaPill v={resumo.deltaLitros} /></div>
-              </div>
-            </div>
-          )}
-
-          {/* Frase de leitura determinística */}
-          {leitura && (
-            <div className="flex items-start gap-2 rounded-xl border border-[#dbeafe] bg-[#f0f6ff] px-3.5 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#2563eb] dark:text-blue-300" />
+          ) : leitura ? (
+            <div className="rounded-xl border border-[#dbeafe] bg-[#f0f6ff] px-3.5 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
               <p className="text-[12.5px] leading-snug text-[#1e3a5f] dark:text-blue-100">{rich(leitura)}</p>
             </div>
-          )}
+          ) : null}
 
           {/* Ajustar análise */}
           <div>
