@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Activity, Layers, Fuel, Wrench, Store } from 'lucide-react'
+import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
@@ -26,8 +26,9 @@ const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/Benchmark
 const Combustivel = lazy(() => import('@/pages/Comercial/Vendas/Combustivel'))
 const Pista = lazy(() => import('@/pages/Comercial/Vendas/Pista'))
 const Conveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
+const GestaoPrecos = lazy(() => import('@/pages/Dashboard/components/GestaoPrecos'))
 
-type TabId = 'setor' | 'aovivo' | 'combustivel' | 'pista' | 'conveniencia'
+type TabId = 'setor' | 'aovivo' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
 
 // Combustível, Pista e Conveniência agora são CONSOLIDADOS (cache apuracao_vendas)
 // → renderizam rede-wide sempre, respeitando o filtro de posto. Nenhuma aba pede
@@ -39,6 +40,7 @@ const TAB_ICONS: Record<TabId, typeof Activity> = {
   combustivel: Fuel,
   pista: Wrench,
   conveniencia: Store,
+  precos: Tag,
 }
 
 const TabSkeleton = () => (
@@ -147,6 +149,7 @@ const Dashboard = () => {
               {activeTab === 'combustivel' && <Combustivel embedded />}
               {activeTab === 'pista' && <Pista embedded />}
               {activeTab === 'conveniencia' && <Conveniencia embedded />}
+              {activeTab === 'precos' && <GestaoPrecos />}
             </Suspense>
           )}
         </>
