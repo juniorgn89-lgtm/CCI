@@ -55,10 +55,10 @@ const FlagBand = () => {
         role="switch"
         aria-checked={usar}
         onClick={toggle}
-        className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', usar ? 'bg-[#2563eb]' : 'bg-gray-300 dark:bg-gray-600')}
+        className={cn('relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400', usar ? 'bg-[#2563eb]' : 'bg-gray-300 dark:bg-gray-600')}
         aria-label="Usar preços de concorrência"
       >
-        <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform', usar ? 'translate-x-[22px]' : 'translate-x-0.5')} />
+        <span className={cn('inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', usar ? 'translate-x-[22px]' : 'translate-x-0.5')} />
       </button>
     </div>
   )
