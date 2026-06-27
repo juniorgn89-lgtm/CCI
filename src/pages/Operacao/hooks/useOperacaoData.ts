@@ -269,6 +269,14 @@ const useOperacaoData = (empresaCodigoOverride?: number | null) => {
   // posto explícito (telas que mostram um posto por vez via seletor).
   const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)
   const hasEmpresa = empresaCodigo !== null
+  // Postos a buscar pro volume das BOMBAS (VENDA_ITEM). Com o filtro global em
+  // "Todos os postos" o `empresaCodigos` vem VAZIO — e o map sobre [] não busca
+  // nada (bombas zeram). Aí cai pro posto resolvido (`empresaCodigo`, ex.: o
+  // selecionado no seletor da tela de Bombas). Quando há postos no filtro, usa o
+  // próprio array (preserva o dedup das queryKeys com useFuelVendaAnalytics).
+  const fuelEmpresas = empresaCodigos.length > 0
+    ? empresaCodigos
+    : (empresaCodigo != null ? [empresaCodigo] : [])
   const isPrevYear = comparisonMode === 'prevYear'
   // Critério de data dos abastecimentos (espelha Abast./Fiscal/Movimento do
   // webPosto). 'ABAST' = default da API (omite tipoData). O cache do Supabase é
@@ -473,7 +481,7 @@ const useOperacaoData = (empresaCodigoOverride?: number | null) => {
   // `empresaCodigos` (array) exatamente como lá.
   const fetchFuelVendaItens = (di: string, df: string) => async (): Promise<VendaItem[]> => {
     const perEmpresa = await Promise.all(
-      empresaCodigos.map((emp) =>
+      fuelEmpresas.map((emp) =>
         fetchAllPages(
           (p) => fetchVendaItens({
             empresaCodigo: emp,
@@ -491,7 +499,7 @@ const useOperacaoData = (empresaCodigoOverride?: number | null) => {
   }
   const fetchAutorizados = (di: string, df: string) => async (): Promise<Set<number>> => {
     const sets = await Promise.all(
-      empresaCodigos.map((emp) => fetchVendaCodigosAutorizados({ empresaCodigo: emp, dataInicial: di, dataFinal: df })),
+      fuelEmpresas.map((emp) => fetchVendaCodigosAutorizados({ empresaCodigo: emp, dataInicial: di, dataFinal: df })),
     )
     const all = new Set<number>()
     for (const s of sets) for (const c of s) all.add(c)
@@ -500,14 +508,14 @@ const useOperacaoData = (empresaCodigoOverride?: number | null) => {
 
   // Período ATUAL — MESMAS queryKeys de useFuelVendaAnalytics (dedup garantido).
   const { data: fuelVendaItens = [] } = useQuery({
-    queryKey: ['fuel-venda-analytics', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryKey: ['fuel-venda-analytics', fuelEmpresas.join(','), dataInicial, dataFinal],
     queryFn: fetchFuelVendaItens(dataInicial, dataFinal),
     enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   })
   const { data: fuelAutorizados = EMPTY_SET } = useQuery({
-    queryKey: ['fuel-venda-autorizados', empresaCodigos.join(','), dataInicial, dataFinal],
+    queryKey: ['fuel-venda-autorizados', fuelEmpresas.join(','), dataInicial, dataFinal],
     queryFn: fetchAutorizados(dataInicial, dataFinal),
     enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
@@ -518,14 +526,14 @@ const useOperacaoData = (empresaCodigoOverride?: number | null) => {
   // mesmo prefixo dos fetchers de combustível; como as datas são deste módulo,
   // não colidem com as do useFuelVendaAnalytics (que usa offsetPeriod).
   const { data: fuelVendaItensPrev = [] } = useQuery({
-    queryKey: ['fuel-venda-analytics', empresaCodigos.join(','), prev.inicial, prev.final],
+    queryKey: ['fuel-venda-analytics', fuelEmpresas.join(','), prev.inicial, prev.final],
     queryFn: fetchFuelVendaItens(prev.inicial, prev.final),
     enabled: hasEmpresa && !!prev.inicial && !!prev.final,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   })
   const { data: fuelAutorizadosPrev = EMPTY_SET } = useQuery({
-    queryKey: ['fuel-venda-autorizados', empresaCodigos.join(','), prev.inicial, prev.final],
+    queryKey: ['fuel-venda-autorizados', fuelEmpresas.join(','), prev.inicial, prev.final],
     queryFn: fetchAutorizados(prev.inicial, prev.final),
     enabled: hasEmpresa && !!prev.inicial && !!prev.final,
     staleTime: 5 * 60 * 1000,
