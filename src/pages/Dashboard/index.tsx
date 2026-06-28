@@ -76,7 +76,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>(
     'setor',
     (v): v is TabId =>
-      v === 'setor' || v === 'aovivo' || v === 'combustivel' || v === 'pista' || v === 'conveniencia',
+      v === 'setor' || v === 'aovivo' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
   )
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
