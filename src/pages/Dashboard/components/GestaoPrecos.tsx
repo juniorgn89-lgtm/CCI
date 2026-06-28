@@ -234,14 +234,25 @@ const PostoImpactoCard = ({ p, maior, disciplinado }: { p: GestaoPrecoRow; maior
         <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-red-500 align-middle" />Cedido {formatCurrencyInt(p.lbCedido)}</span>
         <span className="font-semibold text-gray-700 dark:text-gray-300">Potencial {formatCurrencyInt(p.lbPotencial)}</span>
       </div>
-      {/* Origem — 1 balde na Fase 1 (split por frota = 1.5) */}
+      {/* Origem — sancionado (casou tabela cadastrada) × ajuste de bomba (vazamento real) */}
       {p.lbCedido > 0 && (
         <div className="mt-3 border-t border-gray-100 pt-2 dark:border-gray-800">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Origem</p>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] dark:border-gray-700 dark:bg-gray-800">
-            <span className="font-medium text-gray-600 dark:text-gray-300">Ajuste de bomba · tabela geral</span>
-            <span className="font-bold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(p.lbCedido)}</span>
-          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {p.origem.ajusteBomba > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-2 py-1 text-[11px] dark:border-red-900/40 dark:bg-red-950/20">
+                <span className="font-medium text-gray-600 dark:text-gray-300">Ajuste de bomba</span>
+                <span className="font-bold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(p.origem.ajusteBomba)}</span>
+              </span>
+            )}
+            {p.origem.sancionado.map((s) => (
+              <span key={s.ref} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/60 px-2 py-1 text-[11px] dark:border-emerald-900/40 dark:bg-emerald-950/20" title={`Sancionado pela tabela ${s.ref} ${s.descricao}`}>
+                <span className="font-mono text-[10px] text-emerald-700/70 dark:text-emerald-400/70">{s.ref}</span>
+                <span className="font-medium text-gray-600 dark:text-gray-300">{s.descricao}</span>
+                <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">−{formatCurrencyInt(s.valor)}</span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
