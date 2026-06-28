@@ -5,13 +5,13 @@ import {
 } from 'recharts'
 import { AlertTriangle, Clock, Percent, CreditCard, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
-import { fetchCartao } from '@/api/endpoints/financeiro'
+import { fetchCartao, fetchAdministradoras } from '@/api/endpoints/financeiro'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
-import type { Cartao } from '@/api/types/financeiro'
+import type { Cartao, Administradora } from '@/api/types/financeiro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import {
@@ -31,13 +31,24 @@ import {
 const ANTECIPACAO_TAXA_AM: number | null = null
 const FEATURE_CONCILIACAO = false
 
-type Modalidade = 'Crédito' | 'Débito' | 'PIX' | 'Carteira Digital'
-const MODALIDADES: Modalidade[] = ['Crédito', 'Débito', 'PIX', 'Carteira Digital']
+type Modalidade = 'Crédito' | 'Débito' | 'PIX' | 'Carteira Digital' | 'Vale'
+const MODALIDADES: Modalidade[] = ['Crédito', 'Débito', 'PIX', 'Carteira Digital', 'Vale']
 const MOD_COR: Record<Modalidade, string> = {
-  'Crédito': '#2563eb', 'Débito': '#60a5fa', 'PIX': '#ea580c', 'Carteira Digital': '#1e3a5f',
+  'Crédito': '#2563eb', 'Débito': '#60a5fa', 'PIX': '#ea580c', 'Carteira Digital': '#1e3a5f', 'Vale': '#0d9488',
 }
+
+// Mapa do cadastro real (/ADMINISTRADORA) → tipo da nossa união de modalidade.
+const TIPO_TO_MOD: Record<string, Modalidade> = {
+  'Crédito': 'Crédito', 'Credito': 'Crédito',
+  'Débito': 'Débito', 'Debito': 'Débito',
+  'PIX': 'PIX', 'Pix': 'PIX',
+  'Carteira Digital': 'Carteira Digital',
+  'Vale': 'Vale',
+}
+
 const CARD_BRAND_RE = /VISA|MASTERCARD|MASTER|ELO|MAESTRO|AMERICAN EXPRESS|AMEX|HIPERCARD|HIPER|DINERS|CABAL|SOROCRED|BANESCARD/
-const modalidade = (admin: string): Modalidade => {
+/** Fallback (só pra administradora órfã do cadastro): inferência pela descrição. */
+const modalidadeInfer = (admin: string): Modalidade => {
   const u = (admin ?? '').toUpperCase()
   if (u.includes('CRED')) return 'Crédito'
   if (u.includes('DEB') || u.includes('MAESTRO')) return 'Débito'
@@ -45,6 +56,21 @@ const modalidade = (admin: string): Modalidade => {
   if (CARD_BRAND_RE.test(u)) return 'Crédito'
   return 'Carteira Digital'
 }
+
+/** Funções resolvidas a partir do cadastro de administradoras (join por código). */
+interface AdminLookup {
+  /** Modalidade real (cadastro) com fallback pra inferência em código órfão. */
+  modOf: (c: Cartao) => Modalidade
+  /** Custo REAL do recebível: % praticado (do /CARTAO) + tarifa fixa por transação. */
+  custoOf: (c: Cartao) => number
+}
+const buildAdminLookup = (admMap: Map<number, Administradora>): AdminLookup => ({
+  modOf: (c) => {
+    const a = admMap.get(c.administradoraCodigo)
+    return (a && TIPO_TO_MOD[a.tipo?.trim()]) || modalidadeInfer(c.adiministradoraDescricao)
+  },
+  custoOf: (c) => c.valor * c.taxaPercentual / 100 + (admMap.get(c.administradoraCodigo)?.taxaTransacao ?? 0),
+})
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const onlyDate = (s: string) => (s ?? '').split('T')[0]
@@ -110,6 +136,21 @@ const CartoesIntel = () => {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Cadastro de administradoras (1× rede, cache longo) → fonte real do `tipo`
+  // (modalidade) e da tarifa fixa por transação. Sem isso, caímos na inferência
+  // por descrição (que erra os cartões de frota/private-label).
+  const { data: admList = [] } = useQuery({
+    queryKey: ['administradoras'],
+    queryFn: () => fetchAllPages((p) => fetchAdministradoras({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
+    staleTime: 60 * 60 * 1000,
+  })
+  const lookup = useMemo(() => {
+    const map = new Map<number, Administradora>()
+    for (const a of admList) map.set(a.administradoraCodigo, a)
+    return buildAdminLookup(map)
+  }, [admList])
+  const { modOf, custoOf } = lookup
+
   const m = useMemo(() => {
     const pend = cartoes.filter((c) => c.pendente)
     const emAtraso = pend.filter((c) => onlyDate(c.vencimento) < hoje)
@@ -125,7 +166,7 @@ const CartoesIntel = () => {
     // Taxa média + custo dos PENDENTES (ponderada por valor).
     const somaValor = pend.reduce((s, c) => s + c.valor, 0)
     const taxaMedia = somaValor > 0 ? pend.reduce((s, c) => s + c.taxaPercentual * c.valor, 0) / somaValor : 0
-    const custoPendente = pend.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
+    const custoPendente = pend.reduce((s, c) => s + custoOf(c), 0)
 
     // Série mensal por modalidade + GERAL — ponderada por valor.
     const base = new Date(`${hoje}T00:00:00`)
@@ -138,7 +179,7 @@ const CartoesIntel = () => {
     for (const c of cartoes) {
       const mk = onlyDate(c.dataMovimento).slice(0, 7)
       if (!mk) continue
-      const mod = modalidade(c.adiministradoraDescricao)
+      const mod = modOf(c)
       const byMod = acc.get(mk) ?? new Map<Modalidade, { w: number; v: number }>()
       const cur = byMod.get(mod) ?? { w: 0, v: 0 }
       cur.w += c.taxaPercentual * c.valor; cur.v += c.valor
@@ -168,9 +209,9 @@ const CartoesIntel = () => {
     const admAgg = new Map<string, { mod: Modalidade; volume: number; custo: number }>()
     const modAgg = new Map<Modalidade, { volume: number; custo: number }>()
     for (const c of cartoes) {
-      const mod = modalidade(c.adiministradoraDescricao)
+      const mod = modOf(c)
       const nome = adminNome(c)
-      const custo = c.valor * c.taxaPercentual / 100
+      const custo = custoOf(c)
       const a = admAgg.get(nome) ?? { mod, volume: 0, custo: 0 }
       a.volume += c.valor; a.custo += custo; admAgg.set(nome, a)
       const md = modAgg.get(mod) ?? { volume: 0, custo: 0 }
@@ -189,7 +230,7 @@ const CartoesIntel = () => {
       taxaSerie, deltaTaxa, primeiroMesTaxa, modalResumo, bandeiras,
       antecipavel: totalAberto, // Σ a vencer — dado real (o custo é que falta).
     }
-  }, [cartoes, hoje, mesesJanela])
+  }, [cartoes, hoje, mesesJanela, modOf, custoOf])
 
   if (isLoading) {
     return (
@@ -307,8 +348,8 @@ const CartoesIntel = () => {
 
       {/* Curva de taxa + Por modalidade */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <ChartCard title="Taxa média de recebimentos" Icon={Percent} hint="Oscilação da taxa média (ponderada por valor) por modalidade no período.">
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos {mesesJanela} meses, por modalidade</p>
+        <ChartCard title="Taxa efetiva de recebimentos" Icon={Percent} hint="Taxa EFETIVA — ponderada pelo valor (quanto de fato se pagou de taxa sobre o dinheiro recebido), por modalidade do cadastro real (/ADMINISTRADORA). Difere da média simples das tarifas de catálogo: aqui MASTER/VISA (maior volume) puxam o número, não as bandeiras de baixo volume.">
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Últimos {mesesJanela} meses · taxa efetiva (ponderada pelo valor)</p>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={m.taxaSerie} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -321,7 +362,7 @@ const CartoesIntel = () => {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Por modalidade" Icon={CreditCard} hint="Volume, taxa média e custo de taxa por modalidade de recebimento.">
+        <ChartCard title="Por modalidade" Icon={CreditCard} hint="Volume, taxa efetiva e custo por modalidade (cadastro real). Custo = % praticado + tarifa fixa por transação.">
           {m.modalResumo.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">Sem registros.</p> : (
             <ul className="space-y-3">
               {m.modalResumo.map((r) => {
@@ -346,7 +387,7 @@ const CartoesIntel = () => {
       </div>
 
       {/* Custo de taxa por bandeira (full-width, selo RENEGOCIAR nos 2 maiores) */}
-      <ChartCard title="Custo de taxa por bandeira" Icon={Percent} hint="Quanto foi pago de taxa em cada administradora/bandeira no período. As 2 de maior custo recebem o selo de renegociação.">
+      <ChartCard title="Custo de taxa por bandeira" Icon={Percent} hint="Quanto foi pago de taxa em cada administradora/bandeira no período (% praticado + tarifa fixa por transação). As 2 de maior custo recebem o selo de renegociação.">
         {m.bandeiras.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">Sem registros.</p> : (
           <ul className="space-y-2.5">
             {m.bandeiras.map((b, i) => {
@@ -378,7 +419,7 @@ const CartoesIntel = () => {
           right={<span className="text-xs text-gray-400">{abaRows.length} recebíve{abaRows.length === 1 ? 'l' : 'is'}</span>}
         />
         <div className="max-h-[460px] overflow-auto">
-          <CartaoTreeTable rows={abaRows} modo={aba} />
+          <CartaoTreeTable rows={abaRows} modo={aba} modOf={modOf} custoOf={custoOf} />
         </div>
       </section>
     </div>
@@ -386,21 +427,21 @@ const CartoesIntel = () => {
 }
 
 /** Tabela em árvore: Modalidade → Administradora. Clicar na administradora abre modal. */
-const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
+const CartaoTreeTable = ({ rows, modo, modOf, custoOf }: { rows: Cartao[]; modo: Aba; modOf: AdminLookup['modOf']; custoOf: AdminLookup['custoOf'] }) => {
   const [expMod, setExpMod] = useState<Set<Modalidade>>(() => new Set(MODALIDADES))
   const [detalhe, setDetalhe] = useState<{ nome: string; itens: Cartao[] } | null>(null)
 
   const liquid = modo === 'liquidados'
   const agg = (itens: Cartao[]) => {
     const bruto = itens.reduce((s, c) => s + c.valor, 0)
-    const taxa = itens.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
+    const taxa = itens.reduce((s, c) => s + custoOf(c), 0)
     return { bruto, taxa, liquido: bruto - taxa, efetiva: bruto > 0 ? (taxa / bruto) * 100 : 0 }
   }
 
   const tree = useMemo(() => {
     const byMod = new Map<Modalidade, Map<string, Cartao[]>>()
     for (const c of rows) {
-      const mod = modalidade(c.adiministradoraDescricao)
+      const mod = modOf(c)
       const adm = byMod.get(mod) ?? new Map<string, Cartao[]>()
       const nome = adminNome(c)
       const arr = adm.get(nome) ?? []
@@ -472,15 +513,15 @@ const CartaoTreeTable = ({ rows, modo }: { rows: Cartao[]; modo: Aba }) => {
           })}
         </tbody>
       </table>
-      {detalhe && <CartaoDetalheModal open={!!detalhe} onClose={() => setDetalhe(null)} nome={detalhe.nome} itens={detalhe.itens} modo={modo} />}
+      {detalhe && <CartaoDetalheModal open={!!detalhe} onClose={() => setDetalhe(null)} nome={detalhe.nome} itens={detalhe.itens} modo={modo} custoOf={custoOf} />}
     </>
   )
 }
 
 /** Modal com os cartões individuais de uma administradora. */
-const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolean; onClose: () => void; nome: string; itens: Cartao[]; modo: Aba }) => {
+const CartaoDetalheModal = ({ open, onClose, nome, itens, modo, custoOf }: { open: boolean; onClose: () => void; nome: string; itens: Cartao[]; modo: Aba; custoOf: AdminLookup['custoOf'] }) => {
   const total = itens.reduce((s, c) => s + c.valor, 0)
-  const totalTaxa = itens.reduce((s, c) => s + c.valor * c.taxaPercentual / 100, 0)
+  const totalTaxa = itens.reduce((s, c) => s + custoOf(c), 0)
   const taxaEfetiva = total > 0 ? (totalTaxa / total) * 100 : 0
   const leadCols = modo === 'liquidados' ? 5 : 4
   return (
@@ -513,7 +554,7 @@ const CartaoDetalheModal = ({ open, onClose, nome, itens, modo }: { open: boolea
                   <td className="px-3 py-1.5 tabular-nums text-gray-700 dark:text-gray-300">{brDate(onlyDate(c.vencimento))}</td>
                   {modo === 'liquidados' && <td className="px-3 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{brDate(onlyDate(c.dataPagamento))}</td>}
                   <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{c.taxaPercentual.toFixed(2)}%</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(c.valor * c.taxaPercentual / 100)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrencyInt(custoOf(c))}</td>
                   <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.valor)}</td>
                 </tr>
               ))}

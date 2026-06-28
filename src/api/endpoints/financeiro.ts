@@ -10,6 +10,7 @@ import type {
   Conta,
   Cartao,
   CartaoPagar,
+  Administradora,
 } from '@/api/types/financeiro'
 
 interface FetchTitulosReceberParams {
@@ -154,3 +155,7 @@ export const fetchCartao = (params?: FetchCartaoParams) =>
 
 export const fetchCartaoPagar = (params?: FetchCartaoPagarParams) =>
   client.get<PaginatedResponse<CartaoPagar>>('/CARTAO_PAGAR', { params }).then((res) => res.data)
+
+/** Cadastro de administradoras/bandeiras — fonte do `tipo` (modalidade) real. */
+export const fetchAdministradoras = (params?: { empresaCodigo?: number; ultimoCodigo?: number; limite?: number }) =>
+  client.get<PaginatedResponse<Administradora>>('/ADMINISTRADORA', { params }).then((res) => res.data)

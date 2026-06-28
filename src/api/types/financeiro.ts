@@ -277,6 +277,27 @@ export interface Cartao {
   nsuTef: string
 }
 
+/**
+ * Cadastro de administradora/bandeira de cartão (/INTEGRACAO/ADMINISTRADORA).
+ * Fonte da VERDADE pra classificar a modalidade (`tipo`) — o /CARTAO não traz
+ * débito/crédito, só a descrição. Join por `administradoraCodigo`. Também expõe
+ * a taxa fixa por transação (`taxaTransacao`) e a de antecipação contratada.
+ */
+export interface Administradora {
+  empresaCodigo: number
+  administradoraCodigo: number
+  descricao: string
+  /** "Débito" | "Crédito" | "Carteira Digital" | "PIX" | "Vale" (cadastro real). */
+  tipo: string
+  /** Taxa contratada (%) — a praticada no recebível vem do /CARTAO.taxaPercentual. */
+  percentualComissao: number
+  percentualAntecipacao: number
+  /** Tarifa FIXA por transação (R$) — a coluna "Transação" do WebPosto. */
+  taxaTransacao: number
+  ativo: boolean
+  codigo: number
+}
+
 /** Conta de cartão a pagar (/INTEGRACAO/CARTAO_PAGAR). */
 export interface CartaoPagar {
   empresaCodigo: number
