@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+  @keyframes chartIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes drawLine{from{stroke-dashoffset:1400}to{stroke-dashoffset:0}}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#eff4fb;color:#1e3a5f;font-weight:600"><span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#2563eb"></span><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px">Central da Rede</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span style="font-size:13px;font-weight:500">Vendas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span><span style="font-size:13px;font-weight:500">Fechamento de Caixa</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span><span style="font-size:13px;font-weight:500">Estoques</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span style="font-size:13px;font-weight:500">Financeiro</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg></span><span style="font-size:13px;font-weight:500">Comercial</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span><span style="font-size:13px;font-weight:500">Inteligência</span></a>
+    </nav>
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px"><div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div><span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span></div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        <div style="min-width:0"><h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Central da Rede</h1><p style="margin:0;font-size:11px;color:#6b7280">Lucro bruto consolidado por setor · junho 2026</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>1–23 jun 2026</div>
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>6 unidades</div>
+      </div>
+    </header>
+
+    <div style="flex:none;display:flex;align-items:stretch;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 4px;color:#1e3a5f;font-size:13px;font-weight:700;border-bottom:2px solid #2563eb">Visão Geral</div>
+      <div style="display:flex;align-items:center;height:44px;padding:0 4px;margin-left:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Produtividade</div>
+      <div style="display:flex;align-items:center;height:44px;padding:0 4px;margin-left:8px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:2px solid transparent">Reabastecimento</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- Linha de cartões + projeção -->
+        <div style="display:flex;gap:16px;align-items:stretch">
+
+          <!-- 4 cartões de setor (colapsáveis) -->
+          <div style="display:flex;gap:16px;min-width:0;transition:flex-grow .55s cubic-bezier(.4,0,.2,1),max-width .55s cubic-bezier(.4,0,.2,1),opacity .4s ease,margin .55s ease;flex:{{ sectorsFlex }} 1 0;max-width:{{ sectorsMaxW }};opacity:{{ sectorsOpacity }};margin-right:{{ sectorsMargin }};overflow:hidden;pointer-events:{{ sectorsPE }}">
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;flex:1 1 0;min-width:0;border-radius:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div style="min-width:0"><p style="margin:0;font-size:14px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.nome }}</p><p style="margin:3px 0 0;font-size:11px;color:#9ca3af;display:flex;align-items:center;gap:4px">Lucro bruto <span style="display:inline-flex;height:13px;width:13px;align-items:center;justify-content:center;border-radius:50%;border:1px solid #d1d5db;color:#9ca3af;font-size:8px;font-weight:700">i</span></p></div>
+                  <div style="height:36px;width:36px;flex:none;border-radius:10px;background:{{ c.iconBg }};display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="{{ c.iconColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="{{ c.iconPath }}"/></svg></div>
+                </div>
+                <p style="margin:16px 0 0;font-size:26px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:-.01em">{{ c.valor }}</p>
+                <div style="margin-top:auto;padding-top:18px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
+                  <div><p style="margin:0;font-size:14px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums">{{ c.f1v }}</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#9ca3af">{{ c.f1l }}</p></div>
+                  <div style="text-align:right"><p style="margin:0;font-size:14px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums">{{ c.f2v }}</p><p style="margin:2px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#9ca3af">{{ c.f2l }}</p></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Cartão Projeção (cresce) -->
+          <div style="display:flex;flex-direction:column;min-width:0;transition:flex-grow .55s cubic-bezier(.4,0,.2,1);flex:{{ projFlex }} 1 0;border-radius:16px;background:linear-gradient(135deg,#1e3a5f,#27496f);box-shadow:0 6px 20px rgba(30,58,95,.18);overflow:hidden">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:18px 20px 14px">
+              <div><p style="margin:0;font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">Projeção <span style="display:inline-flex;height:14px;width:14px;align-items:center;justify-content:center;border-radius:50%;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.7);font-size:8px;font-weight:700">i</span></p><p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,.6)">{{ projSub }}</p></div>
+              <button type="button" onClick="{{ toggle }}" title="Visualizar projeção do período" style="height:36px;width:36px;flex:none;border:none;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.24)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="{{ projIcon }}"/></svg></button>
+            </div>
+
+            <!-- Tabela (estado colapsado) -->
+            <div style="transition:max-height .5s ease,opacity .35s ease;max-height:{{ tableMaxH }};opacity:{{ tableOpacity }};overflow:hidden">
+              <div style="padding:0 20px 8px">
+                <div style="display:grid;grid-template-columns:1.3fr 1fr 1.2fr 1.1fr .8fr;gap:8px;padding:0 0 8px;border-bottom:1px solid rgba(255,255,255,.14)">
+                  <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.55)">Setor</span>
+                  <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.55);text-align:right">Litros/Qtde</span>
+                  <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.55);text-align:right">Faturamento</span>
+                  <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.55);text-align:right">Lucro bruto</span>
+                  <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.55);text-align:right">Margem</span>
+                </div>
+                <sc-for list="{{ projRows }}" as="r" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:1.3fr 1fr 1.2fr 1.1fr .8fr;gap:8px;padding:9px 0;border-bottom:1px solid {{ r.border }}">
+                    <span style="font-size:12.5px;font-weight:{{ r.weight }};color:{{ r.color }}">{{ r.setor }}</span>
+                    <span style="font-size:12.5px;color:{{ r.color }};text-align:right;font-variant-numeric:tabular-nums">{{ r.litros }}</span>
+                    <span style="font-size:12.5px;color:{{ r.color }};text-align:right;font-variant-numeric:tabular-nums">{{ r.fat }}</span>
+                    <span style="font-size:12.5px;font-weight:{{ r.weight }};color:{{ r.color }};text-align:right;font-variant-numeric:tabular-nums">{{ r.lb }}</span>
+                    <span style="font-size:12.5px;color:{{ r.color }};text-align:right;font-variant-numeric:tabular-nums">{{ r.margem }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- Gráfico (estado expandido) -->
+            <sc-if value="{{ expanded }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:4px 22px 20px;animation:chartIn .5s cubic-bezier(.4,0,.2,1) both">
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px">
+                  <div style="display:flex;gap:22px;flex-wrap:wrap">
+                    <div><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.55)">Realizado · até 23/jun</p><p style="margin:3px 0 0;font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums">R$ 1.050.010</p></div>
+                    <div><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.55)">Projeção · fim do mês</p><p style="margin:3px 0 0;font-size:22px;font-weight:800;color:#6ee7b7;font-variant-numeric:tabular-nums">R$ 1.260.012</p></div>
+                    <div><p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.55)">A realizar</p><p style="margin:3px 0 0;font-size:22px;font-weight:800;color:rgba(255,255,255,.85);font-variant-numeric:tabular-nums">R$ 210.002</p></div>
+                  </div>
+                  <div style="display:flex;gap:14px;align-items:center">
+                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.75)"><span style="height:3px;width:16px;border-radius:2px;background:#60a5fa"></span>Realizado</span>
+                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.75)"><span style="height:0;width:16px;border-top:2px dashed #6ee7b7"></span>Projeção</span>
+                  </div>
+                </div>
+
+                <div style="position:relative" onMouseMove="{{ onMove }}" onMouseLeave="{{ onLeave }}">
+                <svg viewBox="0 0 1000 330" preserveAspectRatio="none" style="width:100%;height:300px;display:block">
+                  <sc-for list="{{ yTicks }}" as="t" hint-placeholder-count="5">
+                    <line x1="60" y1="{{ t.y }}" x2="980" y2="{{ t.y }}" stroke="rgba(255,255,255,.1)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+                    <text x="50" y="{{ t.ty }}" text-anchor="end" fill="rgba(255,255,255,.45)" font-size="13" font-family="Inter">{{ t.label }}</text>
+                  </sc-for>
+                  <sc-for list="{{ xTicks }}" as="t" hint-placeholder-count="7">
+                    <text x="{{ t.x }}" y="322" text-anchor="middle" fill="{{ t.color }}" font-size="13" font-family="Inter" font-weight="{{ t.weight }}">{{ t.label }}</text>
+                  </sc-for>
+                  <path d="{{ areaPath }}" fill="url(#projGrad)" opacity="0.5"></path>
+                  <defs>
+                    <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.45"></stop>
+                      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"></stop>
+                    </linearGradient>
+                  </defs>
+                  <path d="{{ linePath }}" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" stroke-dasharray="1400" style="animation:drawLine 1s ease forwards"></path>
+                  <path d="{{ projFullPath }}" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-dasharray="6 6" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+                  <circle cx="{{ hojeX }}" cy="{{ hojeY }}" r="5" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"></circle>
+                  <circle cx="{{ projX }}" cy="{{ projY }}" r="5" fill="#6ee7b7" stroke="#1e3a5f" stroke-width="2"></circle>
+                  <line x1="{{ hover.x }}" y1="30" x2="{{ hover.x }}" y2="280" stroke="rgba(255,255,255,.4)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" opacity="{{ hover.op }}"></line>
+                  <circle cx="{{ hover.x }}" cy="{{ hover.y }}" r="6" fill="#fff" stroke="{{ hover.color }}" stroke-width="3" opacity="{{ hover.op }}"></circle>
+                </svg>
+                <div style="position:absolute;left:{{ hover.leftPct }};top:{{ hover.topPct }};transform:{{ hover.tipTransform }};pointer-events:none;opacity:{{ hover.op }};background:#fff;border-radius:9px;box-shadow:0 8px 20px rgba(0,0,0,.3);padding:8px 11px;white-space:nowrap;z-index:5">
+                  <p style="margin:0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af">{{ hover.date }}</p>
+                  <sc-if value="{{ hover.hasReal }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:5px">
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#2563eb"><span style="height:6px;width:6px;border-radius:50%;background:#60a5fa"></span>Realizado</span>
+                    <span style="font-size:13px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums">{{ hover.realValue }}</span>
+                  </div>
+                  </sc-if>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:5px">
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#059669"><span style="height:6px;width:6px;border-radius:50%;background:#6ee7b7"></span>Projeção</span>
+                    <span style="font-size:13px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums">{{ hover.projValue }}</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- Botão -->
+            <div style="margin-top:auto;padding:0 20px 18px">
+              <button type="button" onClick="{{ toggle }}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:42px;border:1px solid rgba(255,255,255,.22);border-radius:11px;background:{{ btnBg }};cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#fff;transition:background .2s ease" style-hover="background:rgba(255,255,255,.2)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="{{ btnIcon }}"/></svg>
+                {{ btnLabel }}
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { expanded: false, hoverDay: null };
+
+  renderVals() {
+    const expanded = this.state.expanded;
+    const toggle = () => this.setState((s) => ({ expanded: !s.expanded }));
+
+    const cards = [
+      { nome: 'Combustível', valor: 'R$ 778.050', iconBg: '#dbeafe', iconColor: '#2563eb', iconPath: 'M3 22h12M4 9h10M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.83a2 2 0 0 0-.59-1.42L18 5', f1v: '12,55%', f1l: 'Margem', f2v: 'R$ 0,75', f2l: 'L. bruto / litro' },
+      { nome: 'Automotivos', valor: 'R$ 59.876', iconBg: '#fef3c7', iconColor: '#d97706', iconPath: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', f1v: 'R$ 107.089', f1l: 'Faturamento', f2v: '55,91%', f2l: 'Margem' },
+      { nome: 'Conveniência', valor: 'R$ 212.085', iconBg: '#dcfce7', iconColor: '#16a34a', iconPath: 'M3 9l1-5h16l1 5M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M9 22V12h6v10', f1v: 'R$ 421.324', f1l: 'Faturamento', f2v: '50,34%', f2l: 'Margem' },
+      { nome: 'Global', valor: 'R$ 1.050.010', iconBg: '#ede9fe', iconColor: '#7c3aed', iconPath: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20', f1v: 'R$ 6.728.092', f1l: 'Faturamento', f2v: '15,61%', f2l: 'Margem' },
+    ];
+
+    const projRows = [
+      { setor: 'Combustível', litros: '1.247.402', fat: 'R$ 7.439.614', lb: 'R$ 933.660', margem: '12,55%', weight: 500, color: 'rgba(255,255,255,.92)', border: 'rgba(255,255,255,.1)' },
+      { setor: 'Automotivos', litros: '2.408', fat: 'R$ 128.507', lb: 'R$ 71.851', margem: '55,91%', weight: 500, color: 'rgba(255,255,255,.92)', border: 'rgba(255,255,255,.1)' },
+      { setor: 'Conveniência', litros: '138.155', fat: 'R$ 505.589', lb: 'R$ 254.502', margem: '50,34%', weight: 500, color: 'rgba(255,255,255,.92)', border: 'rgba(255,255,255,.1)' },
+      { setor: 'Total', litros: '—', fat: 'R$ 8.073.710', lb: 'R$ 1.260.012', margem: '15,61%', weight: 700, color: '#fff', border: 'transparent' },
+    ];
+
+    // ---- chart geometry ----
+    const maxY = 1400000;
+    const x0 = 60, x1 = 980, yTop = 30, yBase = 280;
+    const X = (day) => x0 + ((day - 1) / 29) * (x1 - x0);
+    const Y = (val) => yBase - (val / maxY) * (yBase - yTop);
+
+    const realizedEnd = 1050010, projEnd = 1260012;
+    const realPts = [];
+    for (let d = 1; d <= 23; d++) {
+      const frac = d / 23;
+      const eased = Math.pow(frac, 0.97);
+      realPts.push({ d, v: realizedEnd * eased });
+    }
+    const projPts = [];
+    for (let d = 23; d <= 30; d++) {
+      const v = realizedEnd + (projEnd - realizedEnd) * ((d - 23) / 7);
+      projPts.push({ d, v });
+    }
+
+    const linePath = realPts.map((p, i) => (i === 0 ? 'M' : 'L') + X(p.d).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ');
+    const areaPath = 'M' + X(1).toFixed(1) + ',' + yBase + ' ' +
+      realPts.map((p) => 'L' + X(p.d).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ') +
+      ' L' + X(23).toFixed(1) + ',' + yBase + ' Z';
+    const projPath = projPts.map((p, i) => (i === 0 ? 'M' : 'L') + X(p.d).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ');
+
+    // projeção do mês inteiro (trajetória esperada até R$ 1,26 mi no dia 30)
+    const projAt = (d) => projEnd * Math.pow(d / 30, 0.97);
+    const projFull = [];
+    for (let d = 1; d <= 30; d++) projFull.push({ d, v: projAt(d) });
+    const projFullPath = projFull.map((p, i) => (i === 0 ? 'M' : 'L') + X(p.d).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ');
+
+    const yTicks = [0, 350000, 700000, 1050000, 1400000].map((v) => ({
+      y: Y(v), ty: Y(v) + 4,
+      label: v === 0 ? '0' : v >= 1000000 ? (v / 1000000).toFixed(2).replace('.', ',') + ' mi' : (v / 1000) + 'k',
+    }));
+    const xTicks = [1, 5, 10, 15, 20, 23, 30].map((d) => ({
+      x: X(d), label: d === 23 ? 'hoje' : String(d),
+      color: d === 23 ? '#6ee7b7' : 'rgba(255,255,255,.45)', weight: d === 23 ? 700 : 400,
+    }));
+
+    // ---- hover tooltip (projeção dia a dia) ----
+    const fmtBRL = (v) => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+    const onMove = (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (!rect.width) return;
+      const svgX = ((e.clientX - rect.left) / rect.width) * 1000;
+      let d = 1 + ((svgX - x0) / (x1 - x0)) * 29;
+      d = Math.max(1, Math.min(30, Math.round(d)));
+      if (d !== this.state.hoverDay) this.setState({ hoverDay: d });
+    };
+    const onLeave = () => { if (this.state.hoverDay !== null) this.setState({ hoverDay: null }); };
+
+    const hd = this.state.hoverDay;
+    let hover;
+    if (hd == null) {
+      hover = { op: 0, x: x0, y: yBase, color: '#60a5fa', leftPct: '0%', topPct: '0%', tipTransform: 'translate(-50%,-130%)', date: '', hasReal: false, realValue: '', projValue: '' };
+    } else {
+      const projV = projAt(hd);
+      const hasReal = hd <= 23;
+      const realV = hasReal ? realizedEnd * Math.pow(hd / 23, 0.97) : 0;
+      const mv = hasReal ? realV : projV;
+      const sx = X(hd), sy = Y(mv);
+      const flip = hd >= 25 ? '-90%' : (hd <= 3 ? '-10%' : '-50%');
+      hover = {
+        op: 1, x: sx, y: sy, color: hasReal ? '#60a5fa' : '#6ee7b7',
+        leftPct: (sx / 1000 * 100).toFixed(2) + '%',
+        topPct: (sy / 330 * 100).toFixed(2) + '%',
+        tipTransform: 'translate(' + flip + ',calc(-100% - 14px))',
+        date: hd + ' jun' + (hd === 23 ? ' · hoje' : ''),
+        hasReal, realValue: fmtBRL(realV), projValue: fmtBRL(projV),
+      };
+    }
+
+    return {
+      cards, projRows, expanded, toggle, onMove, onLeave, hover, projFullPath,
+      projSub: expanded ? 'Evolução do lucro bruto · junho' : 'Fim do mês',
+      projIcon: expanded
+        ? 'M3 3v18h18M7 14l4-4 3 3 5-6'
+        : 'M3 3v18h18M18 17V9M13 17V5M8 17v-3',
+      // layout flex values
+      sectorsFlex: expanded ? 0 : 4,
+      sectorsMaxW: expanded ? '0px' : '2000px',
+      sectorsOpacity: expanded ? 0 : 1,
+      sectorsMargin: expanded ? '-16px' : '0px',
+      sectorsPE: expanded ? 'none' : 'auto',
+      projFlex: expanded ? 100 : 1.45,
+      tableMaxH: expanded ? '0px' : '320px',
+      tableOpacity: expanded ? 0 : 1,
+      btnLabel: expanded ? 'Voltar aos indicadores' : 'Visualizar projeção do período',
+      btnIcon: expanded
+        ? 'M19 12H5M12 19l-7-7 7-7'
+        : 'M3 3v18h18M7 14l4-4 3 3 5-6',
+      btnBg: expanded ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.08)',
+      // chart
+      linePath, areaPath, projPath, yTicks, xTicks,
+      hojeX: X(23), hojeY: Y(realizedEnd), projX: X(30), projY: Y(projEnd),
+    };
+  }
+}
+</script>
+</body>
+</html>

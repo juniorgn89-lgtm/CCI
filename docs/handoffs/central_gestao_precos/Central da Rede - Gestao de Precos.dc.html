@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#111827;background:#f9fafb;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f9fafb}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;background:#f9fafb">
+
+  <aside style="width:208px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb">
+    <div style="height:61px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #f1f3f5">
+      <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px">V</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#1e3a5f">Visor<span style="color:#2563eb">360</span></div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:14px 8px 16px">
+      <p style="margin:0 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Geral</p>
+      <a href="#" style="position:relative;display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;background:#eff4fb;color:#1e3a5f;font-weight:600"><span aria-hidden="true" style="position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:#2563eb"></span><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span style="font-size:13px">Central da Rede</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Posto</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span style="font-size:13px;font-weight:500">Vendas</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg></span><span style="font-size:13px;font-weight:500">Fechamento de Caixa</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Gestão</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><path d="M6 10h12"/></svg></span><span style="font-size:13px;font-weight:500">Estoques</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span style="font-size:13px;font-weight:500">Financeiro</span></a>
+      <p style="margin:16px 0 4px;padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af">Análise</p>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg></span><span style="font-size:13px;font-weight:500">Comercial</span></a>
+      <a href="#" style="display:flex;align-items:center;height:36px;border-radius:8px;text-decoration:none;color:#4b5563"><span style="display:flex;height:36px;width:40px;flex:none;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></span><span style="font-size:13px;font-weight:500">Inteligência</span></a>
+    </nav>
+    <div style="border-top:1px solid #f1f3f5;padding:12px;display:flex;align-items:center;gap:9px"><div style="height:32px;width:32px;flex:none;border-radius:50%;background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">RC</div><span style="font-size:13px;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Roberto Câmara</span></div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden" data-screen-label="Gestão de Preços">
+    <header style="height:61px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="height:28px;width:1px;flex:none;background:#e5e7eb"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex:none"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <div style="min-width:0"><h1 style="margin:0;font-size:14px;font-weight:700;color:#111827">Gestão de Preços</h1><p style="margin:0;font-size:11px;color:#6b7280">Preço praticado vs tabela · desconto e acréscimo na bomba</p></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:600"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>POSTO – TRIVILLIN</div>
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#374151;font-weight:500"><svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>1–31 · Mês atual</div>
+        <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;color:#9ca3af;font-size:11px"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>02/05 · 20:06</div>
+      </div>
+    </header>
+
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      <div style="max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+        <!-- Flag: o que a tela cruza -->
+        <div style="display:flex;align-items:center;gap:13px;border:1px solid #dbeafe;background:linear-gradient(90deg,#eff6ff,#fff);border-radius:13px;padding:13px 16px">
+          <div style="height:34px;width:34px;flex:none;border-radius:9px;background:#1e3a5f;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-size:13px;font-weight:700;color:#111827">A IA cruza a <strong>tabela de preço</strong> e a <strong>tabela por cliente</strong> do WebPosto com o preço efetivamente batido na bomba.</p>
+            <p style="margin:2px 0 0;font-size:12px;color:#64748b">Alterações feitas no movimento geram cupom sem desconto registrado — aqui o desvio fica visível como margem cedida (ou ganha).</p>
+          </div>
+          <div style="flex:none;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:20px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:#34d399"></span>Analista IA</div>
+        </div>
+
+        <!-- Sub-abas -->
+        <div style="display:flex;gap:6px;padding:5px;background:#fff;border:1px solid #e5e7eb;border-radius:13px;width:fit-content">
+          <sc-for list="{{ segs }}" as="s" hint-placeholder-count="4"><div onClick="{{ s.pick }}" style="cursor:pointer"><sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;height:38px;padding:0 18px;border-radius:8px;font-size:12.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap;background:#1e3a5f;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12)">{{ s.label }}</div></sc-if><sc-if value="{{ s.inactive }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;justify-content:center;height:38px;padding:0 18px;border-radius:8px;font-size:12.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap;background:transparent;color:#64748b">{{ s.label }}</div></sc-if></div></sc-for>
+        </div>
+
+        <sc-if value="{{ isAnalytical }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Desconto concedido</span><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M16 17l5-5-5-5M21 12H9M3 6v12"/></svg></div>
+            <div style="font-size:26px;font-weight:800;color:#dc2626;letter-spacing:-.02em;font-variant-numeric:tabular-nums">−R$ 4.490</div>
+            <div style="font-size:12px;color:#6b7280">0,11/L abaixo da tabela · no período</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Preço praticado médio</span><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em;font-variant-numeric:tabular-nums">R$ 6,64</div>
+            <div style="font-size:12px;color:#6b7280">tabela R$ 6,75 · <span style="color:#dc2626;font-weight:600">−1,6%</span></div>
+          </div>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Margem líquida</span><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+            <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em;font-variant-numeric:tabular-nums">11,08%</div>
+            <div style="font-size:12px;color:#6b7280">após desconto de bomba · LB R$ 30.901</div>
+          </div>
+          <div style="background:#fff;border:1px solid #fecaca;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Concentração do vazamento</span><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+            <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em">Diesel S10</div>
+            <div style="font-size:12px;color:#6b7280"><span style="color:#dc2626;font-weight:600">90%</span> do vazamento · R$ 4.022</div>
+          </div>
+        </div>
+
+        <!-- Tabela -->
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+          <div style="padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #f1f3f5">
+            <div style="font-size:13px;font-weight:700;color:#111827">Preço praticado × tabela</div>
+            <div style="font-size:12px;color:#9ca3af;font-weight:500">{{ tableHint }}</div>
+          </div>
+
+          <sc-if value="{{ searchVisible }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:14px 18px 0">
+              <div style="display:flex;align-items:center;gap:10px;height:42px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span style="font-size:13px;color:#9ca3af">Procurar por cliente de frota…</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="overflow-x:auto;padding:6px 4px 4px">
+            <table style="width:100%;border-collapse:collapse;min-width:880px">
+              <thead>
+                <tr>
+                  <th style="{{ headerFirst.style }}">{{ headerFirst.label }}</th>
+                  <sc-for list="{{ headerRest }}" as="h" hint-placeholder-count="8"><th style="{{ h.style }}">{{ h.label }}</th></sc-for>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+                  <tr style="{{ r.rowStyle }}">
+                    <td style="{{ r.nameStyle }}"><span>{{ r.name }}</span><sc-if value="{{ r.pill }}" hint-placeholder-val="{{ false }}"><span style="{{ r.pill.style }}">{{ r.pill.text }}</span></sc-if></td>
+                    <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="8"><td style="{{ c.style }}">{{ c.v }}</td></sc-for>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Leitura do especialista -->
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid #f1f3f5;background:linear-gradient(90deg,#f8fafc,#fff)">
+            <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2Z"/><path d="M9 21h6M10 18v3M14 18v3"/></svg></div>
+            <div style="flex:1"><p style="margin:0;font-size:14px;font-weight:700;color:#111827">Leitura do especialista</p><p style="margin:1px 0 0;font-size:12px;color:#6b7280">Diagnóstico do analista de combustível sobre o desvio de preço</p></div>
+            <div style="flex:none;padding:5px 11px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:11px;font-weight:700">{{ narrativa.tag }}</div>
+          </div>
+          <div style="padding:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ narrativa.diag }}" as="d" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <p style="margin:0;font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.04em">{{ d.k }}</p>
+                <p style="margin:0;font-size:13px;line-height:1.55;color:#374151">{{ d.t }}</p>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin:0 18px 18px;display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border-radius:12px;background:#f0f7ff;border:1px solid #bfdbfe">
+            <div style="height:32px;width:32px;flex:none;border-radius:9px;background:#2563eb;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/></svg></div>
+            <div style="flex:1;min-width:0">
+              <p style="margin:0;font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.05em">Recomendação</p>
+              <p style="margin:3px 0 0;font-size:13.5px;line-height:1.55;color:#1e293b;font-weight:500">{{ narrativa.acao }}</p>
+            </div>
+            <button style="flex:none;height:36px;padding:0 16px;border:none;border-radius:9px;background:#1e3a5f;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Criar tarefa</button>
+          </div>
+        </div>
+
+        </div>
+        </sc-if>
+
+        <!-- Impacto no LB -->
+        <sc-if value="{{ isImpacto }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- KPIs do impacto -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+              <span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">LB realizado · rede</span>
+              <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em;font-variant-numeric:tabular-nums">R$ 139.083</div>
+              <div style="font-size:12px;color:#6b7280">lucro bruto que de fato entrou no mês</div>
+            </div>
+            <div style="background:#fff;border:1px solid #fecaca;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+              <span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Impacto dos descontos</span>
+              <div style="font-size:26px;font-weight:800;color:#dc2626;letter-spacing:-.02em;font-variant-numeric:tabular-nums">−R$ 11.710</div>
+              <div style="font-size:12px;color:#6b7280">LB cedido por preço abaixo da tabela</div>
+            </div>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+              <span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">LB potencial</span>
+              <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em;font-variant-numeric:tabular-nums">R$ 150.793</div>
+              <div style="font-size:12px;color:#6b7280">realizado + cedido · teto sem desvio</div>
+            </div>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+              <span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">% do LB cedido</span>
+              <div style="font-size:26px;font-weight:800;color:#d97706;letter-spacing:-.02em;font-variant-numeric:tabular-nums">7,8%</div>
+              <div style="font-size:12px;color:#6b7280">da rede · Serra puxa para cima</div>
+            </div>
+          </div>
+
+          <!-- Impacto por posto -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+            <div style="padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #f1f3f5">
+              <div style="font-size:13px;font-weight:700;color:#111827">Impacto por posto</div>
+              <div style="font-size:12px;color:#9ca3af;font-weight:500">LB cedido cruzado com a tabela cadastrada que originou o desconto</div>
+            </div>
+            <sc-for list="{{ postos }}" as="p" hint-placeholder-count="5">
+              <div style="padding:16px 18px;border-bottom:1px solid #f1f3f5;display:flex;flex-direction:column;gap:11px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                  <div style="display:flex;align-items:center"><span style="font-size:14px;font-weight:700;color:#111827">{{ p.nome }}</span><sc-if value="{{ p.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="{{ p.badgeStyle }}">{{ p.badge }}</span></sc-if></div>
+                  <div style="display:flex;align-items:baseline;gap:8px"><span style="{{ p.impactoNumStyle }}">{{ p.cedidoFmt }}</span><span style="font-size:12px;font-weight:600;color:#6b7280">{{ p.pctFmt }} do potencial</span></div>
+                </div>
+                <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#f1f5f9">
+                  <div style="{{ p.realizadoStyle }}"></div>
+                  <div style="{{ p.cedidoStyle }}"></div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                  <div style="display:flex;align-items:center;gap:18px;font-size:12px;color:#6b7280">
+                    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#1e3a5f"></span>LB realizado <strong style="color:#111827">{{ p.realizadoFmt }}</strong></span>
+                    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#ef4444"></span>Cedido <strong style="color:#dc2626">{{ p.cedidoFmt }}</strong></span>
+                    <span>LB potencial <strong style="color:#111827">{{ p.potencialFmt }}</strong></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Origem</span>
+                    <sc-for list="{{ p.attr }}" as="a" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:7px;background:#f8fafc;border:1px solid #e5e7eb;font-size:11.5px;color:#374151"><span style="font-weight:700;color:#94a3b8;font-variant-numeric:tabular-nums">{{ a.ref }}</span><span>{{ a.nome }}</span><strong style="color:#dc2626;font-variant-numeric:tabular-nums">{{ a.valor }}</strong></div></sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Leitura do especialista -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid #f1f3f5;background:linear-gradient(90deg,#f8fafc,#fff)">
+              <div style="height:30px;width:30px;flex:none;border-radius:8px;background:#1e3a5f;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2Z"/><path d="M9 21h6M10 18v3M14 18v3"/></svg></div>
+              <div style="flex:1"><p style="margin:0;font-size:14px;font-weight:700;color:#111827">Leitura do especialista</p><p style="margin:1px 0 0;font-size:12px;color:#6b7280">Onde o lucro bruto está vazando e por qual tabela</p></div>
+              <div style="flex:none;padding:5px 11px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:11px;font-weight:700">Serra · 19% do LB potencial</div>
+            </div>
+            <div style="padding:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+              <div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.04em">O que está acontecendo</p><p style="margin:0;font-size:13px;line-height:1.55;color:#374151">A rede deixou de realizar R$ 11.710 de lucro bruto no mês por preço praticado abaixo da tabela — 7,8% do LB potencial. O Posto Serra concentra o problema: cedeu R$ 5.180, 19% do seu próprio LB potencial.</p></div>
+              <div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.04em">O contraponto</p><p style="margin:0;font-size:13px;line-height:1.55;color:#374151">O Posto Centro cedeu apenas 1,1% e fechou com a melhor margem (12,90%). Mesma rede, mesma tabela cadastrada, disciplina de bomba oposta.</p></div>
+              <div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.04em">A origem cruzada</p><p style="margin:0;font-size:13px;line-height:1.55;color:#374151">A maior fatia vem do Diesel: ajuste de bomba abaixo da Tabela Padrão (00001) e over-desconto além do convênio de Frota (00002). Não é tabela mal precificada — é execução na bomba.</p></div>
+            </div>
+            <div style="margin:0 18px 18px;display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border-radius:12px;background:#f0f7ff;border:1px solid #bfdbfe">
+              <div style="height:32px;width:32px;flex:none;border-radius:9px;background:#2563eb;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/></svg></div>
+              <div style="flex:1;min-width:0"><p style="margin:0;font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.05em">Recomendação</p><p style="margin:3px 0 0;font-size:13.5px;line-height:1.55;color:#1e293b;font-weight:500">Padronizar o teto de desconto de bomba pela referência do Centro e revisar os contratos de frota (tabela 00002) onde o praticado fura a própria tabela especial. Recuperação estimada: ~R$ 7.500/mês de LB sem mexer no preço de tabela.</p></div>
+              <button style="flex:none;height:36px;padding:0 16px;border:none;border-radius:9px;background:#1e3a5f;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Criar tarefa</button>
+            </div>
+          </div>
+
+        </div>
+        </sc-if>
+
+        <!-- Tabelas cadastradas (registry) -->
+        <sc-if value="{{ isRegistry }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:332px 1fr;gap:16px;align-items:start">
+
+          <!-- Lista mestre -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+            <div style="padding:14px 16px;border-bottom:1px solid #f1f3f5">
+              <p style="margin:0;font-size:13px;font-weight:700;color:#111827">Tabela de Preço de Prazos</p>
+              <p style="margin:2px 0 0;font-size:11px;color:#9ca3af">Cadastradas no WebPosto · referência da IA</p>
+              <div style="margin-top:11px;display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;border:1px solid #e5e7eb;border-radius:9px;background:#f9fafb">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span style="font-size:12.5px;color:#9ca3af">Consultar por descrição…</span>
+              </div>
+            </div>
+            <div style="max-height:560px;overflow-y:auto">
+              <sc-for list="{{ tabelas }}" as="t" hint-placeholder-count="5">
+                <div onClick="{{ t.pick }}" style="{{ t.style }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <span style="font-size:11px;font-weight:700;color:#94a3b8;font-variant-numeric:tabular-nums">{{ t.ref }}</span>
+                    <span style="{{ t.badgeStyle }}">{{ t.badge }}</span>
+                  </div>
+                  <p style="margin:6px 0 0;font-size:13px;font-weight:600;color:#111827;line-height:1.3">{{ t.nome }}</p>
+                  <p style="margin:4px 0 0;font-size:11px;color:#9ca3af">{{ t.meta }}</p>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- Detalhe -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+            <div style="padding:16px 18px;border-bottom:1px solid #f1f3f5;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+              <div style="min-width:0">
+                <div style="display:flex;align-items:center;gap:9px"><span style="font-size:11px;font-weight:700;color:#94a3b8;font-variant-numeric:tabular-nums">Ref {{ sel.ref }}</span><span style="{{ sel.badgeStyle }}">{{ sel.badge }}</span></div>
+                <h2 style="margin:5px 0 0;font-size:17px;font-weight:800;color:#111827;letter-spacing:-.01em">{{ sel.nome }}</h2>
+              </div>
+              <div style="flex:none;display:flex;align-items:center;gap:7px;height:34px;padding:0 13px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:12.5px;color:#374151;font-weight:600;cursor:pointer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Exportar XLSX
+              </div>
+            </div>
+
+            <div style="padding:14px 18px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;border-bottom:1px solid #f1f3f5;background:#fafbfc">
+              <div><p style="margin:0;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">Validade inicial</p><p style="margin:3px 0 0;font-size:13px;font-weight:600;color:#111827">{{ sel.ini }}</p></div>
+              <div><p style="margin:0;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">Validade final</p><p style="margin:3px 0 0;font-size:13px;font-weight:600;color:#111827">{{ sel.fim }}</p></div>
+              <div><p style="margin:0;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">Dias da semana</p><p style="margin:3px 0 0;font-size:13px;font-weight:600;color:#111827">{{ sel.dias }}</p></div>
+              <div><p style="margin:0;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">Filial</p><p style="margin:3px 0 0;font-size:13px;font-weight:600;color:#111827">{{ sel.filial }}</p></div>
+            </div>
+
+            <div style="padding:9px 18px 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Dados de Preço Especial</div>
+            <div style="overflow-x:auto;padding:0 4px 4px">
+              <table style="width:100%;border-collapse:collapse;min-width:720px">
+                <thead>
+                  <tr>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:left;white-space:nowrap">Filial</th>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:left;white-space:nowrap">Cliente</th>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:left;white-space:nowrap">Grupo de Cliente</th>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:left;white-space:nowrap">Produto</th>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:left;white-space:nowrap">Tipo</th>
+                    <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:right;white-space:nowrap">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ sel.itens }}" as="it" hint-placeholder-count="5">
+                    <tr>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:left;white-space:nowrap;color:#6b7280;font-weight:500">{{ it.filial }}</td>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:left;white-space:nowrap;color:#374151;font-weight:500">{{ it.cliente }}</td>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:left;white-space:nowrap;color:#6b7280;font-weight:500">{{ it.grupo }}</td>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:left;white-space:nowrap;color:#111827;font-weight:600">{{ it.produto }}</td>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:left;white-space:nowrap;color:#6b7280;font-weight:500">{{ it.tipo }}</td>
+                      <td style="padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f3f5;text-align:right;white-space:nowrap;color:#111827;font-weight:700;font-variant-numeric:tabular-nums">{{ it.valor }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+        </sc-if>
+
+        <p style="margin:0 0 8px;font-size:11px;color:#9ca3af;text-align:center">Preço original e tabela por cliente vêm do WebPosto · preço praticado é o valor médio batido na bomba no cupom fiscal.</p>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1040}}">
+class Component extends DCLogic {
+  state = { tab: 'produto', selTab: '00002' };
+
+  registryTables = [
+    { ref:'00001', nome:'TABELA PADRÃO DA REDE', status:'vigente', ini:'01/01/2026', fim:'—', dias:'Todos os dias', filial:'Todas', itens:[
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Gasolina C Comum', tipo:'Preço Específico', valor:6.59 },
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Gasolina C Comum Aditivada', tipo:'Preço Específico', valor:6.99 },
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Etanol Hidratado Comum', tipo:'Preço Específico', valor:4.99 },
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Óleo Diesel B S10 Comum', tipo:'Preço Específico', valor:6.99 },
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Óleo Diesel B S500 Comum', tipo:'Preço Específico', valor:6.89 }
+    ]},
+    { ref:'00002', nome:'FROTA DIESEL — CONVÊNIO', status:'vigente', ini:'15/02/2026', fim:'—', dias:'Seg a Sáb', filial:'Posto Trivillin', itens:[
+      { filial:'Posto Trivillin', cliente:'Transportadora Litoral Ltda', grupo:'Frota', produto:'Óleo Diesel B S10 Comum', tipo:'Preço Específico', valor:6.72 },
+      { filial:'Posto Trivillin', cliente:'Construtora Marília', grupo:'Frota', produto:'Óleo Diesel B S10 Comum', tipo:'Preço Específico', valor:6.80 },
+      { filial:'Posto Trivillin', cliente:'Frota Rápida ME', grupo:'Frota', produto:'Óleo Diesel B S10 Comum', tipo:'Preço Específico', valor:6.75 }
+    ]},
+    { ref:'00003', nome:'CONVÊNIO TRANSPORTADORAS', status:'vigente', ini:'01/03/2026', fim:'31/12/2026', dias:'Todos os dias', filial:'Rede', itens:[
+      { filial:'Posto Itapoá', cliente:'Locadora Sul', grupo:'Convênio', produto:'Gasolina C Comum', tipo:'Preço Específico', valor:6.55 },
+      { filial:'Rede', cliente:'Grupo Logística', grupo:'Convênio', produto:'Óleo Diesel B S10 Comum', tipo:'Desconto %', valor:null, desc:'2% s/ tabela' }
+    ]},
+    { ref:'00004', nome:'PROMOÇÃO ETANOL — FIM DE SEMANA', status:'vigente', ini:'01/06/2026', fim:'30/06/2026', dias:'Sáb e Dom', filial:'Todas', itens:[
+      { filial:'Todas', cliente:'—', grupo:'—', produto:'Etanol Hidratado Comum', tipo:'Preço Específico', valor:4.89 }
+    ]},
+    { ref:'00005', nome:'LUBRIFICANTES E CONVENIÊNCIA', status:'expirada', ini:'18/10/2024', fim:'31/12/2025', dias:'Todos os dias', filial:'Posto Trivillin', itens:[
+      { filial:'Posto Trivillin', cliente:'—', grupo:'—', produto:'Lub Lubrax Top', tipo:'Preço Específico', valor:50.00 },
+      { filial:'Posto Trivillin', cliente:'—', grupo:'PS — Palhetas', produto:'Palheta Limpador', tipo:'Preço Específico', valor:59.90 },
+      { filial:'Posto Trivillin', cliente:'—', grupo:'—', produto:'Lub Lubrax Tecno', tipo:'Preço Específico', valor:40.00 },
+      { filial:'Posto Trivillin', cliente:'—', grupo:'—', produto:'Fluido p/ Radiador', tipo:'Preço Específico', valor:19.90 }
+    ]}
+  ];
+
+  impactoPostos = [
+    { nome:'Posto Trivillin', realizado:30901, cedido:4490, margem:11.08, attr:[{t:'00002',n:'Frota Diesel — Convênio',v:2822},{t:'00001',n:'Tabela Padrão · ajuste bomba',v:1668}] },
+    { nome:'Posto Itapoá', realizado:27482, cedido:1020, margem:12.10, attr:[{t:'00003',n:'Convênio Transportadoras',v:126},{t:'00001',n:'Tabela Padrão · ajuste bomba',v:894}] },
+    { nome:'Posto Centro', realizado:33300, cedido:380, margem:12.90, best:true, attr:[{t:'00001',n:'Tabela Padrão · ajuste bomba',v:380}] },
+    { nome:'Posto Serra', realizado:22100, cedido:5180, margem:9.12, worst:true, attr:[{t:'00001',n:'Tabela Padrão · ajuste bomba Diesel',v:4200},{t:'00002',n:'Frota Diesel — Convênio',v:980}] },
+    { nome:'Posto Avenida', realizado:25300, cedido:640, margem:11.80, attr:[{t:'00001',n:'Tabela Padrão · ajuste bomba',v:640}] }
+  ];
+
+  regBadge(status){
+    return status==='vigente'
+      ? 'display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:#dcfce7;color:#15803d'
+      : 'display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:#f1f5f9;color:#94a3b8';
+  }
+
+  nf2(n){ return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  nf0(n){ return n.toLocaleString('pt-BR',{maximumFractionDigits:0}); }
+
+  cell(raw, type, isTotal){
+    let v, color='#111827', align='right', weight=isTotal?'700':'500';
+    if(type==='txt'){ align='left'; color='#6b7280'; v = raw==null?'—':raw; }
+    else if(type==='brl'){ v = raw==null?'—':'R$ '+this.nf2(raw); }
+    else if(type==='brlStrong'){ weight=isTotal?'800':'700'; v = raw==null?'—':'R$ '+this.nf2(raw); }
+    else if(type==='num2'){ v = raw==null?'—':this.nf2(raw); }
+    else if(type==='num'){ v = raw==null?'—':this.nf0(raw); }
+    else if(type==='brlPlain'){ v = raw==null?'—':'R$ '+this.nf0(raw); }
+    else if(type==='signUn'){
+      if(raw==null){ v='—'; color='#cbd5e1'; }
+      else if(raw===0){ v='0,00'; color='#9ca3af'; }
+      else { v=(raw>0?'+':'−')+this.nf2(Math.abs(raw)); color=raw>0?'#16a34a':'#dc2626'; weight=isTotal?'700':'600'; }
+    }
+    else if(type==='brlSigned'){
+      if(raw==null){ v='—'; color='#cbd5e1'; }
+      else if(raw===0){ v='R$ 0,00'; color='#9ca3af'; }
+      else { v=(raw>0?'+':'−')+'R$ '+this.nf2(Math.abs(raw)); color=raw>0?'#16a34a':'#dc2626'; weight=isTotal?'700':'600'; }
+    }
+    else if(type==='pct'){
+      color = raw<10?'#dc2626':(raw<12?'#d97706':'#16a34a'); weight=isTotal?'700':'600'; v=this.nf2(raw)+'%';
+    }
+    const style = `padding:11px 14px;font-size:13px;white-space:nowrap;border-bottom:1px solid #f1f3f5;text-align:${align};color:${color};font-weight:${weight};font-variant-numeric:tabular-nums`;
+    return { v, style };
+  }
+
+  pillStyle(tone){
+    const m = { green:['#dcfce7','#15803d'], red:['#fee2e2','#b91c1c'], neutral:['#eef2f7','#64748b'] }[tone];
+    return `margin-left:8px;display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.02em;vertical-align:middle;background:${m[0]};color:${m[1]}`;
+  }
+
+  th(align){
+    return `padding:11px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;background:#fafbfc;text-align:${align};white-space:nowrap`;
+  }
+
+  datasets(){
+    return {
+      produto: {
+        first: 'Produto', hint: 'Tabela de preço × preço praticado · por combustível',
+        cols: [
+          {l:'Preço tabela',t:'brl'},{l:'Desc/Acrés un',t:'signUn'},{l:'Desc/Acrés total',t:'brlSigned'},
+          {l:'Preço praticado',t:'brlStrong'},{l:'Custo médio',t:'num2'},{l:'Qtd (L)',t:'num'},
+          {l:'Valor',t:'brlPlain'},{l:'Lucro bruto',t:'brlPlain'},{l:'Margem',t:'pct'}
+        ],
+        rows: [
+          {name:'Etanol Hidratado Comum', pill:{text:'+1¢ acréscimo',tone:'green'}, vals:[4.99,0.01,15.99,5.00,4.34,1620,8097,1070,13.21]},
+          {name:'Gasolina C Comum', vals:[6.59,-0.01,-103.79,6.58,5.67,14050,92481,12779,13.82]},
+          {name:'Gasolina C Comum Aditivada', pill:{text:'sem desvio',tone:'neutral'}, vals:[6.99,null,null,6.99,5.88,943,6589,1051,15.95]},
+          {name:'Óleo Diesel B S10 Comum', pill:{text:'90% do vazamento',tone:'red'}, alert:true, vals:[6.99,-0.27,-4021.82,6.72,6.10,14747,99056,9082,9.17]},
+          {name:'Óleo Diesel B S500 Comum', vals:[6.89,-0.04,-380.83,6.85,6.14,9679,66308,6919,10.43]},
+          {name:'Total', total:true, vals:[6.75,-0.11,-4490.45,6.64,5.94,41038,272531,30901,11.08]}
+        ],
+        narrativa: {
+          tag:'Diesel S10 · concentração',
+          diag:[
+            {k:'O que está acontecendo', t:'O Diesel S10 responde por R$ 4.022 dos R$ 4.490 cedidos no mês — 90% do vazamento. O preço sai 27¢/L abaixo da tabela e a margem cai a 9,17%, a pior da linha.'},
+            {k:'Por quê', t:'É o combustível mais sensível a frota: o operador baixa o preço na bomba para fechar o abastecimento. O cupom sai sem desconto registrado, então a concessão vira margem perdida — não negociação rastreada.'},
+            {k:'O sinal oposto', t:'O Etanol sai 1¢ acima da tabela (acréscimo de R$ 16). Prova de que o ajuste de bomba também pode trabalhar a favor quando há disciplina.'}
+          ],
+          acao:'Travar o desconto máximo de Diesel S10 na bomba e exigir aprovação acima de 5¢/L. Recuperação estimada: ~R$ 3.300/mês sem mexer no preço de tabela.'
+        }
+      },
+      cliente: {
+        first: 'Cliente', hint: 'Tabela de preço por cliente × preço praticado · frota',
+        cols: [
+          {l:'Produto',t:'txt'},{l:'Tabela cliente',t:'brl'},{l:'Praticado',t:'brlStrong'},
+          {l:'Desvio/un',t:'signUn'},{l:'Desc total',t:'brlSigned'},{l:'Volume (L)',t:'num'},{l:'Margem',t:'pct'}
+        ],
+        rows: [
+          {name:'Transportadora Litoral Ltda', pill:{text:'dentro da tabela',tone:'green'}, vals:['Diesel S10',6.72,6.72,0.00,0.00,4820,9.22]},
+          {name:'Construtora Marília', pill:{text:'abaixo do contrato',tone:'red'}, alert:true, vals:['Diesel S10',6.80,6.55,-0.25,-1180.00,4720,6.88]},
+          {name:'Locadora Sul', vals:['Gasolina C',6.55,6.52,-0.03,-126.00,4200,13.03]},
+          {name:'Frota Rápida ME', pill:{text:'maior desvio',tone:'red'}, alert:true, vals:['Diesel S10',6.75,6.40,-0.35,-1642.00,4690,4.69]},
+          {name:'Auto Avulso (balcão)', vals:['Diesel S10',6.99,6.98,-0.01,-47.00,517,12.75]},
+          {name:'Total', total:true, vals:['—',null,null,-0.18,-2995.00,18947,8.49]}
+        ],
+        narrativa: {
+          tag:'Frota · abaixo do contrato',
+          diag:[
+            {k:'O que está acontecendo', t:'Frota Rápida ME (−35¢/L) e Construtora Marília (−25¢/L) compram Diesel abaixo da própria tabela especial — R$ 2.822 de margem cedida além do contratado.'},
+            {k:'Quem está correto', t:'Transportadora Litoral abastece exatamente na tabela cliente (desvio zero, margem 9,22%). É o padrão que os demais deveriam seguir.'},
+            {k:'A pista do cupom', t:'O desvio não aparece como desconto: o preço já foi alterado na bomba. Só cruzando tabela-cliente × preço praticado ele fica visível.'}
+          ],
+          acao:'Revisar a tabela por cliente da Frota Rápida e da Construtora Marília no WebPosto. Se o desconto for real, formalizar no contrato; se não, bloquear o override de bomba para esses CNPJs.'
+        }
+      },
+      empresa: {
+        first: 'Empresa', hint: 'Desvio de preço praticado · comparativo da rede',
+        cols: [
+          {l:'Preço tabela',t:'brl'},{l:'Praticado',t:'brlStrong'},{l:'Desvio/un',t:'signUn'},
+          {l:'Desc total',t:'brlSigned'},{l:'Volume (L)',t:'num'},{l:'Valor',t:'brlPlain'},{l:'Lucro bruto',t:'brlPlain'},{l:'Margem',t:'pct'}
+        ],
+        rows: [
+          {name:'Posto Trivillin', vals:[6.75,6.64,-0.11,-4490.45,41038,272531,30901,11.08]},
+          {name:'Posto Itapoá', vals:[6.71,6.68,-0.03,-1020.00,34000,227120,27482,12.10]},
+          {name:'Posto Centro', pill:{text:'mais disciplinado',tone:'green'}, vals:[6.80,6.79,-0.01,-380.00,38000,258020,33300,12.90]},
+          {name:'Posto Serra', pill:{text:'maior vazamento',tone:'red'}, alert:true, vals:[6.69,6.55,-0.14,-5180.00,37000,242350,22100,9.12]},
+          {name:'Posto Avenida', vals:[6.72,6.70,-0.02,-640.00,32000,214400,25300,11.80]},
+          {name:'Total da rede', total:true, vals:[6.73,6.67,-0.06,-11710.45,182038,1214421,139083,11.45]}
+        ],
+        narrativa: {
+          tag:'Posto Serra · maior vazamento',
+          diag:[
+            {k:'O que está acontecendo', t:'O Posto Serra cede R$ 5.180 no mês com desvio de 14¢/L — o dobro da média da rede — e fecha com margem de 9,12%, a única abaixo de 10%.'},
+            {k:'O contraponto', t:'O Posto Centro é o mais disciplinado: 1¢ de desvio e 12,90% de margem. Mesma rede, mesma tabela, resultado oposto.'},
+            {k:'O tamanho do prêmio', t:'Se o Serra replicasse a disciplina de desconto do Centro, recuperaria cerca de R$ 4.800/mês sem tocar no preço de tabela.'}
+          ],
+          acao:'Auditar a política de desconto de bomba do Posto Serra e padronizar o teto de override pela referência do Centro. Acompanhar o desvio/L por unidade toda semana.'
+        }
+      }
+    };
+  }
+
+  segStyle(active){
+    const base = 'display:flex;align-items:center;justify-content:center;height:38px;padding:0 18px;border-radius:8px;font-size:12.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .15s;white-space:nowrap';
+    return active ? base+';background:#1e3a5f;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12)' : base+';background:transparent;color:#64748b';
+  }
+
+  renderVals(){
+    const tab = this.state.tab;
+    const isRegistry = tab === 'tabelas';
+    const isImpacto = tab === 'impacto';
+    const segs = [
+      {id:'produto',label:'Por produto'},
+      {id:'cliente',label:'Por cliente'},
+      {id:'empresa',label:'Por empresa'},
+      {id:'impacto',label:'Impacto no LB'},
+      {id:'tabelas',label:'Tabelas cadastradas'}
+    ].map(x => ({ label:x.label, active:tab===x.id, inactive:tab!==x.id, pick:()=>this.setState({tab:x.id}) }));
+
+    if(isImpacto){
+      const postos = this.impactoPostos.map(p => {
+        const potencial = p.realizado + p.cedido;
+        const cPct = p.cedido / potencial * 100;
+        const rPct = 100 - cPct;
+        const col = cPct>=12 ? '#dc2626' : (cPct>=6 ? '#d97706' : '#16a34a');
+        return {
+          nome: p.nome,
+          hasBadge: !!(p.worst||p.best),
+          badge: p.worst?'maior impacto':(p.best?'mais disciplinado':''),
+          badgeStyle: this.pillStyle(p.worst?'red':'green'),
+          cedidoFmt: '−R$ '+this.nf0(p.cedido),
+          pctFmt: this.nf2(cPct)+'%',
+          impactoNumStyle: `font-size:19px;font-weight:800;letter-spacing:-.01em;color:${col};font-variant-numeric:tabular-nums`,
+          realizadoFmt: 'R$ '+this.nf0(p.realizado),
+          potencialFmt: 'R$ '+this.nf0(potencial),
+          realizadoStyle: `width:${rPct}%;background:#1e3a5f`,
+          cedidoStyle: `width:${cPct}%;background:#ef4444`,
+          attr: p.attr.map(a => ({ ref:a.t, nome:a.n, valor:'R$ '+this.nf0(a.v) }))
+        };
+      });
+      return {
+        isAnalytical:false, isRegistry:false, isImpacto:true,
+        segs, postos
+      };
+    }
+    const tabelas = this.registryTables.map(t => {
+      const active = t.ref === this.state.selTab;
+      return {
+        ref: t.ref, nome: t.nome,
+        badge: t.status==='vigente'?'Vigente':'Expirada',
+        badgeStyle: this.regBadge(t.status),
+        meta: `${t.itens.length} ${t.itens.length===1?'item':'itens'} · início ${t.ini}`,
+        style: `padding:12px 16px;cursor:pointer;border-bottom:1px solid #f1f3f5;border-left:3px solid ${active?'#2563eb':'transparent'};background:${active?'#eff4fb':'#fff'}`,
+        pick: () => this.setState({ selTab: t.ref })
+      };
+    });
+    const sel0 = this.registryTables.find(t => t.ref===this.state.selTab) || this.registryTables[0];
+    const sel = {
+      ref: sel0.ref, nome: sel0.nome,
+      badge: sel0.status==='vigente'?'Vigente':'Expirada',
+      badgeStyle: this.regBadge(sel0.status),
+      ini: sel0.ini, fim: sel0.fim, dias: sel0.dias, filial: sel0.filial,
+      itens: sel0.itens.map(it => ({
+        filial: it.filial, cliente: it.cliente, grupo: it.grupo, produto: it.produto, tipo: it.tipo,
+        valor: it.valor==null ? (it.desc||'—') : 'R$ '+this.nf2(it.valor)
+      }))
+    };
+    if(isRegistry){
+      return {
+        isAnalytical: false, isRegistry: true, isImpacto: false,
+        segs, tabelas, sel,
+        stProduto: this.segStyle(false),
+        stCliente: this.segStyle(false),
+        stEmpresa: this.segStyle(false),
+        stTabelas: this.segStyle(true),
+        pickProduto: () => this.setState({tab:'produto'}),
+        pickCliente: () => this.setState({tab:'cliente'}),
+        pickEmpresa: () => this.setState({tab:'empresa'}),
+        pickTabelas: () => this.setState({tab:'tabelas'})
+      };
+    }
+    const ds = this.datasets()[tab];
+    const headerFirst = { label: ds.first, style: this.th('left') };
+    const headerRest = ds.cols.map(c => ({ label: c.l, style: this.th(c.t==='txt'?'left':'right') }));
+    const rows = ds.rows.map(r => {
+      const isTotal = !!r.total;
+      const nameStyle = `padding:11px 14px;font-size:13px;text-align:left;border-bottom:1px solid #f1f3f5;color:#111827;font-weight:${isTotal?'700':'600'};white-space:nowrap`;
+      const rowStyle = r.alert ? 'background:#fef4f4' : (isTotal ? 'background:#f8fafc' : 'background:#fff');
+      const pill = r.pill ? { text:r.pill.text, style:this.pillStyle(r.pill.tone) } : null;
+      const cells = r.vals.map((raw,i) => this.cell(raw, ds.cols[i].t, isTotal));
+      return { name:r.name, nameStyle, rowStyle, pill, cells };
+    });
+    return {
+      isAnalytical: true, isRegistry: false, isImpacto: false,
+      segs, tabelas, sel,
+      headerFirst, headerRest, rows,
+      narrativa: ds.narrativa,
+      tableHint: ds.hint,
+      searchVisible: tab==='cliente',
+      stProduto: this.segStyle(tab==='produto'),
+      stCliente: this.segStyle(tab==='cliente'),
+      stEmpresa: this.segStyle(tab==='empresa'),
+      stTabelas: this.segStyle(false),
+      pickProduto: () => this.setState({tab:'produto'}),
+      pickCliente: () => this.setState({tab:'cliente'}),
+      pickEmpresa: () => this.setState({tab:'empresa'}),
+      pickTabelas: () => this.setState({tab:'tabelas'})
+    };
+  }
+}
+</script>
+</body>
+</html>
