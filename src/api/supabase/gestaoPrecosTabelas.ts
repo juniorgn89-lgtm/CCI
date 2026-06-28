@@ -49,6 +49,50 @@ export const fetchGestaoPrecoTabelas = async (): Promise<GestaoPrecoTabela[]> =>
   return (data ?? []) as GestaoPrecoTabela[]
 }
 
+/**
+ * Importa/atualiza UMA tabela (mestre + linhas). Upsert do mestre por
+ * (rede_id, ref); as linhas são SUBSTITUÍDAS (delete + insert) pra refletir
+ * edições/remoções do WebPosto. `created_at` do mestre vira a "última
+ * importação". Escrita imperativa (master via RLS) — NUNCA useMutation.
+ */
+export const importGestaoPrecoTabela = async (params: {
+  redeId: string
+  ref: string
+  descricao: string
+  validadeInicial: string | null
+  validadeFinal: string | null
+  diasSemana: number[] | null
+  filialNome: string | null
+  filialEmpresaCodigo: number | null
+  itens: { produto_nome: string; valor: number }[]
+}): Promise<{ ok: boolean; count?: number; error?: string }> => {
+  if (!supabase) return { ok: false, error: 'Sem conexão com o banco.' }
+  const { data: t, error: e1 } = await supabase
+    .from('gestao_precos_tabelas')
+    .upsert({
+      rede_id: params.redeId,
+      ref: params.ref,
+      descricao: params.descricao,
+      validade_inicial: params.validadeInicial,
+      validade_final: params.validadeFinal,
+      dias_semana: params.diasSemana,
+      created_at: new Date().toISOString(),
+    }, { onConflict: 'rede_id,ref' })
+    .select('id')
+    .single()
+  if (e1 || !t) return { ok: false, error: e1?.message ?? 'Erro ao salvar a tabela.' }
+  const { error: e2 } = await supabase.from('gestao_precos_tabela_itens').delete().eq('tabela_id', t.id)
+  if (e2) return { ok: false, error: e2.message }
+  if (params.itens.length > 0) {
+    const rows = params.itens.map((i) => ({
+      tabela_id: t.id, filial_nome: params.filialNome, filial_empresa_codigo: params.filialEmpresaCodigo, produto_nome: i.produto_nome, tipo: 'especifico', valor: i.valor,
+    }))
+    const { error: e3 } = await supabase.from('gestao_precos_tabela_itens').insert(rows)
+    if (e3) return { ok: false, error: e3.message }
+  }
+  return { ok: true, count: params.itens.length }
+}
+
 /** Todas as linhas (a escala atual é pequena — dá pra contar/detalhar numa leitura só). */
 export const fetchGestaoPrecoTabelaItens = async (): Promise<GestaoPrecoTabelaItem[]> => {
   if (!supabase) return []

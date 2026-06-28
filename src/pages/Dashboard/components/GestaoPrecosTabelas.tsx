@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, ShieldCheck, Clock, Layers, CalendarRange } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { FileSpreadsheet, ShieldCheck, Clock, Layers, CalendarRange, Database, Upload } from 'lucide-react'
 import {
   fetchGestaoPrecoTabelas, fetchGestaoPrecoTabelaItens, type GestaoPrecoTabela,
 } from '@/api/supabase/gestaoPrecosTabelas'
@@ -8,6 +8,8 @@ import { classifyFuelSlug } from '@/api/supabase/concorrencia'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { type GestaoPrecoRow } from '@/pages/Dashboard/hooks/useGestaoPrecos'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
+import { useAuthStore } from '@/store/auth'
+import ImportTabelaModal from '@/pages/Dashboard/components/ImportTabelaModal'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -74,21 +76,46 @@ const GestaoPrecosTabelas = ({ praticados }: { praticados: GestaoPrecoRow[] }) =
     return m
   }, [allItens])
   const itensSel = useMemo(() => (sel ? allItens.filter((it) => it.tabela_id === sel.id) : []), [allItens, sel])
+  const ultimaImport = useMemo(() => tabelas.reduce((mx, t) => (t.created_at > mx ? t.created_at : mx), ''), [tabelas])
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const qc = useQueryClient()
+  const [importOpen, setImportOpen] = useState(false)
+  const onImported = () => { qc.invalidateQueries({ queryKey: ['gp-tabelas'] }); qc.invalidateQueries({ queryKey: ['gp-tabela-itens'] }) }
+  const importModal = isMaster ? <ImportTabelaModal open={importOpen} onClose={() => setImportOpen(false)} onImported={onImported} /> : null
+  const importBtn = isMaster ? (
+    <button type="button" onClick={() => setImportOpen(true)}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#2563eb] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#1d4ed8]">
+      <Upload className="h-3.5 w-3.5" /> Importar
+    </button>
+  ) : null
 
   if (isLoading) return <Skeleton className="h-72 rounded-2xl" />
 
   if (tabelas.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
-        <Layers className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
-        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhuma tabela cadastrada</p>
-        <p className="mt-1 text-[12px] text-gray-400">Ingira a "Tabela de Preço de Prazos" do WebPosto (Exportar XLSX → Supabase) — ver <code>docs/supabase-gestao-precos-tabelas.sql</code>.</p>
-      </div>
+      <>
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
+          <Layers className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhuma tabela cadastrada</p>
+          <p className="mt-1 text-[12px] text-gray-400">Não vem da API — o WebPosto não expõe a "Tabela de Preço de Prazos". Importe (Exportar XLSX → colar aqui).</p>
+          {importBtn && <div className="mt-3 flex justify-center">{importBtn}</div>}
+        </div>
+        {importModal}
+      </>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row">
+    <div className="space-y-3">
+      {/* Aviso: não vem da API + última importação */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[11.5px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+        <Database className="h-3.5 w-3.5 shrink-0" />
+        <span><strong>Não vem da API</strong> — o WebPosto não expõe a "Tabela de Preço de Prazos". É preciso <strong>importar</strong> (Exportar XLSX → Visor) pra criar/atualizar.</span>
+        <span className="ml-auto whitespace-nowrap text-amber-700/80 dark:text-amber-400/80">Última importação: <strong>{ultimaImport ? dataBR(ultimaImport) : '—'}</strong></span>
+        {importBtn}
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row">
       {/* Lista mestre */}
       <div className="w-full shrink-0 space-y-1.5 lg:w-[332px]">
         {tabelas.map((t) => {
@@ -171,6 +198,8 @@ const GestaoPrecosTabelas = ({ praticados }: { praticados: GestaoPrecoRow[] }) =
           </div>
         </div>
       )}
+      </div>
+      {importModal}
     </div>
   )
 }
