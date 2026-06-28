@@ -104,7 +104,9 @@ const BriefingModal = () => {
   const leitura = useMemo(() => {
     const { volumeEffect: vol, marginEffect: marg, deltaLB, deltaLitros, deltaLbPorLitroAbs, diaSemana, ontem } = resumo
     if (!resumo.hasData || deltaLB == null) return null
-    const cmpRef = `**${diaSemana} passada (${ddmm(isoMinusDays(ontem, 7))})**`
+    // Concordância de gênero: domingo/sábado = masculino ("passado"); seg–sex = feminino ("passada").
+    const passado = diaSemana === 'domingo' || diaSemana === 'sábado' ? 'passado' : 'passada'
+    const cmpRef = `**${diaSemana} ${passado} (${ddmm(isoMinusDays(ontem, 7))})**`
     const litrosTxt = deltaLitros != null ? `os litros ${deltaLitros >= 0 ? 'subiram' : 'caíram'} ${Math.abs(deltaLitros).toFixed(1)}%` : null
     const rlTxt = deltaLbPorLitroAbs != null ? `${deltaLbPorLitroAbs >= 0 ? '+' : '−'}${rl(Math.abs(deltaLbPorLitroAbs))}/L` : null
     if (deltaLB >= 0) {
