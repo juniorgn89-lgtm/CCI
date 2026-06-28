@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import useGestaoPrecos, { type GestaoPrecoRow, type GestaoPrecosData } from '@/pages/Dashboard/hooks/useGestaoPrecos'
+import GestaoPrecosTabelas from '@/pages/Dashboard/components/GestaoPrecosTabelas'
 import { BASE_DESVIO_LABEL, BASE_MIX_NOTE, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -28,7 +29,7 @@ const SUB_TABS: { id: SubId; label: string; lock?: boolean }[] = [
   { id: 'empresa', label: 'Por empresa' },
   { id: 'lb', label: 'Impacto no LB' },
   { id: 'cliente', label: 'Por cliente', lock: true },
-  { id: 'tabelas', label: 'Tabelas cadastradas', lock: true },
+  { id: 'tabelas', label: 'Tabelas cadastradas' },
 ]
 
 /* ── KPI ── */
@@ -338,7 +339,9 @@ const GestaoPrecos = () => {
       </div>
 
       {/* Conteúdo */}
-      {data.isLoading && data.byProduto.length === 0 ? (
+      {sub === 'tabelas' ? (
+        <GestaoPrecosTabelas praticados={data.byProduto} />
+      ) : data.isLoading && data.byProduto.length === 0 ? (
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
           <Skeleton className="h-64 rounded-2xl" />
@@ -352,8 +355,8 @@ const GestaoPrecos = () => {
       ) : (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
           <Lock className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Fase 2 — depende da ingestão das tabelas</p>
-          <p className="mt-1 text-[12px] text-gray-400">A "Tabela de Preço de Prazos" do WebPosto não vem na API; será espelhada no Supabase (como a concorrência) pra alimentar atribuição nomeada e preço de contrato.</p>
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Por cliente — Fase 2</p>
+          <p className="mt-1 text-[12px] text-gray-400">Preço praticado por cliente/frota + a coluna de contrato (preço especial). Depende do join venda→cliente (cron) e das tabelas cadastradas. Em breve.</p>
         </div>
       )}
     </div>

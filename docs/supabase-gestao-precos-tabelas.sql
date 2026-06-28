@@ -32,7 +32,11 @@ create table if not exists public.gestao_precos_tabelas (
 create table if not exists public.gestao_precos_tabela_itens (
   id                     uuid primary key default gen_random_uuid(),
   tabela_id              uuid not null references public.gestao_precos_tabelas(id) on delete cascade,
-  -- Filial = posto a que a linha se aplica (empresa_codigo). NULL = todas da rede.
+  -- Filial como vem do WebPosto (ex.: "POSTO DARWIN"). É a fonte do export; o
+  -- app casa esse NOME com o empresaCodigo da Quality (o nº de filial do WebPosto
+  -- NÃO é o empresaCodigo). NULL = todas da rede.
+  filial_nome            text,
+  -- empresaCodigo resolvido (opcional; o app resolve pelo nome se vazio).
   filial_empresa_codigo  int,
   cliente                text,
   grupo_cliente          text,
