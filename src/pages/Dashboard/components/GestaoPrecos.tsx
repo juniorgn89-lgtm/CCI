@@ -265,6 +265,9 @@ const ImpactoLB = ({ byPosto, global }: { byPosto: GestaoPrecoRow[]; global: Ges
   const maiorKey = comCedido.length ? [...comCedido].sort((a, b) => b.pctCedido - a.pctCedido)[0].key : null
   const discKey = comCedido.length ? [...comCedido].sort((a, b) => a.pctCedido - b.pctCedido)[0].key : null
   const gSev = severidadeCedido(global.pctCedido)
+  // Origem do cedido total: vazamento (ajuste de bomba sem tabela) × sancionado (casou tabela cadastrada).
+  const ajusteTotal = byPosto.reduce((s, p) => s + p.origem.ajusteBomba, 0)
+  const sancionadoTotal = byPosto.reduce((s, p) => s + p.origem.sancionado.reduce((a, x) => a + x.valor, 0), 0)
 
   if (byPosto.length === 0) {
     return (
@@ -278,10 +281,31 @@ const ImpactoLB = ({ byPosto, global }: { byPosto: GestaoPrecoRow[]; global: Ges
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="LB realizado" tone="navy" value={formatCurrencyInt(global.lbRealizado)} sub="apurado no período (fiscal)" help="Lucro bruto realizado da rede (base fiscal, useRedeSetores) no escopo do filtro." />
-        <Kpi label="Impacto dos descontos" tone="red" value={`−${formatCurrencyInt(global.lbCedido)}`} sub="cedido por ajuste de bomba" help="Total cedido por vender abaixo da tabela (Σ desvio>0 × volume). Derivado · base física." />
+        <Kpi label="Impacto dos descontos" tone="red" value={`−${formatCurrencyInt(global.lbCedido)}`} sub="cedido vs tabela · ver origem" help="Total cedido por vender abaixo da tabela (Σ desvio>0 × volume). Inclui o sancionado (desconto deliberado por tabela) — a origem separa o vazamento. Derivado · base física." />
         <Kpi label="LB potencial" tone="green" value={formatCurrencyInt(global.lbPotencial)} sub="realizado + cedido" help="O que o LB seria sem o ajuste de bomba abaixo da tabela. Derivado — cruza base fiscal + física." />
         <Kpi label="% do LB cedido" tone={gSev === 'alto' ? 'red' : gSev === 'medio' ? 'amber' : 'green'} value={pct1(global.pctCedido)} sub="cedido ÷ potencial" help="Fração do LB potencial que vazou por desconto de bomba." />
       </div>
+
+      {global.lbCedido > 0 && (ajusteTotal > 0 || sancionadoTotal > 0) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-red-200 bg-red-50/50 p-3 dark:border-red-900/40 dark:bg-red-950/20">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700/80 dark:text-red-300/80">Ajuste de bomba · vazamento</p>
+            <p className="mt-0.5 text-[18px] font-extrabold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(ajusteTotal)}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Abaixo da tabela sem cadastro que justifique — o número acionável.
+              {global.lbCedido > 0 && <> {pct1((ajusteTotal / global.lbCedido) * 100)} do cedido.</>}
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80 dark:text-emerald-300/80">Sancionado por tabela · política</p>
+            <p className="mt-0.5 text-[18px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">−{formatCurrencyInt(sancionadoTotal)}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Casou uma tabela cadastrada (desconto deliberado) — custo da política, não vazamento.
+              {global.lbCedido > 0 && <> {pct1((sancionadoTotal / global.lbCedido) * 100)} do cedido.</>}
+            </p>
+          </div>
+        </div>
+      )}
 
       <p className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
         ⚠️ {BASE_MIX_NOTE}
