@@ -84,21 +84,31 @@ const CartoesIntel = () => {
     return d.toISOString().split('T')[0]
   }, [hoje, mesesJanela])
 
-  // Rede-wide (omitir empresaCodigo) + filtro de subconjunto no cliente.
-  const { data: cartoesRaw = [], isLoading } = useQuery({
-    queryKey: ['cartaoAnalytics', 'rede', inicioWin, hoje],
-    queryFn: () => fetchAllPages(
-      (p) => fetchCartao({ dataInicial: inicioWin, dataFinal: hoje, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      1000, 120,
-    ),
-    enabled: true,
-  })
-  const cartoes = useMemo(
-    () => (empresaCodigos.length === 0
-      ? cartoesRaw.filter((c) => permittedCodes.has(c.empresaCodigo))
-      : cartoesRaw.filter((c) => empresaCodigos.includes(c.empresaCodigo))),
-    [cartoesRaw, empresaCodigos, permittedCodes],
+  // Postos a buscar: seleção explícita, ou todos os PERMITIDOS quando "Todos".
+  const scopeCodes = useMemo(
+    () => (empresaCodigos.length > 0 ? empresaCodigos : [...permittedCodes]),
+    [empresaCodigos, permittedCodes],
   )
+
+  // Busca POR EMPRESA em paralelo. Motivo: a busca rede-wide única (sem
+  // empresaCodigo) estourava o teto de paginação — a rede gera ~1.7k cartões/dia,
+  // e 120k registros cobrem só ~71 dias. Numa janela de 6 meses, o balde enchia em
+  // ~março e os meses recentes vinham VAZIOS (taxa caindo a 0%, fora do BI).
+  // O /CARTAO honra empresaCodigo (limite máx. da API = 2000), então cada posto
+  // pagina sozinho bem abaixo do teto. `dataFiltro: 'MOVIMENTO'` casa a janela com
+  // o agrupamento mensal por dataMovimento.
+  const { data: cartoes = [], isLoading } = useQuery({
+    queryKey: ['cartaoAnalytics', 'porEmpresa', inicioWin, hoje, [...scopeCodes].sort((a, b) => a - b)],
+    queryFn: async () => {
+      const lotes = await Promise.all(scopeCodes.map((code) => fetchAllPages(
+        (p) => fetchCartao({ dataInicial: inicioWin, dataFinal: hoje, empresaCodigo: code, dataFiltro: 'MOVIMENTO', ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        2000, 300,
+      )))
+      return lotes.flat()
+    },
+    enabled: scopeCodes.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
 
   const m = useMemo(() => {
     const pend = cartoes.filter((c) => c.pendente)
