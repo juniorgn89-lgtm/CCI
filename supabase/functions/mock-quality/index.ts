@@ -15,6 +15,7 @@ import {
   POSTOS, PRODUTOS, FRENTISTAS, ADMINISTRADORAS, CLIENTES, BICOS, BOMBAS, POSTO_CODES,
 } from './catalogs.ts'
 import { gerarDiaFuel, lmcDoPosto } from './dia.ts'
+import { gerarCaixas } from './caixa.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
 const tzToday = (): string =>
@@ -38,12 +39,24 @@ const scopePostos = (empresaCodigo?: number): number[] =>
 // pra mesma janela; gerar uma vez por janela evita regenerar a cada página.
 const cache = new Map<string, any[]>()
 const collectFuel = (field: string, di: string, df: string, postos: number[]): any[] => {
-  const key = `${field}|${di}|${df}|${postos.join(',')}`
+  const key = `fuel|${field}|${di}|${df}|${postos.join(',')}`
   const hit = cache.get(key)
   if (hit) return hit
   const out: any[] = []
   for (const d of eachDate(di, df)) for (const p of postos) out.push(...gerarDiaFuel(p, d)[field])
   out.sort((a, b) => a.codigo - b.codigo)
+  if (cache.size > 8) cache.clear()
+  cache.set(key, out)
+  return out
+}
+
+const collectCaixa = (field: string, di: string, df: string, postos: number[]): any[] => {
+  const key = `caixa|${field}|${di}|${df}|${postos.join(',')}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const out: any[] = []
+  for (const d of eachDate(di, df)) for (const p of postos) out.push(...gerarCaixas(p, d)[field])
+  out.sort((a, b) => a.caixaCodigo - b.caixaCodigo)
   if (cache.size > 8) cache.clear()
   cache.set(key, out)
   return out
@@ -101,7 +114,13 @@ Deno.serve((req: Request): Response => {
       return json(paginate(rows, (l) => l.empresaCodigo * 100 + l.produtoLmcCodigo, ultimo, limite))
     }
 
-    // Demais endpoints (caixa, cartão, títulos, estoque…) entram nas Fases 2+.
+    /* ── Caixa / Fechamento (Fase 2) ── */
+    case 'CAIXA':
+      return json(paginate(collectCaixa('caixas', di, df, scopePostos(empresaCodigo)), (c) => c.caixaCodigo, ultimo, limite))
+    case 'CAIXA_APRESENTADO':
+      return json(paginate(collectCaixa('apresentados', di, df, scopePostos(empresaCodigo)), (c) => c.caixaCodigo, ultimo, limite))
+
+    // Demais endpoints (cartão, títulos, estoque…) entram nas Fases 3+.
     default:
       return json({ ultimoCodigo: ultimo ?? 0, resultados: [] })
   }
