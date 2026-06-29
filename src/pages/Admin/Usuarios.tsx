@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown } from 'lucide-react'
@@ -707,6 +708,8 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
   disabled?: boolean
 }) => {
   const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const label = todas
     ? 'Todas as redes'
     : redes.length === 0
@@ -718,21 +721,31 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
     const next = redes.includes(id) ? redes.filter((x) => x !== id) : [...redes, id]
     onChange({ todas: false, redes: next })
   }
+  const abrir = () => {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setPos({ top: r.bottom + 4, left: r.left })
+    setOpen(true)
+  }
   return (
-    <div className="relative">
+    <>
       <button
+        ref={btnRef}
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : abrir())}
         className="inline-flex w-40 items-center justify-between gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
       >
         <span className="truncate">{label}</span>
         <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
       </button>
-      {open && (
+      {/* Portal pro body com posição fixed — escapa o overflow/clipping da tabela. */}
+      {open && pos && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[61] w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+            style={{ top: pos.top, left: pos.left }}
+          >
             <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800">
               <input
                 type="checkbox"
@@ -743,7 +756,7 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
               <span className="font-semibold text-gray-800 dark:text-gray-200">Todas as redes</span>
             </label>
             <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
-            <div className="max-h-48 overflow-auto">
+            <div className="max-h-56 overflow-auto">
               {all.map((r) => (
                 <label
                   key={r.id}
@@ -764,9 +777,10 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
               ))}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
 
