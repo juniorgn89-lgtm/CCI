@@ -178,3 +178,62 @@ export const CLIENTES = [
   mkCliente(9409, 'Expresso Pôr do Sol', '22.222.222/0001-09'),
   mkCliente(9410, 'Frigorífico Vale Verde', '22.222.222/0001-10'),
 ]
+
+/* ─── Infra de pista: bombas + bicos (8 bicos / 4 bombas por posto) ─── */
+// Cada bico serve 1 combustível. Gasolina comum, etanol e diesel S10 em 2 bicos;
+// aditivada e S500 em 1. bicoCodigo = empresaCodigo*100 + n (n=1..8).
+const FUEL_BY_BICO = [9101, 9101, 9102, 9103, 9103, 9104, 9104, 9105]
+
+export const BOMBAS = POSTOS.flatMap((p) =>
+  Array.from({ length: 4 }, (_, k) => ({
+    codigo: p.empresaCodigo * 10 + (k + 1),
+    bombaCodigo: p.empresaCodigo * 10 + (k + 1),
+    empresaCodigo: p.empresaCodigo,
+    bombaReferencia: String(k + 1),
+    descricao: `BOMBA 0${k + 1}`,
+    quantidadeBicos: 2,
+    ilha: Math.floor(k / 2) + 1,
+    serie: '',
+    fabricante: 'Wayne',
+    modelo: 'Helix',
+    tipoMedicaoDigital: true,
+    lacres: [],
+  })),
+)
+
+export const BICOS = POSTOS.flatMap((p) =>
+  FUEL_BY_BICO.map((produtoCodigo, i) => {
+    const n = i + 1
+    return {
+      codigo: p.empresaCodigo * 100 + n,
+      empresaCodigo: p.empresaCodigo,
+      bicoCodigo: p.empresaCodigo * 100 + n,
+      bicoNumero: String(n),
+      tanqueCodigo: p.empresaCodigo * 100 + produtoCodigo - 9100, // tanque por combustível
+      bombaCodigo: p.empresaCodigo * 10 + Math.ceil(n / 2),
+      produtoCodigo,
+      ultimoUsuarioAlteracao: '',
+      produtoLmcCodigo: produtoCodigo,
+    }
+  }),
+)
+
+/** Bicos de um posto (helper pro gerador). */
+export const bicosDoPosto = (empresaCodigo: number) => BICOS.filter((b) => b.empresaCodigo === empresaCodigo)
+
+/* ─── Formas de pagamento → administradora (pro mix do gerador) ─── */
+// Peso relativo de cada forma no mix de pagamento dos abastecimentos.
+export const FORMAS_MIX = [
+  { tipo: 'DINHEIRO', nome: 'DINHEIRO', administradoraCodigo: 0, peso: 22 },
+  { tipo: 'PIX', nome: 'PIX', administradoraCodigo: 9307, peso: 18 },
+  { tipo: 'CARTAO', nome: 'VISA DEBITO', administradoraCodigo: 9302, peso: 16 },
+  { tipo: 'CARTAO', nome: 'MASTERCARD DEBITO', administradoraCodigo: 9304, peso: 10 },
+  { tipo: 'CARTAO', nome: 'VISA CREDITO', administradoraCodigo: 9301, peso: 14 },
+  { tipo: 'CARTAO', nome: 'MASTERCARD CREDITO', administradoraCodigo: 9303, peso: 10 },
+  { tipo: 'CARTAO', nome: 'ELO CREDITO', administradoraCodigo: 9305, peso: 4 },
+  { tipo: 'CARTAO', nome: 'AURORA FROTA', administradoraCodigo: 9308, peso: 6 },
+]
+export const ADM_BY_CODE: Record<number, typeof ADMINISTRADORAS[number]> = Object.fromEntries(
+  ADMINISTRADORAS.map((a) => [a.administradoraCodigo, a]),
+)
+
