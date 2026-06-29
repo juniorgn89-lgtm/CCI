@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Fuel, Receipt, DollarSign, Gauge } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
+import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import { formatCurrency, formatLiters, formatNumber } from '@/lib/formatters'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 
@@ -10,6 +12,12 @@ interface FrentistaDetalheModalProps {
   nome: string
   codigo: number
   abastecimentos: AbastecimentoRow[]
+  /** Navegação ‹ › entre frentistas do ranking (opcional). */
+  onPrev?: () => void
+  onNext?: () => void
+  canPrev?: boolean
+  canNext?: boolean
+  position?: string
 }
 
 interface ProdutoLinha {
@@ -39,7 +47,13 @@ const formatDia = (iso: string): string => {
 
 /** Detalhe do frentista por DIA e produto — espelha o relatório de Abastecimento
  *  do webPosto (agrupa por data do abastecimento, com subtotal por dia). */
-const FrentistaDetalheModal = ({ open, onClose, nome, codigo, abastecimentos }: FrentistaDetalheModalProps) => {
+const FrentistaDetalheModal = ({
+  open, onClose, nome, codigo, abastecimentos,
+  onPrev, onNext, canPrev = false, canNext = false, position,
+}: FrentistaDetalheModalProps) => {
+  const navegavel = !!(onPrev || onNext)
+  useArrowKeyNav({ enabled: open && navegavel, canPrev, canNext, onPrev: () => onPrev?.(), onNext: () => onNext?.() })
+
   const { dias, totLitros, totFat, totAbast } = useMemo(() => {
     // dia → produto → linha
     const porDia = new Map<string, Map<string, ProdutoLinha>>()
@@ -79,13 +93,19 @@ const FrentistaDetalheModal = ({ open, onClose, nome, codigo, abastecimentos }: 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>
-            <span className="flex items-center gap-2">
-              <Fuel className="h-4 w-4 text-blue-500" />
-              {nome}
-            </span>
-          </DialogTitle>
+        {navegavel && (
+          <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="frentista anterior" nextLabel="próximo frentista" />
+        )}
+        <DialogHeader className="pr-8">
+          <div className="flex items-center gap-2">
+            <DialogTitle>
+              <span className="flex items-center gap-2">
+                <Fuel className="h-4 w-4 text-blue-500" />
+                {nome}
+              </span>
+            </DialogTitle>
+            <DialogNavCounter position={position} />
+          </div>
           <DialogDescription>Abastecimentos por produto no período</DialogDescription>
         </DialogHeader>
 

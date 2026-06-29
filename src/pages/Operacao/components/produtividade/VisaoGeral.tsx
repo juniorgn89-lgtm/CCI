@@ -6,6 +6,7 @@ import { formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { fuelLabel } from '@/lib/fuel'
 import BarCell from '@/components/tables/BarCell'
 import FrentistaDetalheModal from '@/pages/Operacao/components/produtividade/FrentistaDetalheModal'
+import useListNavigator from '@/hooks/useListNavigator'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import type { AbastecimentoRow as AbastecimentoComCusto } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { FrentistaDescAcr } from '@/pages/Operacao/hooks/useFuelVendaCost'
@@ -123,7 +124,8 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
   // Frentistas expandidos (mostram a quebra por combustível).
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   // Frentista aberto no modal de detalhe por produto/dia.
-  const [modalFrentista, setModalFrentista] = useState<{ codigo: number; nome: string } | null>(null)
+  // Modal de detalhe do frentista — navegável ‹ › pelo ranking exibido.
+  const frentistaNav = useListNavigator<{ codigo: number; nome: string }>()
 
   const toggleExpand = (codigo: number) =>
     setExpanded((prev) => {
@@ -425,7 +427,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
                         </td>
                         <td className="px-4 py-2.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                         <td
-                          onClick={() => setModalFrentista({ codigo: f.codigo, nome: f.nome })}
+                          onClick={() => frentistaNav.open(frentistas.map((x) => ({ codigo: x.codigo, nome: x.nome })), idx)}
                           title="Ver detalhe diário por produto"
                           className="cursor-pointer px-4 py-2.5 text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400"
                         >
@@ -517,11 +519,16 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
       </div>
 
       <FrentistaDetalheModal
-        open={modalFrentista !== null}
-        onClose={() => setModalFrentista(null)}
-        nome={modalFrentista?.nome ?? ''}
-        codigo={modalFrentista?.codigo ?? -1}
+        open={frentistaNav.isOpen}
+        onClose={frentistaNav.close}
+        nome={frentistaNav.current?.nome ?? ''}
+        codigo={frentistaNav.current?.codigo ?? -1}
         abastecimentos={abastecimentos}
+        onPrev={frentistaNav.prev}
+        onNext={frentistaNav.next}
+        canPrev={frentistaNav.canPrev}
+        canNext={frentistaNav.canNext}
+        position={frentistaNav.position}
       />
     </div>
   )
