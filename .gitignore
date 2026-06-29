@@ -5,6 +5,9 @@ node_modules
 dist
 dist-ssr
 
+# Design handoffs — scratch/referência local (preservado, fora do repo)
+archive/
+
 # Environment variables
 .env
 .env*
