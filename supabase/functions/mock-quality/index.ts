@@ -16,6 +16,7 @@ import {
 } from './catalogs.ts'
 import { gerarDiaFuel, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
+import { gerarCartoes, titulosReceber, titulosPagar } from './fin.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
 const tzToday = (): string =>
@@ -120,7 +121,36 @@ Deno.serve((req: Request): Response => {
     case 'CAIXA_APRESENTADO':
       return json(paginate(collectCaixa('apresentados', di, df, scopePostos(empresaCodigo)), (c) => c.caixaCodigo, ultimo, limite))
 
-    // Demais endpoints (cartão, títulos, estoque…) entram nas Fases 3+.
+    /* ── Financeiro / Cartões (Fase 3) ── */
+    case 'CARTAO': {
+      const hoje = tzToday()
+      const key = `cartao|${di}|${df}|${empresaCodigo ?? 'all'}`
+      let rows = cache.get(key)
+      if (!rows) {
+        rows = []
+        for (const d of eachDate(di, df)) for (const p of scopePostos(empresaCodigo)) rows.push(...gerarCartoes(p, d, hoje))
+        rows.sort((a, b) => a.codigo - b.codigo)
+        if (cache.size > 8) cache.clear()
+        cache.set(key, rows)
+      }
+      return json(paginate(rows, (c) => c.codigo, ultimo, limite))
+    }
+    case 'TITULO_RECEBER': {
+      const hoje = tzToday()
+      const rows = scopePostos(empresaCodigo)
+        .flatMap((p) => titulosReceber(p, hoje))
+        .filter((t) => t.dataMovimento >= di && t.dataMovimento <= df)
+      return json(paginate(rows, (t) => t.tituloCodigo, ultimo, limite))
+    }
+    case 'TITULO_PAGAR': {
+      const hoje = tzToday()
+      const rows = scopePostos(empresaCodigo)
+        .flatMap((p) => titulosPagar(p, hoje))
+        .filter((t) => t.dataMovimento >= di && t.dataMovimento <= df)
+      return json(paginate(rows, (t) => t.tituloPagarCodigo, ultimo, limite))
+    }
+
+    // Demais endpoints (duplicata, movimento conta, estoque…) entram nas Fases 4+.
     default:
       return json({ ultimoCodigo: ultimo ?? 0, resultados: [] })
   }
