@@ -15,6 +15,13 @@ export interface ProfileRow {
   is_master: boolean
   rede_id: string | null
   /**
+   * Redes que o usuário pode acessar (além do rede_id). null/vazio = cai no
+   * rede_id (legado). Opcional: rows lidos antes da migration não têm a coluna.
+   */
+  redes_permitidas?: string[] | null
+  /** true = acessa TODAS as redes (vivo). Distinto de is_master (admin total). */
+  acesso_todas_redes?: boolean
+  /**
    * Lista de empresa_codigos permitidos pro usuário, dentro da rede dele.
    * null ou vazio = sem restrição (vê todas as empresas da rede).
    */
@@ -81,6 +88,26 @@ export const updateProfileRedeId = async (userId: string, redeId: string) => {
     .from('profiles')
     .update({ rede_id: redeId })
     .eq('user_id', userId)
+  if (error) throw error
+}
+
+/**
+ * Define o acesso a redes de um usuário: "todas" OU uma lista específica.
+ * Mantém `rede_id` como a rede primária/home (1ª da lista quando há lista),
+ * pra não quebrar o legado/escopo de supervisor.
+ */
+export const updateProfileRedes = async (
+  userId: string,
+  opts: { todas: boolean; redes: string[] },
+) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const patch: Record<string, unknown> = {
+    acesso_todas_redes: opts.todas,
+    redes_permitidas: opts.todas ? [] : opts.redes,
+  }
+  // rede_id = home: 1ª rede da lista (ou mantém se "todas"/vazio).
+  if (!opts.todas && opts.redes.length > 0) patch.rede_id = opts.redes[0]
+  const { error } = await supabase.from('profiles').update(patch).eq('user_id', userId)
   if (error) throw error
 }
 

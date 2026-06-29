@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
   updateProfileRole,
   updateProfileApproved,
   updateProfileAtivo,
-  updateProfileRedeId,
+  updateProfileRedes,
   updateProfileEmpresas,
   updateProfileModulos,
   updateProfilePodeApurar,
@@ -129,14 +129,14 @@ const Usuarios = () => {
     }
   }
 
-  const handleChangeRede = async (row: ProfileRow, redeId: string) => {
+  const handleChangeRedes = async (row: ProfileRow, value: { todas: boolean; redes: string[] }) => {
     if (row.is_master) {
       alert('Administrador não tem rede vinculada (vê todas).')
       return
     }
     setBusyUserId(row.user_id)
     try {
-      await updateProfileRedeId(row.user_id, redeId)
+      await updateProfileRedes(row.user_id, value)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -443,7 +443,7 @@ const Usuarios = () => {
                         busy={busyUserId === p.user_id}
                         onToggleApproved={() => handleToggleApproved(p)}
                         onToggleRole={() => handleToggleRole(p)}
-                        onChangeRede={(redeId) => handleChangeRede(p, redeId)}
+                        onChangeRedes={(v) => handleChangeRedes(p, v)}
                         onEditEmpresas={() => setEditingEmpresasFor(p)}
                         onEditModulos={() => setEditingModulosFor(p)}
                         onTogglePodeApurar={() => handleTogglePodeApurar(p)}
@@ -697,6 +697,79 @@ const CreateUserModal = ({ redes, onClose, onCreated }: CreateUserModalProps) =>
   )
 }
 
+/* ─── Multi-seleção de redes (1, várias ou todas) ─── */
+
+const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
+  todas: boolean
+  redes: string[]
+  all: RedeRow[]
+  onChange: (value: { todas: boolean; redes: string[] }) => void
+  disabled?: boolean
+}) => {
+  const [open, setOpen] = useState(false)
+  const label = todas
+    ? 'Todas as redes'
+    : redes.length === 0
+      ? 'Selecione'
+      : redes.length === 1
+        ? (all.find((r) => r.id === redes[0])?.nome ?? '1 rede')
+        : `${redes.length} redes`
+  const toggleRede = (id: string) => {
+    const next = redes.includes(id) ? redes.filter((x) => x !== id) : [...redes, id]
+    onChange({ todas: false, redes: next })
+  }
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex w-40 items-center justify-between gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+            <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={todas}
+                onChange={(e) => onChange({ todas: e.target.checked, redes })}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="font-semibold text-gray-800 dark:text-gray-200">Todas as redes</span>
+            </label>
+            <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
+            <div className="max-h-48 overflow-auto">
+              {all.map((r) => (
+                <label
+                  key={r.id}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800',
+                    todas && 'opacity-50',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={todas}
+                    checked={todas || redes.includes(r.id)}
+                    onChange={() => toggleRede(r.id)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="truncate text-gray-700 dark:text-gray-300">{r.nome}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 /* ─── Row ─── */
 
 interface UserRowProps {
@@ -706,7 +779,7 @@ interface UserRowProps {
   busy: boolean
   onToggleApproved: () => void
   onToggleRole: () => void
-  onChangeRede: (redeId: string) => void
+  onChangeRedes: (value: { todas: boolean; redes: string[] }) => void
   onEditEmpresas: () => void
   onEditModulos: () => void
   onTogglePodeApurar: () => void
@@ -715,7 +788,7 @@ interface UserRowProps {
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRede, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -784,17 +857,13 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
         {p.is_master ? (
           <span className="text-xs text-gray-400">— vê todas —</span>
         ) : (
-          <select
-            value={p.rede_id ?? ''}
-            onChange={(e) => onChangeRede(e.target.value)}
+          <RedesSelect
+            todas={p.acesso_todas_redes === true}
+            redes={p.redes_permitidas && p.redes_permitidas.length > 0 ? p.redes_permitidas : (p.rede_id ? [p.rede_id] : [])}
+            all={redes}
             disabled={busy}
-            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 disabled:opacity-50"
-          >
-            <option value="" disabled>Selecione uma rede</option>
-            {redes.map((r) => (
-              <option key={r.id} value={r.id}>{r.nome}</option>
-            ))}
-          </select>
+            onChange={onChangeRedes}
+          />
         )}
       </td>
 
