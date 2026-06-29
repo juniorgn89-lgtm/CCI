@@ -17,7 +17,7 @@ import {
 import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
 import { gerarCartoes, titulosReceber, titulosPagar } from './fin.ts'
-import { produtoEstoque, produtoEstoqueExtrato } from './estoque.ts'
+import { produtoEstoque, produtoEstoqueExtrato, tanquesDoPosto } from './estoque.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
 const tzToday = (): string =>
@@ -172,6 +172,10 @@ Deno.serve((req: Request): Response => {
     case 'PRODUTO_ESTOQUE_EXTRATO': {
       const rows = scopePostos(empresaCodigo).flatMap((p) => produtoEstoqueExtrato(p))
       return json(paginate(rows, (r) => r.empresaCodigo * 10000 + r.produtoCodigo, ultimo, limite))
+    }
+    case 'TANQUE': {
+      const rows = scopePostos(empresaCodigo).flatMap((p) => tanquesDoPosto(p, tzToday()))
+      return json(paginate(rows, (t) => t.tanqueCodigo, ultimo, limite))
     }
 
     // Demais endpoints (duplicata, movimento conta…) entram nas Fases 5+.
