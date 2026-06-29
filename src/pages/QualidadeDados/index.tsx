@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ShieldAlert, Fuel, Search, Wallet, Boxes, Landmark, CheckCircle2, AlertTriangle, Info, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
+import { Fuel, Search, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -8,10 +8,10 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import IssueSection, { type Issue } from '@/pages/QualidadeDados/components/IssueSection'
+import QualidadeKpis from '@/pages/QualidadeDados/components/QualidadeKpis'
 import LancamentoDetalheModal, { type LancamentoDetalheData } from '@/pages/QualidadeDados/components/LancamentoDetalheModal'
 import ArquivadosView from '@/pages/QualidadeDados/components/ArquivadosView'
 import useQualidadeDados, {
@@ -1176,6 +1176,20 @@ const QualidadeDados = () => {
   const totalAtencaoAtivo = allFiltered.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
   const totalInfoAtivo = allFiltered.filter((i) => i.severity === 'low').reduce((s, i) => s + i.count, 0)
 
+  // Guard-rail (dev): com o Sherlock isolado, o Total tem que FECHAR com
+  // Sherlock + as categorias e com a partição por severidade. Se algum período
+  // não bater, é double-count remanescente — melhor gritar aqui que descobrir
+  // na tela. (cupom-multi-abast = Sherlock; sai da soma das categorias.)
+  if (import.meta.env.DEV && !data.isLoading) {
+    const sherlock = allFiltered.find((i) => i.id === 'cupom-multi-abast')?.count ?? 0
+    const categorias = allFiltered.filter((i) => i.id !== 'cupom-multi-abast').reduce((s, i) => s + i.count, 0)
+    const severitySum = totalCriticosAtivo + totalAtencaoAtivo + totalInfoAtivo
+    if (totalAtivo !== sherlock + categorias || totalAtivo !== severitySum) {
+      // eslint-disable-next-line no-console
+      console.error('[Qualidade] reconciliação falhou — possível double-count', { totalAtivo, sherlock, categorias, severitySum })
+    }
+  }
+
   // Quantas seleções estão entre os ativos (relevante pra contador da action bar)
   const selectedCount = selectedKeys.size
 
@@ -1288,37 +1302,13 @@ const QualidadeDados = () => {
             />
           ) : (
             <>
-              {/* KPIs principais — totais por severidade */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <KpiQD
-                  label="Total de inconsistências"
-                  value={data.isLoading ? null : totalAtivo}
-                  hint="Soma das categorias no período (exclui arquivados)"
-                  Icon={ShieldAlert}
-                  tone="neutral"
-                />
-                <KpiQD
-                  label="Críticos"
-                  value={data.isLoading ? null : totalCriticosAtivo}
-                  hint="Quebram cálculos — corrigir já"
-                  Icon={AlertTriangle}
-                  tone="high"
-                />
-                <KpiQD
-                  label="Atenção"
-                  value={data.isLoading ? null : totalAtencaoAtivo}
-                  hint="Suspeitos — investigar e validar"
-                  Icon={AlertTriangle}
-                  tone="medium"
-                />
-                <KpiQD
-                  label="Info"
-                  value={data.isLoading ? null : totalInfoAtivo}
-                  hint="Heads-up de qualidade — não bloqueia"
-                  Icon={Info}
-                  tone="low"
-                />
-              </div>
+              {/* KPIs principais — herói (Total + distribuição) + cards de severidade */}
+              <QualidadeKpis
+                total={data.isLoading ? null : totalAtivo}
+                criticos={totalCriticosAtivo}
+                atencao={totalAtencaoAtivo}
+                info={totalInfoAtivo}
+              />
 
               {/* Banner discreto quando tudo limpo */}
               {!data.isLoading && totalAtivo === 0 && (
@@ -1414,46 +1404,6 @@ const QualidadeDados = () => {
         onClose={() => setSelected(null)}
         data={selected}
       />
-    </div>
-  )
-}
-
-/* ─── KPI compacto pro topo ─── */
-
-interface KpiQDProps {
-  label: string
-  value: number | null
-  hint: string
-  Icon: typeof ShieldAlert
-  tone: 'high' | 'medium' | 'low' | 'neutral'
-}
-
-const KpiQD = ({ label, value, hint, Icon, tone }: KpiQDProps) => {
-  // Só severidade crítica (high) mantém cor — outros viram cinza neutro pra não
-  // poluir visualmente. Os números ainda comunicam a urgência sozinhos.
-  const map = {
-    high: { iconBg: 'bg-red-50 dark:bg-red-900/20', iconColor: 'text-red-600 dark:text-red-400', valueColor: 'text-red-700 dark:text-red-300' },
-    medium: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
-    low: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
-    neutral: { iconBg: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600 dark:text-gray-300', valueColor: 'text-gray-900 dark:text-gray-100' },
-  }
-  const s = map[tone]
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-        <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', s.iconBg)}>
-          <Icon className={cn('h-5 w-5', s.iconColor)} />
-        </div>
-      </div>
-      {value === null ? (
-        <Skeleton className="mt-2 h-8 w-16" />
-      ) : (
-        <p className={cn('mt-2 text-2xl font-bold tabular-nums', s.valueColor)}>
-          {formatNumber(value)}
-        </p>
-      )}
-      <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>
     </div>
   )
 }
