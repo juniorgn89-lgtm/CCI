@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Network, Loader2, CheckCircle2, Power, ArrowRight } from 'lucide-react'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
+import { useAuthStore } from '@/store/auth'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 
@@ -18,11 +20,23 @@ const SelecionarRede = () => {
   const setRede = useTenantStore((s) => s.setRede)
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
 
-  const { data: redes = [], isLoading, error } = useQuery({
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
+  const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
+
+  const { data: redesAll = [], isLoading, error } = useQuery({
     queryKey: ['redes'],
     queryFn: fetchRedes,
     staleTime: 5 * 60 * 1000,
   })
+
+  // Master/"todas" → todas; senão só as permitidas (+ a rede atual/home).
+  const redes = useMemo(() => {
+    if (isMaster || acessoTodas) return redesAll
+    const allow = new Set(redesPermitidas)
+    if (tenantRede?.id) allow.add(tenantRede.id)
+    return redesAll.filter((r) => allow.has(r.id))
+  }, [redesAll, isMaster, acessoTodas, redesPermitidas, tenantRede])
 
   const handleConectar = (rede: RedeRow) => {
     queryClient.clear()

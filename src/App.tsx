@@ -138,6 +138,15 @@ const loadTenantForUser = async () => {
         const lastBriefing = (br as { last_briefing_date: string | null }).last_briefing_date
         useAuthStore.getState().setBriefingSeenToday(lastBriefing === todayLocal())
       }
+      // Acesso multi-rede — query SEPARADA e resiliente (as colunas podem não
+      // existir ainda; docs/supabase-usuario-redes.sql). Erro aqui NÃO quebra o
+      // login: cai no default (sem switch, comportamento legado de 1 rede).
+      const { data: ar, error: arErr } = await supabase
+        .from('profiles').select('redes_permitidas, acesso_todas_redes').eq('user_id', user.id).maybeSingle()
+      if (!arErr && ar) {
+        const a = ar as { redes_permitidas: string[] | null; acesso_todas_redes: boolean | null }
+        useAuthStore.getState().setAcessoRedes(!!a.acesso_todas_redes, a.redes_permitidas ?? [])
+      }
       return
     }
 

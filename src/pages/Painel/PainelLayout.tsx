@@ -30,10 +30,15 @@ const pillInactive = 'border-[#e2e8f0] bg-white text-[#334155] shadow-[0_1px_2px
 
 const PainelLayout = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
+  const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
+  const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
   const rede = useTenantStore((s) => s.rede)
 
-  // Área de gestão é master-only — não-master vai pro dashboard da sua rede.
-  if (!isMaster) return <Navigate to="/dashboard" replace />
+  // Não-master com acesso a várias redes (ou todas) pode TROCAR de rede — entra
+  // no painel só pra "Selecionar rede". Os módulos admin seguem master-only.
+  const podeTrocar = acessoTodas || redesPermitidas.length > 1
+  if (!isMaster && !podeTrocar) return <Navigate to="/dashboard" replace />
+  const modulos = isMaster ? MODULOS : MODULOS.filter((m) => m.to === '/painel/selecionar-rede')
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -63,7 +68,7 @@ const PainelLayout = () => {
         aria-label="Módulos"
         className="flex gap-[7px] overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {MODULOS.map(({ to, label, Icon }) => (
+        {modulos.map(({ to, label, Icon }) => (
           <NavLink key={to} to={to} className={({ isActive }) => cn(pillBase, isActive ? pillActive : pillInactive)}>
             {({ isActive }) => (
               <>

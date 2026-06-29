@@ -127,6 +127,9 @@ const Sidebar = () => {
   const supabaseUser = useAuthStore((s) => s.user)
   const profileFullName = useAuthStore((s) => s.fullName)
   const isMaster = useAuthStore((s) => s.isMaster)
+  const acessoTodasRedes = useAuthStore((s) => s.acessoTodasRedes)
+  const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
+  const podeTrocarRede = acessoTodasRedes || redesPermitidas.length > 1
   const canApurar = useAuthStore((s) => s.canApurar)
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
@@ -326,7 +329,9 @@ const Sidebar = () => {
     .map((group) => {
       let items = group.items
       if (!isMaster) {
-        items = items.filter((item) => !item.masterOnly)
+        // "Selecionar Rede" (masterOnly) também aparece pra não-master que pode
+        // trocar de rede (acesso a várias ou todas).
+        items = items.filter((item) => !item.masterOnly || (podeTrocarRede && item.path === '/selecionar-rede'))
         if (modulosPermitidos && modulosPermitidos.length > 0) {
           items = items.filter((item) => {
             const id = moduloIdByPath.get(item.path)

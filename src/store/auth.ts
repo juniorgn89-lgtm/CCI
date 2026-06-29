@@ -55,10 +55,18 @@ interface AuthState {
    * que a última exibição não é hoje. Persistido por USUÁRIO no Supabase.
    */
   briefingSeenToday: boolean
+  /**
+   * Acesso a redes (de `profiles`): `acessoTodasRedes=true` → todas; senão
+   * `redesPermitidas` (ids). Vazio/false = legado (1 rede pelo rede_id). Um
+   * não-master pode TROCAR de rede quando tem "todas" ou >1 permitida.
+   */
+  redesPermitidas: string[]
+  acessoTodasRedes: boolean
   setAuth: (session: Session | null) => void
   setEmpresaCodigos: (codigos: number[] | null) => void
   setModulosPermitidos: (modulos: string[] | null) => void
   setIsMaster: (isMaster: boolean) => void
+  setAcessoRedes: (todas: boolean, redes: string[]) => void
   setCanApurar: (canApurar: boolean) => void
   setCanVerReabastecimento: (v: boolean) => void
   setFullName: (name: string | null) => void
@@ -74,6 +82,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   empresaCodigos: null,
   modulosPermitidos: null,
   isMaster: false,
+  redesPermitidas: [],
+  acessoTodasRedes: false,
   canApurar: false,
   canVerReabastecimento: false,
   fullName: null,
@@ -84,6 +94,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setEmpresaCodigos: (empresaCodigos) => set({ empresaCodigos }),
   setModulosPermitidos: (modulosPermitidos) => set({ modulosPermitidos }),
   setIsMaster: (isMaster) => set({ isMaster }),
+  setAcessoRedes: (acessoTodasRedes, redesPermitidas) => set({ acessoTodasRedes, redesPermitidas }),
   setCanApurar: (canApurar) => set({ canApurar }),
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setFullName: (fullName) => set({ fullName }),
