@@ -35,6 +35,7 @@ import { useTopbarUi } from '@/store/topbarUi'
  */
 const isSafeWithoutRede = (path: string): boolean =>
   path === '/selecionar-rede'
+  || path.startsWith('/painel')
   || path.startsWith('/admin/')
   || path === '/configuracoes'
 
