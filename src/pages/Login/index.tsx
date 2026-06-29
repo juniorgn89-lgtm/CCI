@@ -29,19 +29,22 @@ const schedulePrefetch = (fn: () => void): (() => void) => {
   return () => window.clearTimeout(id)
 }
 
-// Marca/logo reutilizada no topo do painel navy e na versão mobile do form.
+// Marca CCI oficial — reutilizada no topo do painel navy (escuro) e na versão
+// mobile do form (claro). Símbolo dos 3 triângulos + wordmark com "360" teal.
 const BrandMark = ({ light = false }: { light?: boolean }) => (
-  <div className="flex items-center gap-2.5">
-    <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#2563eb] shadow-lg shadow-blue-900/40">
-      <BarChart3 className="h-5 w-5 text-white" />
-    </div>
+  <div className="flex items-center gap-[11px]">
+    <img
+      src="/brand/visor360-icon-512.png"
+      alt="Visor360"
+      className="h-10 w-10 shrink-0 object-contain"
+    />
     <span
       className={cn(
-        'text-xl font-extrabold tracking-tight',
-        light ? 'text-white' : 'text-[#0f172a] dark:text-gray-100',
+        'text-[21px] font-extrabold tracking-[-0.02em]',
+        light ? 'text-white' : 'text-[#1e3a5f] dark:text-white',
       )}
     >
-      Visor<span className="text-[#60a5fa]">360</span>
+      Visor<span className={light ? 'text-[#14b8a6]' : 'text-[#0F766E] dark:text-[#14b8a6]'}>360</span>
     </span>
   </div>
 )
