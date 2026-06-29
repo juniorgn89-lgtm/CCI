@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { Check, Fuel, Loader2, RefreshCw, X } from 'lucide-react'
+import { Check, Loader2, RefreshCw, X } from 'lucide-react'
 import type { PaginatedResponse } from '@/api/types/common'
 import type { Empresa } from '@/api/types/empresa'
 
@@ -209,16 +209,14 @@ const LoadingOverlay = () => {
               style={{ background: 'radial-gradient(circle, #2563eb 0%, transparent 70%)' }}
             />
 
-            {/* Logo */}
+            {/* Logo — marca CCI oficial (símbolo + wordmark, fundo escuro) */}
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 animate-ping rounded-full bg-blue-500/20" style={{ animationDuration: '2s' }} />
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/30">
-                  <Fuel className="h-6 w-6 text-white" />
-                </div>
+              <div className="relative flex h-12 w-12 items-center justify-center">
+                <div className="absolute inset-0 animate-ping rounded-full bg-white/10" style={{ animationDuration: '2s' }} />
+                <img src="/brand/visor360-icon-512.png" alt="Visor360" className="relative h-11 w-11 object-contain" />
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-wider text-white">Visor360</h1>
+                <h1 className="text-lg font-bold tracking-wider text-white">Visor<span className="text-[#14b8a6]">360</span></h1>
                 <p className="text-[10px] text-white/40">
                   {empresaNome ? `Carregando ${empresaNome}` : 'Carregando dados do posto'}
                 </p>

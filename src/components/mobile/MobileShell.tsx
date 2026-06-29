@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight } from 'lucide-react'
+import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
@@ -86,11 +86,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             aria-label="Perfil e configurações"
             className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity active:opacity-70"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white/12">
-              <LayoutDashboard className="h-5 w-5 text-white" />
-            </span>
+            <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-9 w-9 shrink-0 object-contain" />
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold leading-tight">Visor360</span>
+              <span className="block text-[15px] font-bold leading-tight">Visor<span className="text-[#14b8a6]">360</span></span>
               <span className="block truncate text-[11px] leading-tight text-white/70">{subtitle}</span>
             </span>
           </button>
