@@ -162,6 +162,55 @@ export const gerarDiaFuel = (empresaCodigo: number, dateISO: string): DiaFuel =>
     })
   }
 
+  // Achado plantado (Sherlock): cupons "montados" — Aurora Marginal, concentrados
+  // num frentista, com 2-3 abastecimentos no MESMO cupom (mix combustível + pgto,
+  // horários espalhados pelo turno). Dispara o detector cupom-multi-abast.
+  if (empresaCodigo === 9002 && frentistas.length) {
+    const culpado = frentistas[0]
+    const nMont = intBetween(rng, 2, 4)
+    for (let m = 0; m < nMont; m++) {
+      const vendaCodigo = base + 90_000 + m
+      const nLeg = intBetween(rng, 2, 3)
+      const horaBase = intBetween(rng, 8, 18)
+      for (let k = 0; k < nLeg; k++) {
+        const fuel = FUEL_MIX[weightedIndex(rng, FUEL_WEIGHTS)]
+        const bico = pick(rng, bicosPorFuel[fuel.produtoCodigo] ?? bicos)
+        const litros = Math.round(between(rng, fuel.litMin, fuel.litMax) * 100) / 100
+        const tabela = FUEL_PRICE[fuel.produtoCodigo].tabela
+        const custo = FUEL_PRICE[fuel.produtoCodigo].custo
+        const valorUnitario = Math.round((tabela + between(rng, -0.01, 0.01)) * 1000) / 1000
+        const valorTotal = Math.round(litros * valorUnitario * 100) / 100
+        const hh = String(horaBase + k).padStart(2, '0') // espalhados → spread suspeito
+        const hora = `${hh}:${String(intBetween(rng, 0, 59)).padStart(2, '0')}:00`
+        const codigo = base + 90_000 + m * 10 + k
+        const itemCodigo = vendaCodigo * 100 + k
+        const forma = k % 2 === 0 ? FORMAS_MIX[0] : FORMAS_MIX[4] // dinheiro × cartão
+        abastecimentos.push({
+          codigo, dataFiscal: dateISO, horaFiscal: hora, codigoProduto: fuel.produtoCodigo,
+          quantidade: litros, valorUnitario, valorTotal, codigoFrentista: culpado.funcionarioCodigo,
+          codigoBico: bico.bicoCodigo, afericao: false, vendaItemCodigo: itemCodigo, precoCadastro: tabela,
+          tabelaPrecoA: tabela, tabelaPrecoB: tabela, tabelaPrecoC: tabela, empresaCodigo,
+          dataHoraAbastecimento: `${dateISO}T${hora}`, stringAll: '', placa: placa(rng),
+          abastecimentoCodigo: codigo, encerrante: 0, precoCusto: custo,
+        })
+        vendaItens.push({
+          codigo: itemCodigo, empresaCodigo, vendaCodigo, vendaItemCodigo: itemCodigo, dataMovimento: dateISO,
+          produtoCodigo: fuel.produtoCodigo, quantidade: litros, precoCusto: custo,
+          totalCusto: Math.round(custo * litros * 100) / 100, precoVenda: valorUnitario, totalVenda: valorTotal,
+          totalDesconto: 0, totalAcrescimo: 0, cancelada: 'N', bicoCodigo: bico.bicoCodigo,
+          tanqueCodigo: bico.tanqueCodigo, funcionarioCodigo: culpado.funcionarioCodigo,
+        })
+        formas.push({
+          codigo: itemCodigo, empresaCodigo, vendaCodigo, vendaPrazoCodigo: 0, dataMovimento: dateISO,
+          vencimento: dateISO, valorPagamento: valorTotal, taxaPercentual: forma.tipo === 'CARTAO' ? 2.85 : 0,
+          formaPagamentoCodigo: forma.administradoraCodigo || 1, administradoraCodigo: forma.administradoraCodigo,
+          turnoCodigo: Number(hh) < 14 ? 1 : 2, tipoFormaPagamento: forma.tipo, nomeFormaPagamento: forma.nome,
+        })
+      }
+      vendas.push({ codigo: vendaCodigo, vendaCodigo, empresaCodigo, dataMovimento: dateISO, situacao: 'A', clienteCodigo: 0 })
+    }
+  }
+
   return { abastecimentos, vendaItens, vendas, formas }
 }
 

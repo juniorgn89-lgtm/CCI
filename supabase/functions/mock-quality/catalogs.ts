@@ -63,6 +63,7 @@ const mkFuel = (produtoCodigo: number, nome: string, tipoCombustivel: string) =>
   combustivel: true,
   produtoLmcCodigo: produtoCodigo,
   tipoCombustivel,
+  tipoProduto: 'C', // 'C' = combustível (classificação da apuração)
   unidadeCompra: 'LT',
   unidadeVenda: 'LT',
 })
@@ -127,6 +128,25 @@ export const STORE_PRICE: Record<number, { custo: number; venda: number }> = {
   9215: { custo: 6.00, venda: 15.00 },
 }
 export const STORE_CODES = Object.keys(STORE_PRICE).map(Number)
+
+/* ─── Grupos (classificação de setor na apuração) ─── */
+const mkGrupo = (grupoCodigo: number, nome: string, tipoGrupo: string) => ({
+  codigo: grupoCodigo,
+  grupoCodigo,
+  nome,
+  ultimoUsuarioAlteracao: '',
+  grupoCodigoExterno: '',
+  codigoTributoIcms: 0,
+  codigoTributoPisCofins: 0,
+  descricaoTributoIcms: '',
+  descricaoTributoPisCofins: '',
+  tipoGrupo,
+})
+export const GRUPOS = [
+  mkGrupo(90, 'Combustíveis', 'Combustível'),
+  mkGrupo(91, 'Conveniência', 'Conveniência'),
+  mkGrupo(92, 'Automotivos', 'Pista'),
+]
 
 /* ─── Frentistas (6 por posto) ─── */
 const NOMES = [

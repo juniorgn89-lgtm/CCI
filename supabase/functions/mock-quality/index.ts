@@ -12,7 +12,7 @@
 // FASE 0: catálogos. FASE 1: combustível (abastecimento/venda/forma/bico/bomba/lmc).
 // ============================================================================
 import {
-  POSTOS, PRODUTOS, FRENTISTAS, ADMINISTRADORAS, CLIENTES, BICOS, BOMBAS, POSTO_CODES,
+  POSTOS, PRODUTOS, FRENTISTAS, ADMINISTRADORAS, CLIENTES, BICOS, BOMBAS, GRUPOS, POSTO_CODES,
 } from './catalogs.ts'
 import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
@@ -82,6 +82,19 @@ Deno.serve((req: Request): Response => {
       return json(paginate(POSTOS, (e) => e.empresaCodigo, ultimo, limite))
     case 'PRODUTO':
       return json(paginate(PRODUTOS, (p) => p.produtoCodigo, ultimo, limite))
+    case 'GRUPO':
+      return json(paginate(GRUPOS, (g) => g.grupoCodigo, ultimo, limite))
+
+    // /VENDA_RESUMO devolve ARRAY puro (sem envelope) — usado pela apuração.
+    case 'VENDA_RESUMO': {
+      const out: any[] = []
+      for (const d of eachDate(di, df)) for (const p of POSTO_CODES) {
+        const dia = gerarDia(p, d)
+        const total = dia.vendaItens.reduce((s, v) => s + v.totalVenda, 0)
+        out.push({ codigoEmpresa: p, data: d, quantidade: dia.vendas.length, total: Math.round(total * 100) / 100 })
+      }
+      return json(out)
+    }
     case 'FUNCIONARIO': {
       const list = empresaCodigo ? FRENTISTAS.filter((f) => f.empresaCodigo === empresaCodigo) : FRENTISTAS
       return json(paginate(list, (f) => f.funcionarioCodigo, ultimo, limite))
