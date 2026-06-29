@@ -36,6 +36,7 @@ import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
+import useListNavigator from '@/hooks/useListNavigator'
 import type { CatalogProduct } from '@/pages/Conveniencias/hooks/useConvenienceData'
 
 // Lazy: 3 abas extras reusam os componentes da Conveniência
@@ -189,8 +190,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
 
   // Aba ativa (Visão Geral por padrão — mostra "Por categoria" + "Top 20 produtos")
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
-  // Expansão da tabela "Realizado dia a dia" (dia → grupo → produto).
-  const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
+  // Modal de detalhe do dia — navegável ‹ › pela lista de dias da semana ativa.
+  const diaNav = useListNavigator<PistaDiaData>()
   // Semana ativa da tabela dia a dia (chave = 2ª-feira; null = mais recente).
   const [activeMonday, setActiveMonday] = useState<string | null>(null)
 
@@ -198,8 +199,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const [searchProduto, setSearchProduto] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
   const [estoqueFiltro, setEstoqueFiltro] = useState<'todos' | 'sem-estoque' | 'critico' | 'atencao' | 'ok' | 'sem-dados'>('todos')
-  // Modal de drill-down ao clicar numa categoria
-  const [selectedCategoria, setSelectedCategoria] = useState<CategoriaData | null>(null)
+  // Modal de drill-down ao clicar numa categoria — navegável ‹ › entre categorias.
+  const catNav = useListNavigator<CategoriaData>()
   // Linha destacada na tabela "Top 20 produtos" — útil pra comparar valores visualmente
   const [selectedProduto, setSelectedProduto] = useState<number | null>(null)
   const toggleProdutoSelected = (codigo: number) => {
@@ -578,16 +579,17 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
 
   // Subconjunto pra alimentar o modal — produtos da categoria + vendas brutas
   // pra computar a distribuição diária dentro do modal.
+  const categoriaAtual = catNav.current
   const produtosDaCategoria = useMemo(() => {
-    if (!selectedCategoria || !computed) return []
-    return computed.produtosVendidos.filter((p) => p.categoria === selectedCategoria.nome)
-  }, [selectedCategoria, computed])
+    if (!categoriaAtual || !computed) return []
+    return computed.produtosVendidos.filter((p) => p.categoria === categoriaAtual.nome)
+  }, [categoriaAtual, computed])
 
   const vendasDaCategoria = useMemo(() => {
-    if (!selectedCategoria || produtosDaCategoria.length === 0) return []
+    if (!categoriaAtual || produtosDaCategoria.length === 0) return []
     const codes = new Set(produtosDaCategoria.map((p) => p.produtoCodigo))
     return vendaItens.filter((v) => codes.has(v.produtoCodigo))
-  }, [selectedCategoria, produtosDaCategoria, vendaItens])
+  }, [categoriaAtual, produtosDaCategoria, vendaItens])
 
   /* ─── Projeção (faturamento + lucro) ───
    * Agrega vendaItens dos produtos PS- por dia e aplica smoothedProjection
@@ -864,11 +866,16 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {semanaAtiva?.days.map((d) => (
+                      {(() => {
+                        const dias: PistaDiaData[] = (semanaAtiva?.days ?? []).map((d) => ({
+                          data: d.data, qtd: d.qtd, fat: d.fat, custo: d.custo, lucro: d.lucro,
+                          grupos: d.grupos.map((g) => ({ nome: g.nome, qtd: g.qtd, fat: g.fat, custo: g.custo, lucro: g.lucro })),
+                        }))
+                        return dias.map((d, idx) => (
                         <tr
                           key={d.data}
                           className="cursor-pointer text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40"
-                          onClick={() => setSelectedDia({ data: d.data, qtd: d.qtd, fat: d.fat, custo: d.custo, lucro: d.lucro, grupos: d.grupos.map((g) => ({ nome: g.nome, qtd: g.qtd, fat: g.fat, custo: g.custo, lucro: g.lucro })) })}
+                          onClick={() => diaNav.open(dias, idx)}
                         >
                           <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
                             <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
@@ -892,7 +899,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             <BarCell value={d.qtd > 0 ? d.lucro / d.qtd : 0} max={diaColMax.lbMedio} formatted={d.qtd > 0 ? formatCurrency(d.lucro / d.qtd) : '—'} color="amber" align="near" />
                           </td>
                         </tr>
-                      ))}
+                        ))
+                      })()}
                       {/* Subtotal da SEMANA visível + Total do PERÍODO (discreto) */}
                       {semanaAtiva && (() => {
                         const sub = semanaAtiva.days.reduce(
@@ -1029,7 +1037,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                               <tr
                                 key={c.nome}
                                 className="cursor-pointer hover:bg-gray-50/60 dark:hover:bg-gray-800/30"
-                                onClick={() => setSelectedCategoria(c)}
+                                onClick={() => catNav.open(cats, idx)}
                               >
                                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
                                   <span className="flex items-center gap-2">
@@ -1291,25 +1299,35 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       {/* Modal ao clicar numa linha da seção "Por categoria":
           indicadores + top produtos + distribuição diária da categoria. */}
       <CategoriaDetalheModal
-        open={selectedCategoria !== null}
-        onClose={() => setSelectedCategoria(null)}
-        categoria={selectedCategoria}
+        open={catNav.isOpen}
+        onClose={catNav.close}
+        categoria={catNav.current}
         produtos={produtosDaCategoria}
         vendasDaCategoria={vendasDaCategoria}
         estoquePorProduto={estoquePorProduto}
         dataInicial={dataInicial}
         dataFinal={dataFinal}
         categoriaColorClass={
-          selectedCategoria
-            ? CATEGORIA_COLOR[selectedCategoria.nome] ?? CATEGORIA_COLOR['Outros']
+          catNav.current
+            ? CATEGORIA_COLOR[catNav.current.nome] ?? CATEGORIA_COLOR['Outros']
             : ''
         }
+        onPrev={catNav.prev}
+        onNext={catNav.next}
+        canPrev={catNav.canPrev}
+        canNext={catNav.canNext}
+        position={catNav.position}
       />
 
       <PistaDiaModal
-        open={selectedDia !== null}
-        onClose={() => setSelectedDia(null)}
-        detail={selectedDia}
+        open={diaNav.isOpen}
+        onClose={diaNav.close}
+        detail={diaNav.current}
+        onPrev={diaNav.prev}
+        onNext={diaNav.next}
+        canPrev={diaNav.canPrev}
+        canNext={diaNav.canNext}
+        position={diaNav.position}
       />
     </div>
   )

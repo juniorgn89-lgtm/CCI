@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Calendar, Package, Layers, DollarSign, TrendingUp, Receipt, Percent, Wallet, LineChart as LineChartIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
+import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
@@ -38,6 +40,12 @@ interface CategoriaDetalheModalProps {
   dataFinal: string
   /** Classe do badge colorido da categoria (mesma paleta da Pista). */
   categoriaColorClass: string
+  /** Navegação ‹ › entre categorias (opcional). */
+  onPrev?: () => void
+  onNext?: () => void
+  canPrev?: boolean
+  canNext?: boolean
+  position?: string
 }
 
 
@@ -51,7 +59,14 @@ const CategoriaDetalheModal = ({
   dataInicial,
   dataFinal,
   categoriaColorClass,
+  onPrev,
+  onNext,
+  canPrev = false,
+  canNext = false,
+  position,
 }: CategoriaDetalheModalProps) => {
+  const navegavel = !!(onPrev || onNext)
+  useArrowKeyNav({ enabled: open && navegavel, canPrev, canNext, onPrev: () => onPrev?.(), onNext: () => onNext?.() })
   // Tamanho do período em dias — usado pra calcular venda diária média
   // (cobertura = saldo × dias / quantidade vendida no período).
   const diasPeriodo = useMemo(() => diasEntreDatas(dataInicial, dataFinal), [dataInicial, dataFinal])
@@ -112,17 +127,23 @@ const CategoriaDetalheModal = ({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>
-            <span
-              className={cn(
-                'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-                categoriaColorClass,
-              )}
-            >
-              {categoria.nome}
-            </span>
-          </DialogTitle>
+        {navegavel && (
+          <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="categoria anterior" nextLabel="próxima categoria" />
+        )}
+        <DialogHeader className="pr-8">
+          <div className="flex items-center gap-2">
+            <DialogTitle>
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
+                  categoriaColorClass,
+                )}
+              >
+                {categoria.nome}
+              </span>
+            </DialogTitle>
+            <DialogNavCounter position={position} />
+          </div>
           <DialogDescription>
             Indicadores, produtos e distribuição diária da categoria
           </DialogDescription>

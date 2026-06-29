@@ -1,5 +1,7 @@
 import { Calendar } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
+import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import BarCell from '@/components/tables/BarCell'
@@ -27,9 +29,21 @@ interface PistaDiaModalProps {
   detail: PistaDiaData | null
   /** Subtítulo do modal (default: pista). Permite reuso na Conveniência. */
   subtitle?: string
+  /** Navegação ‹ › entre dias (opcional). */
+  onPrev?: () => void
+  onNext?: () => void
+  canPrev?: boolean
+  canNext?: boolean
+  position?: string
 }
 
-const PistaDiaModal = ({ open, onClose, detail, subtitle = 'Vendas de pista (loja)' }: PistaDiaModalProps) => {
+const PistaDiaModal = ({
+  open, onClose, detail, subtitle = 'Vendas de pista (loja)',
+  onPrev, onNext, canPrev = false, canNext = false, position,
+}: PistaDiaModalProps) => {
+  const navegavel = !!(onPrev || onNext)
+  useArrowKeyNav({ enabled: open && navegavel, canPrev, canNext, onPrev: () => onPrev?.(), onNext: () => onNext?.() })
+
   if (!detail) return null
 
   const margemPct = detail.fat > 0 ? (detail.lucro / detail.fat) * 100 : 0
@@ -40,8 +54,14 @@ const PistaDiaModal = ({ open, onClose, detail, subtitle = 'Vendas de pista (loj
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{formatDate(detail.data)}</DialogTitle>
+        {navegavel && (
+          <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="dia anterior" nextLabel="próximo dia" />
+        )}
+        <DialogHeader className="pr-8">
+          <div className="flex items-center gap-2">
+            <DialogTitle>{formatDate(detail.data)}</DialogTitle>
+            <DialogNavCounter position={position} />
+          </div>
           <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
 
