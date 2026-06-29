@@ -60,18 +60,33 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; chip: str
   },
 }
 
+/** Mini-barra da composição de severidade (fração das contagens reais). */
+const MiniSeverityBar = ({ criticos, atencao, info, total }: { criticos: number; atencao: number; info: number; total: number }) => {
+  const w = (n: number) => (total > 0 ? (n / total) * 100 : 0)
+  return (
+    <div className="flex h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+      {criticos > 0 && <div className="h-full bg-red-500" style={{ width: `${w(criticos)}%` }} />}
+      {atencao > 0 && <div className="h-full bg-amber-400" style={{ width: `${w(atencao)}%` }} />}
+      {info > 0 && <div className="h-full bg-blue-400" style={{ width: `${w(info)}%` }} />}
+    </div>
+  )
+}
+
 /**
  * Seção colapsável de uma categoria de inconsistências (Abastecimentos,
- * Caixa, Estoque etc.). Mostra um header com o nome + total agregado e,
- * dentro, uma lista de issues com chevron pra expandir o detalhe de cada
- * uma. Items com count = 0 mostram um ✓ verde discreto.
+ * Caixa, Estoque etc.). Header com nome + composição de severidade (mini-barra +
+ * resumo) + total. Categoria com 0 mostra um check verde inline e NÃO expande.
  */
 const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedded = false }: IssueSectionProps) => {
   const totalIssues = issues.reduce((s, i) => s + i.count, 0)
   const issuesAtivas = issues.filter((i) => i.count > 0)
+  // Composição por severidade (fração das contagens reais).
+  const criticos = issues.filter((i) => i.severity === 'high').reduce((s, i) => s + i.count, 0)
+  const atencao = issues.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
+  const info = issues.filter((i) => i.severity === 'low').reduce((s, i) => s + i.count, 0)
+  // Resumo textual: atenção/info (crítico vira pill próprio ao lado do nome).
+  const resumo = [atencao > 0 ? `${atencao} aten.` : null, info > 0 ? `${info} info` : null].filter(Boolean).join(' · ')
   // Default colapsado — usuário expande só o que quiser inspecionar.
-  // Sherlock (fora desse componente, em index.tsx) já é sempre visível porque
-  // é o sinal mais crítico.
   const [open, setOpen] = useState(false)
 
   const Wrapper = embedded ? 'div' : 'section'
@@ -79,9 +94,27 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedd
     ? ''
     : 'rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900'
 
+  // Estado "tudo certo": categoria sem ocorrências não expande — check verde inline.
+  const tudoCerto = !embedded && !isLoading && totalIssues === 0
+
   return (
     <Wrapper className={wrapperClass}>
-      {!embedded && (
+      {tudoCerto ? (
+        <div className="flex items-center justify-between gap-3 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">{subtitle}</p>
+            </div>
+          </div>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" /> tudo certo
+          </span>
+        </div>
+      ) : !embedded && (
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -89,23 +122,25 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedd
           aria-expanded={open}
         >
           <div className="flex items-center gap-3">
-            <div className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-lg',
-              isLoading
-                ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                : totalIssues > 0
-                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-            )}>
-              {isLoading
-                ? <Icon className="h-5 w-5" />
-                : totalIssues > 0
-                  ? <Icon className="h-5 w-5" />
-                  : <CheckCircle2 className="h-5 w-5" />}
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+              <Icon className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+                {!isLoading && criticos > 0 && (
+                  <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                    {criticos} crítico{criticos > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400">{subtitle}</p>
+              {!isLoading && totalIssues > 0 && (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <MiniSeverityBar criticos={criticos} atencao={atencao} info={info} total={totalIssues} />
+                  {resumo && <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{resumo}</span>}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -114,12 +149,7 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedd
                 <Skeleton className="h-5 w-10" />
               ) : (
                 <>
-                  <p className={cn(
-                    'text-lg font-bold tabular-nums',
-                    totalIssues > 0 ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400',
-                  )}>
-                    {totalIssues}
-                  </p>
+                  <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{totalIssues}</p>
                   <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {totalIssues === 1 ? 'ocorrência' : 'ocorrências'}
                   </p>
