@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Copy, Check, ExternalLink, AlertTriangle, Info } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
+import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import { cn } from '@/lib/utils'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
 
@@ -38,6 +40,13 @@ interface LancamentoDetalheModalProps {
   open: boolean
   onClose: () => void
   data: LancamentoDetalheData | null
+  /** Navegação estilo visualizador de fotos — avança/volta na lista sem fechar. */
+  onPrev?: () => void
+  onNext?: () => void
+  canPrev?: boolean
+  canNext?: boolean
+  /** Ex.: "3 / 24" — posição na lista navegável. */
+  position?: string
 }
 
 const severityStyle: Record<IssueSeverity, { bg: string; text: string; Icon: typeof AlertTriangle; label: string }> = {
@@ -52,7 +61,9 @@ const severityStyle: Record<IssueSeverity, { bg: string; text: string; Icon: typ
  * + tabela key-value com todos os campos relevantes. Objetivo: usuário acha o
  * registro errado no Quality em poucos cliques.
  */
-const LancamentoDetalheModal = ({ open, onClose, data }: LancamentoDetalheModalProps) => {
+const LancamentoDetalheModal = ({
+  open, onClose, data, onPrev, onNext, canPrev = false, canNext = false, position,
+}: LancamentoDetalheModalProps) => {
   const [copied, setCopied] = useState(false)
   // Reseta o feedback de "Copiado" quando o modal fecha ou troca de registro,
   // pra evitar que um clique rápido em outra linha mostre "Copiado" do anterior.
@@ -63,6 +74,15 @@ const LancamentoDetalheModal = ({ open, onClose, data }: LancamentoDetalheModalP
     setPrevStateKey(stateKey)
     setCopied(false)
   }
+
+  // Teclado ←/→ pra navegar (igual visualizador de fotos). Esc já é tratado pelo Dialog.
+  const navegavel = !!(onPrev || onNext)
+  useArrowKeyNav({
+    enabled: open && navegavel,
+    canPrev, canNext,
+    onPrev: () => onPrev?.(),
+    onNext: () => onNext?.(),
+  })
 
   if (!data) return null
   const sev = severityStyle[data.severidade]
@@ -81,8 +101,21 @@ const LancamentoDetalheModal = ({ open, onClose, data }: LancamentoDetalheModalP
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[92vh] w-[95vw] max-w-2xl flex-col overflow-hidden p-4 sm:p-5">
-        <DialogHeader className="space-y-0.5">
-          <DialogTitle className="text-base">{data.title}</DialogTitle>
+        {navegavel && (
+          <DialogNavArrows
+            onPrev={() => onPrev?.()}
+            onNext={() => onNext?.()}
+            canPrev={canPrev}
+            canNext={canNext}
+            prevLabel="anterior"
+            nextLabel="próximo"
+          />
+        )}
+        <DialogHeader className="space-y-0.5 pr-8">
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-base">{data.title}</DialogTitle>
+            <DialogNavCounter position={position} />
+          </div>
           {data.subtitle && <DialogDescription className="text-xs">{data.subtitle}</DialogDescription>}
         </DialogHeader>
 
