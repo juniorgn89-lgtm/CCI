@@ -132,8 +132,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           </button>
 
           {/* Logo + nome — fixos na barra de topo (fora do menu que recolhe,
-              estilo Gmail). Badge navy "V" + bolinha verde de status.
-              Link externo pro Portal CCI. */}
+              estilo Gmail). Marca CCI oficial: símbolo dos 3 triângulos +
+              wordmark com "360" em teal. Link externo pro Portal CCI. */}
           <a
             href="https://portal-cci-eight.vercel.app/"
             target="_blank"
@@ -142,15 +142,15 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
             title="Abrir Portal CCI"
             className="group mr-1 flex shrink-0 items-center gap-2.5"
           >
-            <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-base font-bold text-white shadow-sm transition-transform group-hover:scale-105">
-              V
-              <span
-                aria-hidden
-                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-gray-900"
-              />
-            </span>
+            <img
+              src="/brand/visor360-icon-512.png"
+              alt="Visor360"
+              className="h-[30px] w-[30px] shrink-0 object-contain transition-transform group-hover:scale-105"
+            />
             <span className="hidden flex-col leading-tight sm:flex">
-              <span className="text-sm font-bold text-gray-900 dark:text-white">Visor360</span>
+              <span className="text-[15px] font-bold tracking-[-0.01em] text-[#1e3a5f] dark:text-white">
+                Visor<span className="text-[#0F766E] dark:text-[#14b8a6]">360</span>
+              </span>
               <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
             </span>
           </a>
