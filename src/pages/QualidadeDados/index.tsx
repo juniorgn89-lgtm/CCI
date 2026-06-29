@@ -213,8 +213,21 @@ const adaptTitulo = (t: TituloSemVenc, qi: QualidadeIssue): LancamentoDetalheDat
 
 /* ─── Renderers de detail por tipo de issue ─── */
 
+/** Contexto da lista navegável aberta no modal (adaptação lazy do item atual). */
+interface NavContext {
+  items: unknown[]
+  index: number
+  adapt: (item: unknown, qi: QualidadeIssue) => LancamentoDetalheData
+  qi: QualidadeIssue
+}
+
+/**
+ * Abre o modal de detalhe com o CONTEXTO da lista (itens visíveis + índice
+ * clicado + adaptador), pra permitir navegar ‹ › sem fechar. A adaptação é
+ * lazy (só o item atual é adaptado, no render do modal).
+ */
 interface RowClickable {
-  onSelect: (data: LancamentoDetalheData) => void
+  onOpen: <T,>(items: T[], index: number, adapt: (item: T, qi: QualidadeIssue) => LancamentoDetalheData, qi: QualidadeIssue) => void
 }
 
 /**
@@ -265,7 +278,7 @@ const HeaderCheck = ({
 }
 
 const AbastecimentoTable = ({
-  items, qi, onSelect, withPlaca = true, selection,
+  items, qi, onOpen, withPlaca = true, selection,
 }: { items: AbastecimentoRow[]; qi: QualidadeIssue; withPlaca?: boolean; selection?: SelectionProps<AbastecimentoRow> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((r) => {
@@ -312,7 +325,7 @@ const AbastecimentoTable = ({
                 'cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40',
                 isSel && 'bg-blue-50/60 dark:bg-blue-900/20',
               )}
-              onClick={() => onSelect(adaptAbastecimento(r, qi))}
+              onClick={() => onOpen(visible, idx, adaptAbastecimento, qi)}
             >
               {selection && vid && (
                 <td className="px-3 py-1.5">
@@ -343,7 +356,7 @@ const AbastecimentoTable = ({
 }
 
 const PrecoSuspeitoTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: AbastecimentoPrecoSuspeito[]; qi: QualidadeIssue; selection?: SelectionProps<AbastecimentoPrecoSuspeito> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((r) => {
@@ -381,7 +394,7 @@ const PrecoSuspeitoTable = ({
             <tr
               key={r.codigo}
               className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-              onClick={() => onSelect(adaptPrecoSuspeito(r, qi))}
+              onClick={() => onOpen(visible, idx, adaptPrecoSuspeito, qi)}
             >
               {selection && vid && (
                 <td className="px-3 py-1.5">
@@ -575,7 +588,7 @@ const RiscoBadge = ({ score }: { score: 1 | 2 | 3 }) => {
 }
 
 const CupomMultiAbastTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: CupomMultiAbast[]; qi: QualidadeIssue; selection?: SelectionProps<CupomMultiAbast> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((c) => {
@@ -631,7 +644,7 @@ const CupomMultiAbastTable = ({
                   c.riscoScore === 3 && 'border-l-2 border-red-400 dark:border-red-500/70',
                   isSel && 'bg-blue-50/60 dark:bg-blue-900/20',
                 )}
-                onClick={() => onSelect(adaptCupomMultiAbast(c, qi))}
+                onClick={() => onOpen(visible, idx, adaptCupomMultiAbast, qi)}
               >
                 {selection && vid && (
                   <td className="px-3 py-1.5">
@@ -674,7 +687,7 @@ const CupomMultiAbastTable = ({
 }
 
 const VendaItemSemProdutoTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: VendaItem[]; qi: QualidadeIssue; selection?: SelectionProps<VendaItem> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((v) => {
@@ -707,7 +720,7 @@ const VendaItemSemProdutoTable = ({
           <tr
             key={`${v.vendaCodigo}-${v.vendaItemCodigo}`}
             className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-            onClick={() => onSelect(adaptVendaItem(v, qi))}
+            onClick={() => onOpen(visible, idx, adaptVendaItem, qi)}
           >
             {selection && vid && (
               <td className="px-3 py-1.5">
@@ -733,7 +746,7 @@ const VendaItemSemProdutoTable = ({
 }
 
 const CaixaAbertoTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: CaixaAbertoDetalhe[]; qi: QualidadeIssue; selection?: SelectionProps<CaixaAbertoDetalhe> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((c) => {
@@ -767,7 +780,7 @@ const CaixaAbertoTable = ({
           <tr
             key={c.caixaCodigo}
             className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-            onClick={() => onSelect(adaptCaixaAberto(c, qi))}
+            onClick={() => onOpen(visible, idx, adaptCaixaAberto, qi)}
           >
             {selection && vid && (
               <td className="px-3 py-1.5">
@@ -796,7 +809,7 @@ const CaixaAbertoTable = ({
 }
 
 const CaixaDiferencaTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: Caixa[]; qi: QualidadeIssue; selection?: SelectionProps<Caixa> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((c) => {
@@ -830,7 +843,7 @@ const CaixaDiferencaTable = ({
           <tr
             key={c.caixaCodigo}
             className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-            onClick={() => onSelect(adaptCaixaDiferenca(c, qi))}
+            onClick={() => onOpen(visible, idx, adaptCaixaDiferenca, qi)}
           >
             {selection && vid && (
               <td className="px-3 py-1.5">
@@ -862,7 +875,7 @@ const CaixaDiferencaTable = ({
 }
 
 const EstoqueNegativoTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: ProdutoEstoqueNegativo[]; qi: QualidadeIssue; selection?: SelectionProps<ProdutoEstoqueNegativo> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((p) => {
@@ -893,7 +906,7 @@ const EstoqueNegativoTable = ({
           <tr
             key={p.produtoCodigo}
             className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-            onClick={() => onSelect(adaptEstoqueNegativo(p, qi))}
+            onClick={() => onOpen(visible, idx, adaptEstoqueNegativo, qi)}
           >
             {selection && vid && (
               <td className="px-3 py-1.5">
@@ -917,7 +930,7 @@ const EstoqueNegativoTable = ({
 }
 
 const TituloSemVencTable = ({
-  items, qi, onSelect, selection,
+  items, qi, onOpen, selection,
 }: { items: TituloSemVenc[]; qi: QualidadeIssue; selection?: SelectionProps<TituloSemVenc> } & RowClickable) => {
   const visible = items.slice(0, 100)
   const visibleIds = visible.map((t) => {
@@ -951,7 +964,7 @@ const TituloSemVencTable = ({
             <tr
               key={`${t._tipo}-${codigo}`}
               className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
-              onClick={() => onSelect(adaptTitulo(t, qi))}
+              onClick={() => onOpen(visible, idx, adaptTitulo, qi)}
             >
               {selection && vid && (
                 <td className="px-3 py-1.5">
@@ -1018,14 +1031,35 @@ const QualidadeDados = () => {
   const data = useQualidadeDados(selectedCodigo)
   const arquivamento = useQualidadeArquivados(selectedCodigo)
   const [view, setView] = useState<'ativos' | 'arquivados'>('ativos')
-  const [selected, setSelected] = useState<LancamentoDetalheData | null>(null)
+  // Modal navegável: guarda a lista clicada + índice + adaptador (adaptação lazy
+  // do item atual). As setas ‹ › só andam no índice, sem fechar o modal.
+  const [nav, setNav] = useState<NavContext | null>(null)
   // selectedKeys mantém key → rotulo (precisa do rótulo na hora de arquivar)
   const [selectedKeys, setSelectedKeys] = useState<Map<string, string>>(new Map())
   const [arquivando, setArquivando] = useState(false)
   const isMobile = useIsMobile()
   // Mobile: tela de triagem própria (overview das inconsistências).
   if (isMobile) return <QualidadeMobile />
-  const onSelect = setSelected
+
+  const openAt = <T,>(
+    items: T[],
+    index: number,
+    adapt: (item: T, qi: QualidadeIssue) => LancamentoDetalheData,
+    qi: QualidadeIssue,
+  ) => {
+    setNav({
+      items: items as unknown[],
+      index,
+      adapt: adapt as (item: unknown, qi: QualidadeIssue) => LancamentoDetalheData,
+      qi,
+    })
+  }
+  const navData = nav ? nav.adapt(nav.items[nav.index], nav.qi) : null
+  const canPrev = !!nav && nav.index > 0
+  const canNext = !!nav && nav.index < nav.items.length - 1
+  const goPrev = () => setNav((n) => (n && n.index > 0 ? { ...n, index: n.index - 1 } : n))
+  const goNext = () => setNav((n) => (n && n.index < n.items.length - 1 ? { ...n, index: n.index + 1 } : n))
+  const navPosition = nav ? `${nav.index + 1} / ${nav.items.length}` : undefined
 
   // Filtra items removendo os já arquivados (não-restaurados)
   const filterArchived = <T,>(
@@ -1081,7 +1115,7 @@ const QualidadeDados = () => {
         <PrecoSuspeitoTable
           items={items}
           qi={qi}
-          onSelect={onSelect}
+          onOpen={openAt}
           selection={makeSelection<AbastecimentoPrecoSuspeito>(qi.id, identityPrecoSuspeito)}
         />,
       )
@@ -1092,7 +1126,7 @@ const QualidadeDados = () => {
       <AbastecimentoTable
         items={items}
         qi={qi}
-        onSelect={onSelect}
+        onOpen={openAt}
         selection={makeSelection<AbastecimentoRow>(qi.id, identityAbastecimento)}
       />,
     )
@@ -1110,7 +1144,7 @@ const QualidadeDados = () => {
         <CupomMultiAbastTable
           items={cupomItems}
           qi={cupomQi}
-          onSelect={onSelect}
+          onOpen={openAt}
           selection={makeSelection<CupomMultiAbast>(cupomQi.id, identityCupomMultiAbast)}
         />,
       )
@@ -1138,7 +1172,7 @@ const QualidadeDados = () => {
       <VendaItemSemProdutoTable
         items={items}
         qi={qi}
-        onSelect={onSelect}
+        onOpen={openAt}
         selection={makeSelection<VendaItem>(qi.id, identityVendaItem)}
       />,
     )
@@ -1151,7 +1185,7 @@ const QualidadeDados = () => {
         <CaixaAbertoTable
           items={items}
           qi={qi}
-          onSelect={onSelect}
+          onOpen={openAt}
           selection={makeSelection<CaixaAbertoDetalhe>(qi.id, identityCaixaAberto)}
         />,
       )
@@ -1162,7 +1196,7 @@ const QualidadeDados = () => {
       <CaixaDiferencaTable
         items={items}
         qi={qi}
-        onSelect={onSelect}
+        onOpen={openAt}
         selection={makeSelection<Caixa>(qi.id, identityCaixaDiferenca)}
       />,
     )
@@ -1174,7 +1208,7 @@ const QualidadeDados = () => {
       <EstoqueNegativoTable
         items={items}
         qi={qi}
-        onSelect={onSelect}
+        onOpen={openAt}
         selection={makeSelection<ProdutoEstoqueNegativo>(qi.id, identityEstoqueNegativo)}
       />,
     )
@@ -1186,7 +1220,7 @@ const QualidadeDados = () => {
       <TituloSemVencTable
         items={items}
         qi={qi}
-        onSelect={onSelect}
+        onOpen={openAt}
         selection={makeSelection<TituloSemVenc>(qi.id, identityTitulo)}
       />,
     )
@@ -1401,9 +1435,14 @@ const QualidadeDados = () => {
 
       {/* Modal de detalhe de lançamento — abre ao clicar em qualquer linha */}
       <LancamentoDetalheModal
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        data={selected}
+        open={nav !== null}
+        onClose={() => setNav(null)}
+        data={navData}
+        onPrev={goPrev}
+        onNext={goNext}
+        canPrev={canPrev}
+        canNext={canNext}
+        position={navPosition}
       />
     </div>
   )
