@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Fuel, Search, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
+import { Fuel, Receipt, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import IssueSection, { type Issue } from '@/pages/QualidadeDados/components/IssueSection'
 import QualidadeKpis from '@/pages/QualidadeDados/components/QualidadeKpis'
+import SherlockHero from '@/pages/QualidadeDados/components/SherlockHero'
 import LancamentoDetalheModal, { type LancamentoDetalheData } from '@/pages/QualidadeDados/components/LancamentoDetalheModal'
 import ArquivadosView from '@/pages/QualidadeDados/components/ArquivadosView'
 import useQualidadeDados, {
@@ -1096,19 +1097,41 @@ const QualidadeDados = () => {
       />,
     )
   })
-  const vendasIssues: Issue[] = data.vendas.map((qi) => {
-    if (qi.id === 'cupom-multi-abast') {
-      const items = filterArchived(qi.items as CupomMultiAbast[], qi.id, identityCupomMultiAbast)
-      return toIssue(
-        { ...qi, count: items.length, items },
+  // Sherlock (cupom-multi-abast) é ISOLADO — herói anti-fraude próprio, fora das
+  // categorias (sem double-count). Os cupons ativos alimentam o drill e a leitura
+  // do "Padrão".
+  const cupomQi = data.vendas.find((q) => q.id === 'cupom-multi-abast')
+  const cupomItems = cupomQi
+    ? filterArchived(cupomQi.items as CupomMultiAbast[], cupomQi.id, identityCupomMultiAbast)
+    : []
+  const cupomIssue: Issue | null = cupomQi
+    ? toIssue(
+        { ...cupomQi, count: cupomItems.length, items: cupomItems },
         <CupomMultiAbastTable
-          items={items}
-          qi={qi}
+          items={cupomItems}
+          qi={cupomQi}
           onSelect={onSelect}
-          selection={makeSelection<CupomMultiAbast>(qi.id, identityCupomMultiAbast)}
+          selection={makeSelection<CupomMultiAbast>(cupomQi.id, identityCupomMultiAbast)}
         />,
       )
-    }
+    : null
+
+  // "Padrão" determinístico: concentração de cupons por frentista (fato derivável
+  // do funcionarioNome). Só aparece quando é relevante (≥3 cupons, líder com ≥2 e
+  // ≥40% de concentração); senão omite a caixa — nada de prescrição inventada.
+  const sherlockPadrao: string | null = (() => {
+    if (cupomItems.length < 3) return null
+    const porFrentista = new Map<string, number>()
+    for (const c of cupomItems) porFrentista.set(c.funcionarioNome, (porFrentista.get(c.funcionarioNome) ?? 0) + 1)
+    let topNome = '', topN = 0
+    for (const [nome, n] of porFrentista) if (n > topN) { topN = n; topNome = nome }
+    const share = topN / cupomItems.length
+    if (topN < 2 || share < 0.4) return null
+    return `${topNome} concentra ${topN} de ${cupomItems.length} cupons (${Math.round(share * 100)}%).`
+  })()
+
+  // Categoria "Vendas" = detectores de venda que NÃO são o Sherlock.
+  const vendasIssues: Issue[] = data.vendas.filter((q) => q.id !== 'cupom-multi-abast').map((qi) => {
     const items = filterArchived(qi.items as VendaItem[], qi.id, identityVendaItem)
     return toIssue(
       { ...qi, count: items.length, items },
@@ -1169,8 +1192,10 @@ const QualidadeDados = () => {
     )
   })
 
-  // Totais ativos (excluindo arquivados) — re-agrega a partir das listas filtradas
-  const allFiltered = [abastIssues, vendasIssues, caixaIssues, estoqueIssues, financeiroIssues].flat()
+  // Totais ativos (excluindo arquivados) — re-agrega a partir das listas filtradas.
+  // O Sherlock (cupomIssue) está fora das categorias, então entra explícito aqui.
+  const categoriaIssues = [abastIssues, vendasIssues, caixaIssues, estoqueIssues, financeiroIssues].flat()
+  const allFiltered = cupomIssue ? [...categoriaIssues, cupomIssue] : categoriaIssues
   const totalAtivo = allFiltered.reduce((s, i) => s + i.count, 0)
   const totalCriticosAtivo = allFiltered.filter((i) => i.severity === 'high').reduce((s, i) => s + i.count, 0)
   const totalAtencaoAtivo = allFiltered.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
@@ -1181,8 +1206,8 @@ const QualidadeDados = () => {
   // não bater, é double-count remanescente — melhor gritar aqui que descobrir
   // na tela. (cupom-multi-abast = Sherlock; sai da soma das categorias.)
   if (import.meta.env.DEV && !data.isLoading) {
-    const sherlock = allFiltered.find((i) => i.id === 'cupom-multi-abast')?.count ?? 0
-    const categorias = allFiltered.filter((i) => i.id !== 'cupom-multi-abast').reduce((s, i) => s + i.count, 0)
+    const sherlock = cupomIssue?.count ?? 0
+    const categorias = categoriaIssues.reduce((s, i) => s + i.count, 0)
     const severitySum = totalCriticosAtivo + totalAtencaoAtivo + totalInfoAtivo
     if (totalAtivo !== sherlock + categorias || totalAtivo !== severitySum) {
       // eslint-disable-next-line no-console
@@ -1327,37 +1352,13 @@ const QualidadeDados = () => {
                 </div>
               )}
 
-              {/* Sherlock — seção destacada de detecção de fraude (vai antes do resto) */}
-              <div className="rounded-xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
-                    <Search className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Sistema Sherlock Holmes</h2>
-                      <span className="rounded-full border border-gray-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-600 dark:border-gray-600 dark:text-gray-400">
-                        Anti-fraude
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                      Detecção de cupons "montados" e inconsistências no PDV — padrão associado a fraude em postos.
-                    </p>
-                  </div>
-                </div>
-                <IssueSection
-                  title="Vendas"
-                  subtitle="Cupons suspeitos e itens sem cadastro"
-                  Icon={Search}
-                  issues={vendasIssues}
-                  isLoading={data.isLoading}
-                  embedded
-                />
-              </div>
+              {/* Sherlock — herói anti-fraude isolado (só cupom-multi-abast) */}
+              <SherlockHero issue={cupomIssue} padrao={sherlockPadrao} />
 
-              {/* Outras categorias de qualidade — checks rotineiros */}
+              {/* Inconsistências por categoria — checks rotineiros */}
               <div className="grid grid-cols-1 gap-4">
                 <IssueSection title="Abastecimentos" subtitle="Erros nos lançamentos de bomba" Icon={Fuel} issues={abastIssues} isLoading={data.isLoading} />
+                <IssueSection title="Vendas" subtitle="Itens de venda com cadastro inconsistente" Icon={Receipt} issues={vendasIssues} isLoading={data.isLoading} />
                 <IssueSection title="Caixa" subtitle="Fechamentos, diferenças e caixas pendurados" Icon={Wallet} issues={caixaIssues} isLoading={data.isLoading} />
                 <IssueSection title="Estoque" subtitle="Saldos negativos e divergências de inventário" Icon={Boxes} issues={estoqueIssues} isLoading={data.isLoading} />
                 <IssueSection title="Financeiro" subtitle="Títulos a receber e a pagar com problemas de cadastro" Icon={Landmark} issues={financeiroIssues} isLoading={data.isLoading} />
