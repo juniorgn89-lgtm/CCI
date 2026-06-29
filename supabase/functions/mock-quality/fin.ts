@@ -5,7 +5,7 @@
 //    contas de fornecedor), determinístico por posto, com vencidos pro
 //    Financeiro "em atraso".
 
-import { gerarDiaFuel } from './dia.ts'
+import { gerarDia } from './dia.ts'
 import { CLIENTES, ADM_BY_CODE } from './catalogs.ts'
 import { rngFor, between, intBetween, pick } from './generator.ts'
 
@@ -17,7 +17,7 @@ const addDays = (dateISO: string, n: number): string => {
 
 /* ─── /CARTAO (recebíveis) ─── */
 export const gerarCartoes = (empresaCodigo: number, dateISO: string, hoje: string): any[] => {
-  const { formas } = gerarDiaFuel(empresaCodigo, dateISO)
+  const { formas } = gerarDia(empresaCodigo, dateISO)
   const out: any[] = []
   for (const f of formas) {
     if (f.tipoFormaPagamento !== 'CARTAO') continue

@@ -14,9 +14,10 @@
 import {
   POSTOS, PRODUTOS, FRENTISTAS, ADMINISTRADORAS, CLIENTES, BICOS, BOMBAS, POSTO_CODES,
 } from './catalogs.ts'
-import { gerarDiaFuel, lmcDoPosto } from './dia.ts'
+import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
 import { gerarCartoes, titulosReceber, titulosPagar } from './fin.ts'
+import { produtoEstoque, produtoEstoqueExtrato } from './estoque.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
 const tzToday = (): string =>
@@ -40,11 +41,11 @@ const scopePostos = (empresaCodigo?: number): number[] =>
 // pra mesma janela; gerar uma vez por janela evita regenerar a cada página.
 const cache = new Map<string, any[]>()
 const collectFuel = (field: string, di: string, df: string, postos: number[]): any[] => {
-  const key = `fuel|${field}|${di}|${df}|${postos.join(',')}`
+  const key = `dia|${field}|${di}|${df}|${postos.join(',')}`
   const hit = cache.get(key)
   if (hit) return hit
   const out: any[] = []
-  for (const d of eachDate(di, df)) for (const p of postos) out.push(...gerarDiaFuel(p, d)[field])
+  for (const d of eachDate(di, df)) for (const p of postos) out.push(...gerarDia(p, d)[field])
   out.sort((a, b) => a.codigo - b.codigo)
   if (cache.size > 8) cache.clear()
   cache.set(key, out)
@@ -150,7 +151,17 @@ Deno.serve((req: Request): Response => {
       return json(paginate(rows, (t) => t.tituloPagarCodigo, ultimo, limite))
     }
 
-    // Demais endpoints (duplicata, movimento conta, estoque…) entram nas Fases 4+.
+    /* ── Estoque (Fase 4) ── */
+    case 'PRODUTO_ESTOQUE': {
+      const rows = scopePostos(empresaCodigo).flatMap((p) => produtoEstoque(p))
+      return json(paginate(rows, (r) => r.codigo, ultimo, limite))
+    }
+    case 'PRODUTO_ESTOQUE_EXTRATO': {
+      const rows = scopePostos(empresaCodigo).flatMap((p) => produtoEstoqueExtrato(p))
+      return json(paginate(rows, (r) => r.empresaCodigo * 10000 + r.produtoCodigo, ultimo, limite))
+    }
+
+    // Demais endpoints (duplicata, movimento conta…) entram nas Fases 5+.
     default:
       return json({ ultimoCodigo: ultimo ?? 0, resultados: [] })
   }

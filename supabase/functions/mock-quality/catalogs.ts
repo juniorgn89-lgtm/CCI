@@ -108,6 +108,26 @@ export const FUEL_PRICE: Record<number, { custo: number; tabela: number }> = {
   9105: { custo: 5.50, tabela: 6.19 },
 }
 
+/** Custo + venda por produto de loja/automotivo (Fase 4). */
+export const STORE_PRICE: Record<number, { custo: number; venda: number }> = {
+  9201: { custo: 1.50, venda: 3.00 },
+  9202: { custo: 2.20, venda: 5.00 },
+  9203: { custo: 1.00, venda: 4.00 },
+  9204: { custo: 3.00, venda: 8.00 },
+  9205: { custo: 2.50, venda: 6.00 },
+  9206: { custo: 4.50, venda: 10.00 },
+  9207: { custo: 8.00, venda: 12.00 },
+  9208: { custo: 2.80, venda: 6.50 },
+  9209: { custo: 3.00, venda: 8.00 },
+  9210: { custo: 2.00, venda: 6.00 },
+  9211: { custo: 18.00, venda: 35.00 },
+  9212: { custo: 8.00, venda: 18.00 },
+  9213: { custo: 12.00, venda: 28.00 },
+  9214: { custo: 15.00, venda: 32.00 },
+  9215: { custo: 6.00, venda: 15.00 },
+}
+export const STORE_CODES = Object.keys(STORE_PRICE).map(Number)
+
 /* ─── Frentistas (6 por posto) ─── */
 const NOMES = [
   'João Mendes', 'Carlos Pereira', 'Ana Souza', 'Pedro Lima', 'Marcos Silva', 'Rafael Costa',

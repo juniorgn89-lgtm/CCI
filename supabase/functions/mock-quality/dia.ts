@@ -4,7 +4,7 @@
 // sai DESTA função → litros = faturamento = pagamento batem entre telas, e o
 // mesmo (posto, data) sempre produz o mesmo resultado.
 
-import { FUEL_PRICE, FRENTISTAS, FORMAS_MIX, POSTO_CODES, bicosDoPosto } from './catalogs.ts'
+import { FUEL_PRICE, STORE_PRICE, STORE_CODES, FRENTISTAS, FORMAS_MIX, POSTO_CODES, bicosDoPosto } from './catalogs.ts'
 import { rngFor, between, intBetween, pick, weightedIndex } from './generator.ts'
 
 /* ─── Fatores ─── */
@@ -168,6 +168,91 @@ export const gerarDiaFuel = (empresaCodigo: number, dateISO: string): DiaFuel =>
 const addDays = (dateISO: string, n: number): string => {
   const [y, m, d] = dateISO.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
+}
+
+/* ─── Vendas de loja/automotivo (conveniência) ─── */
+// Cupons de loja com 1-3 itens. Pagamento mais leve (dinheiro/PIX/débito).
+const STORE_FORMA_MIX = FORMAS_MIX.filter((f) => f.administradoraCodigo !== 9308) // sem frota
+export const gerarDiaLoja = (empresaCodigo: number, dateISO: string): Omit<DiaFuel, 'abastecimentos'> => {
+  const rng = rngFor(empresaCodigo, dateISO, 'loja')
+  const frentistas = FRENTISTAS.filter((f) => f.empresaCodigo === empresaCodigo)
+  const scale = POSTO_SCALE[empresaCodigo] ?? 1
+  const nCupons = Math.round(intBetween(rng, 80, 140) * scale * weekdayFactor(dateISO))
+  const base = dayOrdinal(dateISO) * 10_000_000 + empresaIdx(empresaCodigo) * 1_000_000 + 500_000
+
+  const vendaItens: any[] = []
+  const vendas: any[] = []
+  const formas: any[] = []
+
+  for (let j = 0; j < nCupons; j++) {
+    const cupom = base + j
+    const operador = pick(rng, frentistas)
+    const hh = String(intBetween(rng, 6, 22)).padStart(2, '0')
+    const mm = String(intBetween(rng, 0, 59)).padStart(2, '0')
+    const nItens = intBetween(rng, 1, 3)
+    let total = 0
+    for (let k = 0; k < nItens; k++) {
+      const produtoCodigo = pick(rng, STORE_CODES)
+      const pr = STORE_PRICE[produtoCodigo]
+      const qtd = intBetween(rng, 1, 4)
+      const precoVenda = Math.round((pr.venda + between(rng, -0.1, 0.1)) * 100) / 100
+      const totalVenda = Math.round(precoVenda * qtd * 100) / 100
+      total += totalVenda
+      vendaItens.push({
+        codigo: cupom * 100 + k,
+        empresaCodigo,
+        vendaCodigo: cupom,
+        vendaItemCodigo: cupom * 100 + k,
+        dataMovimento: dateISO,
+        produtoCodigo,
+        quantidade: qtd,
+        precoCusto: pr.custo,
+        totalCusto: Math.round(pr.custo * qtd * 100) / 100,
+        precoVenda,
+        totalVenda,
+        totalDesconto: 0,
+        totalAcrescimo: 0,
+        cancelada: 'N',
+        bicoCodigo: 0,
+        tanqueCodigo: 0,
+        funcionarioCodigo: operador.funcionarioCodigo,
+      })
+    }
+    total = Math.round(total * 100) / 100
+    vendas.push({ codigo: cupom, vendaCodigo: cupom, empresaCodigo, dataMovimento: dateISO, situacao: 'A', clienteCodigo: 0 })
+    const forma = STORE_FORMA_MIX[weightedIndex(rng, STORE_FORMA_MIX.map((f) => f.peso))]
+    const adm = forma.administradoraCodigo
+    const taxa = forma.tipo === 'CARTAO' ? (adm === 9301 || adm === 9303 ? 2.85 : adm === 9305 ? 3.2 : 0.69) : 0
+    formas.push({
+      codigo: cupom,
+      empresaCodigo,
+      vendaCodigo: cupom,
+      vendaPrazoCodigo: 0,
+      dataMovimento: dateISO,
+      vencimento: dateISO,
+      valorPagamento: total,
+      taxaPercentual: taxa,
+      formaPagamentoCodigo: adm || 1,
+      administradoraCodigo: adm,
+      turnoCodigo: Number(hh) < 14 ? 1 : 2,
+      tipoFormaPagamento: forma.tipo,
+      nomeFormaPagamento: forma.nome,
+    })
+  }
+  return { vendaItens, vendas, formas }
+}
+
+/** Dia COMPLETO do posto: combustível + loja. abastecimentos = só combustível;
+ *  itens/vendas/formas = fuel + loja (pra caixa e cartão reconciliarem com tudo). */
+export const gerarDia = (empresaCodigo: number, dateISO: string): DiaFuel => {
+  const fuel = gerarDiaFuel(empresaCodigo, dateISO)
+  const loja = gerarDiaLoja(empresaCodigo, dateISO)
+  return {
+    abastecimentos: fuel.abastecimentos,
+    vendaItens: [...fuel.vendaItens, ...loja.vendaItens],
+    vendas: [...fuel.vendas, ...loja.vendas],
+    formas: [...fuel.formas, ...loja.formas],
+  }
 }
 
 /** Linhas de LMC (custo por combustível) pra UM posto numa data — fallback de custo do front. */

@@ -3,7 +3,7 @@
 // apresentado = apurado ± pequena diferença (com uma "falta" plantada pro
 // Fechamento ter o que sinalizar).
 
-import { gerarDiaFuel, dayOrdinal } from './dia.ts'
+import { gerarDia, dayOrdinal } from './dia.ts'
 import { FRENTISTAS, POSTO_CODES } from './catalogs.ts'
 import { rngFor, between, pick } from './generator.ts'
 
@@ -46,7 +46,7 @@ export interface DiaCaixa {
 }
 
 export const gerarCaixas = (empresaCodigo: number, dateISO: string): DiaCaixa => {
-  const { formas } = gerarDiaFuel(empresaCodigo, dateISO)
+  const { formas } = gerarDia(empresaCodigo, dateISO)
   const frentistas = FRENTISTAS.filter((f) => f.empresaCodigo === empresaCodigo)
   const ord = dayOrdinal(dateISO)
 
