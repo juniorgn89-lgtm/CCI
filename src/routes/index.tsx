@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Users, User, BarChart3, Settings, CalendarDays, Sparkles } from 'lucide-react'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import RouteFallback from '@/components/feedback/RouteFallback'
+import EmConstrucao from '@/pages/Painel/EmConstrucao'
 import { importDashboard } from '@/routes/prefetch'
 import Login from '@/pages/Login'
 
@@ -26,7 +28,9 @@ const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
 const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
 const AdminApuracao = lazy(() => import('@/pages/Admin/Apuracao'))
 const AdminAssistente = lazy(() => import('@/pages/Admin/AssistenteConfig'))
-const SelecionarRede = lazy(() => import('@/pages/SelecionarRede'))
+// Painel de gestão (master) — shell standalone com navegação entre módulos.
+const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
+const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
 
 // Frentista pages
 const FreentistaLayout = lazy(() => import('@/pages/Frentista/layout/FreentistaLayout'))
@@ -75,9 +79,25 @@ const AppRoutes = () => {
           <Route path="/admin/redes" element={<Suspense fallback={<RouteFallback />}><AdminRedes /></Suspense>} />
           <Route path="/admin/apuracao" element={<Suspense fallback={<RouteFallback />}><AdminApuracao /></Suspense>} />
           <Route path="/admin/assistente" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
-          <Route path="/selecionar-rede" element={<Suspense fallback={<RouteFallback />}><SelecionarRede /></Suspense>} />
+          {/* Selecionar rede agora vive no Painel standalone (com navegação entre módulos). */}
+          <Route path="/selecionar-rede" element={<Navigate to="/painel/selecionar-rede" replace />} />
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Route>
+
+      {/* Painel de gestão (master) — shell próprio com nav de módulos, sem a sidebar
+          do produto. Só "Selecionar rede" é real; demais abas são esqueleto. */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/painel" element={<Suspense fallback={<RouteFallback />}><PainelLayout /></Suspense>}>
+          <Route index element={<Navigate to="/painel/selecionar-rede" replace />} />
+          <Route path="selecionar-rede" element={<Suspense fallback={<RouteFallback />}><PainelSelecionarRede /></Suspense>} />
+          <Route path="usuarios" element={<EmConstrucao title="Usuários" subtitle="Gerencie acessos e perfis da conta." Icon={Users} />} />
+          <Route path="frentistas" element={<EmConstrucao title="Frentistas" subtitle="Cadastro e PIN dos frentistas." Icon={User} />} />
+          <Route path="redes" element={<EmConstrucao title="Gerenciar redes" subtitle="Cadastro de redes e chaves de integração." Icon={BarChart3} />} />
+          <Route path="config" element={<EmConstrucao title="Configurações" subtitle="Preferências da conta." Icon={Settings} />} />
+          <Route path="apuracao" element={<EmConstrucao title="Apuração" subtitle="Pré-cálculo dos meses fechados." Icon={CalendarDays} />} />
+          <Route path="ia" element={<EmConstrucao title="Assistente IA" subtitle="Configuração do assistente por rede." Icon={Sparkles} />} />
         </Route>
       </Route>
 
