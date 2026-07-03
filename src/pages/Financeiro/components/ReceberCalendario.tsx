@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { mondayOf, weekChipLabel } from '@/lib/weekGroups'
 import BarCell from '@/components/tables/BarCell'
+import ReceberDiaModal from '@/pages/Financeiro/components/ReceberDiaModal'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
 /**
@@ -32,7 +33,7 @@ const diaNome = (iso: string) => {
   return DIAS_SEMANA[new Date(y, m - 1, d).getDay()]
 }
 
-interface DiaAgg { valor: number; titulos: number; clientes: Set<number> }
+interface DiaAgg { valor: number; titulos: number; clientes: Set<number>; rows: ReceivableRow[] }
 
 const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
   const hoje = todayISO()
@@ -44,10 +45,11 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
       if (!r.pendente) continue
       const d = onlyDate(r.dataVencimento)
       if (!d) continue
-      const g = map.get(d) ?? { valor: 0, titulos: 0, clientes: new Set<number>() }
+      const g = map.get(d) ?? { valor: 0, titulos: 0, clientes: new Set<number>(), rows: [] }
       g.valor += r.valor
       g.titulos += 1
       g.clientes.add(r.clienteCodigo)
+      g.rows.push(r)
       map.set(d, g)
     }
     return map
@@ -64,6 +66,7 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
   }, [porDia, hoje])
 
   const [activeMonday, setActiveMonday] = useState<string | null>(null)
+  const [detalhe, setDetalhe] = useState<{ dia: string; rows: ReceivableRow[] } | null>(null)
   const activeIdx = useMemo(() => {
     if (activeMonday) {
       const i = weeks.findIndex((w) => w.monday === activeMonday)
@@ -74,7 +77,7 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
   }, [weeks, activeMonday, hoje])
   const semanaAtiva = weeks[activeIdx]
 
-  // Os 7 dias da semana ativa (seg→dom), com o agregado de cada um (0 quando vazio).
+  // Só os dias da semana ativa que TÊM valor a receber (seg→dom), sem linhas vazias.
   const dias = useMemo(() => {
     if (!semanaAtiva) return []
     return Array.from({ length: 7 }, (_, i) => {
@@ -85,9 +88,10 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
         valor: g?.valor ?? 0,
         titulos: g?.titulos ?? 0,
         clientes: g?.clientes.size ?? 0,
+        rows: g?.rows ?? [],
         vencido: !!g && data < hoje,
       }
-    })
+    }).filter((d) => d.titulos > 0)
   }, [semanaAtiva, porDia, hoje])
 
   const maxValor = useMemo(() => Math.max(...dias.map((d) => d.valor), 0), [dias])
@@ -104,7 +108,7 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
         </span>
         <div>
           <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Calendário de recebimento</h3>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">A receber por dia de vencimento — navegue as semanas</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">A receber por dia de vencimento — clique num dia para ver os títulos</p>
         </div>
       </div>
 
@@ -158,14 +162,21 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
             </tr>
           </thead>
           <tbody>
+            {dias.length === 0 && (
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <td colSpan={6} className="px-4 py-6 text-center text-[13px] text-gray-400 dark:text-gray-500">
+                  Nenhum vencimento nesta semana
+                </td>
+              </tr>
+            )}
             {dias.map((d) => {
-              const vazio = d.titulos === 0
               const isHoje = d.data === hoje
               return (
                 <tr
                   key={d.data}
+                  onClick={() => setDetalhe({ dia: d.data, rows: d.rows })}
                   className={cn(
-                    'border-b border-gray-100 text-gray-700 dark:border-gray-800 dark:text-gray-300',
+                    'cursor-pointer border-b border-gray-100 text-gray-700 transition-colors hover:bg-blue-50/60 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-blue-950/30',
                     isHoje && 'bg-blue-50/40 dark:bg-blue-950/20',
                   )}
                 >
@@ -174,18 +185,15 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
                     {isHoje && <span className="ml-1.5 rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">hoje</span>}
                   </td>
                   <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{diaNome(d.data)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{vazio ? '—' : formatNumber(d.titulos)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{vazio ? '—' : formatNumber(d.clientes)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(d.titulos)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(d.clientes)}</td>
                   <td className="px-2 py-1.5">
-                    {vazio ? <span className="px-2 text-gray-300 dark:text-gray-600">—</span> : (
-                      <BarCell value={d.valor} max={maxValor} formatted={formatCurrencyInt(d.valor)} color={d.vencido ? 'red' : 'green'} align="near" />
-                    )}
+                    <BarCell value={d.valor} max={maxValor} formatted={formatCurrencyInt(d.valor)} color={d.vencido ? 'red' : 'green'} align="near" />
                   </td>
                   <td className="px-4 py-2.5 text-center">
-                    {vazio ? <span className="text-gray-300 dark:text-gray-600">—</span>
-                      : d.vencido
-                        ? <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">Vencido</span>
-                        : <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">A vencer</span>}
+                    {d.vencido
+                      ? <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">Vencido</span>
+                      : <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">A vencer</span>}
                   </td>
                 </tr>
               )
@@ -209,6 +217,13 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
           </tbody>
         </table>
       </div>
+
+      <ReceberDiaModal
+        open={!!detalhe}
+        onClose={() => setDetalhe(null)}
+        dia={detalhe?.dia ?? ''}
+        titulos={detalhe?.rows ?? []}
+      />
     </section>
   )
 }
