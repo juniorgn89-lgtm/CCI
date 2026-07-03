@@ -58,12 +58,23 @@ export const gerarCartoes = (empresaCodigo: number, dateISO: string, hoje: strin
 export const titulosReceber = (empresaCodigo: number, hoje: string): any[] => {
   const rng = rngFor(empresaCodigo, 'titulos-receber')
   const out: any[] = []
-  const N = 28
+  const N = 48
   for (let i = 0; i < N; i++) {
     const cli = pick(rng, CLIENTES)
-    const mov = addDays(hoje, -intBetween(rng, 5, 175))
-    const venc = addDays(mov, intBetween(rng, 15, 45))
-    const pago = rng() < 0.18
+    // ~75% da carteira vence na JANELA NAVEGÁVEL (≈ hoje-14 … hoje+45), pra o
+    // calendário de recebimento ficar "cheio" nas semanas que o usuário abre.
+    // ~25% é histórico (vencimento mais no passado) que alimenta o "Em atraso".
+    let mov: string
+    let venc: string
+    if (i % 4 !== 0) {
+      venc = addDays(hoje, intBetween(rng, -14, 45))
+      mov = addDays(venc, -intBetween(rng, 15, 45))
+    } else {
+      mov = addDays(hoje, -intBetween(rng, 40, 120))
+      venc = addDays(mov, intBetween(rng, 15, 45))
+    }
+    // A vencer quase nunca está pago; vencido já foi recebido em ~metade dos casos.
+    const pago = venc < hoje ? rng() < 0.5 : rng() < 0.05
     const tituloCodigo = empresaCodigo * 100000 + i
     out.push({
       codigo: tituloCodigo,
