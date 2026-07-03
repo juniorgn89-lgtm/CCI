@@ -7,42 +7,37 @@ import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 interface Props {
   open: boolean
   onClose: () => void
-  nome: string
-  /** Títulos a pagar em aberto do fornecedor. */
+  /** Dia de vencimento (yyyy-MM-dd) da linha clicada. */
+  dia: string
+  /** Títulos a pagar em aberto que vencem nesse dia. */
   titulos: PayableRow[]
 }
 
+const DIAS_SEMANA = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 const onlyDate = (s: string) => (s ?? '').split('T')[0]
-const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
-const todayISO = () => new Date().toISOString().split('T')[0]
-const addDaysISO = (iso: string, n: number) => { const d = new Date(`${iso}T00:00:00`); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0] }
-const getStr = (r: PayableRow, k: string) => (r as unknown as Record<string, unknown>)[k] as string | undefined
+const brDate = (iso: string) => (iso ? onlyDate(iso).split('-').reverse().join('/') : '—')
+const diaNome = (iso: string) => {
+  const [y, m, d] = onlyDate(iso).split('-').map(Number)
+  return DIAS_SEMANA[new Date(y, m - 1, d).getDay()]
+}
+const getStr = (r: PayableRow, k: string) => (r as Record<string, unknown>)[k] as string | undefined
+const nomeForn = (r: PayableRow) => r.nomeFornecedor?.trim() || `Fornecedor ${r.fornecedorCodigo}`
+const numTitulo = (r: PayableRow) => getStr(r, 'numeroTitulo')?.trim() || `#${r.tituloPagarCodigo}`
 const centroCusto = (r: PayableRow) => getStr(r, 'centroCustoDescricao')?.trim() || '—'
 const categoria = (r: PayableRow) => getStr(r, 'planoContaGerencialDescricao')?.trim() || '—'
-const numTitulo = (r: PayableRow) => getStr(r, 'numeroTitulo')?.trim() || `#${(r as unknown as { tituloPagarCodigo?: number }).tituloPagarCodigo ?? ''}`
 
-const statusTit = (r: PayableRow, hoje: string) => {
-  const venc = onlyDate(r.vencimento)
-  if (r.statusTag === 'vencido') return { label: 'Em atraso', cls: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400' }
-  if (venc === hoje) return { label: 'Vence hoje', cls: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-400' }
-  if (venc <= addDaysISO(hoje, 7)) return { label: 'Vence em breve', cls: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400' }
-  return { label: 'Em dia', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' }
-}
-
-/** Detalhamento completo dos títulos a pagar em aberto de um fornecedor. */
-const FornecedorPagarModal = ({ open, onClose, nome, titulos }: Props) => {
-  const hoje = todayISO()
+/** Detalhamento dos títulos a pagar que vencem num dia do calendário. */
+const PagarDiaModal = ({ open, onClose, dia, titulos }: Props) => {
   const resumo = useMemo(() => {
-    const totalAberto = titulos.reduce((s, r) => s + r.saldoRestante, 0)
-    const totalVencido = titulos.filter((r) => r.statusTag === 'vencido').reduce((s, r) => s + r.saldoRestante, 0)
-    const totalAVencer = totalAberto - totalVencido
+    const total = titulos.reduce((s, r) => s + r.saldoRestante, 0)
+    const fornecedores = new Set(titulos.map((r) => r.fornecedorCodigo)).size
+    const vencido = titulos.some((r) => r.statusTag === 'vencido')
     const maxDias = titulos.reduce((mx, r) => Math.max(mx, r.statusTag === 'vencido' ? r.diasAtraso : 0), 0)
-    const doc = getStr(titulos[0] ?? ({} as PayableRow), 'cpfCnpjFornecedor')
-    return { totalAberto, totalVencido, totalAVencer, maxDias, doc }
+    return { total, fornecedores, vencido, maxDias }
   }, [titulos])
 
   const ord = useMemo(
-    () => [...titulos].sort((a, b) => onlyDate(a.vencimento).localeCompare(onlyDate(b.vencimento))),
+    () => [...titulos].sort((a, b) => b.saldoRestante - a.saldoRestante),
     [titulos],
   )
 
@@ -50,17 +45,24 @@ const FornecedorPagarModal = ({ open, onClose, nome, titulos }: Props) => {
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-4xl flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{nome}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="tabular-nums">{brDate(dia)}</span>
+            <span className="text-sm font-normal text-gray-400">{diaNome(dia)}</span>
+            <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold', resumo.vencido
+              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400'
+              : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400')}>
+              {resumo.vencido ? 'Vencido' : 'A vencer'}
+            </span>
+          </DialogTitle>
           <DialogDescription>
-            {resumo.doc ? `${resumo.doc} · ` : ''}{titulos.length} título{titulos.length !== 1 ? 's' : ''} a pagar em aberto
+            {titulos.length} título{titulos.length !== 1 ? 's' : ''} · {resumo.fornecedores} fornecedor{resumo.fornecedores !== 1 ? 'es' : ''} a pagar
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Chip label="Em aberto" value={formatCurrency(resumo.totalAberto)} />
-          <Chip label="Vencido" value={formatCurrency(resumo.totalVencido)} tone={resumo.totalVencido > 0 ? 'red' : undefined} />
-          <Chip label="A vencer" value={formatCurrency(resumo.totalAVencer)} />
-          <Chip label="Maior atraso" value={resumo.maxDias > 0 ? `${resumo.maxDias} dias` : '—'} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Chip label="A pagar no dia" value={formatCurrency(resumo.total)} tone="red" />
+          <Chip label="Fornecedores" value={String(resumo.fornecedores)} />
+          <Chip label="Maior atraso" value={resumo.maxDias > 0 ? `${resumo.maxDias} dias` : '—'} tone={resumo.maxDias > 0 ? 'red' : undefined} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -68,9 +70,9 @@ const FornecedorPagarModal = ({ open, onClose, nome, titulos }: Props) => {
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800/60">
                 <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <th className="px-3 py-2 font-medium">Fornecedor</th>
                   <th className="px-3 py-2 font-medium">Documento</th>
                   <th className="px-3 py-2 font-medium">Emissão</th>
-                  <th className="px-3 py-2 font-medium">Vencimento</th>
                   <th className="px-3 py-2 text-right font-medium">Valor</th>
                   <th className="px-3 py-2 text-right font-medium">Dias atraso</th>
                   <th className="px-3 py-2 font-medium">Centro de custo</th>
@@ -80,18 +82,25 @@ const FornecedorPagarModal = ({ open, onClose, nome, titulos }: Props) => {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {ord.map((r) => {
-                  const st = statusTit(r, hoje)
+                  const doc = getStr(r, 'cpfCnpjFornecedor')
                   return (
                     <tr key={r.codigo} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40">
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-gray-800 dark:text-gray-200">{nomeForn(r)}</p>
+                        {doc && <p className="text-[10px] tabular-nums text-gray-400">{doc}</p>}
+                      </td>
                       <td className="px-3 py-2 font-medium tabular-nums text-gray-700 dark:text-gray-300">{numTitulo(r)}</td>
-                      <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{brDate(onlyDate(r.dataMovimento))}</td>
-                      <td className={cn('px-3 py-2 tabular-nums', r.statusTag === 'vencido' ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300')}>{brDate(onlyDate(r.vencimento))}</td>
+                      <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{brDate(r.dataMovimento)}</td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.saldoRestante)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.diasAtraso > 0 ? `${r.diasAtraso}d` : '—'}</td>
                       <td className="max-w-[140px] truncate px-3 py-2 text-gray-500 dark:text-gray-400" title={centroCusto(r)}>{centroCusto(r)}</td>
                       <td className="max-w-[160px] truncate px-3 py-2 text-gray-500 dark:text-gray-400" title={categoria(r)}>{categoria(r)}</td>
                       <td className="px-3 py-2 text-center">
-                        <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold', st.cls)}>{st.label}</span>
+                        <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold', r.statusTag === 'vencido'
+                          ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400'
+                          : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400')}>
+                          {r.statusTag === 'vencido' ? 'Vencido' : 'A vencer'}
+                        </span>
                       </td>
                     </tr>
                   )
@@ -112,4 +121,4 @@ const Chip = ({ label, value, tone }: { label: string; value: string; tone?: 're
   </div>
 )
 
-export default FornecedorPagarModal
+export default PagarDiaModal
