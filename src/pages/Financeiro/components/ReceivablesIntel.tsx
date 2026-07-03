@@ -1,16 +1,11 @@
 import { useMemo, useState } from 'react'
-import {
-  AlertTriangle, CalendarClock, Percent, Users, ListOrdered, CalendarRange,
-  MessageCircle, Mail,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
+import { AlertTriangle, CalendarClock, Percent, Users } from 'lucide-react'
+import { formatCurrency } from '@/lib/formatters'
 import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { TituloReceber } from '@/api/types/financeiro'
-import ClienteRiscoModal from '@/pages/Financeiro/components/ClienteRiscoModal'
+import ReceberCalendario from '@/pages/Financeiro/components/ReceberCalendario'
 import {
-  IntelHeader, AnalisePanel, KpiHero, KpiCard, ChartCard, HBars, MiniBars30,
-  StackedBarLegend, RankingCard, JanelaBars, IntelTabs, Badge,
+  IntelHeader, AnalisePanel, KpiHero, KpiCard,
 } from '@/pages/Financeiro/components/shared/financeIntel'
 
 interface Props {
@@ -34,12 +29,6 @@ const addDaysISO = (iso: string, n: number) => {
 const onlyDate = (s: string) => (s ?? '').split('T')[0]
 const nomeCli = (r: { nomeCliente?: string; clienteCodigo: number }) => r.nomeCliente?.trim() || `Cliente ${r.clienteCodigo}`
 const brDate = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '—')
-
-/** Mensagem de cobrança pré-preenchida (o usuário escolhe o contato no app). */
-const cobrancaMsg = (nome: string, vencido: number) =>
-  `Olá! Verificamos um valor em aberto de ${formatCurrencyInt(vencido)} referente a ${nome}. Poderia regularizar ou nos retornar sobre o pagamento? Obrigado!`
-const waLink = (msg: string) => `https://wa.me/?text=${encodeURIComponent(msg)}`
-const mailLink = (msg: string) => `mailto:?subject=${encodeURIComponent('Cobrança — valor em aberto')}&body=${encodeURIComponent(msg)}`
 
 interface ClienteAgg {
   codigo: number
@@ -79,11 +68,6 @@ const ICON_TONE = {
   blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
   amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
 }
-/** Cores das faixas de atraso (navy → âmbar → laranja → vermelho). */
-const FAIXA_CORES = ['#1e3a5f', '#f59e0b', '#ea580c', '#dc2626', '#7f1d1d']
-
-type Aba = 'atraso' | 'cliente' | 'vencimento'
-
 /**
  * Contas a Receber — Inteligência de Cobrança. Mesma anatomia da aba Pagar
  * (blocos de `shared/financeIntel`); muda só a semântica (cliente, verde/azul-
@@ -91,9 +75,7 @@ type Aba = 'atraso' | 'cliente' | 'vencimento'
  */
 const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
   const hoje = todayISO()
-  const [aba, setAba] = useState<Aba>('atraso')
   const [showAnalise, setShowAnalise] = useState(false)
-  const [detalhe, setDetalhe] = useState<{ codigo: number; nome: string; score: number } | null>(null)
 
   const m = useMemo(() => {
     const pend = data.filter((r) => r.pendente)
@@ -271,14 +253,6 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
     ? `Recomendação: priorize a cobrança de ${m.concentracao.nomes.slice(0, 2).join(' e ')} — responsáveis por ${m.concentracao.pct.toFixed(2)}% do valor vencido. ${win7(m) > 0 ? `Antecipe contato dos ${formatCurrency(win7(m))} que vencem em 7 dias.` : ''}`
     : 'Recomendação: carteira saudável, sem concentração relevante de vencidos no momento.'
 
-  // Tabela: títulos (aba atraso/vencimento).
-  const titulosAba = useMemo(() => {
-    const pend = data.filter((r) => r.pendente)
-    if (aba === 'atraso') return pend.filter((r) => r.statusTag === 'vencido').sort((a, b) => b.diasAtraso - a.diasAtraso)
-    if (aba === 'vencimento') return [...pend].sort((a, b) => onlyDate(a.dataVencimento).localeCompare(onlyDate(b.dataVencimento)))
-    return []
-  }, [data, aba])
-
   return (
     <div className="space-y-4">
       <IntelHeader title="Inteligência de cobrança" actionLabel="Analisar carteira" open={showAnalise} onToggle={() => setShowAnalise((v) => !v)} />
@@ -322,135 +296,8 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
         </KpiCard>
       </div>
 
-      {/* 3 gráficos */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ChartCard title="A vencer por cliente" Icon={Users} hint="Clientes que mais entram no caixa futuro (a vencer), top 8.">
-          <HBars data={m.topAVencerCli} color="#2563eb" />
-        </ChartCard>
-        <ChartCard title="Previsão de recebimento" Icon={CalendarRange} hint="Entrada de caixa prevista por dia nos próximos 30 dias (títulos a vencer).">
-          <MiniBars30 data={m.previsaoDiaria} color="#16a34a" />
-        </ChartCard>
-        <ChartCard title="Faixa de atraso" Icon={Percent} hint="Composição da carteira em aberto por idade: a vencer e faixas de atraso.">
-          <StackedBarLegend
-            total={m.carteira}
-            segments={m.faixas.map((f, i) => ({ label: f.nome, valor: f.valor, color: FAIXA_CORES[i % FAIXA_CORES.length] }))}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Ranking + Previsão por janela */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <RankingCard
-          title="Maiores devedores" Icon={ListOrdered} hint="Ranking de clientes por valor vencido em aberto (com score e maior atraso)."
-          accentClass="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"
-          items={m.ranking.map((c) => ({
-            key: String(c.codigo),
-            nome: c.nome,
-            sub: `${c.maxDiasAtraso}d de atraso · score ${c.score}`,
-            valor: formatCurrencyShort(c.totalVencido),
-          }))}
-        />
-        <JanelaBars
-          title="Previsão por janela" Icon={CalendarRange} sub="Entrada de caixa acumulada"
-          hint="Quanto entra no caixa acumulado por janela: hoje, 7, 15, 30 e 60 dias." rows={m.heatmap} color="#16a34a"
-        />
-      </div>
-
-      {/* Tabela com abas */}
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <IntelTabs<Aba>
-          tabs={[{ id: 'atraso', label: 'Em atraso' }, { id: 'cliente', label: 'Por cliente' }, { id: 'vencimento', label: 'Por vencimento' }]}
-          active={aba}
-          onChange={setAba}
-          right={<span className="text-xs text-gray-400">{aba === 'cliente' ? `${m.tabela.length} clientes` : `${titulosAba.length} títulos`}</span>}
-        />
-        <div className="max-h-[460px] overflow-auto">
-          {aba === 'cliente' ? (
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800/80">
-                <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-4 py-2 text-right font-medium">Em aberto</th>
-                  <th className="px-4 py-2 text-right font-medium">Vencido</th>
-                  <th className="px-4 py-2 text-right font-medium">Atraso</th>
-                  <th className="px-4 py-2 text-center font-medium">Score</th>
-                  <th className="px-4 py-2 text-center font-medium">Status</th>
-                  <th className="px-4 py-2 text-center font-medium">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {m.tabela.map((c) => {
-                  const st = SCORE_STYLE[scoreBand(c.score)]
-                  return (
-                    <tr key={c.codigo} onClick={() => setDetalhe({ codigo: c.codigo, nome: c.nome, score: c.score })} className="cursor-pointer hover:bg-[#eff6ff] dark:hover:bg-blue-950/20">
-                      <td className="max-w-[240px] truncate px-4 py-2 font-medium text-gray-800 dark:text-gray-200" title={c.nome}>{c.nome}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrencyInt(c.totalAberto)}</td>
-                      <td className={cn('px-4 py-2 text-right tabular-nums', c.totalVencido > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400')}>{c.totalVencido > 0 ? formatCurrencyInt(c.totalVencido) : '—'}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.maxDiasAtraso > 0 ? `${c.maxDiasAtraso}d` : '—'}</td>
-                      <td className="px-4 py-2 text-center">
-                        <span className={cn('inline-flex items-center gap-1 font-bold tabular-nums', st.text)}>
-                          <span className={cn('h-1.5 w-1.5 rounded-full', st.dot)} />{c.score}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-center"><StatusBadge dias={c.maxDiasAtraso} vencido={c.totalVencido > 0} /></td>
-                      <td className="px-4 py-2">
-                        {c.totalVencido > 0 ? (
-                          <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <a href={waLink(cobrancaMsg(c.nome, c.totalVencido))} target="_blank" rel="noopener noreferrer" title="Cobrar via WhatsApp (mensagem pronta)"
-                              className="inline-flex items-center gap-1 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1 text-[11px] font-semibold text-[#15803d] transition-colors hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                              <MessageCircle className="h-3 w-3" /> cobrar
-                            </a>
-                            <a href={mailLink(cobrancaMsg(c.nome, c.totalVencido))} target="_blank" rel="noopener noreferrer" title="Cobrar por e-mail (mensagem pronta)"
-                              className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
-                              <Mail className="h-3 w-3" />
-                            </a>
-                          </div>
-                        ) : <span className="block text-center text-gray-300 dark:text-gray-600">—</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800/80">
-                <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  <th className="px-3 py-2 font-medium">Cliente</th>
-                  <th className="px-3 py-2 font-medium">Documento</th>
-                  <th className="px-3 py-2 font-medium">Vencimento</th>
-                  <th className="px-3 py-2 text-right font-medium">Valor</th>
-                  <th className="px-3 py-2 text-right font-medium">Dias atraso</th>
-                  <th className="px-3 py-2 text-center font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {titulosAba.map((r) => (
-                  <tr key={r.codigo} onClick={() => setDetalhe({ codigo: r.clienteCodigo, nome: nomeCli(r), score: 0 })} className="cursor-pointer hover:bg-[#eff6ff] dark:hover:bg-blue-950/20">
-                    <td className="max-w-[220px] truncate px-3 py-2 font-medium text-gray-800 dark:text-gray-200" title={nomeCli(r)}>{nomeCli(r)}</td>
-                    <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{r.documento || '—'}</td>
-                    <td className={cn('px-3 py-2 tabular-nums', r.statusTag === 'vencido' ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300')}>{brDate(onlyDate(r.dataVencimento))}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(r.valor)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.diasAtraso > 0 ? `${r.diasAtraso}d` : '—'}</td>
-                    <td className="px-3 py-2 text-center"><StatusBadge dias={r.diasAtraso} vencido={r.statusTag === 'vencido'} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
-
-      {detalhe && (
-        <ClienteRiscoModal
-          open={!!detalhe}
-          onClose={() => setDetalhe(null)}
-          nome={detalhe.nome}
-          score={detalhe.score}
-          titulos={data.filter((r) => r.clienteCodigo === detalhe.codigo)}
-          pagos={pagos.filter((p) => p.clienteCodigo === detalhe.codigo)}
-        />
-      )}
+      {/* Calendário de recebimento — a receber por dia de vencimento, por semana. */}
+      <ReceberCalendario data={data} />
     </div>
   )
 }
@@ -460,13 +307,6 @@ const win7 = (m: { previsaoDiaria: { dia: string; valor: number }[] }): number =
   const hoje = todayISO()
   const fim = addDaysISO(hoje, 7)
   return m.previsaoDiaria.reduce((s, d) => (d.dia >= hoje && d.dia <= fim ? s + d.valor : s), 0)
-}
-
-const StatusBadge = ({ dias, vencido }: { dias: number; vencido: boolean }) => {
-  if (!vencido) return <Badge cls="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Em dia</Badge>
-  if (dias <= 30) return <Badge cls="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Até 30d</Badge>
-  if (dias <= 90) return <Badge cls="border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-400">31–90d</Badge>
-  return <Badge cls="border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">+90d</Badge>
 }
 
 export default ReceivablesIntel

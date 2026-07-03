@@ -13,7 +13,7 @@ export interface WeekGroup<T> {
 }
 
 /** ISO da 2ª-feira da semana de `dateStr` (local). */
-const mondayOf = (dateStr: string): string => {
+export const mondayOf = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-').map(Number)
   const dt = new Date(y, m - 1, d)
   const off = (dt.getDay() + 6) % 7 // 0=2ª … 6=dom
