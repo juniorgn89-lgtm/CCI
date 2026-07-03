@@ -72,9 +72,17 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
       const i = weeks.findIndex((w) => w.monday === activeMonday)
       if (i >= 0) return i
     }
-    const iHoje = weeks.findIndex((w) => w.monday === mondayOf(hoje))
-    return iHoje >= 0 ? iHoje : weeks.length - 1
-  }, [weeks, activeMonday, hoje])
+    // Default: semana de hoje SE tiver título; senão a próxima semana com
+    // vencimento (recebimento mais imediato) e, sem futuro, a última com título.
+    const curMon = mondayOf(hoje)
+    const iHoje = weeks.findIndex((w) => w.monday === curMon)
+    if (iHoje < 0) return weeks.length - 1
+    const curTemTitulo = [...porDia.keys()].some((d) => mondayOf(d) === curMon)
+    if (curTemTitulo) return iHoje
+    if (iHoje + 1 < weeks.length) return iHoje + 1
+    if (iHoje - 1 >= 0) return iHoje - 1
+    return iHoje
+  }, [weeks, activeMonday, hoje, porDia])
   const semanaAtiva = weeks[activeIdx]
 
   // Só os dias da semana ativa que TÊM valor a receber (seg→dom), sem linhas vazias.
