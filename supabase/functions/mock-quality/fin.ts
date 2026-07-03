@@ -109,14 +109,24 @@ const FORNECEDORES = [
 export const titulosPagar = (empresaCodigo: number, hoje: string): any[] => {
   const rng = rngFor(empresaCodigo, 'titulos-pagar')
   const out: any[] = []
-  const N = 20
+  const N = 32
   for (let i = 0; i < N; i++) {
     const fornIdx = intBetween(rng, 0, FORNECEDORES.length - 1)
     const nome = FORNECEDORES[fornIdx]
     const utilidade = fornIdx >= 7 // energia/água/manutenção = valores menores
-    const mov = addDays(hoje, -intBetween(rng, 3, 120))
-    const venc = addDays(mov, intBetween(rng, 7, 35))
-    const pago = rng() < 0.25
+    // ~75% vence na JANELA NAVEGÁVEL (≈ hoje-14 … hoje+40), pra o calendário de
+    // pagamento ficar "cheio"; ~25% é histórico que alimenta o "Em atraso".
+    let mov: string
+    let venc: string
+    if (i % 4 !== 0) {
+      venc = addDays(hoje, intBetween(rng, -14, 40))
+      mov = addDays(venc, -intBetween(rng, 7, 35))
+    } else {
+      mov = addDays(hoje, -intBetween(rng, 35, 120))
+      venc = addDays(mov, intBetween(rng, 7, 35))
+    }
+    // A vencer quase nunca está pago; vencido já foi quitado em ~metade dos casos.
+    const pago = venc < hoje ? rng() < 0.5 : rng() < 0.05
     const tituloPagarCodigo = empresaCodigo * 100000 + 50000 + i
     const valor = utilidade ? r2(between(rng, 1000, 8000)) : r2(between(rng, 15000, 120000))
     out.push({
