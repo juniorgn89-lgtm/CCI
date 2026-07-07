@@ -272,7 +272,7 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
         <td className={cn(num, 'font-semibold text-emerald-700 dark:text-emerald-400')}>{formatCurrencyInt(projLB)}</td>
         <td className={cn(num, bold ? '' : 'text-gray-600 dark:text-gray-300')}>{formatCurrencyInt(aRealizar)}</td>
         <td className={cn(real, gl)}>{formatCurrencyInt(lbAnt)}</td>
-        <td className={num}><VariacaoBadge value={variacaoPct(projLB, lbAnt)} /></td>
+        <td className={num}><VariacaoBadge value={variacaoPct(realLB, lbAnt)} /></td>
       </tr>
     )
   }
@@ -308,7 +308,7 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
             <HeaderHint label={<>LB<br />projet.</>} help={`Lucro bruto projetado pro fim do mês — linear: realizado × ${fx}× (ritmo uniforme dos dias decorridos), até ${fimProjLabel}.`} />
             <HeaderHint label={<>A<br />realizar</>} help="Lucro bruto que ainda falta realizar até o fim do mês (projetado − realizado)." />
             <HeaderHint groupStart label={`LB ${cmpShort}`} help={`Lucro bruto no mesmo período do ${cmpShort}.`} />
-            <HeaderHint label="Var." help={`Projeção de lucro bruto vs o ${cmpShort}: no ritmo atual, o posto fecha acima (+) ou abaixo (−) do período anterior?`} />
+            <HeaderHint label="Var." help={`Variação do lucro bruto REALIZADO vs o ${cmpShort}: (LB realizado ÷ LB ${cmpShort} − 1) × 100.`} />
           </tr>
         </thead>
         <tbody>
