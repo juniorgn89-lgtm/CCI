@@ -141,7 +141,6 @@ const DataRow = ({
       {plain
         ? <td className={numCls}>{fmtPct(vals.margem)}</td>
         : <td className="px-1.5 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
-      {isComb && <td className={antCls}>{formatCurrencyInt(vals.acrescimos - vals.descontos)}</td>}
       {/* Comparativo */}
       <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrencyInt(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
       <td className={cn('px-2 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
@@ -524,7 +523,7 @@ const BenchmarkSetor = () => {
             <tr className="text-gray-400 dark:text-gray-500">
               <th className="px-3 py-1.5" />
               <GroupTh first label="Operação" colSpan={1} />
-              <GroupTh label="Financeiro" colSpan={2 + (showFaturamento ? 1 : 0) + (isComb ? 1 : 0)} />
+              <GroupTh label="Financeiro" colSpan={2 + (showFaturamento ? 1 : 0)} />
               <GroupTh label="Comparativo" colSpan={4} />
               <GroupTh label="Eficiência" colSpan={3} />
             </tr>
@@ -538,7 +537,6 @@ const BenchmarkSetor = () => {
               )}
               <HeaderHint groupStart={!showFaturamento} label={<>Lucro<br />Bruto</>} help="Faturamento − custo (CMV) no período (R$)." />
               <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-              {isComb && <HeaderHint label="Acrés./Desc." help="Acréscimos − descontos das vendas no período (R$). Valor negativo = desconto predominou." />}
               {/* Comparativo — métrica explícita na 1ª linha, "(mês/ano ant.)" na 2ª */}
               <HeaderHint groupStart label={showFaturamento ? 'Faturamento' : data.unidadeLabel} sub={`(${cmpShort})`} help={showFaturamento ? `Faturamento no mesmo período do ${cmpWord} (R$).` : `${data.unidadeLabel} no mesmo período do ${cmpWord}.`} />
               <HeaderHint label={<>Var.<br />{showFaturamento ? 'faturamento' : data.unidadeLabel.toLowerCase()}</>} help={showFaturamento ? `Variação % do faturamento vs o ${cmpWord}.` : `Variação % do volume vs o ${cmpWord}.`} />

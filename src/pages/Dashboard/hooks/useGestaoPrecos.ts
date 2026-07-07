@@ -55,6 +55,8 @@ export interface GestaoPrecoRow {
   lbPotencial: number
   /** cedido ÷ potencial × 100 (DERIVADO). */
   pctCedido: number
+  /** Acréscimos − descontos das vendas (R$, base FISCAL useRedeSetores). <0 = desconto predominou. */
+  acresDesc: number
   /** "De onde cedeu": quebra pela OUTRA dimensão (produto→postos; posto→produtos). */
   detalhe: GestaoPrecoDetalhe[]
   /** Atribuição do cedido: ajuste de bomba (não-autorizado) × sancionado por tabela. */
@@ -226,12 +228,18 @@ const useGestaoPrecos = (): GestaoPrecosData => {
     // escopo (o useRedeSetores já respeita o filtro global).
     const lbPorPosto = new Map<number, number>()
     const lbPorProduto = new Map<number, number>()
+    // Acréscimos − descontos (base fiscal) por posto e por produto — mesmo escopo.
+    const adPorPosto = new Map<number, number>()
+    const adPorProduto = new Map<number, number>()
     for (const p of rede.combustivel.postos) {
       if (!inScope(p.empresaCodigo)) continue
       lbPorPosto.set(p.empresaCodigo, (lbPorPosto.get(p.empresaCodigo) ?? 0) + p.lucroBruto)
       for (const pr of p.produtos) {
         const canon = canonOf(pr.produtoCodigo)
         lbPorProduto.set(canon, (lbPorProduto.get(canon) ?? 0) + pr.lucroBruto)
+        const ad = (pr.acrescimos ?? 0) - (pr.descontos ?? 0)
+        adPorProduto.set(canon, (adPorProduto.get(canon) ?? 0) + ad)
+        adPorPosto.set(p.empresaCodigo, (adPorPosto.get(p.empresaCodigo) ?? 0) + ad)
       }
     }
 
@@ -307,7 +315,7 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         .sort((a, b) => b.valor - a.valor),
     })
 
-    const toRow = (key: number, label: string, acc: Acc, lbRealizado: number, detalhe: GestaoPrecoDetalhe[], origem: GestaoPrecoOrigem): GestaoPrecoRow => {
+    const toRow = (key: number, label: string, acc: Acc, lbRealizado: number, acresDesc: number, detalhe: GestaoPrecoDetalhe[], origem: GestaoPrecoOrigem): GestaoPrecoRow => {
       const precoTabelaMedio = acc.vol > 0 ? acc.tabelaW / acc.vol : 0
       const precoPraticadoMedio = acc.vol > 0 ? acc.pratW / acc.vol : 0
       const lbNet = acc.cedido - acc.ganho
@@ -325,17 +333,18 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         lbRealizado,
         lbPotencial,
         pctCedido: lbPotencial > 0 ? (acc.cedido / lbPotencial) * 100 : 0,
+        acresDesc,
         detalhe,
         origem,
       }
     }
 
     const byProduto = Array.from(porProduto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomeProdutoDe(codigo), acc, lbPorProduto.get(codigo) ?? 0, toDetalhe(xProduto.get(codigo), nomePostoDe), { ajusteBomba: acc.cedido, sancionado: [] }))
+      .map(([codigo, acc]) => toRow(codigo, nomeProdutoDe(codigo), acc, lbPorProduto.get(codigo) ?? 0, adPorProduto.get(codigo) ?? 0, toDetalhe(xProduto.get(codigo), nomePostoDe), { ajusteBomba: acc.cedido, sancionado: [] }))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const byPosto = Array.from(porPosto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomePostoDe(codigo), acc, lbPorPosto.get(codigo) ?? 0, toDetalhe(xPosto.get(codigo), nomeProdutoDe), origemDe(codigo)))
+      .map(([codigo, acc]) => toRow(codigo, nomePostoDe(codigo), acc, lbPorPosto.get(codigo) ?? 0, adPorPosto.get(codigo) ?? 0, toDetalhe(xPosto.get(codigo), nomeProdutoDe), origemDe(codigo)))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const gCedido = byPosto.reduce((s, r) => s + r.lbCedido, 0)
