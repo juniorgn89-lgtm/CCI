@@ -1,4 +1,5 @@
 import { useMemo, useState, type MouseEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -6,6 +7,9 @@ import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchVendasCache } from '@/api/supabase/apuracao'
 import { monthEndFactor } from '@/lib/projection'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
@@ -68,10 +72,50 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
 const ProjecoesPainel = () => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
-  const { combustivel, automotivos, conveniencia, global, dailyLB, isLoading } = useRedeSetores()
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const { combustivel, automotivos, conveniencia, global, isLoading } = useRedeSetores()
 
   const [expanded, setExpanded] = useState(false)
   const [hoverDay, setHoverDay] = useState<number | null>(null)
+
+  // ── LB diário do MÊS do filtro (dia 1 → hoje), INDEPENDENTE do recorte de
+  // dias. Base da "oscilação das projeções": cada dia projeta o fechamento
+  // como se o filtro fosse aquele dia. Respeita o filtro de EMPRESA, não o de data.
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
+  const empresas = useMemo(
+    () => (empresasData?.resultados ?? []).map((e) => ({ codigo: e.empresaCodigo, nome: e.fantasia || e.razao || `Posto ${e.empresaCodigo}` })),
+    [empresasData],
+  )
+  const permitidas = useEmpresasPermitidas(empresas)
+  const codes = useMemo(() => {
+    const base = permitidas.map((e) => e.codigo)
+    return empresaCodigos.length > 0 ? base.filter((c) => empresaCodigos.includes(c)) : base
+  }, [permitidas, empresaCodigos])
+
+  const mesRange = useMemo(() => {
+    const [y, m] = (dataInicial || '').split('-').map(Number)
+    if (!y || !m) return null
+    const p = (n: number) => String(n).padStart(2, '0')
+    const diasNoMes = new Date(y, m, 0).getDate()
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
+    const ultimoDiaISO = `${y}-${p(m)}-${p(diasNoMes)}`
+    const ehMesCorrente = now.getFullYear() === y && now.getMonth() + 1 === m
+    const fim = ehMesCorrente ? (todayISO <= ultimoDiaISO ? todayISO : ultimoDiaISO) : ultimoDiaISO
+    return { ini: `${y}-${p(m)}-01`, fim }
+  }, [dataInicial])
+
+  const { data: mesRows = [] } = useQuery({
+    queryKey: ['proj-mes-lb', codes.join(','), mesRange?.ini, mesRange?.fim],
+    queryFn: () => fetchVendasCache({ empresaCodigos: codes, dataInicial: mesRange!.ini, dataFinal: mesRange!.fim }),
+    enabled: codes.length > 0 && !!mesRange,
+    staleTime: 5 * 60 * 1000,
+  })
+  const dailyLBMes = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const r of mesRows) { if (r.setor === 'outros') continue; map.set(r.data, (map.get(r.data) ?? 0) + (r.total_venda - r.total_custo)) }
+    return map
+  }, [mesRows])
 
   // Projeção fim do mês — extrapolação linear (rede-wide) por setor. Já existente.
   const f = monthEndFactor(dataInicial, dataFinal)
@@ -86,115 +130,94 @@ const ProjecoesPainel = () => {
     margem: global.margem,
   }
 
-  /* ─── Régua de projeção (LB diário) ───
-   * Realizado = cumulativo REAL do LB diário (dailyLB, mesma base do consolidado).
-   * Projeção = ritmo por DIA-DA-SEMANA dos dias decorridos, dos dias restantes,
-   * escalado pra fechar exatamente no projEnd da tabela (monthEndFactor) —
-   * trajetória determinística, não previsão estatística. */
+  /* ─── Oscilação das projeções (colunas por dia) ───
+   * Cada coluna = a projeção de fechamento do mês RECALCULADA naquele dia:
+   * barra(D) = LB(dia D) × monthEndFactor(D,D) — exatamente o que a tabela
+   * mostraria filtrando o dia D. Só os dias com realizado (1 → hoje). O topo é
+   * a projeção mais recente (último dia com dado). */
   const chart = useMemo(() => {
-    const realizedEnd = global.lucroBruto
-    const projEnd = realizedEnd * f
-    const aRealizar = Math.max(0, projEnd - realizedEnd)
-
     const [y, m] = dataInicial.split('-').map(Number)
     const diasNoMes = new Date(y, m, 0).getDate()
     const mesLabel = MESES[m - 1] ?? ''
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-    const fimReal = todayISO < dataFinal ? todayISO : dataFinal
-    const isToday = fimReal === todayISO
+    const [ty, tm, td] = todayISO.split('-').map(Number)
+    const ehMesCorrente = ty === y && tm === m
 
-    // Dias do mês/período com LB real (acumulado).
-    const inMonth = dailyLB
-      .filter((p) => { const [py, pm] = p.data.split('-').map(Number); return py === y && pm === m && p.data >= dataInicial && p.data <= fimReal })
-      .sort((a, b) => a.data.localeCompare(b.data))
-    let cum = 0
-    const realPtsRaw: { d: number; v: number }[] = []
-    for (const p of inMonth) { cum += p.lb; realPtsRaw.push({ d: Number(p.data.slice(8, 10)), v: cum }) }
-    const diaIni = realPtsRaw.length ? realPtsRaw[0].d : (Number(dataInicial.slice(8, 10)) || 1)
-    const hojeDia = realPtsRaw.length ? realPtsRaw[realPtsRaw.length - 1].d : diaIni
-    const hasDaily = realPtsRaw.length > 0
-    // Escala leve pro fim bater com o consolidado (arredondamento/escopo).
-    const cumEnd = realPtsRaw.length ? realPtsRaw[realPtsRaw.length - 1].v : 0
-    const scale = cumEnd > 0 ? realizedEnd / cumEnd : 1
-    const realPts = realPtsRaw.map((p) => ({ d: p.d, v: p.v * scale }))
-
-    // Projeção: ritmo por dia-da-semana → dias restantes, escalado pra fechar em projEnd.
-    const wAcc = new Map<number, { sum: number; n: number }>()
-    for (const p of inMonth) { const [py, pm, pd] = p.data.split('-').map(Number); const wd = new Date(py, pm - 1, pd).getDay(); const a = wAcc.get(wd) ?? { sum: 0, n: 0 }; a.sum += p.lb; a.n++; wAcc.set(wd, a) }
-    const avgAll = inMonth.length ? inMonth.reduce((s, p) => s + p.lb, 0) / inMonth.length : 0
-    const wAvg = (wd: number) => { const a = wAcc.get(wd); return a && a.n > 0 ? a.sum / a.n : avgAll }
-    // Projeção ESPERADA do mês INTEIRO (dia 1 → fim): ritmo por dia-da-semana,
-    // escalado pra fechar em projEnd no último dia. Cobre todo o período — o
-    // realizado real (acima/abaixo dessa trajetória) mostra adiantado/atrasado.
+    // barra(D) = projeção de fechamento no dia D = LB(D) × fator(D).
     const allDays: number[] = []
     for (let d = 1; d <= diasNoMes; d++) allDays.push(d)
-    const expInc = allDays.map((d) => wAvg(new Date(y, m - 1, d).getDay()))
-    const expSum = expInc.reduce((s, v) => s + v, 0)
-    const projPts: { d: number; v: number }[] = []
-    let ec = 0
-    for (let i = 0; i < allDays.length; i++) {
-      ec += expSum > 0 ? expInc[i] * (projEnd / expSum) : projEnd / diasNoMes
-      projPts.push({ d: allDays[i], v: ec })
+    const projByDay = new Map<number, number>()
+    for (const d of allDays) {
+      const iso = `${y}-${pad(m)}-${pad(d)}`
+      const lb = dailyLBMes.get(iso)
+      if (lb == null) continue // dia sem realizado (futuro / sem venda) → sem coluna
+      projByDay.set(d, lb * monthEndFactor(iso, iso))
     }
+    const diasComDado = allDays.filter((d) => projByDay.has(d))
+    const ultimoDado = diasComDado.length ? diasComDado[diasComDado.length - 1] : -1
+    // Destaque no último dia COM dado (a projeção mais recente) — evita rótulo
+    // "hoje" solto quando o cache ainda não tem o dia corrente (parcial).
+    const hojeDia = ultimoDado
+    const isToday = ehMesCorrente && td === ultimoDado
+    const hasDaily = diasComDado.length > 0
+    // Projeção mais recente (último dia com dado) — o "fim do mês" atual.
+    const projEnd = ultimoDado > 0 ? (projByDay.get(ultimoDado) ?? 0) : 0
+
+    // Dias apurados = projeção recalculada; dias FUTUROS (após o último apurado)
+    // = a projeção atual MANTIDA até o fim do mês (estimativa, sem dado real ainda).
+    const projDaily = allDays
+      .filter((d) => projByDay.has(d) || (ultimoDado > 0 && d > ultimoDado))
+      .map((d) => projByDay.has(d)
+        ? { d, v: projByDay.get(d) ?? 0, futuro: false }
+        : { d, v: projEnd, futuro: true })
+    const maxDaily = projDaily.reduce((mx, p) => Math.max(mx, p.v), 0)
 
     // Geometria SVG (viewBox 0 0 1000 330).
     const x0 = 60, x1 = 980, yTop = 30, yBase = 280
-    const denom = Math.max(1, diasNoMes - 1)
-    const X = (d: number) => x0 + ((d - 1) / denom) * (x1 - x0)
-    const maxY = niceCeil(projEnd * 1.05)
+    const slot = (x1 - x0) / diasNoMes
+    const barW = slot * 0.6
+    const Xleft = (d: number) => x0 + (d - 1) * slot + (slot - barW) / 2
+    const Xcenter = (d: number) => x0 + (d - 1) * slot + slot / 2
+    const maxY = niceCeil(maxDaily * 1.12)
     const Y = (v: number) => yBase - (v / maxY) * (yBase - yTop)
 
-    const linePath = realPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${X(p.d).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ')
-    const areaPath = realPts.length
-      ? `M${X(diaIni).toFixed(1)},${yBase} ${realPts.map((p) => `L${X(p.d).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ')} L${X(hojeDia).toFixed(1)},${yBase} Z`
-      : ''
-    const projPath = projPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${X(p.d).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ')
-
-    // Cumulativo preenchido por dia (tooltip) — carrega o último valor conhecido.
-    const realFull = new Map<number, number>()
-    { let last = 0; const mp = new Map(realPts.map((p) => [p.d, p.v])); for (let d = diaIni; d <= hojeDia; d++) { const v = mp.get(d); if (v != null) last = v; realFull.set(d, last) } }
-    const projFull = new Map(projPts.map((p) => [p.d, p.v]))
+    const bars = projDaily.map((p) => ({ d: p.d, v: p.v, futuro: p.futuro, x: Xleft(p.d), w: barW, y: Y(p.v), h: yBase - Y(p.v), isHoje: p.d === hojeDia }))
 
     const tickLabel = (v: number) => v === 0 ? '0' : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(2).replace('.', ',')} mi` : `${Math.round(v / 1000)}k`
-    const yTicks = [0, 0.25, 0.5, 0.75, 1].map((fr) => { const v = maxY * fr; return { y: Y(v), ty: Y(v) + 4, label: tickLabel(v) } })
-    const xDays = Array.from(new Set([1, 5, 10, 15, 20, hojeDia, diasNoMes].filter((d) => d >= 1 && d <= diasNoMes))).sort((a, b) => a - b)
-    const xTicks = xDays.map((d) => ({ x: X(d), label: d === hojeDia ? 'hoje' : String(d), isHoje: d === hojeDia }))
+    const yTicks = [0, 0.25, 0.5, 0.75, 1].map((fr) => { const v = maxY * fr; return { y: Y(v), label: tickLabel(v) } })
+    const xDays = Array.from(new Set([1, 5, 10, 15, 20, 25, hojeDia, diasNoMes].filter((d) => d >= 1 && d <= diasNoMes))).sort((a, b) => a - b)
+    const xTicks = xDays.map((d) => ({ x: Xcenter(d), label: d === hojeDia ? (isToday ? 'hoje' : 'atual') : String(d), isHoje: d === hojeDia }))
 
     return {
-      realizedEnd, projEnd, aRealizar, diasNoMes, hojeDia, diaIni, isToday, mesLabel, hasDaily,
-      x0, x1, X, Y, maxY, realFull, projFull,
-      linePath, areaPath, projPath, yTicks, xTicks,
-      hojeX: X(hojeDia), hojeY: Y(realizedEnd), projX: X(diasNoMes), projY: Y(projEnd),
+      projEnd, diasNoMes, hojeDia, isToday, mesLabel, hasDaily,
+      x0, slot, bars, projDaily, Xcenter, Y, yTicks, xTicks,
     }
-  }, [global.lucroBruto, f, dataInicial, dataFinal, dailyLB])
+  }, [dataInicial, dailyLBMes])
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     if (!rect.width) return
     const svgX = ((e.clientX - rect.left) / rect.width) * 1000
-    let d = 1 + ((svgX - chart.x0) / (chart.x1 - chart.x0)) * (chart.diasNoMes - 1)
-    d = Math.max(1, Math.min(chart.diasNoMes, Math.round(d)))
+    let d = Math.floor((svgX - chart.x0) / chart.slot) + 1
+    d = Math.max(1, Math.min(chart.diasNoMes, d))
     if (d !== hoverDay) setHoverDay(d)
   }
   const onLeave = () => { if (hoverDay !== null) setHoverDay(null) }
 
   const hover = (() => {
     if (hoverDay == null) return null
-    const inReal = hoverDay >= chart.diaIni && hoverDay <= chart.hojeDia
-    const realV = chart.realFull.get(hoverDay)
-    const projV = chart.projFull.get(hoverDay) ?? 0
-    const pv = inReal ? (realV ?? projV) : projV // ponto na curva medida (real ≤ hoje, senão projeção)
-    const sx = chart.X(hoverDay), sy = chart.Y(pv)
+    const p = chart.projDaily.find((x) => x.d === hoverDay)
+    if (!p) return null
+    const sx = chart.Xcenter(hoverDay), sy = chart.Y(p.v)
     const flip = hoverDay >= chart.diasNoMes - 5 ? '-90%' : hoverDay <= 3 ? '-10%' : '-50%'
     return {
-      sx, sy, color: inReal ? '#60a5fa' : '#6ee7b7',
+      sx, sy,
       leftPct: `${(sx / 1000 * 100).toFixed(2)}%`, topPct: `${(sy / 330 * 100).toFixed(2)}%`,
       transform: `translate(${flip}, calc(-100% - 14px))`,
       date: `${hoverDay} ${chart.mesLabel}${hoverDay === chart.hojeDia && chart.isToday ? ' · hoje' : ''}`,
-      hasReal: inReal && realV != null,
-      realValue: realV != null ? formatCurrencyInt(realV) : '',
-      projValue: formatCurrencyInt(projV),
+      projValue: formatCurrencyInt(p.v),
+      futuro: p.futuro,
     }
   })()
 
@@ -253,7 +276,7 @@ const ProjecoesPainel = () => {
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
             </p>
-            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? 'Evolução do lucro bruto' : 'Fim do mês'}</p>
+            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? 'Oscilação da projeção — por dia' : 'Fim do mês'}</p>
           </div>
           <button
             type="button" onClick={() => setExpanded((v) => !v)}
@@ -301,48 +324,41 @@ const ProjecoesPainel = () => {
         {expanded && (
           <div className="px-[22px] pb-5 pt-1" style={{ animation: 'chartIn .5s cubic-bezier(.4,0,.2,1) both' }}>
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-4">
-              <div className="flex flex-wrap gap-6">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/55">Realizado · acumulado</p>
-                  <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-white">{formatCurrencyInt(chart.realizedEnd)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · fim do mês</p>
-                  <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.projEnd)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/55">A realizar</p>
-                  <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-white/85">{formatCurrencyInt(chart.aRealizar)}</p>
-                </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · fim do mês (mais recente)</p>
+                <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.projEnd)}</p>
               </div>
               <div className="flex items-center gap-3.5">
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-[3px] w-4 rounded-sm bg-[#60a5fa]" />Realizado</span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-0 w-4 border-t-2 border-dashed border-[#6ee7b7]" />Projeção</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#34d399]" />Projeção no dia</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-[#94a3b8] opacity-40" />
+                  Estimada (futuro)
+                  <InfoHint
+                    text="Os dias que ainda não chegaram não têm venda pra recalcular a projeção. Então repetimos a última projeção até o fim do mês — é só uma estimativa (por isso as barras ficam apagadas). Ela muda quando entrar o resultado real de cada dia."
+                    className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
+                  />
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#6ee7b7]" />Mais recente</span>
               </div>
             </div>
 
             <div className="relative" onMouseMove={onMove} onMouseLeave={onLeave}>
               <svg viewBox="0 0 1000 330" preserveAspectRatio="none" className="block h-[300px] w-full">
-                <defs>
-                  <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.45" />
-                    <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
                 {chart.yTicks.map((t, i) => (
                   <line key={`y${i}`} x1="60" y1={t.y} x2="980" y2={t.y} stroke="rgba(255,255,255,.1)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 ))}
-                {chart.areaPath && <path d={chart.areaPath} fill="url(#projGrad)" opacity="0.5" />}
-                <path d={chart.projPath} fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeDasharray="6 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                {chart.linePath && <path d={chart.linePath} fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
-                <circle cx={chart.hojeX} cy={chart.hojeY} r="5" fill="#60a5fa" stroke="#1e3a5f" strokeWidth="2" />
-                <circle cx={chart.projX} cy={chart.projY} r="5" fill="#6ee7b7" stroke="#1e3a5f" strokeWidth="2" />
-                {hover && (
-                  <>
-                    <line x1={hover.sx} y1="30" x2={hover.sx} y2="280" stroke="rgba(255,255,255,.4)" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-                    <circle cx={hover.sx} cy={hover.sy} r="6" fill="#fff" stroke={hover.color} strokeWidth="3" />
-                  </>
-                )}
+                {chart.bars.map((b) => {
+                  // Futuro = cor apagada (estimativa); apurado = verde cheio.
+                  const op = b.futuro ? 0.16 : (hoverDay == null || hoverDay === b.d ? (b.isHoje ? 1 : 0.85) : 0.35)
+                  return (
+                    <rect
+                      key={b.d}
+                      x={b.x} y={b.y} width={b.w} height={Math.max(0, b.h)}
+                      fill={b.futuro ? '#94a3b8' : b.isHoje ? '#6ee7b7' : '#34d399'}
+                      opacity={op}
+                    />
+                  )
+                })}
               </svg>
               {/* Rótulos de eixo em HTML (fora do SVG preserveAspectRatio=none,
                   que distorceria o texto). */}
@@ -358,14 +374,8 @@ const ProjecoesPainel = () => {
                   style={{ left: hover.leftPct, top: hover.topPct, transform: hover.transform }}
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{hover.date}</p>
-                  {hover.hasReal && (
-                    <div className="mt-1.5 flex items-center justify-between gap-4">
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-600"><span className="h-1.5 w-1.5 rounded-full bg-[#60a5fa]" />Realizado</span>
-                      <span className="text-[13px] font-extrabold tabular-nums text-gray-900">{hover.realValue}</span>
-                    </div>
-                  )}
                   <div className="mt-1.5 flex items-center justify-between gap-4">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-[#6ee7b7]" />Projeção</span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600"><span className={cn('h-1.5 w-1.5 rounded-full bg-[#34d399]', hover.futuro && 'opacity-40')} />{hover.futuro ? 'Projeção estimada' : 'Projeção no dia'}</span>
                     <span className="text-[13px] font-extrabold tabular-nums text-gray-900">{hover.projValue}</span>
                   </div>
                 </div>
@@ -373,8 +383,8 @@ const ProjecoesPainel = () => {
             </div>
 
             <p className="mt-2 text-[10.5px] leading-snug text-white/45">
-              <strong className="font-semibold text-white/60">Realizado</strong> = lucro bruto diário real dos 3 setores (acumulado). <strong className="font-semibold text-white/60">Projeção</strong> = ritmo por dia-da-semana dos dias decorridos, escalado pro fechamento do mês — trajetória, não previsão estatística.
-              {!chart.hasDaily && ' · sem série diária no período (só os endpoints).'}
+              <strong className="font-semibold text-white/60">Cada coluna</strong> = a projeção de fechamento do mês recalculada naquele dia (LB do dia × dias até o fim do mês) — a mesma que a tabela mostra ao filtrar aquele dia. Mostra como a projeção oscilou ao longo do mês. Colunas translúcidas = dias futuros, com a projeção mais recente mantida até o fim do mês.
+              {!chart.hasDaily && ' · sem série diária do mês no cache.'}
             </p>
           </div>
         )}
