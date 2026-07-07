@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Sparkles } from 'lucide-react'
+import { X, Sparkles, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CaduAvatar from '@/pages/Inteligencia/components/AssistenteInteligente/CaduAvatar'
 import ChatPanel from '@/pages/Inteligencia/components/AssistenteInteligente/ChatPanel'
@@ -53,16 +53,27 @@ const SuporteCaduWidget = () => {
         </div>
       )}
 
-      {/* Botão flutuante */}
+      {/* Botão flutuante — avatar do Cadu (IA) + badge de balão (chat) */}
       <button
         onClick={() => (open ? close() : setOpen(true))}
-        aria-label={open ? 'Fechar Suporte Cadu iA' : 'Abrir Suporte Cadu iA'}
+        aria-label={open ? 'Fechar chat com o Cadu iA' : 'Abrir chat com o Cadu iA'}
+        title={open ? 'Fechar chat' : 'Converse com o Cadu iA'}
         className={cn(
-          'fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105',
-          open ? 'bg-gray-700' : 'bg-[#1e3a5f]',
+          'group fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center transition-all hover:scale-105',
+          open && 'rounded-full bg-gray-700 shadow-lg',
         )}
       >
-        {open ? <X className="h-5 w-5 text-white" /> : <CaduAvatar className="h-9 w-9 rounded-full" iconClassName="h-5 w-5" />}
+        {open ? (
+          <X className="h-5 w-5 text-white" />
+        ) : (
+          // Balão de conversa azul (estilo WhatsApp), sem anel em volta, com "IA" no centro.
+          <span className="relative flex h-14 w-14 items-center justify-center drop-shadow-lg">
+            <MessageCircle className="h-14 w-14 fill-[#1e3a5f] text-[#1e3a5f]" strokeWidth={1.5} />
+            <span className="absolute inset-x-0 top-[44%] -translate-y-1/2 text-center text-[13px] font-extrabold leading-none tracking-tight text-white">
+              IA
+            </span>
+          </span>
+        )}
       </button>
     </>
   )
