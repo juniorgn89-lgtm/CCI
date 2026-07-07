@@ -140,7 +140,7 @@ const DataRow = ({
         : <td className={cn('px-1.5 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
       {plain
         ? <td className={numCls}>{fmtPct(vals.margem)}</td>
-        : <td className="px-1.5 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="red" align="near" maxWidthPct={barPct} /></td>}
+        : <td className="px-1.5 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="slate" align="near" maxWidthPct={barPct} /></td>}
       {/* Comparativo */}
       <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrencyInt(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
       <td className={cn('px-2 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>

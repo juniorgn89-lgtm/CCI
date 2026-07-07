@@ -1109,7 +1109,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   {formatCurrencyInt(d.acrescimos - d.descontos)}
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={colMax.margem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                                 </td>
                                 <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">
                                   {formatCurrency(precoVenda)}
@@ -1277,7 +1277,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(f.acrescimo)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(f.desconto)}</td>
                                     <td className="px-2 py-1">
-                                      <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                      <BarCell value={f.margem} max={maxMargem} formatted={`${f.margem.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                                     </td>
                                     <td className="border-l border-gray-200 px-4 py-2.5 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{formatCurrency(f.precoMedioVenda)}</td>
                                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(f.precoCustoMedio)}</td>

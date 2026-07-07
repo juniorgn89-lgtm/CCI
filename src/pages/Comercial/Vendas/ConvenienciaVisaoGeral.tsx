@@ -275,7 +275,7 @@ const ConvenienciaVisaoGeral = ({
                               {c.quantidade > 0 ? formatCurrency((c.faturamento - c.margemTotal) / c.quantidade) : '—'}
                             </td>
                             <td className="px-2 py-1">
-                              <BarCell value={c.margemPct} max={maxMargem} formatted={`${c.margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                              <BarCell value={c.margemPct} max={maxMargem} formatted={`${c.margemPct.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                             </td>
                             <td className="px-2 py-1">
                               <BarCell value={mixPct} max={maxMix} formatted={`${mixPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
@@ -424,7 +424,7 @@ const ConvenienciaVisaoGeral = ({
                           <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                         </td>
                         <td className="px-2 py-1">
-                          <BarCell value={p.margemPct} max={maxMargem} formatted={`${p.margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                          <BarCell value={p.margemPct} max={maxMargem} formatted={`${p.margemPct.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                         </td>
                       </tr>
                     )

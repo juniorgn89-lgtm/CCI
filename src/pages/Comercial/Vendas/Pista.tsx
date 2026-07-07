@@ -891,7 +891,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                             <BarCell value={d.lucro} max={diaColMax.lucro} formatted={formatCurrencyInt(d.lucro)} color="green" align="near" />
                           </td>
                           <td className="px-2 py-1">
-                            <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'} color="amber" align="near" />
+                            <BarCell value={d.fat > 0 ? (d.lucro / d.fat) * 100 : 0} max={diaColMax.margem} formatted={d.fat > 0 ? `${((d.lucro / d.fat) * 100).toFixed(2).replace('.', ',')}%` : '—'} color="slate" align="near" />
                           </td>
                           <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.fat / d.qtd) : '—'}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{d.qtd > 0 ? formatCurrency(d.custo / d.qtd) : '—'}</td>
@@ -1080,7 +1080,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                                 </td>
                                 <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums text-gray-700 dark:border-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.faturamento / c.qtdVendida) : '—'}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.qtdVendida > 0 ? formatCurrency(c.custo / c.qtdVendida) : '—'}</td>
@@ -1258,7 +1258,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                   <BarCell value={lucro} max={maxLucro} formatted={formatCurrencyInt(lucro)} color="green" align="near" />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="amber" align="near" />
+                                  <BarCell value={margemPct} max={maxMargem} formatted={`${margemPct.toFixed(2).replace('.', ',')}%`} color="slate" align="near" />
                                 </td>
                               </tr>
                             )
