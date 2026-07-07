@@ -376,7 +376,7 @@ const GestaoPrecos = () => {
 
       {/* Conteúdo */}
       {sub === 'tabelas' ? (
-        <GestaoPrecosTabelas praticados={data.byProduto} />
+        <GestaoPrecosTabelas />
       ) : sub === 'cliente' ? (
         <GestaoPrecosCliente />
       ) : data.isLoading && data.byProduto.length === 0 ? (
