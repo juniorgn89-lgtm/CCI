@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -25,6 +25,7 @@ import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
+import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
@@ -239,9 +240,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
   const [litrosModalOpen, setLitrosModalOpen] = useState(false)
   const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
-  // Semana ativa da tabela dia a dia (guardada pela 2ª-feira da semana, robusto a
-  // troca de filtro/período; null = semana mais recente).
-  const [activeMonday, setActiveMonday] = useState<string | null>(null)
+  // Página da tabela dia a dia (0-based; 0 = dias mais recentes).
+  const [diaPage, setDiaPage] = useState(0)
   // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
   // projeção por combustível.
   const [projDetalheAberto, setProjDetalheAberto] = useState(false)
@@ -376,62 +376,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     return { days, total, variacaoTotal }
   }, [vendaRows, rowsSemanaAnt, diaFuelFilter])
 
-  /* ─── Semanas (seg–dom) da tabela dia a dia ───
-   * Agrupa os dias do período por semana de calendário (2ª→dom) pra navegação
-   * semanal. Semanas das bordas do período podem ter < 7 dias. Ordenadas da mais
-   * antiga (esquerda) pra mais recente (direita), como os chips. */
-  const semanas = useMemo(() => {
-    const mondayOf = (dateStr: string): string => {
-      const [y, m, d] = dateStr.split('-').map(Number)
-      const dt = new Date(y, m - 1, d)
-      const off = (dt.getDay() + 6) % 7 // 0=2ª … 6=dom
-      dt.setDate(dt.getDate() - off)
-      const p = (n: number) => String(n).padStart(2, '0')
-      return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
-    }
-    type DayLine = (typeof detalheDiaADia.days)[number]
-    const byWeek = new Map<string, DayLine[]>()
-    for (const d of detalheDiaADia.days) {
-      const k = mondayOf(d.data)
-      const arr = byWeek.get(k)
-      if (arr) arr.push(d)
-      else byWeek.set(k, [d])
-    }
-    return Array.from(byWeek.keys())
-      .sort((a, b) => a.localeCompare(b)) // antiga → recente
-      .map((monday) => {
-        const days = [...byWeek.get(monday)!].sort((a, b) => b.data.localeCompare(a.data))
-        const subtotal = days.reduce(
-          (acc, d) => ({
-            litros: acc.litros + d.litros,
-            faturamento: acc.faturamento + d.faturamento,
-            lucroBruto: acc.lucroBruto + d.lucroBruto,
-            custo: acc.custo + d.custo,
-            acrescimos: acc.acrescimos + d.acrescimos,
-            descontos: acc.descontos + d.descontos,
-          }),
-          { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0, acrescimos: 0, descontos: 0 },
-        )
-        return { monday, days, min: days[days.length - 1].data, max: days[0].data, subtotal }
-      })
-  }, [detalheDiaADia.days])
-
-  // Índice da semana ativa (default = mais recente, último da lista ascendente).
-  const activeWeekIdx = useMemo(() => {
-    if (activeMonday) {
-      const i = semanas.findIndex((s) => s.monday === activeMonday)
-      if (i >= 0) return i
-    }
-    return semanas.length - 1
-  }, [semanas, activeMonday])
-  const semanaAtiva = semanas[activeWeekIdx]
-
-  /** Rótulo curto do chip de semana: "01–07" ou "29/06–05/07" se cruzar mês. */
-  const weekChipLabel = (min: string, max: string): string => {
-    const [, mm1, dd1] = min.split('-')
-    const [, mm2, dd2] = max.split('-')
-    return mm1 === mm2 ? `${dd1}–${dd2}` : `${dd1}/${mm1}–${dd2}/${mm2}`
-  }
+  /* ─── Tabela dia a dia paginada — 15 dias por página, mais recente primeiro. ─── */
+  const DIAS_POR_PAGINA = 15
+  const diasOrdenados = useMemo(
+    () => [...detalheDiaADia.days].sort((a, b) => b.data.localeCompare(a.data)),
+    [detalheDiaADia.days],
+  )
+  const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
+  const diaPageSafe = Math.min(diaPage, diaPageCount - 1)
+  const diasPagina = useMemo(
+    () => diasOrdenados.slice(diaPageSafe * DIAS_POR_PAGINA, diaPageSafe * DIAS_POR_PAGINA + DIAS_POR_PAGINA),
+    [diasOrdenados, diaPageSafe],
+  )
 
   /* ─── Análise SEMANAL ───
    * Dois charts/tabelas:
@@ -999,54 +955,20 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                 {/* ── Tab: Realizado dia a dia ── */}
                 {detalheTab === 'dia' && (
                   <>
-                    {semanas.length === 0 ? (
+                    {diasOrdenados.length === 0 ? (
                       <div className="px-5 py-12 text-center text-sm text-gray-400">
                         Sem vendas no período.
                       </div>
                     ) : (
                     <>
-                    {/* Navegação por semana (seg–dom): setas + chips. Só aparece
-                        quando o período tem mais de uma semana. */}
-                    {semanas.length > 1 && (
-                      <div className="flex flex-wrap items-center justify-center gap-1.5 px-4 pb-1 pt-3">
-                        <button
-                          type="button"
-                          aria-label="Semana anterior"
-                          disabled={activeWeekIdx <= 0}
-                          onClick={() => setActiveMonday(semanas[Math.max(activeWeekIdx - 1, 0)].monday)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:cursor-default disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <div className="flex flex-wrap items-center justify-center gap-1">
-                          {semanas.map((s, i) => (
-                            <button
-                              key={s.monday}
-                              type="button"
-                              onClick={() => setActiveMonday(s.monday)}
-                              className={cn(
-                                'rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors',
-                                i === activeWeekIdx
-                                  ? 'bg-[#1e3a5f] text-white dark:bg-blue-600'
-                                  : 'border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800',
-                              )}
-                            >
-                              {weekChipLabel(s.min, s.max)}
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          aria-label="Próxima semana"
-                          disabled={activeWeekIdx >= semanas.length - 1}
-                          onClick={() => setActiveMonday(semanas[Math.min(activeWeekIdx + 1, semanas.length - 1)].monday)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:cursor-default disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                    <div className={cn('overflow-x-auto', semanas.length <= 1 && 'pt-3')}>
+                    <TablePager
+                      page={diaPageSafe}
+                      pageCount={diaPageCount}
+                      onPrev={() => setDiaPage((p) => Math.max(0, p - 1))}
+                      onNext={() => setDiaPage((p) => Math.min(diaPageCount - 1, p + 1))}
+                      info={`${diasOrdenados.length} dias`}
+                    />
+                    <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
                       <table className="w-full text-sm">
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
@@ -1071,7 +993,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {semanaAtiva?.days.map((d) => {
+                          {diasPagina.map((d) => {
                             const margemPct = d.faturamento > 0 ? (d.lucroBruto / d.faturamento) * 100 : 0
                             const precoVenda = d.litros > 0 ? d.faturamento / d.litros : 0
                             const precoCusto = d.litros > 0 ? d.custo / d.litros : 0
@@ -1123,32 +1045,29 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                               </tr>
                             )
                           })}
-                          {/* Subtotal da SEMANA visível + Total do PERÍODO (discreto) */}
-                          {semanaAtiva && (() => {
-                            const sub = semanaAtiva.subtotal
-                            const prevWeek = activeWeekIdx > 0 ? semanas[activeWeekIdx - 1] : undefined
-                            const wow = prevWeek && prevWeek.subtotal.litros > 0
-                              ? ((sub.litros - prevWeek.subtotal.litros) / prevWeek.subtotal.litros) * 100
-                              : null
+                          {/* Subtotal da PÁGINA visível + Total do PERÍODO (discreto) */}
+                          {diasPagina.length > 0 && (() => {
+                            const sub = diasPagina.reduce(
+                              (acc, d) => ({
+                                litros: acc.litros + d.litros,
+                                faturamento: acc.faturamento + d.faturamento,
+                                lucroBruto: acc.lucroBruto + d.lucroBruto,
+                                custo: acc.custo + d.custo,
+                                acrescimos: acc.acrescimos + d.acrescimos,
+                                descontos: acc.descontos + d.descontos,
+                              }),
+                              { litros: 0, faturamento: 0, lucroBruto: 0, custo: 0, acrescimos: 0, descontos: 0 },
+                            )
                             const subMargem = sub.faturamento > 0 ? (sub.lucroBruto / sub.faturamento) * 100 : 0
                             const tot = detalheDiaADia.total
                             const totMargem = tot.faturamento > 0 ? (tot.lucroBruto / tot.faturamento) * 100 : 0
                             return (
                               <>
                                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                                  <td className="px-3 py-2.5">Semana</td>
-                                  <td className="px-3 py-2.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">{weekChipLabel(semanaAtiva.min, semanaAtiva.max)}</td>
+                                  <td className="px-3 py-2.5">Nesta página</td>
+                                  <td className="px-3 py-2.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">{diasPagina.length} dias</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(sub.litros))}</td>
-                                  <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">
-                                    {wow === null ? (
-                                      <span className="text-gray-400">—</span>
-                                    ) : (
-                                      <span className={cn('inline-flex items-center justify-end gap-0.5', variationColor(wow))}>
-                                        {formatPct(wow)}
-                                        {wow > 0 ? <TrendingUp className="h-3 w-3" /> : wow < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                                      </span>
-                                    )}
-                                  </td>
+                                  <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums text-gray-400 dark:border-gray-700">—</td>
                                   <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(sub.faturamento)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.lucroBruto)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.acrescimos - sub.descontos)}</td>
