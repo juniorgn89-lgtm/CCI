@@ -42,9 +42,15 @@ const useAuthBootstrap = () => {
       return
     }
 
+    // Recarrega o perfil UMA VEZ por usuário logado. O refresh de token (que o
+    // supabase-js dispara ao voltar o foco da aba) reusa a mesma sessão sem
+    // reprocessar — senão o briefing do dia reabria a cada troca de aba, porque
+    // o re-load regredia `briefingSeenToday` (a persistência depende do SQL).
+    let loadedUserId: string | null = null
     const handleSession = async (session: import('@supabase/supabase-js').Session | null) => {
       useAuthStore.getState().setAuth(session)
       if (!session) {
+        loadedUserId = null
         useTenantStore.getState().clear()
         useAuthStore.getState().setEmpresaCodigos(null)
         useAuthStore.getState().setModulosPermitidos(null)
@@ -57,6 +63,8 @@ const useAuthBootstrap = () => {
         useFilterStore.getState().setEmpresas([])
         return
       }
+      if (session.user.id === loadedUserId) return // mesma sessão — só sincroniza o token
+      loadedUserId = session.user.id
       await loadTenantForUser()
     }
 
