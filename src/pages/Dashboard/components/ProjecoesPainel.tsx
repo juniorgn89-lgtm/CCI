@@ -78,6 +78,7 @@ const ProjecoesPainel = () => {
   const [expanded, setExpanded] = useState(false)
   const [hoverDay, setHoverDay] = useState<number | null>(null)
   const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
+  const [selDia, setSelDia] = useState<number | null>(null)
 
   // ── LB diário do MÊS do filtro (dia 1 → hoje), INDEPENDENTE do recorte de
   // dias. Base da "oscilação das projeções": cada dia projeta o fechamento
@@ -449,7 +450,10 @@ const ProjecoesPainel = () => {
                 </thead>
                 <tbody className="text-white/90">
                   {chart.linhas.map((l) => (
-                    <tr key={l.dia} className="border-t border-white/5">
+                    <tr key={l.dia}
+                      onClick={() => setSelDia((c) => (c === l.dia ? null : l.dia))}
+                      className={cn('cursor-pointer border-t border-white/5 transition-colors',
+                        selDia === l.dia ? 'bg-amber-400/25 hover:bg-amber-400/30' : 'hover:bg-white/5')}>
                       <td className="px-3 py-1.5 tabular-nums">{l.dataBR}</td>
                       <td className="px-3 py-1.5 text-white/70">{l.diaSemana}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(Math.round(l.litros))}</td>
