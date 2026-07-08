@@ -1,6 +1,6 @@
 import { useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft } from 'lucide-react'
+import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft, BarChart3, Table2 } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
@@ -77,6 +77,7 @@ const ProjecoesPainel = () => {
 
   const [expanded, setExpanded] = useState(false)
   const [hoverDay, setHoverDay] = useState<number | null>(null)
+  const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
 
   // ── LB diário do MÊS do filtro (dia 1 → hoje), INDEPENDENTE do recorte de
   // dias. Base da "oscilação das projeções": cada dia projeta o fechamento
@@ -111,9 +112,17 @@ const ProjecoesPainel = () => {
     enabled: codes.length > 0 && !!mesRange,
     staleTime: 5 * 60 * 1000,
   })
-  const dailyLBMes = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const r of mesRows) { if (r.setor === 'outros') continue; map.set(r.data, (map.get(r.data) ?? 0) + (r.total_venda - r.total_custo)) }
+  // Projeção por dia = LB + litros de COMBUSTÍVEL só (bate com a planilha:
+  // LB/litro ~R$0,75). O card de cima segue com os 3 setores.
+  const dadosPorDia = useMemo(() => {
+    const map = new Map<string, { lb: number; litros: number }>()
+    for (const r of mesRows) {
+      if (r.setor !== 'combustivel') continue
+      const e = map.get(r.data) ?? { lb: 0, litros: 0 }
+      e.lb += r.total_venda - r.total_custo
+      e.litros += r.quantidade
+      map.set(r.data, e)
+    }
     return map
   }, [mesRows])
 
@@ -131,10 +140,10 @@ const ProjecoesPainel = () => {
   }
 
   /* ─── Oscilação das projeções (colunas por dia) ───
-   * Cada coluna = a projeção de fechamento do mês RECALCULADA naquele dia:
-   * barra(D) = LB(dia D) × monthEndFactor(D,D) — exatamente o que a tabela
-   * mostraria filtrando o dia D. Só os dias com realizado (1 → hoje). O topo é
-   * a projeção mais recente (último dia com dado). */
+   * Cada coluna = a projeção de fechamento do mês recalculada naquele dia, com a
+   * venda ACUMULADA até ali: barra(D) = acumulado(1→D) × (dias do mês ÷ D) —
+   * exatamente o que a tabela daria filtrando do dia 1 até D. Só os dias com
+   * realizado (1 → hoje). O topo é a projeção mais recente (último dia com dado). */
   const chart = useMemo(() => {
     const [y, m] = dataInicial.split('-').map(Number)
     const diasNoMes = new Date(y, m, 0).getDate()
@@ -144,15 +153,19 @@ const ProjecoesPainel = () => {
     const [ty, tm, td] = todayISO.split('-').map(Number)
     const ehMesCorrente = ty === y && tm === m
 
-    // barra(D) = projeção de fechamento no dia D = LB(D) × fator(D).
+    // barra(D) = venda ACUMULADA até o dia D × fator(1→D). O fator vem do
+    // monthEndFactor(dia1, D) = dias do mês ÷ dias decorridos (D).
     const allDays: number[] = []
     for (let d = 1; d <= diasNoMes; d++) allDays.push(d)
+    const dia01 = `${y}-${pad(m)}-01`
     const projByDay = new Map<number, number>()
+    let acumulado = 0
     for (const d of allDays) {
       const iso = `${y}-${pad(m)}-${pad(d)}`
-      const lb = dailyLBMes.get(iso)
-      if (lb == null) continue // dia sem realizado (futuro / sem venda) → sem coluna
-      projByDay.set(d, lb * monthEndFactor(iso, iso))
+      const dados = dadosPorDia.get(iso)
+      if (!dados) continue // dia sem realizado (futuro / sem venda) → sem coluna
+      acumulado += dados.lb
+      projByDay.set(d, acumulado * monthEndFactor(dia01, iso))
     }
     const diasComDado = allDays.filter((d) => projByDay.has(d))
     const ultimoDado = diasComDado.length ? diasComDado[diasComDado.length - 1] : -1
@@ -189,11 +202,27 @@ const ProjecoesPainel = () => {
     const xDays = Array.from(new Set([1, 5, 10, 15, 20, 25, hojeDia, diasNoMes].filter((d) => d >= 1 && d <= diasNoMes))).sort((a, b) => a - b)
     const xTicks = xDays.map((d) => ({ x: Xcenter(d), label: d === hojeDia ? (isToday ? 'hoje' : 'atual') : String(d), isHoje: d === hojeDia }))
 
+    // Linhas da tabela (mesmas colunas do Excel): só dias com realizado.
+    const DOW = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+    let projAnterior: number | null = null
+    let totLitros = 0, totLB = 0
+    const linhas = diasComDado.map((d) => {
+      const iso = `${y}-${pad(m)}-${pad(d)}`
+      const dados = dadosPorDia.get(iso) ?? { lb: 0, litros: 0 }
+      const projecao = projByDay.get(d) ?? 0
+      const variacao = projAnterior == null ? null : projecao - projAnterior
+      projAnterior = projecao
+      totLitros += dados.litros; totLB += dados.lb
+      return { dia: d, dataBR: `${pad(d)}/${pad(m)}/${y}`, diaSemana: DOW[new Date(y, m - 1, d).getDay()], litros: dados.litros, lb: dados.lb, projecao, variacao }
+    })
+    const totais = { litros: totLitros, lb: totLB, projecao: projEnd }
+
     return {
       projEnd, diasNoMes, hojeDia, isToday, mesLabel, hasDaily,
       x0, slot, bars, projDaily, Xcenter, Y, yTicks, xTicks,
+      linhas, totais,
     }
-  }, [dataInicial, dailyLBMes])
+  }, [dataInicial, dadosPorDia])
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -276,15 +305,29 @@ const ProjecoesPainel = () => {
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
             </p>
-            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? 'Oscilação da projeção — por dia' : 'Fim do mês'}</p>
+            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? 'Projeção do lucro bruto de combustível — por dia' : 'Fim do mês'}</p>
           </div>
-          <button
-            type="button" onClick={() => setExpanded((v) => !v)}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
-          >
-            {expanded ? <ArrowLeft className="h-3.5 w-3.5 text-white/70" /> : <LineChart className="h-3.5 w-3.5 text-white/70" />}
-            {expanded ? 'Voltar' : 'Ver projeção'}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {expanded && (
+              <div className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.06] p-0.5">
+                <button type="button" onClick={() => setProjView('grafico')}
+                  className={cn('inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors', projView === 'grafico' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white')}>
+                  <BarChart3 className="h-3.5 w-3.5" />Gráfico
+                </button>
+                <button type="button" onClick={() => setProjView('tabela')}
+                  className={cn('inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors', projView === 'tabela' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white')}>
+                  <Table2 className="h-3.5 w-3.5" />Tabela
+                </button>
+              </div>
+            )}
+            <button
+              type="button" onClick={() => setExpanded((v) => !v)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
+            >
+              {expanded ? <ArrowLeft className="h-3.5 w-3.5 text-white/70" /> : <LineChart className="h-3.5 w-3.5 text-white/70" />}
+              {expanded ? 'Voltar' : 'Ver projeção'}
+            </button>
+          </div>
         </div>
 
         {/* Tabela (fechado) */}
@@ -325,23 +368,27 @@ const ProjecoesPainel = () => {
           <div className="px-[22px] pb-5 pt-1" style={{ animation: 'chartIn .5s cubic-bezier(.4,0,.2,1) both' }}>
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · fim do mês (mais recente)</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · combustível · fim do mês</p>
                 <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.projEnd)}</p>
               </div>
-              <div className="flex items-center gap-3.5">
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#34d399]" />Projeção no dia</span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-[#94a3b8] opacity-40" />
-                  Estimada (futuro)
-                  <InfoHint
-                    text="Os dias que ainda não chegaram não têm venda pra recalcular a projeção. Então repetimos a última projeção até o fim do mês — é só uma estimativa (por isso as barras ficam apagadas). Ela muda quando entrar o resultado real de cada dia."
-                    className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
-                  />
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#6ee7b7]" />Mais recente</span>
-              </div>
+              {projView === 'grafico' && (
+                <div className="flex items-center gap-3.5">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#34d399]" />Projeção no dia</span>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75">
+                    <span className="h-2.5 w-2.5 rounded-sm bg-[#94a3b8] opacity-40" />
+                    Estimada (futuro)
+                    <InfoHint
+                      text="Os dias que ainda não chegaram não têm venda pra recalcular a projeção. Então repetimos a última projeção até o fim do mês — é só uma estimativa (por isso as barras ficam apagadas). Ela muda quando entrar o resultado real de cada dia."
+                      className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
+                    />
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-white/75"><span className="h-2.5 w-2.5 rounded-sm bg-[#6ee7b7]" />Mais recente</span>
+                </div>
+              )}
             </div>
 
+            {projView === 'grafico' ? (
+            <>
             <div className="relative" onMouseMove={onMove} onMouseLeave={onLeave}>
               <svg viewBox="0 0 1000 330" preserveAspectRatio="none" className="block h-[300px] w-full">
                 {chart.yTicks.map((t, i) => (
@@ -383,9 +430,47 @@ const ProjecoesPainel = () => {
             </div>
 
             <p className="mt-2 text-[10.5px] leading-snug text-white/45">
-              <strong className="font-semibold text-white/60">Cada coluna</strong> = a projeção de fechamento do mês recalculada naquele dia (LB do dia × dias até o fim do mês) — a mesma que a tabela mostra ao filtrar aquele dia. Mostra como a projeção oscilou ao longo do mês. Colunas translúcidas = dias futuros, com a projeção mais recente mantida até o fim do mês.
+              <strong className="font-semibold text-white/60">Cada coluna</strong> = a projeção de fechamento do mês recalculada naquele dia (venda acumulada até o dia ÷ dias decorridos × dias do mês). Mostra como a projeção oscilou ao longo do mês. Colunas translúcidas = dias futuros, com a projeção mais recente mantida até o fim do mês.
               {!chart.hasDaily && ' · sem série diária do mês no cache.'}
             </p>
+            </>
+            ) : (
+            <div className="mt-2 max-h-[340px] overflow-auto rounded-lg border border-white/10">
+              <table className="w-full text-[11px]">
+                <thead className="sticky top-0 z-10 bg-[#22456b]">
+                  <tr className="text-left text-white/55">
+                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Data</th>
+                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Dia da semana</th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Litros</th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Lucro bruto</th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Projeção de fechamento</th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Variação vs dia anterior</th>
+                  </tr>
+                </thead>
+                <tbody className="text-white/90">
+                  {chart.linhas.map((l) => (
+                    <tr key={l.dia} className="border-t border-white/5">
+                      <td className="px-3 py-1.5 tabular-nums">{l.dataBR}</td>
+                      <td className="px-3 py-1.5 text-white/70">{l.diaSemana}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(Math.round(l.litros))}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(l.lb)}</td>
+                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(l.projecao)}</td>
+                      <td className={cn('px-3 py-1.5 text-right tabular-nums', l.variacao == null ? 'text-white/40' : l.variacao < 0 ? 'text-red-300' : 'text-emerald-300')}>
+                        {l.variacao == null ? '—' : `${l.variacao < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(l.variacao))}`}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-white/20 bg-white/[0.04] font-bold text-white">
+                    <td className="px-3 py-2" colSpan={2}>Total</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Math.round(chart.totais.litros))}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrencyInt(chart.totais.lb)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.totais.projecao)}</td>
+                    <td className="px-3 py-2" />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            )}
           </div>
         )}
 
