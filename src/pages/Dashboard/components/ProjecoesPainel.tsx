@@ -217,11 +217,12 @@ const ProjecoesPainel = () => {
       return { dia: d, dataBR: `${pad(d)}/${pad(m)}/${y}`, diaSemana: DOW[new Date(y, m - 1, d).getDay()], litros: dados.litros, lb: dados.lb, projecao, variacao }
     })
     const totais = { litros: totLitros, lb: totLB, projecao: projEnd }
+    const varByDia = new Map(linhas.map((l) => [l.dia, l.variacao]))
 
     return {
       projEnd, diasNoMes, hojeDia, isToday, mesLabel, hasDaily,
       x0, slot, bars, projDaily, Xcenter, Y, yTicks, xTicks,
-      linhas, totais,
+      linhas, totais, varByDia,
     }
   }, [dataInicial, dadosPorDia])
 
@@ -248,6 +249,7 @@ const ProjecoesPainel = () => {
       date: `${hoverDay} ${chart.mesLabel}${hoverDay === chart.hojeDia && chart.isToday ? ' · hoje' : ''}`,
       projValue: formatCurrencyInt(p.v),
       futuro: p.futuro,
+      variacao: p.futuro ? null : (chart.varByDia.get(hoverDay) ?? null),
     }
   })()
 
@@ -426,6 +428,14 @@ const ProjecoesPainel = () => {
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600"><span className={cn('h-1.5 w-1.5 rounded-full bg-[#34d399]', hover.futuro && 'opacity-40')} />{hover.futuro ? 'Projeção estimada' : 'Projeção no dia'}</span>
                     <span className="text-[13px] font-extrabold tabular-nums text-gray-900">{hover.projValue}</span>
                   </div>
+                  {hover.variacao != null && (
+                    <div className="mt-1 flex items-center justify-between gap-4 border-t border-gray-100 pt-1">
+                      <span className="text-[10px] font-semibold text-gray-400">vs dia anterior</span>
+                      <span className={cn('text-[12px] font-bold tabular-nums', hover.variacao < 0 ? 'text-red-600' : 'text-emerald-600')}>
+                        {hover.variacao < 0 ? '−' : '+'}{formatCurrencyInt(Math.abs(hover.variacao))}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
