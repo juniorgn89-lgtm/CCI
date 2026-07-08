@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft, BarChart3, Table2 } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
@@ -69,7 +69,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
   </div>
 )
 
-const ProjecoesPainel = () => {
+const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean) => void } = {}) => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
@@ -79,6 +79,8 @@ const ProjecoesPainel = () => {
   const [hoverDay, setHoverDay] = useState<number | null>(null)
   const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
   const [selDia, setSelDia] = useState<number | null>(null)
+  // Avisa o pai (Dashboard) quando abre/fecha — pra ocultar o Detalhamento por setor.
+  useEffect(() => { onExpandedChange?.(expanded) }, [expanded, onExpandedChange])
 
   // ── LB diário do MÊS do filtro (dia 1 → hoje), INDEPENDENTE do recorte de
   // dias. Base da "oscilação das projeções": cada dia projeta o fechamento
@@ -324,7 +326,7 @@ const ProjecoesPainel = () => {
               </div>
             )}
             <button
-              type="button" onClick={() => setExpanded((v) => !v)}
+              type="button" onClick={() => { if (!expanded) setProjView('grafico'); setExpanded((v) => !v) }}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
             >
               {expanded ? <ArrowLeft className="h-3.5 w-3.5 text-white/70" /> : <LineChart className="h-3.5 w-3.5 text-white/70" />}
@@ -446,16 +448,28 @@ const ProjecoesPainel = () => {
             </p>
             </>
             ) : (
-            <div className="mt-2 max-h-[340px] overflow-auto rounded-lg border border-white/10">
+            <div className="mt-2 overflow-hidden rounded-lg border border-white/10" style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
               <table className="w-full text-[11px]">
                 <thead className="sticky top-0 z-10 bg-[#22456b]">
                   <tr className="text-left text-white/55">
-                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Data</th>
-                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Dia da semana</th>
-                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Litros</th>
-                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Lucro bruto</th>
-                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Projeção de fechamento</th>
-                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Variação vs dia anterior</th>
+                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center gap-1">Data<InfoHint text="Dia do mês, dentro do período filtrado. Só aparecem os dias já realizados." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
+                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center gap-1">Dia da semana<InfoHint text="Dia da semana correspondente à data — útil pra ver o padrão (dia útil × fim de semana)." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center justify-end gap-1">Litros<InfoHint text="Litros de combustível vendidos no dia." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center justify-end gap-1">Lucro bruto<InfoHint text="Lucro bruto de combustível do dia (faturamento − custo). Base da projeção." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center justify-end gap-1">Projeção de fechamento<InfoHint text="Projeção do LB de combustível pro fim do mês recalculada neste dia, com a venda acumulada até aqui: acumulado ÷ dias decorridos × dias do mês." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center justify-end gap-1">Variação vs dia anterior<InfoHint text="Diferença entre a projeção deste dia e a do dia anterior. Positivo (verde) = a projeção subiu; negativo (vermelho) = caiu." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-white/90">

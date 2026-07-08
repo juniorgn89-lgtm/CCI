@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -78,6 +78,8 @@ const Dashboard = () => {
     (v): v is TabId =>
       v === 'setor' || v === 'aovivo' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
   )
+  // Painel de Projeção aberto → oculta o "Detalhamento por setor" abaixo.
+  const [projExpanded, setProjExpanded] = useState(false)
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
@@ -138,13 +140,17 @@ const Dashboard = () => {
           {/* Cards de segmento rede-wide (Combustível, Automotivos, Conveniência,
               Global, Projeção) — só na "Visão Geral". As abas ao vivo e as de
               vendas por-posto têm seus próprios painéis/projeções. */}
-          {activeTab === 'setor' && <ProjecoesPainel />}
+          {activeTab === 'setor' && <ProjecoesPainel onExpandedChange={setProjExpanded} />}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs). Todas as
               abas de vendas são consolidadas (cache) → renderizam rede-wide. */}
           {visibleTabs.length > 0 && (
             <Suspense fallback={<TabSkeleton />}>
-              {activeTab === 'setor' && <BenchmarkSetor />}
+              {activeTab === 'setor' && !projExpanded && (
+                <div style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
+                  <BenchmarkSetor />
+                </div>
+              )}
               {activeTab === 'aovivo' && <TurnosAoVivo />}
               {activeTab === 'combustivel' && <Combustivel embedded />}
               {activeTab === 'pista' && <Pista embedded />}
