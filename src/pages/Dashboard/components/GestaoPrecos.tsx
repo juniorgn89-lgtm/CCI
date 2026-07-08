@@ -76,6 +76,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
     return { tabela, praticado, desvio: tabela - praticado, vsTabelaPct, top, conc, vol, cedido, acresDesc }
   }, [rows, cedidoGlobal])
 
+  // Total da coluna "Acrés./Desc." (= acréscimos − descontos + LB cedido).
+  const acresDescGeral = agg.acresDesc - agg.cedido
+
   if (rows.length === 0) {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900">
@@ -88,8 +91,14 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Desconto concedido" tone="red" value={`−${formatCurrencyInt(cedidoGlobal)}`}
-          sub="margem cedida no período (cedido)" help="Soma do lucro bruto cedido por vender abaixo da tabela: Σ (preço de tabela − praticado) × volume, só dos abastecimentos em que se vendeu abaixo. Derivado · base física." />
+        {showAcresDesc ? (
+          <Kpi label="Acrés./Desc." tone={acresDescGeral < 0 ? 'red' : acresDescGeral > 0 ? 'green' : 'navy'}
+            value={`${acresDescGeral < 0 ? '−' : acresDescGeral > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(acresDescGeral))}`}
+            sub="acrés./desc + LB cedido no período" help="Soma da coluna Acrés./Desc. da tabela: acréscimos − descontos das vendas (base fiscal) + o LB cedido por vender abaixo da tabela (base física). Negativo = abatimento total no período." />
+        ) : (
+          <Kpi label="Desconto concedido" tone="red" value={`−${formatCurrencyInt(cedidoGlobal)}`}
+            sub="margem cedida no período (cedido)" help="Soma do lucro bruto cedido por vender abaixo da tabela: Σ (preço de tabela − praticado) × volume, só dos abastecimentos em que se vendeu abaixo. Derivado · base física." />
+        )}
         <Kpi label="Praticado vs tabela" tone={agg.vsTabelaPct < 0 ? 'red' : 'green'}
           value={pct1(agg.vsTabelaPct)} sub={`desvio médio ${r3(agg.desvio)}/L`}
           help="Preço praticado médio (ponderado por volume) vs o preço de tabela. Negativo = abaixo da tabela. Fato (preços) · derivado (%)." />
@@ -132,7 +141,15 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                     <span className="inline-flex items-center gap-1">{r.label}<ChevronRight className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" /></span>
                   </td>
                   <td className="px-2 py-2 text-center">
-                    {cedeu ? (
+                    {showAcresDesc ? (
+                      acresDescTotal < 0 ? (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:bg-red-950/30 dark:text-red-400">Cedeu</span>
+                      ) : acresDescTotal > 0 ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">Acrescentou</span>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wide text-gray-400">Na tabela</span>
+                      )
+                    ) : cedeu ? (
                       <span className={cn('rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide dark:bg-gray-800', SEV_TEXT[sev])}>Cedeu</span>
                     ) : r.desvioMedio < -0.0005 ? (
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Acima</span>
@@ -368,9 +385,9 @@ const GestaoPrecos = () => {
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white"><Tag className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">Gestão de Preços — preço de tabela × batido na bomba</p>
+          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">Gestão de Preços — desvio de bomba + acréscimos e descontos</p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">
-            A IA cruza o preço de cadastro do abastecimento com o preço praticado — o ajuste de bomba abaixo da tabela aparece como margem cedida.
+            A IA cruza o preço de tabela com o praticado na bomba (o ajuste abaixo da tabela = margem cedida) e soma os acréscimos e descontos das vendas. O consolidado <strong className="font-semibold text-gray-700 dark:text-gray-300">Acrés./Desc.</strong> mostra se, no total, o produto <span className="font-semibold text-red-600 dark:text-red-400">cedeu</span> margem ou <span className="font-semibold text-emerald-600 dark:text-emerald-400">acrescentou</span> no período.
           </p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-[#1e3a5f] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
