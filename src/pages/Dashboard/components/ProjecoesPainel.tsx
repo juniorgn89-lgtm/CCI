@@ -79,8 +79,11 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const [hoverDay, setHoverDay] = useState<number | null>(null)
   const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
   const [selDia, setSelDia] = useState<number | null>(null)
+  const [setorProj, setSetorProj] = useState<'combustivel' | 'automotivos' | 'conveniencia'>('combustivel')
   // Avisa o pai (Dashboard) quando abre/fecha — pra ocultar o Detalhamento por setor.
   useEffect(() => { onExpandedChange?.(expanded) }, [expanded, onExpandedChange])
+  const setorLabel = setorProj === 'combustivel' ? 'combustível' : setorProj === 'automotivos' ? 'automotivos' : 'conveniência'
+  const unidadeLabel = setorProj === 'combustivel' ? 'Litros' : 'Qtde'
 
   // ── LB diário do MÊS do filtro (dia 1 → hoje), INDEPENDENTE do recorte de
   // dias. Base da "oscilação das projeções": cada dia projeta o fechamento
@@ -115,19 +118,19 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     enabled: codes.length > 0 && !!mesRange,
     staleTime: 5 * 60 * 1000,
   })
-  // Projeção por dia = LB + litros de COMBUSTÍVEL só (bate com a planilha:
-  // LB/litro ~R$0,75). O card de cima segue com os 3 setores.
+  // Projeção por dia = LB + quantidade do SETOR selecionado (litros p/ combustível,
+  // unidades p/ loja). O card de cima segue com os 3 setores somados.
   const dadosPorDia = useMemo(() => {
     const map = new Map<string, { lb: number; litros: number }>()
     for (const r of mesRows) {
-      if (r.setor !== 'combustivel') continue
+      if (r.setor !== setorProj) continue
       const e = map.get(r.data) ?? { lb: 0, litros: 0 }
       e.lb += r.total_venda - r.total_custo
       e.litros += r.quantidade
       map.set(r.data, e)
     }
     return map
-  }, [mesRows])
+  }, [mesRows, setorProj])
 
   // Projeção fim do mês — extrapolação linear (rede-wide) por setor. Já existente.
   const f = monthEndFactor(dataInicial, dataFinal)
@@ -220,11 +223,12 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     })
     const totais = { litros: totLitros, lb: totLB, projecao: projEnd }
     const varByDia = new Map(linhas.map((l) => [l.dia, l.variacao]))
+    const dowByDia = new Map(allDays.map((d) => [d, DOW[new Date(y, m - 1, d).getDay()]]))
 
     return {
       projEnd, diasNoMes, hojeDia, isToday, mesLabel, hasDaily,
       x0, slot, bars, projDaily, Xcenter, Y, yTicks, xTicks,
-      linhas, totais, varByDia,
+      linhas, totais, varByDia, dowByDia,
     }
   }, [dataInicial, dadosPorDia])
 
@@ -248,7 +252,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       sx, sy,
       leftPct: `${(sx / 1000 * 100).toFixed(2)}%`, topPct: `${(sy / 330 * 100).toFixed(2)}%`,
       transform: `translate(${flip}, calc(-100% - 14px))`,
-      date: `${hoverDay} ${chart.mesLabel}${hoverDay === chart.hojeDia && chart.isToday ? ' · hoje' : ''}`,
+      date: `${hoverDay} ${chart.mesLabel} · ${chart.dowByDia.get(hoverDay) ?? ''}${hoverDay === chart.hojeDia && chart.isToday ? ' · hoje' : ''}`,
       projValue: formatCurrencyInt(p.v),
       futuro: p.futuro,
       variacao: p.futuro ? null : (chart.varByDia.get(hoverDay) ?? null),
@@ -310,9 +314,19 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
             </p>
-            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? 'Projeção do lucro bruto de combustível — por dia' : 'Fim do mês'}</p>
+            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Fim do mês'}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {expanded && (
+              <div className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.06] p-0.5">
+                {([['combustivel', 'Combustível', Droplets], ['automotivos', 'Automotivos', Wrench], ['conveniencia', 'Conveniência', Store]] as const).map(([id, label, Icon]) => (
+                  <button key={id} type="button" onClick={() => setSetorProj(id)}
+                    className={cn('inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors', setorProj === id ? 'bg-[#34d399]/20 text-[#6ee7b7]' : 'text-white/60 hover:text-white')}>
+                    <Icon className="h-3.5 w-3.5" />{label}
+                  </button>
+                ))}
+              </div>
+            )}
             {expanded && (
               <div className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.06] p-0.5">
                 <button type="button" onClick={() => setProjView('grafico')}
@@ -326,7 +340,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               </div>
             )}
             <button
-              type="button" onClick={() => { if (!expanded) setProjView('grafico'); setExpanded((v) => !v) }}
+              type="button" onClick={() => { if (!expanded) { setProjView('grafico'); setSetorProj('combustivel') } setExpanded((v) => !v) }}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
             >
               {expanded ? <ArrowLeft className="h-3.5 w-3.5 text-white/70" /> : <LineChart className="h-3.5 w-3.5 text-white/70" />}
@@ -373,7 +387,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           <div className="px-[22px] pb-5 pt-1" style={{ animation: 'chartIn .5s cubic-bezier(.4,0,.2,1) both' }}>
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · combustível · fim do mês</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · {setorLabel} · fim do mês</p>
                 <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.projEnd)}</p>
               </div>
               {projView === 'grafico' && (
@@ -459,10 +473,10 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                       <span className="inline-flex items-center gap-1">Dia da semana<InfoHint text="Dia da semana correspondente à data — útil pra ver o padrão (dia útil × fim de semana)." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
                     </th>
                     <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
-                      <span className="inline-flex items-center justify-end gap-1">Litros<InfoHint text="Litros de combustível vendidos no dia." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                      <span className="inline-flex items-center justify-end gap-1">{unidadeLabel}<InfoHint text={setorProj === 'combustivel' ? 'Litros de combustível vendidos no dia.' : 'Quantidade de itens vendidos no dia.'} className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
                     </th>
                     <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
-                      <span className="inline-flex items-center justify-end gap-1">Lucro bruto<InfoHint text="Lucro bruto de combustível do dia (faturamento − custo). Base da projeção." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                      <span className="inline-flex items-center justify-end gap-1">Lucro bruto<InfoHint text="Lucro bruto do dia do setor selecionado (faturamento − custo). Base da projeção." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
                     </th>
                     <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
                       <span className="inline-flex items-center justify-end gap-1">Projeção de fechamento<InfoHint text="Projeção do LB de combustível pro fim do mês recalculada neste dia, com a venda acumulada até aqui: acumulado ÷ dias decorridos × dias do mês." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
