@@ -56,22 +56,24 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
   const outroLabel = entidade === 'produto' ? 'Posto' : 'Produto'
   const [aberto, setAberto] = useState<GestaoPrecoRow | null>(null)
   const agg = useMemo(() => {
-    let vol = 0, tabW = 0, pratW = 0, cedido = 0, acresDesc = 0
+    let vol = 0, tabW = 0, pratW = 0, cedido = 0, acresDesc = 0, sancionado = 0, ajuste = 0
     for (const r of rows) {
       vol += r.volume; tabW += r.precoTabelaMedio * r.volume; pratW += r.precoPraticadoMedio * r.volume
-      cedido += r.lbCedido; acresDesc += r.acresDesc
+      cedido += r.lbCedido; acresDesc += r.acresDesc; sancionado += r.lbSancionado; ajuste += r.lbAjuste
     }
     const tabela = vol > 0 ? tabW / vol : 0
     const praticado = vol > 0 ? pratW / vol : 0
     const vsTabelaPct = tabela > 0 ? (praticado / tabela - 1) * 100 : 0
     const top = rows[0] ?? null
     const conc = top && cedidoGlobal > 0 ? (top.lbCedido / cedidoGlobal) * 100 : 0
-    return { tabela, praticado, desvio: tabela - praticado, vsTabelaPct, top, conc, vol, cedido, acresDesc }
+    // Impacto total no LB = fiscal (acrés−desc, já sinalizado) − cedido na bomba.
+    const total = acresDesc - cedido
+    return { tabela, praticado, desvio: tabela - praticado, vsTabelaPct, top, conc, vol, cedido, acresDesc, sancionado, ajuste, total }
   }, [rows, cedidoGlobal])
 
-  // Total fiscal da coluna Acrés./Desc. (acréscimos − descontos) — bate com o
-  // WebPosto. O LB cedido (base física) fica em coluna/indicador separado.
+  // Total fiscal da coluna Acrés./Desc. (acréscimos − descontos) — bate com o WebPosto.
   const acresDescGeral = agg.acresDesc
+  const signed = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(v))}`
 
   if (rows.length === 0) {
     return (
@@ -83,19 +85,18 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
+      {/* Decomposição da margem cedida — total + 3 fontes disjuntas. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Acrés./Desc." tone={acresDescGeral < 0 ? 'red' : acresDescGeral > 0 ? 'green' : 'navy'}
-          value={`${acresDescGeral < 0 ? '−' : acresDescGeral > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(acresDescGeral))}`}
-          sub="acréscimos − descontos das vendas" help="Acréscimos − descontos lançados nas vendas (base fiscal). Bate com o relatório do WebPosto. O LB cedido (base física) fica na coluna separada." />
-        <Kpi label="Praticado vs tabela" tone={agg.vsTabelaPct < 0 ? 'red' : 'green'}
-          value={pct1(agg.vsTabelaPct)} sub={`desvio médio ${r3(agg.desvio)}/L`}
-          help="Preço praticado médio (ponderado por volume) vs o preço de tabela. Negativo = abaixo da tabela. Fato (preços) · derivado (%)." />
-        <Kpi label="Concentração do vazamento" tone="navy" value={agg.top?.label ?? '—'}
-          sub={agg.top ? `${pct1(agg.conc)} do cedido · ${formatCurrencyInt(agg.top.lbCedido)}` : ''}
-          help="Produto que mais puxa o desconto concedido — onde a recuperação tem maior alavancagem." />
-        <Kpi label={`${ent.plural} com desvio`} tone="amber" value={String(rows.filter((r) => r.lbCedido > 0).length)}
-          sub={`de ${rows.length} no período`} help={`Quantos ${ent.plural.toLowerCase()} tiveram ao menos um abastecimento abaixo da tabela.`} />
+        <Kpi label="Margem cedida total" tone="navy" value={signed(agg.total)}
+          sub="fiscal + bomba (sancionado + ajuste)"
+          help="Impacto total no lucro bruto = Acrés./Desc. (fiscal) − LB cedido na bomba. A soma das 3 fontes ao lado." />
+        <Kpi label="Acrés./Desc. (fiscal)" tone={acresDescGeral < 0 ? 'red' : acresDescGeral > 0 ? 'green' : 'navy'}
+          value={signed(acresDescGeral)}
+          sub="desconto/acréscimo no cupom" help="Acréscimos − descontos lançados nas vendas (base fiscal). Bate com o relatório do WebPosto. É a fonte 'cupom' — inclui descontos de app (99/Baratão) que passam pelo cupom fiscal." />
+        <Kpi label="Sancionado · tabela" tone="amber" value={signed(-agg.sancionado)}
+          sub="preço abaixo da tabela, mas cadastrado" help="Parte do LB cedido na bomba que casou uma Tabela de Preço de Prazos cadastrada (ex.: BARATAO) — promoção autorizada, não vazamento. No WebPosto isso aparece do lado fiscal." />
+        <Kpi label="Ajuste de bomba" tone={agg.ajuste > 0 ? 'red' : 'navy'} value={signed(-agg.ajuste)}
+          sub="sem tabela — a investigar" help="Parte do LB cedido na bomba SEM tabela cadastrada correspondente: preço baixado direto na bomba, abaixo da tabela e sem promoção autorizada. É o vazamento a investigar." />
       </div>
 
       {/* Tabela praticado × tabela */}
@@ -113,7 +114,10 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                 <span className="inline-flex items-center gap-1">ACRÉS./DESC<InfoHint text="Acréscimos − descontos lançados nas vendas (base fiscal). Bate com o WebPosto. Negativo = desconto predominou." /></span>
               </th>
               <th className="px-2 py-2 text-right font-semibold">
-                <span className="inline-flex items-center gap-1">Ajuste na bomba<InfoHint text="Lucro bruto cedido por alterar o preço direto na bomba, abaixo da tabela: Σ (preço de tabela − praticado) × litros (base física)." /></span>
+                <span className="inline-flex items-center gap-1">Sancionado<InfoHint text="Parte do LB cedido na bomba que casou uma tabela cadastrada (ex.: BARATAO): promoção autorizada. No WebPosto entra do lado fiscal." /></span>
+              </th>
+              <th className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">Ajuste de bomba<InfoHint text="Parte do LB cedido na bomba SEM tabela correspondente: preço baixado direto na bomba, sem promoção autorizada. Vazamento a investigar." /></span>
               </th>
             </tr>
           </thead>
@@ -143,7 +147,8 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                   <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.acresDesc < 0 ? 'text-red-600 dark:text-red-400' : r.acresDesc > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
                     {r.acresDesc === 0 ? '—' : `${r.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(r.acresDesc))}`}
                   </td>
-                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.lbCedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r.lbCedido > 0 ? `−${formatCurrencyInt(r.lbCedido)}` : '—'}</td>
+                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.lbSancionado > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400')}>{r.lbSancionado > 0 ? `−${formatCurrencyInt(r.lbSancionado)}` : '—'}</td>
+                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.lbAjuste > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r.lbAjuste > 0 ? `−${formatCurrencyInt(r.lbAjuste)}` : '—'}</td>
                 </tr>
               )
             })}
@@ -158,7 +163,8 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
               <td className={cn('px-2 py-2 text-right tabular-nums', agg.acresDesc < 0 ? 'text-red-600 dark:text-red-400' : agg.acresDesc > 0 ? 'text-emerald-600 dark:text-emerald-400' : '')}>
                 {agg.acresDesc === 0 ? '—' : `${agg.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(agg.acresDesc))}`}
               </td>
-              <td className={cn('px-2 py-2 text-right tabular-nums', agg.cedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{agg.cedido > 0 ? `−${formatCurrencyInt(agg.cedido)}` : '—'}</td>
+              <td className={cn('px-2 py-2 text-right tabular-nums', agg.sancionado > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400')}>{agg.sancionado > 0 ? `−${formatCurrencyInt(agg.sancionado)}` : '—'}</td>
+              <td className={cn('px-2 py-2 text-right tabular-nums', agg.ajuste > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{agg.ajuste > 0 ? `−${formatCurrencyInt(agg.ajuste)}` : '—'}</td>
             </tr>
           </tbody>
         </table>

@@ -6,7 +6,7 @@ import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchBicos } from '@/api/endpoints/combustiveis'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
-import { fetchGestaoPrecoTabelas, fetchGestaoPrecoTabelaItens } from '@/api/supabase/gestaoPrecosTabelas'
+import { useTabelasPrazo } from '@/pages/Dashboard/hooks/useTabelasPrazo'
 import { classifyFuelSlug } from '@/api/supabase/concorrencia'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
@@ -43,8 +43,12 @@ export interface GestaoPrecoRow {
   precoPraticadoMedio: number
   /** Tabela − praticado, R$/L (DERIVADO). >0 = cedeu; <0 = vendeu acima. */
   desvioMedio: number
-  /** Σ desvio>0 × volume — cedido (DERIVADO, manchete). */
+  /** Σ desvio>0 × volume — cedido (DERIVADO, manchete). = lbSancionado + lbAjuste. */
   lbCedido: number
+  /** Parte do cedido que casou uma tabela cadastrada (BARATAO) — promo autorizada (DERIVADO). */
+  lbSancionado: number
+  /** Parte do cedido SEM tabela — ajuste de bomba não-autorizado a investigar (DERIVADO). */
+  lbAjuste: number
   /** Σ desvio<0 × volume — vendeu acima (DERIVADO). */
   lbGanho: number
   /** cedido − ganho (DERIVADO, tooltip). */
@@ -135,9 +139,8 @@ const useGestaoPrecos = (): GestaoPrecosData => {
     staleTime: 30 * 60 * 1000,
   })
 
-  // Tabelas de Preço de Prazos ingeridas (Fase 2) — pra atribuição "sancionado".
-  const { data: gpTabelas = [] } = useQuery({ queryKey: ['gp-tabelas'], queryFn: fetchGestaoPrecoTabelas, staleTime: 5 * 60 * 1000 })
-  const { data: gpItens = [] } = useQuery({ queryKey: ['gp-tabela-itens'], queryFn: fetchGestaoPrecoTabelaItens, staleTime: 5 * 60 * 1000 })
+  // Tabelas de Preço de Prazos (BARATAO etc.) — live da API — pra atribuição "sancionado".
+  const { data: tabelasApi = [] } = useTabelasPrazo()
 
   // Live /ABASTECIMENTO (rede-wide; o endpoint ignora empresaCodigo → filtra no
   // cliente). Traz preco_cadastro/tabelaPrecoA-C sempre.
@@ -183,27 +186,25 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       return !(dF && dF > todayISO) && !(dH && dH > todayISO)
     }
 
-    // ── Atribuição (Fase 2): índice das linhas de tabela de combustível por
-    // (posto, slug). Filial casa por NOME (o nº de filial do WebPosto ≠ empresaCodigo). ──
-    const normNome = (s: string) => (s || '').toUpperCase().replace(/\s+/g, ' ').trim()
-    const empresaPorNome = new Map(permitidas.map((e) => [normNome(e.fantasia), e.codigo]))
-    const tabelaById = new Map(gpTabelas.map((t) => [t.id, t]))
+    // ── Atribuição: índice das linhas de tabela de combustível por (posto, slug).
+    // Live da API: empresaCodigo e produtoCodigo já vêm resolvidos (sem casar por
+    // nome). dias 1–7 (1=domingo) → convenção getDay() 0–6. ──
     type TabLine = { valor: number; ref: string; descricao: string; vi: string | null; vf: string | null; dias: number[] | null }
     const tabelaIdx = new Map<string, TabLine[]>()
-    for (const it of gpItens) {
-      if (it.tipo !== 'especifico') continue
-      const slug = classifyFuelSlug(it.produto_nome)
-      if (!slug) continue
-      const t = tabelaById.get(it.tabela_id)
-      if (!t) continue
-      // Prefere o NOME (o nº de filial do WebPosto ≠ empresaCodigo). Código
-      // desconhecido (não é um posto real do Visor) → trata como rede ("all").
-      let emp = empresaPorNome.get(normNome(it.filial_nome ?? '')) ?? it.filial_empresa_codigo ?? null
-      if (emp != null && !permitSet.has(emp)) emp = null
-      const key = `${emp ?? 'all'}|${slug}`
-      const arr = tabelaIdx.get(key) ?? []
-      arr.push({ valor: it.valor, ref: t.ref, descricao: t.descricao, vi: t.validade_inicial, vf: t.validade_final, dias: t.dias_semana })
-      tabelaIdx.set(key, arr)
+    for (const tab of tabelasApi) {
+      const dias = tab.diasSemana ? tab.diasSemana.map((d) => (d - 1 + 7) % 7) : null
+      for (const it of tab.itens) {
+        if (it.tipo !== 'especifico' || it.produtoCodigo == null) continue
+        const slug = classifyFuelSlug(nomeProduto.get(canonOf(it.produtoCodigo)) ?? '')
+        if (!slug) continue
+        // Posto fora do escopo permitido → trata como rede ("all").
+        let emp: number | null = it.empresaCodigo
+        if (emp != null && !permitSet.has(emp)) emp = null
+        const key = `${emp ?? 'all'}|${slug}`
+        const arr = tabelaIdx.get(key) ?? []
+        arr.push({ valor: it.valor, ref: tab.ref, descricao: tab.descricao, vi: tab.validadeInicial, vf: tab.validadeFinal, dias })
+        tabelaIdx.set(key, arr)
+      }
     }
     const weekday = (date: string) => { const [y, m, d] = date.split('-').map(Number); return new Date(y, m - 1, d).getDay() }
     // Casa um abastecimento a uma tabela vigente: preço bate (±0,005), dentro da
@@ -221,8 +222,16 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       }
       return null
     }
+    type SancEntry = { ref: string; descricao: string; total: number }
     const ajusteByPosto = new Map<number, number>()
-    const sancByPosto = new Map<number, Map<string, { ref: string; descricao: string; total: number }>>()
+    const sancByPosto = new Map<number, Map<string, SancEntry>>()
+    const ajusteByProduto = new Map<number, number>()
+    const sancByProduto = new Map<number, Map<string, SancEntry>>()
+    const bumpSanc = (m: Map<number, Map<string, SancEntry>>, k: number, t: TabLine, v: number) => {
+      const inner = m.get(k) ?? new Map<string, SancEntry>()
+      const e = inner.get(t.ref) ?? { ref: t.ref, descricao: t.descricao, total: 0 }
+      e.total += v; inner.set(t.ref, e); m.set(k, inner)
+    }
 
     // LB realizado (fato fiscal) por posto e por produto (canônico), no MESMO
     // escopo (o useRedeSetores já respeita o filtro global).
@@ -283,16 +292,17 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       bump(xPosto, a.empresaCodigo, canon, q, pc, vu, cedido, ganho)
 
       // Atribuição do cedido: casou uma tabela cadastrada → sancionado; senão → ajuste de bomba.
+      // Acumula por posto E por produto (a matriz sancionado/ajuste alimenta os dois eixos).
       if (cedido > 0) {
         const slug = classifyFuelSlug(nomeProduto.get(canon) ?? '')
         const date = (a.dataFiscal || a.dataHoraAbastecimento || '').slice(0, 10)
         const t = matchTabela(a.empresaCodigo, slug, vu, date)
         if (t) {
-          const m = sancByPosto.get(a.empresaCodigo) ?? new Map<string, { ref: string; descricao: string; total: number }>()
-          const e = m.get(t.ref) ?? { ref: t.ref, descricao: t.descricao, total: 0 }
-          e.total += cedido; m.set(t.ref, e); sancByPosto.set(a.empresaCodigo, m)
+          bumpSanc(sancByPosto, a.empresaCodigo, t, cedido)
+          bumpSanc(sancByProduto, canon, t, cedido)
         } else {
           ajusteByPosto.set(a.empresaCodigo, (ajusteByPosto.get(a.empresaCodigo) ?? 0) + cedido)
+          ajusteByProduto.set(canon, (ajusteByProduto.get(canon) ?? 0) + cedido)
         }
       }
     }
@@ -308,9 +318,9 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         .sort((a, b) => b.lbCedido - a.lbCedido)
     const nomeProdutoDe = (k: number) => nomeProduto.get(k) ?? `Produto ${k}`
     const nomePostoDe = (k: number) => nomePosto.get(k) ?? `Posto ${k}`
-    const origemDe = (emp: number): GestaoPrecoOrigem => ({
-      ajusteBomba: ajusteByPosto.get(emp) ?? 0,
-      sancionado: [...(sancByPosto.get(emp)?.values() ?? [])]
+    const origemFrom = (sanc: Map<number, Map<string, SancEntry>>, ajuste: Map<number, number>, key: number): GestaoPrecoOrigem => ({
+      ajusteBomba: ajuste.get(key) ?? 0,
+      sancionado: [...(sanc.get(key)?.values() ?? [])]
         .map((e) => ({ ref: e.ref, descricao: e.descricao, valor: e.total }))
         .sort((a, b) => b.valor - a.valor),
     })
@@ -320,6 +330,8 @@ const useGestaoPrecos = (): GestaoPrecosData => {
       const precoPraticadoMedio = acc.vol > 0 ? acc.pratW / acc.vol : 0
       const lbNet = acc.cedido - acc.ganho
       const lbPotencial = lbRealizado + acc.cedido
+      const lbSancionado = origem.sancionado.reduce((s, x) => s + x.valor, 0)
+      const lbAjuste = Math.max(0, acc.cedido - lbSancionado)
       return {
         key,
         label,
@@ -328,6 +340,8 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         precoPraticadoMedio,
         desvioMedio: precoTabelaMedio - precoPraticadoMedio,
         lbCedido: acc.cedido,
+        lbSancionado,
+        lbAjuste,
         lbGanho: acc.ganho,
         lbNet,
         lbRealizado,
@@ -340,11 +354,11 @@ const useGestaoPrecos = (): GestaoPrecosData => {
     }
 
     const byProduto = Array.from(porProduto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomeProdutoDe(codigo), acc, lbPorProduto.get(codigo) ?? 0, adPorProduto.get(codigo) ?? 0, toDetalhe(xProduto.get(codigo), nomePostoDe), { ajusteBomba: acc.cedido, sancionado: [] }))
+      .map(([codigo, acc]) => toRow(codigo, nomeProdutoDe(codigo), acc, lbPorProduto.get(codigo) ?? 0, adPorProduto.get(codigo) ?? 0, toDetalhe(xProduto.get(codigo), nomePostoDe), origemFrom(sancByProduto, ajusteByProduto, codigo)))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const byPosto = Array.from(porPosto.entries())
-      .map(([codigo, acc]) => toRow(codigo, nomePostoDe(codigo), acc, lbPorPosto.get(codigo) ?? 0, adPorPosto.get(codigo) ?? 0, toDetalhe(xPosto.get(codigo), nomeProdutoDe), origemDe(codigo)))
+      .map(([codigo, acc]) => toRow(codigo, nomePostoDe(codigo), acc, lbPorPosto.get(codigo) ?? 0, adPorPosto.get(codigo) ?? 0, toDetalhe(xPosto.get(codigo), nomeProdutoDe), origemFrom(sancByPosto, ajusteByPosto, codigo)))
       .sort((a, b) => b.lbCedido - a.lbCedido)
 
     const gCedido = byPosto.reduce((s, r) => s + r.lbCedido, 0)
@@ -365,7 +379,7 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         pctCedido: gPotencial > 0 ? (gCedido / gPotencial) * 100 : 0,
       },
     }
-  }, [abastRaw, produtosData, bicosData, gpTabelas, gpItens, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
+  }, [abastRaw, produtosData, bicosData, tabelasApi, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
 }
 
 export default useGestaoPrecos
