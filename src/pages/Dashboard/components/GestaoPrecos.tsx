@@ -13,11 +13,6 @@ import { cn } from '@/lib/utils'
 const r3 = (v: number) => `${v < 0 ? '−' : ''}R$ ${Math.abs(v).toFixed(3).replace('.', ',')}`
 const pct1 = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
 
-const SEV_TEXT: Record<SeveridadeCedido, string> = {
-  alto: 'text-red-600 dark:text-red-400',
-  medio: 'text-amber-600 dark:text-amber-400',
-  baixo: 'text-emerald-600 dark:text-emerald-400',
-}
 const SEV_ROW: Record<SeveridadeCedido, string> = {
   alto: 'bg-red-50/60 dark:bg-red-950/15',
   medio: 'bg-amber-50/50 dark:bg-amber-950/[0.12]',
@@ -59,7 +54,6 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
 }) => {
   const ent = entidade === 'produto' ? { col: 'Produto', plural: 'Produtos' } : { col: 'Empresa', plural: 'Postos' }
   const outroLabel = entidade === 'produto' ? 'Posto' : 'Produto'
-  const showAcresDesc = entidade === 'produto'
   const [aberto, setAberto] = useState<GestaoPrecoRow | null>(null)
   const agg = useMemo(() => {
     let vol = 0, tabW = 0, pratW = 0, cedido = 0, acresDesc = 0
@@ -75,8 +69,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
     return { tabela, praticado, desvio: tabela - praticado, vsTabelaPct, top, conc, vol, cedido, acresDesc }
   }, [rows, cedidoGlobal])
 
-  // Total da coluna "Acrés./Desc." (= acréscimos − descontos + LB cedido).
-  const acresDescGeral = agg.acresDesc - agg.cedido
+  // Total fiscal da coluna Acrés./Desc. (acréscimos − descontos) — bate com o
+  // WebPosto. O LB cedido (base física) fica em coluna/indicador separado.
+  const acresDescGeral = agg.acresDesc
 
   if (rows.length === 0) {
     return (
@@ -90,14 +85,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {showAcresDesc ? (
-          <Kpi label="Acrés./Desc." tone={acresDescGeral < 0 ? 'red' : acresDescGeral > 0 ? 'green' : 'navy'}
-            value={`${acresDescGeral < 0 ? '−' : acresDescGeral > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(acresDescGeral))}`}
-            sub="acrés./desc + LB cedido no período" help="Soma da coluna Acrés./Desc. da tabela: acréscimos − descontos das vendas (base fiscal) + o LB cedido por vender abaixo da tabela (base física). Negativo = abatimento total no período." />
-        ) : (
-          <Kpi label="Desconto concedido" tone="red" value={`−${formatCurrencyInt(cedidoGlobal)}`}
-            sub="margem cedida no período (cedido)" help="Soma do lucro bruto cedido por vender abaixo da tabela: Σ (preço de tabela − praticado) × volume, só dos abastecimentos em que se vendeu abaixo. Derivado · base física." />
-        )}
+        <Kpi label="Acrés./Desc." tone={acresDescGeral < 0 ? 'red' : acresDescGeral > 0 ? 'green' : 'navy'}
+          value={`${acresDescGeral < 0 ? '−' : acresDescGeral > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(acresDescGeral))}`}
+          sub="acréscimos − descontos das vendas" help="Acréscimos − descontos lançados nas vendas (base fiscal). Bate com o relatório do WebPosto. O LB cedido (base física) fica na coluna separada." />
         <Kpi label="Praticado vs tabela" tone={agg.vsTabelaPct < 0 ? 'red' : 'green'}
           value={pct1(agg.vsTabelaPct)} sub={`desvio médio ${r3(agg.desvio)}/L`}
           help="Preço praticado médio (ponderado por volume) vs o preço de tabela. Negativo = abaixo da tabela. Fato (preços) · derivado (%)." />
@@ -119,20 +109,18 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
               <th className="px-2 py-2 text-right font-semibold">Praticado</th>
               <th className="px-2 py-2 text-right font-semibold">Desvio R$/L</th>
               <th className="px-2 py-2 text-right font-semibold">Volume</th>
-              {showAcresDesc ? (
-                <th className="px-2 py-2 text-right font-semibold">
-                  <span className="inline-flex items-center gap-1">ACRÉS./DESC<InfoHint text="Acréscimos − descontos das vendas (base fiscal) somados ao LB cedido por vender abaixo da tabela (base física). Negativo = abatimento total no período." /></span>
-                </th>
-              ) : (
-                <th className="px-2 py-2 text-right font-semibold">LB cedido</th>
-              )}
+              <th className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">ACRÉS./DESC<InfoHint text="Acréscimos − descontos lançados nas vendas (base fiscal). Bate com o WebPosto. Negativo = desconto predominou." /></span>
+              </th>
+              <th className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">Ajuste na bomba<InfoHint text="Lucro bruto cedido por alterar o preço direto na bomba, abaixo da tabela: Σ (preço de tabela − praticado) × litros (base física)." /></span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
             {rows.map((r) => {
               const sev = severidadeCedido(r.pctCedido)
               const cedeu = r.desvioMedio > 0.0005
-              const acresDescTotal = r.acresDesc - r.lbCedido // acrés/desc + LB cedido (ambos abatimento)
               return (
                 <tr key={r.key} onClick={() => setAberto(r)} title={`Ver de onde ${r.label} cedeu`}
                   className={cn('cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40', SEV_ROW[sev])}>
@@ -140,18 +128,10 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                     <span className="inline-flex items-center gap-1">{r.label}<ChevronRight className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" /></span>
                   </td>
                   <td className="px-2 py-2 text-center">
-                    {showAcresDesc ? (
-                      acresDescTotal < 0 ? (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:bg-red-950/30 dark:text-red-400">Cedeu</span>
-                      ) : acresDescTotal > 0 ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">Acrescentou</span>
-                      ) : (
-                        <span className="text-[10px] uppercase tracking-wide text-gray-400">Na tabela</span>
-                      )
-                    ) : cedeu ? (
-                      <span className={cn('rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide dark:bg-gray-800', SEV_TEXT[sev])}>Cedeu</span>
-                    ) : r.desvioMedio < -0.0005 ? (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Acima</span>
+                    {r.acresDesc < 0 ? (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:bg-red-950/30 dark:text-red-400">Cedeu</span>
+                    ) : r.acresDesc > 0 ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">Acrescentou</span>
                     ) : (
                       <span className="text-[10px] uppercase tracking-wide text-gray-400">Na tabela</span>
                     )}
@@ -160,13 +140,10 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                   <td className="px-2 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{r3(r.precoPraticadoMedio)}</td>
                   <td className={cn('px-2 py-2 text-right font-semibold tabular-nums', cedeu ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r3(r.desvioMedio)}</td>
                   <td className="px-2 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatLiters(r.volume)}</td>
-                  {showAcresDesc ? (
-                    <td className={cn('px-2 py-2 text-right font-bold tabular-nums', acresDescTotal < 0 ? 'text-red-600 dark:text-red-400' : acresDescTotal > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
-                      {acresDescTotal === 0 ? '—' : `${acresDescTotal < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(acresDescTotal))}`}
-                    </td>
-                  ) : (
-                    <td className={cn('px-2 py-2 text-right font-bold tabular-nums', cedeu ? SEV_TEXT[sev] : 'text-gray-400')}>{r.lbCedido > 0 ? `−${formatCurrencyInt(r.lbCedido)}` : '—'}</td>
-                  )}
+                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.acresDesc < 0 ? 'text-red-600 dark:text-red-400' : r.acresDesc > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
+                    {r.acresDesc === 0 ? '—' : `${r.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(r.acresDesc))}`}
+                  </td>
+                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.lbCedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r.lbCedido > 0 ? `−${formatCurrencyInt(r.lbCedido)}` : '—'}</td>
                 </tr>
               )
             })}
@@ -178,16 +155,10 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
               <td className="px-2 py-2 text-right tabular-nums">{r3(agg.praticado)}</td>
               <td className={cn('px-2 py-2 text-right tabular-nums', agg.desvio > 0.0005 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r3(agg.desvio)}</td>
               <td className="px-2 py-2 text-right tabular-nums">{formatLiters(agg.vol)}</td>
-              {showAcresDesc ? (() => {
-                const v = agg.acresDesc - agg.cedido
-                return (
-                  <td className={cn('px-2 py-2 text-right tabular-nums', v < 0 ? 'text-red-600 dark:text-red-400' : v > 0 ? 'text-emerald-600 dark:text-emerald-400' : '')}>
-                    {v === 0 ? '—' : `${v < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(v))}`}
-                  </td>
-                )
-              })() : (
-                <td className={cn('px-2 py-2 text-right tabular-nums', agg.cedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{agg.cedido > 0 ? `−${formatCurrencyInt(agg.cedido)}` : '—'}</td>
-              )}
+              <td className={cn('px-2 py-2 text-right tabular-nums', agg.acresDesc < 0 ? 'text-red-600 dark:text-red-400' : agg.acresDesc > 0 ? 'text-emerald-600 dark:text-emerald-400' : '')}>
+                {agg.acresDesc === 0 ? '—' : `${agg.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(agg.acresDesc))}`}
+              </td>
+              <td className={cn('px-2 py-2 text-right tabular-nums', agg.cedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{agg.cedido > 0 ? `−${formatCurrencyInt(agg.cedido)}` : '—'}</td>
             </tr>
           </tbody>
         </table>
