@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import useGestaoPrecos, { type GestaoPrecoRow, type GestaoPrecosData } from '@/pages/Dashboard/hooks/useGestaoPrecos'
+import useGestaoPrecos, { type GestaoPrecoRow } from '@/pages/Dashboard/hooks/useGestaoPrecos'
 import GestaoPrecosTabelas from '@/pages/Dashboard/components/GestaoPrecosTabelas'
 import GestaoPrecosCliente from '@/pages/Dashboard/components/GestaoPrecosCliente'
-import { BASE_DESVIO_LABEL, BASE_MIX_NOTE, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
+import { BASE_DESVIO_LABEL, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,11 +24,10 @@ const SEV_ROW: Record<SeveridadeCedido, string> = {
   baixo: '',
 }
 
-type SubId = 'produto' | 'empresa' | 'lb' | 'cliente' | 'tabelas'
+type SubId = 'produto' | 'empresa' | 'cliente' | 'tabelas'
 const SUB_TABS: { id: SubId; label: string; lock?: boolean }[] = [
   { id: 'produto', label: 'Por produto' },
   { id: 'empresa', label: 'Por empresa' },
-  { id: 'lb', label: 'Impacto no LB' },
   { id: 'cliente', label: 'Por cliente' },
   { id: 'tabelas', label: 'Tabelas cadastradas' },
 ]
@@ -262,116 +261,6 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
   )
 }
 
-/* ── Aba "Impacto no LB" (cards por posto + Origem 1 balde) ── */
-const PostoImpactoCard = ({ p, maior, disciplinado }: { p: GestaoPrecoRow; maior: boolean; disciplinado: boolean }) => {
-  const sev = severidadeCedido(p.pctCedido)
-  const total = p.lbPotencial > 0 ? p.lbPotencial : p.lbRealizado + p.lbCedido
-  const realPct = total > 0 ? (p.lbRealizado / total) * 100 : 100
-  const cedPct = total > 0 ? (p.lbCedido / total) * 100 : 0
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-gray-800 dark:text-gray-100">{p.label}</p>
-          <p className={cn('text-[20px] font-extrabold tabular-nums', SEV_TEXT[sev])}>−{formatCurrencyInt(p.lbCedido)}</p>
-          <p className="text-[11px] text-gray-400">{pct1(p.pctCedido)} do LB potencial</p>
-        </div>
-        {maior && <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-300">maior impacto</span>}
-        {disciplinado && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">mais disciplinado</span>}
-      </div>
-      {/* barra realizado (navy) × cedido (vermelho) = potencial */}
-      <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-        <div className="h-full bg-[#1e3a5f]" style={{ width: `${realPct}%` }} />
-        <div className="h-full bg-red-500" style={{ width: `${cedPct}%` }} />
-      </div>
-      <div className="mt-1.5 flex items-center justify-between text-[10.5px] tabular-nums text-gray-500 dark:text-gray-400">
-        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#1e3a5f] align-middle" />Realizado {formatCurrencyInt(p.lbRealizado)}</span>
-        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-red-500 align-middle" />Cedido {formatCurrencyInt(p.lbCedido)}</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">Potencial {formatCurrencyInt(p.lbPotencial)}</span>
-      </div>
-      {/* Origem — sancionado (casou tabela cadastrada) × ajuste de bomba (vazamento real) */}
-      {p.lbCedido > 0 && (
-        <div className="mt-3 border-t border-gray-100 pt-2 dark:border-gray-800">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Origem</p>
-          <div className="flex flex-wrap gap-1.5">
-            {p.origem.ajusteBomba > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-2 py-1 text-[11px] dark:border-red-900/40 dark:bg-red-950/20">
-                <span className="font-medium text-gray-600 dark:text-gray-300">Ajuste de bomba</span>
-                <span className="font-bold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(p.origem.ajusteBomba)}</span>
-              </span>
-            )}
-            {p.origem.sancionado.map((s) => (
-              <span key={s.ref} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/60 px-2 py-1 text-[11px] dark:border-emerald-900/40 dark:bg-emerald-950/20" title={`Sancionado pela tabela ${s.ref} ${s.descricao}`}>
-                <span className="font-mono text-[10px] text-emerald-700/70 dark:text-emerald-400/70">{s.ref}</span>
-                <span className="font-medium text-gray-600 dark:text-gray-300">{s.descricao}</span>
-                <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">−{formatCurrencyInt(s.valor)}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const ImpactoLB = ({ byPosto, global }: { byPosto: GestaoPrecoRow[]; global: GestaoPrecosData['global'] }) => {
-  const comCedido = byPosto.filter((p) => p.lbCedido > 0)
-  const maiorKey = comCedido.length ? [...comCedido].sort((a, b) => b.pctCedido - a.pctCedido)[0].key : null
-  const discKey = comCedido.length ? [...comCedido].sort((a, b) => a.pctCedido - b.pctCedido)[0].key : null
-  const gSev = severidadeCedido(global.pctCedido)
-  // Origem do cedido total: vazamento (ajuste de bomba sem tabela) × sancionado (casou tabela cadastrada).
-  const ajusteTotal = byPosto.reduce((s, p) => s + p.origem.ajusteBomba, 0)
-  const sancionadoTotal = byPosto.reduce((s, p) => s + p.origem.sancionado.reduce((a, x) => a + x.valor, 0), 0)
-
-  if (byPosto.length === 0) {
-    return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900">
-        Sem dado de desvio no período/escopo.
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="LB realizado" tone="navy" value={formatCurrencyInt(global.lbRealizado)} sub="apurado no período (fiscal)" help="Lucro bruto realizado da rede (base fiscal, useRedeSetores) no escopo do filtro." />
-        <Kpi label="Impacto dos descontos" tone="red" value={`−${formatCurrencyInt(global.lbCedido)}`} sub="cedido vs tabela · ver origem" help="Total cedido por vender abaixo da tabela (Σ desvio>0 × volume). Inclui o sancionado (desconto deliberado por tabela) — a origem separa o vazamento. Derivado · base física." />
-        <Kpi label="LB potencial" tone="green" value={formatCurrencyInt(global.lbPotencial)} sub="realizado + cedido" help="O que o LB seria sem o ajuste de bomba abaixo da tabela. Derivado — cruza base fiscal + física." />
-        <Kpi label="% do LB cedido" tone={gSev === 'alto' ? 'red' : gSev === 'medio' ? 'amber' : 'green'} value={pct1(global.pctCedido)} sub="cedido ÷ potencial" help="Fração do LB potencial que vazou por desconto de bomba." />
-      </div>
-
-      {global.lbCedido > 0 && (ajusteTotal > 0 || sancionadoTotal > 0) && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-red-200 bg-red-50/50 p-3 dark:border-red-900/40 dark:bg-red-950/20">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700/80 dark:text-red-300/80">Ajuste de bomba · vazamento</p>
-            <p className="mt-0.5 text-[18px] font-extrabold tabular-nums text-red-600 dark:text-red-400">−{formatCurrencyInt(ajusteTotal)}</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Abaixo da tabela sem cadastro que justifique — o número acionável.
-              {global.lbCedido > 0 && <> {pct1((ajusteTotal / global.lbCedido) * 100)} do cedido.</>}
-            </p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80 dark:text-emerald-300/80">Sancionado por tabela · política</p>
-            <p className="mt-0.5 text-[18px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">−{formatCurrencyInt(sancionadoTotal)}</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Casou uma tabela cadastrada (desconto deliberado) — custo da política, não vazamento.
-              {global.lbCedido > 0 && <> {pct1((sancionadoTotal / global.lbCedido) * 100)} do cedido.</>}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <p className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-        ⚠️ {BASE_MIX_NOTE}
-      </p>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {byPosto.map((p) => <PostoImpactoCard key={p.key} p={p} maior={p.key === maiorKey} disciplinado={p.key === discKey && p.key !== maiorKey} />)}
-      </div>
-    </div>
-  )
-}
-
 const GestaoPrecos = () => {
   const data = useGestaoPrecos()
   const [sub, setSub] = useState<SubId>('produto')
@@ -381,34 +270,31 @@ const GestaoPrecos = () => {
 
   return (
     <div className="space-y-4">
-      {/* Faixa-flag: o que a tela cruza + selo Analista IA + base */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white"><Tag className="h-4 w-4" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">Gestão de Preços — desvio de bomba + acréscimos e descontos</p>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-            A IA cruza o preço de tabela com o praticado na bomba (o ajuste abaixo da tabela = margem cedida) e soma os acréscimos e descontos das vendas. O consolidado <strong className="font-semibold text-gray-700 dark:text-gray-300">Acrés./Desc.</strong> mostra se, no total, o produto <span className="font-semibold text-red-600 dark:text-red-400">cedeu</span> margem ou <span className="font-semibold text-emerald-600 dark:text-emerald-400">acrescentou</span> no período.
-          </p>
+      {/* Faixa única: o que a tela cruza + selo IA + base, com a cobertura no rodapé */}
+      <div className="overflow-hidden rounded-xl border border-blue-200 dark:border-blue-900/40">
+        <div className="flex flex-wrap items-center gap-3 bg-blue-50 px-4 py-2.5 dark:bg-blue-950/20">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white"><Tag className="h-4 w-4" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">Gestão de Preços — desvio de bomba + acréscimos e descontos</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              A IA cruza o preço de tabela com o praticado na bomba (o ajuste abaixo da tabela = margem cedida) e soma os acréscimos e descontos das vendas. O consolidado <strong className="font-semibold text-gray-700 dark:text-gray-300">Acrés./Desc.</strong> mostra se, no total, o produto <span className="font-semibold text-red-600 dark:text-red-400">cedeu</span> margem ou <span className="font-semibold text-emerald-600 dark:text-emerald-400">acrescentou</span> no período.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#1e3a5f] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+            <Sparkles className="h-3 w-3" /> Analista IA
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            {BASE_DESVIO_LABEL}
+          </span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#1e3a5f] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-          <Sparkles className="h-3 w-3" /> Analista IA
-        </span>
-        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-[10px] font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
-          {BASE_DESVIO_LABEL}
-        </span>
-      </div>
-
-      {/* Badge de cobertura — desde o 1º render (número sem cobertura visível, não) */}
-      <div className={cn('flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]',
-        covTone === 'emerald' ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
-        : covTone === 'amber' ? 'border-amber-200 bg-amber-50/60 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300'
-        : 'border-red-200 bg-red-50/60 text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300')}>
-        {covTone === 'emerald' ? <ShieldCheck className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
-        <span>
-          <strong>Cobertura {pct1(cov.pct)}</strong> — {cov.comTabela.toLocaleString('pt-BR')}/{cov.totalFills.toLocaleString('pt-BR')} abastecimentos com preço de tabela.
-          {cov.pct < 80 && ' Número parcial — abastecimentos sem cadastro de preço ficam de fora.'}
-        </span>
-        <InfoHint side="left" className="ml-auto" text="Mede quantos abastecimentos têm preço de tabela (preco_cadastro). Sem ele, o desvio não é calculável e o abastecimento sai da conta. Sobe quando o cron de apuração carimba o preço no cache." />
+        <div className="flex items-center gap-2 border-t border-blue-200/70 bg-blue-50 px-4 py-2 text-[12px] text-gray-600 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-gray-400">
+          {covTone === 'emerald' ? <ShieldCheck className="h-4 w-4 shrink-0 text-[#2563eb] dark:text-blue-400" /> : <AlertTriangle className="h-4 w-4 shrink-0 text-[#2563eb] dark:text-blue-400" />}
+          <span>
+            <strong className="text-gray-800 dark:text-gray-200">Cobertura {pct1(cov.pct)}</strong> — {cov.comTabela.toLocaleString('pt-BR')}/{cov.totalFills.toLocaleString('pt-BR')} abastecimentos com preço de tabela.
+            {cov.pct < 80 && ' Número parcial — abastecimentos sem cadastro de preço ficam de fora.'}
+          </span>
+          <InfoHint side="left" className="ml-auto" text="Mede quantos abastecimentos têm preço de tabela (preco_cadastro). Sem ele, o desvio não é calculável e o abastecimento sai da conta. Sobe quando o cron de apuração carimba o preço no cache." />
+        </div>
       </div>
 
       {/* Sub-abas */}
@@ -442,8 +328,6 @@ const GestaoPrecos = () => {
         <AbaDesvio rows={data.byProduto} cedidoGlobal={data.global.lbCedido} entidade="produto" />
       ) : sub === 'empresa' ? (
         <AbaDesvio rows={data.byPosto} cedidoGlobal={data.global.lbCedido} entidade="posto" />
-      ) : sub === 'lb' ? (
-        <ImpactoLB byPosto={data.byPosto} global={data.global} />
       ) : null}
     </div>
   )
