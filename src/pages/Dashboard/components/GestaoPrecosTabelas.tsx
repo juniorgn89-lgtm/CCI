@@ -1,27 +1,22 @@
 import { useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { FileSpreadsheet, ShieldCheck, Clock, Layers, CalendarRange, Database, Upload } from 'lucide-react'
-import {
-  fetchGestaoPrecoTabelas, fetchGestaoPrecoTabelaItens, type GestaoPrecoTabela,
-} from '@/api/supabase/gestaoPrecosTabelas'
+import { useQuery } from '@tanstack/react-query'
+import { FileSpreadsheet, ShieldCheck, Clock, Layers, CalendarRange, Radio } from 'lucide-react'
+import { useTabelasPrazo, type TabelaPrazoVM } from '@/pages/Dashboard/hooks/useTabelasPrazo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { fetchProdutos } from '@/api/endpoints/produtos'
+import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoqueExtrato } from '@/api/endpoints/estoques'
 import type { ProdutoEstoqueExtrato } from '@/api/types/estoque'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import { useAuthStore } from '@/store/auth'
-import ImportTabelaModal from '@/pages/Dashboard/components/ImportTabelaModal'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import HeaderHint from '@/components/tables/HeaderHint'
 
-const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-const norm = (s: string) => (s || '').toUpperCase().replace(/\s+/g, ' ').trim()
+const DIAS7 = ['', 'Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] // índice 1..7
 const dataBR = (iso?: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—')
-const diasLabel = (d: number[] | null) => (!d || d.length === 0 || d.length === 7 ? 'Todos os dias' : d.slice().sort().map((i) => DIAS[i]).join(', '))
+const diasLabel = (d: number[] | null) => (!d || d.length === 0 || d.length === 7 ? 'Todos os dias' : d.slice().sort().map((i) => DIAS7[i]).join(', '))
 const r3 = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
-const vigenteDe = (t: GestaoPrecoTabela, today: string) =>
-  (!t.validade_inicial || t.validade_inicial <= today) && (!t.validade_final || t.validade_final >= today)
+const vigenteDe = (t: TabelaPrazoVM, today: string) =>
+  (!t.validadeInicial || t.validadeInicial <= today) && (!t.validadeFinal || t.validadeFinal >= today)
 
 const Selo = ({ vig }: { vig: boolean }) =>
   vig ? (
@@ -32,45 +27,40 @@ const Selo = ({ vig }: { vig: boolean }) =>
 
 const GestaoPrecosTabelas = () => {
   const today = new Date().toISOString().slice(0, 10)
-  const { data: tabelas = [], isLoading } = useQuery({ queryKey: ['gp-tabelas'], queryFn: fetchGestaoPrecoTabelas, staleTime: 5 * 60 * 1000 })
-  const { data: allItens = [] } = useQuery({ queryKey: ['gp-tabela-itens'], queryFn: fetchGestaoPrecoTabelaItens, staleTime: 5 * 60 * 1000 })
+  const { data: tabelas = [], isLoading } = useTabelasPrazo()
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const nomePosto = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
     [empresasData],
   )
-  // Nome da filial → empresaCodigo (o nº de filial do WebPosto ≠ empresaCodigo,
-  // então casamos pelo nome, igual ao useGestaoPrecos).
-  const empresaPorNome = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const e of empresasData?.resultados ?? []) {
-      const nm = norm(e.fantasia || e.razao || '')
-      if (nm) m.set(nm, e.empresaCodigo)
-    }
-    return m
-  }, [empresasData])
-  const empDaLinha = useMemo(() => {
-    const valido = (c?: number | null): c is number => c != null && nomePosto.has(c)
-    return (it: { filial_nome?: string | null; filial_empresa_codigo?: number | null }): number | null =>
-      empresaPorNome.get(norm(it.filial_nome ?? '')) ?? (valido(it.filial_empresa_codigo) ? it.filial_empresa_codigo : null)
-  }, [empresaPorNome, nomePosto])
 
-  // Catálogo — pra resolver nome do produto → produtoCodigo (itens sem código).
+  // Catálogo de produtos — resolve produtoCodigo → nome (a tabela traz só o código).
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
   })
-  const nomeToCodigo = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const p of produtosData ?? []) { const k = norm(p.nome); if (k && !m.has(k)) m.set(k, p.produtoCodigo) }
+  const produtoNome = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const p of produtosData ?? []) if (!m.has(p.produtoCodigo)) m.set(p.produtoCodigo, p.nome)
     return m
   }, [produtosData])
 
+  // Catálogo de grupos — pras linhas em nível de grupo (produtoCodigo null).
+  const { data: gruposData } = useQuery({
+    queryKey: ['grupos'],
+    queryFn: () => fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 50),
+    staleTime: 30 * 60 * 1000,
+  })
+  const grupoNome = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const g of gruposData ?? []) if (!m.has(g.grupoCodigo)) m.set(g.grupoCodigo, g.nome)
+    return m
+  }, [gruposData])
+
   // Preço de VENDA de CADASTRO (campo "Preço de Venda A" do ERP), por posto e
-  // produto — /PRODUTO_ESTOQUE_EXTRATO. É o "praticado" que a tela mostra: o
-  // preço cadastrado, não a média de vendas. Buscado por posto; indexado pelo
-  // empresaCodigo que vem em cada linha (robusto a vazamento/duplicata do endpoint).
+  // produto — /PRODUTO_ESTOQUE_EXTRATO. É o "praticado" que a tela compara com o
+  // valor da tabela. Indexado pelo empresaCodigo que vem em cada linha.
   const scopeCodes = useMemo(
     () => (empresasData?.resultados ?? []).map((e) => e.empresaCodigo),
     [empresasData],
@@ -101,51 +91,27 @@ const GestaoPrecosTabelas = () => {
   }, [extratoRows])
 
   const [selId, setSelId] = useState<string | null>(null)
-
   const sel = useMemo(() => tabelas.find((t) => t.id === selId) ?? tabelas[0] ?? null, [tabelas, selId])
-  const countByTabela = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const it of allItens) m.set(it.tabela_id, (m.get(it.tabela_id) ?? 0) + 1)
-    return m
-  }, [allItens])
-  const itensSel = useMemo(() => (sel ? allItens.filter((it) => it.tabela_id === sel.id) : []), [allItens, sel])
-  const ultimaImport = useMemo(() => tabelas.reduce((mx, t) => (t.created_at > mx ? t.created_at : mx), ''), [tabelas])
-  const isMaster = useAuthStore((s) => s.isMaster)
-  const qc = useQueryClient()
-  const [importOpen, setImportOpen] = useState(false)
-  const onImported = () => { qc.invalidateQueries({ queryKey: ['gp-tabelas'] }); qc.invalidateQueries({ queryKey: ['gp-tabela-itens'] }) }
-  const importModal = isMaster ? <ImportTabelaModal open={importOpen} onClose={() => setImportOpen(false)} onImported={onImported} /> : null
-  const importBtn = isMaster ? (
-    <button type="button" onClick={() => setImportOpen(true)}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#2563eb] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#1d4ed8]">
-      <Upload className="h-3.5 w-3.5" /> Importar
-    </button>
-  ) : null
 
   if (isLoading) return <Skeleton className="h-72 rounded-2xl" />
 
   if (tabelas.length === 0) {
     return (
-      <>
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
-          <Layers className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhuma tabela cadastrada</p>
-          <p className="mt-1 text-[12px] text-gray-400">Não vem da API — o WebPosto não expõe a "Tabela de Preço de Prazos". Importe (Exportar XLSX → colar aqui).</p>
-          {importBtn && <div className="mt-3 flex justify-center">{importBtn}</div>}
-        </div>
-        {importModal}
-      </>
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
+        <Layers className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
+        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhuma tabela de preço de prazo</p>
+        <p className="mt-1 text-[12px] text-gray-400">O WebPosto não retornou nenhuma "Tabela de Preço de Prazos" para esta rede.</p>
+      </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      {/* Aviso: não vem da API + última importação */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[11.5px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-        <Database className="h-3.5 w-3.5 shrink-0" />
-        <span><strong>Não vem da API</strong> — o WebPosto não expõe a "Tabela de Preço de Prazos". É preciso <strong>importar</strong> (Exportar XLSX → Visor) pra criar/atualizar.</span>
-        <span className="ml-auto whitespace-nowrap text-amber-700/80 dark:text-amber-400/80">Última importação: <strong>{ultimaImport ? dataBR(ultimaImport) : '—'}</strong></span>
-        {importBtn}
+      {/* Fonte: live da API (antes era importação XLSX). */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-[11.5px] text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+        <Radio className="h-3.5 w-3.5 shrink-0" />
+        <span><strong>Live da API</strong> — a "Tabela de Preço de Prazos" (BARATAO, TABACARIA, …) vem direto do WebPosto via <code className="rounded bg-emerald-100 px-1 dark:bg-emerald-900/40">GET /TABELA_PRECO_PRAZO</code>. Sem importação manual.</span>
+        <span className="ml-auto whitespace-nowrap text-emerald-700/80 dark:text-emerald-400/80">{tabelas.length} tabela{tabelas.length === 1 ? '' : 's'}</span>
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row">
@@ -162,7 +128,7 @@ const GestaoPrecosTabelas = () => {
                 <Selo vig={vigenteDe(t, today)} />
               </div>
               <p className="mt-0.5 truncate text-[13px] font-semibold text-gray-800 dark:text-gray-100">{t.descricao}</p>
-              <p className="mt-0.5 text-[10.5px] text-gray-400">{countByTabela.get(t.id) ?? 0} itens · início {dataBR(t.validade_inicial)}</p>
+              <p className="mt-0.5 text-[10.5px] text-gray-400">{t.itens.length} itens · início {dataBR(t.validadeInicial)}</p>
             </button>
           )
         })}
@@ -184,41 +150,42 @@ const GestaoPrecosTabelas = () => {
           </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-gray-100 bg-gray-50/60 px-4 py-2 text-[11px] text-gray-500 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
-            <span className="inline-flex items-center gap-1"><CalendarRange className="h-3 w-3" />Validade: <strong className="text-gray-700 dark:text-gray-300">{dataBR(sel.validade_inicial)}</strong> → <strong className="text-gray-700 dark:text-gray-300">{sel.validade_final ? dataBR(sel.validade_final) : 'aberta'}</strong></span>
-            <span>Dias: <strong className="text-gray-700 dark:text-gray-300">{diasLabel(sel.dias_semana)}</strong></span>
+            <span className="inline-flex items-center gap-1"><CalendarRange className="h-3 w-3" />Validade: <strong className="text-gray-700 dark:text-gray-300">{dataBR(sel.validadeInicial)}</strong> → <strong className="text-gray-700 dark:text-gray-300">{sel.validadeFinal ? dataBR(sel.validadeFinal) : 'aberta'}</strong></span>
+            <span>Dias: <strong className="text-gray-700 dark:text-gray-300">{diasLabel(sel.diasSemana)}</strong></span>
           </div>
 
           <div className="max-h-[60vh] overflow-auto">
             <table className="w-full text-[12.5px]">
               <thead className="sticky top-0 bg-white dark:bg-gray-900">
                 <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
-                  <HeaderHint label="Filial" align="left" className="px-3 font-semibold" help="Posto (unidade) da rede a que esta linha da tabela de preço se aplica." />
-                  <HeaderHint label="Cliente" align="left" className="px-2 font-semibold" help="Cliente específico com preço negociado. '—' = o preço vale para todos os clientes." />
-                  <HeaderHint label="Grupo" align="left" className="px-2 font-semibold" help="Grupo de clientes com condição comercial própria (ex.: frota, convênio). '—' = sem grupo, preço geral." />
-                  <HeaderHint label="Produto" align="left" className="px-2 font-semibold" help="Descrição do produto conforme o cadastro do ERP." />
-                  <HeaderHint label="Código" align="right" className="px-2 font-semibold" help="Código interno do produto no ERP. '—' = item da tabela ainda sem vínculo com um código cadastrado." />
-                  <HeaderHint label="Tipo" align="center" className="px-2 font-semibold" help="Como o preço foi definido. 'Específico' = valor fixo cadastrado para o item (não calculado por margem/regra)." />
-                  <HeaderHint label="Valor tabela" align="right" className="px-2 font-semibold" help="Preço cadastrado na tabela — o valor que deveria ser cobrado neste produto." />
+                  <HeaderHint label="Filial" align="left" className="px-3 font-semibold" help="Posto (unidade) da rede a que esta linha da tabela de preço se aplica. 'Todas' = vale para a rede inteira." />
+                  <HeaderHint label="Produto" align="left" className="px-2 font-semibold" help="Descrição do produto conforme o cadastro do ERP. Linhas em nível de grupo mostram o nome do grupo." />
+                  <HeaderHint label="Código" align="right" className="px-2 font-semibold" help="Código do produto no ERP (mesmo do /PRODUTO). '—' = regra em nível de grupo, sem produto específico." />
+                  <HeaderHint label="Tipo" align="center" className="px-2 font-semibold" help="Como o preço foi definido. 'Específico' = valor fixo em R$; 'Desconto' = percentual sobre o preço de venda." />
+                  <HeaderHint label="Valor tabela" align="right" className="px-2 font-semibold" help="Preço cadastrado na tabela — o valor que deveria ser cobrado neste produto (ou o % de desconto)." />
                   <HeaderHint label="Praticado" align="right" className="px-2 font-semibold" help="Preço de venda cadastrado do produto no ERP (Preço de Venda A), da filial desta linha. '—' = produto sem preço de venda cadastrado no posto." />
-                  <HeaderHint label="Diferença" align="right" className="px-3 font-semibold" help="Valor de tabela − preço de venda cadastrado. Negativo (vermelho) = a tabela está abaixo do preço de venda (desconto concedido); positivo = tabela acima do preço de venda." />
+                  <HeaderHint label="Diferença" align="right" className="px-3 font-semibold" help="Valor de tabela − preço de venda cadastrado. Negativo (vermelho) = a tabela está abaixo do preço de venda (desconto concedido); positivo = tabela acima." />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
-                {itensSel.map((it) => {
-                  const emp = empDaLinha(it)
-                  const codigo = it.produto_codigo ?? nomeToCodigo.get(norm(it.produto_nome)) ?? null
+                {sel.itens.map((it) => {
+                  const codigo = it.produtoCodigo
+                  const nome = codigo != null
+                    ? (produtoNome.get(codigo) ?? `Produto ${codigo}`)
+                    : it.grupoCodigo != null
+                      ? (grupoNome.get(it.grupoCodigo) ?? `Grupo ${it.grupoCodigo}`)
+                      : '—'
+                  const filialLabel = it.empresaCodigo != null ? (nomePosto.get(it.empresaCodigo) ?? `Posto ${it.empresaCodigo}`) : 'Todas'
                   // Preço de venda de cadastro DA FILIAL da linha; cai pro da rede
                   // se a filial for "Todas" ou o posto não tiver o produto cadastrado.
                   const praticado = codigo != null
-                    ? (emp != null ? precoCadastro.get(`${emp}|${codigo}`) : undefined) ?? precoCadastro.get(`all|${codigo}`) ?? null
+                    ? (it.empresaCodigo != null ? precoCadastro.get(`${it.empresaCodigo}|${codigo}`) : undefined) ?? precoCadastro.get(`all|${codigo}`) ?? null
                     : null
                   const dif = praticado != null && it.tipo === 'especifico' ? it.valor - praticado : null
                   return (
                     <tr key={it.id}>
-                      <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{it.filial_nome || (it.filial_empresa_codigo != null ? (nomePosto.get(it.filial_empresa_codigo) ?? `Posto ${it.filial_empresa_codigo}`) : 'Todas')}</td>
-                      <td className="px-2 py-2 text-gray-500 dark:text-gray-400">{it.cliente || '—'}</td>
-                      <td className="px-2 py-2 text-gray-500 dark:text-gray-400">{it.grupo_cliente || it.grupo || '—'}</td>
-                      <td className="px-2 py-2 font-medium text-gray-800 dark:text-gray-200">{it.produto_nome || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{filialLabel}</td>
+                      <td className="px-2 py-2 font-medium text-gray-800 dark:text-gray-200">{nome}</td>
                       <td className="px-2 py-2 text-right tabular-nums text-gray-400">{codigo ?? '—'}</td>
                       <td className="px-2 py-2 text-center text-[11px] text-gray-500 dark:text-gray-400">{it.tipo === 'desconto' ? 'Desconto %' : 'Específico'}</td>
                       <td className="px-2 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{it.tipo === 'desconto' ? `${it.valor.toFixed(1).replace('.', ',')}%` : r3(it.valor)}</td>
@@ -235,7 +202,6 @@ const GestaoPrecosTabelas = () => {
         </div>
       )}
       </div>
-      {importModal}
     </div>
   )
 }
