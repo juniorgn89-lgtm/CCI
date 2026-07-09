@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Crosshair, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import useGestaoPrecos, { type GestaoPrecoRow } from '@/pages/Dashboard/hooks/useGestaoPrecos'
+import useBaratao from '@/pages/Dashboard/hooks/useBaratao'
 import GestaoPrecosTabelas from '@/pages/Dashboard/components/GestaoPrecosTabelas'
 import GestaoPrecosCliente from '@/pages/Dashboard/components/GestaoPrecosCliente'
 import { BASE_DESVIO_LABEL, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
@@ -29,7 +30,7 @@ const SUB_TABS: { id: SubId; label: string; lock?: boolean }[] = [
 
 /* ── KPI ── */
 const Kpi = ({ label, value, sub, tone, help, foot }: {
-  label: string; value: string; sub?: string; tone?: 'red' | 'amber' | 'green' | 'navy'; help: string; foot?: ReactNode
+  label: string; value: string; sub?: string; tone?: 'red' | 'amber' | 'green' | 'navy' | 'blue'; help: string; foot?: ReactNode
 }) => (
   <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
     <div className="flex items-center gap-1">
@@ -40,6 +41,7 @@ const Kpi = ({ label, value, sub, tone, help, foot }: {
       tone === 'red' ? 'text-red-600 dark:text-red-400'
       : tone === 'amber' ? 'text-amber-600 dark:text-amber-400'
       : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'blue' ? 'text-[#2563eb] dark:text-blue-400'
       : 'text-[#1e3a5f] dark:text-blue-200')}>
       {value}
     </p>
@@ -49,8 +51,8 @@ const Kpi = ({ label, value, sub, tone, help, foot }: {
 )
 
 /* ── Aba de desvio (serve "Por produto" e "Por empresa") ── */
-const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
-  rows: GestaoPrecoRow[]; cedidoGlobal: number; entidade: 'produto' | 'posto'
+const AbaDesvio = ({ rows, cedidoGlobal, entidade, baratao }: {
+  rows: GestaoPrecoRow[]; cedidoGlobal: number; entidade: 'produto' | 'posto'; baratao: Map<number, number>
 }) => {
   const ent = entidade === 'produto' ? { col: 'Produto', plural: 'Produtos' } : { col: 'Empresa', plural: 'Postos' }
   const outroLabel = entidade === 'produto' ? 'Posto' : 'Produto'
@@ -74,6 +76,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
   // Total fiscal da coluna Acrés./Desc. (acréscimos − descontos) — bate com o WebPosto.
   const acresDescGeral = agg.acresDesc
   const signed = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${formatCurrencyInt(Math.abs(v))}`
+  const barTotal = useMemo(() => rows.reduce((s, r) => s + (baratao.get(r.key) ?? 0), 0), [rows, baratao])
 
   if (rows.length === 0) {
     return (
@@ -85,8 +88,8 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
 
   return (
     <div className="space-y-4">
-      {/* Decomposição da margem cedida — total + 2 fontes. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Decomposição da margem cedida — total + fontes. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Margem cedida total" tone="navy" value={signed(agg.total)}
           sub="fiscal + ajuste na bomba"
           help="Impacto total no lucro bruto = Acrés./Desc. (fiscal) − LB cedido na bomba. A soma das 2 fontes ao lado." />
@@ -95,6 +98,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
           sub="desconto/acréscimo no cupom" help="Acréscimos − descontos lançados nas vendas (base fiscal). É a fonte 'cupom' — inclui descontos de app (99/Baratão) que passam pelo cupom fiscal. Compara com o relatório de Vendas por Período do WebPosto." />
         <Kpi label="Ajuste na bomba" tone={agg.cedido > 0 ? 'red' : 'navy'} value={signed(-agg.cedido)}
           sub="preço da bomba abaixo do cadastro" help="LB cedido por vender abaixo do preço de cadastro: Σ (preço de cadastro − praticado) × litros (base física). Métrica interna do Visor, sem equivalente no relatório fiscal do WebPosto." />
+        <Kpi label="Baratão" tone="blue" value={signed(-barTotal)}
+          sub="desconto do programa Baratão"
+          help="Desconto estimado do programa Baratão (combustível): vendas na forma de pagamento Baratão × (preço normal − preço Baratão) × litros. Os litros batem com o WebPosto; o valor é estimado contra o preço normal (o WebPosto usa o 'Preço Original 99')." />
       </div>
 
       {/* Tabela praticado × tabela */}
@@ -113,6 +119,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
               </th>
               <th className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center gap-1">Ajuste na bomba<InfoHint text="Lucro bruto cedido por vender abaixo do preço de cadastro: Σ (preço de cadastro − praticado) × litros (base física)." /></span>
+              </th>
+              <th className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">Baratão<InfoHint text="Desconto do programa Baratão: vendas na forma de pagamento Baratão × (preço normal do produto − preço Baratão) × litros. Estimativa contra o preço normal realizado — os litros batem com o WebPosto; o valor difere um pouco porque o WebPosto usa o 'Preço Original 99' como referência." /></span>
               </th>
             </tr>
           </thead>
@@ -143,6 +152,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                     {r.acresDesc === 0 ? '—' : `${r.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(r.acresDesc))}`}
                   </td>
                   <td className={cn('px-2 py-2 text-right font-bold tabular-nums', r.lbCedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{r.lbCedido > 0 ? `−${formatCurrencyInt(r.lbCedido)}` : '—'}</td>
+                  <td className={cn('px-2 py-2 text-right font-bold tabular-nums', (baratao.get(r.key) ?? 0) > 0 ? 'text-[#2563eb] dark:text-blue-400' : 'text-gray-400')}>{(baratao.get(r.key) ?? 0) > 0 ? `−${formatCurrencyInt(baratao.get(r.key) as number)}` : '—'}</td>
                 </tr>
               )
             })}
@@ -158,6 +168,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
                 {agg.acresDesc === 0 ? '—' : `${agg.acresDesc < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(agg.acresDesc))}`}
               </td>
               <td className={cn('px-2 py-2 text-right tabular-nums', agg.cedido > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>{agg.cedido > 0 ? `−${formatCurrencyInt(agg.cedido)}` : '—'}</td>
+              <td className={cn('px-2 py-2 text-right tabular-nums', barTotal > 0 ? 'text-[#2563eb] dark:text-blue-400' : 'text-gray-400')}>{barTotal > 0 ? `−${formatCurrencyInt(barTotal)}` : '—'}</td>
             </tr>
           </tbody>
         </table>
@@ -233,6 +244,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade }: {
 
 const GestaoPrecos = () => {
   const data = useGestaoPrecos()
+  const baratao = useBaratao()
   const [sub, setSub] = useState<SubId>('produto')
 
   const cov = data.cobertura
@@ -295,9 +307,9 @@ const GestaoPrecos = () => {
           <Skeleton className="h-64 rounded-2xl" />
         </div>
       ) : sub === 'produto' ? (
-        <AbaDesvio rows={data.byProduto} cedidoGlobal={data.global.lbCedido} entidade="produto" />
+        <AbaDesvio rows={data.byProduto} cedidoGlobal={data.global.lbCedido} entidade="produto" baratao={baratao.porProduto} />
       ) : sub === 'empresa' ? (
-        <AbaDesvio rows={data.byPosto} cedidoGlobal={data.global.lbCedido} entidade="posto" />
+        <AbaDesvio rows={data.byPosto} cedidoGlobal={data.global.lbCedido} entidade="posto" baratao={baratao.porPosto} />
       ) : null}
     </div>
   )

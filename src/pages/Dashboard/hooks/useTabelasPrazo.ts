@@ -26,6 +26,8 @@ export interface TabelaPrazoVM {
   /** Dias de vigência (1 = domingo … 7 = sábado). Null/7 dígitos = todos. */
   diasSemana: number[] | null
   horaDia: boolean
+  /** Códigos de prazo desta tabela — casam com o `formaPagamentoCodigo` da venda. */
+  prazoCodigos: number[]
   itens: ItemPrazoVM[]
 }
 
@@ -44,6 +46,7 @@ const toVM = (t: TabelaPrecoPrazo): TabelaPrazoVM => ({
   validadeFinal: dia(t.validadeFinal),
   diasSemana: parseDias(t.diasSemana),
   horaDia: t.horaDia,
+  prazoCodigos: t.prazoCodigo ?? [],
   itens: (t.precoEspecialItem ?? []).map((i) => ({
     id: String(i.precoPrazoItemCodigo),
     empresaCodigo: i.empresaCodigo,
