@@ -15,8 +15,6 @@ import {
   Wrench,
   Store,
   ShoppingBag,
-  GitCompareArrows,
-  Radar,
   LayoutDashboard,
   ClipboardCheck,
   Target,
@@ -90,9 +88,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Concorrência', to: '/comercial?tab=concorrencia', Icon: Building2 },
   ],
   '/inteligencia': [
-    { label: 'Análise', to: '/inteligencia', Icon: GitCompareArrows },
-    { label: 'Radar', to: '/inteligencia?tab=radar', Icon: Radar },
-    { label: 'Cadu IA', to: '/inteligencia?tab=assistente', Icon: Sparkles },
+    { label: 'Cadu IA', to: '/inteligencia', Icon: Sparkles },
   ],
   '/caixas-turnos': [
     { label: 'Fechamento por exceção', to: '/caixas-turnos', Icon: Sparkles },
