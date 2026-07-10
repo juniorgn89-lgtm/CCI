@@ -43,6 +43,7 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
   const [busca, setBusca] = useState('')
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null)
   const [novoTitulo, setNovoTitulo] = useState('')
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['cadu-conversas', redeId, userId],
@@ -53,8 +54,20 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['cadu-conversas', redeId, userId] })
   const excluir = async (id: string) => {
+    if (!window.confirm('Excluir esta conversa? Esta ação não pode ser desfeita.')) return
     await deleteCaduConversa(id)
     if (id === conversaId) newConversa()
+    invalidate()
+  }
+  const toggleSel = (id: string) =>
+    setSelecionadas((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const excluirSelecionadas = async () => {
+    const ids = [...selecionadas]
+    if (ids.length === 0) return
+    if (!window.confirm(`Excluir ${ids.length} conversa${ids.length > 1 ? 's' : ''}? Esta ação não pode ser desfeita.`)) return
+    await Promise.all(ids.map((id) => deleteCaduConversa(id)))
+    if (conversaId && selecionadas.has(conversaId)) newConversa()
+    setSelecionadas(new Set())
     invalidate()
   }
   const confirmarRenomear = async () => {
@@ -89,6 +102,28 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
           />
         </div>
       </div>
+
+      {selecionadas.size > 0 && (
+        <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
+          <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+            {selecionadas.size} selecionada{selecionadas.size > 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => void excluirSelecionadas()}
+            className="ml-auto inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            <Trash2 className="h-3 w-3" /> Excluir
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelecionadas(new Set())}
+            className="text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 space-y-3 overflow-y-auto p-2">
         {isLoading ? (
@@ -125,32 +160,37 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
                     return (
                       <div
                         key={c.id}
-                        className={cn('group relative rounded-lg transition-colors', ativa ? 'bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
+                        className={cn('group relative flex items-center gap-1 rounded-lg pl-1.5 transition-colors', ativa ? 'bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
                         style={ativa ? { boxShadow: 'inset 2px 0 0 #2563eb' } : undefined}
                       >
-                        <button onClick={() => loadConversa(c.id, c.mensagens ?? [])} className="flex w-full min-w-0 items-start gap-2 p-2 text-left">
+                        <input
+                          type="checkbox"
+                          checked={selecionadas.has(c.id)}
+                          onChange={() => toggleSel(c.id)}
+                          aria-label="Selecionar conversa"
+                          className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-gray-300 text-[#2563eb] focus:ring-1 focus:ring-[#2563eb] dark:border-gray-600 dark:bg-gray-800"
+                        />
+                        <button onClick={() => loadConversa(c.id, c.mensagens ?? [])} className="flex min-w-0 flex-1 items-start gap-2 py-2 pr-1 text-left">
                           <MessageSquare className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', ativa ? 'text-[#2563eb]' : 'text-gray-400')} />
                           <span className="min-w-0 flex-1">
                             <span className={cn('block truncate text-xs', ativa ? 'font-semibold text-[#1e3a5f] dark:text-blue-200' : 'font-medium text-gray-700 dark:text-gray-300')}>{c.titulo || 'Conversa'}</span>
                             <span className="mt-0.5 block text-[10px] text-gray-400">{fmtData(c.updated_at)}</span>
                           </span>
-                          <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => { e.stopPropagation(); setRenomeandoId(c.id); setNovoTitulo(c.titulo || '') }}
-                              title="Renomear"
-                              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800"
-                            ><Edit2 className="h-3 w-3" /></span>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => { e.stopPropagation(); void excluir(c.id) }}
-                              title="Apagar"
-                              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                            ><Trash2 className="h-3 w-3" /></span>
-                          </span>
                         </button>
+                        <span className="flex shrink-0 items-center gap-0.5 pr-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => { setRenomeandoId(c.id); setNovoTitulo(c.titulo || '') }}
+                            title="Renomear"
+                            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800"
+                          ><Edit2 className="h-3 w-3" /></button>
+                          <button
+                            type="button"
+                            onClick={() => void excluir(c.id)}
+                            title="Apagar"
+                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                          ><Trash2 className="h-3 w-3" /></button>
+                        </span>
                       </div>
                     )
                   })}
