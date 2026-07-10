@@ -18,7 +18,7 @@ export const showsGlobalFilters = (pathname: string): boolean =>
  * compara, ou ignora o modo), então é escondido. Allowlist explícita pra não
  * voltar a vazar o botão em telas novas que não consomem `comparisonMode`.
  */
-const ROTAS_COM_COMPARATIVO = ['/dashboard', '/caixas-turnos']
+const ROTAS_COM_COMPARATIVO = ['/dashboard']
 
 export const showsComparison = (pathname: string): boolean =>
   ROTAS_COM_COMPARATIVO.includes(pathname)

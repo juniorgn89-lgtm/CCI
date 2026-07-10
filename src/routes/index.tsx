@@ -13,9 +13,7 @@ const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
-const Bombas = lazy(() => import('@/pages/Bombas'))
-const Reabastecimento = lazy(() => import('@/pages/Reabastecimento'))
-const CaixasTurnos = lazy(() => import('@/pages/CaixasTurnos'))
+const Operacao = lazy(() => import('@/pages/Operacao'))
 const Produtividade = lazy(() => import('@/pages/Produtividade'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
@@ -57,19 +55,19 @@ const AppRoutes = () => {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
-          <Route path="/reabastecimento" element={<Suspense fallback={<RouteFallback />}><Reabastecimento /></Suspense>} />
+          <Route path="/reabastecimento" element={<Navigate to="/operacao?tab=reabastecimento" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
-          {/* Fechamentos foi consolidado em Fechamento de Caixa (landing = Fechamento por exceção). */}
-          <Route path="/fechamento-caixa" element={<Navigate to="/caixas-turnos?tab=excecao" replace />} />
+          {/* Fechamento de Caixa aposentado do menu — rotas antigas caem no dashboard. */}
+          <Route path="/fechamento-caixa" element={<Navigate to="/dashboard" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
-          <Route path="/bombas" element={<Suspense fallback={<RouteFallback />}><Bombas /></Suspense>} />
-          <Route path="/caixas-turnos" element={<Suspense fallback={<RouteFallback />}><CaixasTurnos /></Suspense>} />
+          {/* Operação = Bombas + Reabastecimento em abas. As rotas antigas redirecionam. */}
+          <Route path="/operacao" element={<Suspense fallback={<RouteFallback />}><Operacao /></Suspense>} />
+          <Route path="/bombas" element={<Navigate to="/operacao" replace />} />
+          <Route path="/caixas-turnos" element={<Navigate to="/dashboard" replace />} />
           <Route path="/produtividade" element={<Suspense fallback={<RouteFallback />}><Produtividade /></Suspense>} />
-          {/* /operacao foi quebrado em módulos próprios — só Bombas sobrou como rota. */}
-          <Route path="/operacao" element={<Navigate to="/bombas" replace />} />
           <Route path="/mobile" element={<Suspense fallback={<RouteFallback />}><Mobile /></Suspense>} />
           {/* Módulos de gestão moram no Painel (com a nav de pills). As rotas
               antigas redirecionam pra não ter dois lugares pra mesma coisa. */}

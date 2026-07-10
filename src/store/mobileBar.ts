@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-/** Bottom-nav padrão (paths): Central · Bombas · Caixas · Inteligência.
- *  (Vendas saiu — virou abas da Central.) */
-export const DEFAULT_BAR = ['/dashboard', '/bombas', '/caixas-turnos', '/inteligencia']
+/** Bottom-nav padrão (paths): Central · Operação · Comercial · Inteligência.
+ *  (Vendas virou abas da Central; Bombas virou aba de Operação; Fechamento de
+ *  Caixa saiu do menu.) */
+export const DEFAULT_BAR = ['/dashboard', '/operacao', '/comercial', '/inteligencia']
 
 interface MobileBarState {
   /** Até 4 paths fixados na bottom-nav. */

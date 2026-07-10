@@ -25,7 +25,7 @@ const TabFallback = () => (
   </div>
 )
 
-const Bombas = () => {
+const Bombas = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // Bomba é físico por-posto (precisão centavo → segue live). Mostra UM posto por
   // vez, com seletor quando o filtro tem mais de um (Todos/subconjunto).
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
@@ -55,20 +55,25 @@ const Bombas = () => {
     return { top, totalLitros, totalAbast, totalLitrosPrev, totalAbastPrev }
   }, [bombaRows, bombaRowsPrev])
 
-  // Mobile: tela própria (KPIs + ranking de bombas).
-  if (isMobile) return <BombaMobile />
+  // Mobile: tela própria. Embedded (dentro de Operação) roda só no desktop — o
+  // mobile é servido pelo OperacaoMobile.
+  if (!embedded && isMobile) return <BombaMobile />
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+      {!embedded && (
+        <>
+          <PageHeaderTitle placement="header">
+            <div className="flex items-center gap-2.5">
+              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+              <FocusModeToggle />
+            </div>
+          </PageHeaderTitle>
+          <PageHeaderActions>
+            <DateRangeToolbar />
+          </PageHeaderActions>
+        </>
+      )}
 
       {/* Seletor de posto — só quando o filtro tem mais de um (Todos/subconjunto). */}
       {postos.length > 1 && (

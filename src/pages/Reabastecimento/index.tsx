@@ -14,7 +14,7 @@ import ReabastecimentoMobile from '@/pages/Reabastecimento/ReabastecimentoMobile
  * rede), então a consolidação aqui = um card por posto do filtro: Todos = todos
  * os postos empilhados; subconjunto = esses; 1 posto = um.
  */
-const Reabastecimento = () => {
+const Reabastecimento = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { empresaCodigos } = useFilterStore()
   const isMobile = useIsMobile()
 
@@ -29,16 +29,19 @@ const Reabastecimento = () => {
     ? empresasPermitidas
     : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
 
-  if (isMobile) return <ReabastecimentoMobile />
+  // Embedded (dentro de Operação) roda só no desktop — o mobile é servido pelo OperacaoMobile.
+  if (!embedded && isMobile) return <ReabastecimentoMobile />
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
+      {!embedded && (
+        <PageHeaderTitle placement="header">
+          <div className="flex items-center gap-2.5">
+            <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+            <FocusModeToggle />
+          </div>
+        </PageHeaderTitle>
+      )}
 
       {postos.length === 0 ? (
         <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">

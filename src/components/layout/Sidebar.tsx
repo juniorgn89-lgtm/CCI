@@ -16,7 +16,6 @@ import {
   Store,
   ShoppingBag,
   LayoutDashboard,
-  ClipboardCheck,
   Target,
   Package,
   RefreshCw,
@@ -29,6 +28,7 @@ import {
   TrendingUp,
   Trophy,
   Building2,
+  Gauge,
   Sun,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -90,9 +90,9 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/inteligencia': [
     { label: 'Cadu IA', to: '/inteligencia', Icon: Sparkles },
   ],
-  '/caixas-turnos': [
-    { label: 'Fechamento por exceção', to: '/caixas-turnos', Icon: Sparkles },
-    { label: 'Conferência por PDV', to: '/caixas-turnos?tab=conferencia', Icon: ClipboardCheck },
+  '/operacao': [
+    { label: 'Bombas', to: '/operacao', Icon: Gauge },
+    { label: 'Reabastecimento', to: '/operacao?tab=reabastecimento', Icon: Fuel },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
@@ -335,11 +335,6 @@ const Sidebar = () => {
             return modulosPermitidos.includes(id)
           })
         }
-        // Reabastecimento (standalone) é gateado por sua própria permissão —
-        // espelha o padrão de gate por módulo (nível de nav). Master sempre vê.
-        if (!canVerReabastecimento) {
-          items = items.filter((item) => item.path !== '/reabastecimento')
-        }
       }
       return { ...group, items }
     })
@@ -369,7 +364,11 @@ const Sidebar = () => {
               {group.items.map((item) => {
                 const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
                 const Icon = item.icon
-                const subOptions = MODULE_SUBOPTIONS[item.path]
+                const rawSub = MODULE_SUBOPTIONS[item.path]
+                // Reabastecimento tem permissão própria — some do submenu de Operação.
+                const subOptions = rawSub && !canVerReabastecimento
+                  ? rawSub.filter((s) => s.to !== '/operacao?tab=reabastecimento')
+                  : rawSub
                 // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
                 // abre o menu de opções (em vez de navegar direto). Só vale pros
                 // módulos com abas deep-linkáveis; os demais navegam normal.

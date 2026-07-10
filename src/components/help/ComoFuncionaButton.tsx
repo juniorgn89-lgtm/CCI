@@ -292,11 +292,11 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
     },
   },
 
-  '/bombas': {
+  '/operacao': {
     defaultTab: '',
     tabs: {
       '': {
-        tela: 'Bombas',
+        tela: 'Operação',
         intro: 'Volume bombeado por bomba, ranking e controle de manutenção. Os valores abaixo são fictícios.',
         sections: [
           { n: 1, title: 'KPIs do topo', exemplo: 'Ativas 6 · 142.000 L · 8.400 abastecimentos · + usada: Bomba 3', comoLer: 'Indicadores das bombas no período, com variação vs anterior e a que mais bombeou.' },

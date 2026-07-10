@@ -60,9 +60,9 @@ const SCREENS: ScreenInfo[] = [
     glossario: `Conferência de caixa por turno/PDV: comparação entre o apresentado (conferido) e o apurado (sistema) por forma de pagamento; "Diferença" = sobra/falta.`,
   },
   {
-    path: '/bombas',
-    label: 'Bombas',
-    glossario: `Abastecimentos por bomba/bico: litros, preço unitário, frentista. Detecta lançamentos anômalos.`,
+    path: '/operacao',
+    label: 'Operação',
+    glossario: `Módulo Operação com duas abas. Bombas: abastecimentos por bomba/bico (litros, preço unitário, frentista) e desgaste/manutenção. Reabastecimento: nível dos tanques (% da capacidade — Crítico <20%, Alerta 20–30%, OK >30%), última compra e necessidade até o fim do mês.`,
   },
   {
     path: '/qualidade-dados',

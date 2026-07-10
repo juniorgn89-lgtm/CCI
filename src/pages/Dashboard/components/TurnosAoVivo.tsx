@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Building2, Wallet, RefreshCw, Globe } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
 import { useFilterStore } from '@/store/filters'
 import { formatCurrency } from '@/lib/formatters'
@@ -45,15 +44,15 @@ const formatDataAbertura = (iso: string): string => {
 }
 
 const TurnosAoVivo = () => {
-  const navigate = useNavigate()
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const { empresas, totalAoVivo, totalEmpresas, empresasComAoVivo, isLoading, dataUpdatedAt } = useTurnosAoVivo()
   // Total parcial da rede ao vivo (soma do apurado parcial de todos os postos).
   const totalParcial = empresas.reduce((s, e) => s + e.apuradoParcial, 0)
 
+  // Clicar num posto filtra a rede para ele (o antigo destino "Fechamento de
+  // Caixa" foi aposentado do menu).
   const handleClick = (empresaCodigo: number) => {
     setEmpresas([empresaCodigo])
-    navigate('/caixas-turnos')
   }
 
   return (

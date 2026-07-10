@@ -18,8 +18,9 @@ export interface ModuloInfo {
 
 export const MODULOS: ModuloInfo[] = [
   { id: 'dashboard', label: 'Central da Rede', path: '/dashboard' },
-  { id: 'bombas', label: 'Bombas', path: '/bombas' },
-  { id: 'caixas-turnos', label: 'Fechamento de Caixa', path: '/caixas-turnos' },
+  // id mantido como 'bombas' (chave de permissão em profiles.modulos_permitidos)
+  // pra não quebrar grants existentes — o módulo virou "Operação" (Bombas + Reabastecimento).
+  { id: 'bombas', label: 'Operação', path: '/operacao' },
   { id: 'produtividade', label: 'Produtividade', path: '/produtividade' },
   { id: 'estoques', label: 'Estoques', path: '/estoques' },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
