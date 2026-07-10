@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import CaduAvatar from './CaduAvatar'
 import ChatPanel from './ChatPanel'
 import MonitorPanel from './MonitorPanel'
+import ConversasSidebar from './ConversasSidebar'
 import { useRedeAssistente } from './hooks/useRedeAssistente'
 
 type SubTab = 'chat' | 'monitor'
@@ -66,7 +67,16 @@ const AssistenteInteligente = () => {
 
       {/* Conteúdo */}
       <div>
-        {sub === 'chat' && <ChatPanel />}
+        {sub === 'chat' && (
+          <div className="flex h-[calc(100vh-340px)] min-h-[460px] gap-4">
+            <div className="hidden w-64 shrink-0 md:block">
+              <ConversasSidebar className="h-full" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <ChatPanel heightClass="h-full" />
+            </div>
+          </div>
+        )}
         {sub === 'monitor' && <MonitorPanel />}
       </div>
     </div>

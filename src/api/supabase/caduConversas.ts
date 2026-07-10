@@ -76,6 +76,13 @@ export const saveCaduConversa = async (
   return (data as { id: string } | null)?.id ?? null
 }
 
+/** Renomeia uma conversa (só o título; não mexe na ordem/updated_at). */
+export const renameCaduConversa = async (id: string, titulo: string): Promise<void> => {
+  if (!supabase) return
+  const { error } = await supabase.from('cadu_conversas').update({ titulo }).eq('id', id)
+  if (error) console.warn('[caduConversas] rename error:', error.message)
+}
+
 export const deleteCaduConversa = async (id: string): Promise<void> => {
   if (!supabase) return
   const { error } = await supabase.from('cadu_conversas').delete().eq('id', id)

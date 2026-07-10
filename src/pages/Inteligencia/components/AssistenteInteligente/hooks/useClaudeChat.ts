@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useTenantStore } from '@/store/tenant'
@@ -58,6 +58,7 @@ export const useClaudeChat = (
   const recordUsage = useUsageTracker((s) => s.recordUsage)
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const userId = useAuthStore((s) => s.user?.id ?? null)
+  const queryClient = useQueryClient()
 
   // Lista das empresas reais da rede (pra system prompt e validação de escopo)
   const { data: empresasData } = useQuery({
@@ -120,8 +121,10 @@ export const useClaudeChat = (
         mensagens: msgs,
       })
       if (!currentId && savedId) useCaduChat.getState().setConversaId(savedId)
+      // Mantém a sidebar de histórico fresca (título/ordem).
+      queryClient.invalidateQueries({ queryKey: ['cadu-conversas'] })
     },
-    [redeId, userId],
+    [redeId, userId, queryClient],
   )
 
   const ask = useCallback(
