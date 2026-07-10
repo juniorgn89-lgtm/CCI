@@ -4,7 +4,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchApuracaoDiaria } from '@/api/supabase/apuracao'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { projecaoAvancada, fimDoMesIso, type Confiabilidade } from '@/lib/projection'
+import { monthEndFactor, fimDoMesIso } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 
 /**
@@ -34,8 +34,6 @@ export interface ProjecaoLBData {
   pctRealizado: number
   /** L.B. por litro da rede (dias fechados) — FATO. */
   lbPorLitro: number
-  confiabilidadePct: number
-  confiabilidade: Confiabilidade
   /** Este mês, dias fechados, ordenado. */
   dailyCurr: DiaLB[]
   /** Mês anterior, dias fechados (pra comparar mesmo-dia-da-semana). */
@@ -114,15 +112,16 @@ const useProjecaoLB = (): ProjecaoLBData => {
     const empresaNome = new Map<number, string>()
     for (const e of permitidas) empresaNome.set(e.codigo, e.fantasia || e.razao || `Posto ${e.codigo}`)
 
-    const proj = projecaoAvancada({
-      dailySeries: dailyCurr.map((d) => ({ data: d.data, value: d.lb })),
-      today,
-      dataFinal: monthEnd,
-    })
+    // Base nova (mesma do painel de projeção da Central): projeção LINEAR pela
+    // venda ACUMULADA — projetado = acumulado(1→último dia fechado) × dias do mês
+    // ÷ dias decorridos. O dia corrente (parcial) não entra no realizado. Em mês
+    // já fechado o fator é 1 → projetado = realizado.
     const fechados = dailyCurr.filter((d) => d.data < today)
+    const realizadoLB = fechados.reduce((s, d) => s + d.lb, 0)
+    const ultimoIso = fechados.length > 0 ? fechados[fechados.length - 1].data : ''
+    const projetadoLB = ultimoIso ? realizadoLB * monthEndFactor(mesIni, ultimoIso) : realizadoLB
     const litrosFechados = fechados.reduce((s, d) => s + d.litros, 0)
-    const lbFechados = fechados.reduce((s, d) => s + d.lb, 0)
-    const lbPorLitro = litrosFechados > 0 ? lbFechados / litrosFechados : 0
+    const lbPorLitro = litrosFechados > 0 ? realizadoLB / litrosFechados : 0
 
     return {
       isLoading: l1 && currRows.length === 0,
@@ -130,13 +129,11 @@ const useProjecaoLB = (): ProjecaoLBData => {
       mesIni,
       monthEnd,
       diasNoMes,
-      diasFechados: proj.diasFechados,
-      realizadoLB: proj.realizado,
-      projetadoLB: proj.esperado,
-      pctRealizado: proj.esperado > 0 ? proj.realizado / proj.esperado : 0,
+      diasFechados: fechados.length,
+      realizadoLB,
+      projetadoLB,
+      pctRealizado: projetadoLB > 0 ? realizadoLB / projetadoLB : 0,
       lbPorLitro,
-      confiabilidadePct: proj.confiabilidadePct,
-      confiabilidade: proj.confiabilidade,
       dailyCurr,
       dailyPrev,
       perPosto,

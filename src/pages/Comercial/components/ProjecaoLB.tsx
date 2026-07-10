@@ -5,6 +5,7 @@ import { formatCurrencyShort, formatLitersShort } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import useProjecaoLB, { type DiaLB } from '@/pages/Comercial/hooks/useProjecaoLB'
+import { todayLocal } from '@/lib/period'
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const WD = [
@@ -34,7 +35,11 @@ const DeltaTag = ({ v }: { v: number | null }) => {
 
 const ProjecaoLB = () => {
   const data = useProjecaoLB()
-  const [wd, setWd] = useState(2) // Terça default
+  // Default = dia da semana de HOJE (domingo cai em sábado — não há aba de domingo).
+  const [wd, setWd] = useState(() => {
+    const d = weekdayOf(todayLocal())
+    return d === 0 ? 6 : d
+  })
 
   const mesNome = useMemo(() => MESES[Number(data.mesIni.split('-')[1]) - 1] ?? '', [data.mesIni])
 
@@ -125,7 +130,7 @@ const ProjecaoLB = () => {
           <p className="mt-2 text-3xl font-bold tabular-nums">{formatCurrencyShort(data.projetadoLB)}</p>
           <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-white/60">
             estimativa · não inclui o dia em curso
-            <InfoHint text="Projeção de fechamento do mês = LB realizado dos dias fechados + projeção dos dias que faltam (ritmo recente × sazonalidade do dia-da-semana). O dia corrente parcial não entra no realizado. É estimativa, não valor fechado." />
+            <InfoHint text="Estimativa (não é valor fechado): projeção de fechamento = LB acumulado dos dias fechados ÷ dias decorridos × dias do mês. O dia corrente parcial não entra no realizado. Em mês já fechado, é igual ao realizado." />
           </p>
         </div>
 
