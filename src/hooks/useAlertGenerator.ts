@@ -219,23 +219,13 @@ const useAlertGenerator = () => {
         const bicoToBomba = new Map<number, number>()
         for (const bi of bicos) bicoToBomba.set(bi.bicoCodigo, bi.bombaCodigo)
 
-        const isAutoMode = manutState.mode === 'auto'
-
-        // Litros bombeados por bomba (filtrando pela empresa).
-        // - Manual: só conta abastecimentos a partir da data da última manutenção
-        // - Auto sem registro: conta todos os abastecimentos (período inteiro como base)
+        // Litros bombeados por bomba no período — base 100% automática
+        // (intervalo configurado × litros vendidos; sem registro manual).
         const litrosPorBomba = new Map<number, number>()
         for (const a of abastecimentosCache) {
           if (a.empresaCodigo !== empresaCodigo) continue
           const bombaCod = bicoToBomba.get(a.codigoBico)
           if (!bombaCod) continue
-          const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bombaCod}`]
-          const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
-          if (!manut?.dataUltima && !isAutoMode) continue  // manual sem registro → ignora
-          if (manut?.dataUltima) {
-            const abastDate = (a.dataHoraAbastecimento || a.dataFiscal || '').substring(0, 10)
-            if (abastDate < manut.dataUltima) continue
-          }
           litrosPorBomba.set(bombaCod, (litrosPorBomba.get(bombaCod) ?? 0) + a.quantidade)
         }
 
@@ -243,11 +233,6 @@ const useAlertGenerator = () => {
         const limiteAviso = empresaConfig.avisarAoAtingirPct
 
         for (const bomba of bombas) {
-          const manutHist = manutState.manutencoes[`manutencao_${empresaCodigo}_${bomba.bombaCodigo}`]
-          const manut = manutHist && manutHist.length > 0 ? manutHist[0] : null
-          // Sem registro manual e fora do modo auto → sem alerta
-          if (!manut?.dataUltima && !isAutoMode) continue
-
           const litros = litrosPorBomba.get(bomba.bombaCodigo) ?? 0
           if (litros <= 0) continue  // sem litros bombeados → nada a alertar
           const desgastePct = intervaloLitros > 0 ? (litros / intervaloLitros) * 100 : 0

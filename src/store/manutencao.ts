@@ -1,15 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type ManutencaoMode = 'auto' | 'manual'
-
-export interface BombaManutencaoRecord {
-  /** YYYY-MM-DD */
-  dataUltima: string
-  /** Litros bombeados acumulados no momento da última manutenção (somente modo manual) */
-  litrosUltima: number
-}
-
 export interface ManutencaoConfig {
   /** Intervalo de manutenção em litros */
   intervaloLitros: number
@@ -19,53 +10,24 @@ export interface ManutencaoConfig {
   responsavel: string
 }
 
-/** Quantas manutenções manter por bomba (FIFO — descarta mais antigas) */
-export const MAX_MANUTENCAO_HISTORY = 4
-
 interface ManutencaoState {
-  mode: ManutencaoMode
-  /** key: `${empresaCodigo}_${bombaCodigo}` → histórico (mais recente primeiro, máx 4) */
-  manutencoes: Record<string, BombaManutencaoRecord[]>
-  /** key: empresaCodigo → config de alerta da empresa */
+  /** key: empresaCodigo → config de manutenção da empresa */
   configs: Record<number, ManutencaoConfig>
 
-  setMode: (m: ManutencaoMode) => void
-  setManutencao: (
-    empresaCodigo: number,
-    bombaCodigo: number,
-    record: BombaManutencaoRecord,
-  ) => void
-  clearManutencao: (empresaCodigo: number, bombaCodigo: number) => void
   setConfig: (empresaCodigo: number, config: ManutencaoConfig) => void
   clearConfig: (empresaCodigo: number) => void
 }
 
-const key = (empresaCodigo: number, bombaCodigo: number) => `manutencao_${empresaCodigo}_${bombaCodigo}`
-
+/**
+ * Config de manutenção por posto (intervalo de litros + % de aviso). O controle
+ * de manutenção é 100% automático: desgaste = litros vendidos no período ÷
+ * intervalo configurado. (O antigo modo manual + histórico foi removido.)
+ */
 export const useManutencaoStore = create<ManutencaoState>()(
   persist(
     (set) => ({
-      mode: 'auto',
-      manutencoes: {},
       configs: {},
 
-      setMode: (mode) => set({ mode }),
-      setManutencao: (empresaCodigo, bombaCodigo, record) =>
-        set((state) => {
-          const k = key(empresaCodigo, bombaCodigo)
-          const previous = state.manutencoes[k] ?? []
-          // Prepend nova manutenção, descarta mais antigas se passar do limite
-          const next = [record, ...previous].slice(0, MAX_MANUTENCAO_HISTORY)
-          return {
-            manutencoes: { ...state.manutencoes, [k]: next },
-          }
-        }),
-      clearManutencao: (empresaCodigo, bombaCodigo) =>
-        set((state) => {
-          const next = { ...state.manutencoes }
-          delete next[key(empresaCodigo, bombaCodigo)]
-          return { manutencoes: next }
-        }),
       setConfig: (empresaCodigo, config) =>
         set((state) => ({
           configs: { ...state.configs, [empresaCodigo]: config },
@@ -94,25 +56,4 @@ export const getConfigOrDefault = (
 ): ManutencaoConfig => {
   if (empresaCodigo && configs[empresaCodigo]) return configs[empresaCodigo]
   return DEFAULT_CONFIG
-}
-
-/** Retorna a última manutenção registrada (mais recente do array) ou null. */
-export const getManutencao = (
-  manutencoes: Record<string, BombaManutencaoRecord[]>,
-  empresaCodigo: number | null,
-  bombaCodigo: number,
-): BombaManutencaoRecord | null => {
-  if (!empresaCodigo) return null
-  const arr = manutencoes[key(empresaCodigo, bombaCodigo)]
-  return arr && arr.length > 0 ? arr[0] : null
-}
-
-/** Retorna o histórico completo (até 4 entradas) ou array vazio. */
-export const getManutencaoHistory = (
-  manutencoes: Record<string, BombaManutencaoRecord[]>,
-  empresaCodigo: number | null,
-  bombaCodigo: number,
-): BombaManutencaoRecord[] => {
-  if (!empresaCodigo) return []
-  return manutencoes[key(empresaCodigo, bombaCodigo)] ?? []
 }
