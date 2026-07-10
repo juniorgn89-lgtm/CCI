@@ -82,6 +82,9 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
   const grupos: Record<Grupo, CaduConversaRow[]> = { hoje: [], ontem: [], anteriores: [] }
   for (const c of filtradas) grupos[grupoDe(c.updated_at)].push(c)
 
+  const allSelected = filtradas.length > 0 && filtradas.every((c) => selecionadas.has(c.id))
+  const toggleAll = () => setSelecionadas(allSelected ? new Set() : new Set(filtradas.map((c) => c.id)))
+
   return (
     <div className={cn('flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900', className)}>
       <div className="space-y-2 border-b border-gray-100 p-3 dark:border-gray-800">
@@ -126,6 +129,18 @@ const ConversasSidebar = ({ className }: { className?: string }) => {
       )}
 
       <div className="flex-1 space-y-3 overflow-y-auto p-2">
+        {!isLoading && filtradas.length > 0 && (
+          <label className="flex cursor-pointer select-none items-center gap-2 px-2 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => { if (el) el.indeterminate = selecionadas.size > 0 && !allSelected }}
+              onChange={toggleAll}
+              className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-gray-300 text-[#2563eb] focus:ring-1 focus:ring-[#2563eb] dark:border-gray-600 dark:bg-gray-800"
+            />
+            Selecionar todas ({filtradas.length})
+          </label>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
         ) : filtradas.length === 0 ? (
