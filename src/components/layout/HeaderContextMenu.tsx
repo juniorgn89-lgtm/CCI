@@ -75,7 +75,7 @@ const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: H
             <RedeSwitcher />
             {showCompanySelect && (
               <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-                <CompanySelect allowTodos={allowTodos} />
+                <CompanySelect allowTodos={allowTodos} onApplied={() => setOpen(false)} />
               </span>
             )}
             <ComoFuncionaButton />

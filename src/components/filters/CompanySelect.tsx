@@ -23,9 +23,12 @@ const sameCodes = (a: number[], b: number[]): boolean =>
 interface CompanySelectProps {
   /** Permite "Todos os postos" (rede consolidada). False = módulo gateado, só posto específico. */
   allowTodos?: boolean
+  /** Chamado quando a seleção é confirmada (Aplicar/escolha única) — o pai pode
+   *  fechar o painel de contexto junto. */
+  onApplied?: () => void
 }
 
-const CompanySelect = ({ allowTodos = true }: CompanySelectProps = {}) => {
+const CompanySelect = ({ allowTodos = true, onApplied }: CompanySelectProps = {}) => {
   const [open, setOpen] = useState(false)
   const { empresaCodigos, setEmpresas } = useFilters()
   // Módulo gateado (allowTodos=false) → seleção ÚNICA: um posto por vez, aplica na hora.
@@ -72,6 +75,7 @@ const CompanySelect = ({ allowTodos = true }: CompanySelectProps = {}) => {
   const apply = () => {
     if (dirty) setEmpresas(draft)
     setOpen(false)
+    onApplied?.()
   }
 
   // Rótulo do gatilho = seleção APLICADA (não o rascunho). 1–2 postos: nomes
@@ -80,6 +84,7 @@ const CompanySelect = ({ allowTodos = true }: CompanySelectProps = {}) => {
   const pickSingle = (codigo: number) => {
     if (!sameCodes([codigo], empresaCodigos)) setEmpresas([codigo])
     setOpen(false)
+    onApplied?.()
   }
 
   const getLabel = (): string => {
