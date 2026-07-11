@@ -263,11 +263,13 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     <div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       {!expanded && (
-        <div className="md:col-span-2 xl:col-span-4">
+        <div className="flex flex-col md:col-span-2 xl:col-span-4">
           {/* Chave (estilo "legend") abraça SÓ os cartões de realizado — a Projeção
               fica de fora. */}
           <RealizadoChave />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* flex-1 + auto-rows-fr: no desktop os cartões esticam pra o rodapé deles
+              alinhar com o rodapé do cartão de Projeção (mais alto). */}
+          <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SegmentCard
             label="Combustível" Icon={Droplets} cardBg="bg-white dark:bg-gray-900"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
