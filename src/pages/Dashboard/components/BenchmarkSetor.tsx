@@ -45,6 +45,17 @@ interface SetorData {
 
 const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
+// Fundo levíssimo, UM tom por grupo de coluna (aplicado via <colgroup>), pra
+// separar visualmente cada bloco. Vai ATRÁS do conteúdo/barras (BarCell só pinta
+// uma barra parcial) e some sob linhas de fundo opaco (Total/selecionada).
+// Cor por tema: volume=azul, dinheiro=âmbar, comparativo=violeta, eficiência=verde.
+const TINT = {
+  operacao: 'bg-sky-50/60 dark:bg-sky-400/[0.05]',
+  financeiro: 'bg-amber-50/50 dark:bg-amber-400/[0.05]',
+  comparativo: 'bg-violet-50/50 dark:bg-violet-400/[0.06]',
+  eficiencia: 'bg-emerald-50/50 dark:bg-emerald-400/[0.05]',
+}
+
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
   <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
@@ -273,6 +284,14 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
         </div>
       )}
       <table className="w-full text-sm">
+        {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+        <colgroup>
+          <col /> {/* Empresa */}
+          {showLitros && <col span={2} className={TINT.operacao} />} {/* Litros */}
+          <col span={2} className={TINT.financeiro} /> {/* Faturamento */}
+          <col span={3} className={TINT.eficiencia} /> {/* Lucro bruto */}
+          <col span={2} className={TINT.comparativo} /> {/* vs período anterior */}
+        </colgroup>
         <thead>
           <tr className="text-gray-400 dark:text-gray-500">
             <th className="px-3 py-1.5" />
@@ -436,6 +455,16 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
+          {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+          <colgroup>
+            <col /> {/* Empresa */}
+            <col className={TINT.operacao} /> {/* Operação */}
+            {showFaturamento && <col className={TINT.financeiro} />} {/* Faturamento */}
+            <col className={TINT.financeiro} /> {/* Lucro bruto */}
+            <col className={TINT.financeiro} /> {/* Margem */}
+            <col span={4} className={TINT.comparativo} /> {/* Comparativo */}
+            <col span={3} className={TINT.eficiencia} /> {/* Eficiência */}
+          </colgroup>
           <thead>
             {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
             <tr className="text-gray-400 dark:text-gray-500">
