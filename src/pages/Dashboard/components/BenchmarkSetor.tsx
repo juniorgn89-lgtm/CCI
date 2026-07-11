@@ -43,12 +43,6 @@ interface SetorData {
   postos: PostoRow[]
 }
 
-const setorTabs: { id: SetorId; label: string; Icon: typeof Fuel }[] = [
-  { id: 'combustiveis', label: 'COMBUSTÍVEIS', Icon: Fuel },
-  { id: 'automotivos', label: 'AUTOMOTIVOS', Icon: Wrench },
-  { id: 'conveniencias', label: 'CONVENIÊNCIAS', Icon: Store },
-]
-
 const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
@@ -190,14 +184,6 @@ const aggProdutos = (prods: ProdutoRow[]): RowVals => {
 /* ─────────────────────────── Projeções por empresa ─────────────────────────── */
 
 type ViewMode = 'realizado' | 'projecoes'
-type ProjScope = 'global' | SetorId
-
-const projScopeTabs: { id: ProjScope; label: string; Icon: typeof Fuel }[] = [
-  { id: 'global', label: 'GLOBAL', Icon: Globe },
-  { id: 'combustiveis', label: 'COMBUSTÍVEIS', Icon: Fuel },
-  { id: 'automotivos', label: 'AUTOMOTIVOS', Icon: Wrench },
-  { id: 'conveniencias', label: 'CONVENIÊNCIAS', Icon: Store },
-]
 
 interface ProjPostoRow { posto: string; realLB: number; realFat: number; realLitros: number; lbAnt: number }
 
@@ -235,13 +221,14 @@ const Segmented = ({ tabs, active, onSelect }: {
  * período anterior (no ritmo atual, fecha acima/abaixo?). Margem projetada =
  * margem realizada (proporcional), por isso não há coluna de margem.
  */
-const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort, fimProjLabel }: {
+const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort, fimProjLabel, compact }: {
   rows: ProjPostoRow[]
   factor: number
   isProjetando: boolean
   showLitros: boolean
   cmpShort: string
   fimProjLabel: string
+  compact?: boolean // empilhado: banner/rodapé/margem-topo vêm do pai (uma vez só).
 }) => {
   const total = rows.reduce(
     (a, r) => ({ realLB: a.realLB + r.realLB, realFat: a.realFat + r.realFat, realLitros: a.realLitros + r.realLitros, lbAnt: a.lbAnt + r.lbAnt }),
@@ -278,8 +265,8 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
   }
 
   return (
-    <div className="mt-4 overflow-x-auto">
-      {!isProjetando && (
+    <div className={cn('overflow-x-auto', !compact && 'mt-4')}>
+      {!compact && !isProjetando && (
         <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
           <CalendarClock className="h-4 w-4 shrink-0" />
           Período sem dias futuros — a projeção é igual ao realizado (nada a projetar).
@@ -316,21 +303,28 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
           <Linha posto="Total" realLB={total.realLB} realFat={total.realFat} realLitros={total.realLitros} lbAnt={total.lbAnt} bold />
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-gray-400">
-        Projeção linear: realizado × {fx}× (ritmo uniforme dos dias decorridos) até {fimProjLabel}. Margem projetada = margem realizada.
-      </p>
+      {!compact && (
+        <p className="mt-2 text-[11px] text-gray-400">
+          Projeção linear: realizado × {fx}× (ritmo uniforme dos dias decorridos) até {fimProjLabel}. Margem projetada = margem realizada.
+        </p>
+      )}
     </div>
   )
 }
 
-const BenchmarkSetor = () => {
-  const [view, setView] = useState<ViewMode>('realizado')
-  const [setor, setSetor] = useState<SetorId>('combustiveis')
-  const [projScope, setProjScope] = useState<ProjScope>('global')
-  // Chaves expandidas: `posto:NOME` e `grupo:POSTO:GRUPO`.
+/** Bloco de REALIZADO de UM setor — título + tabela (posto → grupos → produtos).
+ *  Cada bloco tem seu PRÓPRIO estado de expansão/seleção (tabelas independentes),
+ *  pra os 3 setores aparecerem empilhados sem interferir um no outro. */
+const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }: {
+  data: SetorData
+  setorId: SetorId
+  titulo: string
+  Icon: typeof Fuel
+  cmpWord: string
+  cmpShort: string
+}) => {
   const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set())
   const [selected, setSelected] = useState<string | null>(null)
-
   const toggleSelected = (key: string) => setSelected((curr) => (curr === key ? null : key))
   const toggleExpand = (key: string) => {
     setExpandidos((prev) => {
@@ -341,57 +335,10 @@ const BenchmarkSetor = () => {
     })
   }
 
-  const rede = useRedeSetores()
-  // Rótulos do bloco "Comparativo" seguem o modo escolhido no filtro global.
-  const cmpWord = rede.comparisonMode === 'prevYear' ? 'ano anterior' : 'mês anterior'
-  // Sufixo curto pros títulos do Comparativo (cabe junto da métrica).
-  const cmpShort = rede.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-
-  // ── Projeções por empresa (view 'projecoes') ──
-  const dataInicial = useFilterStore((s) => s.dataInicial)
-  const dataFinal = useFilterStore((s) => s.dataFinal)
-  const factor = monthEndFactor(dataInicial, dataFinal)
-  const isProjetando = factor > 1.0001
-  const fimProjLabel = useMemo(() => {
-    const [y, m] = (dataInicial || '').split('-').map(Number)
-    if (!y || !m) return '—'
-    const lastDay = new Date(y, m, 0).getDate()
-    const fim = dataFinal && dataFinal > `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}` ? dataFinal : `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    const [, mm, dd] = fim.split('-')
-    return `${dd}/${mm}`
-  }, [dataInicial, dataFinal])
-
-  // Realizado por posto no escopo da projeção (Global = soma dos 3 setores).
-  const projRows = useMemo<ProjPostoRow[]>(() => {
-    const scopes: SetorId[] = projScope === 'global' ? ['combustiveis', 'automotivos', 'conveniencias'] : [projScope]
-    const map = new Map<string, ProjPostoRow>()
-    for (const sc of scopes) {
-      const setorObj = sc === 'combustiveis' ? rede.combustivel : sc === 'automotivos' ? rede.automotivos : rede.conveniencia
-      for (const p of setorObj.postos) {
-        const agg = aggProdutos(p.produtos)
-        const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, lbAnt: 0 }
-        e.realLB += agg.lucroBruto
-        e.realFat += agg.faturamento
-        if (sc === 'combustiveis') e.realLitros += agg.qtd
-        e.lbAnt += agg.lucroBrutoAnoAnterior
-        map.set(p.posto, e)
-      }
-    }
-    return [...map.values()].sort((a, b) => b.realLB - a.realLB)
-  }, [rede, projScope])
-
-  const setorReal = setor === 'combustiveis' ? rede.combustivel : setor === 'automotivos' ? rede.automotivos : rede.conveniencia
-  const data = useMemo<SetorData>(() => ({
-    unidadeLabel: setorReal.unidadeLabel,
-    lbLabel: setorReal.lbLabel,
-    postos: setorReal.postos.map((p) => ({ posto: p.posto, cupons: p.cupons, ticketMedio: p.ticketMedio, produtos: p.produtos })),
-  }), [setorReal])
-
   // Agrega cada posto, seus grupos (tipo de produto) e o total geral.
   const aggregated = useMemo(() => {
     const postos = data.postos.map((p) => {
       const totals = aggProdutos(p.produtos)
-      // Grupos (tipo de produto) dentro do posto — nível intermediário.
       const byGrupo = new Map<string, ProdutoRow[]>()
       for (const prod of p.produtos) {
         const g = prod.grupo || 'Sem grupo'
@@ -402,7 +349,6 @@ const BenchmarkSetor = () => {
       const grupos = Array.from(byGrupo.entries())
         .map(([grupo, produtos]) => {
           const agg = aggProdutos(produtos)
-          // Cupons do grupo são iguais em todos os produtos do grupo (desnormalizado).
           const cuponsGrupo = produtos[0]?.cuponsGrupo ?? 0
           return { grupo, produtos, ...agg, ticketMedio: cuponsGrupo > 0 ? agg.faturamento / cuponsGrupo : 0 }
         })
@@ -434,18 +380,15 @@ const BenchmarkSetor = () => {
     return { postos, totals: totalVals, ticketMedio }
   }, [data])
 
-  // Posto que está "se destacando" — maior Lucro Bruto absoluto (≥ 2 postos).
   const postoDestaque = useMemo(() => {
     if (aggregated.postos.length < 2) return null
     const top = [...aggregated.postos].sort((a, b) => b.lucroBruto - a.lucroBruto)[0]
     return top && top.lucroBruto > 0 ? top.posto : null
   }, [aggregated])
 
-  const showFaturamento = setor !== 'combustiveis'
-  // Combustíveis mantém colunas próprias; Automotivos/Conveniências seguem a régua padrão.
-  const isComb = setor === 'combustiveis'
+  const showFaturamento = setorId !== 'combustiveis'
+  const isComb = setorId === 'combustiveis'
 
-  // Máximos pra calibrar as barras em cada nível (escalas próprias).
   const allProds = aggregated.postos.flatMap((p) => p.produtos)
   const allGrupos = aggregated.postos.flatMap((p) => p.grupos)
   const fatProd = (r: { precoVenda: number; qtd: number }) => r.precoVenda * r.qtd
@@ -468,7 +411,6 @@ const BenchmarkSetor = () => {
     margem: Math.max(...allProds.map((r) => r.margem), 0),
   }
 
-  // Converte um ProdutoRow no shape de RowVals (faturamento = preço × qtd).
   const prodVals = (prod: ProdutoRow): RowVals => ({
     qtd: prod.qtd,
     qtdAnoAnterior: prod.qtdAnoAnterior,
@@ -484,39 +426,15 @@ const BenchmarkSetor = () => {
     lbPorUnidade: prod.lbPorUnidade,
   })
 
-  // Nº de colunas (pra colspan de eventuais estados vazios) — não usado, mantido simples.
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-gray-500" />
-            <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Detalhamento de informações por setor
-              <InfoHint text={`Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ${cmpWord}.`} />
-            </h3>
-          </div>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {view === 'realizado'
-              ? 'Aqui temos todas as vendas setorizadas com maior nível de detalhes'
-              : 'Projeção de fechamento do mês por posto, no ritmo atual dos dias decorridos'}
-          </p>
-          {/* Sub-aba: Realizado · Projeções */}
-          <div className="mt-3">
-            <Segmented
-              tabs={[{ id: 'realizado', label: 'REALIZADO', Icon: Layers }, { id: 'projecoes', label: 'PROJEÇÕES', Icon: LineChart }]}
-              active={view}
-              onSelect={(id) => setView(id as ViewMode)}
-            />
-          </div>
-        </div>
-        {view === 'realizado'
-          ? <Segmented tabs={setorTabs} active={setor} onSelect={(id) => setSetor(id as SetorId)} />
-          : <Segmented tabs={projScopeTabs} active={projScope} onSelect={(id) => setProjScope(id as ProjScope)} />}
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{titulo}</h4>
       </div>
-
-      {view === 'realizado' && (
-      <div className="mt-4 overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
@@ -560,7 +478,7 @@ const BenchmarkSetor = () => {
           </thead>
           <tbody>
             {aggregated.postos.map((p) => {
-              const postoKey = `posto:${p.posto}`
+              const postoKey = `${setorId}:posto:${p.posto}`
               const expanded = expandidos.has(postoKey)
               const postoLabel = (
                 <td className="px-3 py-2 text-left">
@@ -610,11 +528,11 @@ const BenchmarkSetor = () => {
                       maxes={maxProd}
                       barPct={60}
                       ticket={null}
-                      onClick={(e) => { e.stopPropagation(); toggleSelected(`prod:${p.posto}:${prod.produto}`) }}
-                      selected={selected === `prod:${p.posto}:${prod.produto}`}
+                      onClick={(e) => { e.stopPropagation(); toggleSelected(`${setorId}:prod:${p.posto}:${prod.produto}`) }}
+                      selected={selected === `${setorId}:prod:${p.posto}:${prod.produto}`}
                       rowClass={cn(
                         'cursor-pointer border-b border-gray-100 text-gray-700 transition-colors dark:border-gray-800 dark:text-gray-300',
-                        selected === `prod:${p.posto}:${prod.produto}`
+                        selected === `${setorId}:prod:${p.posto}:${prod.produto}`
                           ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
                       )}
@@ -622,7 +540,7 @@ const BenchmarkSetor = () => {
                   ))}
 
                   {expanded && !isComb && p.grupos.map((g) => {
-                    const grupoKey = `grupo:${p.posto}:${g.grupo}`
+                    const grupoKey = `${setorId}:grupo:${p.posto}:${g.grupo}`
                     const gExpanded = expandidos.has(grupoKey)
                     const grupoLabel = (
                       <td className="px-3 py-1.5 pl-7 text-left text-[13px]">
@@ -661,11 +579,11 @@ const BenchmarkSetor = () => {
                             maxes={maxProd}
                             barPct={55}
                             ticket={isComb ? null : prod.ticketMedio}
-                            onClick={(e) => { e.stopPropagation(); toggleSelected(`prod:${p.posto}:${prod.produto}`) }}
-                            selected={selected === `prod:${p.posto}:${prod.produto}`}
+                            onClick={(e) => { e.stopPropagation(); toggleSelected(`${setorId}:prod:${p.posto}:${prod.produto}`) }}
+                            selected={selected === `${setorId}:prod:${p.posto}:${prod.produto}`}
                             rowClass={cn(
                               'cursor-pointer border-b border-gray-100 text-gray-600 transition-colors dark:border-gray-800 dark:text-gray-400',
-                              selected === `prod:${p.posto}:${prod.produto}`
+                              selected === `${setorId}:prod:${p.posto}:${prod.produto}`
                                 ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
                                 : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
                             )}
@@ -690,17 +608,144 @@ const BenchmarkSetor = () => {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+const BenchmarkSetor = () => {
+  const [view, setView] = useState<ViewMode>('realizado')
+
+  const rede = useRedeSetores()
+  // Rótulos do bloco "Comparativo" seguem o modo escolhido no filtro global.
+  const cmpWord = rede.comparisonMode === 'prevYear' ? 'ano anterior' : 'mês anterior'
+  // Sufixo curto pros títulos do Comparativo (cabe junto da métrica).
+  const cmpShort = rede.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+
+  // ── Projeções por empresa (view 'projecoes') ──
+  const dataInicial = useFilterStore((s) => s.dataInicial)
+  const dataFinal = useFilterStore((s) => s.dataFinal)
+  const factor = monthEndFactor(dataInicial, dataFinal)
+  const isProjetando = factor > 1.0001
+  const fimProjLabel = useMemo(() => {
+    const [y, m] = (dataInicial || '').split('-').map(Number)
+    if (!y || !m) return '—'
+    const lastDay = new Date(y, m, 0).getDate()
+    const fim = dataFinal && dataFinal > `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}` ? dataFinal : `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const [, mm, dd] = fim.split('-')
+    return `${dd}/${mm}`
+  }, [dataInicial, dataFinal])
+
+  // Projeções empilhadas: Global (soma dos 3) + cada setor, um bloco embaixo do
+  // outro (mesma ideia do Realizado). Realizado por posto no escopo escolhido.
+  const projBlocos = useMemo(() => {
+    const build = (scopes: SetorId[]): ProjPostoRow[] => {
+      const map = new Map<string, ProjPostoRow>()
+      for (const sc of scopes) {
+        const setorObj = sc === 'combustiveis' ? rede.combustivel : sc === 'automotivos' ? rede.automotivos : rede.conveniencia
+        for (const p of setorObj.postos) {
+          const agg = aggProdutos(p.produtos)
+          const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, lbAnt: 0 }
+          e.realLB += agg.lucroBruto
+          e.realFat += agg.faturamento
+          if (sc === 'combustiveis') e.realLitros += agg.qtd
+          e.lbAnt += agg.lucroBrutoAnoAnterior
+          map.set(p.posto, e)
+        }
+      }
+      return [...map.values()].sort((a, b) => b.realLB - a.realLB)
+    }
+    return [
+      { id: 'global', titulo: 'Global (rede consolidada)', Icon: Globe, showLitros: false, rows: build(['combustiveis', 'automotivos', 'conveniencias']) },
+      { id: 'combustiveis', titulo: 'Combustíveis', Icon: Fuel, showLitros: true, rows: build(['combustiveis']) },
+      { id: 'automotivos', titulo: 'Automotivos', Icon: Wrench, showLitros: false, rows: build(['automotivos']) },
+      { id: 'conveniencias', titulo: 'Conveniências', Icon: Store, showLitros: false, rows: build(['conveniencias']) },
+    ]
+  }, [rede])
+
+  // Setores (na ordem exibida, um bloco embaixo do outro).
+  const setorBlocos: { id: SetorId; titulo: string; Icon: typeof Fuel; obj: SetorData }[] = [
+    { id: 'combustiveis', titulo: 'Combustíveis', Icon: Fuel, obj: rede.combustivel },
+    { id: 'automotivos', titulo: 'Automotivos', Icon: Wrench, obj: rede.automotivos },
+    { id: 'conveniencias', titulo: 'Conveniências', Icon: Store, obj: rede.conveniencia },
+  ]
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-gray-500" />
+            <h3 className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Detalhamento de informações por setor
+              <InfoHint text={`Vendas da rede inteira por setor (Combustíveis / Automotivos / Conveniências), com cada posto e seus grupos/produtos. Clique no posto pra expandir os grupos, e no grupo pra ver os produtos. Compara com o mesmo período do ${cmpWord}.`} />
+            </h3>
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {view === 'realizado'
+              ? 'Aqui temos todas as vendas setorizadas com maior nível de detalhes'
+              : 'Projeção de fechamento do mês por posto, no ritmo atual dos dias decorridos'}
+          </p>
+          {/* Sub-aba: Realizado · Projeções */}
+          <div className="mt-3">
+            <Segmented
+              tabs={[{ id: 'realizado', label: 'REALIZADO', Icon: Layers }, { id: 'projecoes', label: 'PROJEÇÕES', Icon: LineChart }]}
+              active={view}
+              onSelect={(id) => setView(id as ViewMode)}
+            />
+          </div>
+        </div>
+        {/* Realizado e Projeções mostram os setores empilhados — sem seletor de escopo. */}
+      </div>
+
+      {view === 'realizado' && (
+        <div className="mt-4 space-y-10">
+          {setorBlocos.map((s) => (
+            <SetorRealizadoBloco
+              key={s.id}
+              data={s.obj}
+              setorId={s.id}
+              titulo={s.titulo}
+              Icon={s.Icon}
+              cmpWord={cmpWord}
+              cmpShort={cmpShort}
+            />
+          ))}
+        </div>
       )}
 
       {view === 'projecoes' && (
-        <ProjecaoEmpresaTable
-          rows={projRows}
-          factor={factor}
-          isProjetando={isProjetando}
-          showLitros={projScope === 'combustiveis'}
-          cmpShort={cmpShort}
-          fimProjLabel={fimProjLabel}
-        />
+        <div className="mt-4">
+          {!isProjetando && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+              <CalendarClock className="h-4 w-4 shrink-0" />
+              Período sem dias futuros — a projeção é igual ao realizado (nada a projetar).
+            </div>
+          )}
+          <div className="space-y-8">
+            {projBlocos.map((b) => (
+              <div key={b.id}>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    <b.Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{b.titulo}</h4>
+                </div>
+                <ProjecaoEmpresaTable
+                  rows={b.rows}
+                  factor={factor}
+                  isProjetando={isProjetando}
+                  showLitros={b.showLitros}
+                  cmpShort={cmpShort}
+                  fimProjLabel={fimProjLabel}
+                  compact
+                />
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-gray-400">
+            Projeção linear: realizado × {factor.toFixed(2).replace('.', ',')}× (ritmo uniforme dos dias decorridos) até {fimProjLabel}. Margem projetada = margem realizada.
+          </p>
+        </div>
       )}
     </div>
   )
