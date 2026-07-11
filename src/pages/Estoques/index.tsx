@@ -7,7 +7,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import ModuleSettings from '@/components/layout/ModuleSettings'
-// (SelectCompanyState removido — Estoques renderiza por posto, sem gate)
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import HeaderTray from '@/components/layout/HeaderTray'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -123,6 +123,8 @@ const Estoques = () => {
 
   // Mobile: tela própria (Reposição / Estoque / Giro).
   if (isMobile) return <EstoqueMobile />
+  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
+  if (empresaCodigos.length !== 1) return <SelectCompanyState />
 
   return (
     <div className="space-y-6">

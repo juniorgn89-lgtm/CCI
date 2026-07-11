@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
+import { moduloPermiteTodos } from '@/lib/moduleScope'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
@@ -65,6 +67,11 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   // "Todos" ([]) mostra o NOME DA REDE em todas as telas (incl. Central) — fica
   // claro que é a rede consolidada. Fallback "Todos" só se não houver nome de rede.
   const contextoLabel = postoNome ?? (tenantNome ?? 'Todos')
+  // Filtro de empresa (pílula) em TODAS as telas. Módulos gateados (operacionais
+  // por-posto) não permitem "Todos" — a pílula esconde a opção e, quando ainda
+  // não há posto escolhido, o rótulo pede a seleção.
+  const allowTodos = moduloPermiteTodos(useLocation().pathname)
+  const pillLabel = !allowTodos && empresaCodigos.length !== 1 ? 'Selecione um posto' : contextoLabel
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
@@ -111,12 +118,6 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   return (
     <header className="shrink-0 bg-white dark:bg-gray-900">
       <div className="relative flex h-12 items-center justify-between pl-3 pr-4 md:pr-6">
-        {/* Posto atual — centralizado e apagado, só pra indicar o que se vê. */}
-        {contextoLabel && (
-          <span className="pointer-events-none absolute left-1/2 hidden max-w-[40%] -translate-x-1/2 truncate text-sm font-medium text-gray-400 dark:text-gray-500 md:block">
-            {contextoLabel}
-          </span>
-        )}
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuOpen}
@@ -161,9 +162,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Referência de frescor do dado — última atualização EM TEMPO REAL
-              (carimbada a cada ciclo de fetch), em todas as telas. */}
-          {/* Ordem: Tempo real · Atualizar · Engrenagem (módulo) · ☰ (rede/posto). */}
+          {/* Pílula de contexto (posto/rede visível) ANTES do Atualizar, em todas as telas. */}
+          <HeaderContextMenu label={pillLabel} showCompanySelect={showCompanySelect} allowTodos={allowTodos} liveLock={liveLock} />
+          {/* Referência de frescor do dado — última atualização EM TEMPO REAL. */}
           <UltimaAtualizacaoInfo />
           <button
             onClick={handleRefresh}
@@ -179,8 +180,6 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           </button>
           {/* Engrenagem do módulo (ModuleSettings via slot). */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
-          {/* Menu rede/posto/"Como funciona?" (☰). */}
-          <HeaderContextMenu showCompanySelect={showCompanySelect} liveLock={liveLock} />
         </div>
       </div>
     </header>

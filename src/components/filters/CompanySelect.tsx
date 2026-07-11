@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ChevronDown, Network } from 'lucide-react'
+import { Building2, ChevronDown, Network, Check } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useFilters } from '@/hooks/useFilters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -18,9 +20,16 @@ import { Button } from '@/components/ui/button'
 const sameCodes = (a: number[], b: number[]): boolean =>
   a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i])
 
-const CompanySelect = () => {
+interface CompanySelectProps {
+  /** Permite "Todos os postos" (rede consolidada). False = módulo gateado, só posto específico. */
+  allowTodos?: boolean
+}
+
+const CompanySelect = ({ allowTodos = true }: CompanySelectProps = {}) => {
   const [open, setOpen] = useState(false)
   const { empresaCodigos, setEmpresas } = useFilters()
+  // Módulo gateado (allowTodos=false) → seleção ÚNICA: um posto por vez, aplica na hora.
+  const single = !allowTodos
 
   // Rascunho local: a seleção só é APLICADA (e dispara fetch) ao clicar em
   // "Aplicar". Sem isso, cada checkbox recarregava os dados na hora.
@@ -67,7 +76,17 @@ const CompanySelect = () => {
 
   // Rótulo do gatilho = seleção APLICADA (não o rascunho). 1–2 postos: nomes
   // com "·"; 3+: colapsa pra contagem.
+  // Single-select: aplica na hora e fecha (um posto por vez).
+  const pickSingle = (codigo: number) => {
+    if (!sameCodes([codigo], empresaCodigos)) setEmpresas([codigo])
+    setOpen(false)
+  }
+
   const getLabel = (): string => {
+    if (single) {
+      if (empresaCodigos.length !== 1) return 'Selecione um posto'
+      return empresas.find((e) => e.codigo === empresaCodigos[0])?.fantasia ?? 'Selecione um posto'
+    }
     if (empresaCodigos.length === 0) return 'Todos'
     const nomes = empresaCodigos
       .map((c) => empresas.find((e) => e.codigo === c)?.fantasia)
@@ -76,7 +95,7 @@ const CompanySelect = () => {
     return nomes.length <= 2 ? nomes.join(' · ') : `${nomes.length} postos`
   }
 
-  const TriggerIcon = empresaCodigos.length === 0 ? Network : Building2
+  const TriggerIcon = !single && empresaCodigos.length === 0 ? Network : Building2
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -98,48 +117,74 @@ const CompanySelect = () => {
         <DropdownMenuLabel className="py-1">
           <span className="text-xs text-gray-500">Selecione o posto</span>
         </DropdownMenuLabel>
+        {single && (
+          <p className="px-2 pb-1.5 text-[11px] leading-snug text-gray-400">
+            Este módulo funciona com <span className="font-medium text-gray-600 dark:text-gray-300">uma empresa por vez</span>.
+          </p>
+        )}
         <DropdownMenuSeparator />
 
-        {/* Todos os postos → rede consolidada ([]). Manter o menu aberto pra
-            permitir refinar a seleção sem reabrir. */}
-        <DropdownMenuCheckboxItem
-          checked={allSelected}
-          onCheckedChange={() => selectAll()}
-          onSelect={(e) => e.preventDefault()}
-        >
-          <span className="flex items-center gap-1.5">
-            <Network className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-            <span className="font-medium">Todos os postos</span>
-            <span className="text-[10px] text-gray-400">rede consolidada</span>
-          </span>
-        </DropdownMenuCheckboxItem>
+        {single ? (
+          /* Seleção ÚNICA (módulos gateados) — clique aplica na hora e fecha. */
+          empresas.map((empresa) => {
+            const sel = empresaCodigos.length === 1 && empresaCodigos[0] === empresa.codigo
+            return (
+              <DropdownMenuItem
+                key={empresa.codigo}
+                onSelect={() => pickSingle(empresa.codigo)}
+                className={cn('gap-2 text-[13px]', sel && 'font-semibold text-[#1e3a5f] dark:text-blue-200')}
+              >
+                <Check className={cn('h-3.5 w-3.5 shrink-0', sel ? 'text-[#2563eb]' : 'opacity-0')} />
+                {empresa.fantasia}
+              </DropdownMenuItem>
+            )
+          })
+        ) : (
+          <>
+            {/* Todos os postos → rede consolidada ([]). Só nos módulos que permitem. */}
+            {allowTodos && (
+              <>
+                <DropdownMenuCheckboxItem
+                  checked={allSelected}
+                  onCheckedChange={() => selectAll()}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Network className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                    <span className="font-medium">Todos os postos</span>
+                    <span className="text-[10px] text-gray-400">rede consolidada</span>
+                  </span>
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
 
-        <DropdownMenuSeparator />
+            {empresas.map((empresa) => (
+              <DropdownMenuCheckboxItem
+                key={empresa.codigo}
+                checked={draft.includes(empresa.codigo)}
+                onCheckedChange={() => toggle(empresa.codigo)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {empresa.fantasia}
+              </DropdownMenuCheckboxItem>
+            ))}
 
-        {empresas.map((empresa) => (
-          <DropdownMenuCheckboxItem
-            key={empresa.codigo}
-            checked={draft.includes(empresa.codigo)}
-            onCheckedChange={() => toggle(empresa.codigo)}
-            onSelect={(e) => e.preventDefault()}
-          >
-            {empresa.fantasia}
-          </DropdownMenuCheckboxItem>
-        ))}
+            <DropdownMenuSeparator />
 
-        <DropdownMenuSeparator />
-
-        {/* Aplica a seleção de uma vez — o fetch só dispara aqui. */}
-        <div className="px-2 py-1.5">
-          <Button
-            size="sm"
-            className="h-7 w-full bg-[#1e3a5f] text-[11px] text-white hover:bg-[#1e3a5f]/90"
-            onClick={apply}
-            disabled={!dirty}
-          >
-            {dirty ? 'Aplicar' : 'Aplicado'}
-          </Button>
-        </div>
+            {/* Aplica a seleção de uma vez — o fetch só dispara aqui. */}
+            <div className="px-2 py-1.5">
+              <Button
+                size="sm"
+                className="h-7 w-full bg-[#1e3a5f] text-[11px] text-white hover:bg-[#1e3a5f]/90"
+                onClick={apply}
+                disabled={!dirty}
+              >
+                {dirty ? 'Aplicar' : 'Aplicado'}
+              </Button>
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

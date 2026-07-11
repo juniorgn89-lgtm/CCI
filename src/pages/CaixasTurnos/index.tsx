@@ -19,6 +19,7 @@ import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import CaixasMobile from '@/pages/CaixasTurnos/CaixasMobile'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 
 const ConferenciaPdv = lazy(() => import('@/pages/Operacao/components/ConferenciaPdv'))
 const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
@@ -78,6 +79,8 @@ const CaixasTurnos = () => {
 
   // Mobile: tela própria (abas Visão Geral + Turnos), reusa o mesmo hook.
   if (isMobile) return <CaixasMobile />
+  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
+  if (empresaCodigos.length !== 1) return <SelectCompanyState />
 
   return (
     <div className="space-y-6">

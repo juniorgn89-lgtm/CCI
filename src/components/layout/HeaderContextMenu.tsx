@@ -1,23 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { Menu } from 'lucide-react'
+import { Building2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import CompanySelect from '@/components/filters/CompanySelect'
 import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
 
 interface HeaderContextMenuProps {
-  /** Mostra o seletor de posto (escondido na Central da Rede / quando há 1 posto). */
+  /** Rótulo do contexto atual (posto/rede) — exibido na própria pílula. */
+  label: string
+  /** Mostra o seletor de posto (escondido quando o usuário tem 1 posto). */
   showCompanySelect: boolean
+  /** Permite "Todos os postos" (rede consolidada). False = módulo gateado. */
+  allowTodos: boolean
   /** Trava de "ao vivo" — desabilita a troca de posto. */
   liveLock: boolean
 }
 
 /**
- * Menu de contexto (hambúrguer) do Header — agrupa Rede, Posto e "Como funciona?"
- * num painel só, em vez de espalhá-los pela barra. Reaproveita os componentes
- * existentes (cada um com seu próprio dropdown/modal); o painel só os empilha.
+ * Pílula de contexto do Header — mostra o posto/rede atual e, ao clicar, abre um
+ * painel com Rede, Posto e "Como funciona?". Antes era um ☰ genérico no canto
+ * (escondido); virou uma pílula visível com o contexto atual. Reaproveita os
+ * componentes existentes (cada um com seu dropdown/modal); o painel só os empilha.
  */
-const HeaderContextMenu = ({ showCompanySelect, liveLock }: HeaderContextMenuProps) => {
+const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: HeaderContextMenuProps) => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -49,9 +54,16 @@ const HeaderContextMenu = ({ showCompanySelect, liveLock }: HeaderContextMenuPro
         aria-expanded={open}
         aria-label="Rede, posto e ajuda"
         title="Rede, posto e ajuda"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        className={cn(
+          'flex h-8 max-w-[240px] items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-medium transition-colors',
+          open
+            ? 'border-[#2563eb] bg-blue-50 text-[#1e3a5f] dark:border-blue-500/50 dark:bg-blue-950/30 dark:text-blue-100'
+            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800',
+        )}
       >
-        <Menu className="h-5 w-5" />
+        <Building2 className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+        <span className="truncate">{label}</span>
+        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
@@ -63,7 +75,7 @@ const HeaderContextMenu = ({ showCompanySelect, liveLock }: HeaderContextMenuPro
             <RedeSwitcher />
             {showCompanySelect && (
               <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-                <CompanySelect />
+                <CompanySelect allowTodos={allowTodos} />
               </span>
             )}
             <ComoFuncionaButton />

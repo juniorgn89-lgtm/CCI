@@ -22,6 +22,7 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
 import ProdutividadeTodos from '@/pages/Produtividade/components/ProdutividadeTodos'
 
@@ -124,6 +125,8 @@ const Produtividade = () => {
 
   // Mobile: tela própria (KPIs + ranking de frentistas).
   if (isMobile) return <ProdutividadeMobile />
+  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
+  if (empresaCodigos.length !== 1) return <SelectCompanyState />
 
   return (
     <div className="space-y-6">

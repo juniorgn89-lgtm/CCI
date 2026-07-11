@@ -2,8 +2,10 @@ import { lazy, Suspense } from 'react'
 import { Gauge, Fuel } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { useAuthStore } from '@/store/auth'
+import { useFilterStore } from '@/store/filters'
 import useIsMobile from '@/hooks/useIsMobile'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
+import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
@@ -32,12 +34,15 @@ const TabFallback = () => (
  */
 const Operacao = () => {
   const canVerReab = useAuthStore((s) => s.canVerReabastecimento)
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const [tab, setTab] = useTabParam<OperacaoTab>('bombas', isOperacaoTab)
   const isMobile = useIsMobile()
   // ?tab=reabastecimento sem permissão → cai em Bombas.
   const activeTab: OperacaoTab = tab === 'reabastecimento' && !canVerReab ? 'bombas' : tab
 
   if (isMobile) return <OperacaoMobile />
+  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
+  if (empresaCodigos.length !== 1) return <SelectCompanyState />
 
   const tabs: TopBarTab[] = [
     { id: 'bombas', label: 'Bombas', Icon: Gauge },
