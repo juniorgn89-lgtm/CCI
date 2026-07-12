@@ -4,6 +4,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { formatCurrencyInt, formatCurrencyShort, formatCurrencyTooltip } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { useChartTheme } from '@/lib/chartTheme'
 import BarCell from '@/components/tables/BarCell'
 import SegmentKpiMini from './SegmentKpiMini'
 import { useFilterStore } from '@/store/filters'
@@ -52,6 +53,7 @@ const GlobalDetailModal = ({
   automotivos,
   conveniencia,
 }: GlobalDetailModalProps) => {
+  const ct = useChartTheme()
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
 
   const data = useMemo(() => {
@@ -165,13 +167,13 @@ const GlobalDetailModal = ({
             </p>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={data.dailyChart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
-                <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={62} />
+                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.5} vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
+                <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} width={62} />
                 <Tooltip
                   formatter={((v: number, name: string) => [formatCurrencyTooltip(v), name]) as never}
                   labelFormatter={((label: string, payload: { payload?: { data?: string } }[]) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label) as never}
-                  contentStyle={{ fontSize: 12 }}
+                  contentStyle={{ fontSize: 12, ...ct.tooltip }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, paddingBottom: 4 }} verticalAlign="top" height={20} />
                 <Line type="monotone" dataKey="Combustível" stroke="#2563eb" strokeWidth={2} dot={false} isAnimationActive={false} />

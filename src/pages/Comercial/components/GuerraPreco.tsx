@@ -9,6 +9,7 @@ import {
   Tooltip, CartesianGrid, Cell,
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { useChartTheme } from '@/lib/chartTheme'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { projecaoAvancada } from '@/lib/projection'
 import InfoHint from '@/components/ui/InfoHint'
@@ -78,6 +79,7 @@ const TONE: Record<Tone, { pill: string; dot: string; text: string; grad: string
  * elasticidade, cenários estratégicos e um veredito de viabilidade da redução.
  */
 const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
+  const ct = useChartTheme()
   const fuelsByVolume = useMemo(
     () => [...fuelTypes].filter((f) => f.litros > 0).sort((a, b) => b.litros - a.litros),
     [fuelTypes],
@@ -701,13 +703,13 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                           <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.05} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} />
-                      <XAxis dataKey="corte" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v)}%`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.4} />
+                      <XAxis dataKey="corte" tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v)}%`} />
                       <Tooltip
                         formatter={((v: number, name: string) => [`+${v.toFixed(2).replace('.', ',')}%`, name === 'necessario' ? 'Necessário' : 'Estimado']) as never}
                         labelFormatter={((l: string) => `Corte ${l}/L`) as never}
-                        contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                        contentStyle={{ fontSize: 11, borderRadius: 8, ...ct.tooltip }}
                       />
                       <Bar dataKey="necessario" name="necessario" fill="url(#gpElastic)" radius={[4, 4, 0, 0]} maxBarSize={36}>
                         {elasticData.map((d, i) => (

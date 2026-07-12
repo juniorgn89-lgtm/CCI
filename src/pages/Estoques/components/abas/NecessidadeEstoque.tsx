@@ -149,17 +149,16 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
         <button
           type="button"
           onClick={() => setFiltroStatus('negativo')}
-          className="rounded-xl border-2 p-4 text-left transition-all hover:shadow-md"
-          style={{ borderColor: '#7f1d1d', backgroundColor: '#fef2f2' }}
+          className="rounded-xl border-2 border-red-300 bg-red-50 p-4 text-left transition-all hover:shadow-md dark:border-red-800/60 dark:bg-red-900/20"
         >
           <div className="flex items-center gap-2">
-            <AlertOctagon className="h-4 w-4" style={{ color: '#7f1d1d' }} />
-            <span className="text-xs font-medium text-gray-700">Negativos</span>
+            <AlertOctagon className="h-4 w-4 text-red-800 dark:text-red-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Negativos</span>
           </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums" style={{ color: '#7f1d1d' }}>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-red-800 dark:text-red-400">
             {totals.negativos}
           </p>
-          <p className="text-[10px] text-gray-500">precisa investigar</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">precisa investigar</p>
         </button>
         <button
           type="button"

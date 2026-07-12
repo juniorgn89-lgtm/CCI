@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { CHART_COLORS } from '@/lib/constants'
 import { COLORS } from '@/lib/constants'
+import { useChartTheme } from '@/lib/chartTheme'
 
 const EXTENDED_COLORS = [
   ...CHART_COLORS,
@@ -40,9 +41,10 @@ const PieChart = ({
   innerRadius = 60,
   outerRadius = 120,
 }: PieChartProps) => {
+  const ct = useChartTheme()
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      {title && <h3 className="mb-4 text-lg font-semibold text-gray-900">{title}</h3>}
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      {title && <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>}
       <ResponsiveContainer width="100%" height={height}>
         <RechartsPieChart>
           <Pie
@@ -57,7 +59,7 @@ const PieChart = ({
             label={({ name, percent }) =>
               `${name}: ${((percent ?? 0) * 100).toFixed(2)}%`
             }
-            labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
+            labelLine={{ stroke: ct.axis, strokeWidth: 1 }}
           >
             {data.map((_, index) => (
               <Cell
@@ -66,7 +68,7 @@ const PieChart = ({
               />
             ))}
           </Pie>
-          <Tooltip formatter={tooltipFormatter as never} />
+          <Tooltip formatter={tooltipFormatter as never} contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} />
           <Legend />
         </RechartsPieChart>
       </ResponsiveContainer>

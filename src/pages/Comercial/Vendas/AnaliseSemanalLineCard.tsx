@@ -1,5 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Sparkles } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { useChartTheme } from '@/lib/chartTheme'
 import { cn } from '@/lib/utils'
 
 /**
@@ -66,6 +68,33 @@ const splinePath = (pts: { x: number; y: number }[]): string => {
   return d
 }
 
+const pct1 = (v: number): string => `${Math.abs(v).toFixed(1).replace('.', ',')}%`
+
+/** Resumo DERIVADO da série (fato, não invenção): média do período, tendência
+ *  recente (último terço vs primeiro), extremos e padrão de fim de semana. */
+const buildInsight = (data: { data: string; litros: number }[]) => {
+  const vals = data.map((d) => d.litros)
+  const n = vals.length
+  const sum = vals.reduce((s, v) => s + v, 0)
+  const media = sum / n
+  const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0)
+  let pi = 0, bi = 0
+  for (let i = 1; i < n; i++) { if (vals[i] > vals[pi]) pi = i; if (vals[i] < vals[bi]) bi = i }
+  const k = Math.max(1, Math.round(n / 3))
+  const firstAvg = avg(vals.slice(0, k))
+  const lastAvg = avg(vals.slice(-k))
+  const deltaPct = firstAvg > 0 ? ((lastAvg - firstAvg) / firstAvg) * 100 : 0
+  const trend: 'up' | 'down' | 'flat' = deltaPct > 3 ? 'up' : deltaPct < -3 ? 'down' : 'flat'
+  const vsMedia = media > 0 ? ((lastAvg - media) / media) * 100 : 0
+  const we: number[] = [], wd: number[] = []
+  data.forEach((d, i) => {
+    const dw = new Date(`${d.data}T00:00:00`).getDay()
+    if (dw === 0 || dw === 6) we.push(vals[i]); else wd.push(vals[i])
+  })
+  const wePct = we.length && wd.length && avg(wd) > 0 ? ((avg(we) - avg(wd)) / avg(wd)) * 100 : null
+  return { n, sum, media, k, deltaPct, trend, vsMedia, wePct, pico: { v: vals[pi], data: data[pi].data }, baixa: { v: vals[bi], data: data[bi].data } }
+}
+
 interface AnaliseSemanalLineCardProps {
   /** Série diária real (yyyy-MM-dd + valor + L.B./unidade opcional), ordenada por data. */
   data: { data: string; litros: number; lbPorLitro?: number }[]
@@ -77,7 +106,7 @@ interface AnaliseSemanalLineCardProps {
   unit?: string
   /** Rótulo do L.B. por unidade no tooltip. Default "L.B./litro". */
   lbLabel?: string
-  /** Cor da linha/área (navy do Visor360 por padrão). */
+  /** Cor da linha/área. Default: accent do tema (sensível ao dark). */
   accent?: string
   /** Faixa de fim de semana (sáb/dom). Default true. */
   showWeekend?: boolean
@@ -85,7 +114,9 @@ interface AnaliseSemanalLineCardProps {
   height?: number
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', accent = '#1e3a5f', showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
+  const ct = useChartTheme()
+  const accent = accentProp ?? ct.accent
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(720)
@@ -160,6 +191,12 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
   const baixa = g.pts[g.baixaIdx]
   const yMedia = g.yBase - (g.media / g.yMax) * (g.yBase - g.yTop)
 
+  // Resumo em linguagem natural (derivado da série).
+  const insight = useMemo(() => buildInsight(data), [data])
+  const vsMediaTxt = Math.abs(insight.vsMedia) >= 3
+    ? `, ${insight.vsMedia > 0 ? 'acima' : 'abaixo'} da média (${pct1(insight.vsMedia)})`
+    : ', em linha com a média'
+
   // Callouts — clampa dentro da área e escolhe acima/abaixo conforme a folga.
   const CW = 74, CH = 28
   const clampX = (x: number) => Math.min(g.x1 - CW / 2, Math.max(g.x0 + CW / 2, x))
@@ -226,10 +263,10 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
 
           {/* Gridlines + rótulos do eixo Y */}
           {g.ticks.map((t, i) => (
-            <line key={`gl${i}`} x1={g.x0} y1={t.y} x2={g.x1} y2={t.y} stroke="#eef2f7" strokeWidth={1} />
+            <line key={`gl${i}`} x1={g.x0} y1={t.y} x2={g.x1} y2={t.y} stroke={ct.grid} strokeWidth={1} />
           ))}
           {g.ticks.filter((t) => t.v > 0).map((t, i) => (
-            <text key={`yl${i}`} x={g.x0 - 10} y={t.y + 3.5} textAnchor="end" fontSize={11} fill="#94a3b8" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatNumber(Math.round(t.v))}</text>
+            <text key={`yl${i}`} x={g.x0 - 10} y={t.y + 3.5} textAnchor="end" fontSize={11} fill={ct.axis} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatNumber(Math.round(t.v))}</text>
           ))}
 
           {/* Área + linha */}
@@ -237,16 +274,16 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
           <path d={g.line} fill="none" stroke={accent} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
 
           {/* Linha de média (tracejada) + rótulo */}
-          <line x1={g.x0} y1={yMedia} x2={g.x1} y2={yMedia} stroke="#cbd5e1" strokeWidth={1.5} strokeDasharray="5 4" />
-          <text x={g.x0 + 4} y={yMedia - 5} fontSize={10.5} fill="#94a3b8">média</text>
+          <line x1={g.x0} y1={yMedia} x2={g.x1} y2={yMedia} stroke={ct.mediaLine} strokeWidth={1.5} strokeDasharray="5 4" />
+          <text x={g.x0 + 4} y={yMedia - 5} fontSize={10.5} fill={ct.axis}>média</text>
 
           {/* Rótulos do eixo X (datas) */}
           {g.xLabels.map((l, i) => (
-            <text key={`xl${i}`} x={l.x} y={g.yBase + 20} textAnchor="middle" fontSize={10.5} fill="#94a3b8" style={{ fontVariantNumeric: 'tabular-nums' }}>{l.label}</text>
+            <text key={`xl${i}`} x={l.x} y={g.yBase + 20} textAnchor="middle" fontSize={10.5} fill={ct.axis} style={{ fontVariantNumeric: 'tabular-nums' }}>{l.label}</text>
           ))}
 
           {/* Guia vertical do hover */}
-          {hp && <line x1={hp.x} y1={g.yTop} x2={hp.x} y2={g.yBase} stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />}
+          {hp && <line x1={hp.x} y1={g.yTop} x2={hp.x} y2={g.yBase} stroke={ct.axis} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />}
 
           {/* Pontos */}
           {g.pts.map((p) => {
@@ -309,6 +346,32 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             </div>
           </div>
         )}
+      </div>
+
+      {/* Resumo inteligente — texto derivado da série (média do mês, tendência,
+          melhores/piores dias e padrão de fim de semana). */}
+      <div className="mt-3 flex gap-2.5 rounded-xl border border-gray-100 bg-gradient-to-br from-gray-50/80 to-white px-3.5 py-2.5 dark:border-gray-800 dark:from-gray-800/40 dark:to-gray-900">
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#1e3a5f]/10 text-[#1e3a5f] dark:bg-blue-500/15 dark:text-blue-300">
+          <Sparkles className="h-3 w-3" />
+        </span>
+        <p className="text-[12px] leading-relaxed text-gray-600 dark:text-gray-300">
+          Nesses <strong className="font-semibold text-gray-800 dark:text-gray-100">{insight.n} dias</strong>, a média ficou em{' '}
+          <strong className="font-semibold text-gray-800 dark:text-gray-100">{formatNumber(Math.round(insight.media))} {unit}/dia</strong>{' '}
+          (total {formatNumber(Math.round(insight.sum))} {unit}).{' '}
+          {insight.trend === 'up' && (
+            <>O ritmo vem em <span className="font-semibold text-emerald-600 dark:text-emerald-400">▲ alta</span> — os últimos {insight.k} dias subiram <strong className="text-emerald-600 dark:text-emerald-400">{pct1(insight.deltaPct)}</strong> vs o início{vsMediaTxt}. </>
+          )}
+          {insight.trend === 'down' && (
+            <>O ritmo vem em <span className="font-semibold text-red-600 dark:text-red-400">▼ queda</span> — os últimos {insight.k} dias caíram <strong className="text-red-600 dark:text-red-400">{pct1(insight.deltaPct)}</strong> vs o início{vsMediaTxt}. </>
+          )}
+          {insight.trend === 'flat' && (
+            <>O ritmo está <span className="font-semibold text-gray-500 dark:text-gray-400">estável</span>{vsMediaTxt}. </>
+          )}
+          O melhor dia foi <strong className="text-emerald-700 dark:text-emerald-400">{ddmm(insight.pico.data)}</strong> (<span className="tabular-nums">{formatNumber(Math.round(insight.pico.v))}</span>) e o mais fraco <strong className="text-amber-700 dark:text-amber-500">{ddmm(insight.baixa.data)}</strong> (<span className="tabular-nums">{formatNumber(Math.round(insight.baixa.v))}</span>).
+          {insight.wePct != null && (
+            <> Fins de semana ficam ~<strong>{pct1(insight.wePct)}</strong> {insight.wePct < 0 ? 'abaixo' : 'acima'} dos dias úteis.</>
+          )}
+        </p>
       </div>
     </div>
   )

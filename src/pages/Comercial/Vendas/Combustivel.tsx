@@ -23,6 +23,7 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
+import { heatCell, useChartTheme } from '@/lib/chartTheme'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
 import BarCell from '@/components/tables/BarCell'
@@ -52,14 +53,6 @@ const fuelColor = (nome: string): string => {
   return 'bg-gray-400'
 }
 
-// Cor da célula do heatmap: lerp #eef4fb (claro) → #1e3a5f (navy) por intensidade.
-const heatColor = (t: number): string => {
-  const c = Math.max(0, Math.min(1, t))
-  const r = Math.round(238 + (30 - 238) * c)
-  const g = Math.round(244 + (58 - 244) * c)
-  const b = Math.round(251 + (95 - 251) * c)
-  return `rgb(${r}, ${g}, ${b})`
-}
 // Rótulos curtos (SEG..DOM) alinhados com semanalMatrix.dayLabels.
 const DOW_SHORT = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM']
 
@@ -246,6 +239,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros, isLoading: isLoadingValor } = useFuelVendaCacheAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingValor, fuelTypeData.length > 0)
 
+  const ct = useChartTheme()
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
   const [selectedFuel, setSelectedFuel] = useState<FuelVendaFuelType | null>(null)
@@ -1293,13 +1287,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         </h3>
                         <ResponsiveContainer width="100%" height={300}>
                           <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(Math.round(v))} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.5} />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(Math.round(v))} />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={{ fontSize: 10, fill: '#9ca3af' }}
+                              tick={{ fontSize: 10, fill: ct.axis }}
                               axisLine={false}
                               tickLine={false}
                               tickFormatter={(v) => formatCurrency(v)}
@@ -1310,11 +1304,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   : name === 'L.B./Litro' ? [formatCurrency(value), name]
                                   : [formatNumber(Math.round(value)), name]
                               ) as never}
-                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                              contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                            <Bar yAxisId="left" dataKey="litros" name="Litros vendidos" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 10, fill: '#374151' }} />
+                            <Bar yAxisId="left" dataKey="litros" name="Litros vendidos" fill={ct.accent} radius={[4, 4, 0, 0]}>
+                              <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 10, fill: ct.label }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1342,13 +1336,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         )}
                         <ResponsiveContainer width="100%" height={300}>
                           <ComposedChart data={monthlyChartData} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrencyInt(v)} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.5} />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrencyInt(v)} />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={{ fontSize: 10, fill: '#9ca3af' }}
+                              tick={{ fontSize: 10, fill: ct.axis }}
                               axisLine={false}
                               tickLine={false}
                               tickFormatter={(v) => `${v.toFixed(0)}%`}
@@ -1359,11 +1353,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   : name === 'Margem' ? [`${value.toFixed(2).replace('.', ',')}%`, name]
                                   : [formatCurrencyInt(value), name]
                               ) as never}
-                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                              contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                            <Bar yAxisId="left" dataKey="lucroBruto" name="Lucro bruto" fill="#1e3a5f" radius={[4, 4, 0, 0]}>
-                              <LabelList dataKey="lucroBruto" position="top" formatter={((v: number | null) => (v == null ? '' : formatCurrencyInt(v))) as never} style={{ fontSize: 10, fill: '#374151' }} />
+                            <Bar yAxisId="left" dataKey="lucroBruto" name="Lucro bruto" fill={ct.accent} radius={[4, 4, 0, 0]}>
+                              <LabelList dataKey="lucroBruto" position="top" formatter={((v: number | null) => (v == null ? '' : formatCurrencyInt(v))) as never} style={{ fontSize: 10, fill: ct.label }} />
                             </Bar>
                             <Line
                               yAxisId="right"
@@ -1422,7 +1416,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           {/* Legenda de intensidade (Baixo → Alto) */}
                           <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
                             <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Baixo</span>
-                            <span className="h-2 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${heatColor(0.05)}, ${heatColor(1)})` }} />
+                            <span className="h-2 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${heatCell(0.05, ct.dark).bg}, ${heatCell(1, ct.dark).bg})` }} />
                             <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Alto</span>
                           </div>
                         </div>
@@ -1464,11 +1458,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                   </td>
                                   {row.values.map((v, i) => {
                                     const t = semanalMatrix.matrixMax > 0 ? v / semanalMatrix.matrixMax : 0
+                                    const hc = heatCell(t, ct.dark)
                                     return (
                                       <td key={i} className="p-0.5">
                                         <div
                                           className="rounded-md px-2 py-1.5 text-right font-semibold tabular-nums"
-                                          style={{ backgroundColor: heatColor(t), color: t > 0.58 ? '#fff' : '#334155' }}
+                                          style={{ backgroundColor: hc.bg, color: hc.text }}
                                         >
                                           {formatNumber(Math.round(v))}
                                         </div>

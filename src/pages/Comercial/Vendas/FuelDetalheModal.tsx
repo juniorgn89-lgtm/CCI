@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
+import { useChartTheme } from '@/lib/chartTheme'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
@@ -26,6 +27,7 @@ interface FuelDetalheModalProps {
 }
 
 const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, fuelColor }: FuelDetalheModalProps) => {
+  const ct = useChartTheme()
   // Filtra rows desse combustível
   const filtered = useMemo(
     () => (fuel ? rows.filter((r) => r.combustivelNome === fuel.nome) : []),
@@ -291,15 +293,15 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               <div className="p-3">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={porHora} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                    <XAxis dataKey="hora" tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.5} />
+                    <XAxis dataKey="hora" tick={{ fontSize: 9, fill: ct.axis }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: ct.axis }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
                     <Tooltip
                       formatter={((value: number) => [formatNumber(value), 'Litros']) as never}
-                      contentStyle={{ fontSize: 11, borderRadius: 6 }}
+                      contentStyle={{ fontSize: 11, borderRadius: 6, ...ct.tooltip }}
                     />
-                    <Bar dataKey="litros" fill="#2563eb" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 9, fill: '#374151' }} />
+                    <Bar dataKey="litros" fill={ct.dark ? '#3b82f6' : '#2563eb'} radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="litros" position="top" formatter={((v: number) => formatNumber(Math.round(v))) as never} style={{ fontSize: 9, fill: ct.label }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

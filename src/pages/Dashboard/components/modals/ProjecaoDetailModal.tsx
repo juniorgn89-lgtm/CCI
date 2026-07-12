@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import BarCell from '@/components/tables/BarCell'
+import { useChartTheme } from '@/lib/chartTheme'
 import { buildDateRange, generateDailyEvolution } from './segmentMockHelpers'
 
 interface SetorLinha {
@@ -33,6 +34,7 @@ const fmtPeriod = (di: string, df: string): string => {
 }
 
 const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }: ProjecaoDetailModalProps) => {
+  const ct = useChartTheme()
   // Linha destacada — útil pra comparar realizado/projetado entre setores
   const [selectedSetor, setSelectedSetor] = useState<string | null>(null)
   const toggleSelectedSetor = (setor: string) => {
@@ -193,25 +195,25 @@ const ProjecaoDetailModal = ({ open, onClose, dataInicial, dataFinal, setores }:
             </p>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="dateLabel" tick={{ fontSize: 10 }} stroke="#9ca3af" />
+                <CartesianGrid stroke={ct.grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: ct.axis }} stroke={ct.axis} />
                 <YAxis
-                  tick={{ fontSize: 10 }}
-                  stroke="#9ca3af"
+                  tick={{ fontSize: 10, fill: ct.axis }}
+                  stroke={ct.axis}
                   tickFormatter={(v) => formatCurrencyShort(v as number)}
                 />
                 <Tooltip
                   formatter={((v: number, name: string) => [formatCurrency(v), name === 'realizado' ? 'Realizado' : 'Projetado']) as never}
                   labelFormatter={(label) => `Dia ${label}`}
-                  contentStyle={{ fontSize: 11 }}
+                  contentStyle={{ fontSize: 11, ...ct.tooltip }}
                 />
                 <Legend
                   iconSize={10}
                   wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                   formatter={(value) => value === 'realizado' ? 'Realizado' : 'Projetado'}
                 />
-                {refDate && <ReferenceLine x={chartData[diasDecorridos - 1]?.dateLabel} stroke="#cbd5e1" strokeDasharray="2 4" label={{ value: 'Hoje', position: 'top', fontSize: 9, fill: '#64748b' }} />}
-                <Line type="monotone" dataKey="realizado" stroke="#1e3a5f" strokeWidth={2} dot={false} connectNulls={false} />
+                {refDate && <ReferenceLine x={chartData[diasDecorridos - 1]?.dateLabel} stroke={ct.mediaLine} strokeDasharray="2 4" label={{ value: 'Hoje', position: 'top', fontSize: 9, fill: ct.axis }} />}
+                <Line type="monotone" dataKey="realizado" stroke={ct.accent} strokeWidth={2} dot={false} connectNulls={false} />
                 <Line type="monotone" dataKey="projetado" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>

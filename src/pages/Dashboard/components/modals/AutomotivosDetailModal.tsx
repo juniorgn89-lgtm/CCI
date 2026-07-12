@@ -4,6 +4,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatCurrencyTooltip, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { useChartTheme } from '@/lib/chartTheme'
 import BarCell from '@/components/tables/BarCell'
 import ProdutoDrilldownModal, { type DrilldownPayload } from './ProdutoDrilldownModal'
 import SegmentKpiMini from './SegmentKpiMini'
@@ -49,6 +50,7 @@ const AutomotivosDetailModal = ({
   totalLucroBruto,
   margemPct,
 }: AutomotivosDetailModalProps) => {
+  const ct = useChartTheme()
   const [drilldown, setDrilldown] = useState<DrilldownPayload | null>(null)
 
   const data = useMemo(() => {
@@ -130,13 +132,13 @@ const AutomotivosDetailModal = ({
             </p>
             <ResponsiveContainer width="100%" height={120}>
               <LineChart data={data.dailyChart} margin={{ top: 6, right: 8, bottom: 0, left: -12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
-                <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={56} />
+                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} strokeOpacity={0.5} vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} />
+                <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: ct.axis }} axisLine={false} tickLine={false} width={56} />
                 <Tooltip
                   formatter={((v: number) => [formatCurrencyTooltip(v), 'Faturamento']) as never}
                   labelFormatter={((label: string, payload: { payload?: { data?: string } }[]) => payload?.[0]?.payload?.data?.split('-').reverse().join('/') ?? label) as never}
-                  contentStyle={{ fontSize: 12 }}
+                  contentStyle={{ fontSize: 12, ...ct.tooltip }}
                 />
                 <Line type="monotone" dataKey="faturamento" stroke="#d97706" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
