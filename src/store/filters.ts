@@ -26,10 +26,17 @@ interface FilterState {
   comparisonMode: ComparisonMode
   /** Critério de data dos abastecimentos (Produtividade). Ver AbastDateMode. */
   abastDateMode: AbastDateMode
+  /**
+   * "Dias fechados": no MÊS CORRENTE, termina em ONTEM (só dias já apurados) em
+   * vez de HOJE (que ainda está sincronizando). Marcado = apurado até ontem;
+   * desmarcado = inclui o dia corrente. Só afeta o mês corrente. Persistido.
+   */
+  diasFechados: boolean
   setEmpresas: (codigos: number[]) => void
   setPeriodo: (dataInicial: string, dataFinal: string) => void
   setComparisonMode: (mode: ComparisonMode) => void
   setAbastDateMode: (mode: AbastDateMode) => void
+  setDiasFechados: (v: boolean) => void
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -45,21 +52,24 @@ const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
  * deixou de ser um botão: passa a ser implícito, acontecendo quando o usuário
  * move a data final para HOJE ou adiante no seletor de período.
  */
-const defaultPeriodo = (): { dataInicial: string; dataFinal: string } => {
+const defaultPeriodo = (diasFechados: boolean): { dataInicial: string; dataFinal: string } => {
   const now = new Date()
   const y = now.getFullYear()
   const m = now.getMonth()
   const firstDay = `${y}-${pad(m + 1)}-01`
+  const hoje = fmt(now)
   // Dia 1: ainda não há dia apurado no mês → o range degenera no próprio 1º.
-  const dataFinal = now.getDate() <= 1 ? firstDay : fmt(new Date(y, m, now.getDate() - 1))
-  return { dataInicial: firstDay, dataFinal }
+  const ontem = now.getDate() <= 1 ? firstDay : fmt(new Date(y, m, now.getDate() - 1))
+  // Marcado (dias fechados) → termina ONTEM; desmarcado → inclui HOJE.
+  return { dataInicial: firstDay, dataFinal: diasFechados ? ontem : hoje }
 }
 
 export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
       empresaCodigos: [],
-      ...defaultPeriodo(),
+      diasFechados: true,
+      ...defaultPeriodo(true),
       comparisonMode: 'prevYear',
       abastDateMode: 'FISCAL',
 
@@ -78,6 +88,10 @@ export const useFilterStore = create<FilterState>()(
       setAbastDateMode: (abastDateMode) => {
         set({ abastDateMode })
       },
+
+      setDiasFechados: (diasFechados) => {
+        set({ diasFechados })
+      },
     }),
     {
       name: 'visor360-filters',
@@ -88,13 +102,15 @@ export const useFilterStore = create<FilterState>()(
         empresaCodigos: s.empresaCodigos,
         comparisonMode: s.comparisonMode,
         abastDateMode: s.abastDateMode,
+        diasFechados: s.diasFechados,
       }),
-      // Mesmo que um storage legado ainda guarde datas, força o apurado no boot.
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<FilterState>),
-        ...defaultPeriodo(),
-      }),
+      // Mesmo que um storage legado ainda guarde datas, recalcula o período no
+      // boot conforme o flag "Dias fechados" persistido (até ontem/hoje).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<FilterState>
+        const diasFechados = p.diasFechados ?? true
+        return { ...current, ...p, diasFechados, ...defaultPeriodo(diasFechados) }
+      },
     },
   ),
 )

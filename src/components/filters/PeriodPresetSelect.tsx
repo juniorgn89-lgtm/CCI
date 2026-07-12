@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { todayLocal } from '@/lib/period'
+import { useFilterStore } from '@/store/filters'
 
 const months = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -34,8 +35,12 @@ const PRESETS: { key: PresetKey; label: string }[] = [
 ]
 const PRESET_LABEL: Record<PresetKey, string> = Object.fromEntries(PRESETS.map((p) => [p.key, p.label])) as Record<PresetKey, string>
 
-/** Range de cada preset. "Em andamento" param em ONTEM (apurado); só "Hoje" é ao vivo. */
-const computePreset = (key: PresetKey): { ini: string; fim: string } => {
+/**
+ * Range de cada preset. "Este mês" respeita o flag "Dias fechados": marcado →
+ * termina em ONTEM (só dias apurados); desmarcado → inclui HOJE. Os demais são
+ * fixos ("7 dias"/"Ontem" já param em ontem; só "Hoje" é ao vivo).
+ */
+const computePreset = (key: PresetKey, diasFechados: boolean): { ini: string; fim: string } => {
   const hoje = todayLocal()
   const [y, m] = hoje.split('-').map(Number)
   const ontem = isoMinusDays(hoje, 1)
@@ -44,7 +49,10 @@ const computePreset = (key: PresetKey): { ini: string; fim: string } => {
     case 'hoje': return { ini: hoje, fim: hoje }
     case 'ontem': return { ini: ontem, fim: ontem }
     case '7dias': return { ini: isoMinusDays(hoje, 7), fim: ontem }
-    case 'mes': return { ini: firstM, fim: ontem >= firstM ? ontem : firstM }
+    case 'mes': {
+      const fimFechado = ontem >= firstM ? ontem : firstM
+      return { ini: firstM, fim: diasFechados ? fimFechado : hoje }
+    }
     case 'mesPassado': {
       const py = m === 1 ? y - 1 : y
       const pm = m === 1 ? 12 : m - 1
@@ -53,9 +61,9 @@ const computePreset = (key: PresetKey): { ini: string; fim: string } => {
     }
   }
 }
-const activePreset = (ini: string, fim: string): PresetKey | null => {
+const activePreset = (ini: string, fim: string, diasFechados: boolean): PresetKey | null => {
   for (const { key } of PRESETS) {
-    const r = computePreset(key)
+    const r = computePreset(key, diasFechados)
     if (r.ini === ini && r.fim === fim) return key
   }
   return null
@@ -77,8 +85,26 @@ interface PeriodPresetSelectProps {
  * rascunho). Substitui o MonthRangeSelect.
  */
 const PeriodPresetSelect = ({ dataInicial, dataFinal, onApply, onCustomChange }: PeriodPresetSelectProps) => {
-  const active = activePreset(dataInicial, dataFinal)
+  const diasFechados = useFilterStore((s) => s.diasFechados)
+  const setDiasFechados = useFilterStore((s) => s.setDiasFechados)
+  const active = activePreset(dataInicial, dataFinal, diasFechados)
   const year = dataInicial ? Number(dataInicial.slice(0, 4)) : new Date().getFullYear()
+
+  // Liga/desliga "Dias fechados". Se o período atual for o MÊS CORRENTE (até
+  // hoje ou ontem), re-aplica na hora com o novo fim. Fora do mês corrente só
+  // guarda a preferência (vale na próxima vez que usar "Este mês").
+  const toggleDiasFechados = () => {
+    const next = !diasFechados
+    setDiasFechados(next)
+    const hoje = todayLocal()
+    const [y, m] = hoje.split('-').map(Number)
+    const firstM = `${y}-${pad(m)}-01`
+    const ontem = isoMinusDays(hoje, 1)
+    const fimFechado = ontem >= firstM ? ontem : firstM
+    if (dataInicial === firstM && (dataFinal === hoje || dataFinal === fimFechado)) {
+      onApply(firstM, next ? fimFechado : hoje)
+    }
+  }
 
   // Meses 100% contidos no range (só quando cobre meses inteiros) — p/ o custom.
   const selectedMonths = useMemo<number[]>(() => {
@@ -128,13 +154,27 @@ const PeriodPresetSelect = ({ dataInicial, dataFinal, onApply, onCustomChange }:
         {PRESETS.map((p) => (
           <DropdownMenuItem
             key={p.key}
-            onSelect={() => { const r = computePreset(p.key); onApply(r.ini, r.fim) }}
+            onSelect={() => { const r = computePreset(p.key, diasFechados); onApply(r.ini, r.fim) }}
             className="gap-2 text-xs"
           >
             <Check className={cn('h-3.5 w-3.5', active === p.key ? 'opacity-100 text-[#2563eb]' : 'opacity-0')} />
             {p.label}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        {/* Flag "Dias fechados" — no mês corrente, termina em ontem (apurado) em
+            vez de hoje (em andamento). */}
+        <DropdownMenuCheckboxItem
+          checked={diasFechados}
+          onCheckedChange={toggleDiasFechados}
+          onSelect={(e) => e.preventDefault()}
+          className="text-xs"
+        >
+          <span className="flex flex-col">
+            <span>Dias fechados</span>
+            <span className="text-[10px] text-gray-400">Mês corrente termina em ontem (apurado)</span>
+          </span>
+        </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span className="text-xs">Personalizado · meses</span>
