@@ -11,6 +11,7 @@ import { useTenantStore } from '@/store/tenant'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
+import ThemeToggle from '@/components/layout/ThemeToggle'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 import { HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
@@ -178,6 +179,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <RefreshCw className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`} />
           </button>
+          {/* Alternar tema (Claro/Sistema/Escuro) — mesmas opções das Configurações. */}
+          <ThemeToggle />
           {/* Engrenagem do módulo (ModuleSettings via slot). */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
         </div>
