@@ -10,6 +10,7 @@ import type {
   Conta,
   Cartao,
   CartaoPagar,
+  CartaoRemessa,
   Administradora,
 } from '@/api/types/financeiro'
 
@@ -125,6 +126,17 @@ interface FetchContasParams {
   limite?: number
 }
 
+interface FetchCartaoRemessaParams {
+  dataInicial: string
+  dataFinal: string
+  empresaCodigo?: number
+  /** Enum próprio do remessa (TipoDataRemessa) — só 'PAGAMENTO' ou omitido (default
+   *  filtra por dataRemessa). 'MOVIMENTO' é INVÁLIDO aqui (400 na API). */
+  dataFiltro?: 'PAGAMENTO'
+  ultimoCodigo?: number
+  limite?: number
+}
+
 export const fetchTitulosReceber = (params?: FetchTitulosReceberParams) =>
   client.get<PaginatedResponse<TituloReceber>>('/TITULO_RECEBER', { params }).then((res) => res.data)
 
@@ -159,3 +171,8 @@ export const fetchCartaoPagar = (params?: FetchCartaoPagarParams) =>
 /** Cadastro de administradoras/bandeiras — fonte do `tipo` (modalidade) real. */
 export const fetchAdministradoras = (params?: { empresaCodigo?: number; ultimoCodigo?: number; limite?: number }) =>
   client.get<PaginatedResponse<Administradora>>('/ADMINISTRADORA', { params }).then((res) => res.data)
+
+/** Repasse do adquirente (EDI) por administradora×dia — lado "adquirente" da
+ *  conciliação de cartão. Cruza com /CARTAO (lado "sistema"). Ver CartaoRemessa. */
+export const fetchCartaoRemessa = (params?: FetchCartaoRemessaParams) =>
+  client.get<PaginatedResponse<CartaoRemessa>>('/CARTAO_REMESSA', { params }).then((res) => res.data)

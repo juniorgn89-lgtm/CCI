@@ -298,6 +298,35 @@ export interface Administradora {
   codigo: number
 }
 
+/**
+ * Repasse do adquirente (EDI) — /INTEGRACAO/CARTAO_REMESSA. Lote de repasse por
+ * administradora e dia de LIQUIDAÇÃO. Campos confirmados em sondagem ao vivo.
+ *
+ * Conciliação: cruza com /CARTAO buscado por `dataFiltro='PAGAMENTO'` — o
+ * `dataRemessa` (dia do repasse) casa com o `dataPagamento` do recebível
+ * (validado: Σ valorRemessa == Σ /CARTAO.valor por administradora×dia, Δ 0,00).
+ * Read-only; nada é escrito.
+ */
+export interface CartaoRemessa {
+  cartaoRemessaCodigo: number
+  cartaoRemessaReferenciaCodigo: string
+  empresaCodigo: number
+  /** Bruto do lote repassado (antes da taxa). Casa com Σ /CARTAO.valor do dia. */
+  valorRemessa: number
+  /** Dia do repasse/liquidação — casa com o `dataPagamento` do /CARTAO. */
+  dataRemessa: string
+  dataPagamento: string
+  dataRecebimento: string
+  /** Descrição da bandeira/administradora (idêntica à do /CARTAO). */
+  administradora: string
+  /** Taxa/despesa do lote em R$ (bruto − líquido) — NÃO é percentual. */
+  taxasDespesas: number
+  valorLiquido: number
+  administradoraCodigo: number
+  acrescimos: number
+  codigo: number
+}
+
 /** Conta de cartão a pagar (/INTEGRACAO/CARTAO_PAGAR). */
 export interface CartaoPagar {
   empresaCodigo: number
