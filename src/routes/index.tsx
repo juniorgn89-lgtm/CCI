@@ -11,6 +11,7 @@ const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 const Dashboard = lazy(importDashboard)
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
+const Cartoes = lazy(() => import('@/pages/Cartoes'))
 const QualidadeDados = lazy(() => import('@/pages/QualidadeDados'))
 const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
@@ -57,6 +58,7 @@ const AppRoutes = () => {
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Navigate to="/operacao?tab=reabastecimento" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
+          <Route path="/cartoes" element={<Suspense fallback={<RouteFallback />}><Cartoes /></Suspense>} />
           {/* Fechamento de Caixa aposentado do menu — rotas antigas caem no dashboard. */}
           <Route path="/fechamento-caixa" element={<Navigate to="/dashboard" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
