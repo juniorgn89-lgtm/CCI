@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft, BarChart3, Table2 } from 'lucide-react'
+import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft, BarChart3, Table2, TrendingUp, TrendingDown } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
@@ -25,6 +25,29 @@ const niceCeil = (v: number): number => {
   return step * mag
 }
 
+/** Pill de variação do Lucro bruto vs o período comparativo (mês/ano anterior). */
+const CompBadge = ({ current, previous, label, title }: { current: number; previous: number; label: string; title: string }) => {
+  if (!previous || previous === 0) return null
+  const pct = ((current - previous) / previous) * 100
+  const up = pct >= 0
+  const Icon = up ? TrendingUp : TrendingDown
+  return (
+    <span
+      title={title}
+      className={cn(
+        'mt-2 inline-flex items-center gap-1 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+        up
+          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/25 dark:text-emerald-400'
+          : 'bg-red-50 text-red-600 dark:bg-red-900/25 dark:text-red-400',
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      {up ? '+' : ''}{pct.toFixed(1).replace('.', ',')}%
+      <span className="font-medium opacity-70">vs {label}</span>
+    </span>
+  )
+}
+
 interface SegmentCardProps {
   label: string
   Icon: typeof Droplets
@@ -33,11 +56,16 @@ interface SegmentCardProps {
   iconColor: string
   loading: boolean
   lucroBruto: number
+  /** Lucro bruto do período comparativo (mês/ano anterior) — alimenta o CompBadge. */
+  lucroBrutoAnterior: number
+  /** Rótulo curto do comparativo ("AA"/"MA") + tooltip completo. */
+  cmpLabel: string
+  cmpTitle: string
   primary: { label: string; value: string }
   secondary: { label: string; value: string }
 }
 
-const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, primary, secondary }: SegmentCardProps) => (
+const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, primary, secondary }: SegmentCardProps) => (
   <div className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
@@ -56,6 +84,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
     ) : (
       <p className="mt-4 text-[26px] font-extrabold tabular-nums tracking-tight text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
     )}
+    {!loading && <CompBadge current={lucroBruto} previous={lucroBrutoAnterior} label={cmpLabel} title={cmpTitle} />}
     <div className="mt-auto flex items-end justify-between gap-2 pt-4">
       <div className="min-w-0">
         <p className="truncate text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200">{primary.value}</p>
@@ -73,7 +102,12 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const { combustivel, automotivos, conveniencia, global, isLoading } = useRedeSetores()
+  const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
+  // Rótulo do comparativo conforme o modo global (AA = ano ant., MA = mês ant.).
+  const cmpLabel = comparisonMode === 'prevYear' ? 'AA' : 'MA'
+  const cmpTitle = comparisonMode === 'prevYear'
+    ? 'Variação do lucro bruto vs o mesmo período do ano anterior'
+    : 'Variação do lucro bruto vs o mês anterior'
 
   const [expanded, setExpanded] = useState(false)
   const [hoverDay, setHoverDay] = useState<number | null>(null)
@@ -274,6 +308,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             label="Combustível" Icon={Droplets} cardBg="bg-white dark:bg-gray-900"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
             loading={isLoading} lucroBruto={combustivel.lucroBruto}
+            lucroBrutoAnterior={combustivel.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
             primary={{ label: 'Margem', value: fmtPct(combustivel.margem) }}
             secondary={{ label: 'L. bruto / litro', value: formatCurrency(combustivel.lucroPorUnidade) }}
           />
@@ -281,6 +316,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             label="Automotivos" Icon={Wrench} cardBg="bg-white dark:bg-gray-900"
             iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
             loading={isLoading} lucroBruto={automotivos.lucroBruto}
+            lucroBrutoAnterior={automotivos.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
             primary={{ label: 'Faturamento', value: formatCurrencyInt(automotivos.faturamento) }}
             secondary={{ label: 'Margem', value: fmtPct(automotivos.margem) }}
           />
@@ -288,6 +324,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             label="Conveniência" Icon={Store} cardBg="bg-white dark:bg-gray-900"
             iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
             loading={isLoading} lucroBruto={conveniencia.lucroBruto}
+            lucroBrutoAnterior={conveniencia.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
             primary={{ label: 'Faturamento', value: formatCurrencyInt(conveniencia.faturamento) }}
             secondary={{ label: 'Margem', value: fmtPct(conveniencia.margem) }}
           />
@@ -295,6 +332,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             label="Global" Icon={Globe} cardBg="bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900"
             iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
             loading={isLoading} lucroBruto={global.lucroBruto}
+            lucroBrutoAnterior={global.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
             primary={{ label: 'Faturamento', value: formatCurrencyInt(global.faturamento) }}
             secondary={{ label: 'Margem', value: fmtPct(global.margem) }}
           />
