@@ -10,6 +10,7 @@ import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
+import { GROUP_TINT } from '@/lib/groupTint'
 import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
@@ -20,6 +21,7 @@ import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
+import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
@@ -189,6 +191,13 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   const DIAS_POR_PAGINA = 15
   const diasOrdenados = useMemo(
     () => [...realizadoDiaADia.days].sort((a, b) => b.data.localeCompare(a.data)),
+    [realizadoDiaADia.days],
+  )
+  // Série ascendente (data → qtd) pro gráfico "Quantidade vendida por dia".
+  const diaSerie = useMemo(
+    () => [...realizadoDiaADia.days]
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .map((d) => ({ data: d.data, litros: d.qtd, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
     [realizadoDiaADia.days],
   )
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
@@ -391,6 +400,12 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
                   ) : (
                     <>
+                    {/* Gráfico "Quantidade vendida por dia" acompanhando a tabela (≥ 2 dias). */}
+                    {diaSerie.length >= 2 && (
+                      <div className="px-4 pb-1 pt-4">
+                        <AnaliseSemanalLineCard data={diaSerie} title="Quantidade vendida por dia" noun="quantidade" unit="unidades" lbLabel="L.B./unidade" />
+                      </div>
+                    )}
                     <TablePager
                       page={diaPageSafe}
                       pageCount={diaPageCount}
@@ -400,6 +415,13 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     />
                     <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
                       <table className="w-full text-sm">
+                        {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+                        <colgroup>
+                          <col />
+                          <col className={GROUP_TINT.operacao} />
+                          <col span={4} className={GROUP_TINT.financeiro} />
+                          <col span={3} className={GROUP_TINT.eficiencia} />
+                        </colgroup>
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th className="px-3 py-1.5" />

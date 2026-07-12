@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import {
-  ResponsiveContainer, ComposedChart, LineChart, Bar, Line, XAxis, YAxis,
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
 import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
@@ -11,6 +11,7 @@ import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { Skeleton } from '@/components/ui/skeleton'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
 import { cn } from '@/lib/utils'
+import { GROUP_TINT } from '@/lib/groupTint'
 import { fuelLabel } from '@/lib/fuel'
 import { formatCurrency, formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
@@ -21,6 +22,7 @@ import MovimentoFiscalValidacao from '@/pages/Comercial/Vendas/MovimentoFiscalVa
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
+import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
 import BarCell from '@/components/tables/BarCell'
@@ -49,6 +51,17 @@ const fuelColor = (nome: string): string => {
   if (u.includes('GNV')) return 'bg-cyan-500'
   return 'bg-gray-400'
 }
+
+// Cor da célula do heatmap: lerp #eef4fb (claro) → #1e3a5f (navy) por intensidade.
+const heatColor = (t: number): string => {
+  const c = Math.max(0, Math.min(1, t))
+  const r = Math.round(238 + (30 - 238) * c)
+  const g = Math.round(244 + (58 - 244) * c)
+  const b = Math.round(251 + (95 - 251) * c)
+  return `rgb(${r}, ${g}, ${b})`
+}
+// Rótulos curtos (SEG..DOM) alinhados com semanalMatrix.dayLabels.
+const DOW_SHORT = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM']
 
 /* ─── Helpers de data e formatação condicional ─── */
 
@@ -382,6 +395,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     () => [...detalheDiaADia.days].sort((a, b) => b.data.localeCompare(a.data)),
     [detalheDiaADia.days],
   )
+  // Série ascendente (data → litros) pro gráfico "Litros vendidos por dia" que
+  // acompanha a tabela. Respeita o filtro de combustível da aba.
+  const diaSerie = useMemo(
+    () => [...detalheDiaADia.days]
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .map((d) => ({ data: d.data, litros: d.litros, lbPorLitro: d.litros > 0 ? d.lucroBruto / d.litros : 0 })),
+    [detalheDiaADia.days],
+  )
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
   const diaPageSafe = Math.min(diaPage, diaPageCount - 1)
   const diasPagina = useMemo(
@@ -403,15 +424,18 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   }, [vendaRows])
 
   const semanalDaily = useMemo(() => {
-    const byDate = new Map<string, number>()
+    const byDate = new Map<string, { litros: number; lucroBruto: number }>()
     for (const r of vendaRows) {
       if (semanalFuelFilter !== 'Todos' && r.combustivelNome !== semanalFuelFilter) continue
       const date = r.data
       if (!date) continue
-      byDate.set(date, (byDate.get(date) ?? 0) + r.litros)
+      const e = byDate.get(date) ?? { litros: 0, lucroBruto: 0 }
+      e.litros += r.litros
+      e.lucroBruto += r.lucroBruto
+      byDate.set(date, e)
     }
     return Array.from(byDate.entries())
-      .map(([data, litros]) => ({ data, dataFmt: formatDate(data), litros }))
+      .map(([data, v]) => ({ data, dataFmt: formatDate(data), litros: v.litros, lbPorLitro: v.litros > 0 ? v.lucroBruto / v.litros : 0 }))
       .sort((a, b) => a.data.localeCompare(b.data))
   }, [vendaRows, semanalFuelFilter])
 
@@ -961,6 +985,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </div>
                     ) : (
                     <>
+                    {/* Gráfico "Litros vendidos por dia" acompanhando a tabela (≥ 2 dias). */}
+                    {diaSerie.length >= 2 && (
+                      <div className="px-4 pb-1 pt-4">
+                        <AnaliseSemanalLineCard data={diaSerie} />
+                      </div>
+                    )}
                     <TablePager
                       page={diaPageSafe}
                       pageCount={diaPageCount}
@@ -970,6 +1000,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     />
                     <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
                       <table className="w-full text-sm">
+                        {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+                        <colgroup>
+                          <col />
+                          <col />
+                          <col className={GROUP_TINT.operacao} />
+                          <col className={GROUP_TINT.comparativo} />
+                          <col span={4} className={GROUP_TINT.financeiro} />
+                          <col span={3} className={GROUP_TINT.eficiencia} />
+                        </colgroup>
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th colSpan={2} className="px-3 py-1.5" />
@@ -1116,6 +1155,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         </p>
                       )}
                       <table className="w-full text-sm">
+                        {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+                        <colgroup>
+                          <col />
+                          <col className={GROUP_TINT.operacao} />
+                          <col className={GROUP_TINT.comparativo} />
+                          <col span={5} className={GROUP_TINT.financeiro} />
+                          <col span={3} className={GROUP_TINT.eficiencia} />
+                        </colgroup>
                         <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                           <tr>
                             <th className="px-3 py-1.5" />
@@ -1357,114 +1404,99 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </p>
                     </div>
                   ) : (
-                    <div className="p-4">
-                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {/* Left: chart "Litros vendidos por dia" */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                          Litros vendidos por dia
-                        </h3>
-                        <ResponsiveContainer width="100%" height={320}>
-                          <LineChart data={semanalDaily} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-                            <XAxis dataKey="dataFmt" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
-                            <Tooltip
-                              formatter={((value: number) => [formatNumber(value), 'Litros']) as never}
-                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="litros"
-                              stroke="#1e3a5f"
-                              strokeWidth={2}
-                              dot={{ r: 3, fill: '#1e3a5f' }}
-                              activeDot={{ r: 5 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <div className="grid grid-cols-1 items-start gap-4 p-4 lg:grid-cols-[1fr_1.12fr]">
+                      {/* Esquerda: gráfico de linha premium (SVG à mão) */}
+                      <AnaliseSemanalLineCard data={semanalDaily} />
 
-                      {/* Right: heatmap "Média por dia da semana × combustível" */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                          Média de venda em litros · Por dia da semana
-                        </h3>
-                        <div className="overflow-x-auto">
+                      {/* Direita: heatmap "Média por dia da semana × combustível" */}
+                      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              Média de venda em litros · por dia da semana
+                            </h3>
+                            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                              Intensidade da cor = volume relativo dentro do combustível
+                            </p>
+                          </div>
+                          {/* Legenda de intensidade (Baixo → Alto) */}
+                          <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                            <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Baixo</span>
+                            <span className="h-2 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${heatColor(0.05)}, ${heatColor(1)})` }} />
+                            <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Alto</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 overflow-x-auto">
+                          {(() => {
+                            // Melhor/pior dia da semana (pela média total) — realce verde/âmbar.
+                            const bestDay = semanalMatrix.colValues.reduce((mi, v, i, a) => (v > a[mi] ? i : mi), 0)
+                            const worstDay = semanalMatrix.colValues.reduce((mi, v, i, a) => (v < a[mi] ? i : mi), 0)
+                            return (
                           <table className="w-full text-xs">
-                            <thead className="border-b border-gray-100 text-[10px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                            <thead className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
                               <tr>
-                                <th className="py-1.5 pr-3 text-left font-medium">Combustível</th>
-                                {semanalMatrix.dayLabels.map((d) => (
-                                  <th key={d} className="px-2 py-1.5 text-right font-medium">{d}</th>
+                                <th className="pb-2 pr-3 text-left font-semibold">Combustível</th>
+                                {DOW_SHORT.map((d, i) => (
+                                  <th key={d} className={cn('px-2 pb-2 text-right font-semibold', i === bestDay && 'text-emerald-600 dark:text-emerald-400', i === worstDay && 'text-amber-600 dark:text-amber-500')}>{d}</th>
                                 ))}
-                                <th className="px-2 py-1.5 text-right font-medium">Total</th>
+                                <th className="border-l border-gray-200 px-2 pb-2 text-right font-semibold dark:border-gray-700">Média</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody>
                               {semanalMatrix.rows.map((row, rowIdx) => (
                                 <tr key={row.nome}>
-                                  <td className="py-1.5 pr-3 text-gray-700 dark:text-gray-300">
+                                  <td className="py-1 pr-3 text-gray-700 dark:text-gray-300">
                                     <span className="flex items-center gap-1.5">
-                                      <span className={cn('h-2 w-2 rounded-full', fuelColor(row.nome))} aria-hidden="true" />
                                       <span className="truncate" title={row.nome}>{row.nome}</span>
-                                      {/* Markers de líder e lanterna — rows já vem ordenado por
-                                          média total desc, então primeiro = melhor e último = pior. */}
+                                      {/* rows vem ordenado por média desc → 1º = líder, último = lanterna. */}
                                       {rowIdx === 0 && (
-                                        <span
-                                          className="inline-flex shrink-0"
-                                          title="Maior média do período"
-                                          aria-label="Maior média do período"
-                                        >
+                                        <span className="inline-flex shrink-0" title="Maior média do período" aria-label="Maior média do período">
                                           <Trophy className="h-3 w-3 text-amber-500" />
                                         </span>
                                       )}
                                       {rowIdx === semanalMatrix.rows.length - 1 && semanalMatrix.rows.length > 1 && (
-                                        <span
-                                          className="inline-flex shrink-0"
-                                          title="Menor média do período"
-                                          aria-label="Menor média do período"
-                                        >
+                                        <span className="inline-flex shrink-0" title="Menor média do período" aria-label="Menor média do período">
                                           <TrendingDown className="h-3 w-3 text-red-500" />
                                         </span>
                                       )}
                                     </span>
                                   </td>
                                   {row.values.map((v, i) => {
-                                    const intensity = semanalMatrix.matrixMax > 0
-                                      ? 0.05 + (v / semanalMatrix.matrixMax) * 0.55
-                                      : 0
+                                    const t = semanalMatrix.matrixMax > 0 ? v / semanalMatrix.matrixMax : 0
                                     return (
-                                      <td
-                                        key={i}
-                                        className="px-2 py-1.5 text-right tabular-nums"
-                                        style={{ backgroundColor: `rgba(30, 58, 95, ${intensity})` }}
-                                      >
-                                        {formatNumber(Math.round(v))}
+                                      <td key={i} className="p-0.5">
+                                        <div
+                                          className="rounded-md px-2 py-1.5 text-right font-semibold tabular-nums"
+                                          style={{ backgroundColor: heatColor(t), color: t > 0.58 ? '#fff' : '#334155' }}
+                                        >
+                                          {formatNumber(Math.round(v))}
+                                        </div>
                                       </td>
                                     )
                                   })}
-                                  <td className="px-2 py-1.5 text-right tabular-nums font-bold text-gray-900 dark:text-gray-100">
+                                  <td className="border-l border-gray-200 px-2 py-1.5 text-right font-bold tabular-nums text-[#1e3a5f] dark:border-gray-700 dark:text-gray-100">
                                     {formatNumber(Math.round(row.total))}
                                   </td>
                                 </tr>
                               ))}
-                              {/* Linha de totais */}
-                              <tr className="border-t-2 border-gray-300 font-bold text-gray-900 dark:border-gray-600 dark:text-gray-100">
-                                <td className="py-2 pr-3">Total</td>
+                              {/* Linha de totais (média por dia da semana) */}
+                              <tr className="border-t-2 border-gray-300 font-bold text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                <td className="pt-2.5 pr-3">Total</td>
                                 {semanalMatrix.colValues.map((v, i) => (
-                                  <td key={i} className="px-2 py-2 text-right tabular-nums">
+                                  <td key={i} className={cn('px-2 pt-2.5 text-right tabular-nums', i === bestDay && 'text-emerald-600 dark:text-emerald-400', i === worstDay && 'text-amber-600 dark:text-amber-500')}>
                                     {formatNumber(Math.round(v))}
                                   </td>
                                 ))}
-                                <td className="px-2 py-2 text-right tabular-nums">
+                                <td className="border-l border-gray-200 px-2 pt-2.5 text-right tabular-nums text-[#1e3a5f] dark:border-gray-700 dark:text-gray-100">
                                   {formatNumber(Math.round(semanalMatrix.grandTotal))}
                                 </td>
                               </tr>
                             </tbody>
                           </table>
+                            )
+                          })()}
                         </div>
-                      </div>
                       </div>
                     </div>
                   )

@@ -15,6 +15,8 @@ import DeltaBadge from '@/components/kpi/DeltaBadge'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
+import { GROUP_TINT } from '@/lib/groupTint'
+import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -478,6 +480,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     () => [...realizadoDiaADia.days].sort((a, b) => b.data.localeCompare(a.data)),
     [realizadoDiaADia.days],
   )
+  // Série ascendente (data → qtd) pro gráfico "Quantidade vendida por dia".
+  const diaSerie = useMemo(
+    () => [...realizadoDiaADia.days]
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .map((d) => ({ data: d.data, litros: d.qtd, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
+    [realizadoDiaADia.days],
+  )
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
   const diaPageSafe = Math.min(diaPage, diaPageCount - 1)
   const diasPagina = useMemo(
@@ -844,6 +853,12 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
               ) : (
                 <>
+                {/* Gráfico "Quantidade vendida por dia" acompanhando a tabela (≥ 2 dias). */}
+                {diaSerie.length >= 2 && (
+                  <div className="px-4 pb-1 pt-4">
+                    <AnaliseSemanalLineCard data={diaSerie} title="Quantidade vendida por dia" noun="quantidade" unit="unidades" lbLabel="L.B./unidade" />
+                  </div>
+                )}
                 <TablePager
                   page={diaPageSafe}
                   pageCount={diaPageCount}
@@ -853,6 +868,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 />
                 <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
                   <table className="w-full text-sm">
+                    {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+                    <colgroup>
+                      <col />
+                      <col className={GROUP_TINT.operacao} />
+                      <col span={4} className={GROUP_TINT.financeiro} />
+                      <col span={3} className={GROUP_TINT.eficiencia} />
+                    </colgroup>
                     <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                       <tr>
                         <th className="px-3 py-1.5" />
@@ -1003,6 +1025,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
+                  {/* Fundo levíssimo, uma cor por grupo de coluna. */}
+                  <colgroup>
+                    <col />
+                    <col className={GROUP_TINT.operacao} />
+                    <col span={4} className={GROUP_TINT.financeiro} />
+                    <col span={3} className={GROUP_TINT.eficiencia} />
+                  </colgroup>
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>
                       <th className="px-3 py-1.5" />
