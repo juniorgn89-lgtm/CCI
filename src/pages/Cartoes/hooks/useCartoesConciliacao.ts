@@ -13,30 +13,29 @@ import type { Cartao, CartaoRemessa } from '@/api/types/financeiro'
 /**
  * Conciliação de cartão (Fase 1) — DETERMINÍSTICA, read-only.
  *
- * Cruza o RECEBÍVEL do sistema (/CARTAO, buscado por `dataFiltro='PAGAMENTO'`,
- * agregado por administradora × dia de LIQUIDAÇÃO = `dataPagamento`) com o
- * REPASSE do adquirente/EDI (/CARTAO_REMESSA, por administradora × `dataRemessa`).
- * Eixo validado em sondagem ao vivo: Σ valorRemessa == Σ /CARTAO.valor por
- * administradora×dia (Δ 0,00 em todas as bandeiras).
+ * Cruza o RECEBÍVEL do sistema (/CARTAO por `dataFiltro='PAGAMENTO'`) com o
+ * REPASSE do adquirente (/CARTAO_REMESSA por `dataRemessa`), agregando por
+ * **POSTO × administradora × dia de LIQUIDAÇÃO** — igual ao WebPosto. Agregar a
+ * REDE inteira inventaria divergência quando um posto tem lote deslocado; por
+ * isso a chave inclui a empresa.
  *
- * A IA CLASSIFICA (não recalcula valor):
- *  - Conciliado         → existe lote e o valor bate (tolerância TOL).
- *  - Valor divergente    → existe lote, mas o valor diverge (> TOL). [sem conciliar]
- *  - Sem repasse         → o EDI já cobre o dia e o lote NÃO está lá. [sem conciliar]
- *  - Aguardando repasse  → o EDI ainda não foi carregado até aquele dia. NUNCA
- *                          divergência — EDI vazio degrada tudo pra aguardando.
+ * Classifica (não recalcula valor): Conciliado / Valor divergente (nível LOTE) /
+ * Sem repasse (vencido | não localizado) / Aguardando. EDI vazio → aguardando.
  *
- * Divergência de TAXA (cobrada ≠ contratada) fica FORA da Fase 1 — a taxa
- * contratada não está na API. A taxa exibida é a APLICADA (taxasDespesas do EDI).
+ * `revisao` (opt-in): 2ª passada determinística — casa um "sem repasse" com um
+ * LOTE LIVRE da mesma bandeira/posto e mesmo bruto até ±7 dias (lote postado no
+ * dia errado pelo EDI) → "conciliado · lote deslocado". Não altera valor.
  */
 
-const TOL = 1.0 // tolerância de valor por administradora×dia (R$).
+const TOL = 1.0
+const REV_JANELA = 7 // dias — casa lote deslocado dentro dessa distância.
 
-export type StatusKind = 'conciliado' | 'valor_divergente' | 'sem_repasse' | 'aguardando'
-export type MotivoKind = 'sem_repasse_vencido' | 'sem_repasse_nao_localizado' | 'valor_divergente'
+export type StatusKind = 'conciliado' | 'a_creditar' | 'valor_divergente' | 'sem_repasse' | 'aguardando'
+export type MotivoKind = 'sem_repasse_vencido' | 'sem_repasse_nao_localizado'
 
 export interface AdminDiaRow {
   key: string
+  empresaCodigo: number
   bandeira: string
   tipo: string
   dia: string
@@ -46,27 +45,38 @@ export interface AdminDiaRow {
   taxaPct: number
   liquido: number
   status: StatusKind
+  revisao?: boolean
 }
 
+/** Item por VENDA (grupo "sem repasse" — cada venda pode precisar de lançamento). */
 export interface DetalheItem {
+  empresaCodigo: number
   vendaCodigo: number
   valor: number
   bandeira: string
   vendedor: string
   dia: string
+  diaLiq: string
   aut: string
   nsu: string
+  motivo: MotivoKind
   motivoTexto: string
 }
 
-export interface DetalheGrupo {
-  grupo: 'sem_repasse' | 'valor_divergente'
-  label: string
-  itens: DetalheItem[]
+/** Divergência de LOTE (bandeira×dia×posto) — não se atribui a uma venda só. */
+export interface DivergenciaLote {
+  key: string
+  empresaCodigo: number
+  bandeira: string
+  diaLiq: string
+  sistema: number
+  repasse: number
+  delta: number
+  registros: number
 }
 
-export interface CartoesResult {
-  coverage: { ediUpTo: string | null; pctPeriodo: number; diasCobertos: number; diasTotal: number }
+export interface CartoesView {
+  adminDia: AdminDiaRow[]
   kpis: {
     conciliado: { valor: number; registros: number }
     semConciliar: { valor: number; registros: number }
@@ -74,8 +84,15 @@ export interface CartoesResult {
     conciliavelTotal: number
     pctConciliavel: number
   }
-  adminDia: AdminDiaRow[]
-  detalhe: DetalheGrupo[]
+  semRepasse: DetalheItem[]
+  divergencias: DivergenciaLote[]
+  vendasPendentes: number[]
+}
+
+export interface CartoesResult {
+  coverage: { ediUpTo: string | null; pctPeriodo: number; diasCobertos: number; diasTotal: number }
+  base: CartoesView
+  revisao: CartoesView & { recuperados: { n: number; valor: number } }
   temRemessa: boolean
 }
 
@@ -86,21 +103,38 @@ const diffDays = (a: string, b: string): number => {
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000)
 }
 
-/** Normaliza uma linha do /CARTAO_REMESSA (campos confirmados em sondagem). */
 const normalizeRemessa = (r: CartaoRemessa) => ({
   empresaCodigo: r.empresaCodigo,
   administradoraCodigo: r.administradoraCodigo,
   descricao: r.administradora ?? '',
-  data: (r.dataRemessa ?? '').slice(0, 10),
+  // Casamos pelo BOM-PARA (dataPagamento = dia do crédito), NÃO por dataRemessa
+  // (dia de processamento do EDI). O sistema (/CARTAO) usa o mesmo dataPagamento;
+  // dataRemessa pode ser dias antes (lote processado adiantado) e causava falso
+  // "sem repasse". Igual à conciliação do WebPosto (por bom-para).
+  data: (r.dataPagamento ?? r.dataRemessa ?? '').slice(0, 10),
   bruto: r.valorRemessa ?? 0,
   liquido: r.valorLiquido ?? 0,
   taxaRs: r.taxasDespesas ?? 0,
 })
 
-/** Dia de LIQUIDAÇÃO do recebível (casa com dataRemessa do EDI). */
 const diaLiquidacao = (c: Cartao) => (c.dataPagamento || c.vencimento || '').slice(0, 10)
-/** Dia da VENDA (pra identificar a venda no detalhe/ERP). */
 const diaVenda = (c: Cartao) => (c.dataMovimento || c.dataFiscal || '').slice(0, 10)
+
+interface Cell {
+  key: string
+  empresaCodigo: number
+  bandeira: string
+  tipo: string
+  dia: string
+  brutoSistema: number
+  brutoRepasse: number
+  liquido: number
+  taxaRsAcc: number
+  rows: Cartao[]
+  revBruto?: number
+  revLiquido?: number
+  revTaxaRs?: number
+}
 
 const useCartoesConciliacao = () => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
@@ -127,13 +161,10 @@ const useCartoesConciliacao = () => {
     enabled: scopeCodes.length > 0 && !!dataInicial && !!dataFinal,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      // ── 1. Leituras reais (GET), por empresa (padrão do /CARTAO, alto volume) ──
       const [cartaoAll, remessaAll, admAll] = await Promise.all([
-        // Recebível pelo dia de LIQUIDAÇÃO (dataPagamento) — eixo da conciliação.
         Promise.all(scopeCodes.map((ec) =>
           fetchAllPages((p) => fetchCartao({ empresaCodigo: ec, dataInicial, dataFinal, dataFiltro: 'PAGAMENTO', ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 2000, 30),
         )).then((r) => r.flat()),
-        // Repasse do EDI (default filtra por dataRemessa). Falha → degrada honesto.
         Promise.all(scopeCodes.map((ec) =>
           fetchAllPages((p) => fetchCartaoRemessa({ empresaCodigo: ec, dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 2000, 30),
         )).then((r) => r.flat()).catch(() => [] as CartaoRemessa[]),
@@ -153,131 +184,94 @@ const useCartoesConciliacao = () => {
       }
       const descOf = (code: number, fallback?: string) => descOfCode.get(code) || fallback || `Adm ${code}`
 
-      // ── 2. Cobertura do EDI (max dataRemessa vs período) ──
       const remessa = remessaAll.map(normalizeRemessa).filter((r) => r.data)
       const hoje = todayLocal()
       const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
       const ediUpTo = remessa.length ? remessa.reduce((mx, r) => (r.data > mx ? r.data : mx), remessa[0].data) : null
+      // Cobertura do EDI POR POSTO — cada posto tem seu próprio carregamento; usar
+      // o máximo da rede faria um posto "pegar carona" na cobertura de outro e
+      // virar "sem repasse" um dia que, pra ele, ainda está aguardando.
+      const ediUpToByEmp = new Map<number, string>()
+      for (const r of remessa) {
+        const cur = ediUpToByEmp.get(r.empresaCodigo)
+        if (!cur || r.data > cur) ediUpToByEmp.set(r.empresaCodigo, r.data)
+      }
       const diasTotal = Math.max(1, diffDays(dataInicial, fimEfetivo) + 1)
       const diasCobertos = ediUpTo ? Math.max(0, Math.min(diasTotal, diffDays(dataInicial, ediUpTo) + 1)) : 0
       const pctPeriodo = Math.round((diasCobertos / diasTotal) * 100)
-      // Bandeiras que tiveram QUALQUER repasse no período (pra separar "não
-      // localizado no EDI" de "vencido sem repasse").
-      const bandeirasComRepasse = new Set(remessa.map((r) => descOf(r.administradoraCodigo, r.descricao)))
+      // Bandeiras (por posto) que tiveram QUALQUER repasse — separa "não
+      // localizado no EDI" de "vencido sem nenhum repasse".
+      const bandeirasComRepasse = new Set(remessa.map((r) => `${r.empresaCodigo}||${descOf(r.administradoraCodigo, r.descricao)}`))
 
-      // ── 3. Agrega SISTEMA e REPASSE por bandeira × dia de liquidação ──
-      interface Cell {
-        bandeira: string
-        tipo: string
-        dia: string
-        brutoSistema: number
-        brutoRepasse: number
-        liquido: number
-        taxaRsAcc: number
-        rows: Cartao[]
-      }
+      // Agrega por POSTO × bandeira × dia de liquidação.
       const cells = new Map<string, Cell>()
-      const getCell = (bandeira: string, tipo: string, dia: string): Cell => {
-        const key = `${bandeira}||${dia}`
+      const getCell = (empresaCodigo: number, bandeira: string, tipo: string, dia: string): Cell => {
+        const key = `${empresaCodigo}||${bandeira}||${dia}`
         let c = cells.get(key)
-        if (!c) { c = { bandeira, tipo, dia, brutoSistema: 0, brutoRepasse: 0, liquido: 0, taxaRsAcc: 0, rows: [] }; cells.set(key, c) }
+        if (!c) { c = { key, empresaCodigo, bandeira, tipo, dia, brutoSistema: 0, brutoRepasse: 0, liquido: 0, taxaRsAcc: 0, rows: [] }; cells.set(key, c) }
         return c
       }
       for (const c of cartaoAll) {
         const dia = diaLiquidacao(c)
         if (!dia) continue
         const bandeira = descOf(c.administradoraCodigo, c.adiministradoraDescricao)
-        const tipo = tipoOfCode.get(c.administradoraCodigo) || ''
-        const cell = getCell(bandeira, tipo, dia)
+        const cell = getCell(c.empresaCodigo, bandeira, tipoOfCode.get(c.administradoraCodigo) || '', dia)
         cell.brutoSistema += c.valor
-        if (!cell.tipo && tipo) cell.tipo = tipo
         cell.rows.push(c)
       }
       for (const r of remessa) {
         const bandeira = descOf(r.administradoraCodigo, r.descricao)
-        const tipo = tipoOfCode.get(r.administradoraCodigo) || ''
-        const cell = getCell(bandeira, tipo, r.data)
+        const cell = getCell(r.empresaCodigo, bandeira, tipoOfCode.get(r.administradoraCodigo) || '', r.data)
         cell.brutoRepasse += r.bruto
         cell.liquido += r.liquido
         cell.taxaRsAcc += r.taxaRs
       }
 
-      // ── 4. Classificação determinística ──
       const classify = (cell: Cell): { status: StatusKind; motivo?: MotivoKind } => {
         if (cell.brutoRepasse > 0) {
-          return Math.abs(cell.brutoSistema - cell.brutoRepasse) <= TOL
-            ? { status: 'conciliado' }
-            : { status: 'valor_divergente', motivo: 'valor_divergente' }
+          if (Math.abs(cell.brutoSistema - cell.brutoRepasse) > TOL) return { status: 'valor_divergente' }
+          // Espelha o WebPosto: lote vinculado E o bom-para (dia de crédito) já
+          // passou = CONCILIADO; se o crédito ainda é futuro = VINCULADO (a creditar).
+          return { status: cell.dia > hoje ? 'a_creditar' : 'conciliado' }
         }
-        // Sem lote: o EDI já foi carregado até este dia?
-        if (!ediUpTo || cell.dia > ediUpTo) return { status: 'aguardando' } // EDI não chegou → nunca divergência
-        // EDI cobre o dia e o lote não está: se a bandeira teve outros repasses, é
-        // "não localizado no EDI"; senão, "sem repasse (vencido)".
-        return { status: 'sem_repasse', motivo: bandeirasComRepasse.has(cell.bandeira) ? 'sem_repasse_nao_localizado' : 'sem_repasse_vencido' }
+        const ediPosto = ediUpToByEmp.get(cell.empresaCodigo) ?? null
+        if (!ediPosto || cell.dia > ediPosto) return { status: 'aguardando' }
+        return { status: 'sem_repasse', motivo: bandeirasComRepasse.has(`${cell.empresaCodigo}||${cell.bandeira}`) ? 'sem_repasse_nao_localizado' : 'sem_repasse_vencido' }
       }
 
-      const adminDia: AdminDiaRow[] = []
-      const kpis = {
-        conciliado: { valor: 0, registros: 0 },
-        semConciliar: { valor: 0, registros: 0 },
-        aguardando: { valor: 0, registros: 0 },
-        conciliavelTotal: 0,
-        pctConciliavel: 0,
+      // ── Revisão automática (lote deslocado, ±REV_JANELA dias, mesmo posto) ──
+      const recoveredKeys = new Set<string>()
+      const consumedKeys = new Set<string>()
+      const recuperados = { n: 0, valor: 0 }
+      {
+        const livres = [...cells.values()].filter((c) => c.brutoRepasse > 0 && c.brutoSistema === 0)
+        const need = [...cells.values()].filter((c) => classify(c).status === 'sem_repasse').sort((a, b) => a.dia.localeCompare(b.dia))
+        for (const nc of need) {
+          const lote = livres.find((l) => !consumedKeys.has(l.key) && l.empresaCodigo === nc.empresaCodigo && l.bandeira === nc.bandeira && Math.abs(diffDays(nc.dia, l.dia)) <= REV_JANELA && Math.abs(l.brutoRepasse - nc.brutoSistema) <= TOL)
+          if (!lote) continue
+          consumedKeys.add(lote.key); recoveredKeys.add(nc.key)
+          nc.revBruto = lote.brutoRepasse; nc.revLiquido = lote.liquido; nc.revTaxaRs = lote.taxaRsAcc
+          recuperados.n++; recuperados.valor += nc.brutoSistema
+        }
       }
-      const semRepasse: DetalheItem[] = []
-      const valorDiv: DetalheItem[] = []
+
+      // Vendedor das vendas em "sem repasse" na BASE (superset das duas views).
+      const baseSemRepasse = [...cells.values()].filter((c) => classify(c).status === 'sem_repasse')
       const vendaCodigosPorEmpresa = new Map<number, Set<number>>()
-      const pendentesRows: { c: Cartao; bandeira: string; grupo: 'sem_repasse' | 'valor_divergente'; motivoTexto: string }[] = []
-
-      for (const cell of cells.values()) {
-        const { status, motivo } = classify(cell)
-        adminDia.push({
-          key: `${cell.bandeira}||${cell.dia}`,
-          bandeira: cell.bandeira,
-          tipo: cell.tipo,
-          dia: cell.dia,
-          brutoSistema: cell.brutoSistema,
-          brutoRepasse: cell.brutoRepasse,
-          delta: cell.brutoSistema - cell.brutoRepasse,
-          taxaPct: cell.brutoRepasse > 0 ? (cell.taxaRsAcc / cell.brutoRepasse) * 100 : 0,
-          liquido: cell.liquido,
-          status,
-        })
-
-        if (status === 'conciliado') {
-          kpis.conciliado.valor += cell.brutoSistema
-          kpis.conciliado.registros += cell.rows.length
-        } else if (status === 'aguardando') {
-          kpis.aguardando.valor += cell.brutoSistema
-          kpis.aguardando.registros += cell.rows.length
-        } else {
-          kpis.semConciliar.valor += cell.brutoSistema
-          kpis.semConciliar.registros += cell.rows.length
-          const motivoTexto =
-            motivo === 'valor_divergente'
-              ? `valor do lote divergente (Δ ${fmtSigned(cell.brutoSistema - cell.brutoRepasse)} no dia)`
-              : motivo === 'sem_repasse_nao_localizado'
-                ? 'repasse vencido, não localizado no EDI'
-                : `sem repasse do adquirente (vencido em ${ddmm(cell.dia)})`
-          const grupo = motivo === 'valor_divergente' ? 'valor_divergente' : 'sem_repasse'
-          for (const c of cell.rows) {
-            pendentesRows.push({ c, bandeira: cell.bandeira, grupo, motivoTexto })
-            const set = vendaCodigosPorEmpresa.get(c.empresaCodigo) ?? new Set<number>()
-            set.add(c.vendaCodigo)
-            vendaCodigosPorEmpresa.set(c.empresaCodigo, set)
-          }
-        }
+      for (const cell of baseSemRepasse) for (const c of cell.rows) {
+        const set = vendaCodigosPorEmpresa.get(c.empresaCodigo) ?? new Set<number>()
+        set.add(c.vendaCodigo); vendaCodigosPorEmpresa.set(c.empresaCodigo, set)
       }
-      kpis.conciliavelTotal = kpis.conciliado.valor + kpis.semConciliar.valor
-      kpis.pctConciliavel = kpis.conciliavelTotal > 0 ? (kpis.conciliado.valor / kpis.conciliavelTotal) * 100 : 0
-
-      // ── 5. Vendedor das vendas não conciliadas (join /VENDA + /FUNCIONARIO) ──
       const vendedorPorVenda = new Map<number, string>()
       if (vendaCodigosPorEmpresa.size > 0) {
         const [vendas, funcs] = await Promise.all([
-          Promise.all([...vendaCodigosPorEmpresa.entries()].map(([ec, set]) =>
-            fetchVendas({ empresaCodigo: ec, dataInicial, dataFinal, vendaCodigo: [...set], limite: 2000 }).then((r) => r.resultados).catch(() => []),
-          )).then((r) => r.flat()),
+          // /VENDA por vendaCodigo SEM datas (a venda foi emitida antes da liquidação), em lotes.
+          Promise.all([...vendaCodigosPorEmpresa.entries()].flatMap(([ec, set]) => {
+            const codes = [...set]
+            const chunks: number[][] = []
+            for (let i = 0; i < codes.length; i += 150) chunks.push(codes.slice(i, i + 150))
+            return chunks.map((ch) => fetchVendas({ empresaCodigo: ec, vendaCodigo: ch, limite: 2000 }).then((r) => r.resultados).catch(() => []))
+          })).then((r) => r.flat()),
           Promise.all(scopeCodes.map((ec) =>
             fetchAllPages((p) => fetchFuncionarios({ empresaCodigo: ec, ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 5),
           )).then((r) => r.flat()).catch(() => []),
@@ -287,43 +281,68 @@ const useCartoesConciliacao = () => {
         for (const v of vendas) vendedorPorVenda.set(v.vendaCodigo, nomeFunc.get(v.funcionarioCodigo) || '—')
       }
 
-      for (const p of pendentesRows) {
-        const item: DetalheItem = {
-          vendaCodigo: p.c.vendaCodigo,
-          valor: p.c.valor,
-          bandeira: p.bandeira,
-          vendedor: vendedorPorVenda.get(p.c.vendaCodigo) || '—',
-          dia: diaVenda(p.c),
-          aut: p.c.autorizacao || '—',
-          nsu: p.c.nsu || p.c.nsuTef || '—',
-          motivoTexto: p.motivoTexto,
-        }
-        if (p.grupo === 'valor_divergente') valorDiv.push(item)
-        else semRepasse.push(item)
-      }
+      const buildView = (revisado: boolean): CartoesView => {
+        const adminDia: AdminDiaRow[] = []
+        const kpis = { conciliado: { valor: 0, registros: 0 }, semConciliar: { valor: 0, registros: 0 }, aguardando: { valor: 0, registros: 0 }, conciliavelTotal: 0, pctConciliavel: 0 }
+        const semRepasse: DetalheItem[] = []
+        const divergencias: DivergenciaLote[] = []
+        const vendasPendentes = new Set<number>()
 
-      adminDia.sort((a, b) => (a.dia === b.dia ? b.brutoSistema - a.brutoSistema : b.dia.localeCompare(a.dia)))
-      const detalhe: DetalheGrupo[] = []
-      if (semRepasse.length) detalhe.push({ grupo: 'sem_repasse', label: 'Sem repasse (vencido)', itens: semRepasse.sort((a, b) => b.dia.localeCompare(a.dia)) })
-      if (valorDiv.length) detalhe.push({ grupo: 'valor_divergente', label: 'Valor divergente', itens: valorDiv.sort((a, b) => b.dia.localeCompare(a.dia)) })
+        for (const cell of cells.values()) {
+          let status: StatusKind, motivo: MotivoKind | undefined, rev = false
+          let bruto = cell.brutoRepasse, liquido = cell.liquido, taxaRs = cell.taxaRsAcc
+          if (revisado && consumedKeys.has(cell.key)) continue
+          if (revisado && recoveredKeys.has(cell.key)) {
+            status = 'conciliado'; rev = true
+            bruto = cell.revBruto ?? 0; liquido = cell.revLiquido ?? 0; taxaRs = cell.revTaxaRs ?? 0
+          } else {
+            const c = classify(cell); status = c.status; motivo = c.motivo
+          }
+          adminDia.push({
+            key: cell.key, empresaCodigo: cell.empresaCodigo, bandeira: cell.bandeira, tipo: cell.tipo, dia: cell.dia,
+            brutoSistema: cell.brutoSistema, brutoRepasse: bruto, delta: cell.brutoSistema - bruto,
+            taxaPct: bruto > 0 ? (taxaRs / bruto) * 100 : 0, liquido, status, revisao: rev,
+          })
+          if (status === 'conciliado') { kpis.conciliado.valor += cell.brutoSistema; kpis.conciliado.registros += cell.rows.length }
+          else if (status === 'aguardando' || status === 'a_creditar') { kpis.aguardando.valor += cell.brutoSistema; kpis.aguardando.registros += cell.rows.length }
+          else if (status === 'sem_repasse' && motivo) {
+            kpis.semConciliar.valor += cell.brutoSistema; kpis.semConciliar.registros += cell.rows.length
+            const texto = motivo === 'sem_repasse_nao_localizado' ? 'repasse vencido, não localizado no EDI' : `sem repasse do adquirente (vencido em ${ddmm(cell.dia)})`
+            for (const c of cell.rows) {
+              vendasPendentes.add(c.vendaCodigo)
+              semRepasse.push({
+                empresaCodigo: c.empresaCodigo, vendaCodigo: c.vendaCodigo, valor: c.valor, bandeira: cell.bandeira,
+                vendedor: vendedorPorVenda.get(c.vendaCodigo) || '—', dia: diaVenda(c), diaLiq: cell.dia,
+                aut: c.autorizacao || '—', nsu: c.nsu || c.nsuTef || '—', motivo, motivoTexto: texto,
+              })
+            }
+          } else if (status === 'valor_divergente') {
+            const delta = cell.brutoSistema - cell.brutoRepasse
+            kpis.semConciliar.valor += Math.abs(delta); kpis.semConciliar.registros += 1
+            divergencias.push({
+              key: cell.key, empresaCodigo: cell.empresaCodigo, bandeira: cell.bandeira, diaLiq: cell.dia,
+              sistema: cell.brutoSistema, repasse: cell.brutoRepasse, delta, registros: cell.rows.length,
+            })
+          }
+        }
+        kpis.conciliavelTotal = kpis.conciliado.valor + kpis.semConciliar.valor
+        kpis.pctConciliavel = kpis.conciliavelTotal > 0 ? (kpis.conciliado.valor / kpis.conciliavelTotal) * 100 : 0
+        adminDia.sort((a, b) => (a.dia === b.dia ? b.brutoSistema - a.brutoSistema : b.dia.localeCompare(a.dia)))
+        semRepasse.sort((a, b) => b.diaLiq.localeCompare(a.diaLiq))
+        divergencias.sort((a, b) => b.diaLiq.localeCompare(a.diaLiq))
+        return { adminDia, kpis, semRepasse, divergencias, vendasPendentes: [...vendasPendentes] }
+      }
 
       return {
         coverage: { ediUpTo, pctPeriodo, diasCobertos, diasTotal },
-        kpis,
-        adminDia,
-        detalhe,
+        base: buildView(false),
+        revisao: { ...buildView(true), recuperados },
         temRemessa: remessa.length > 0,
       }
     },
   })
 
   return { ...query, scopeCodes }
-}
-
-/** "+R$ 12,34" / "−R$ 12,34" (sinal explícito). */
-const fmtSigned = (v: number): string => {
-  const abs = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `${v < 0 ? '−' : '+'}R$ ${abs}`
 }
 
 export default useCartoesConciliacao
