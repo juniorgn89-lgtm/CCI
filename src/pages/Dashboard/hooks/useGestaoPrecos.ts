@@ -86,6 +86,14 @@ export interface GestaoPrecoDetalhe {
 
 export interface GestaoPrecosData {
   isLoading: boolean
+  /** True em qualquer busca em andamento (inclui refetch por troca de filtro,
+   * quando keepPreviousData mantém isLoading falso). */
+  isFetching: boolean
+  /** True quando o /ABASTECIMENTO falhou por completo (ex.: 500 da Quality).
+   * A UI usa pra mostrar "API indisponível" em vez de "sem dados". */
+  isError: boolean
+  /** Refaz a busca do /ABASTECIMENTO (botão "Tentar de novo"). */
+  refetch: () => void
   /** Honestidade do fallback: quantos abastecimentos têm preço de tabela. */
   cobertura: { totalFills: number; comTabela: number; pct: number }
   byProduto: GestaoPrecoRow[]
@@ -144,15 +152,17 @@ const useGestaoPrecos = (): GestaoPrecosData => {
 
   // Live /ABASTECIMENTO (rede-wide; o endpoint ignora empresaCodigo → filtra no
   // cliente). Traz preco_cadastro/tabelaPrecoA-C sempre.
-  const { data: abastRaw = [], isLoading: loadingAbast } = useQuery({
+  const { data: abastRaw = [], isLoading: loadingAbast, isFetching: fetchingAbast, isError: errorAbast, refetch: refetchAbast } = useQuery({
     queryKey: ['gestao-precos-abast', dataInicial, dataFinal],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal }),
     enabled: !!dataInicial && !!dataFinal,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
+    // Endpoint pode 500-ar de forma persistente (bug server-side) — não martelar.
+    retry: 1,
   })
 
-  return useMemo(() => {
+  const computed = useMemo(() => {
     // Escopo de postos = filtro global (ou todos os permitidos quando vazio).
     const permitSet = new Set(permitidas.map((e) => e.codigo))
     const inScope = (code: number) =>
@@ -368,6 +378,7 @@ const useGestaoPrecos = (): GestaoPrecosData => {
 
     return {
       isLoading: loadingAbast || rede.isLoading,
+      isFetching: fetchingAbast || rede.isLoading,
       cobertura: { totalFills, comTabela, pct: totalFills > 0 ? (comTabela / totalFills) * 100 : 0 },
       byProduto,
       byPosto,
@@ -379,7 +390,8 @@ const useGestaoPrecos = (): GestaoPrecosData => {
         pctCedido: gPotencial > 0 ? (gCedido / gPotencial) * 100 : 0,
       },
     }
-  }, [abastRaw, produtosData, bicosData, tabelasApi, permitidas, empresaCodigos, rede, nowTs, loadingAbast])
+  }, [abastRaw, produtosData, bicosData, tabelasApi, permitidas, empresaCodigos, rede, nowTs, loadingAbast, fetchingAbast])
+  return { ...computed, isError: errorAbast, refetch: () => { void refetchAbast() } }
 }
 
 export default useGestaoPrecos

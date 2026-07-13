@@ -50,14 +50,15 @@ const fetchChunkWithRetry = async (
       (p) => fetchAbastecimentos({ dataInicial: from, dataFinal: to, tipoData, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
       1000, 50
     )
-  } catch {
+  } catch (err) {
     if (attempt < 1) {
       await new Promise((res) => setTimeout(res, 2000))
       return fetchChunkWithRetry(from, to, tipoData, attempt + 1)
     }
-    // Return empty on final failure — partial data beats a total crash
-    console.warn(`[fetchAbastecimentosChunked] chunk ${from}→${to} failed after retry, skipping`)
-    return []
+    // Propaga a falha do chunk. O agregador decide: falha PARCIAL vira dado
+    // parcial (com aviso); falha TOTAL vira erro — NUNCA um vazio silencioso,
+    // que a UI confunde com "sem dados".
+    throw err
   }
 }
 
@@ -74,12 +75,33 @@ export const fetchAbastecimentosChunked = async ({
   const chunks = splitDateRange(dataInicial, dataFinal, chunkDays)
 
   const results: Abastecimento[] = []
+  let failed = 0
+  let lastError: unknown = null
   for (let i = 0; i < chunks.length; i += PARALLEL_CHUNKS) {
     const batch = chunks.slice(i, i + PARALLEL_CHUNKS)
-    const batchResults = await Promise.all(
+    const settled = await Promise.allSettled(
       batch.map(({ from, to }) => fetchChunkWithRetry(from, to, tipoData))
     )
-    results.push(...batchResults.flat())
+    settled.forEach((s, k) => {
+      if (s.status === 'fulfilled') {
+        results.push(...s.value)
+      } else {
+        failed++
+        lastError = s.reason
+        const { from, to } = batch[k]
+        console.warn(`[fetchAbastecimentosChunked] chunk ${from}→${to} failed after retry`, s.reason)
+      }
+    })
+  }
+
+  // Falha TOTAL (todas as janelas falharam) → erro explícito, pra UI mostrar
+  // "API indisponível" em vez de "sem dados". Falha parcial mantém o dado
+  // parcial (o console.warn acima registra as janelas perdidas).
+  if (chunks.length > 0 && failed === chunks.length) {
+    throw new Error(
+      `Falha ao carregar abastecimentos: todas as ${chunks.length} janela(s) retornaram erro da API. ` +
+      `Último erro: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+    )
   }
 
   return results

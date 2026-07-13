@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Lightbulb, ChevronRight, ArrowRightFromLine } from 'lucide-react'
+import { Tag, Sparkles, Lock, AlertTriangle, ShieldCheck, Lightbulb, ChevronRight, ArrowRightFromLine, Loader2, RefreshCw } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import useGestaoPrecos, { type GestaoPrecoRow } from '@/pages/Dashboard/hooks/useGestaoPrecos'
 import useBaratao from '@/pages/Dashboard/hooks/useBaratao'
@@ -295,7 +295,8 @@ const GestaoPrecos = () => {
         </span>
       </div>
 
-      {/* Cobertura */}
+      {/* Cobertura — escondida no erro total (números 0/0 seriam enganosos). */}
+      {!(data.isError && data.byProduto.length === 0) && (
       <div className="flex items-center gap-3.5 rounded-xl border border-[#dcfce7] bg-[#f6fef9] px-4 py-[11px] dark:border-emerald-900/40 dark:bg-emerald-950/10">
         {covTone === 'emerald'
           ? <ShieldCheck className="h-[18px] w-[18px] shrink-0 text-[#16a34a]" />
@@ -309,6 +310,7 @@ const GestaoPrecos = () => {
         </div>
         <InfoHint side="left" className="ml-auto" text="Mede quantos abastecimentos têm preço de tabela (preco_cadastro). Sem ele, o desvio não é calculável e o abastecimento sai da conta. Sobe quando o cron de apuração carimba o preço no cache." />
       </div>
+      )}
 
       {/* Sub-abas */}
       <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
@@ -332,10 +334,29 @@ const GestaoPrecos = () => {
         <GestaoPrecosTabelas />
       ) : sub === 'cliente' ? (
         <GestaoPrecosCliente />
-      ) : data.isLoading && data.byProduto.length === 0 ? (
+      ) : (data.isLoading || data.isFetching) && data.byProduto.length === 0 ? (
         <div className="space-y-3">
+          <p className="flex items-center justify-center gap-2 py-1 text-[13px] text-gray-500 dark:text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Carregando dados de preços…
+          </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
           <Skeleton className="h-64 rounded-2xl" />
+        </div>
+      ) : data.isError && data.byProduto.length === 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-500" />
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Não foi possível carregar os abastecimentos físicos</p>
+          <p className="mx-auto mt-1 max-w-lg text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
+            A API da Quality retornou erro ao buscar o <code className="rounded bg-amber-100 px-1 text-[12px] dark:bg-amber-900/40">/ABASTECIMENTO</code> — <strong>não é problema do painel</strong>. As demais telas (base fiscal) seguem normais. Tente de novo em instantes; se persistir, é indisponibilidade do lado da Quality.
+          </p>
+          <button
+            type="button"
+            onClick={() => data.refetch()}
+            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Tentar de novo
+          </button>
         </div>
       ) : sub === 'produto' ? (
         <AbaDesvio rows={data.byProduto} cedidoGlobal={data.global.lbCedido} entidade="produto" baratao={baratao.porProduto} />
