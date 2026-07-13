@@ -102,6 +102,8 @@ export interface RedeSetor {
   cupons: number
   /** Ticket médio do setor = faturamento ÷ cupons. */
   ticketMedio: number
+  /** Série diária do setor (fat/LB/qtd por dia) — base da projeção executiva. */
+  daily: { data: string; faturamento: number; lucroBruto: number; qtd: number }[]
   postos: RedePostoRow[]
 }
 
@@ -147,7 +149,7 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
   id, unidadeLabel, lbLabel,
   qtd: 0, qtdAnoAnterior: 0, faturamento: 0, custo: 0, lucroBruto: 0,
   lucroBrutoAnoAnterior: 0, margem: 0, lucroPorUnidade: 0, acrescimos: 0, descontos: 0,
-  cupons: 0, ticketMedio: 0,
+  cupons: 0, ticketMedio: 0, daily: [],
   postos: [],
 })
 
@@ -331,6 +333,32 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     }
     const dailyLB = Array.from(dailyMap.entries())
       .map(([data, lb]) => ({ data, lb }))
+      .sort((a, b) => a.data.localeCompare(b.data))
+
+    // Série DIÁRIA por SETOR (fat/LB/qtd) — base da projeção executiva
+    // (projecaoAvancada) por setor na Visão Geral, batendo com as abas.
+    const dailyBySetor: Record<SetorId, Map<string, { fat: number; lucro: number; qtd: number }>> = {
+      combustivel: new Map(), automotivos: new Map(), conveniencia: new Map(),
+    }
+    const addDaily = (s: SetorId, data: string, fat: number, lucro: number, qtd: number) => {
+      const e = dailyBySetor[s].get(data) ?? { fat: 0, lucro: 0, qtd: 0 }
+      e.fat += fat; e.lucro += lucro; e.qtd += qtd
+      dailyBySetor[s].set(data, e)
+    }
+    for (const r of closedRowsF) {
+      if (r.setor === 'outros') continue
+      addDaily(setorOf(r.setor, r.produto_codigo), r.data, r.total_venda, r.total_venda - r.total_custo, r.quantidade)
+    }
+    for (const it of todayItensF) {
+      if (it.quantidade <= 0 || !autToday.has(it.vendaCodigo)) continue
+      const dia = (it.dataMovimento || '').slice(0, 10)
+      if (!dia) continue
+      const s = classify(it.produtoCodigo, isFuel, isPista)
+      const custo = s === 'combustivel' ? it.precoCusto * it.quantidade : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
+      addDaily(s, dia, it.totalVenda, it.totalVenda - custo, it.quantidade)
+    }
+    const dailySetorArr = (s: SetorId) => Array.from(dailyBySetor[s].entries())
+      .map(([data, v]) => ({ data, faturamento: v.fat, lucroBruto: v.lucro, qtd: v.qtd }))
       .sort((a, b) => a.data.localeCompare(b.data))
 
     // Ano anterior por (setor|empresa) → Map<produto, { qtd, lucro, nome }>. Guardar
@@ -522,6 +550,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       setor.margem = setor.faturamento > 0 ? (setor.lucroBruto / setor.faturamento) * 100 : 0
       setor.lucroPorUnidade = setor.qtd > 0 ? setor.lucroBruto / setor.qtd : 0
       setor.ticketMedio = setor.cupons > 0 ? setor.faturamento / setor.cupons : 0
+      setor.daily = dailySetorArr(id)
       return setor
     }
 

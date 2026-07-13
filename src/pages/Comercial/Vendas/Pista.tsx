@@ -808,6 +808,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               fat={projecaoPista.fat}
               projetadoLucro={projecaoPista.projetadoLucro}
               dataFinal={projecaoPista.dataFinalProjecao}
+              comparativo={cmpKpis.prev.faturamento > 0 ? { anterior: cmpKpis.prev.faturamento, label: cmpLabel } : undefined}
               loading={isLoadingVendas}
             />
           </div>

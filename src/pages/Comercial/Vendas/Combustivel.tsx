@@ -903,6 +903,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               fat={projecaoCombustivel.fat}
               projetadoLucro={projecaoCombustivel.projetadoLucro}
               dataFinal={projecaoCombustivel.dataFinalProjecao}
+              comparativo={vendaCmp.faturamento > 0 ? { anterior: vendaCmp.faturamento, label: cmpLabel } : undefined}
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor}
@@ -1398,12 +1399,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 items-start gap-4 p-4 lg:grid-cols-[1fr_1.12fr]">
+                    <div className="grid grid-cols-1 items-stretch gap-4 p-4 lg:grid-cols-[1fr_1.12fr]">
                       {/* Esquerda: gráfico de linha premium (SVG à mão) */}
                       <AnaliseSemanalLineCard data={semanalDaily} />
 
-                      {/* Direita: heatmap "Média por dia da semana × combustível" */}
-                      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                      {/* Direita: heatmap "Média por dia da semana × combustível" — h-full
+                          pra empatar a altura com o card da esquerda (items-stretch). */}
+                      <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

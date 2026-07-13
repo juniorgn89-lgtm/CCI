@@ -9,7 +9,7 @@ import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
-import ProjecaoCard from '@/components/kpi/ProjecaoCard'
+import ProjecaoExecutiva from '@/pages/Comercial/Vendas/ProjecaoExecutiva'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import { fimDoMesIso } from '@/lib/projection'
 import { useFilterStore } from '@/store/filters'
@@ -126,6 +126,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
   const {
     kpis,
     projecao,
+    projecaoFat,
     dailyData,
     dailyChartData,
     salesByDay,
@@ -306,16 +307,14 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
 
             </div>
             </div>
-            {/* Projeção fim do período — componente shared do módulo Vendas */}
-            <ProjecaoCard
-              realizadoFaturamento={kpis?.faturamento ?? 0}
-              projetadoFaturamento={projecao.faturamento}
-              realizadoLucro={kpis?.margem ?? 0}
+            {/* Projeção fim do período — card executivo compartilhado (mesmo das
+                abas de Vendas): cenários, ritmo, confiança e comparativo. */}
+            <ProjecaoExecutiva
+              fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}
               dataFinal={fimDoMesIso(dataFinal)}
-              isProjetada={projecao.isProjetada}
+              comparativo={kpis && kpis.cmp.faturamento > 0 ? { anterior: kpis.cmp.faturamento, label: kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.' } : undefined}
               loading={showSkeleton}
-              onClick={() => setActiveTab('vendas')}
             />
           </div>
 

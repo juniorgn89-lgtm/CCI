@@ -10,7 +10,7 @@ import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendasCache } from '@/api/supabase/apuracao'
-import { monthEndFactor } from '@/lib/projection'
+import { monthEndFactor, projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
@@ -100,7 +100,6 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
 
 const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean) => void } = {}) => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
-  const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
   // Rótulo do comparativo conforme o modo global (AA = ano ant., MA = mês ant.).
@@ -166,18 +165,59 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     return map
   }, [mesRows, setorProj])
 
-  // Projeção fim do mês — extrapolação linear (rede-wide) por setor. Já existente.
-  const f = monthEndFactor(dataInicial, dataFinal)
-  const projLinhas = [
-    { setor: 'Combustível', volume: combustivel.qtd * f, faturamento: combustivel.faturamento * f, lucroBruto: combustivel.lucroBruto * f, margem: combustivel.margem },
-    { setor: 'Automotivos', volume: automotivos.qtd * f, faturamento: automotivos.faturamento * f, lucroBruto: automotivos.lucroBruto * f, margem: automotivos.margem },
-    { setor: 'Conveniência', volume: conveniencia.qtd * f, faturamento: conveniencia.faturamento * f, lucroBruto: conveniencia.lucroBruto * f, margem: conveniencia.margem },
-  ]
+  // Projeção fim do mês — engine EXECUTIVA (projecaoAvancada) por setor, idêntica
+  // às abas Combustível/Automotivos/Conveniência: média recente + sazonalidade +
+  // tendência. Antes usava extrapolação linear (monthEndFactor), o que divergia
+  // dos cards das abas — agora bate número a número.
+  const projLinhas = useMemo(() => {
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const lastDay = new Date(yy, mm, 0).getDate()
+    const monthEnd = `${yy}-${pad(mm)}-${pad(lastDay)}`
+    const esperado = (daily: { data: string; faturamento: number; lucroBruto: number; qtd: number }[], key: 'faturamento' | 'lucroBruto' | 'qtd') =>
+      projecaoAvancada({ dailySeries: daily.map((d) => ({ data: d.data, value: d[key] })), today: todayISO, dataFinal: monthEnd }).esperado
+    const proj = (setor: typeof combustivel) => {
+      const faturamento = esperado(setor.daily, 'faturamento')
+      const lucroBruto = esperado(setor.daily, 'lucroBruto')
+      const volume = esperado(setor.daily, 'qtd')
+      return { volume, faturamento, lucroBruto, margem: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0 }
+    }
+    return [
+      { setor: 'Combustível', ...proj(combustivel) },
+      { setor: 'Automotivos', ...proj(automotivos) },
+      { setor: 'Conveniência', ...proj(conveniencia) },
+    ]
+  }, [combustivel, automotivos, conveniencia, dataInicial])
+  const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
+  const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
   const projTotal = {
-    faturamento: projLinhas.reduce((s, r) => s + r.faturamento, 0),
-    lucroBruto: projLinhas.reduce((s, r) => s + r.lucroBruto, 0),
-    margem: global.margem,
+    faturamento: projFatTotal,
+    lucroBruto: projLucroTotal,
+    margem: projFatTotal > 0 ? (projLucroTotal / projFatTotal) * 100 : 0,
   }
+
+  // Resumo GLOBAL da projeção (mesma linguagem dos cards das abas): confiança
+  // da série consolidada + comparativo do projetado vs período anterior. Alinha
+  // o painel da Central ao ProjecaoExecutiva sem redesenhar a tabela/oscilação.
+  const projResumo = useMemo(() => {
+    const now = new Date()
+    const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    const monthEnd = `${yy}-${pad(mm)}-${pad(new Date(yy, mm, 0).getDate())}`
+    // Série diária global = soma do faturamento dos 3 setores por dia.
+    const byDay = new Map<string, number>()
+    for (const s of [combustivel, automotivos, conveniencia])
+      for (const d of s.daily) byDay.set(d.data, (byDay.get(d.data) ?? 0) + d.faturamento)
+    const dailySeries = Array.from(byDay.entries()).map(([data, value]) => ({ data, value }))
+    const fat = projecaoAvancada({ dailySeries, today: todayISO, dataFinal: monthEnd })
+    const anterior = global.faturamentoAnoAnterior
+    const cmpPct = anterior > 0 ? ((projFatTotal - anterior) / anterior) * 100 : null
+    return { confiabilidade: fat.confiabilidade, confiabilidadePct: fat.confiabilidadePct, cmpPct }
+  }, [combustivel, automotivos, conveniencia, global, projFatTotal, dataInicial])
+  const cmpLabelLong = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+  const DOT_CONFIA = { alta: 'bg-emerald-400', media: 'bg-amber-400', baixa: 'bg-red-400' } as const
+  const LABEL_CONFIA = { alta: 'Confiança alta', media: 'Confiança média', baixa: 'Confiança baixa' } as const
 
   /* ─── Oscilação das projeções (colunas por dia) ───
    * Cada coluna = a projeção de fechamento do mês recalculada naquele dia, com a
@@ -347,12 +387,27 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       )}>
         <div className="flex items-start justify-between gap-2.5 px-5 pb-3.5 pt-[18px]">
           <div>
-            <p className="inline-flex items-center gap-1.5 text-[15px] font-bold text-white">
+            <p className="inline-flex flex-wrap items-center gap-1.5 text-[15px] font-bold text-white">
+              <span
+                className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT_CONFIA[projResumo.confiabilidade])}
+                title={`${LABEL_CONFIA[projResumo.confiabilidade]} · ${projResumo.confiabilidadePct}%`}
+              />
               Projeção
               <InfoHint
-                text="Estimativa de fechamento do mês por setor: extrapolação linear do realizado (dias decorridos → dias totais do mês). É uma projeção, não o valor final."
+                text={PROJECAO_TOOLTIP_EXECUTIVA}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
+              {projResumo.cmpPct !== null && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                    projResumo.cmpPct >= 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
+                  )}
+                  title={`Projeção da rede vs fechamento do ${cmpLabelLong} (${formatCurrencyInt(global.faturamentoAnoAnterior)})`}
+                >
+                  {projResumo.cmpPct >= 0 ? '▲' : '▼'} {projResumo.cmpPct >= 0 ? '+' : ''}{projResumo.cmpPct.toFixed(1).replace('.', ',')}% vs {cmpLabelLong}
+                </span>
+              )}
             </p>
             <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Fim do mês'}</p>
           </div>
@@ -535,18 +590,18 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                       <td className="px-3 py-1.5 tabular-nums">{l.dataBR}</td>
                       <td className="px-3 py-1.5 text-white/70">{l.diaSemana}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(Math.round(l.litros))}</td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(l.lb)}</td>
-                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(l.projecao)}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(l.lb)}</td>
+                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[#6ee7b7]">{formatCurrency(l.projecao)}</td>
                       <td className={cn('px-3 py-1.5 text-right tabular-nums', l.variacao == null ? 'text-white/40' : l.variacao < 0 ? 'text-red-300' : 'text-emerald-300')}>
-                        {l.variacao == null ? '—' : `${l.variacao < 0 ? '−' : '+'}${formatCurrencyInt(Math.abs(l.variacao))}`}
+                        {l.variacao == null ? '—' : `${l.variacao < 0 ? '−' : '+'}${formatCurrency(Math.abs(l.variacao))}`}
                       </td>
                     </tr>
                   ))}
                   <tr className="border-t-2 border-white/20 bg-white/[0.04] font-bold text-white">
                     <td className="px-3 py-2" colSpan={2}>Total</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Math.round(chart.totais.litros))}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrencyInt(chart.totais.lb)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.totais.projecao)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(chart.totais.lb)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[#6ee7b7]">{formatCurrency(chart.totais.projecao)}</td>
                     <td className="px-3 py-2" />
                   </tr>
                 </tbody>

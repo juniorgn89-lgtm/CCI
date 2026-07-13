@@ -348,6 +348,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}
               dataFinal={fimDoMesIso(dataInicial)}
+              comparativo={kpis && kpis.cmp.faturamento > 0 ? { anterior: kpis.cmp.faturamento, label: kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.' } : undefined}
               loading={showSkeleton}
             />
           </div>
