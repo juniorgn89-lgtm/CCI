@@ -1444,6 +1444,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                                 <tr key={row.nome}>
                                   <td className="py-1 pr-3 text-gray-700 dark:text-gray-300">
                                     <span className="flex items-center gap-1.5">
+                                      <span className={cn('h-2 w-2 shrink-0 rounded-full', fuelColor(row.nome))} aria-hidden="true" />
                                       <span className="truncate" title={row.nome}>{row.nome}</span>
                                       {/* rows vem ordenado por média desc → 1º = líder, último = lanterna. */}
                                       {rowIdx === 0 && (
