@@ -3,6 +3,10 @@ import { useTenantStore } from '@/store/tenant'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
+  // Arrays em "repeat form" (?x=1&x=2), NÃO o bracket do axios (?x[]=1&x[]=2):
+  // a API Quality só entende repeat/comma — com bracket ela devolve resultado
+  // parcial (ex.: vendaCodigo[] retorna 1 de N). Vale p/ todos os params array.
+  paramsSerializer: { indexes: null },
 })
 
 // --- Request interceptor: READ-ONLY enforcement ---
