@@ -16,6 +16,8 @@ import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
 import useDataUpdating from '@/hooks/useDataUpdating'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
+import PotencialButton from '@/components/layout/PotencialButton'
+import ModuleHeaderChrome from '@/components/layout/ModuleHeaderChrome'
 import { useAuthStore } from '@/store/auth'
 import WelcomeModal from '@/components/onboarding/WelcomeModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
@@ -240,14 +242,19 @@ const AppLayout = () => {
           {/* TopBar consolidada — título (slot-portal por página) + cluster único de
               filtros. Fica fixa no topo (irmã do <main> que rola). O período
               (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
+          {/* Chrome de módulo dirigido pela rota (nome no Header) — global. */}
+          <ModuleHeaderChrome />
           {showFilters && (
             <TopBar
               scrolled={scrolled}
               title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
               actions={
-                <GlobalFilterControls
-                  dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
-                />
+                <>
+                  <GlobalFilterControls
+                    dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
+                  />
+                  <PotencialButton />
+                </>
               }
             />
           )}

@@ -1,4 +1,5 @@
-import { Percent, TrendingUp, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Percent, TrendingUp, ShieldCheck, AlertTriangle, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -23,6 +24,15 @@ interface Props {
  * bandeira. Δ > 0 = você pagou mais do que o contrato prevê. Read-only.
  */
 const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
+  const [tipoFiltro, setTipoFiltro] = useState<string>('Todos')
+  const [soAcima, setSoAcima] = useState(false)
+
+  const tipos = useMemo(() => ['Todos', ...[...new Set(taxas.map((t) => t.tipo).filter(Boolean))]], [taxas])
+  const filtradas = useMemo(
+    () => taxas.filter((t) => (tipoFiltro === 'Todos' || t.tipo === tipoFiltro) && (!soAcima || t.deltaRs > TOL)),
+    [taxas, tipoFiltro, soAcima],
+  )
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -40,15 +50,47 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
     )
   }
 
-  const totalBruto = taxas.reduce((s, t) => s + t.bruto, 0)
-  const totalPaga = taxas.reduce((s, t) => s + t.taxaPaga, 0)
-  const totalAcima = taxas.reduce((s, t) => s + Math.max(0, t.deltaRs), 0)
-  const nAcima = taxas.filter((t) => t.deltaRs > TOL).length
+  const totalBruto = filtradas.reduce((s, t) => s + t.bruto, 0)
+  const totalPaga = filtradas.reduce((s, t) => s + t.taxaPaga, 0)
+  const totalAcima = filtradas.reduce((s, t) => s + Math.max(0, t.deltaRs), 0)
+  const nAcima = filtradas.filter((t) => t.deltaRs > TOL).length
   const efetivaMedia = totalBruto > 0 ? (totalPaga / totalBruto) * 100 : 0
   const acimaDoContrato = totalAcima > TOL
 
   return (
     <div className="space-y-4">
+      {/* Barra de filtros + botão de potencial */}
+      <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50/60 px-3.5 py-2 dark:border-gray-700 dark:bg-gray-800/40">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <Filter className="h-3.5 w-3.5" /> Filtros
+        </span>
+        {/* Tipo */}
+        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-gray-900">
+          {tipos.map((tp) => (
+            <button
+              key={tp}
+              type="button"
+              onClick={() => setTipoFiltro(tp)}
+              className={cn('inline-flex h-7 items-center rounded-md px-2.5 text-[11px] font-medium transition-colors',
+                tipoFiltro === tp ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100')}
+            >
+              {tp}
+            </button>
+          ))}
+        </div>
+        {/* Só acima do contrato */}
+        <button
+          type="button"
+          onClick={() => setSoAcima((v) => !v)}
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-semibold transition-colors',
+            soAcima
+              ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700/50 dark:bg-red-900/25 dark:text-red-300'
+              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800')}
+        >
+          <TrendingUp className="h-3.5 w-3.5" /> Só acima do contrato
+        </button>
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Hero — custo total de adquirência */}
@@ -85,11 +127,11 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
         {/* Bandeiras */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            Bandeiras repassadas
+            Bandeiras{tipoFiltro !== 'Todos' ? ` · ${tipoFiltro}` : ''}
           </p>
-          <p className="mt-2 text-[32px] font-extrabold tabular-nums leading-none text-gray-900 dark:text-gray-100">{taxas.length}</p>
+          <p className="mt-2 text-[32px] font-extrabold tabular-nums leading-none text-gray-900 dark:text-gray-100">{filtradas.length}</p>
           <p className="mt-2 text-[13px] text-gray-500 dark:text-gray-400">
-            {taxas.length - nAcima} conferem · {nAcima} acima
+            {filtradas.length - nAcima} conferem · {nAcima} acima
           </p>
         </div>
       </div>
@@ -115,7 +157,9 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
               </tr>
             </thead>
             <tbody>
-              {taxas.map((t) => {
+              {filtradas.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500">Nenhuma bandeira nesse filtro.</td></tr>
+              ) : filtradas.map((t) => {
                 const acima = t.deltaRs > TOL
                 const abaixo = t.deltaRs < -TOL
                 return (
@@ -136,7 +180,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
                         acima ? 'bg-red-50 text-red-700 dark:bg-red-900/25 dark:text-red-300'
                         : abaixo ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/25 dark:text-blue-300'
                         : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-300')}>
-                        {acima ? signed(t.deltaRs) : abaixo ? signed(t.deltaRs) : 'confere'}
+                        {acima || abaixo ? signed(t.deltaRs) : 'confere'}
                       </span>
                     </td>
                   </tr>

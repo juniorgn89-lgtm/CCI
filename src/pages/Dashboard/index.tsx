@@ -5,7 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useFilterStore } from '@/store/filters'
 import { useTopbarUi } from '@/store/topbarUi'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
@@ -99,14 +98,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-4">
       <>
-          {/* Piloto: título + Modo Foco sobem pro Header (à esquerda do ☰). */}
-          <PageHeaderTitle placement="header">
-            <div className="flex items-center gap-2.5">
-              {/* Título do módulo removido — só o botão Modo Foco (à esquerda do ☰). */}
-              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              <FocusModeToggle />
-            </div>
-          </PageHeaderTitle>
+          {/* Título + Modo Foco vêm do ModuleHeaderChrome global (via rota). */}
           {/* Abas continuam na TopBar (slot esquerdo padrão). */}
           {visibleTabs.length > 0 && (
             <PageHeaderTitle>

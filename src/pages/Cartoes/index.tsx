@@ -15,7 +15,6 @@ import InfoHint from '@/components/ui/InfoHint'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useCartoesConciliacao, { type DetalheItem } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
 import ResultadoTab from '@/pages/Cartoes/components/ResultadoTab'
@@ -91,20 +90,6 @@ const Cartoes = () => {
 
   return (
     <div className="space-y-4">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="flex items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-white"><CreditCard className="h-4 w-4" /></span>
-            <span className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cartões · Conciliação</span>
-              <span className="text-[11px] text-gray-400 dark:text-gray-500">sistema × repasse do adquirente</span>
-            </span>
-          </span>
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
-
       <PageHeaderTitle>
         <TopBarTabs active={tab} onChange={(id) => { setFiltro(null); setTab(id as CartaoTab) }} tabs={TAB_META.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))} />
       </PageHeaderTitle>
