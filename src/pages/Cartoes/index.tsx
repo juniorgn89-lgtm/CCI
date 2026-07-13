@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CreditCard, CircleCheck, FileText, SlidersHorizontal, Wand2, Info } from 'lucide-react'
+import { CreditCard, CircleCheck, FileText, SlidersHorizontal, Wand2, Info, Percent } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
@@ -21,13 +21,15 @@ import useCartoesConciliacao, { type DetalheItem } from '@/pages/Cartoes/hooks/u
 import ResultadoTab from '@/pages/Cartoes/components/ResultadoTab'
 import DetalhamentoTab from '@/pages/Cartoes/components/DetalhamentoTab'
 import ParametrosTab from '@/pages/Cartoes/components/ParametrosTab'
+import TaxasTab from '@/pages/Cartoes/components/TaxasTab'
 
-type CartaoTab = 'resultado' | 'detalhamento' | 'parametros'
-const isCartaoTab = (v: string | null): v is CartaoTab => v === 'resultado' || v === 'detalhamento' || v === 'parametros'
+type CartaoTab = 'resultado' | 'detalhamento' | 'taxas' | 'parametros'
+const isCartaoTab = (v: string | null): v is CartaoTab => v === 'resultado' || v === 'detalhamento' || v === 'taxas' || v === 'parametros'
 
 const TAB_META: { id: CartaoTab; label: string; Icon: typeof CreditCard }[] = [
   { id: 'resultado', label: 'Resultado', Icon: CircleCheck },
   { id: 'detalhamento', label: 'Detalhamento', Icon: FileText },
+  { id: 'taxas', label: 'Taxas', Icon: Percent },
   { id: 'parametros', label: 'Parâmetros', Icon: SlidersHorizontal },
 ]
 
@@ -112,7 +114,7 @@ const Cartoes = () => {
       </PageHeaderActions>
 
       {/* Barra de revisão automática (opt-in) — vale pro Resultado e Detalhamento. */}
-      {tab !== 'parametros' && (
+      {tab !== 'parametros' && tab !== 'taxas' && (
         <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50/60 px-3.5 py-2 dark:border-gray-700 dark:bg-gray-800/40">
           <button
             type="button"
@@ -160,6 +162,7 @@ const Cartoes = () => {
           onDesfazer={desfazer}
         />
       )}
+      {tab === 'taxas' && <TaxasTab taxas={data?.taxas ?? []} temRemessa={!!data?.temRemessa} isLoading={isLoading} />}
       {tab === 'parametros' && <ParametrosTab postos={postos} dia={dataFinal} onOpenPosto={openPosto} />}
     </div>
   )

@@ -75,6 +75,30 @@ export interface DivergenciaLote {
   registros: number
 }
 
+/** Taxa efetiva × contrato por bandeira — detector de sobrecobrança do adquirente. */
+export interface TaxaBandeira {
+  administradoraCodigo: number
+  bandeira: string
+  tipo: string
+  /** Σ valorRemessa (bruto repassado) no período. */
+  bruto: number
+  /** Σ taxasDespesas (R$ efetivamente descontado pelo adquirente). */
+  taxaPaga: number
+  /** Taxa efetiva = taxaPaga ÷ bruto × 100. */
+  efetivaPct: number
+  /** Taxa de contrato (percentualComissao do cadastro). */
+  contratoPct: number
+  /** Tarifa fixa por transação (R$) do cadastro. */
+  taxaTransacaoRs: number
+  /** Transações no /CARTAO da bandeira (denominador da tarifa fixa). */
+  nTransacoes: number
+  /** Custo esperado pelo contrato = bruto×contrato% + nTx×tarifaFixa. */
+  esperadoRs: number
+  /** taxaPaga − esperadoRs. > 0 = pagou ACIMA do contrato. */
+  deltaRs: number
+  lotes: number
+}
+
 export interface CartoesView {
   adminDia: AdminDiaRow[]
   kpis: {
@@ -94,6 +118,7 @@ export interface CartoesResult {
   base: CartoesView
   revisao: CartoesView & { recuperados: { n: number; valor: number } }
   temRemessa: boolean
+  taxas: TaxaBandeira[]
 }
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
@@ -333,11 +358,39 @@ const useCartoesConciliacao = () => {
         return { adminDia, kpis, semRepasse, divergencias, vendasPendentes: [...vendasPendentes] }
       }
 
+      // ── Taxa efetiva × contrato por bandeira (detector de sobrecobrança) ──
+      // Efetiva = Σ taxasDespesas ÷ Σ valorRemessa do repasse. Contrato =
+      // percentualComissao do cadastro + tarifa fixa/transação. Δ > 0 = pagou a
+      // mais do que o contrato. Read-only; só compara valores que já existem.
+      const comissaoOf = new Map<number, number>()
+      const taxaTxOf = new Map<number, number>()
+      for (const a of admAll) { comissaoOf.set(a.administradoraCodigo, a.percentualComissao ?? 0); taxaTxOf.set(a.administradoraCodigo, a.taxaTransacao ?? 0) }
+      const nTxOf = new Map<number, number>()
+      for (const c of cartaoAll) nTxOf.set(c.administradoraCodigo, (nTxOf.get(c.administradoraCodigo) ?? 0) + 1)
+      const taxaAgg = new Map<number, { bruto: number; taxa: number; lotes: number }>()
+      for (const r of remessa) {
+        const e = taxaAgg.get(r.administradoraCodigo) ?? { bruto: 0, taxa: 0, lotes: 0 }
+        e.bruto += r.bruto; e.taxa += r.taxaRs; e.lotes += 1
+        taxaAgg.set(r.administradoraCodigo, e)
+      }
+      const taxas: TaxaBandeira[] = [...taxaAgg.entries()].map(([code, e]) => {
+        const contratoPct = comissaoOf.get(code) ?? 0
+        const taxaTransacaoRs = taxaTxOf.get(code) ?? 0
+        const nTransacoes = nTxOf.get(code) ?? 0
+        const esperadoRs = e.bruto * (contratoPct / 100) + nTransacoes * taxaTransacaoRs
+        return {
+          administradoraCodigo: code, bandeira: descOf(code), tipo: tipoOfCode.get(code) || '',
+          bruto: e.bruto, taxaPaga: e.taxa, efetivaPct: e.bruto > 0 ? (e.taxa / e.bruto) * 100 : 0,
+          contratoPct, taxaTransacaoRs, nTransacoes, esperadoRs, deltaRs: e.taxa - esperadoRs, lotes: e.lotes,
+        }
+      }).filter((t) => t.bruto > 0).sort((a, b) => b.deltaRs - a.deltaRs)
+
       return {
         coverage: { ediUpTo, pctPeriodo, diasCobertos, diasTotal },
         base: buildView(false),
         revisao: { ...buildView(true), recuperados },
         temRemessa: remessa.length > 0,
+        taxas,
       }
     },
   })
