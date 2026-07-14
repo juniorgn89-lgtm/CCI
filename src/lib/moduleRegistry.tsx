@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import {
   CreditCard, LayoutDashboard, Eye, HandCoins, Calculator, Filter, ListChecks,
   ShieldCheck, CalendarClock, AlertTriangle, Droplets, Wrench, Store, Tag, Radio, Layers,
@@ -6,6 +6,7 @@ import {
   Users, SearchCheck, Target,
   type LucideIcon,
 } from 'lucide-react'
+import { IlRede, IlProjecao, IlConfianca, IlFiscal } from '@/components/potencial/ilustracoes'
 
 /**
  * Registro ÚNICO por rota do "chrome" de módulo: identidade (ícone + nome +
@@ -39,10 +40,26 @@ const NotaHonesta = ({ children }: { children: ReactNode }) => (
 
 /* ─── Tipos ─── */
 
+/** Slide do carrossel de "Potencial" (quando a tela opta pelo formato paginado
+ * ilustrado em vez do `body` rolável). */
+export interface PotencialSlide {
+  /** Ilustração flat 2-tons (SVG inline theme-aware). */
+  Ilustracao: ComponentType<{ className?: string }>
+  /** Etiqueta curta acima do título ("O que ela faz", "Projeção"…). */
+  tag: string
+  titulo: string
+  texto: ReactNode
+  /** 'nota' pinta o slide como aviso honesto (âmbar). */
+  tom?: 'normal' | 'nota'
+}
+
 export interface PotencialConteudo {
   title: string
   description: string
+  /** Conteúdo rolável clássico (fallback das telas ainda não migradas). */
   body: ReactNode
+  /** Quando presente, o botão renderiza o CARROSSEL paginado em vez do `body`. */
+  slides?: PotencialSlide[]
 }
 
 export interface ModuleMeta {
@@ -152,8 +169,51 @@ export const REGISTRY: Record<string, ModuleMeta> = {
     subtitle: 'panorama consolidado dos postos',
     potencial: {
       '': {
-        title: 'Visão Geral — o potencial desta tela',
-        description: 'O raio-x da rede inteira num relance: quanto vendeu, quanto lucrou e onde vai fechar o mês.',
+        title: 'Visão Geral',
+        description: 'O potencial desta tela',
+        slides: [
+          {
+            Ilustracao: IlRede,
+            tag: 'O que ela faz',
+            titulo: 'O raio-x da rede num relance',
+            texto: (
+              <>
+                Junta <strong>todos os postos</strong> por setor — Combustível, Automotivos e Conveniência — mostrando faturamento, lucro bruto e margem em um só painel.
+              </>
+            ),
+          },
+          {
+            Ilustracao: IlProjecao,
+            tag: 'Projeção',
+            titulo: 'Onde o mês vai fechar',
+            texto: (
+              <>
+                Projeta o <strong>fechamento do mês</strong> pela engine executiva: ritmo recente + sazonalidade de dia-da-semana + tendência. Você reage antes do fim do mês.
+              </>
+            ),
+          },
+          {
+            Ilustracao: IlConfianca,
+            tag: 'Como ler',
+            titulo: 'O quanto confiar no número',
+            texto: (
+              <>
+                A <strong>bolinha de confiança</strong> e o <strong>comparativo</strong> (vs mês/ano anterior) dizem o quanto crer na projeção. Cada card de setor abre o detalhe por posto.
+              </>
+            ),
+          },
+          {
+            Ilustracao: IlFiscal,
+            tom: 'nota',
+            tag: 'De onde vêm os números',
+            titulo: 'Base fiscal, projeção é estimativa',
+            texto: (
+              <>
+                Os valores vêm do <strong>cache de apuração</strong> (base fiscal carimbada). A projeção é uma estimativa pelo ritmo — <strong>não</strong> o valor fechado do mês.
+              </>
+            ),
+          },
+        ],
         body: (
           <>
             <Secao icon={Layers} titulo="O que ela faz">
