@@ -9,7 +9,7 @@ import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
-import { smoothedProjection, projecaoAvancada, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
+import { smoothedProjection, projecaoSazonal, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import { type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
@@ -824,23 +824,27 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
     // Projeta SEMPRE até o fim do mês (apurados + dias faltantes, hoje incluso
     // como faltante) — independe do escopo Apurado/Em andamento/Completo.
     const monthEnd = fimDoMesIso(dataInicial || todayISO)
-    const projFat = projecaoAvancada({
+    // Linear (indices vazio → 1 pra todo dia), consistente com a Central.
+    const projFat = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
-    const projLucro = projecaoAvancada({
+    const projLucro = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.margemRs })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
     // Ticket = faturamento ÷ CUPONS. Projeta os cupons/dia pra derivar o ticket
     // projetado (cai pra linhas quando não há cupons — apuração antiga).
     const temCupons = Array.from(byDay.values()).some((v) => v.cupons > 0)
-    const projCount = projecaoAvancada({
+    const projCount = projecaoSazonal({
       dailySeries: Array.from(byDay.entries()).map(([data, v]) => ({ data, value: temCupons ? v.cupons : v.count })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
     const projetadoFat = projFat.esperado
     const projetadoLucro = projLucro.esperado

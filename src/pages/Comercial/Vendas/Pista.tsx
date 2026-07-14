@@ -31,7 +31,7 @@ import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import { smoothedProjection, projecaoAvancada, fimDoMesIso, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
+import { smoothedProjection, projecaoSazonal, fimDoMesIso, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -629,15 +629,18 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         }
       }
     }
-    const pf = projecaoAvancada({
+    // Linear (indices vazio → 1 pra todo dia), consistente com a Central.
+    const pf = projecaoSazonal({
       dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
-    const pl = projecaoAvancada({
+    const pl = projecaoSazonal({
       dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
     // Ritmo (pace) do faturamento pra extrapolar métricas de volume (unidades,
     // SKUs distintos) que não têm série diária dedicada. Aproximação "no ritmo
