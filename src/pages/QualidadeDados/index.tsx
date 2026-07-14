@@ -1383,7 +1383,7 @@ const QualidadeDados = () => {
               <SherlockHero issue={cupomIssue} padrao={sherlockPadrao} />
 
               {/* Aferições — combustível de teste (INMETRO): quando e quanto sai */}
-              <AfericoesCard resumo={data.afericoes} isLoading={data.isLoading} />
+              <AfericoesCard rows={data.afericoes} isLoading={data.isLoading} />
 
               {/* Inconsistências por categoria — checks rotineiros */}
               <div className="grid grid-cols-1 gap-4">

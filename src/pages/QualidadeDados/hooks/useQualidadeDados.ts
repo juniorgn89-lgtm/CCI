@@ -55,27 +55,6 @@ export interface AbastecimentoPrecoSuspeito extends AbastecimentoRow {
   clienteNome: string
 }
 
-/** Grupo agregado de aferições (por frentista, dia ou posto). */
-export interface AfericoesGrupo {
-  chave: string
-  nome: string
-  count: number
-  litros: number
-  valor: number
-  /** Realce: volume fora do padrão ou concentração alta no eixo. */
-  atipico: boolean
-}
-
-/** Resumo de aferições do período — "quando e quanto" + realce de atipia. */
-export interface AfericoesResumo {
-  count: number
-  litros: number
-  valor: number
-  porFrentista: AfericoesGrupo[]
-  porDia: AfericoesGrupo[]
-  porPosto: AfericoesGrupo[]
-  nAtipicos: number
-}
 
 export interface CaixaAbertoDetalhe extends Caixa {
   /** Dias decorridos desde o dataMovimento até hoje. */
@@ -135,7 +114,7 @@ export interface QualidadeData {
   caixa: QualidadeIssue[]
   estoque: QualidadeIssue[]
   financeiro: QualidadeIssue[]
-  afericoes: AfericoesResumo
+  afericoes: AfericaoRow[]
   totalIssues: number
   totalCriticos: number
   totalAtencao: number
@@ -780,47 +759,6 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
   const totalAtencao = allIssues.filter((i) => i.severity === 'medium').reduce((s, i) => s + i.count, 0)
   const totalInfo = allIssues.filter((i) => i.severity === 'low').reduce((s, i) => s + i.count, 0)
 
-  // ── Aferições (afericao=true) — saída física de teste de bomba, não venda.
-  // Já vêm do hook de abastecimentos escopadas + sem futuro; aqui só resumimos
-  // "quando e quanto" + realçamos o que foge do padrão (Fase 3). ──
-  const afericoesResumo = useMemo<AfericoesResumo>(() => {
-    const list = afericoes
-    const litros = list.reduce((s, a) => s + a.litros, 0)
-    const valor = list.reduce((s, a) => s + a.valorEstimado, 0)
-    // Volume atípico = litros longe de um múltiplo de 10 (INMETRO usa ~20/40L);
-    // valor quebrado (17,3L) cheira a saída disfarçada de teste.
-    const volAtipico = (l: number) => Math.abs(l - Math.round(l / 10) * 10) > 0.5
-    // Concentração: litros/contagem por FRENTISTA·DIA — o sinal forte (um
-    // frentista puxando muita "aferição" num único dia). Limites absolutos:
-    // 200L (~10 testes de 20L) OU 8 aferições no mesmo dia.
-    const CONC_LITROS = 200, CONC_COUNT = 8
-    const fdLitros = new Map<string, number>()
-    const fdCount = new Map<string, number>()
-    const fdKey = (a: AfericaoRow) => `${a.frentistaCodigo}|${a.dataFiscal}`
-    for (const a of list) {
-      fdLitros.set(fdKey(a), (fdLitros.get(fdKey(a)) ?? 0) + a.litros)
-      fdCount.set(fdKey(a), (fdCount.get(fdKey(a)) ?? 0) + 1)
-    }
-    const rowAtipica = (a: AfericaoRow) =>
-      volAtipico(a.litros) || (fdLitros.get(fdKey(a)) ?? 0) >= CONC_LITROS || (fdCount.get(fdKey(a)) ?? 0) >= CONC_COUNT
-    const agrupa = (keyFn: (a: AfericaoRow) => string, nomeFn: (a: AfericaoRow) => string): AfericoesGrupo[] => {
-      const m = new Map<string, AfericoesGrupo>()
-      for (const a of list) {
-        const chave = keyFn(a)
-        const e = m.get(chave) ?? { chave, nome: nomeFn(a), count: 0, litros: 0, valor: 0, atipico: false }
-        e.count += 1; e.litros += a.litros; e.valor += a.valorEstimado
-        if (rowAtipica(a)) e.atipico = true
-        m.set(chave, e)
-      }
-      return [...m.values()]
-    }
-    const porFrentista = agrupa((a) => String(a.frentistaCodigo || a.frentistaNome), (a) => a.frentistaNome).sort((x, y) => y.litros - x.litros)
-    const porDia = agrupa((a) => a.dataFiscal, (a) => a.dataFiscal).sort((x, y) => y.chave.localeCompare(x.chave))
-    const porPosto = agrupa((a) => String(a.empresaCodigo), (a) => a.empresaNome).sort((x, y) => y.litros - x.litros)
-    const nAtipicos = porFrentista.filter((g) => g.atipico).length
-    return { count: list.length, litros, valor, porFrentista, porDia, porPosto, nAtipicos }
-  }, [afericoes])
-
   const isLoading = isLoadingAbast || isLoadingVendas || isLoadingFormas || isLoadingCartoes || isLoadingCaixas || isLoadingEstoque || isLoadingReceber || isLoadingPagar
 
   return {
@@ -829,7 +767,8 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
     caixa,
     estoque,
     financeiro,
-    afericoes: afericoesResumo,
+    // Linhas cruas de aferição — o card computa o resumo (via lib compartilhado).
+    afericoes,
     totalIssues,
     totalCriticos,
     totalAtencao,
