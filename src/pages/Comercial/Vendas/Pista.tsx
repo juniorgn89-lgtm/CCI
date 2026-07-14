@@ -484,7 +484,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const diaSerie = useMemo(
     () => [...realizadoDiaADia.days]
       .sort((a, b) => a.data.localeCompare(b.data))
-      .map((d) => ({ data: d.data, litros: d.qtd, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
+      .map((d) => ({ data: d.data, litros: d.qtd, faturamento: d.fat, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
     [realizadoDiaADia.days],
   )
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
@@ -857,7 +857,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                 {/* Gráfico "Quantidade vendida por dia" acompanhando a tabela (≥ 2 dias). */}
                 {diaSerie.length >= 2 && (
                   <div className="px-4 pb-1 pt-4">
-                    <AnaliseSemanalLineCard data={diaSerie} title="Quantidade vendida por dia" noun="quantidade" unit="unidades" lbLabel="L.B./unidade" />
+                    <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento />
                   </div>
                 )}
                 <TablePager

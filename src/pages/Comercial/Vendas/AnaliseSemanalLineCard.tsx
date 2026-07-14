@@ -96,8 +96,9 @@ const buildInsight = (data: { data: string; litros: number }[]) => {
 }
 
 interface AnaliseSemanalLineCardProps {
-  /** Série diária real (yyyy-MM-dd + valor + L.B./unidade opcional), ordenada por data. */
-  data: { data: string; litros: number; lbPorLitro?: number }[]
+  /** Série diária real (yyyy-MM-dd + valor + L.B./unidade + faturamento opcionais),
+   *  ordenada por data. `litros` é a quantidade (litros/unidades) do tooltip. */
+  data: { data: string; litros: number; lbPorLitro?: number; faturamento?: number }[]
   /** Título do card. Default "Litros vendidos por dia". */
   title?: string
   /** Substantivo do subtítulo ("volume"/"quantidade"). Default "volume". */
@@ -106,6 +107,9 @@ interface AnaliseSemanalLineCardProps {
   unit?: string
   /** Rótulo do L.B. por unidade no tooltip. Default "L.B./litro". */
   lbLabel?: string
+  /** Quando true, a LINHA/eixo/média/pico plotam o FATURAMENTO (data.faturamento)
+   *  em vez da quantidade. O tooltip mantém a quantidade e ganha o faturamento. */
+  plotFaturamento?: boolean
   /** Cor da linha/área. Default: accent do tema (sensível ao dark). */
   accent?: string
   /** Faixa de fim de semana (sáb/dom). Default true. */
@@ -114,9 +118,19 @@ interface AnaliseSemanalLineCardProps {
   height?: number
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
+  // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
+  const valOf = (d: { litros: number; faturamento?: number }) => (plotFaturamento ? (d.faturamento ?? 0) : d.litros)
+  // Formato dos números de CHART (eixo/média/pico/insight) — compacto no R$.
+  const fmtVal = (v: number): string => {
+    if (!plotFaturamento) return formatNumber(Math.round(v))
+    const a = Math.abs(v)
+    if (a >= 1000) return `R$ ${(v / 1000).toFixed(1).replace('.', ',')}k`
+    return `R$ ${Math.round(v)}`
+  }
+  const unitSfx = plotFaturamento ? '' : ` ${unit}`
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(720)
@@ -141,7 +155,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
   const VBH = height
 
   const g = useMemo(() => {
-    const values = data.map((d) => d.litros)
+    const values = data.map((d) => valOf(d))
     const n = values.length
     const sum = values.reduce((s, v) => s + v, 0)
     const media = n > 0 ? sum / n : 0
@@ -185,14 +199,14 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
     const xLabels = [...idxSet].sort((a, b) => a - b).map((i) => ({ x: X(i), label: ddmm(data[i].data) }))
 
     return { n, media, picoIdx, baixaIdx, yMax, x0, x1, yTop, yBase, pts, line, area, ticks, weekendBands, xLabels, slot }
-  }, [data, showWeekend, VBW, VBH])
+  }, [data, plotFaturamento, showWeekend, VBW, VBH])
 
   const pico = g.pts[g.picoIdx]
   const baixa = g.pts[g.baixaIdx]
   const yMedia = g.yBase - (g.media / g.yMax) * (g.yBase - g.yTop)
 
   // Resumo em linguagem natural (derivado da série).
-  const insight = useMemo(() => buildInsight(data), [data])
+  const insight = useMemo(() => buildInsight(data.map((d) => ({ data: d.data, litros: valOf(d) }))), [data, plotFaturamento])
   const vsMediaTxt = Math.abs(insight.vsMedia) >= 3
     ? `, ${insight.vsMedia > 0 ? 'acima' : 'abaixo'} da média (${pct1(insight.vsMedia)})`
     : ', em linha com a média'
@@ -234,11 +248,11 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
         <div className="flex shrink-0 items-stretch gap-2">
           <div className="rounded-lg border border-gray-200 bg-gray-50/60 px-2.5 py-1 text-center dark:border-gray-700 dark:bg-gray-800/50">
             <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Média/dia</p>
-            <p className="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">{formatNumber(Math.round(g.media))}</p>
+            <p className="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">{fmtVal(g.media)}</p>
           </div>
           <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-center dark:border-emerald-800/50 dark:bg-emerald-900/20">
             <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Pico</p>
-            <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{formatNumber(Math.round(pico.v))}</p>
+            <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{fmtVal(pico.v)}</p>
           </div>
         </div>
       </div>
@@ -266,7 +280,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             <line key={`gl${i}`} x1={g.x0} y1={t.y} x2={g.x1} y2={t.y} stroke={ct.grid} strokeWidth={1} />
           ))}
           {g.ticks.filter((t) => t.v > 0).map((t, i) => (
-            <text key={`yl${i}`} x={g.x0 - 10} y={t.y + 3.5} textAnchor="end" fontSize={11} fill={ct.axis} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatNumber(Math.round(t.v))}</text>
+            <text key={`yl${i}`} x={g.x0 - 10} y={t.y + 3.5} textAnchor="end" fontSize={11} fill={ct.axis} style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtVal(t.v)}</text>
           ))}
 
           {/* Área + linha */}
@@ -298,13 +312,13 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
           {/* Callout do pico (verde) */}
           <g>
             <rect x={picoCallout.x - CW / 2} y={picoCallout.y} width={CW} height={CH} rx={8} fill="#15803d" />
-            <text x={picoCallout.x} y={picoCallout.y + CH / 2 + 4} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatNumber(Math.round(pico.v))}</text>
+            <text x={picoCallout.x} y={picoCallout.y + CH / 2 + 4} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtVal(pico.v)}</text>
           </g>
 
           {/* Callout da baixa (âmbar) */}
           <g>
             <rect x={baixaCallout.x - CW / 2} y={baixaCallout.y} width={CW} height={CH} rx={8} fill="#b45309" />
-            <text x={baixaCallout.x} y={baixaCallout.y + CH / 2 + 4} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatNumber(Math.round(baixa.v))}</text>
+            <text x={baixaCallout.x} y={baixaCallout.y + CH / 2 + 4} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtVal(baixa.v)}</text>
           </g>
         </svg>
 
@@ -319,9 +333,16 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             </p>
             <div className="mt-1 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-              <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(Math.round(hp.v))}</span>
+              <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(Math.round(data[hp.i].litros))}</span>
               <span className="text-[11px] text-gray-400">{unit}</span>
             </div>
+            {/* Faturamento do dia (quando a série trouxer). */}
+            {data[hp.i].faturamento != null && (
+              <div className="mt-0.5 flex items-center justify-between gap-3">
+                <span className="text-[10px] text-gray-400">Faturamento</span>
+                <span className="text-[11px] font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatCurrency(data[hp.i].faturamento ?? 0)}</span>
+              </div>
+            )}
             {/* L.B. por unidade do dia (quando a série trouxer o lucro bruto). */}
             {data[hp.i].lbPorLitro != null && (
               <div className="mt-0.5 flex items-center justify-between gap-3">
@@ -333,9 +354,9 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             <div className="mt-1 flex items-center justify-between gap-3 border-t border-gray-100 pt-1 dark:border-gray-700">
               <span className="text-[10px] text-gray-400">vs dia anterior</span>
               {(() => {
-                const prev = hp.i > 0 ? g.pts[hp.i - 1].v : null
+                const prev = hp.i > 0 ? data[hp.i - 1].litros : null
                 if (prev == null || prev === 0) return <span className="text-[11px] font-semibold text-gray-400">—</span>
-                const pct = ((hp.v - prev) / prev) * 100
+                const pct = ((data[hp.i].litros - prev) / prev) * 100
                 const up = pct >= 0
                 return (
                   <span className={cn('text-[11px] font-bold tabular-nums', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
@@ -356,8 +377,8 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
         </span>
         <p className="text-[12px] leading-relaxed text-gray-600 dark:text-gray-300">
           Nesses <strong className="font-semibold text-gray-800 dark:text-gray-100">{insight.n} dias</strong>, a média ficou em{' '}
-          <strong className="font-semibold text-gray-800 dark:text-gray-100">{formatNumber(Math.round(insight.media))} {unit}/dia</strong>{' '}
-          (total {formatNumber(Math.round(insight.sum))} {unit}).{' '}
+          <strong className="font-semibold text-gray-800 dark:text-gray-100">{fmtVal(insight.media)}{unitSfx}/dia</strong>{' '}
+          (total {fmtVal(insight.sum)}{unitSfx}).{' '}
           {insight.trend === 'up' && (
             <>O ritmo vem em <span className="font-semibold text-emerald-600 dark:text-emerald-400">▲ alta</span> — os últimos {insight.k} dias subiram <strong className="text-emerald-600 dark:text-emerald-400">{pct1(insight.deltaPct)}</strong> vs o início{vsMediaTxt}. </>
           )}
@@ -367,7 +388,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
           {insight.trend === 'flat' && (
             <>O ritmo está <span className="font-semibold text-gray-500 dark:text-gray-400">estável</span>{vsMediaTxt}. </>
           )}
-          O melhor dia foi <strong className="text-emerald-700 dark:text-emerald-400">{ddmm(insight.pico.data)}</strong> (<span className="tabular-nums">{formatNumber(Math.round(insight.pico.v))}</span>) e o mais fraco <strong className="text-amber-700 dark:text-amber-500">{ddmm(insight.baixa.data)}</strong> (<span className="tabular-nums">{formatNumber(Math.round(insight.baixa.v))}</span>).
+          O melhor dia foi <strong className="text-emerald-700 dark:text-emerald-400">{ddmm(insight.pico.data)}</strong> (<span className="tabular-nums">{fmtVal(insight.pico.v)}</span>) e o mais fraco <strong className="text-amber-700 dark:text-amber-500">{ddmm(insight.baixa.data)}</strong> (<span className="tabular-nums">{fmtVal(insight.baixa.v)}</span>).
           {insight.wePct != null && (
             <> Fins de semana ficam ~<strong>{pct1(insight.wePct)}</strong> {insight.wePct < 0 ? 'abaixo' : 'acima'} dos dias úteis.</>
           )}
