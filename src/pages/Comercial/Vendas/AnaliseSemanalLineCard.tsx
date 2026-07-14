@@ -331,17 +331,33 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
               {dowLabel(data[hp.i].data)}, {ddmm(data[hp.i].data)}
             </p>
+            {/* Herói do tooltip: FATURAMENTO quando `plotFaturamento` (Pista/
+                Conveniência — bate com a linha plotada); senão a quantidade. */}
             <div className="mt-1 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-              <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(Math.round(data[hp.i].litros))}</span>
-              <span className="text-[11px] text-gray-400">{unit}</span>
+              {plotFaturamento ? (
+                <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(data[hp.i].faturamento ?? 0)}</span>
+              ) : (
+                <>
+                  <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(Math.round(data[hp.i].litros))}</span>
+                  <span className="text-[11px] text-gray-400">{unit}</span>
+                </>
+              )}
             </div>
-            {/* Faturamento do dia (quando a série trouxer). */}
-            {data[hp.i].faturamento != null && (
+            {/* Linha secundária: com faturamento no topo, a quantidade desce pra cá;
+                sem, o faturamento é que vira a linha secundária. */}
+            {plotFaturamento ? (
               <div className="mt-0.5 flex items-center justify-between gap-3">
-                <span className="text-[10px] text-gray-400">Faturamento</span>
-                <span className="text-[11px] font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatCurrency(data[hp.i].faturamento ?? 0)}</span>
+                <span className="text-[10px] text-gray-400">{unit.charAt(0).toUpperCase() + unit.slice(1)}</span>
+                <span className="text-[11px] font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatNumber(Math.round(data[hp.i].litros))}</span>
               </div>
+            ) : (
+              data[hp.i].faturamento != null && (
+                <div className="mt-0.5 flex items-center justify-between gap-3">
+                  <span className="text-[10px] text-gray-400">Faturamento</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatCurrency(data[hp.i].faturamento ?? 0)}</span>
+                </div>
+              )
             )}
             {/* L.B. por unidade do dia (quando a série trouxer o lucro bruto). */}
             {data[hp.i].lbPorLitro != null && (
@@ -362,9 +378,11 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
                 const alvo = new Date(y, m - 1, d - 7)
                 const alvoIso = `${alvo.getFullYear()}-${String(alvo.getMonth() + 1).padStart(2, '0')}-${String(alvo.getDate()).padStart(2, '0')}`
                 const prevPt = data.find((p) => p.data.slice(0, 10) === alvoIso)
-                const prev = prevPt ? prevPt.litros : null
+                // Compara o MESMO indicador do herói: faturamento (Pista/Conv) ou quantidade.
+                const heroVal = (p: { litros: number; faturamento?: number }) => (plotFaturamento ? (p.faturamento ?? 0) : p.litros)
+                const prev = prevPt ? heroVal(prevPt) : null
                 if (prev == null || prev === 0) return <span className="text-[11px] font-semibold text-gray-400">—</span>
-                const pct = ((data[hp.i].litros - prev) / prev) * 100
+                const pct = ((heroVal(data[hp.i]) - prev) / prev) * 100
                 const up = pct >= 0
                 return (
                   <span className={cn('text-[11px] font-bold tabular-nums', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
