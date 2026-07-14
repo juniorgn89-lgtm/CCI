@@ -22,6 +22,10 @@ interface ProjecaoExecutivaProps {
   /** L.B. por litro (R$/L) — mostrado no rodapé no lugar da margem% quando
    * `metrica='litros'` (a margem% precisa do faturamento, que não é o principal). */
   lbPorUnidade?: number
+  /** Mostra o mini-gráfico (sparkline) no expandido. Default true. */
+  sparkline?: boolean
+  /** Mostra as células de cenário (conservador/esperado/otimista). Default true. */
+  cenarios?: boolean
   loading?: boolean
   /** Expansão controlada por fora (toggle global que também abre os detalhes
    * por combustível nos KPIs). Se omitido, usa estado interno. */
@@ -103,6 +107,8 @@ const ProjecaoExecutiva = ({
   comparativo,
   metrica = 'reais',
   lbPorUnidade,
+  sparkline = true,
+  cenarios = true,
   loading = false,
   expanded: expandedProp,
   onToggleExpanded,
@@ -224,7 +230,7 @@ const ProjecaoExecutiva = ({
               </div>
 
               {/* Mini-sparkline (real sólido + cauda projetada tracejada) */}
-              {fat.sparkline.length > 1 && (
+              {sparkline && fat.sparkline.length > 1 && (
                 <div className="mt-3 h-12 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={fat.sparkline} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
@@ -242,7 +248,7 @@ const ProjecaoExecutiva = ({
               )}
 
               {/* Cenários — hover mostra o que fazer pra atingir cada um */}
-              {isProjetada && (
+              {cenarios && isProjetada && (
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
                   <ScenarioCell
                     label="Conservador"

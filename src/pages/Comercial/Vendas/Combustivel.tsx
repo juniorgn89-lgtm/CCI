@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown, FlaskConical } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -34,7 +34,7 @@ import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
-import { projecaoAvancada } from '@/lib/projection'
+import { projecaoSazonal } from '@/lib/projection'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
@@ -146,7 +146,7 @@ interface KpiCardProps {
 const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe, onClick }: KpiCardProps) => (
   <div
     className={cn(
-      'flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700',
+      'flex h-full flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700',
       cardBg,
       onClick && 'cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500',
     )}
@@ -596,20 +596,25 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
     const lastDay = new Date(yy, mm, 0).getDate()
     const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    const fat = projecaoAvancada({
+    // Projeção LINEAR (indices vazio → cai em 1 pra todo dia) — consistente com o
+    // painel da Central e a tabela por posto. A sazonal entra no rollout.
+    const fat = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
-    const lucro = projecaoAvancada({
+    const lucro = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
-    const litros = projecaoAvancada({
+    const litros = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.litros })),
       today: todayISO,
       dataFinal: monthEnd,
+      indices: {},
     })
     return {
       fat,
@@ -622,8 +627,16 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     }
   }, [dailyData, dataInicial])
 
-  // Piloto Fase 2 — projeção sazonal (atrás de flag; ver docs/SPEC-projecao-sazonal.md).
-  const pilotoSazonal = useProjecaoSazonalPiloto(dailyData)
+  // Piloto Fase 2 — projeção sazonal (toggle na tela; ver docs/SPEC-projecao-sazonal.md).
+  const [pilotoOn, setPilotoOn] = useState(() => { try { return localStorage.getItem('visor360.projSazonal') === 'on' } catch { return false } })
+  const togglePiloto = () => setPilotoOn((v) => {
+    const nv = !v
+    try { nv ? localStorage.setItem('visor360.projSazonal', 'on') : localStorage.removeItem('visor360.projSazonal') } catch { /* ignore */ }
+    return nv
+  })
+  // Sempre calculado (o card usa a projeção sazonal); o toggle só mostra/oculta
+  // o painel de comparação (linear × sazonal).
+  const pilotoSazonal = useProjecaoSazonalPiloto(dailyData, true)
 
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
    * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
@@ -652,10 +665,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       add(lucroByFuel, r.combustivelNome, day, r.lucroBruto)
     }
     const proj = (s?: Map<string, number>) =>
-      projecaoAvancada({
+      projecaoSazonal({
         dailySeries: Array.from((s ?? new Map<string, number>()).entries()).map(([data, value]) => ({ data, value })),
         today: todayISO,
         dataFinal: monthEnd,
+        indices: {},
       }).esperado
 
     const out = new Map<string, ProjFuelDetalhe>()
@@ -762,9 +776,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             {/* Os 4 KPIs num sub-grid próprio: esticam entre si (altura igual)
                e o sub-grid estica até a altura da coluna da projeção. A chave
                abraça SÓ os 4 KPIs de realizado — a Projeção (5ª col) fica fora. */}
-            <div className="lg:col-span-4">
+            <div className="flex flex-col lg:col-span-4">
             <RealizadoChave />
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Litros Vendidos"
               help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados. Clique para a conferência físico × fiscal (perda/sobra)."
@@ -906,23 +920,40 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             </div>
             </div>
             <ProjecaoExecutiva
-              fat={projecaoCombustivel.litros}
-              projetadoLucro={projecaoCombustivel.projetadoLucro}
+              fat={pilotoSazonal.sazonal.litros}
+              projetadoLucro={pilotoSazonal.sazonal.lucro.esperado}
               dataFinal={projecaoCombustivel.dataFinalProjecao}
-              comparativo={vendaCmp.litros > 0 ? { anterior: vendaCmp.litros, label: cmpLabel } : undefined}
+              comparativo={pilotoSazonal.cmpAnterior.litros > 0 ? { anterior: pilotoSazonal.cmpAnterior.litros, label: pilotoSazonal.cmpLabel } : undefined}
               metrica="litros"
-              lbPorUnidade={projecaoCombustivel.projetadoLBLitro}
+              lbPorUnidade={pilotoSazonal.sazonal.litros.esperado > 0 ? pilotoSazonal.sazonal.lucro.esperado / pilotoSazonal.sazonal.litros.esperado : 0}
+              sparkline={false}
+              cenarios={false}
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
-              loading={isLoadingValor}
+              loading={isLoadingValor || pilotoSazonal.isLoading}
             />
           </div>
 
-          {/* Piloto (flag) — comparação projeção atual × sazonal */}
-          <ProjecaoSazonalPiloto
-            piloto={pilotoSazonal}
-            atual={{ faturamento: projecaoCombustivel.fat.esperado, litros: projecaoCombustivel.litros.esperado, lucro: projecaoCombustivel.projetadoLucro }}
-          />
+          {/* Piloto — botão visível + comparação projeção atual × sazonal */}
+          <div>
+            <button
+              type="button"
+              onClick={togglePiloto}
+              className={cn('inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors',
+                pilotoOn
+                  ? 'border-violet-300 bg-violet-100 text-violet-700 dark:border-violet-700/50 dark:bg-violet-900/30 dark:text-violet-300'
+                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800')}
+            >
+              <FlaskConical className="h-3.5 w-3.5" />
+              {pilotoOn ? 'Ocultar comparação de projeção' : 'Comparar projeção (piloto sazonal)'}
+            </button>
+            {pilotoOn && (
+              <ProjecaoSazonalPiloto
+                piloto={pilotoSazonal}
+                atual={{ faturamento: projecaoCombustivel.fat.esperado, litros: projecaoCombustivel.litros.esperado, lucro: projecaoCombustivel.projetadoLucro }}
+              />
+            )}
+          </div>
 
           {/* Detalhamento de informações — 4 abas */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

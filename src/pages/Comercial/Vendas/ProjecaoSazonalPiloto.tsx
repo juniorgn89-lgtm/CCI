@@ -3,11 +3,6 @@ import { cn } from '@/lib/utils'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import type { ProjecaoSazonalPiloto as Piloto } from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
 
-/** Flag de piloto: `localStorage.setItem('visor360.projSazonal','on')` + reload. */
-const flagOn = (): boolean => {
-  try { return localStorage.getItem('visor360.projSazonal') === 'on' } catch { return false }
-}
-
 const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 interface Props {
@@ -35,8 +30,14 @@ const Linha = ({ label, atual, sazonal, fmt }: { label: string; atual: number; s
  * Só aparece com a flag ligada; é ferramenta de validação, não vai pra produção.
  */
 const ProjecaoSazonalPiloto = ({ piloto, atual }: Props) => {
-  if (!flagOn()) return null
   const idx = piloto.indices.faturamento
+  if (piloto.isLoading) {
+    return (
+      <div className="mt-4 rounded-xl border border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[12px] text-violet-700 dark:border-violet-700/50 dark:bg-violet-950/15 dark:text-violet-300">
+        Carregando histórico de 6 meses pra comparação…
+      </div>
+    )
+  }
 
   return (
     <div className="mt-4 rounded-xl border border-dashed border-violet-300 bg-violet-50/40 p-4 dark:border-violet-700/50 dark:bg-violet-950/15">
@@ -58,8 +59,8 @@ const ProjecaoSazonalPiloto = ({ piloto, atual }: Props) => {
           <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-400 dark:bg-gray-800 dark:text-gray-500">
             <tr>
               <th className="px-3 py-1.5 text-left font-semibold">Métrica</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Atual</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Sazonal</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Atual (linear)</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Sazonal (proposto)</th>
               <th className="px-3 py-1.5 text-right font-semibold">Δ</th>
             </tr>
           </thead>
