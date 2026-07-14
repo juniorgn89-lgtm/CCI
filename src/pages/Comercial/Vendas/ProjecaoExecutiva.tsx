@@ -50,16 +50,26 @@ const CONFIA: Record<Confiabilidade, { label: string; cls: string }> = {
   baixa: { label: 'Confiança baixa', cls: 'bg-red-400/20 text-red-100 ring-red-300/30' },
 }
 
-const Chip = ({ icon: Icon, label, value, valueClass }: {
+const Chip = ({ icon: Icon, label, value, valueClass, hint }: {
   icon: typeof Gauge
   label: string
   value: string
   valueClass?: string
+  hint?: string
 }) => (
   <div className="flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
     <Icon className="h-3.5 w-3.5 shrink-0 text-white/60" />
     <div className="min-w-0 leading-tight">
-      <p className="truncate text-[9px] uppercase tracking-wide text-white/55">{label}</p>
+      <p className="flex items-center gap-0.5 truncate text-[9px] uppercase tracking-wide text-white/55">
+        {label}
+        {hint && (
+          <InfoHint
+            text={hint}
+            align="start"
+            className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white"
+          />
+        )}
+      </p>
       <p className={cn('truncate text-xs font-semibold tabular-nums text-white', valueClass)}>{value}</p>
     </div>
   </div>
@@ -212,7 +222,7 @@ const ProjecaoExecutiva = ({
 
           {/* Ritmo necessário/dia + dias restantes — acionável, sempre visível. */}
           {isProjetada && (
-            <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-[11.5px] text-white/90">
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] text-white/90">
               <Gauge className="h-3.5 w-3.5 shrink-0 text-white/60" />
               <span>Ritmo p/ manter: <span className="font-semibold tabular-nums">{fmtMedia(ritmoNecessario)}</span>/dia</span>
               <span className="text-white/45">·</span>
@@ -292,6 +302,7 @@ const ProjecaoExecutiva = ({
                   label="Tendência"
                   value={`${up ? '+' : ''}${(fat.tendenciaPct * 100).toFixed(2).replace('.', ',')}%`}
                   valueClass={up ? 'text-emerald-200' : 'text-red-200'}
+                  hint="Momentum DENTRO do mês: ritmo dos últimos 7 dias vs a média de todos os dias já fechados do período. Verde = os últimos dias estão vendendo acima da média do mês (acelerando); vermelho = abaixo (desacelerando). Não confunda com o '+X% vs mês ant.' do topo, que compara a projeção com o fechamento do mês anterior — são medidas diferentes, então podem ter sinais opostos."
                 />
               </div>
             </>
