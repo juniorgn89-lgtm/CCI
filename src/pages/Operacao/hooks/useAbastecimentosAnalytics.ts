@@ -46,6 +46,27 @@ export interface AbastecimentoRow {
   vendaItemCodigo: number
 }
 
+/** Aferição de bomba (afericao=true) — saída física de combustível que NÃO é
+ * venda (teste INMETRO). Descartada das análises de venda, exposta à parte pra
+ * o admin ver "quando e quanto" está saindo. Produto/placa vêm nulos da API;
+ * o combustível é resolvido pelo bico. */
+export interface AfericaoRow {
+  codigo: number
+  dataHora: string
+  dataFiscal: string
+  empresaCodigo: number
+  empresaNome: string
+  bicoCodigo: number
+  bombaDescricao: string
+  frentistaCodigo: number
+  frentistaNome: string
+  combustivelNome: string
+  litros: number
+  valorUnitario: number
+  /** Valor NOTIONAL (litros × preço de bomba) — o combustível volta pro tanque. */
+  valorEstimado: number
+}
+
 export interface DailyRow {
   data: string
   litros: number
@@ -508,6 +529,28 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
       }
     })
 
+    // Aferições (afericao=true) — o oposto do `filtered`. NÃO passa por
+    // validProduct (a API manda produto null na aferição; resolvemos pelo bico).
+    const afericoes: AfericaoRow[] = (hasEmpresa ? abastecimentos.filter((a) => matchEmpresa(a.empresaCodigo)) : abastecimentos)
+      .filter((a) => a.afericao === true)
+      .filter((a) => !isFuture(a))
+      .map((a) => ({
+        codigo: a.codigo,
+        dataHora: a.dataHoraAbastecimento,
+        dataFiscal: (a.dataFiscal || a.dataHoraAbastecimento || '').slice(0, 10),
+        empresaCodigo: a.empresaCodigo,
+        empresaNome: empresaMap.get(a.empresaCodigo) ?? `Empresa ${a.empresaCodigo}`,
+        bicoCodigo: a.codigoBico,
+        bombaDescricao: bicoDescMap.get(a.codigoBico) ?? `Bico ${a.codigoBico}`,
+        frentistaCodigo: a.codigoFrentista,
+        frentistaNome: funcionarioMap.get(a.codigoFrentista) ?? (a.codigoFrentista ? `Frentista ${a.codigoFrentista}` : '—'),
+        combustivelNome: getProductName(a.codigoProduto, a.codigoBico),
+        litros: a.quantidade,
+        valorUnitario: a.valorUnitario,
+        valorEstimado: a.quantidade * a.valorUnitario,
+      }))
+      .sort((x, y) => (y.dataHora || '').localeCompare(x.dataHora || ''))
+
     const sumAbast = (list: typeof abastecimentos) => {
       let litros = 0, fat = 0, custo = 0
       for (const a of list) {
@@ -813,7 +856,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
       }
     })
 
-    return { rows, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
+    return { rows, afericoes, dailyData, fuelTypeData, lbLitroData, combustiveis, inconsistenciasFuturas }
   }, [abastecimentos, prevMonthAbast, evolutionDaily, fuelProdutoData, lmcData, vendaByProduct, cacheHasCostEmbedded, produtosData, funcionariosData, bombasData, bicosData, empresasData, empresaCodigos, empresaCodigoOverride, hasEmpresa, dataInicial, dataFinal])
 
   const projectionMeta = useMemo<ProjectionMeta>(() => {
