@@ -350,11 +350,19 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
                 <span className="text-[11px] font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatCurrency(data[hp.i].lbPorLitro ?? 0)}</span>
               </div>
             )}
-            {/* Variação vs o dia anterior (— no primeiro dia da série). */}
+            {/* Variação vs o mesmo dia da semana anterior (7 dias atrás) —
+                mais acertivo que o dia imediatamente anterior porque compara
+                segunda×segunda, evitando distorção de fim de semana. — quando
+                a série não alcança 7 dias atrás. */}
             <div className="mt-1 flex items-center justify-between gap-3 border-t border-gray-100 pt-1 dark:border-gray-700">
-              <span className="text-[10px] text-gray-400">vs dia anterior</span>
+              <span className="text-[10px] text-gray-400">vs semana anterior</span>
               {(() => {
-                const prev = hp.i > 0 ? data[hp.i - 1].litros : null
+                const curIso = data[hp.i].data.slice(0, 10)
+                const [y, m, d] = curIso.split('-').map(Number)
+                const alvo = new Date(y, m - 1, d - 7)
+                const alvoIso = `${alvo.getFullYear()}-${String(alvo.getMonth() + 1).padStart(2, '0')}-${String(alvo.getDate()).padStart(2, '0')}`
+                const prevPt = data.find((p) => p.data.slice(0, 10) === alvoIso)
+                const prev = prevPt ? prevPt.litros : null
                 if (prev == null || prev === 0) return <span className="text-[11px] font-semibold text-gray-400">—</span>
                 const pct = ((data[hp.i].litros - prev) / prev) * 100
                 const up = pct >= 0

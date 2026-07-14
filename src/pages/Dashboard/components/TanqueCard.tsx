@@ -78,7 +78,10 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
           <span className="inline-flex items-start gap-1 text-gray-600 dark:text-gray-400">
             <ShoppingCart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span>
-              Última compra:{' '}
+              <span className="inline-flex items-center gap-0.5">
+                Última compra
+                <InfoHint text="Última nota de compra do produto (nota de entrada), refletida assim que CADASTRADA no sistema — não espera a escrituração no LMC. NF cancelada é desconsiderada automaticamente. Como a nota é do produto, tanques do mesmo combustível mostram a mesma última compra." />
+              </span>:{' '}
               <span className="whitespace-nowrap font-medium tabular-nums text-gray-800 dark:text-gray-200">
                 {formatLiters(t.ultimaCompra.volume)}
               </span>
@@ -99,7 +102,7 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
         ) : (
           <span
             className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500"
-            title="Não houve entrada de nota fiscal pra esse produto/posto no período selecionado."
+            title="Sem nota de compra cadastrada pra este produto nos últimos 90 dias."
           >
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Sem compras no período

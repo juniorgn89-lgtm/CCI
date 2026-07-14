@@ -928,6 +928,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               lbPorUnidade={pilotoSazonal.sazonal.litros.esperado > 0 ? pilotoSazonal.sazonal.lucro.esperado / pilotoSazonal.sazonal.litros.esperado : 0}
               sparkline={false}
               cenarios={false}
+              mediasInteiras
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor || pilotoSazonal.isLoading}

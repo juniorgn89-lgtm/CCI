@@ -73,5 +73,32 @@ export const fetchBombas = (params?: FetchBombasParams) =>
 export const fetchLmc = (params?: FetchLmcParams) =>
   client.get<PaginatedResponse<LMC>>('/LMC', { params }).then((res) => res.data)
 
+interface FetchCompraItemParams {
+  empresaCodigo?: number[]
+  dataInicial: string
+  dataFinal: string
+  ultimoCodigo?: number
+  limite?: number
+}
+
+/** Item de nota de entrada (compra) — POR PRODUTO. Fonte da "última compra":
+ * reflete a NF assim que CADASTRADA (antes da escrituração no LMC) e liga ao
+ * produto (→ tanque). NÃO há flag de cancelamento: uma NF cancelada some daqui,
+ * então itens cancelados já ficam de fora naturalmente. Só tipamos o que usamos. */
+export interface CompraItem {
+  empresaCodigo: number
+  compraCodigo: number
+  produtoCodigo: number
+  /** Volume/quantidade comprado do produto (L). */
+  quantidade: number
+  /** Custo unitário (R$/L). */
+  precoCusto: number
+  /** Data de entrada da nota (yyyy-MM-dd...). */
+  dataEntrada: string
+}
+
+export const fetchCompraItem = (params?: FetchCompraItemParams) =>
+  client.get<PaginatedResponse<CompraItem>>('/COMPRA_ITEM', { params }).then((res) => res.data)
+
 export const fetchTrocaPreco = (params?: FetchTrocaPrecoParams) =>
   client.get<PaginatedResponse<TrocaPreco>>('/TROCA_PRECO', { params }).then((res) => res.data)

@@ -26,6 +26,8 @@ interface ProjecaoExecutivaProps {
   sparkline?: boolean
   /** Mostra as células de cenário (conservador/esperado/otimista). Default true. */
   cenarios?: boolean
+  /** Médias (ritmo/dia, média/dia) como número INTEIRO em vez de compacto. */
+  mediasInteiras?: boolean
   loading?: boolean
   /** Expansão controlada por fora (toggle global que também abre os detalhes
    * por combustível nos KPIs). Se omitido, usa estado interno. */
@@ -109,6 +111,7 @@ const ProjecaoExecutiva = ({
   lbPorUnidade,
   sparkline = true,
   cenarios = true,
+  mediasInteiras = false,
   loading = false,
   expanded: expandedProp,
   onToggleExpanded,
@@ -130,6 +133,12 @@ const ProjecaoExecutiva = ({
     return `${formatNumber(Math.round(v))} L`
   }
   const principalNoun = isLitros ? 'Litros estimados' : 'Faturamento estimado'
+  // Médias (ritmo/dia, média/dia): inteiro quando pedido; e a MÉDIA/DIA é a
+  // média PROJETADA (esperado ÷ dias do mês) — calculada na própria projeção,
+  // então média × dias = projeção (consistente).
+  const fmtMedia = (v: number): string => (mediasInteiras ? fmtFull(v) : fmtCompact(v))
+  const diasDoMes = Number((dataFinal || '').slice(8, 10)) || (fat.diasFechados + fat.diasRestantes)
+  const mediaDiaProjetada = diasDoMes > 0 ? fat.esperado / diasDoMes : fat.mediaDiaria
   const up = fat.tendenciaPct >= 0
   const confia = CONFIA[fat.confiabilidade]
   const baixaConfianca = isProjetada && fat.confiabilidade === 'baixa'
@@ -205,7 +214,7 @@ const ProjecaoExecutiva = ({
           {isProjetada && (
             <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-[11.5px] text-white/90">
               <Gauge className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              <span>Ritmo p/ manter: <span className="font-semibold tabular-nums">{fmtCompact(ritmoNecessario)}</span>/dia</span>
+              <span>Ritmo p/ manter: <span className="font-semibold tabular-nums">{fmtMedia(ritmoNecessario)}</span>/dia</span>
               <span className="text-white/45">·</span>
               <span>faltam <span className="font-semibold tabular-nums">{fat.diasRestantes}d</span></span>
             </div>
@@ -277,7 +286,7 @@ const ProjecaoExecutiva = ({
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 <Chip icon={CalendarCheck} label="Dias fechados" value={String(fat.diasFechados)} />
                 <Chip icon={CalendarClock} label="Dias restantes" value={String(fat.diasRestantes)} />
-                <Chip icon={Gauge} label="Média / dia" value={fmtCompact(fat.mediaDiaria)} />
+                <Chip icon={Gauge} label="Média / dia" value={fmtMedia(mediaDiaProjetada)} />
                 <Chip
                   icon={up ? TrendingUp : TrendingDown}
                   label="Tendência"

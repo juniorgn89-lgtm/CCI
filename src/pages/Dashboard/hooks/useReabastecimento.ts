@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchTanques, fetchLmc } from '@/api/endpoints/combustiveis'
+import { fetchTanques, fetchLmc, fetchCompraItem } from '@/api/endpoints/combustiveis'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
@@ -26,7 +26,8 @@ export interface ReabastTanque {
   estoqueAtual: number
   nivelPct: number
   nivel: ReabastNivel
-  /** Última nota de compra registrada no LMC (90 dias atrás), null se não houver. */
+  /** Última nota de compra do PRODUTO (via /COMPRA_ITEM) — reflete a NF assim que
+   * cadastrada; null se não houver nos últimos 90 dias. */
   ultimaCompra: UltimaCompra | null
   /** Consumo médio diário do mês corrente (litros/dia). 0 se sem dados. */
   consumoDiarioMedio: number
@@ -150,13 +151,52 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     staleTime: 10 * 60 * 1000,
   })
 
+  // Itens de compra (/COMPRA_ITEM) — mesma janela. Fonte da "última compra":
+  // reflete a NF assim que CADASTRADA (não espera a escrituração do LMC) e vem
+  // por PRODUTO, casando direto com o produto do tanque. NF cancelada some daqui,
+  // então já fica de fora naturalmente.
+  const { data: compraItens = [] } = useQuery({
+    queryKey: ['compra-itens-reabast', empresasCodes.join(','), lmcInicial, lmcFinal],
+    queryFn: async () => {
+      if (empresasCodes.length === 0) return []
+      const results = await Promise.all(
+        empresasCodes.map((ec) =>
+          fetchAllPages(
+            (p) => fetchCompraItem({ empresaCodigo: [ec], dataInicial: lmcInicial, dataFinal: lmcFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+            1000, 50,
+          ),
+        ),
+      )
+      return results.flat()
+    },
+    enabled: includeDetalhes && empresasCodes.length > 0,
+    staleTime: 10 * 60 * 1000,
+  })
+  // Última compra por (empresa, produto) = item de NF mais recente por dataEntrada.
+  const ultimaCompraByProduto = useMemo(() => {
+    const m = new Map<string, UltimaCompra>()
+    for (const it of compraItens) {
+      if (!it.quantidade || it.quantidade <= 0 || !it.dataEntrada) continue
+      const key = `${it.empresaCodigo}-${it.produtoCodigo}`
+      const data = it.dataEntrada.slice(0, 10)
+      const prev = m.get(key)
+      if (!prev || data > prev.data) {
+        m.set(key, {
+          data,
+          volume: it.quantidade,
+          valorEstimado: it.quantidade * (it.precoCusto || 0),
+          precoCusto: it.precoCusto || 0,
+        })
+      }
+    }
+    return m
+  }, [compraItens])
+
   // Indexa LMC por (empresa, tanque) → lista ordenada de entries
   // Também acumula consumo do mês corrente por tanque.
   const detalhesByTanque = useMemo(() => {
-    const m = new Map<string, {
-      ultimaCompra: UltimaCompra | null
-      consumoMes: number  // soma saída do mês corrente
-    }>()
+    // (empresa-tanque) → consumo do mês corrente (soma saída via lmcBico).
+    const m = new Map<string, number>()
     if (!includeDetalhes) return m
 
     const currentMonthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
@@ -173,28 +213,12 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
           const venda = lb.venda ?? 0
           if (venda <= 0) continue
           const key = `${lmc.empresaCodigo}-${lb.tanqueCodigo}`
-          const prev = m.get(key) ?? { ultimaCompra: null, consumoMes: 0 }
-          prev.consumoMes += venda
-          m.set(key, prev)
+          m.set(key, (m.get(key) ?? 0) + venda)
         }
       }
 
-      // Última compra: itera lmcNota
-      for (const nota of lmc.lmcNota ?? []) {
-        if (!nota.volumeRecebido || nota.volumeRecebido <= 0) continue
-        const key = `${lmc.empresaCodigo}-${nota.tanqueCodigo}`
-        const prev = m.get(key) ?? { ultimaCompra: null, consumoMes: 0 }
-        const isLatest = !prev.ultimaCompra || (nota.dataEntrada > prev.ultimaCompra.data)
-        if (isLatest) {
-          prev.ultimaCompra = {
-            data: nota.dataEntrada.slice(0, 10),
-            volume: nota.volumeRecebido,
-            valorEstimado: nota.volumeRecebido * (lmc.precoCusto || 0),
-            precoCusto: lmc.precoCusto || 0,
-          }
-        }
-        m.set(key, prev)
-      }
+      // Última compra NÃO vem mais do LMC (que atrasa na escrituração) — agora é
+      // do /COMPRA_ITEM por produto (ver `ultimaCompraByProduto`).
     }
     return m
   }, [lmcData, includeDetalhes, today])
@@ -217,8 +241,8 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
           nivelPct < CRITICO_THRESHOLD ? 'critico' :
           nivelPct < ALERTA_THRESHOLD ? 'alerta' : 'ok'
 
-        const detalhe = detalhesByTanque.get(`${t.empresaCodigo}-${t.tanqueCodigo}`)
-        const consumoMes = detalhe?.consumoMes ?? 0
+        const consumoMes = detalhesByTanque.get(`${t.empresaCodigo}-${t.tanqueCodigo}`) ?? 0
+        const ultimaCompra = ultimaCompraByProduto.get(`${t.empresaCodigo}-${t.produtoCodigo}`) ?? null
         const consumoDiarioMedio = diasDecorridos > 0 ? consumoMes / diasDecorridos : 0
         // Necessidade até fim do mês = consumo projetado − estoque atual (se >0).
         const consumoProjetadoRestante = consumoDiarioMedio * diasRestantesMes
@@ -238,7 +262,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
           estoqueAtual,
           nivelPct,
           nivel,
-          ultimaCompra: detalhe?.ultimaCompra ?? null,
+          ultimaCompra,
           consumoDiarioMedio,
           necessidadeFimDoMes,
           diasRestantes,
@@ -249,7 +273,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
         if (order[a.nivel] !== order[b.nivel]) return order[a.nivel] - order[b.nivel]
         return a.nivelPct - b.nivelPct
       })
-  }, [tanquesAll, empresaMap, produtoMap, detalhesByTanque, diasDecorridos, diasRestantesMes])
+  }, [tanquesAll, empresaMap, produtoMap, detalhesByTanque, ultimaCompraByProduto, diasDecorridos, diasRestantesMes])
 
   const baixos = useMemo(() => tanques.filter((t) => t.nivel !== 'ok'), [tanques])
   const criticos = useMemo(() => tanques.filter((t) => t.nivel === 'critico'), [tanques])
