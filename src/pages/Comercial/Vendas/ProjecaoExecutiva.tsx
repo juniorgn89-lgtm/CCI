@@ -4,19 +4,24 @@ import { ResponsiveContainer, ComposedChart, Area, Line } from 'recharts'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { formatCurrencyInt, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import { PROJECAO_TOOLTIP_EXECUTIVA, type ProjecaoAvancadaResult, type Confiabilidade } from '@/lib/projection'
 
 interface ProjecaoExecutivaProps {
-  /** Projeção avançada do FATURAMENTO (cenários, tendência, sparkline, confiabilidade). */
+  /** Projeção avançada da MÉTRICA PRINCIPAL (faturamento OU litros — ver `metrica`):
+   * cenários, tendência, sparkline, confiabilidade. */
   fat: ProjecaoAvancadaResult
-  /** Lucro bruto projetado (cresce proporcional ao faturamento esperado). */
+  /** Lucro bruto projetado (sempre em R$). */
   projetadoLucro: number
   dataFinal: string
-  /** Comparativo vs período anterior (mês/ano) — faturamento FECHADO do período
-   * de referência + rótulo curto ("mês ant." / "ano ant."). Quando omitido ou
-   * ≤ 0, o badge não aparece. */
+  /** Comparativo vs período anterior — valor FECHADO do período de referência
+   * na MESMA métrica de `fat` + rótulo curto. Omitido/≤0 → sem badge. */
   comparativo?: { anterior: number; label: string }
+  /** Métrica principal do card: 'reais' (default, faturamento) ou 'litros'. */
+  metrica?: 'reais' | 'litros'
+  /** L.B. por litro (R$/L) — mostrado no rodapé no lugar da margem% quando
+   * `metrica='litros'` (a margem% precisa do faturamento, que não é o principal). */
+  lbPorUnidade?: number
   loading?: boolean
   /** Expansão controlada por fora (toggle global que também abre os detalhes
    * por combustível nos KPIs). Se omitido, usa estado interno. */
@@ -96,6 +101,8 @@ const ProjecaoExecutiva = ({
   projetadoLucro,
   dataFinal,
   comparativo,
+  metrica = 'reais',
+  lbPorUnidade,
   loading = false,
   expanded: expandedProp,
   onToggleExpanded,
@@ -106,6 +113,17 @@ const ProjecaoExecutiva = ({
   const isProjetada = fat.diasRestantes > 0
   const deltaFat = fat.esperado - fat.realizado
   const margemPct = fat.esperado > 0 ? (projetadoLucro / fat.esperado) * 100 : 0
+  // Formatação da métrica principal — R$ (faturamento) ou litros.
+  const isLitros = metrica === 'litros'
+  const fmtFull = (v: number): string => (isLitros ? `${formatNumber(Math.round(v))} L` : formatCurrencyInt(v))
+  const fmtCompact = (v: number): string => {
+    if (!isLitros) return compact(v)
+    const a = Math.abs(v)
+    if (a >= 1_000_000) return `${(v / 1_000_000).toFixed(2).replace('.', ',')} mi L`
+    if (a >= 1_000) return `${Math.round(v / 1_000)} mil L`
+    return `${formatNumber(Math.round(v))} L`
+  }
+  const principalNoun = isLitros ? 'Litros estimados' : 'Faturamento estimado'
   const up = fat.tendenciaPct >= 0
   const confia = CONFIA[fat.confiabilidade]
   const baixaConfianca = isProjetada && fat.confiabilidade === 'baixa'
@@ -127,9 +145,9 @@ const ProjecaoExecutiva = ({
   // necessária nos dias restantes — mostrado no hover de cada cenário.
   const mediaNecessaria = (alvo: number) =>
     fat.diasRestantes > 0 ? (alvo - fat.realizado) / fat.diasRestantes : 0
-  const tipConservador = `Cenário mais cauteloso (ritmo em queda). Pra fechar em ${formatCurrencyInt(fat.conservador)}, faltam ${formatCurrencyInt(fat.conservador - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${formatCurrencyInt(mediaNecessaria(fat.conservador))}/dia, abaixo da sua média de ${formatCurrencyInt(fat.mediaDiaria)}/dia.`
-  const tipEsperado = `Mantendo o ritmo recente (${formatCurrencyInt(fat.mediaRecente)}/dia) com a tendência atual. Pra fechar em ${formatCurrencyInt(fat.esperado)}, faltam ${formatCurrencyInt(fat.esperado - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${formatCurrencyInt(mediaNecessaria(fat.esperado))}/dia.`
-  const tipOtimista = `Cenário de aceleração (ritmo acima da média). Pra fechar em ${formatCurrencyInt(fat.otimista)}, faltam ${formatCurrencyInt(fat.otimista - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${formatCurrencyInt(mediaNecessaria(fat.otimista))}/dia, acima da sua média de ${formatCurrencyInt(fat.mediaDiaria)}/dia.`
+  const tipConservador = `Cenário mais cauteloso (ritmo em queda). Pra fechar em ${fmtFull(fat.conservador)}, faltam ${fmtFull(fat.conservador - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${fmtFull(mediaNecessaria(fat.conservador))}/dia, abaixo da sua média de ${fmtFull(fat.mediaDiaria)}/dia.`
+  const tipEsperado = `Mantendo o ritmo recente (${fmtFull(fat.mediaRecente)}/dia) com a tendência atual. Pra fechar em ${fmtFull(fat.esperado)}, faltam ${fmtFull(fat.esperado - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${fmtFull(mediaNecessaria(fat.esperado))}/dia.`
+  const tipOtimista = `Cenário de aceleração (ritmo acima da média). Pra fechar em ${fmtFull(fat.otimista)}, faltam ${fmtFull(fat.otimista - fat.realizado)} em ${fat.diasRestantes} dia(s) — cerca de ${fmtFull(mediaNecessaria(fat.otimista))}/dia, acima da sua média de ${fmtFull(fat.mediaDiaria)}/dia.`
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-5 shadow-sm">
@@ -161,7 +179,7 @@ const ProjecaoExecutiva = ({
           {/* Esperado (número grande) + comparativo vs período anterior */}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className={cn('text-2xl font-bold tabular-nums', baixaConfianca ? 'text-white/50' : 'text-white')}>
-              {formatCurrencyInt(fat.esperado)}
+              {fmtFull(fat.esperado)}
             </p>
             {cmpPct !== null && (
               <span
@@ -169,19 +187,19 @@ const ProjecaoExecutiva = ({
                   'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
                   cmpUp ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
                 )}
-                title={`Projeção vs fechamento do ${comparativo!.label} (${formatCurrencyInt(comparativo!.anterior)})`}
+                title={`Projeção vs fechamento do ${comparativo!.label} (${fmtFull(comparativo!.anterior)})`}
               >
                 {cmpUp ? '▲' : '▼'} {cmpUp ? '+' : ''}{cmpPct.toFixed(1).replace('.', ',')}% vs {comparativo!.label}
               </span>
             )}
           </div>
-          <p className="text-[11px] text-white/70">Faturamento estimado até {formatDate(dataFinal)}</p>
+          <p className="text-[11px] text-white/70">{principalNoun} até {formatDate(dataFinal)}</p>
 
           {/* Ritmo necessário/dia + dias restantes — acionável, sempre visível. */}
           {isProjetada && (
             <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-[11.5px] text-white/90">
               <Gauge className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              <span>Ritmo p/ manter: <span className="font-semibold tabular-nums">{compact(ritmoNecessario)}</span>/dia</span>
+              <span>Ritmo p/ manter: <span className="font-semibold tabular-nums">{fmtCompact(ritmoNecessario)}</span>/dia</span>
               <span className="text-white/45">·</span>
               <span>faltam <span className="font-semibold tabular-nums">{fat.diasRestantes}d</span></span>
             </div>
@@ -228,20 +246,20 @@ const ProjecaoExecutiva = ({
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
                   <ScenarioCell
                     label="Conservador"
-                    value={compact(fat.conservador)}
+                    value={fmtCompact(fat.conservador)}
                     align="left"
                     tip={tipConservador}
                   />
                   <ScenarioCell
                     label="Esperado"
-                    value={compact(fat.esperado)}
+                    value={fmtCompact(fat.esperado)}
                     highlight
                     align="center"
                     tip={tipEsperado}
                   />
                   <ScenarioCell
                     label="Otimista"
-                    value={compact(fat.otimista)}
+                    value={fmtCompact(fat.otimista)}
                     valueClass="text-emerald-200"
                     align="right"
                     tip={tipOtimista}
@@ -253,7 +271,7 @@ const ProjecaoExecutiva = ({
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 <Chip icon={CalendarCheck} label="Dias fechados" value={String(fat.diasFechados)} />
                 <Chip icon={CalendarClock} label="Dias restantes" value={String(fat.diasRestantes)} />
-                <Chip icon={Gauge} label="Média / dia" value={compact(fat.mediaDiaria)} />
+                <Chip icon={Gauge} label="Média / dia" value={fmtCompact(fat.mediaDiaria)} />
                 <Chip
                   icon={up ? TrendingUp : TrendingDown}
                   label="Tendência"
@@ -273,7 +291,9 @@ const ProjecaoExecutiva = ({
                 {formatCurrencyInt(projetadoLucro)}
               </p>
               <p className="text-[11px] tabular-nums text-white/70">
-                {fat.esperado > 0 ? `${margemPct.toFixed(2).replace('.', ',')}% margem` : '—'}
+                {isLitros
+                  ? (lbPorUnidade != null ? `${formatCurrency(lbPorUnidade)}/L` : '—')
+                  : (fat.esperado > 0 ? `${margemPct.toFixed(2).replace('.', ',')}% margem` : '—')}
               </p>
             </div>
           </div>

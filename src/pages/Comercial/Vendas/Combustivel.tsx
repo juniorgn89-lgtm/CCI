@@ -611,6 +611,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     })
     return {
       fat,
+      litros,
       projetadoLucro: lucro.esperado,
       projetadoLitros: litros.esperado,
       projetadoMargem: fat.esperado > 0 ? (lucro.esperado / fat.esperado) * 100 : 0,
@@ -900,10 +901,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             </div>
             </div>
             <ProjecaoExecutiva
-              fat={projecaoCombustivel.fat}
+              fat={projecaoCombustivel.litros}
               projetadoLucro={projecaoCombustivel.projetadoLucro}
               dataFinal={projecaoCombustivel.dataFinalProjecao}
-              comparativo={vendaCmp.faturamento > 0 ? { anterior: vendaCmp.faturamento, label: cmpLabel } : undefined}
+              comparativo={vendaCmp.litros > 0 ? { anterior: vendaCmp.litros, label: cmpLabel } : undefined}
+              metrica="litros"
+              lbPorUnidade={projecaoCombustivel.projetadoLBLitro}
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor}
