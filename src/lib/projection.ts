@@ -132,6 +132,44 @@ export const fimDoMesIso = (iso: string): string => {
   return `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`
 }
 
+/**
+ * Fator fim-de-mês PONDERADO por dia-da-semana — análogo SAZONAL do
+ * `monthEndFactor`, pra telas que só têm o AGREGADO do período (sem série
+ * diária) mas querem sazonalidade. `fator = Σíndice[dias até o fim do mês] ÷
+ * Σíndice[dias decorridos]`, na MESMA janela do `monthEndFactor` (início =
+ * dataInicial; decorrido = até hoje ∩ dataFinal; projetado = até o fim do mês ∪
+ * dataFinal). Com `indices` vazio/todos = 1 recai EXATAMENTE no `monthEndFactor`
+ * (linear). Multiplique o realizado: `projetado = realizado × fator`.
+ */
+export const weekdayMonthEndFactor = (
+  dataInicial: string,
+  dataFinal: string,
+  indices: Record<number, number>,
+): number => {
+  if (!dataInicial) return 1
+  const [y, m] = dataInicial.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  const monthEndISO = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  const now = new Date()
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const fimProj = dataFinal > monthEndISO ? dataFinal : monthEndISO
+  const fimReal = todayISO < dataFinal ? todayISO : dataFinal
+  const idxOf = (iso: string) => indices[weekdayOfIso(iso)] ?? 1
+  let sumProj = 0
+  let sumReal = 0
+  let cursor = dataInicial
+  let guard = 0
+  while (cursor <= fimProj && guard < 400) {
+    const w = idxOf(cursor)
+    sumProj += w
+    if (cursor <= fimReal) sumReal += w
+    cursor = addDaysIso(cursor, 1)
+    guard++
+  }
+  if (sumReal <= 0) return 1
+  return Math.max(1, sumProj / sumReal)
+}
+
 export type Confiabilidade = 'alta' | 'media' | 'baixa'
 
 export interface ProjecaoSparkPoint {

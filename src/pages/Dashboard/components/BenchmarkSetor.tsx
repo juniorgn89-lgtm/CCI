@@ -6,9 +6,10 @@ import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
-import { monthEndFactor } from '@/lib/projection'
+import { monthEndFactor, weekdayMonthEndFactor } from '@/lib/projection'
 import { GROUP_TINT } from '@/lib/groupTint'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
+import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 
 type SetorId = 'combustiveis' | 'automotivos' | 'conveniencias'
 
@@ -186,7 +187,13 @@ const aggProdutos = (prods: ProdutoRow[]): RowVals => {
 
 type ViewMode = 'realizado' | 'projecoes'
 
-interface ProjPostoRow { posto: string; realLB: number; realFat: number; realLitros: number; lbAnt: number }
+interface ProjPostoRow {
+  posto: string
+  realLB: number; realFat: number; realLitros: number
+  /** Projetados JÁ somados por posto (Σ realizado_setor × fator sazonal do posto). */
+  projLB: number; projFat: number; projLit: number
+  lbAnt: number
+}
 
 /** Segmento genérico (toggle) — reusado pelo seletor de setor/escopo. */
 const Segmented = ({ tabs, active, onSelect }: {
@@ -216,15 +223,15 @@ const Segmented = ({ tabs, active, onSelect }: {
 )
 
 /**
- * Tabela de PROJEÇÃO por empresa. Projeção linear (realizado × fator de
- * monthEndFactor — ritmo uniforme dos dias decorridos), mesmo fator do painel
- * de Projeção da rede. Coluna-chave: "vs mês ant." compara o PROJETADO com o
- * período anterior (no ritmo atual, fecha acima/abaixo?). Margem projetada =
- * margem realizada (proporcional), por isso não há coluna de margem.
+ * Tabela de PROJEÇÃO por empresa. Projeção SAZONAL POR POSTO (realizado × fator
+ * fim-de-mês ponderado por dia-da-semana do próprio posto; ramo linear quando
+ * <90d de operação), o MESMO índice per-posto do painel de Projeção da rede →
+ * painel e tabela somam por posto e batem número a número. Coluna-chave: "vs mês
+ * ant." compara o PROJETADO com o período anterior. Margem projetada = margem
+ * realizada (proporcional), por isso não há coluna de margem.
  */
-const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort, fimProjLabel, compact }: {
+const ProjecaoEmpresaTable = ({ rows, isProjetando, showLitros, cmpShort, fimProjLabel, compact }: {
   rows: ProjPostoRow[]
-  factor: number
   isProjetando: boolean
   showLitros: boolean
   cmpShort: string
@@ -232,15 +239,15 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
   compact?: boolean // empilhado: banner/rodapé/margem-topo vêm do pai (uma vez só).
 }) => {
   const total = rows.reduce(
-    (a, r) => ({ realLB: a.realLB + r.realLB, realFat: a.realFat + r.realFat, realLitros: a.realLitros + r.realLitros, lbAnt: a.lbAnt + r.lbAnt }),
-    { realLB: 0, realFat: 0, realLitros: 0, lbAnt: 0 },
+    (a, r) => ({
+      realLB: a.realLB + r.realLB, realFat: a.realFat + r.realFat, realLitros: a.realLitros + r.realLitros,
+      projLB: a.projLB + r.projLB, projFat: a.projFat + r.projFat, projLit: a.projLit + r.projLit,
+      lbAnt: a.lbAnt + r.lbAnt,
+    }),
+    { realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 },
   )
-  const fx = factor.toFixed(2).replace('.', ',')
 
-  const Linha = ({ posto, realLB, realFat, realLitros, lbAnt, bold }: ProjPostoRow & { bold?: boolean }) => {
-    const projLB = realLB * factor
-    const projFat = realFat * factor
-    const projLit = realLitros * factor
+  const Linha = ({ posto, realLB, realFat, realLitros, projLB, projFat, projLit, lbAnt, bold }: ProjPostoRow & { bold?: boolean }) => {
     const aRealizar = projLB - realLB
     const num = 'px-2 py-2 text-right tabular-nums'
     const real = cn(num, bold ? '' : 'text-gray-500 dark:text-gray-400')
@@ -295,13 +302,13 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
             {showLitros && (
               <>
                 <HeaderHint groupStart label={<>Litros<br />realiz.</>} help="Litros vendidos no período (realizado)." />
-                <HeaderHint label={<>Litros<br />projet.</>} help={`Litros realizados × fator de projeção (${fx}×).`} />
+                <HeaderHint label={<>Litros<br />projet.</>} help="Litros projetados pro fim do mês — projeção sazonal por posto (índice de dia-da-semana, 6 meses)." />
               </>
             )}
             <HeaderHint groupStart label={<>Fat.<br />realiz.</>} help="Faturamento realizado no período." />
-            <HeaderHint label={<>Fat.<br />projet.</>} help={`Faturamento projetado pro fim do mês (realizado × ${fx}×).`} />
+            <HeaderHint label={<>Fat.<br />projet.</>} help="Faturamento projetado pro fim do mês — projeção sazonal por posto (índice de dia-da-semana, 6 meses)." />
             <HeaderHint groupStart label={<>LB<br />realiz.</>} help="Lucro bruto realizado no período." />
-            <HeaderHint label={<>LB<br />projet.</>} help={`Lucro bruto projetado pro fim do mês — linear: realizado × ${fx}× (ritmo uniforme dos dias decorridos), até ${fimProjLabel}.`} />
+            <HeaderHint label={<>LB<br />projet.</>} help={`Lucro bruto projetado pro fim do mês — projeção sazonal por posto (índice de dia-da-semana ponderado, 6 meses de histórico; ramo linear quando <90d de operação), até ${fimProjLabel}.`} />
             <HeaderHint label={<>A<br />realizar</>} help="Lucro bruto que ainda falta realizar até o fim do mês (projetado − realizado)." />
             <HeaderHint groupStart label={`LB ${cmpShort}`} help={`Lucro bruto no mesmo período do ${cmpShort}.`} />
             <HeaderHint label="Var." help={`Variação do lucro bruto REALIZADO vs o ${cmpShort}: (LB realizado ÷ LB ${cmpShort} − 1) × 100.`} />
@@ -309,12 +316,12 @@ const ProjecaoEmpresaTable = ({ rows, factor, isProjetando, showLitros, cmpShort
         </thead>
         <tbody>
           {rows.map((r) => <Linha key={r.posto} {...r} />)}
-          <Linha posto="Total" realLB={total.realLB} realFat={total.realFat} realLitros={total.realLitros} lbAnt={total.lbAnt} bold />
+          <Linha posto="Total" realLB={total.realLB} realFat={total.realFat} realLitros={total.realLitros} projLB={total.projLB} projFat={total.projFat} projLit={total.projLit} lbAnt={total.lbAnt} bold />
         </tbody>
       </table>
       {!compact && (
         <p className="mt-2 text-[11px] text-gray-400">
-          Projeção linear: realizado × {fx}× (ritmo uniforme dos dias decorridos) até {fimProjLabel}. Margem projetada = margem realizada.
+          Projeção sazonal por posto: realizado × fator fim-de-mês ponderado pelo dia-da-semana (índice de 6 meses; ramo linear quando &lt;90d de operação) até {fimProjLabel}. Margem projetada = margem realizada.
         </p>
       )}
     </div>
@@ -643,8 +650,9 @@ const BenchmarkSetor = () => {
   // ── Projeções por empresa (view 'projecoes') ──
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
-  const factor = monthEndFactor(dataInicial, dataFinal)
-  const isProjetando = factor > 1.0001
+  // Índice sazonal per-posto (mesma fonte do painel de Projeção → tabelas batem).
+  const sazonal = useCentralSazonal()
+  const isProjetando = monthEndFactor(dataInicial, dataFinal) > 1.0001
   const fimProjLabel = useMemo(() => {
     const [y, m] = (dataInicial || '').split('-').map(Number)
     if (!y || !m) return '—'
@@ -661,13 +669,15 @@ const BenchmarkSetor = () => {
       const map = new Map<string, ProjPostoRow>()
       for (const sc of scopes) {
         const setorObj = sc === 'combustiveis' ? rede.combustivel : sc === 'automotivos' ? rede.automotivos : rede.conveniencia
+        const singular = sc === 'combustiveis' ? 'combustivel' : sc === 'automotivos' ? 'automotivos' : 'conveniencia'
         for (const p of setorObj.postos) {
-          const agg = aggProdutos(p.produtos)
-          const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, lbAnt: 0 }
-          e.realLB += agg.lucroBruto
-          e.realFat += agg.faturamento
-          if (sc === 'combustiveis') e.realLitros += agg.qtd
-          e.lbAnt += agg.lucroBrutoAnoAnterior
+          // Fator sazonal DO POSTO (índice do dia-da-semana; ramo linear <90d).
+          const factor = weekdayMonthEndFactor(dataInicial, dataFinal, sazonal.indicesDe(p.empresaCodigo, singular))
+          const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 }
+          e.realLB += p.lucroBruto; e.projLB += p.lucroBruto * factor
+          e.realFat += p.faturamento; e.projFat += p.faturamento * factor
+          if (sc === 'combustiveis') { e.realLitros += p.qtd; e.projLit += p.qtd * factor }
+          e.lbAnt += p.lucroBrutoAnoAnterior
           map.set(p.posto, e)
         }
       }
@@ -679,7 +689,7 @@ const BenchmarkSetor = () => {
       { id: 'automotivos', titulo: 'Automotivos', Icon: Wrench, showLitros: false, rows: build(['automotivos']) },
       { id: 'conveniencias', titulo: 'Conveniências', Icon: Store, showLitros: false, rows: build(['conveniencias']) },
     ]
-  }, [rede])
+  }, [rede, dataInicial, dataFinal, sazonal])
 
   // Setores (na ordem exibida, um bloco embaixo do outro).
   const setorBlocos: { id: SetorId; titulo: string; Icon: typeof Fuel; obj: SetorData }[] = [
@@ -751,7 +761,6 @@ const BenchmarkSetor = () => {
                 </div>
                 <ProjecaoEmpresaTable
                   rows={b.rows}
-                  factor={factor}
                   isProjetando={isProjetando}
                   showLitros={b.showLitros}
                   cmpShort={cmpShort}
@@ -762,7 +771,7 @@ const BenchmarkSetor = () => {
             ))}
           </div>
           <p className="mt-3 text-[11px] text-gray-400">
-            Projeção linear: realizado × {factor.toFixed(2).replace('.', ',')}× (ritmo uniforme dos dias decorridos) até {fimProjLabel}. Margem projetada = margem realizada.
+            Projeção sazonal por posto: realizado × fator fim-de-mês ponderado pelo dia-da-semana (índice de 6 meses; ramo linear quando &lt;90d de operação) até {fimProjLabel}. Margem projetada = margem realizada.
           </p>
         </div>
       )}

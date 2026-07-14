@@ -10,7 +10,11 @@ import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendasCache } from '@/api/supabase/apuracao'
-import { monthEndFactor, projecaoAvancada, PROJECAO_TOOLTIP_LINEAR } from '@/lib/projection'
+import { weekdayMonthEndFactor, projecaoAvancada } from '@/lib/projection'
+import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
+
+const PROJECAO_TOOLTIP_SAZONAL =
+  'Projeção de fechamento do mês SAZONAL por posto: realizado × fator fim-de-mês ponderado pelo dia-da-semana (índice de 6 meses de histórico de cada posto; ramo linear quando <90d de operação). A rede é a SOMA dos postos — o painel e a tabela por posto batem número a número. Base fiscal carimbada; é estimativa, não o valor fechado.'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
@@ -103,6 +107,8 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
+  // Índice sazonal per-posto (mesma fonte da tabela BenchmarkSetor → batem).
+  const sazonal = useCentralSazonal()
   // Rótulo do comparativo conforme o modo global (AA = ano ant., MA = mês ant.).
   const cmpLabel = comparisonMode === 'prevYear' ? 'AA' : 'MA'
   const cmpTitle = comparisonMode === 'prevYear'
@@ -166,15 +172,24 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     return map
   }, [mesRows, setorProj])
 
-  // Projeção fim do mês — extrapolação LINEAR (realizado × monthEndFactor, ritmo
-  // uniforme dos dias decorridos), o MESMO fator da tabela por posto
-  // (BenchmarkSetor) → painel e detalhe batem número a número. A unificação
-  // definitiva de método (linear × sazonal) vem no rollout da projeção sazonal.
-  const f = monthEndFactor(dataInicial, dataFinal)
+  // Projeção fim do mês — SAZONAL POR POSTO: cada posto projeta com o fator
+  // fim-de-mês ponderado pelo SEU dia-da-semana (ramo linear <90d), e a rede é a
+  // SOMA dos postos. É a MESMA conta da tabela por posto (BenchmarkSetor) → painel
+  // e detalhe batem número a número.
+  const projSetor = (postos: typeof combustivel.postos, setorId: 'combustivel' | 'automotivos' | 'conveniencia') => {
+    let volume = 0, faturamento = 0, lucroBruto = 0
+    for (const p of postos) {
+      const factor = weekdayMonthEndFactor(dataInicial, dataFinal, sazonal.indicesDe(p.empresaCodigo, setorId))
+      volume += p.qtd * factor
+      faturamento += p.faturamento * factor
+      lucroBruto += p.lucroBruto * factor
+    }
+    return { volume, faturamento, lucroBruto }
+  }
   const projLinhas = [
-    { setor: 'Combustível', volume: combustivel.qtd * f, faturamento: combustivel.faturamento * f, lucroBruto: combustivel.lucroBruto * f, margem: combustivel.margem },
-    { setor: 'Automotivos', volume: automotivos.qtd * f, faturamento: automotivos.faturamento * f, lucroBruto: automotivos.lucroBruto * f, margem: automotivos.margem },
-    { setor: 'Conveniência', volume: conveniencia.qtd * f, faturamento: conveniencia.faturamento * f, lucroBruto: conveniencia.lucroBruto * f, margem: conveniencia.margem },
+    { setor: 'Combustível', ...projSetor(combustivel.postos, 'combustivel'), margem: combustivel.margem },
+    { setor: 'Automotivos', ...projSetor(automotivos.postos, 'automotivos'), margem: automotivos.margem },
+    { setor: 'Conveniência', ...projSetor(conveniencia.postos, 'conveniencia'), margem: conveniencia.margem },
   ]
   const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
   const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
@@ -225,6 +240,9 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     const allDays: number[] = []
     for (let d = 1; d <= diasNoMes; d++) allDays.push(d)
     const dia01 = `${y}-${pad(m)}-01`
+    // Oscilação = projeção recalculada a cada dia; sazonal por SETOR (índice
+    // rede-wide do dia-da-semana). Com índice vazio recai no monthEndFactor.
+    const idxSetor = sazonal.indicesSetor(setorProj)
     const projByDay = new Map<number, number>()
     let acumulado = 0
     for (const d of allDays) {
@@ -232,7 +250,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       const dados = dadosPorDia.get(iso)
       if (!dados) continue // dia sem realizado (futuro / sem venda) → sem coluna
       acumulado += dados.lb
-      projByDay.set(d, acumulado * monthEndFactor(dia01, iso))
+      projByDay.set(d, acumulado * weekdayMonthEndFactor(dia01, iso, idxSetor))
     }
     const diasComDado = allDays.filter((d) => projByDay.has(d))
     const ultimoDado = diasComDado.length ? diasComDado[diasComDado.length - 1] : -1
@@ -291,7 +309,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       x0, slot, bars, projDaily, Xcenter, Y, yTicks, xTicks,
       linhas, totais, varByDia, dowByDia,
     }
-  }, [dataInicial, dadosPorDia])
+  }, [dataInicial, dadosPorDia, sazonal, setorProj])
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -381,7 +399,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               />
               Projeção
               <InfoHint
-                text={PROJECAO_TOOLTIP_LINEAR}
+                text={PROJECAO_TOOLTIP_SAZONAL}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
               {projResumo.cmpPct !== null && (
@@ -539,7 +557,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             </div>
 
             <p className="mt-2 text-[10.5px] leading-snug text-white/45">
-              <strong className="font-semibold text-white/60">Cada coluna</strong> = a projeção de fechamento do mês recalculada naquele dia (venda acumulada até o dia ÷ dias decorridos × dias do mês). Mostra como a projeção oscilou ao longo do mês. Colunas translúcidas = dias futuros, com a projeção mais recente mantida até o fim do mês.
+              <strong className="font-semibold text-white/60">Cada coluna</strong> = a projeção de fechamento do mês recalculada naquele dia (venda acumulada até o dia, extrapolada ao fim do mês pelo índice sazonal de dia-da-semana do setor). Mostra como a projeção oscilou ao longo do mês. Colunas translúcidas = dias futuros, com a projeção mais recente mantida até o fim do mês.
               {!chart.hasDaily && ' · sem série diária do mês no cache.'}
             </p>
             </>
@@ -561,7 +579,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                       <span className="inline-flex items-center justify-end gap-1">Lucro bruto<InfoHint text="Lucro bruto do dia do setor selecionado (faturamento − custo). Base da projeção." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
                     </th>
                     <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
-                      <span className="inline-flex items-center justify-end gap-1">Projeção de fechamento<InfoHint text="Projeção do LB de combustível pro fim do mês recalculada neste dia, com a venda acumulada até aqui: acumulado ÷ dias decorridos × dias do mês." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
+                      <span className="inline-flex items-center justify-end gap-1">Projeção de fechamento<InfoHint text="Projeção do LB do setor pro fim do mês recalculada neste dia, com a venda acumulada até aqui extrapolada pelo índice sazonal de dia-da-semana (ramo linear quando o setor tem <90d de histórico)." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
                     </th>
                     <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
                       <span className="inline-flex items-center justify-end gap-1">Variação vs dia anterior<InfoHint text="Diferença entre a projeção deste dia e a do dia anterior. Positivo (verde) = a projeção subiu; negativo (vermelho) = caiu." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
