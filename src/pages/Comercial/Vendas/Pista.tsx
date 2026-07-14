@@ -30,6 +30,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
+import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from './useProjecaoSazonalPiloto'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import { smoothedProjection, projecaoSazonal, fimDoMesIso, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
@@ -173,6 +174,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   // libera o único bloco por-posto que não consolida: saldo de estoque.
   const single1Posto = empresaCodigos.length === 1
   const empresaEstoque = single1Posto ? empresaCodigos[0] : null
+  // Índice sazonal (dia-da-semana) rede-wide do setor automotivos + total do mês
+  // anterior COMPLETO pro badge. Só precisamos dos índices/comparativo aqui — a
+  // projeção usa a série diária própria da aba (mais coerente com o realizado).
+  const sz = useProjecaoSazonalPiloto(EMPTY_FUEL_DAILY, true, 'automotivos')
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira) — senão a aba
   // somaria postos fora da permissão e divergiria da Visão Geral.
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
@@ -629,18 +634,19 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         }
       }
     }
-    // Linear (indices vazio → 1 pra todo dia), consistente com a Central.
+    // Sazonal: índice por dia-da-semana do setor automotivos (ramo linear quando
+    // < 90d de operação → índices vazio = 1 pra todo dia = monthEndFactor).
     const pf = projecaoSazonal({
       dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: sz.linear ? {} : sz.indices.faturamento,
     })
     const pl = projecaoSazonal({
       dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: sz.linear ? {} : sz.indices.lucro,
     })
     // Ritmo (pace) do faturamento pra extrapolar métricas de volume (unidades,
     // SKUs distintos) que não têm série diária dedicada. Aproximação "no ritmo
@@ -660,7 +666,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       isProjetada: pf.diasRestantes > 0,
       dataFinalProjecao: monthEnd,
     }
-  }, [computed, vendaItens, produtosData, gruposData, dataInicial])
+  }, [computed, vendaItens, produtosData, gruposData, dataInicial, sz])
 
   return (
     <div className="space-y-6">
@@ -811,8 +817,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               fat={projecaoPista.fat}
               projetadoLucro={projecaoPista.projetadoLucro}
               dataFinal={projecaoPista.dataFinalProjecao}
-              comparativo={cmpKpis.prev.faturamento > 0 ? { anterior: cmpKpis.prev.faturamento, label: cmpLabel } : undefined}
-              loading={isLoadingVendas}
+              comparativo={sz.cmpAnterior.faturamento > 0 ? { anterior: sz.cmpAnterior.faturamento, label: sz.cmpLabel } : undefined}
+              loading={isLoadingVendas || sz.isLoading}
             />
           </div>
 

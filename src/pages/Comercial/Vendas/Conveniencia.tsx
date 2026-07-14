@@ -140,6 +140,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     kpis,
     projecao,
     projecaoFat,
+    projComparativo,
     catalogProducts,
     gruposList,
     groupTable,
@@ -348,7 +349,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}
               dataFinal={fimDoMesIso(dataInicial)}
-              comparativo={kpis && kpis.cmp.faturamento > 0 ? { anterior: kpis.cmp.faturamento, label: kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.' } : undefined}
+              comparativo={projComparativo}
               loading={showSkeleton}
             />
           </div>

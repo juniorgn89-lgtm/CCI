@@ -355,7 +355,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
                 segunda×segunda, evitando distorção de fim de semana. — quando
                 a série não alcança 7 dias atrás. */}
             <div className="mt-1 flex items-center justify-between gap-3 border-t border-gray-100 pt-1 dark:border-gray-700">
-              <span className="text-[10px] text-gray-400">vs semana anterior</span>
+              <span className="text-[10px] text-gray-400">vs {dowLabel(data[hp.i].data)} anterior</span>
               {(() => {
                 const curIso = data[hp.i].data.slice(0, 10)
                 const [y, m, d] = curIso.split('-').map(Number)

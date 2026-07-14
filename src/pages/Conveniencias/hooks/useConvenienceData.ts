@@ -10,6 +10,7 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { smoothedProjection, projecaoSazonal, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
+import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
 import { type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
@@ -215,6 +216,12 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
+  // Índice sazonal (dia-da-semana) rede-wide do setor conveniência + total do mês
+  // anterior COMPLETO pro badge "vs mês ant." (o `cmp` da tela é PARCIAL, mesmos
+  // dias decorridos — inflava a variação contra a projeção do mês cheio). Só nas
+  // telas que mostram a projeção (filtro global) — Produtividade passa override e
+  // ignora a projeção, então não paga o fetch de 6 meses.
+  const sz = useProjecaoSazonalPiloto(EMPTY_FUEL_DAILY, empresaCodigoOverride === undefined, 'conveniencia')
   const single1Posto = empresaCodigos.length === 1
   const empresaEstoque = single1Posto ? empresaCodigos[0] : null
   const isPrevYear = comparisonMode === 'prevYear'
@@ -824,18 +831,19 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
     // Projeta SEMPRE até o fim do mês (apurados + dias faltantes, hoje incluso
     // como faltante) — independe do escopo Apurado/Em andamento/Completo.
     const monthEnd = fimDoMesIso(dataInicial || todayISO)
-    // Linear (indices vazio → 1 pra todo dia), consistente com a Central.
+    // Sazonal: índice por dia-da-semana do setor conveniência (ramo linear quando
+    // < 90d de operação → índices vazio = 1 pra todo dia = monthEndFactor).
     const projFat = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: sz.linear ? {} : sz.indices.faturamento,
     })
     const projLucro = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.margemRs })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: sz.linear ? {} : sz.indices.lucro,
     })
     // Ticket = faturamento ÷ CUPONS. Projeta os cupons/dia pra derivar o ticket
     // projetado (cai pra linhas quando não há cupons — apuração antiga).
@@ -844,7 +852,8 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
       dailySeries: Array.from(byDay.entries()).map(([data, v]) => ({ data, value: temCupons ? v.cupons : v.count })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      // Cupons/dia acompanham o faturamento/dia — reusa o índice de faturamento.
+      indices: sz.linear ? {} : sz.indices.faturamento,
     })
     const projetadoFat = projFat.esperado
     const projetadoLucro = projLucro.esperado
@@ -885,6 +894,10 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
       projecao,
       /** Resultado completo da projeção de FATURAMENTO (cenários/sparkline/etc) pro card executivo. */
       projecaoFat: projFat,
+      /** Comparativo do card = mês anterior COMPLETO (não o `cmp` parcial dos deltas). */
+      projComparativo: sz.cmpAnterior.faturamento > 0
+        ? { anterior: sz.cmpAnterior.faturamento, label: sz.cmpLabel }
+        : undefined,
       dailyData,
       dailyChartData,
       salesByDay,
@@ -904,7 +917,7 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
     }
   }, [
     curRows, prevRows, cmpRows, evoRows, produtosData, gruposData, estoqueRaw, empresaCodigos, permittedCodes,
-    dataInicial, dataFinal, comparisonMode, isPrevYear, convProdutoCodigos,
+    dataInicial, dataFinal, comparisonMode, isPrevYear, convProdutoCodigos, sz,
   ])
 
   return {

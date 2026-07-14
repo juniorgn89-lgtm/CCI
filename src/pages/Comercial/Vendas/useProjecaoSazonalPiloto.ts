@@ -8,14 +8,19 @@ import { todayLocal } from '@/lib/period'
 import { fimDoMesIso, weekdayIndices, diasOperacaoProxy, projecaoSazonal, type ProjecaoAvancadaResult } from '@/lib/projection'
 
 /**
- * PILOTO da projeção SAZONAL (Fase 2 — só combustível, atrás de flag). Busca 6
- * meses de histórico diário do cache (rede-wide no escopo), calcula o índice de
- * dia-da-semana por métrica e devolve a projeção sazonal pra comparar com a
- * atual (projecaoAvancada). Rede-wide na v1; per-posto fica pro rollout.
+ * Projeção SAZONAL rede-wide. Busca 6 meses de histórico diário do cache
+ * (`useRedeVendasCache`), calcula o índice de dia-da-semana POR MÉTRICA para o
+ * `setor` pedido, e devolve a `projecaoSazonal` + o total do mês anterior COMPLETO
+ * (base correta do badge "vs mês ant."). Parametrizado por setor no rollout Fase 3
+ * (`combustivel` | `automotivos` | `conveniencia`). Per-posto fica pra fase seguinte.
  * Ver docs/SPEC-projecao-sazonal.md.
  */
 
 export interface FuelDailyPoint { data: string; litros: number; faturamento: number; lucroBruto: number }
+
+/** Referência estável pra quando o caller só precisa dos índices/comparativo
+ * (não da projeção interna) — evita recomputar o useMemo a cada render. */
+export const EMPTY_FUEL_DAILY: FuelDailyPoint[] = []
 
 const ONE: Record<number, number> = { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1 }
 const monthsBackFirst = (iso: string, n: number): string => {
@@ -43,7 +48,7 @@ export interface ProjecaoSazonalPiloto {
   cmpLabel: string
 }
 
-const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true): ProjecaoSazonalPiloto => {
+const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, setor = 'combustivel'): ProjecaoSazonalPiloto => {
   const { empresaCodigos, dataInicial, comparisonMode } = useFilterStore()
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000, enabled })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -68,7 +73,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true): 
     const byDay = new Map<string, { fat: number; lit: number; luc: number }>()
     let firstData = ''
     for (const r of histRows) {
-      if (r.setor !== 'combustivel' || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
+      if (r.setor !== setor || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
       const e = byDay.get(r.data) ?? { fat: 0, lit: 0, luc: 0 }
       e.fat += r.total_venda; e.lit += r.quantidade; e.luc += r.total_venda - r.total_custo
       byDay.set(r.data, e)
@@ -83,7 +88,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true): 
     // Total do período de comparação COMPLETO (combustível no escopo).
     const cmpAnterior = { litros: 0, faturamento: 0, lucro: 0 }
     for (const r of cmpRows) {
-      if (r.setor !== 'combustivel' || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
+      if (r.setor !== setor || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
       cmpAnterior.litros += r.quantidade
       cmpAnterior.faturamento += r.total_venda
       cmpAnterior.lucro += r.total_venda - r.total_custo
@@ -115,7 +120,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true): 
       cmpAnterior,
       cmpLabel: comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.',
     }
-  }, [histRows, cmpRows, isLoading, empresaCodigos, permittedCodes, dailyData, dataInicial, comparisonMode])
+  }, [histRows, cmpRows, isLoading, empresaCodigos, permittedCodes, dailyData, dataInicial, comparisonMode, setor])
 }
 
 export default useProjecaoSazonalPiloto

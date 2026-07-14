@@ -127,6 +127,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
     kpis,
     projecao,
     projecaoFat,
+    projComparativo,
     dailyData,
     dailyChartData,
     salesByDay,
@@ -313,7 +314,7 @@ const Conveniencias = ({ embedded = false }: ConvenienciasProps = {}) => {
               fat={projecaoFat}
               projetadoLucro={projecao.lucroBruto}
               dataFinal={fimDoMesIso(dataFinal)}
-              comparativo={kpis && kpis.cmp.faturamento > 0 ? { anterior: kpis.cmp.faturamento, label: kpis.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.' } : undefined}
+              comparativo={projComparativo}
               loading={showSkeleton}
             />
           </div>
