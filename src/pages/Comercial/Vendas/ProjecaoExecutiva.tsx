@@ -207,14 +207,20 @@ const ProjecaoExecutiva = ({
               {fmtFull(fat.esperado)}
             </p>
             {cmpPct !== null && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-                  cmpUp ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
-                )}
-                title={`Projeção vs fechamento do ${comparativo!.label} (${fmtFull(comparativo!.anterior)})`}
-              >
-                {cmpUp ? '▲' : '▼'} {cmpUp ? '+' : ''}{cmpPct.toFixed(1).replace('.', ',')}% vs {comparativo!.label}
+              <span className="inline-flex items-center gap-1">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                    cmpUp ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
+                  )}
+                >
+                  {cmpUp ? '▲' : '▼'} {cmpUp ? '+' : ''}{cmpPct.toFixed(1).replace('.', ',')}% vs {comparativo!.label}
+                </span>
+                <InfoHint
+                  text={`Compara a PROJEÇÃO do mês inteiro (${fmtFull(fat.esperado)}) com o FECHAMENTO completo do ${comparativo!.label} (${fmtFull(comparativo!.anterior)}). Fórmula: (projeção − mês anterior) ÷ mês anterior. São os dois meses cheios (não parcial vs parcial), então nos primeiros dias do mês esse % ainda oscila junto com a projeção.`}
+                  align="start"
+                  className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white"
+                />
               </span>
             )}
           </div>
