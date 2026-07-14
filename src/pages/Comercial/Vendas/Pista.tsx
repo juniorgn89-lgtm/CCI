@@ -703,9 +703,9 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         <>
           {/* KPIs principais — 4 cards ocupando a largura toda (estilo Combustível) */}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
-          <div className="lg:col-span-4">
+          <div className="flex flex-col lg:col-span-4">
           <RealizadoChave />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
               label="Faturamento"
               help="Receita das vendas de produtos automotivos (pista) no período — base fiscal, vendas autorizadas."
