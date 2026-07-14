@@ -289,6 +289,138 @@ export const projecaoAvancada = ({
   }
 }
 
+/* ─── Projeção SAZONAL (fator month-end ponderado por dia-da-semana) ───
+ * Ver docs/SPEC-projecao-sazonal.md. Núcleo puro; o caller decide o ramo
+ * (linear × ponderado) no dia 1 do mês via dias_operação e passa `indices`
+ * reais ou todos = 1 (linear). */
+
+/**
+ * Índice de dia-da-semana a partir de uma série histórica diária (idealmente
+ * ~6 meses). `indice[wd] = média(valor no wd) ÷ média(valor de todos os dias)`.
+ * Devolve 1 (neutro) para dias-da-semana com amostra < `minSamples`.
+ */
+export const weekdayIndices = (
+  dailySeries: ProjectionDailyPoint[],
+  opts: { minSamples?: number } = {},
+): Record<number, number> => {
+  const minSamples = opts.minSamples ?? 2
+  const geral = dailySeries.length ? dailySeries.reduce((s, d) => s + d.value, 0) / dailySeries.length : 0
+  const acc = new Map<number, { soma: number; n: number }>()
+  for (const d of dailySeries) {
+    const wd = weekdayOfIso(d.data)
+    const e = acc.get(wd) ?? { soma: 0, n: 0 }
+    e.soma += d.value; e.n += 1
+    acc.set(wd, e)
+  }
+  const out: Record<number, number> = {}
+  for (let wd = 0; wd < 7; wd++) {
+    const e = acc.get(wd)
+    out[wd] = e && e.n >= minSamples && geral > 0 ? (e.soma / e.n) / geral : 1
+  }
+  return out
+}
+
+/**
+ * `dias_operação` por PROXY: dias desde a PRIMEIRA venda conhecida no cache.
+ * Retorna 0 quando não há venda. Cache raso (posto antigo com pouco histórico)
+ * pode subestimar → a correção fina é o override manual (tabela Supabase).
+ */
+export const diasOperacaoProxy = (primeiraVendaISO: string | null, hojeISO: string): number => {
+  if (!primeiraVendaISO) return 0
+  const dia = (s: string) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) }
+  return Math.max(0, Math.round((dia(hojeISO) - dia(primeiraVendaISO)) / 86_400_000))
+}
+
+export interface ProjecaoSazonalInput {
+  /** Série diária COM dados do MÊS corrente. Dias < hoje = fechados (base). */
+  dailySeries: ProjectionDailyPoint[]
+  /** Data de hoje (yyyy-MM-dd) — o dia corrente entra como restante. */
+  today: string
+  /** Horizonte (yyyy-MM-dd, inclusive) — o fim do mês. */
+  dataFinal: string
+  /** Índice por dia-da-semana (0=Dom..6=Sáb). Ramo LINEAR → passe 1 p/ todos. */
+  indices: Record<number, number>
+  /** Janela do ritmo recente (só p/ os chips informativos). Default 7. */
+  recentWindow?: number
+}
+
+/**
+ * Projeção sazonal = `realizado + Σ(dias restantes)[ ritmo × índice[dia] ]`,
+ * onde `ritmo = realizado ÷ Σ índice[dias fechados]`. Equivale a
+ * `realizado × (Σíndice_todos ÷ Σíndice_fechados)`. Com `indices` todos = 1 vira
+ * o `monthEndFactor` (linear). Mesmo contrato de retorno do `projecaoAvancada`
+ * (cenários/confiabilidade/sparkline preservados em volta do novo `esperado`).
+ */
+export const projecaoSazonal = ({
+  dailySeries,
+  today,
+  dataFinal,
+  indices,
+  recentWindow = 7,
+}: ProjecaoSazonalInput): ProjecaoAvancadaResult => {
+  const closed = dailySeries.filter((d) => d.data < today).sort((a, b) => a.data.localeCompare(b.data))
+  const n = closed.length
+  const realizado = closed.reduce((s, d) => s + d.value, 0)
+  const idx = (iso: string) => indices[weekdayOfIso(iso)] ?? 1
+
+  if (n === 0) {
+    return {
+      realizado, conservador: realizado, esperado: realizado, otimista: realizado,
+      mediaDiaria: 0, mediaRecente: 0, tendenciaPct: 0, diasFechados: 0, diasRestantes: 0,
+      confiabilidadePct: 0, confiabilidade: 'baixa', sparkline: [],
+    }
+  }
+
+  const valores = closed.map((d) => d.value)
+  const mediaDiaria = realizado / n
+  const recent = closed.slice(-recentWindow)
+  const mediaRecente = recent.reduce((s, d) => s + d.value, 0) / recent.length
+  const tendenciaPct = mediaDiaria > 0 ? (mediaRecente - mediaDiaria) / mediaDiaria : 0
+
+  // Ritmo desazonalizado: realizado ÷ Σ índice dos dias JÁ FECHADOS (com dado).
+  const sumFechados = closed.reduce((s, d) => s + idx(d.data), 0)
+  const ritmo = sumFechados > 0 ? realizado / sumFechados : mediaDiaria
+
+  // Dias restantes = do dia seguinte ao último fechado até dataFinal (inclui hoje).
+  const projDays: { data: string; value: number }[] = []
+  let cursor = addDaysIso(closed[n - 1].data, 1)
+  let guard = 0
+  while (cursor <= dataFinal && guard < 400) {
+    projDays.push({ data: cursor, value: ritmo * idx(cursor) })
+    cursor = addDaysIso(cursor, 1)
+    guard++
+  }
+  const diasRest = projDays.length
+  const restanteEsperado = projDays.reduce((s, p) => s + p.value, 0)
+  const esperado = realizado + restanteEsperado
+
+  // Banda de cenários = coeficiente de variação dos dias fechados, capado.
+  const variancia = valores.reduce((s, v) => s + (v - mediaDiaria) ** 2, 0) / n
+  const coefVar = mediaDiaria > 0 ? Math.sqrt(variancia) / mediaDiaria : 0
+  const banda = Math.min(0.25, Math.max(0.05, coefVar))
+  const conservador = realizado + restanteEsperado * (1 - banda)
+  const otimista = realizado + restanteEsperado * (1 + banda)
+
+  // Confiabilidade: cobertura + estabilidade + amostra (igual à avançada).
+  const totalDias = n + diasRest
+  const cobertura = totalDias > 0 ? n / totalDias : 0
+  const estabilidade = 1 - Math.min(1, coefVar)
+  const amostra = Math.min(1, n / 7)
+  const confiabilidadePct = Math.round((cobertura * 0.4 + estabilidade * 0.4 + amostra * 0.2) * 100)
+  const confiabilidade: Confiabilidade =
+    confiabilidadePct >= 70 ? 'alta' : confiabilidadePct >= 45 ? 'media' : 'baixa'
+
+  const sparkline: ProjecaoSparkPoint[] = closed.map((d, i) => ({
+    data: d.data, real: d.value, projetado: i === n - 1 ? d.value : null,
+  }))
+  for (const p of projDays) sparkline.push({ data: p.data, real: null, projetado: p.value })
+
+  return {
+    realizado, conservador, esperado, otimista, mediaDiaria, mediaRecente, tendenciaPct,
+    diasFechados: n, diasRestantes: diasRest, confiabilidadePct, confiabilidade, sparkline,
+  }
+}
+
 /**
  * Texto padrão de tooltip pra qualquer label/coluna "Projeção" no app. Usar
  * sempre essa string pra manter a explicação consistente (em vez de variantes
