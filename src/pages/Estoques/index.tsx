@@ -9,7 +9,6 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import HeaderTray from '@/components/layout/HeaderTray'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -128,12 +127,6 @@ const Estoques = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
       {hasEmpresa && visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs

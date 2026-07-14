@@ -9,7 +9,6 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
 import OperacaoMobile from '@/pages/Operacao/OperacaoMobile'
 
@@ -51,12 +50,6 @@ const Operacao = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
       {tabs.length > 1 && (
         <PageHeaderTitle>
           <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={tabs} />

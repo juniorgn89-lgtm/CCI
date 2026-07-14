@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useComercialFlags } from '@/store/comercialFlags'
 import useIsMobile from '@/hooks/useIsMobile'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -70,13 +69,6 @@ const Comercial = () => {
 
   return (
     <div className="space-y-4">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
-
       <PageHeaderTitle>
         <TopBarTabs
           active={activeTab}

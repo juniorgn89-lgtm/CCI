@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import {
   CreditCard, LayoutDashboard, Eye, HandCoins, Calculator, Filter, ListChecks,
   ShieldCheck, CalendarClock, AlertTriangle, Droplets, Wrench, Store, Tag, Radio, Layers,
+  TrendingUp, Gauge, Sparkles, BarChart3, Trophy, Building2, Radar, Wallet, Warehouse,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -245,6 +246,288 @@ export const REGISTRY: Record<string, ModuleMeta> = {
             <NotaHonesta>
               A cobertura mostra quantos abastecimentos têm preço de tabela — os sem cadastro ficam de fora. O número é parcial até o cron carimbar o preço no cache.
             </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/comercial': {
+    Icon: TrendingUp,
+    nome: 'Comercial',
+    subtitle: 'inteligência de preço, margem e concorrência',
+    potencial: {
+      '': {
+        title: 'Oportunidades — o potencial desta tela',
+        description: 'A lista curta do que fazer pra ganhar margem, priorizada por impacto.',
+        body: (
+          <>
+            <Secao icon={Sparkles} titulo="O que ela faz">
+              Varre a rede e prioriza <strong>oportunidades de lucro</strong> — produtos e postos onde ajustar preço ou mix rende mais, ordenadas pelo impacto.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Em vez de encarar mil números, você recebe <strong>o que atacar primeiro</strong> — foco no que move o resultado.
+            </Secao>
+            <Secao icon={Filter} titulo="Como usar">
+              Comece pelo topo (maior impacto) e desça. Cada item explica o porquê e quanto vale.
+            </Secao>
+          </>
+        ),
+      },
+      projecao: {
+        title: 'Projeção de LB — o potencial desta tela',
+        description: 'Onde o lucro bruto da rede fecha o mês, com a evolução semanal.',
+        body: (
+          <>
+            <Secao icon={BarChart3} titulo="O que ela faz">
+              Projeta o <strong>lucro bruto</strong> da rede pro fim do mês e mostra a <strong>evolução semanal</strong> — como o ritmo mudou ao longo do período.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Antecipa se o mês vai bater a meta enquanto ainda dá pra reagir, e revela a tendência (acelerando ou perdendo fôlego).
+            </Secao>
+          </>
+        ),
+      },
+      margem: {
+        title: 'Margem por posto — o potencial desta tela',
+        description: 'O ranking de lucratividade: quem puxa e quem segura a rede.',
+        body: (
+          <>
+            <Secao icon={Trophy} titulo="O que ela faz">
+              Ordena os postos por <strong>lucratividade</strong> (margem e lucro bruto) — líder e lanterna num relance.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Revela onde replicar o que dá certo e onde agir: um posto abaixo da rede é margem deixada na mesa.
+            </Secao>
+          </>
+        ),
+      },
+      concorrencia: {
+        title: 'Concorrência — o potencial desta tela',
+        description: 'O preço da praça: onde você está caro ou barato demais.',
+        body: (
+          <>
+            <Secao icon={Building2} titulo="O que ela faz">
+              Reúne a <strong>inteligência de preço da praça</strong> — como seus preços se comparam aos concorrentes, por produto e região.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Preço fora da praça custa volume (caro demais) ou margem (barato demais). Aqui você calibra com dado, não achismo.
+            </Secao>
+          </>
+        ),
+      },
+      radar: {
+        title: 'Radar de Preços — o potencial desta tela',
+        description: 'Guerra de preço com margem, elasticidade e simulação até o fechamento.',
+        body: (
+          <>
+            <Secao icon={Radar} titulo="O que ela faz">
+              Simula movimentos de preço e mostra o efeito em <strong>margem, volume (elasticidade) e resultado</strong> projetado até o fim do mês.
+            </Secao>
+            <Secao icon={Calculator} titulo="Como usar">
+              Teste um corte ou aumento e veja o trade-off antes de aplicar — decide a guerra de preço com número na mão.
+            </Secao>
+            <NotaHonesta>
+              A elasticidade é estimada pelo histórico — bússola de decisão, não garantia de volume.
+            </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/operacao': {
+    Icon: Gauge,
+    nome: 'Operação',
+    subtitle: 'bombas e reabastecimento',
+    potencial: {
+      '': {
+        title: 'Bombas — o potencial desta tela',
+        description: 'O desempenho das bombas por posto — volume e a manutenção que se paga sozinha.',
+        body: (
+          <>
+            <Secao icon={Gauge} titulo="O que ela faz">
+              Acompanha o <strong>volume por bomba/bico</strong> e sinaliza <strong>manutenção</strong> automaticamente — sem depender de marcação manual.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Bomba fora de calibração é perda invisível de litro (e de margem). Ver o desempenho por bico revela o desgaste antes de virar prejuízo.
+            </Secao>
+          </>
+        ),
+      },
+      reabastecimento: {
+        title: 'Reabastecimento — o potencial desta tela',
+        description: 'Quando e quanto repor por setor, pelo giro e pela cobertura.',
+        body: (
+          <>
+            <Secao icon={Droplets} titulo="O que ela faz">
+              Mostra <strong>giro e cobertura</strong> por setor (combustível, automotivos, conveniência) pra orientar a reposição — o que está acabando e o que está sobrando.
+            </Secao>
+            <Secao icon={ShieldCheck} titulo="Por que importa">
+              Evita ruptura (venda perdida) e capital parado (estoque encalhado) — o equilíbrio que protege caixa e faturamento.
+            </Secao>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/financeiro': {
+    Icon: Wallet,
+    nome: 'Financeiro',
+    subtitle: 'títulos a receber e a pagar',
+    potencial: {
+      '': {
+        title: 'Visão Geral — o potencial desta tela',
+        description: 'O dinheiro que já era pra ter entrado ou saído: os títulos em atraso.',
+        body: (
+          <>
+            <Secao icon={Eye} titulo="O que ela faz">
+              Reúne os <strong>títulos a receber e a pagar em atraso</strong> — o que venceu e ainda não foi liquidado, dos dois lados.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              É caixa imediato: cobrar um recebível vencido e quitar um pagável antes do juro são as ações de maior retorno no financeiro.
+            </Secao>
+            <NotaHonesta>
+              A integração expõe títulos e movimento de conta por GET; cartão a vencer, PREMMIA e cheque não vêm pela API — por isso o foco aqui é o <strong>atraso</strong>.
+            </NotaHonesta>
+          </>
+        ),
+      },
+      receber: {
+        title: 'A Receber — o potencial desta tela',
+        description: 'O que os clientes/adquirentes ainda devem, com o vencido em destaque.',
+        body: (
+          <>
+            <Secao icon={ListChecks} titulo="O que ela faz">
+              Lista os títulos a receber, com os <strong>vencidos</strong> destacados — quem deve, quanto e desde quando.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Prioriza a cobrança pelo mais antigo e maior — dinheiro seu que está fora do caixa é o primeiro a perseguir.
+            </Secao>
+          </>
+        ),
+      },
+      pagar: {
+        title: 'A Pagar — o potencial desta tela',
+        description: 'Os compromissos e o que está vencido — pra não pagar juro à toa.',
+        body: (
+          <>
+            <Secao icon={ListChecks} titulo="O que ela faz">
+              Lista os títulos a pagar, com os <strong>vencidos</strong> em destaque — fornecedores, tributos e demais compromissos.
+            </Secao>
+            <Secao icon={ShieldCheck} titulo="Por que importa">
+              Evita multa e juro por atraso e ajuda a planejar o caixa: você paga na ordem certa, não no susto.
+            </Secao>
+          </>
+        ),
+      },
+      cartoes: {
+        title: 'Cartões — o potencial desta tela',
+        description: 'Os recebíveis de cartão pelo lado financeiro: a vencer e liquidados.',
+        body: (
+          <>
+            <Secao icon={CreditCard} titulo="O que ela faz">
+              Acompanha os <strong>recebíveis de cartão</strong> — o que está a vencer, em atraso e já liquidado pelo adquirente.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              É a previsão do que ainda vai cair de cartão. Para a conciliação transação-a-transação, use o módulo <strong>Cartões</strong>.
+            </Secao>
+          </>
+        ),
+      },
+      agenda: {
+        title: 'Agenda — o potencial desta tela',
+        description: 'O calendário de vencimentos: o fluxo de caixa dos próximos dias num relance.',
+        body: (
+          <>
+            <Secao icon={CalendarClock} titulo="O que ela faz">
+              Distribui receber e pagar no <strong>calendário</strong>, por dia de vencimento — o mapa do que entra e sai.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Antecipa apertos de caixa: você vê o dia que aperta antes dele chegar e negocia/adianta a tempo.
+            </Secao>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/estoques': {
+    Icon: Warehouse,
+    nome: 'Estoques',
+    subtitle: 'saldo, giro e necessidade de compra',
+    potencial: {
+      '': {
+        title: 'Visão Geral — o potencial desta tela',
+        description: 'O panorama do capital parado em estoque e o que está crítico.',
+        body: (
+          <>
+            <Secao icon={Eye} titulo="O que ela faz">
+              Panorama do estoque da rede — <strong>valor parado</strong>, itens críticos e cobertura, num só lugar.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Estoque é caixa parado na prateleira: ver o todo evita ao mesmo tempo a ruptura (venda perdida) e o encalhe (dinheiro preso).
+            </Secao>
+            <NotaHonesta>
+              O saldo é sempre o ATUAL (a API não dá histórico por data). O flag “controle de estoque” ainda não vem por GET, então itens de uso e consumo podem aparecer.
+            </NotaHonesta>
+          </>
+        ),
+      },
+      geral: {
+        title: 'Estoque geral — o potencial desta tela',
+        description: 'O saldo por produto e posto: onde está o capital parado.',
+        body: (
+          <>
+            <Secao icon={Layers} titulo="O que ela faz">
+              Detalha o <strong>saldo por produto e por posto</strong> — quantidade e valor em estoque.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Mostra exatamente onde o dinheiro está imobilizado, pra você atacar o excesso e liberar caixa.
+            </Secao>
+          </>
+        ),
+      },
+      giro: {
+        title: 'Giro — o potencial desta tela',
+        description: 'A velocidade com que cada item vende — o pulso do estoque.',
+        body: (
+          <>
+            <Secao icon={Calculator} titulo="O que ela faz">
+              Calcula o <strong>giro</strong> por produto — quantas vezes o estoque roda no período.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Giro baixo = dinheiro encalhado (candidato a promoção/corte); giro alto = risco de ruptura (aumentar o mínimo).
+            </Secao>
+          </>
+        ),
+      },
+      mediaVendas: {
+        title: 'Média de venda — o potencial desta tela',
+        description: 'A média histórica (6 meses) por produto — a base pra dimensionar a compra.',
+        body: (
+          <>
+            <Secao icon={BarChart3} titulo="O que ela faz">
+              Mostra a <strong>média de venda dos últimos 6 meses</strong> por produto — o consumo real, sem o ruído de um mês atípico.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              É o número que sustenta a reposição: comprar pela média certa evita faltar e evita sobrar.
+            </Secao>
+          </>
+        ),
+      },
+      necessidade: {
+        title: 'Necessidade — o potencial desta tela',
+        description: 'A lista de compra pronta: o que repor, pelo mínimo e pela cobertura.',
+        body: (
+          <>
+            <Secao icon={ListChecks} titulo="O que ela faz">
+              Aponta o que está <strong>abaixo do mínimo/cobertura</strong> e precisa de reposição — a lista de compra já priorizada.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Transforma o estoque em ação: em vez de descobrir a falta na hora da venda, você compra na hora certa, na quantidade certa.
+            </Secao>
           </>
         ),
       },
