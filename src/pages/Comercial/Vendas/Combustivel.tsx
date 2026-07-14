@@ -23,6 +23,8 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
+import useProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
+import ProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/ProjecaoSazonalPiloto'
 import { heatCell, useChartTheme } from '@/lib/chartTheme'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
@@ -620,6 +622,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     }
   }, [dailyData, dataInicial])
 
+  // Piloto Fase 2 — projeção sazonal (atrás de flag; ver docs/SPEC-projecao-sazonal.md).
+  const pilotoSazonal = useProjecaoSazonalPiloto(dailyData)
+
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
    * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
    * por combustível até o fim do mês (mesma engine do card executivo). */
@@ -912,6 +917,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               loading={isLoadingValor}
             />
           </div>
+
+          {/* Piloto (flag) — comparação projeção atual × sazonal */}
+          <ProjecaoSazonalPiloto
+            piloto={pilotoSazonal}
+            atual={{ faturamento: projecaoCombustivel.fat.esperado, litros: projecaoCombustivel.litros.esperado, lucro: projecaoCombustivel.projetadoLucro }}
+          />
 
           {/* Detalhamento de informações — 4 abas */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
