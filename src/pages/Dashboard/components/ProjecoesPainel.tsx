@@ -10,7 +10,7 @@ import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendasCache } from '@/api/supabase/apuracao'
-import { monthEndFactor, projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
+import { monthEndFactor, projecaoAvancada, PROJECAO_TOOLTIP_LINEAR } from '@/lib/projection'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const fmtPct = (v: number): string => `${v.toFixed(2).replace('.', ',')}%`
@@ -100,6 +100,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
 
 const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean) => void } = {}) => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
+  const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
   // Rótulo do comparativo conforme o modo global (AA = ano ant., MA = mês ant.).
@@ -165,30 +166,16 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     return map
   }, [mesRows, setorProj])
 
-  // Projeção fim do mês — engine EXECUTIVA (projecaoAvancada) por setor, idêntica
-  // às abas Combustível/Automotivos/Conveniência: média recente + sazonalidade +
-  // tendência. Antes usava extrapolação linear (monthEndFactor), o que divergia
-  // dos cards das abas — agora bate número a número.
-  const projLinhas = useMemo(() => {
-    const now = new Date()
-    const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
-    const lastDay = new Date(yy, mm, 0).getDate()
-    const monthEnd = `${yy}-${pad(mm)}-${pad(lastDay)}`
-    const esperado = (daily: { data: string; faturamento: number; lucroBruto: number; qtd: number }[], key: 'faturamento' | 'lucroBruto' | 'qtd') =>
-      projecaoAvancada({ dailySeries: daily.map((d) => ({ data: d.data, value: d[key] })), today: todayISO, dataFinal: monthEnd }).esperado
-    const proj = (setor: typeof combustivel) => {
-      const faturamento = esperado(setor.daily, 'faturamento')
-      const lucroBruto = esperado(setor.daily, 'lucroBruto')
-      const volume = esperado(setor.daily, 'qtd')
-      return { volume, faturamento, lucroBruto, margem: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0 }
-    }
-    return [
-      { setor: 'Combustível', ...proj(combustivel) },
-      { setor: 'Automotivos', ...proj(automotivos) },
-      { setor: 'Conveniência', ...proj(conveniencia) },
-    ]
-  }, [combustivel, automotivos, conveniencia, dataInicial])
+  // Projeção fim do mês — extrapolação LINEAR (realizado × monthEndFactor, ritmo
+  // uniforme dos dias decorridos), o MESMO fator da tabela por posto
+  // (BenchmarkSetor) → painel e detalhe batem número a número. A unificação
+  // definitiva de método (linear × sazonal) vem no rollout da projeção sazonal.
+  const f = monthEndFactor(dataInicial, dataFinal)
+  const projLinhas = [
+    { setor: 'Combustível', volume: combustivel.qtd * f, faturamento: combustivel.faturamento * f, lucroBruto: combustivel.lucroBruto * f, margem: combustivel.margem },
+    { setor: 'Automotivos', volume: automotivos.qtd * f, faturamento: automotivos.faturamento * f, lucroBruto: automotivos.lucroBruto * f, margem: automotivos.margem },
+    { setor: 'Conveniência', volume: conveniencia.qtd * f, faturamento: conveniencia.faturamento * f, lucroBruto: conveniencia.lucroBruto * f, margem: conveniencia.margem },
+  ]
   const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
   const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
   const projTotal = {
@@ -394,7 +381,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               />
               Projeção
               <InfoHint
-                text={PROJECAO_TOOLTIP_EXECUTIVA}
+                text={PROJECAO_TOOLTIP_LINEAR}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
               {projResumo.cmpPct !== null && (
