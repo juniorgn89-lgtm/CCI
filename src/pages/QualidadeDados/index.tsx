@@ -4,9 +4,7 @@ import { Fuel, Receipt, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChec
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
@@ -1274,12 +1272,6 @@ const QualidadeDados = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>

@@ -3,6 +3,7 @@ import {
   CreditCard, LayoutDashboard, Eye, HandCoins, Calculator, Filter, ListChecks,
   ShieldCheck, CalendarClock, AlertTriangle, Droplets, Wrench, Store, Tag, Radio, Layers,
   TrendingUp, Gauge, Sparkles, BarChart3, Trophy, Building2, Radar, Wallet, Warehouse,
+  Users, SearchCheck, Target,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -527,6 +528,117 @@ export const REGISTRY: Record<string, ModuleMeta> = {
             </Secao>
             <Secao icon={HandCoins} titulo="Por que importa">
               Transforma o estoque em ação: em vez de descobrir a falta na hora da venda, você compra na hora certa, na quantidade certa.
+            </Secao>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/produtividade': {
+    Icon: Users,
+    nome: 'Produtividade',
+    subtitle: 'desempenho de frentistas e vendedores',
+    potencial: {
+      '': {
+        title: 'Visão Geral — o potencial desta tela',
+        description: 'O desempenho da equipe num painel: quem produz e quanto.',
+        body: (
+          <>
+            <Secao icon={Users} titulo="O que ela faz">
+              Consolida a produtividade da equipe — litros por frentista, vendas por vendedor — filtrável por setor (combustível, conveniência, automotivos).
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Gente é o maior custo variável: ver quem rende (e quem não) mostra onde treinar, reconhecer e dimensionar a escala.
+            </Secao>
+          </>
+        ),
+      },
+      frentistas: {
+        title: 'Frentistas — o potencial desta tela',
+        description: 'O ranking da pista: litros e atendimentos por frentista.',
+        body: (
+          <>
+            <Secao icon={Droplets} titulo="O que ela faz">
+              Ordena os frentistas por <strong>litros vendidos e atendimentos</strong>, por posto e turno.
+            </Secao>
+            <Secao icon={Trophy} titulo="Por que importa">
+              Revela o topo (pra replicar a técnica) e o fundo (pra treinar) — e sustenta meta e bonificação com número, não com percepção.
+            </Secao>
+          </>
+        ),
+      },
+      vendedores: {
+        title: 'Vendedores — o potencial desta tela',
+        description: 'Quem transforma o fluxo da pista em venda de loja.',
+        body: (
+          <>
+            <Secao icon={Store} titulo="O que ela faz">
+              Ranqueia os <strong>vendedores da conveniência</strong> por faturamento e itens — quem converte o movimento em loja.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              A conveniência é margem alta: identificar o bom vendedor e a boa prática multiplica o lucro por cliente que já está no posto.
+            </Secao>
+          </>
+        ),
+      },
+      metas: {
+        title: 'Metas — o potencial desta tela',
+        description: 'A expectativa vira número: metas por frentista e o acompanhamento.',
+        body: (
+          <>
+            <Secao icon={Target} titulo="O que ela faz">
+              Define e acompanha <strong>metas por frentista</strong> — o quanto se espera vs o realizado.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Meta clara alinha a equipe e dá base pra bonificar com justiça — todo mundo sabe o alvo e onde está em relação a ele.
+            </Secao>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/qualidade-dados': {
+    Icon: SearchCheck,
+    nome: 'Qualidade de Dados',
+    subtitle: 'inconsistências e sinais de fraude',
+    potencial: {
+      '': {
+        title: 'Qualidade de Dados — o potencial desta tela',
+        description: 'O detetive da rede: acha erro de cadastro e sinal de desvio antes de virar prejuízo.',
+        body: (
+          <>
+            <Secao icon={SearchCheck} titulo="O que ela faz">
+              Varre os lançamentos atrás de <strong>inconsistências</strong> — abastecimento sem frentista, litros/valores suspeitos e <strong>cupons “montados”</strong> (vários abastecimentos num cupom).
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Erro de cadastro contamina todo relatório; e o padrão de cupom montado é a assinatura clássica de desvio no cartão. Pegar cedo protege o número e o caixa.
+            </Secao>
+            <NotaHonesta>
+              A tela aponta o que investigar, não acusa: cada item traz o detalhe (posto, frentista, bomba, valores) pra você confirmar antes de agir.
+            </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/pessoas': {
+    Icon: Users,
+    nome: 'Pessoas',
+    subtitle: 'quadro de colaboradores da rede',
+    potencial: {
+      '': {
+        title: 'Pessoas — o potencial desta tela',
+        description: 'Quem é quem na rede, por cargo e por posto.',
+        body: (
+          <>
+            <Secao icon={Users} titulo="O que ela faz">
+              Organiza o <strong>quadro de colaboradores</strong> por cargo (frentista, gerente, supervisor) e posto, com ativos e inativos.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              É a base pra cruzar gente com resultado (Produtividade) e pra saber quem está ativo em cada unidade — sem depender de planilha paralela.
             </Secao>
           </>
         ),

@@ -9,7 +9,6 @@ import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -130,12 +129,6 @@ const Produtividade = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
       {hasEmpresa && visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs

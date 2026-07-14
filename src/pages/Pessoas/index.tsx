@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Crown, Shield, User, Fuel } from 'lucide-react'
-import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fetchProfiles, type ProfileRow } from '@/api/supabase/profiles'
 import { fetchFrentistas } from '@/api/supabase/frentistas'
@@ -162,13 +160,6 @@ const Pessoas = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <FocusModeToggle />
-        </div>
-      </PageHeaderTitle>
-
       {/* Resumo por cargo */}
       <div className={cn(
         'grid grid-cols-2 gap-3',
