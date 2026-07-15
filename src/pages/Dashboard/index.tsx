@@ -1,9 +1,8 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
-import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -47,7 +46,6 @@ const TabSkeleton = () => (
 )
 
 const Dashboard = () => {
-  useDashboardData() // dispara prefetch (cache de apuração + dependências)
   const isMobile = useIsMobile()
 
   // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar).
@@ -60,8 +58,6 @@ const Dashboard = () => {
     (v): v is TabId =>
       v === 'setor' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
   )
-  // Painel de Projeção aberto → oculta o "Detalhamento por setor" abaixo.
-  const [projExpanded, setProjExpanded] = useState(false)
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
@@ -107,13 +103,13 @@ const Dashboard = () => {
           {/* Cards de segmento rede-wide (Combustível, Automotivos, Conveniência,
               Global, Projeção) — só na "Visão Geral". As abas ao vivo e as de
               vendas por-posto têm seus próprios painéis/projeções. */}
-          {activeTab === 'setor' && <ProjecoesPainel onExpandedChange={setProjExpanded} />}
+          {activeTab === 'setor' && <ProjecoesPainel />}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs). Todas as
               abas de vendas são consolidadas (cache) → renderizam rede-wide. */}
           {visibleTabs.length > 0 && (
             <Suspense fallback={<TabSkeleton />}>
-              {activeTab === 'setor' && !projExpanded && (
+              {activeTab === 'setor' && (
                 <div style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
                   <BenchmarkSetor />
                 </div>

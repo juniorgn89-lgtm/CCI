@@ -158,7 +158,10 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const { data: mesRows = [] } = useQuery({
     queryKey: ['proj-mes-lb', codes.join(','), mesRange?.ini, mesRange?.fim],
     queryFn: () => fetchVendasCache({ empresaCodigos: codes, dataInicial: mesRange!.ini, dataFinal: mesRange!.fim }),
-    enabled: codes.length > 0 && !!mesRange,
+    // Só busca quando o modo "Ver projeção" (oscilação diária) está ATIVO. Hoje
+    // ele está dormente (`expanded=false`, a pedido) → a query não dispara e não
+    // pesa a Central. Reativar o modo religa a busca automaticamente.
+    enabled: expanded && codes.length > 0 && !!mesRange,
     staleTime: 5 * 60 * 1000,
   })
   // Projeção por dia = LB + quantidade do SETOR selecionado (litros p/ combustível,

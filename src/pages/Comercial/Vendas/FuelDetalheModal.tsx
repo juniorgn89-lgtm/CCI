@@ -6,8 +6,16 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
-import { projecaoAvancada, PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
+import { PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
+import { todayLocal } from '@/lib/period'
 import { useChartTheme } from '@/lib/chartTheme'
+
+/** Dias entre dois ISO (yyyy-mm-dd), via UTC pra não driftar por fuso. */
+const isoDiffDays = (a: string, b: string): number => {
+  const [ay, am, ad] = a.split('-').map(Number)
+  const [by, bm, bd] = b.split('-').map(Number)
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
+}
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
@@ -24,9 +32,12 @@ interface FuelDetalheModalProps {
   /** Data final do período (ISO yyyy-mm-dd). */
   dataFinal: string
   fuelColor: (nome: string) => string
+  /** Projeção de fechamento FISCAL do combustível (mesma engine sazonal dos KPIs
+   *  da página) — pra o modal reconciliar com o card. Se ausente, sem projeção. */
+  projecaoFiscal?: { fat: number; litros: number; lucro: number; margem: number } | null
 }
 
-const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, fuelColor }: FuelDetalheModalProps) => {
+const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, fuelColor, projecaoFiscal }: FuelDetalheModalProps) => {
   const ct = useChartTheme()
   // Filtra rows desse combustível
   const filtered = useMemo(
@@ -98,40 +109,27 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
   // Projeção de fechamento do combustível. Usa `projecaoAvancada` projetando
   // SEMPRE até o fim do mês do período (mesma metodologia dos cards de
   // Combustível e da tabela), pra não zerar quando o período termina antes de hoje.
+  // Projeção FISCAL de fechamento do combustível — a MESMA que os KPIs da página
+  // mostram (engine `projecaoSazonal` sobre venda fiscal, vinda em `projecaoFiscal`).
+  // Antes o modal recalculava por `projecaoAvancada` sobre o ABASTECIMENTO físico
+  // e não reconciliava com o card. O detalhe operacional (frentista/bomba/hora)
+  // segue vindo do abastecimento — só o VALOR projetado passa a bater com o topo.
   const projecao = useMemo(() => {
-    if (!fuel) return null
-    const now = new Date()
-    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
+    if (!fuel || !projecaoFiscal) return null
+    const hoje = todayLocal()
+    const [yy, mm] = (dataInicial || hoje).split('-').map(Number)
     const lastDay = new Date(yy, mm, 0).getDate()
     const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-
-    // Séries diárias de faturamento, litros e lucro bruto deste combustível
-    const fatMap = new Map<string, number>()
-    const litrosMap = new Map<string, number>()
-    const lucroMap = new Map<string, number>()
-    for (const r of filtered) {
-      const day = r.dataHora?.substring(0, 10)
-      if (!day) continue
-      fatMap.set(day, (fatMap.get(day) ?? 0) + r.valorTotal)
-      litrosMap.set(day, (litrosMap.get(day) ?? 0) + r.litros)
-      lucroMap.set(day, (lucroMap.get(day) ?? 0) + r.lucroBruto)
-    }
-    const toSeries = (m: Map<string, number>) =>
-      Array.from(m.entries()).map(([data, value]) => ({ data, value }))
-
-    const fatProj = projecaoAvancada({ dailySeries: toSeries(fatMap), today: todayISO, dataFinal: monthEnd })
-    const litrosProj = projecaoAvancada({ dailySeries: toSeries(litrosMap), today: todayISO, dataFinal: monthEnd })
-    const lucroProj = projecaoAvancada({ dailySeries: toSeries(lucroMap), today: todayISO, dataFinal: monthEnd })
+    const diasRestantes = hoje < monthEnd ? isoDiffDays(hoje, monthEnd) : 0
     return {
-      projetado: fatProj.esperado,
-      projetadoLitros: litrosProj.esperado,
-      projetadoLucro: lucroProj.esperado,
-      projetadoMargem: fatProj.esperado > 0 ? (lucroProj.esperado / fatProj.esperado) * 100 : 0,
-      isProjetada: fatProj.diasRestantes > 0,
-      diasRestantes: fatProj.diasRestantes,
+      projetado: projecaoFiscal.fat,
+      projetadoLitros: projecaoFiscal.litros,
+      projetadoLucro: projecaoFiscal.lucro,
+      projetadoMargem: projecaoFiscal.margem,
+      isProjetada: diasRestantes > 0,
+      diasRestantes,
     }
-  }, [fuel, filtered, dataInicial])
+  }, [fuel, projecaoFiscal, dataInicial])
 
   if (!fuel) return null
 

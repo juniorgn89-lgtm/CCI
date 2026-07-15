@@ -1560,6 +1560,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         dataInicial={dataInicial}
         dataFinal={dataFinal}
         fuelColor={fuelColor}
+        projecaoFiscal={selectedFuel ? projDetalhePorFuel.get(selectedFuel.nome) ?? null : null}
       />
 
       <LitrosVendidosModal

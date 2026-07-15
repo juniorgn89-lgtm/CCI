@@ -91,6 +91,7 @@ export interface RedeSetor {
   qtd: number
   qtdAnoAnterior: number
   faturamento: number
+  faturamentoAnoAnterior: number
   custo: number
   lucroBruto: number
   lucroBrutoAnoAnterior: number
@@ -147,7 +148,7 @@ interface VendaAgg {
 
 const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSetor => ({
   id, unidadeLabel, lbLabel,
-  qtd: 0, qtdAnoAnterior: 0, faturamento: 0, custo: 0, lucroBruto: 0,
+  qtd: 0, qtdAnoAnterior: 0, faturamento: 0, faturamentoAnoAnterior: 0, custo: 0, lucroBruto: 0,
   lucroBrutoAnoAnterior: 0, margem: 0, lucroPorUnidade: 0, acrescimos: 0, descontos: 0,
   cupons: 0, ticketMedio: 0, daily: [],
   postos: [],
@@ -252,9 +253,13 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     // dados já vêm rede-wide do cache, então mudar a seleção só re-agrega aqui.
     // `[]` = Todos os postos (rede inteira). Consistente com a Central.
     const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
-    const closedRowsF = closedRows.filter((r) => matchPosto(r.empresa_codigo))
+    // `quantidade > 0`: descarta linhas anômalas de qtd zero/negativa (ajustes/
+    // estornos) que ainda carregam valor no cache. As abas (Combustível/Pista/
+    // Conveniência + índice sazonal) já filtram assim — sem isto, o realizado e a
+    // projeção do painel divergiam ~1% dos cards. Ver [[project_projecao_sazonal]].
+    const closedRowsF = closedRows.filter((r) => matchPosto(r.empresa_codigo) && r.quantidade > 0)
     const todayItensF = todayItens.filter((it) => matchPosto(it.empresaCodigo))
-    const anoAntRowsF = anoAntRows.filter((r) => matchPosto(r.empresa_codigo))
+    const anoAntRowsF = anoAntRows.filter((r) => matchPosto(r.empresa_codigo) && r.quantidade > 0)
 
     // Conjuntos de classificação (alias-expandido pros aliases de combustível).
     const isFuel = new Set<number>()
@@ -562,6 +567,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const gCusto = combustivel.custo + automotivos.custo + conveniencia.custo
     const gLucro = gFat - gCusto
     const gLucroAnt = combustivel.lucroBrutoAnoAnterior + automotivos.lucroBrutoAnoAnterior + conveniencia.lucroBrutoAnoAnterior
+    const gFatAnt = combustivel.faturamentoAnoAnterior + automotivos.faturamentoAnoAnterior + conveniencia.faturamentoAnoAnterior
     const gCupons = combustivel.cupons + automotivos.cupons + conveniencia.cupons
 
     return {
@@ -571,7 +577,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         custo: gCusto,
         lucroBruto: gLucro,
         margem: gFat > 0 ? (gLucro / gFat) * 100 : 0,
-        faturamentoAnoAnterior: 0,
+        faturamentoAnoAnterior: gFatAnt,
         lucroBrutoAnoAnterior: gLucroAnt,
         cupons: gCupons,
         ticketMedio: gCupons > 0 ? gFat / gCupons : 0,
