@@ -124,6 +124,35 @@ const addDaysIso = (iso: string, n: number): string => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * Série ESPERADA por dia (ritmo × índice do dia-da-semana), CONTÍNUA de
+ * `serie[0].data` até `dataFinal` (inclui dias futuros = projeção). `ritmo` =
+ * realizado ÷ Σíndice[dias fechados] — mesma base do `projecaoSazonal`. Alimenta
+ * a linha de "projeção de fechamento" do gráfico diário. Índice vazio → esperado
+ * uniforme (linear). `valueOf` escolhe a métrica (litros/faturamento).
+ */
+export const expectedDailySeries = <T extends { data: string }>(
+  serie: T[],
+  opts: { today: string; dataFinal: string; indices: Record<number, number>; valueOf: (d: T) => number },
+): { data: string; esperado: number }[] => {
+  if (serie.length === 0) return []
+  const { today, dataFinal, indices, valueOf } = opts
+  const idxOf = (iso: string) => indices[weekdayOfIso(iso)] ?? 1
+  const closed = serie.filter((d) => d.data.slice(0, 10) < today)
+  const realizado = closed.reduce((s, d) => s + valueOf(d), 0)
+  const sumIdx = closed.reduce((s, d) => s + idxOf(d.data.slice(0, 10)), 0)
+  const ritmo = sumIdx > 0 ? realizado / sumIdx : (closed.length ? realizado / closed.length : 0)
+  const out: { data: string; esperado: number }[] = []
+  let cur = serie[0].data.slice(0, 10)
+  let guard = 0
+  while (cur <= dataFinal && guard < 400) {
+    out.push({ data: cur, esperado: ritmo * idxOf(cur) })
+    cur = addDaysIso(cur, 1)
+    guard++
+  }
+  return out
+}
+
 /** Último dia do mês de uma data yyyy-MM-dd (horizonte padrão das projeções). */
 export const fimDoMesIso = (iso: string): string => {
   const [y, m] = iso.split('-').map(Number)

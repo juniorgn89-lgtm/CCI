@@ -50,7 +50,7 @@ const fmtPct = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
-  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-transparent dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
     {label}
   </th>
 )
@@ -202,7 +202,7 @@ const Segmented = ({ tabs, active, onSelect }: {
   active: string
   onSelect: (id: string) => void
 }) => (
-  <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+  <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
     {tabs.map((s) => {
       const Icon = s.Icon
       const isActive = active === s.id
@@ -731,7 +731,7 @@ const BenchmarkSetor = () => {
   ]
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex items-center gap-2">

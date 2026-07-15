@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
-import { Store, CircleDollarSign, DollarSign, PieChart, Ticket, TrendingUp, TrendingDown, Package, BarChart3, ListOrdered, LayoutDashboard, CalendarDays } from 'lucide-react'
+import { Store, CircleDollarSign, DollarSign, PieChart, Ticket, TrendingUp, TrendingDown, Minus, Package, BarChart3, ListOrdered, LayoutDashboard, CalendarDays } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -15,7 +15,8 @@ import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
-import { fimDoMesIso } from '@/lib/projection'
+import { fimDoMesIso, expectedDailySeries } from '@/lib/projection'
+import { todayLocal } from '@/lib/period'
 import { useFilterStore } from '@/store/filters'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
@@ -44,7 +45,7 @@ const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema.
  * `first` omite o divisor vertical à esquerda (1º grupo). */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
-  <th colSpan={colSpan} className={`bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500${first ? '' : ' border-l border-gray-200 dark:border-gray-700'}`}>
+  <th colSpan={colSpan} className={`bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-transparent dark:text-gray-500${first ? '' : ' border-l border-gray-200 dark:border-gray-700'}`}>
     {label}
   </th>
 )
@@ -125,6 +126,9 @@ interface ComercialVendasConvenienciaProps {
   embedded?: boolean
 }
 
+const DOW_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const diaSemanaLabel = (iso: string): string => DOW_FULL[new Date(`${iso}T00:00:00`).getDay()] ?? ''
+
 const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConvenienciaProps = {}) => {
   const empresaNome = useEmpresaNome()
   const { dataFinal } = useFilterStore()
@@ -141,6 +145,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     projecao,
     projecaoFat,
     projComparativo,
+    sazonalFatIndex,
     catalogProducts,
     gruposList,
     groupTable,
@@ -194,6 +199,21 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     () => [...realizadoDiaADia.days].sort((a, b) => b.data.localeCompare(a.data)),
     [realizadoDiaADia.days],
   )
+  // Variação semanal da QTDE vs o mesmo dia 7 dias antes (comparativo, como no Combustível).
+  const varSemanalByDate = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const qtdByDate = new Map(realizadoDiaADia.days.map((d) => [d.data.slice(0, 10), d.qtd]))
+    const out = new Map<string, number | null>()
+    for (const d of realizadoDiaADia.days) {
+      const iso = d.data.slice(0, 10)
+      const [y, m, dd] = iso.split('-').map(Number)
+      const prev = new Date(y, m - 1, dd - 7)
+      const prevIso = `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}-${pad(prev.getDate())}`
+      const prevQtd = qtdByDate.get(prevIso)
+      out.set(iso, prevQtd != null && prevQtd > 0 ? ((d.qtd - prevQtd) / prevQtd) * 100 : null)
+    }
+    return out
+  }, [realizadoDiaADia.days])
   // Série ascendente (data → qtd) pro gráfico "Quantidade vendida por dia".
   const diaSerie = useMemo(
     () => [...realizadoDiaADia.days]
@@ -201,6 +221,16 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
       .map((d) => ({ data: d.data, litros: d.qtd, faturamento: d.fat, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
     [realizadoDiaADia.days],
   )
+  // Linha de projeção esperada (FATURAMENTO por dia) pro gráfico "Faturamento por dia".
+  const projFatDaily = useMemo(() => {
+    if (diaSerie.length === 0 || projecaoFat.diasRestantes <= 0) return undefined
+    return expectedDailySeries(diaSerie, {
+      today: todayLocal(),
+      dataFinal: fimDoMesIso(dataInicial),
+      indices: sazonalFatIndex,
+      valueOf: (d) => d.faturamento ?? 0,
+    })
+  }, [diaSerie, projecaoFat, sazonalFatIndex, dataInicial])
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
   const diaPageSafe = Math.min(diaPage, diaPageCount - 1)
   const diasPagina = useMemo(
@@ -350,13 +380,16 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               projetadoLucro={projecao.lucroBruto}
               dataFinal={fimDoMesIso(dataInicial)}
               comparativo={projComparativo}
+              sparkline={false}
+              cenarios={false}
+              mediasInteiras
               loading={showSkeleton}
             />
           </div>
 
           {/* Detalhamento de informações — UM card só (igual Pista/Combustível):
               header + sub-menu no topo, conteúdo da aba ativa no corpo. */}
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -378,7 +411,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                         'rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors',
                         isActive
                           ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
                       )}
                     >
                       {tab.label}
@@ -405,7 +438,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     {/* Gráfico "Quantidade vendida por dia" acompanhando a tabela (≥ 2 dias). */}
                     {diaSerie.length >= 2 && (
                       <div className="px-4 pb-1 pt-4">
-                        <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento />
+                        <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} cardBg="bg-white dark:bg-transparent" />
                       </div>
                     )}
                     <TablePager
@@ -420,20 +453,25 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                         {/* Fundo levíssimo, uma cor por grupo de coluna. */}
                         <colgroup>
                           <col />
+                          <col />
                           <col className={GROUP_TINT.operacao} />
+                          <col className={GROUP_TINT.comparativo} />
                           <col span={4} className={GROUP_TINT.financeiro} />
                           <col span={3} className={GROUP_TINT.eficiencia} />
                         </colgroup>
-                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                           <tr>
-                            <th className="px-3 py-1.5" />
+                            <th colSpan={2} className="px-3 py-1.5" />
                             <GroupTh first label="Operação" colSpan={1} />
+                            <GroupTh label="Comparativo" colSpan={1} />
                             <GroupTh label="Financeiro" colSpan={4} />
                             <GroupTh label="Eficiência" colSpan={3} />
                           </tr>
                           <tr>
                             <HeaderHint align="left" label="Data" help="Dia do movimento (data fiscal)." />
+                            <HeaderHint align="left" label="Dia da semana" help="Dia da semana correspondente." />
                             <HeaderHint label="Qtde" help="Quantidade de itens de conveniência vendidos no dia." />
+                            <HeaderHint groupStart label="Var. semanal" help="Variação % da quantidade vs o mesmo dia 7 dias antes." />
                             <HeaderHint groupStart label="Faturamento" help="Receita das vendas de produtos de conveniência no dia (R$)." />
                             <HeaderHint label="Custo" help="CMV (Custo da Mercadoria Vendida) = preço de custo × quantidade vendida. É o que você pagou pelos produtos vendidos — base do lucro bruto e da margem." />
                             <HeaderHint label="Lucro Bruto" help="Faturamento − Custo (CMV) do dia." />
@@ -453,8 +491,21 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                               <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
                                 <span className="underline-offset-4 hover:underline">{formatDate(d.data)}</span>
                               </td>
+                              <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{diaSemanaLabel(d.data)}</td>
                               <td className="px-2 py-1">
                                 <BarCell value={d.qtd} max={diaColMax.qtd} formatted={formatNumber(Math.round(d.qtd))} color="blue" align="near" />
+                              </td>
+                              <td className="border-l border-gray-200 px-3 py-2 text-right tabular-nums dark:border-gray-700">
+                                {(() => {
+                                  const v = varSemanalByDate.get(d.data.slice(0, 10)) ?? null
+                                  if (v === null) return <span className="text-gray-400">—</span>
+                                  return (
+                                    <span className={cn('inline-flex items-center justify-end gap-0.5 font-semibold', v > 0 ? 'text-emerald-600 dark:text-emerald-400' : v < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400')}>
+                                      {`${v > 0 ? '+' : ''}${v.toFixed(2).replace('.', ',')}%`}
+                                      {v > 0 ? <TrendingUp className="h-3 w-3" /> : v < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                                    </span>
+                                  )
+                                })()}
                               </td>
                               <td className="border-l border-gray-200 px-2 py-1 dark:border-gray-700">
                                 <BarCell value={d.fat} max={diaColMax.fat} formatted={formatCurrencyInt(d.fat)} color="green" align="near" />
@@ -483,8 +534,9 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                             return (
                               <>
                                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                                  <td className="px-3 py-2.5">Nesta página <span className="ml-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">{diasPagina.length} dias</span></td>
+                                  <td colSpan={2} className="px-3 py-2.5">Nesta página <span className="ml-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">{diasPagina.length} dias</span></td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(Math.round(sub.qtd))}</td>
+                                  <td className="border-l border-gray-200 px-3 py-2.5 dark:border-gray-700" />
                                   <td className="border-l border-gray-200 px-3 py-2.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(sub.fat)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.custo)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrencyInt(sub.lucro)}</td>
@@ -494,8 +546,9 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                                   <td className="px-3 py-2.5 text-right tabular-nums">{sub.qtd > 0 ? formatCurrency(sub.lucro / sub.qtd) : '—'}</td>
                                 </tr>
                                 <tr className="bg-gray-50/60 text-xs text-gray-500 dark:bg-gray-800/40 dark:text-gray-400">
-                                  <td className="px-3 py-1.5 font-medium">Período <span className="ml-1 text-[11px]">{realizadoDiaADia.days.length} dias</span></td>
+                                  <td colSpan={2} className="px-3 py-1.5 font-medium">Período <span className="ml-1 text-[11px]">{realizadoDiaADia.days.length} dias</span></td>
                                   <td className="px-3 py-1.5 text-right tabular-nums">{formatNumber(Math.round(tot.qtd))}</td>
+                                  <td className="border-l border-gray-200 px-3 py-1.5 dark:border-gray-700" />
                                   <td className="border-l border-gray-200 px-3 py-1.5 text-right tabular-nums dark:border-gray-700">{formatCurrencyInt(tot.fat)}</td>
                                   <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(tot.custo)}</td>
                                   <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrencyInt(tot.lucro)}</td>

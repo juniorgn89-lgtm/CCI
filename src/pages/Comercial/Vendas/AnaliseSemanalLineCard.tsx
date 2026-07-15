@@ -121,9 +121,12 @@ interface AnaliseSemanalLineCardProps {
   showWeekend?: boolean
   /** Altura fixa do gráfico em px (default 300). */
   height?: number
+  /** Classe de fundo/borda do card (default `bg-white dark:bg-gray-900`). Serve
+   *  pra harmonizar o card com o visual dos KPI cards no modo escuro. */
+  cardBg?: string
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900' }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
@@ -255,7 +258,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
   const hoverFlip = hp == null ? '-50%' : hoverLeftPct < 14 ? '-8%' : hoverLeftPct > 86 ? '-92%' : '-50%'
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className={cn('rounded-2xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
       {/* Cabeçalho: título + subtítulo + mini-KPIs */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

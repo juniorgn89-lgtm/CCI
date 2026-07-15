@@ -33,7 +33,7 @@ import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
-import { projecaoSazonal } from '@/lib/projection'
+import { projecaoSazonal, expectedDailySeries } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
@@ -102,7 +102,7 @@ type DetalheTab = 'dia' | 'combustivel' | 'meses' | 'semana'
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema.
  * `first` omite o divisor vertical à esquerda (1º grupo). */
 const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
-  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-gray-800/60 dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-transparent dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
     {label}
   </th>
 )
@@ -210,7 +210,7 @@ const FuelSelect = ({ options, value, onChange }: { options: string[]; value: st
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+      className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800"
     >
       {options.map((opt) => (
         <option key={opt} value={opt}>{opt === 'Todos' ? 'Todos os combustíveis' : fuelLabel(opt)}</option>
@@ -638,27 +638,12 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // "Litros vendidos por dia". Só quando há dias futuros (senão não há o que projetar).
   const projLitrosDaily = useMemo(() => {
     if (diaSerie.length === 0 || projecaoCombustivel.fat.diasRestantes <= 0) return undefined
-    const today = todayLocal()
-    const monthEnd = projecaoCombustivel.dataFinalProjecao
-    const idxRec = pilotoSazonal.linear ? {} : pilotoSazonal.indices.litros
-    const wof = (iso: string) => new Date(`${iso}T00:00:00`).getDay()
-    const idxOf = (iso: string) => idxRec[wof(iso)] ?? 1
-    const closed = diaSerie.filter((d) => d.data.slice(0, 10) < today)
-    const realizado = closed.reduce((s, d) => s + d.litros, 0)
-    const sumIdx = closed.reduce((s, d) => s + idxOf(d.data.slice(0, 10)), 0)
-    const ritmo = sumIdx > 0 ? realizado / sumIdx : (closed.length ? realizado / closed.length : 0)
-    const pad2 = (x: number) => String(x).padStart(2, '0')
-    const out: { data: string; esperado: number }[] = []
-    let cur = diaSerie[0].data.slice(0, 10)
-    let guard = 0
-    while (cur <= monthEnd && guard < 400) {
-      out.push({ data: cur, esperado: ritmo * idxOf(cur) })
-      const [y, m, d] = cur.split('-').map(Number)
-      const dt = new Date(y, m - 1, d + 1)
-      cur = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`
-      guard++
-    }
-    return out
+    return expectedDailySeries(diaSerie, {
+      today: todayLocal(),
+      dataFinal: projecaoCombustivel.dataFinalProjecao,
+      indices: pilotoSazonal.linear ? {} : pilotoSazonal.indices.litros,
+      valueOf: (d) => d.litros,
+    })
   }, [diaSerie, projecaoCombustivel, pilotoSazonal])
 
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
@@ -960,8 +945,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
           </div>
 
-          {/* Detalhamento de informações — 4 abas */}
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          {/* Detalhamento de informações — 4 abas. Fundo "preto com profundidade"
+              no escuro (teste desta tela): gradiente gray-900 → preto. */}
+          <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1002,7 +988,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         'rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors',
                         isActive
                           ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                          : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
                       )}
                     >
                       {t.label}
@@ -1033,7 +1019,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     {/* Gráfico "Litros vendidos por dia" acompanhando a tabela (≥ 2 dias). */}
                     {diaSerie.length >= 2 && (
                       <div className="px-4 pb-1 pt-4">
-                        <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} />
+                        <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} cardBg="bg-white dark:bg-transparent" />
                       </div>
                     )}
                     <TablePager
@@ -1054,7 +1040,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <col span={4} className={GROUP_TINT.financeiro} />
                           <col span={3} className={GROUP_TINT.eficiencia} />
                         </colgroup>
-                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                           <tr>
                             <th colSpan={2} className="px-3 py-1.5" />
                             <GroupTh first label="Operação" colSpan={1} />
@@ -1208,7 +1194,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                           <col span={5} className={GROUP_TINT.financeiro} />
                           <col span={3} className={GROUP_TINT.eficiencia} />
                         </colgroup>
-                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                        <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                           <tr>
                             <th className="px-3 py-1.5" />
                             <GroupTh first label="Operação" colSpan={1} />

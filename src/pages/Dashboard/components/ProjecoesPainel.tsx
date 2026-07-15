@@ -358,7 +358,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               alinhar com o rodapé do cartão de Projeção (mais alto). */}
           <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SegmentCard
-            label="Combustível" Icon={Droplets} cardBg="bg-white dark:bg-gray-900"
+            label="Combustível" Icon={Droplets} cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
             loading={isLoading} lucroBruto={combustivel.lucroBruto}
             lucroBrutoAnterior={combustivel.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -366,7 +366,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             secondary={{ label: 'L. bruto / litro', value: formatCurrency(combustivel.lucroPorUnidade) }}
           />
           <SegmentCard
-            label="Automotivos" Icon={Wrench} cardBg="bg-white dark:bg-gray-900"
+            label="Automotivos" Icon={Wrench} cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
             iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
             loading={isLoading} lucroBruto={automotivos.lucroBruto}
             lucroBrutoAnterior={automotivos.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -374,7 +374,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             secondary={{ label: 'Margem', value: fmtPct(automotivos.margem) }}
           />
           <SegmentCard
-            label="Conveniência" Icon={Store} cardBg="bg-white dark:bg-gray-900"
+            label="Conveniência" Icon={Store} cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
             iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
             loading={isLoading} lucroBruto={conveniencia.lucroBruto}
             lucroBrutoAnterior={conveniencia.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
