@@ -654,6 +654,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     const scale = realizadoFat > 0 ? pf.esperado / realizadoFat : 1
     const realizadoUnidades = computed?.kpis.unidadesVendidas ?? 0
     const realizadoProdutos = computed?.kpis.produtosDistintos ?? 0
+    // Ticket projetado = faturamento projetado ÷ cupons projetados (cupons
+    // acompanham o ritmo do faturamento). Mesma fórmula da Conveniência. Como
+    // ticket é invariante à escala, na prática ≈ ticket atual.
+    const projCupons = cuponsAtual * scale
+    const projetadoTicketMedio = projCupons > 0 ? pf.esperado / projCupons : 0
     return {
       fat: pf,
       realizadoFat,
@@ -663,10 +668,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       projetadoMargemPct: pf.esperado > 0 ? (pl.esperado / pf.esperado) * 100 : 0,
       projetadoUnidades: Math.round(realizadoUnidades * scale),
       projetadoProdutos: Math.round(realizadoProdutos * scale),
+      projetadoTicketMedio,
       isProjetada: pf.diasRestantes > 0,
       dataFinalProjecao: monthEnd,
     }
-  }, [computed, vendaItens, produtosData, gruposData, dataInicial, sz])
+  }, [computed, vendaItens, produtosData, gruposData, dataInicial, sz, cuponsAtual])
 
   return (
     <div className="space-y-6">
@@ -797,7 +803,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               current={cmpKpis.atual.ticketMedio}
               previous={cmpKpis.prev.ticketMedio > 0 ? cmpKpis.prev.ticketMedio : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoPista.isProjetada && cmpKpis.atual.ticketMedio > 0 ? formatCurrency(cmpKpis.atual.ticketMedio) : undefined}
+              projecao={projecaoPista.isProjetada && projecaoPista.projetadoTicketMedio > 0 ? formatCurrency(projecaoPista.projetadoTicketMedio) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.ticketMedio > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">

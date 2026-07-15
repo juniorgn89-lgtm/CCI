@@ -6,7 +6,8 @@ import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
-import { monthEndFactor, weekdayMonthEndFactor } from '@/lib/projection'
+import { monthEndFactor, projecaoSazonal, fimDoMesIso } from '@/lib/projection'
+import { todayLocal } from '@/lib/period'
 import { GROUP_TINT } from '@/lib/groupTint'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
@@ -230,10 +231,13 @@ const Segmented = ({ tabs, active, onSelect }: {
  * ant." compara o PROJETADO com o período anterior. Margem projetada = margem
  * realizada (proporcional), por isso não há coluna de margem.
  */
-const ProjecaoEmpresaTable = ({ rows, isProjetando, showLitros, cmpShort, fimProjLabel, compact }: {
+const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort, fimProjLabel, compact }: {
   rows: ProjPostoRow[]
   isProjetando: boolean
-  showLitros: boolean
+  /** Mostra a coluna de quantidade (Litros p/ combustível, Qtd p/ auto/conv). */
+  showQtd: boolean
+  /** Rótulo da quantidade: "Litros" | "Qtd". */
+  qtdLabel: string
   cmpShort: string
   fimProjLabel: string
   compact?: boolean // empilhado: banner/rodapé/margem-topo vêm do pai (uma vez só).
@@ -255,7 +259,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showLitros, cmpShort, fimPro
     return (
       <tr className={cn('border-b border-gray-100 dark:border-gray-800', bold && 'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100')}>
         <td className={cn('px-3 py-2 text-left', bold ? 'font-bold' : 'font-medium text-gray-800 dark:text-gray-200')}>{posto}</td>
-        {showLitros && (
+        {showQtd && (
           <>
             <td className={cn(real, gl)}>{formatNumber(Math.round(realLitros))}</td>
             <td className={cn(num, 'font-semibold')}>{formatNumber(Math.round(projLit))}</td>
@@ -284,7 +288,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showLitros, cmpShort, fimPro
         {/* Fundo levíssimo, uma cor por grupo de coluna. */}
         <colgroup>
           <col /> {/* Empresa */}
-          {showLitros && <col span={2} className={GROUP_TINT.operacao} />} {/* Litros */}
+          {showQtd && <col span={2} className={GROUP_TINT.operacao} />} {/* Litros/Qtd */}
           <col span={2} className={GROUP_TINT.financeiro} /> {/* Faturamento */}
           <col span={3} className={GROUP_TINT.eficiencia} /> {/* Lucro bruto */}
           <col span={2} className={GROUP_TINT.comparativo} /> {/* vs período anterior */}
@@ -292,17 +296,17 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showLitros, cmpShort, fimPro
         <thead>
           <tr className="text-gray-400 dark:text-gray-500">
             <th className="px-3 py-1.5" />
-            {showLitros && <GroupTh first label="Litros" colSpan={2} />}
-            <GroupTh first={!showLitros} label="Faturamento" colSpan={2} />
+            {showQtd && <GroupTh first label={qtdLabel} colSpan={2} />}
+            <GroupTh first={!showQtd} label="Faturamento" colSpan={2} />
             <GroupTh label="Lucro bruto" colSpan={3} />
             <GroupTh label={`vs ${cmpShort}`} colSpan={2} />
           </tr>
           <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
             <HeaderHint align="left" label="Empresa" help="Posto da rede." />
-            {showLitros && (
+            {showQtd && (
               <>
-                <HeaderHint groupStart label={<>Litros<br />realiz.</>} help="Litros vendidos no período (realizado)." />
-                <HeaderHint label={<>Litros<br />projet.</>} help="Litros projetados pro fim do mês — projeção sazonal por posto (índice de dia-da-semana, 6 meses)." />
+                <HeaderHint groupStart label={<>{qtdLabel}<br />realiz.</>} help={`${qtdLabel === 'Litros' ? 'Litros vendidos' : 'Quantidade vendida'} no período (realizado).`} />
+                <HeaderHint label={<>{qtdLabel}<br />projet.</>} help={`${qtdLabel} projetado(s) pro fim do mês — projeção sazonal por posto (índice de dia-da-semana, 6 meses).`} />
               </>
             )}
             <HeaderHint groupStart label={<>Fat.<br />realiz.</>} help="Faturamento realizado no período." />
@@ -665,18 +669,46 @@ const BenchmarkSetor = () => {
   // Projeções empilhadas: Global (soma dos 3) + cada setor, um bloco embaixo do
   // outro (mesma ideia do Realizado). Realizado por posto no escopo escolhido.
   const projBlocos = useMemo(() => {
+    // Fatores EFETIVOS por setor: a projeção do setor (MESMO `projecaoSazonal` do
+    // painel, sobre a série diária da rede) ÷ realizado do setor. Cada posto é
+    // projetado por realizado × fator → a soma dos postos = projeção do painel
+    // (painel = tabela = abas). Fica proporcional ao realizado do posto.
+    const monthEnd = fimDoMesIso(dataInicial || todayLocal())
+    const projToday = todayLocal()
+    const fatoresDe = (setorObj: typeof rede.combustivel, singular: 'combustivel' | 'automotivos' | 'conveniencia') => {
+      const esp = (value: (d: { faturamento: number; lucroBruto: number; qtd: number }) => number, metrica: 'faturamento' | 'qtd' | 'lucro') =>
+        projecaoSazonal({
+          dailySeries: setorObj.daily.map((d) => ({ data: d.data, value: value(d) })),
+          today: projToday,
+          dataFinal: monthEnd,
+          indices: sazonal.indice(singular, metrica),
+        }).esperado
+      return {
+        fFat: setorObj.faturamento > 0 ? esp((d) => d.faturamento, 'faturamento') / setorObj.faturamento : 1,
+        fLuc: setorObj.lucroBruto > 0 ? esp((d) => d.lucroBruto, 'lucro') / setorObj.lucroBruto : 1,
+        fQtd: setorObj.qtd > 0 ? esp((d) => d.qtd, 'qtd') / setorObj.qtd : 1,
+      }
+    }
+    const fatores: Record<'combustivel' | 'automotivos' | 'conveniencia', { fFat: number; fLuc: number; fQtd: number }> = {
+      combustivel: fatoresDe(rede.combustivel, 'combustivel'),
+      automotivos: fatoresDe(rede.automotivos, 'automotivos'),
+      conveniencia: fatoresDe(rede.conveniencia, 'conveniencia'),
+    }
     const build = (scopes: SetorId[]): ProjPostoRow[] => {
       const map = new Map<string, ProjPostoRow>()
       for (const sc of scopes) {
         const setorObj = sc === 'combustiveis' ? rede.combustivel : sc === 'automotivos' ? rede.automotivos : rede.conveniencia
-        const singular = sc === 'combustiveis' ? 'combustivel' : sc === 'automotivos' ? 'automotivos' : 'conveniencia'
+        const singular: 'combustivel' | 'automotivos' | 'conveniencia' =
+          sc === 'combustiveis' ? 'combustivel' : sc === 'automotivos' ? 'automotivos' : 'conveniencia'
+        const { fFat, fLuc, fQtd } = fatores[singular]
         for (const p of setorObj.postos) {
-          // Fator sazonal DO POSTO (índice do dia-da-semana; ramo linear <90d).
-          const factor = weekdayMonthEndFactor(dataInicial, dataFinal, sazonal.indicesDe(p.empresaCodigo, singular))
           const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 }
-          e.realLB += p.lucroBruto; e.projLB += p.lucroBruto * factor
-          e.realFat += p.faturamento; e.projFat += p.faturamento * factor
-          if (sc === 'combustiveis') { e.realLitros += p.qtd; e.projLit += p.qtd * factor }
+          e.realLB += p.lucroBruto; e.projLB += p.lucroBruto * fLuc
+          e.realFat += p.faturamento; e.projFat += p.faturamento * fFat
+          // Quantidade (litros p/ combustível, unidades p/ auto/conv). No bloco
+          // Global (multi-setor) não faz sentido somar litros + unidades → só nos
+          // blocos de um setor só (a coluna fica escondida no Global).
+          e.realLitros += p.qtd; e.projLit += p.qtd * fQtd
           e.lbAnt += p.lucroBrutoAnoAnterior
           map.set(p.posto, e)
         }
@@ -684,12 +716,12 @@ const BenchmarkSetor = () => {
       return [...map.values()].sort((a, b) => b.realLB - a.realLB)
     }
     return [
-      { id: 'global', titulo: 'Global (rede consolidada)', Icon: Globe, showLitros: false, rows: build(['combustiveis', 'automotivos', 'conveniencias']) },
-      { id: 'combustiveis', titulo: 'Combustíveis', Icon: Fuel, showLitros: true, rows: build(['combustiveis']) },
-      { id: 'automotivos', titulo: 'Automotivos', Icon: Wrench, showLitros: false, rows: build(['automotivos']) },
-      { id: 'conveniencias', titulo: 'Conveniências', Icon: Store, showLitros: false, rows: build(['conveniencias']) },
+      { id: 'global', titulo: 'Global (rede consolidada)', Icon: Globe, showQtd: false, qtdLabel: 'Qtd', rows: build(['combustiveis', 'automotivos', 'conveniencias']) },
+      { id: 'combustiveis', titulo: 'Combustíveis', Icon: Fuel, showQtd: true, qtdLabel: 'Litros', rows: build(['combustiveis']) },
+      { id: 'automotivos', titulo: 'Automotivos', Icon: Wrench, showQtd: true, qtdLabel: 'Qtd', rows: build(['automotivos']) },
+      { id: 'conveniencias', titulo: 'Conveniências', Icon: Store, showQtd: true, qtdLabel: 'Qtd', rows: build(['conveniencias']) },
     ]
-  }, [rede, dataInicial, dataFinal, sazonal])
+  }, [rede, dataInicial, sazonal])
 
   // Setores (na ordem exibida, um bloco embaixo do outro).
   const setorBlocos: { id: SetorId; titulo: string; Icon: typeof Fuel; obj: SetorData }[] = [
@@ -762,7 +794,8 @@ const BenchmarkSetor = () => {
                 <ProjecaoEmpresaTable
                   rows={b.rows}
                   isProjetando={isProjetando}
-                  showLitros={b.showLitros}
+                  showQtd={b.showQtd}
+                  qtdLabel={b.qtdLabel}
                   cmpShort={cmpShort}
                   fimProjLabel={fimProjLabel}
                   compact

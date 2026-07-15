@@ -1,23 +1,25 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { todayLocal } from '@/lib/period'
 import { weekdayIndices, diasOperacaoProxy } from '@/lib/projection'
 
 /**
- * Índices SAZONAIS (dia-da-semana) da Central, POR POSTO+setor e POR SETOR na
- * rede, a partir de 6 meses de histórico do cache (`useRedeVendasCache`). O
- * ProjecoesPainel e a BenchmarkSetor consomem o MESMO índice per-posto e somam
- * por posto → painel e tabela batem número a número. `indicesSetor` (rede-wide)
- * alimenta só o gráfico de oscilação (agregado por setor). Ramo linear (<90d de
- * operação) devolve `{}` → `weekdayMonthEndFactor` recai no `monthEndFactor`.
- * Ver docs/SPEC-projecao-sazonal.md e [[project_projecao_sazonal]].
+ * Índices SAZONAIS (dia-da-semana) da Central, POR SETOR na rede e POR MÉTRICA
+ * (faturamento / qtd / lucro), a partir de 6 meses de histórico do cache
+ * (`useRedeVendasCache`). É o MESMO índice rede-wide que as abas Combustível/
+ * Pista/Conveniência usam (via `useProjecaoSazonalPiloto`), pra o painel de
+ * Projeção e a tabela por posto baterem com as abas. Ramo linear (<90d de
+ * histórico do setor) devolve `{}` → `projecaoSazonal`/`weekdayMonthEndFactor`
+ * recaem no método linear. Ver docs/SPEC-projecao-sazonal.md e
+ * [[project_projecao_sazonal]].
  */
 
 type SetorId = 'combustivel' | 'automotivos' | 'conveniencia'
+type Metrica = 'faturamento' | 'qtd' | 'lucro'
 const SETORES: SetorId[] = ['combustivel', 'automotivos', 'conveniencia']
 const EMPTY: Record<number, number> = {}
 
@@ -34,10 +36,8 @@ const prevDay = (iso: string): string => {
 
 export interface CentralSazonal {
   isLoading: boolean
-  /** Índice de dia-da-semana (faturamento) do POSTO+setor. `{}` = linear. */
-  indicesDe: (empresaCodigo: number, setor: SetorId) => Record<number, number>
-  /** Índice de dia-da-semana (faturamento) do SETOR na rede (gráfico de oscilação). */
-  indicesSetor: (setor: SetorId) => Record<number, number>
+  /** Índice de dia-da-semana do SETOR na rede, por métrica. `{}` = linear. */
+  indice: (setor: SetorId, metrica: Metrica) => Record<number, number>
 }
 
 const useCentralSazonal = (): CentralSazonal => {
@@ -45,46 +45,46 @@ const useCentralSazonal = (): CentralSazonal => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])
-
   const monthStart = `${(dataInicial || todayLocal()).slice(0, 7)}-01`
   const histIni = monthsBackFirst(monthStart, 6)
   const histEnd = prevDay(monthStart)
   const { data: histRows = [], isLoading } = useRedeVendasCache(histIni, histEnd)
 
   return useMemo(() => {
+    // Escopo: "Todos" ([]) = postos PERMITIDOS (igual às abas e ao useRedeSetores).
     const match = (code: number) => (empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code))
-    // Série diária de FATURAMENTO por posto+setor (+ 1ª venda p/ dias_operação) e por setor.
-    const byPosto = new Map<string, Map<string, number>>()
-    const firstByPosto = new Map<string, string>()
-    const bySetor = new Map<SetorId, Map<string, number>>(SETORES.map((s) => [s, new Map<string, number>()]))
+    // Série diária por setor × métrica (+ 1ª venda p/ dias_operação do setor).
+    const byDay = new Map<SetorId, Map<string, { fat: number; qtd: number; luc: number }>>(
+      SETORES.map((s) => [s, new Map<string, { fat: number; qtd: number; luc: number }>()]),
+    )
+    const first = new Map<SetorId, string>()
     for (const r of histRows) {
       const setor = r.setor as SetorId
-      if (!SETORES.includes(setor) || !match(r.empresa_codigo) || r.total_venda <= 0) continue
-      const pk = `${r.empresa_codigo}|${setor}`
-      let dm = byPosto.get(pk)
-      if (!dm) { dm = new Map(); byPosto.set(pk, dm) }
-      dm.set(r.data, (dm.get(r.data) ?? 0) + r.total_venda)
-      const f = firstByPosto.get(pk)
-      if (!f || r.data < f) firstByPosto.set(pk, r.data)
-      const sm = bySetor.get(setor)!
-      sm.set(r.data, (sm.get(r.data) ?? 0) + r.total_venda)
+      if (!SETORES.includes(setor) || !match(r.empresa_codigo) || r.quantidade <= 0) continue
+      const dm = byDay.get(setor)!
+      const e = dm.get(r.data) ?? { fat: 0, qtd: 0, luc: 0 }
+      e.fat += r.total_venda; e.qtd += r.quantidade; e.luc += r.total_venda - r.total_custo
+      dm.set(r.data, e)
+      const f = first.get(setor)
+      if (!f || r.data < f) first.set(setor, r.data)
     }
-    const serie = (m: Map<string, number>) =>
-      [...m.entries()].map(([data, value]) => ({ data, value })).sort((a, b) => a.data.localeCompare(b.data))
     const today = todayLocal()
-    const idxPosto = new Map<string, Record<number, number>>()
-    for (const [pk, dm] of byPosto) {
-      // <90d de operação → linear (índice vazio → weekdayMonthEndFactor = monthEndFactor).
-      const diasOp = diasOperacaoProxy(firstByPosto.get(pk) ?? null, today)
-      idxPosto.set(pk, diasOp < 90 ? EMPTY : weekdayIndices(serie(dm)))
+    const serie = (dm: Map<string, { fat: number; qtd: number; luc: number }>, k: 'fat' | 'qtd' | 'luc') =>
+      [...dm.entries()].map(([data, v]) => ({ data, value: v[k] })).sort((a, b) => a.data.localeCompare(b.data))
+
+    const idx = new Map<string, Record<number, number>>()
+    for (const s of SETORES) {
+      const dm = byDay.get(s)!
+      // <90d de histórico do setor → linear (índice vazio).
+      const linear = diasOperacaoProxy(first.get(s) ?? null, today) < 90
+      idx.set(`${s}|faturamento`, linear ? EMPTY : weekdayIndices(serie(dm, 'fat')))
+      idx.set(`${s}|qtd`, linear ? EMPTY : weekdayIndices(serie(dm, 'qtd')))
+      idx.set(`${s}|lucro`, linear ? EMPTY : weekdayIndices(serie(dm, 'luc')))
     }
-    const idxSetor = new Map<SetorId, Record<number, number>>()
-    for (const s of SETORES) idxSetor.set(s, weekdayIndices(serie(bySetor.get(s)!)))
 
     return {
       isLoading,
-      indicesDe: (emp: number, setor: SetorId) => idxPosto.get(`${emp}|${setor}`) ?? EMPTY,
-      indicesSetor: (setor: SetorId) => idxSetor.get(setor) ?? EMPTY,
+      indice: (setor: SetorId, metrica: Metrica) => idx.get(`${setor}|${metrica}`) ?? EMPTY,
     }
   }, [histRows, isLoading, empresaCodigos, permittedCodes])
 }

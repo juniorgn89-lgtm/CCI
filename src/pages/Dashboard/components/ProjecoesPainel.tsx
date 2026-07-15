@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Droplets, Wrench, Store, Globe, LineChart, ArrowLeft, BarChart3, Table2, TrendingUp, TrendingDown } from 'lucide-react'
+import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
@@ -10,7 +10,8 @@ import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendasCache } from '@/api/supabase/apuracao'
-import { weekdayMonthEndFactor, projecaoAvancada } from '@/lib/projection'
+import { weekdayMonthEndFactor, projecaoSazonal, projecaoAvancada, fimDoMesIso } from '@/lib/projection'
+import { todayLocal } from '@/lib/period'
 import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 
 const PROJECAO_TOOLTIP_SAZONAL =
@@ -104,7 +105,6 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
 
 const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean) => void } = {}) => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
-  const dataFinal = useFilterStore((s) => s.dataFinal)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
   // Índice sazonal per-posto (mesma fonte da tabela BenchmarkSetor → batem).
@@ -115,7 +115,10 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     ? 'Variação do lucro bruto vs o mesmo período do ano anterior'
     : 'Variação do lucro bruto vs o mês anterior'
 
-  const [expanded, setExpanded] = useState(false)
+  // "Ver projeção" (modo expandido) desligado por enquanto — a pedido. O card
+  // fica só na tabela de fechamento por setor. Pra reativar: restaurar o estado
+  // `useState(false)` + o botão no header.
+  const expanded = false
   const [hoverDay, setHoverDay] = useState<number | null>(null)
   const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
   const [selDia, setSelDia] = useState<number | null>(null)
@@ -172,24 +175,29 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     return map
   }, [mesRows, setorProj])
 
-  // Projeção fim do mês — SAZONAL POR POSTO: cada posto projeta com o fator
-  // fim-de-mês ponderado pelo SEU dia-da-semana (ramo linear <90d), e a rede é a
-  // SOMA dos postos. É a MESMA conta da tabela por posto (BenchmarkSetor) → painel
-  // e detalhe batem número a número.
-  const projSetor = (postos: typeof combustivel.postos, setorId: 'combustivel' | 'automotivos' | 'conveniencia') => {
-    let volume = 0, faturamento = 0, lucroBruto = 0
-    for (const p of postos) {
-      const factor = weekdayMonthEndFactor(dataInicial, dataFinal, sazonal.indicesDe(p.empresaCodigo, setorId))
-      volume += p.qtd * factor
-      faturamento += p.faturamento * factor
-      lucroBruto += p.lucroBruto * factor
-    }
-    return { volume, faturamento, lucroBruto }
+  // Projeção fim do mês — SAZONAL rede-wide por MÉTRICA, MESMO método das abas
+  // (Combustível/Pista/Conveniência): `projecaoSazonal` sobre a série diária do
+  // setor com o índice de dia-da-semana da rede (ramo linear quando o setor tem
+  // <90d de histórico). Assim o painel bate com os cards das abas.
+  const projMonthEnd = fimDoMesIso(dataInicial || todayLocal())
+  const projToday = todayLocal()
+  const projSetor = (setorObj: typeof combustivel, setorId: 'combustivel' | 'automotivos' | 'conveniencia') => {
+    const proj = (value: (d: { faturamento: number; lucroBruto: number; qtd: number }) => number, metrica: 'faturamento' | 'qtd' | 'lucro') =>
+      projecaoSazonal({
+        dailySeries: setorObj.daily.map((d) => ({ data: d.data, value: value(d) })),
+        today: projToday,
+        dataFinal: projMonthEnd,
+        indices: sazonal.indice(setorId, metrica),
+      }).esperado
+    const faturamento = proj((d) => d.faturamento, 'faturamento')
+    const lucroBruto = proj((d) => d.lucroBruto, 'lucro')
+    const volume = proj((d) => d.qtd, 'qtd')
+    return { volume, faturamento, lucroBruto, margem: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0 }
   }
   const projLinhas = [
-    { setor: 'Combustível', ...projSetor(combustivel.postos, 'combustivel'), margem: combustivel.margem },
-    { setor: 'Automotivos', ...projSetor(automotivos.postos, 'automotivos'), margem: automotivos.margem },
-    { setor: 'Conveniência', ...projSetor(conveniencia.postos, 'conveniencia'), margem: conveniencia.margem },
+    { setor: 'Combustível', ...projSetor(combustivel, 'combustivel') },
+    { setor: 'Automotivos', ...projSetor(automotivos, 'automotivos') },
+    { setor: 'Conveniência', ...projSetor(conveniencia, 'conveniencia') },
   ]
   const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
   const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
@@ -241,8 +249,8 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     for (let d = 1; d <= diasNoMes; d++) allDays.push(d)
     const dia01 = `${y}-${pad(m)}-01`
     // Oscilação = projeção recalculada a cada dia; sazonal por SETOR (índice
-    // rede-wide do dia-da-semana). Com índice vazio recai no monthEndFactor.
-    const idxSetor = sazonal.indicesSetor(setorProj)
+    // rede-wide de LUCRO por dia-da-semana). Com índice vazio recai no monthEndFactor.
+    const idxSetor = sazonal.indice(setorProj, 'lucro')
     const projByDay = new Map<number, number>()
     let acumulado = 0
     for (const d of allDays) {
@@ -439,13 +447,6 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 </button>
               </div>
             )}
-            <button
-              type="button" onClick={() => { if (!expanded) { setProjView('grafico'); setSetorProj('combustivel') } setExpanded((v) => !v) }}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
-            >
-              {expanded ? <ArrowLeft className="h-3.5 w-3.5 text-white/70" /> : <LineChart className="h-3.5 w-3.5 text-white/70" />}
-              {expanded ? 'Voltar' : 'Ver projeção'}
-            </button>
           </div>
         </div>
 

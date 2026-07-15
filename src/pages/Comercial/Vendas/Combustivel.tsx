@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
 } from 'recharts'
-import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown, FlaskConical } from 'lucide-react'
+import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import FocusModeToggle from '@/components/layout/FocusModeToggle'
@@ -24,7 +24,6 @@ import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import useProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
-import ProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/ProjecaoSazonalPiloto'
 import { heatCell, useChartTheme } from '@/lib/chartTheme'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
@@ -585,9 +584,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     [monthlyChartData],
   )
 
-  /* ─── Projeção EXECUTIVA (faturamento + lucro) ── projecaoAvancada sobre a
-   * série diária de faturamento (tendência + sazonalidade + cenários +
-   * confiabilidade); o lucro projetado cresce proporcional ao faturamento. */
+  // Projeção SAZONAL rede-wide (índice de dia-da-semana por métrica; ramo linear
+  // <90d). É a fonte do card grande E dos KPIs — e o MESMO índice do painel da
+  // Central, pra tudo bater.
+  const pilotoSazonal = useProjecaoSazonalPiloto(dailyData, true)
+
+  /* ─── Projeção EXECUTIVA (faturamento + lucro + litros) — SAZONAL: projecaoSazonal
+   * sobre a série diária com o índice de dia-da-semana da rede por métrica. Os
+   * KPIs e o card grande usam a mesma projeção; o lucro projetado cresce com a
+   * própria sazonalidade de lucro. */
   const projecaoCombustivel = useMemo(() => {
     const now = new Date()
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -596,25 +601,25 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     const [yy, mm] = (dataInicial || todayISO).split('-').map(Number)
     const lastDay = new Date(yy, mm, 0).getDate()
     const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    // Projeção LINEAR (indices vazio → cai em 1 pra todo dia) — consistente com o
-    // painel da Central e a tabela por posto. A sazonal entra no rollout.
+    const lin = pilotoSazonal.linear
+    const idx = pilotoSazonal.indices
     const fat = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: lin ? {} : idx.faturamento,
     })
     const lucro = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: lin ? {} : idx.lucro,
     })
     const litros = projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.litros })),
       today: todayISO,
       dataFinal: monthEnd,
-      indices: {},
+      indices: lin ? {} : idx.litros,
     })
     return {
       fat,
@@ -625,18 +630,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       projetadoLBLitro: litros.esperado > 0 ? lucro.esperado / litros.esperado : 0,
       dataFinalProjecao: monthEnd,
     }
-  }, [dailyData, dataInicial])
-
-  // Piloto Fase 2 — projeção sazonal (toggle na tela; ver docs/SPEC-projecao-sazonal.md).
-  const [pilotoOn, setPilotoOn] = useState(() => { try { return localStorage.getItem('visor360.projSazonal') === 'on' } catch { return false } })
-  const togglePiloto = () => setPilotoOn((v) => {
-    const nv = !v
-    try { nv ? localStorage.setItem('visor360.projSazonal', 'on') : localStorage.removeItem('visor360.projSazonal') } catch { /* ignore */ }
-    return nv
-  })
-  // Sempre calculado (o card usa a projeção sazonal); o toggle só mostra/oculta
-  // o painel de comparação (linear × sazonal).
-  const pilotoSazonal = useProjecaoSazonalPiloto(dailyData, true)
+  }, [dailyData, dataInicial, pilotoSazonal])
 
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
    * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
@@ -664,19 +658,21 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       add(fatByFuel, r.combustivelNome, day, r.faturamento)
       add(lucroByFuel, r.combustivelNome, day, r.lucroBruto)
     }
-    const proj = (s?: Map<string, number>) =>
+    const lin = pilotoSazonal.linear
+    const idx = pilotoSazonal.indices
+    const proj = (s: Map<string, number> | undefined, indices: Record<number, number>) =>
       projecaoSazonal({
         dailySeries: Array.from((s ?? new Map<string, number>()).entries()).map(([data, value]) => ({ data, value })),
         today: todayISO,
         dataFinal: monthEnd,
-        indices: {},
+        indices,
       }).esperado
 
     const out = new Map<string, ProjFuelDetalhe>()
     for (const f of fuelTypeData) {
-      const litros = proj(litrosByFuel.get(f.nome))
-      const fat = proj(fatByFuel.get(f.nome))
-      const lucro = proj(lucroByFuel.get(f.nome))
+      const litros = proj(litrosByFuel.get(f.nome), lin ? {} : idx.litros)
+      const fat = proj(fatByFuel.get(f.nome), lin ? {} : idx.faturamento)
+      const lucro = proj(lucroByFuel.get(f.nome), lin ? {} : idx.lucro)
       out.set(f.nome, {
         litros,
         lucro,
@@ -686,7 +682,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       })
     }
     return out
-  }, [vendaRows, fuelTypeData, dataInicial])
+  }, [vendaRows, fuelTypeData, dataInicial, pilotoSazonal])
 
   /* Renderiza a lista de projeção por combustível pro card (formatador por métrica). */
   const renderProjFuelList = (fmt: (d: ProjFuelDetalhe) => string) => (
@@ -933,27 +929,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor || pilotoSazonal.isLoading}
             />
-          </div>
-
-          {/* Piloto — botão visível + comparação projeção atual × sazonal */}
-          <div>
-            <button
-              type="button"
-              onClick={togglePiloto}
-              className={cn('inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors',
-                pilotoOn
-                  ? 'border-violet-300 bg-violet-100 text-violet-700 dark:border-violet-700/50 dark:bg-violet-900/30 dark:text-violet-300'
-                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800')}
-            >
-              <FlaskConical className="h-3.5 w-3.5" />
-              {pilotoOn ? 'Ocultar comparação de projeção' : 'Comparar projeção (piloto sazonal)'}
-            </button>
-            {pilotoOn && (
-              <ProjecaoSazonalPiloto
-                piloto={pilotoSazonal}
-                atual={{ faturamento: projecaoCombustivel.fat.esperado, litros: projecaoCombustivel.litros.esperado, lucro: projecaoCombustivel.projetadoLucro }}
-              />
-            )}
           </div>
 
           {/* Detalhamento de informações — 4 abas */}
