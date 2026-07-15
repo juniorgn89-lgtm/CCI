@@ -36,7 +36,7 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
         <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">{meta.label}</span>
       </div>
 
-      <div className="space-y-3 bg-white p-4 dark:bg-gray-900">
+      <div className="space-y-3 bg-white p-4 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {/* lucro estimado */}
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 dark:border-emerald-900/30 dark:bg-emerald-950/15">
           <div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ const Oportunidades = () => {
     )
   }
   if (!data.hasRede) {
-    return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">Sem dados suficientes no período pra varrer oportunidades.</div>
+    return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem dados suficientes no período pra varrer oportunidades.</div>
   }
 
   return (
@@ -159,7 +159,7 @@ const Oportunidades = () => {
           <p className="mt-2 text-3xl font-bold tabular-nums">+{milShort(data.potencialTotal)}</p>
           <p className="mt-1 text-[11px] text-white/60">{data.oportunidades.length} oportunidades priorizadas</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Margem média</p>
             <InfoHint text="Margem média de combustível da rede, em R$ por litro (lucro bruto ÷ litros vendidos). É a régua da alavanca 'Margem' (vs rede); a alavanca 'Praça' usa a concorrência local de cada posto." />
@@ -167,7 +167,7 @@ const Oportunidades = () => {
           <p className="text-[10px] text-gray-400">combustível · rede</p>
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{lbL(data.redeMargemL)}<span className="text-sm text-gray-400">/L</span></p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Maior alavanca</p>
             <InfoHint text="A alavanca (Praça ou Conveniência) que concentra a maior fatia do potencial de lucro do período — por onde começar." />
@@ -212,7 +212,7 @@ const Oportunidades = () => {
 
       {/* Fila + detalhe */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
             <div>
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Oportunidades de lucro</h3>
