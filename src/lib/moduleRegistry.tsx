@@ -711,6 +711,15 @@ export const REGISTRY: Record<string, ModuleMeta> = {
 
 export const moduleFor = (pathname: string): ModuleMeta | null => REGISTRY[pathname] ?? null
 
+/** Abas (sub-tabs `?tab=`) de um módulo, derivadas das chaves de `potencial`
+ * (a chave É o valor de `?tab=`; '' = aba default). Label = título do potencial
+ * sem o sufixo " — o potencial desta tela". Usado no seletor de aba do briefing. */
+export const abasFor = (pathname: string): { tab: string; label: string }[] => {
+  const m = REGISTRY[pathname]
+  if (!m) return []
+  return Object.entries(m.potencial).map(([tab, c]) => ({ tab, label: c.title.split('—')[0].trim() }))
+}
+
 export const potencialFor = (pathname: string, tab: string | null): PotencialConteudo | null => {
   const m = REGISTRY[pathname]
   if (!m) return null

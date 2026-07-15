@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Sun, X, SlidersHorizontal, Calendar, ArrowRight } from 'lucide-react'
+import { X, SlidersHorizontal, Calendar, ArrowRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -11,8 +11,11 @@ import { useFilterStore } from '@/store/filters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { MODULOS } from '@/lib/modulos'
+import { abasFor } from '@/lib/moduleRegistry'
 import { todayLocal } from '@/lib/period'
+import { formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import useBriefingResumo from '@/components/briefing/useBriefingResumo'
+import useBriefingProjecaoCombustivel from '@/components/briefing/useBriefingProjecaoCombustivel'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const isoMinusDays = (iso: string, n: number) => {
@@ -62,6 +65,7 @@ const BriefingModal = () => {
 
   const open = !seenToday && onboardingSeen && !!rede && !closed
   const resumo = useBriefingResumo(open)
+  const projComb = useBriefingProjecaoCombustivel(open)
 
   const mods = useMemo(
     () => MODULOS.filter((m) => isMaster || !modulosPermitidos || modulosPermitidos.length === 0 || modulosPermitidos.includes(m.id)),
@@ -69,6 +73,10 @@ const BriefingModal = () => {
   )
   const [modPath, setModPath] = useState('')
   const modSel = modPath || mods.find((m) => m.id === 'dashboard')?.path || mods[0]?.path || '/dashboard'
+  // Abas (sub-tabs) do módulo escolhido — reseta pra default ao trocar de módulo.
+  const abas = useMemo(() => abasFor(modSel), [modSel])
+  const [abaSel, setAbaSel] = useState('')
+  useEffect(() => { setAbaSel('') }, [modSel])
 
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
@@ -120,6 +128,16 @@ const BriefingModal = () => {
     return `Vs ${cmpRef}: o lucro caiu **${Math.abs(deltaLB).toFixed(1)}%** — ${Math.abs(marg) >= Math.abs(vol) ? '**a margem por litro**' : '**o volume**'} puxou pra baixo${litrosTxt ? ` (${litrosTxt})` : ''}.`
   }, [resumo])
 
+  // Análise (determinística, read-only) da projeção de combustível pro card.
+  const CONFIA_LABEL = { alta: 'Confiança alta', media: 'Confiança média', baixa: 'Confiança baixa' } as const
+  const analiseComb = projComb.hasData
+    ? `No ritmo atual, o mês fecha ${projComb.deltaVsMesAnt != null
+        ? (projComb.deltaVsMesAnt >= 0
+            ? `**${projComb.deltaVsMesAnt.toFixed(1).replace('.', ',')}% acima**`
+            : `**${Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% abaixo**`) + ' do mês passado'
+        : 'no mesmo nível do mês passado'} — ${rl(projComb.rbLitro)}/L de lucro. Faltam **${projComb.diasRestantes} dia${projComb.diasRestantes === 1 ? '' : 's'}** pra fechar.`
+    : ''
+
   const dismiss = () => {
     setClosed(true)
     if (naoMostrar) {
@@ -131,7 +149,7 @@ const BriefingModal = () => {
     setPeriodo(range.ini, range.fim)
     setEmpresas(postoSel != null ? [postoSel] : [])
     dismiss()
-    navigate(modSel)
+    navigate(abaSel ? `${modSel}?tab=${abaSel}` : modSel)
   }
 
   const Pill = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
@@ -149,10 +167,6 @@ const BriefingModal = () => {
         {/* Header navy */}
         <div className="relative bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-6 pb-5 pt-5">
           <div className="flex items-start gap-3">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#fbbf24] to-[#f59e0b]">
-              <span className="absolute inset-0 rounded-xl shadow-[0_0_22px_6px_rgba(245,197,24,.25)]" />
-              <Sun className="relative h-5 w-5 text-white" />
-            </span>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55">{dataExtenso(resumo.ontem)}</p>
               <DialogTitle className="text-[21px] font-bold leading-tight text-white">
@@ -185,6 +199,26 @@ const BriefingModal = () => {
             </div>
           ) : null}
 
+          {/* Projeção de fim do mês do combustível (heads-up) + análise da IA. */}
+          {projComb.hasData && (
+            <div className="rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-3.5 py-3 text-white shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Projeção do combustível · fim do mês</p>
+                <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/70">{CONFIA_LABEL[projComb.confiabilidade]}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="text-[19px] font-bold tabular-nums">{formatNumber(Math.round(projComb.litrosProj))} L</span>
+                {projComb.deltaVsMesAnt != null && (
+                  <span className={cn('text-[11px] font-semibold tabular-nums', projComb.deltaVsMesAnt >= 0 ? 'text-emerald-300' : 'text-red-300')}>
+                    {projComb.deltaVsMesAnt >= 0 ? '▲ +' : '▼ '}{Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% vs mês ant.
+                  </span>
+                )}
+                <span className="ml-auto text-[11px] text-white/60">LB estimado <strong className="font-semibold text-white/90">{formatCurrencyInt(projComb.lucroProj)}</strong></span>
+              </div>
+              <p className="mt-1.5 text-[11.5px] leading-snug text-white/85">{rich(analiseComb)}</p>
+            </div>
+          )}
+
           {/* Ajustar análise */}
           <div>
             <p className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide text-gray-400">
@@ -207,6 +241,14 @@ const BriefingModal = () => {
                   {mods.map((m) => <option key={m.id} value={m.path}>{m.label}</option>)}
                 </select>
               </div>
+              {abas.length > 1 && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Aba</span>
+                  <select value={abaSel} onChange={(e) => setAbaSel(e.target.value)} className={selCls}>
+                    {abas.map((a) => <option key={a.tab} value={a.tab}>{a.label}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Posto</span>
                 <select value={postoSel ?? ''} onChange={(e) => setPostoSel(e.target.value ? Number(e.target.value) : null)} className={selCls}>
