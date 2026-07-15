@@ -231,23 +231,6 @@ export const REGISTRY: Record<string, ModuleMeta> = {
           </>
         ),
       },
-      aovivo: {
-        title: 'Ao Vivo Rede — o potencial desta tela',
-        description: 'O agora da rede: turnos abertos e bombas em tempo real, sem esperar o fechamento.',
-        body: (
-          <>
-            <Secao icon={Radio} titulo="O que ela faz">
-              Mostra a operação <strong>acontecendo agora</strong> — turnos abertos e movimento das bombas ao vivo, posto a posto.
-            </Secao>
-            <Secao icon={HandCoins} titulo="Por que importa">
-              Pra agir no calor: identificar um turno parado, um posto fora da curva ou um pico de venda enquanto ainda dá pra reagir — não no relatório do dia seguinte.
-            </Secao>
-            <NotaHonesta>
-              Como é “ao vivo”, os filtros de período/comparativo ficam desligados — a tela é sempre o agora.
-            </NotaHonesta>
-          </>
-        ),
-      },
       combustivel: {
         title: 'Combustível — o potencial desta tela',
         description: 'A venda de combustível da rede em base fiscal, com projeção e L.B. por litro.',
@@ -306,6 +289,31 @@ export const REGISTRY: Record<string, ModuleMeta> = {
             </Secao>
             <NotaHonesta>
               A cobertura mostra quantos abastecimentos têm preço de tabela — os sem cadastro ficam de fora. O número é parcial até o cron carimbar o preço no cache.
+            </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/ao-vivo': {
+    Icon: Radio,
+    nome: 'Ao Vivo Rede',
+    subtitle: 'turnos abertos e faturamento de hoje',
+    potencial: {
+      '': {
+        title: 'Ao Vivo Rede — o potencial desta tela',
+        description: 'O agora da rede: turnos abertos e faturamento de hoje, sem esperar o fechamento.',
+        body: (
+          <>
+            <Secao icon={Radio} titulo="O que ela faz">
+              Mostra a operação <strong>acontecendo agora</strong> — turnos abertos e o faturamento fiscal de hoje, posto a posto.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Pra agir no calor: identificar um turno parado, um posto fora da curva ou um pico de venda enquanto ainda dá pra reagir — não no relatório do dia seguinte.
+            </Secao>
+            <NotaHonesta>
+              É “ao vivo”: sem filtros — a tela é sempre o agora (hoje, rede inteira) e se atualiza sozinha a cada 60s.
             </NotaHonesta>
           </>
         ),

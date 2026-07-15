@@ -1,14 +1,11 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFilterStore } from '@/store/filters'
-import { useTopbarUi } from '@/store/topbarUi'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import useDashboardData from '@/pages/Dashboard/hooks/useDashboardData'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
-import { isPastPeriod } from '@/lib/utils'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -17,8 +14,6 @@ import ModuleSettings from '@/components/layout/ModuleSettings'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useDashboardLayout } from '@/store/moduleLayout'
 
-// Lazy: TurnosAoVivo (cards live) só carrega quando a aba é aberta.
-const TurnosAoVivo = lazy(() => import('@/pages/Dashboard/components/TurnosAoVivo'))
 const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/BenchmarkSetor'))
 // Abas de Vendas (por-posto) movidas pra Central — renderizadas `embedded`
 // (pulam header/SelectCompanyState/nav próprios). Arquivos seguem em Comercial/Vendas.
@@ -27,7 +22,7 @@ const Pista = lazy(() => import('@/pages/Comercial/Vendas/Pista'))
 const Conveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 const GestaoPrecos = lazy(() => import('@/pages/Dashboard/components/GestaoPrecos'))
 
-type TabId = 'setor' | 'aovivo' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
+type TabId = 'setor' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
 
 // Combustível, Pista e Conveniência agora são CONSOLIDADOS (cache apuracao_vendas)
 // → renderizam rede-wide sempre, respeitando o filtro de posto. Nenhuma aba pede
@@ -35,7 +30,6 @@ type TabId = 'setor' | 'aovivo' | 'combustivel' | 'pista' | 'conveniencia' | 'pr
 
 const TAB_ICONS: Record<TabId, typeof Activity> = {
   setor: Layers,
-  aovivo: Activity,
   combustivel: Fuel,
   pista: Wrench,
   conveniencia: Store,
@@ -53,29 +47,18 @@ const TabSkeleton = () => (
 )
 
 const Dashboard = () => {
-  const { dataFinal } = useFilterStore()
   useDashboardData() // dispara prefetch (cache de apuração + dependências)
   const isMobile = useIsMobile()
 
-  // Quando o período inteiro já passou, esconde elementos "ao vivo" — não
-  // existe turno aberto em mês passado, só ruído visual.
-  const periodIsPast = isPastPeriod(dataFinal)
-
-  // Layout das abas (Visão Geral / Ao Vivo Rede). Engrenagem no HeaderTray
-  // permite reordenar/ocultar; o contexto (periodIsPast) esconde "Ao Vivo Rede"
-  // quando não faz sentido (período inteiro no passado).
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useDashboardLayout()
-  const knownTabs = layoutTabs.filter((t) => {
-    if (t.id === 'aovivo' && periodIsPast) return false
-    return true
-  })
+  // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar).
+  const { tabs: knownTabs, toggleVisibility, moveUp, moveDown, reset } = useDashboardLayout()
   const visibleTabs = knownTabs.filter((t) => t.visible)
-  // Aba controlada pela URL (?tab=) — permite deep-link das sub-opções da sidebar
-  // (Visão Geral / Ao Vivo Rede). 'setor' é o default (sem ?tab=).
+  // Aba controlada pela URL (?tab=) — permite deep-link das sub-opções da sidebar.
+  // 'setor' é o default (sem ?tab=).
   const [activeTab, setActiveTab] = useTabParam<TabId>(
     'setor',
     (v): v is TabId =>
-      v === 'setor' || v === 'aovivo' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
+      v === 'setor' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
   )
   // Painel de Projeção aberto → oculta o "Detalhamento por setor" abaixo.
   const [projExpanded, setProjExpanded] = useState(false)
@@ -83,14 +66,6 @@ const Dashboard = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
   }
-
-  // Aba "Ao Vivo Rede" = tela ao vivo → desabilita os filtros de período/escopo/
-  // comparativo (não fazem sentido no agora). Limpa ao sair.
-  const setLiveLock = useTopbarUi((s) => s.setLiveLock)
-  useEffect(() => {
-    setLiveLock(activeTab === 'aovivo')
-    return () => setLiveLock(false)
-  }, [activeTab, setLiveLock])
 
   // Mobile: tela própria (KPIs + projeção + setores + ranking), no shell mobile.
   if (isMobile) return <CentralMobile />
@@ -143,7 +118,6 @@ const Dashboard = () => {
                   <BenchmarkSetor />
                 </div>
               )}
-              {activeTab === 'aovivo' && <TurnosAoVivo />}
               {activeTab === 'combustivel' && <Combustivel embedded />}
               {activeTab === 'pista' && <Pista embedded />}
               {activeTab === 'conveniencia' && <Conveniencia embedded />}

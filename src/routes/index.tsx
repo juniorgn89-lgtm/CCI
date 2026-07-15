@@ -9,6 +9,7 @@ import Login from '@/pages/Login'
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 
 const Dashboard = lazy(importDashboard)
+const AoVivo = lazy(() => import('@/pages/AoVivo'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Cartoes = lazy(() => import('@/pages/Cartoes'))
@@ -55,6 +56,7 @@ const AppRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
+          <Route path="/ao-vivo" element={<Suspense fallback={<RouteFallback />}><AoVivo /></Suspense>} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Navigate to="/operacao?tab=reabastecimento" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />

@@ -78,7 +78,6 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Combustível', to: '/dashboard?tab=combustivel', Icon: Fuel },
     { label: 'Automotivo', to: '/dashboard?tab=pista', Icon: Wrench },
     { label: 'Conveniência', to: '/dashboard?tab=conveniencia', Icon: Store },
-    { label: 'Ao Vivo Rede', to: '/dashboard?tab=aovivo', Icon: Activity },
   ],
   '/comercial': [
     { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },

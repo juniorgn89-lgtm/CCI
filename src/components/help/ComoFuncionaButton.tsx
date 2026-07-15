@@ -75,25 +75,6 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           },
         ],
       },
-      // Aba "Ao Vivo Rede"
-      aovivo: {
-        tela: 'Central da Rede · Ao Vivo Rede',
-        intro: 'Acompanhamento dos caixas ABERTOS agora, posto a posto, em tempo real. Os números abaixo são fictícios.',
-        sections: [
-          {
-            n: 1,
-            title: 'Resumo "Ao vivo na rede"',
-            exemplo: '9 caixas abertos em 5 postos',
-            comoLer: 'Quantos caixas estão abertos neste momento e em quantos postos. Atualiza sozinho conforme os turnos abrem/fecham.',
-          },
-          {
-            n: 2,
-            title: 'Card de posto ao vivo',
-            exemplo: 'Posto Exemplo · 2 caixas abertos · R$ 18.000 PARCIAL',
-            comoLer: 'Faturamento PARCIAL do dia em curso, com os turnos abertos e o frentista de cada um. Clique pra ver o detalhe do turno.',
-          },
-        ],
-      },
       // Aba "Combustível" (detalhe por posto)
       combustivel: {
         tela: 'Central da Rede · Combustível',
@@ -125,6 +106,30 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
           { n: 2, title: 'Contexto nos cards', exemplo: 'Itens 3.100 · Atendimentos 2.950 · Mês anterior R$ 68.000', comoLer: 'Cada card traz o valor do período anterior, a diferença, itens vendidos e nº de atendimentos.' },
           { n: 3, title: 'Detalhamento (sub-abas)', exemplo: '05/06 · 210 itens · R$ 2.400 · margem 50%', comoLer: 'Realizado dia a dia, por Grupo, Pareto, Curva ABC e Catálogo. Clique numa data pra abrir o detalhe.' },
           { n: 4, title: 'Pareto e Curva ABC', exemplo: '20% dos produtos = 80% do faturamento · Classe A: 35 itens', comoLer: 'Pareto mostra quais produtos concentram o faturamento; a Curva ABC classifica em A/B/C. Use pra priorizar o mix.' },
+        ],
+      },
+    },
+  },
+
+  '/ao-vivo': {
+    defaultTab: 'aovivo',
+    tabs: {
+      aovivo: {
+        tela: 'Ao Vivo Rede',
+        intro: 'Acompanhamento dos caixas ABERTOS agora e do faturamento de hoje, posto a posto, em tempo real. Sem filtros — é sempre o agora. Os números abaixo são fictícios.',
+        sections: [
+          {
+            n: 1,
+            title: 'Resumo "Ao vivo na rede"',
+            exemplo: '9 caixas abertos em 5 postos',
+            comoLer: 'Quantos caixas estão abertos neste momento e em quantos postos. Atualiza sozinho a cada 60s conforme os turnos abrem/fecham.',
+          },
+          {
+            n: 2,
+            title: 'Card de posto ao vivo',
+            exemplo: 'Posto Exemplo · 2 caixas abertos · R$ 18.000 PARCIAL',
+            comoLer: 'Faturamento fiscal PARCIAL de hoje do posto, com os turnos abertos e o frentista de cada um.',
+          },
         ],
       },
     },

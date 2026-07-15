@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2, Wallet, RefreshCw, Globe } from 'lucide-react'
-import useTurnosAoVivo from '@/pages/Dashboard/hooks/useTurnosAoVivo'
-import { useFilterStore } from '@/store/filters'
+import useTurnosAoVivo from '@/pages/AoVivo/hooks/useTurnosAoVivo'
 import { formatCurrency } from '@/lib/formatters'
 
 /** Contador "atualiza em 0:SS · última HH:MM:SS" — sincronizado ao último fetch. */
@@ -43,17 +42,10 @@ const formatDataAbertura = (iso: string): string => {
   return `${d}/${m}/${y.slice(-2)}`
 }
 
-const TurnosAoVivo = () => {
-  const setEmpresas = useFilterStore((s) => s.setEmpresas)
+const AoVivoRede = () => {
   const { empresas, totalAoVivo, totalEmpresas, empresasComAoVivo, isLoading, dataUpdatedAt } = useTurnosAoVivo()
   // Total parcial da rede ao vivo (soma do apurado parcial de todos os postos).
   const totalParcial = empresas.reduce((s, e) => s + e.apuradoParcial, 0)
-
-  // Clicar num posto filtra a rede para ele (o antigo destino "Fechamento de
-  // Caixa" foi aposentado do menu).
-  const handleClick = (empresaCodigo: number) => {
-    setEmpresas([empresaCodigo])
-  }
 
   return (
     <div className="space-y-4">
@@ -73,10 +65,10 @@ const TurnosAoVivo = () => {
             ) : totalAoVivo > 0 ? (
               <>
                 {totalAoVivo} {totalAoVivo === 1 ? 'caixa aberto' : 'caixas abertos'} em{' '}
-                {empresasComAoVivo} {empresasComAoVivo === 1 ? 'posto' : 'postos'} · Selecione um para ver detalhes
+                {empresasComAoVivo} {empresasComAoVivo === 1 ? 'posto' : 'postos'} agora
               </>
             ) : (
-              'Selecione um posto no filtro acima para ver o dashboard completo'
+              'Nenhum turno aberto na rede neste momento'
             )}
           </p>
         </div>
@@ -110,7 +102,7 @@ const TurnosAoVivo = () => {
             Nenhum caixa aberto no momento
           </p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Todos os turnos da rede estão fechados ou ainda não iniciaram no período selecionado
+            Todos os turnos da rede estão fechados ou ainda não iniciaram hoje
           </p>
         </div>
       ) : (
@@ -146,10 +138,9 @@ const TurnosAoVivo = () => {
           {empresas
             .filter((emp) => emp.caixas.length > 0)
             .map((emp) => (
-              <button
+              <div
                 key={emp.empresaCodigo}
-                onClick={() => handleClick(emp.empresaCodigo)}
-                className="group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-green-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-green-700"
+                className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm dark:border-gray-700 dark:bg-gray-900"
               >
                 {/* Header: nome do posto + badge "Ao vivo" */}
                 <div className="mb-3 flex items-start justify-between gap-2">
@@ -206,7 +197,7 @@ const TurnosAoVivo = () => {
                     </span>
                   ))}
                 </div>
-              </button>
+              </div>
             ))}
         </div>
       )}
@@ -214,4 +205,4 @@ const TurnosAoVivo = () => {
   )
 }
 
-export default TurnosAoVivo
+export default AoVivoRede

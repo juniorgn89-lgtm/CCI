@@ -72,9 +72,14 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/dashboard',
     label: 'Central da Rede',
-    glossario: `Hub da rede. Abas: Visão Geral (consolidado rede-wide: faturamento, margem, comparativos, ranking de postos), Combustível, Automotivo e Conveniência (consolidados rede-wide, respeitando o filtro de posto), e Ao Vivo Rede (caixas abertos agora).
+    glossario: `Hub da rede. Abas: Visão Geral (consolidado rede-wide: faturamento, margem, comparativos, ranking de postos), Combustível, Automotivo e Conveniência (consolidados rede-wide, respeitando o filtro de posto).
 - Automotivo = produtos automotivos (lubrificantes, aditivos); Conveniência = loja.
 - Card "Projeção fim do período": faturamento estimado até o fim do mês (ver cenários no glossário global).`,
+  },
+  {
+    path: '/ao-vivo',
+    label: 'Ao Vivo Rede',
+    glossario: `Módulo "ao vivo" (separado da Central): caixas ABERTOS agora e faturamento fiscal de HOJE, posto a posto. SEM filtros — é sempre o agora (hoje, rede inteira) e atualiza sozinho a cada 60s. "Parcial" = faturamento do dia em curso.`,
   },
   {
     path: '/pessoas',
