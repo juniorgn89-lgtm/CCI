@@ -148,13 +148,13 @@ const DataRow = ({
         <>
           <td className={cn(trailCls, gStart)}>{formatCurrency(vals.precoVenda)}</td>
           <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
-          <td className={trailCls}>{formatCurrency(vals.lbPorUnidade)}</td>
+          <td className={cn(trailCls, 'font-semibold text-emerald-700 dark:text-emerald-400')}>{formatCurrency(vals.lbPorUnidade)}</td>
         </>
       ) : (
         <>
           <td className={cn(trailCls, gStart)}>{formatCurrency(vals.precoVenda)}</td>
           <td className={trailCls}>{formatCurrency(vals.precoCusto)}</td>
-          <td className={cn(trailCls, ticket == null && 'text-gray-400')}>{ticket != null && ticket > 0 ? formatCurrency(ticket) : '—'}</td>
+          <td className={cn(trailCls, ticket == null ? 'text-gray-400' : 'font-semibold text-emerald-700 dark:text-emerald-400')}>{ticket != null && ticket > 0 ? formatCurrency(ticket) : '—'}</td>
         </>
       )}
     </tr>
@@ -262,11 +262,11 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
         {showQtd && (
           <>
             <td className={cn(real, gl)}>{formatNumber(Math.round(realLitros))}</td>
-            <td className={cn(num, 'font-semibold')}>{formatNumber(Math.round(projLit))}</td>
+            <td className={cn(num, 'font-semibold text-sky-700 dark:text-sky-300')}>{formatNumber(Math.round(projLit))}</td>
           </>
         )}
         <td className={cn(real, gl)}>{formatCurrencyInt(realFat)}</td>
-        <td className={cn(num, 'font-semibold')}>{formatCurrencyInt(projFat)}</td>
+        <td className={cn(num, 'font-semibold text-amber-700 dark:text-amber-300')}>{formatCurrencyInt(projFat)}</td>
         <td className={cn(real, gl)}>{formatCurrencyInt(realLB)}</td>
         <td className={cn(num, 'font-semibold text-emerald-700 dark:text-emerald-400')}>{formatCurrencyInt(projLB)}</td>
         <td className={cn(num, bold ? '' : 'text-gray-600 dark:text-gray-300')}>{formatCurrencyInt(aRealizar)}</td>
