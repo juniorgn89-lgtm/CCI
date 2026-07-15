@@ -25,7 +25,6 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Activity,
-  TrendingUp,
   Trophy,
   Building2,
   Gauge,
@@ -83,7 +82,6 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   ],
   '/comercial': [
     { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },
-    { label: 'Projeção de LB', to: '/comercial?tab=projecao', Icon: TrendingUp },
     { label: 'Margem por posto', to: '/comercial?tab=margem', Icon: Trophy },
     { label: 'Concorrência', to: '/comercial?tab=concorrencia', Icon: Building2 },
   ],

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Flag, Sparkles, BarChart3, Trophy, Building2, Radar } from 'lucide-react'
+import { Flag, Sparkles, Trophy, Building2, Radar } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,24 +11,22 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 
 const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'))
-const ProjecaoLB = lazy(() => import('@/pages/Comercial/components/ProjecaoLB'))
 const Oportunidades = lazy(() => import('@/pages/Comercial/components/Oportunidades'))
 const Concorrencia = lazy(() => import('@/pages/Comercial/components/Concorrencia'))
 const RadarPrecos = lazy(() => import('@/pages/Comercial/components/RadarPrecos'))
 const RadarMobile = lazy(() => import('@/pages/Comercial/RadarMobile'))
 
-type TabId = 'oportunidades' | 'projecao' | 'margem' | 'concorrencia' | 'radar'
+type TabId = 'oportunidades' | 'margem' | 'concorrencia' | 'radar'
 
 const TABS: { id: TabId; label: string; Icon: typeof Trophy; subtitle: string }[] = [
   { id: 'oportunidades', label: 'Oportunidades', Icon: Sparkles, subtitle: 'Oportunidades de lucro priorizadas por IA' },
-  { id: 'projecao', label: 'Projeção de LB', Icon: BarChart3, subtitle: 'Projeção de lucro bruto e evolução semanal' },
   { id: 'margem', label: 'Margem por posto', Icon: Trophy, subtitle: 'Ranking de lucratividade por unidade' },
   { id: 'concorrencia', label: 'Concorrência', Icon: Building2, subtitle: 'Inteligência de preço de praça' },
   { id: 'radar', label: 'Radar de Preços', Icon: Radar, subtitle: 'Guerra de preço — margem, elasticidade e simulação até o fechamento' },
 ]
 
 const isTabId = (v: string | null): v is TabId =>
-  v === 'oportunidades' || v === 'projecao' || v === 'margem' || v === 'concorrencia' || v === 'radar'
+  v === 'oportunidades' || v === 'margem' || v === 'concorrencia' || v === 'radar'
 
 /** Faixa azul do flag global — estado ÚNICO (useComercialFlags), no topo de
  *  TODAS as abas. Ligado → análises usam preço de praça; desligado → média
@@ -87,7 +85,6 @@ const Comercial = () => {
 
       <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
         {activeTab === 'margem' && <MargemPosto />}
-        {activeTab === 'projecao' && <ProjecaoLB />}
         {activeTab === 'oportunidades' && <Oportunidades />}
         {activeTab === 'concorrencia' && <Concorrencia />}
         {activeTab === 'radar' && (isMobile ? <RadarMobile /> : <RadarPrecos />)}

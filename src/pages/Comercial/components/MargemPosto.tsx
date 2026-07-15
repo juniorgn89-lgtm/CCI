@@ -45,7 +45,7 @@ const KpiCard = ({
         'rounded-2xl border p-4 shadow-sm',
         navy
           ? 'border-transparent bg-gradient-to-br from-[#1e3a5f] to-[#27496f] text-white'
-          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
+          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
       )}
     >
       <div className="flex items-start justify-between">
@@ -144,7 +144,7 @@ const MargemPosto = () => {
   }
   if (!data.hasRede || data.postos.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         Sem dados de combustível no período selecionado.
       </div>
     )
@@ -250,7 +250,7 @@ const MargemPosto = () => {
       )}
 
       {/* Ranking */}
-      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div>
             <div className="flex items-center gap-1">

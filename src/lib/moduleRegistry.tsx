@@ -335,20 +335,6 @@ export const REGISTRY: Record<string, ModuleMeta> = {
           </>
         ),
       },
-      projecao: {
-        title: 'Projeção de LB — o potencial desta tela',
-        description: 'Onde o lucro bruto da rede fecha o mês, com a evolução semanal.',
-        body: (
-          <>
-            <Secao icon={BarChart3} titulo="O que ela faz">
-              Projeta o <strong>lucro bruto</strong> da rede pro fim do mês e mostra a <strong>evolução semanal</strong> — como o ritmo mudou ao longo do período.
-            </Secao>
-            <Secao icon={HandCoins} titulo="Por que importa">
-              Antecipa se o mês vai bater a meta enquanto ainda dá pra reagir, e revela a tendência (acelerando ou perdendo fôlego).
-            </Secao>
-          </>
-        ),
-      },
       margem: {
         title: 'Margem por posto — o potencial desta tela',
         description: 'O ranking de lucratividade: quem puxa e quem segura a rede.',
