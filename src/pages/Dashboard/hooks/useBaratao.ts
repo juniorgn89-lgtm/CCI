@@ -29,6 +29,9 @@ export interface BarataoData {
   porProduto: Map<number, number>
   /** empresaCodigo → desconto estimado (R$). */
   porPosto: Map<number, number>
+  /** `${produtoCodigo}|${empresaCodigo}` → desconto estimado (R$) — cruzado,
+   *  pra quebrar o Baratão por posto DENTRO de um produto (e vice-versa) no modal. */
+  porProdutoPosto: Map<string, number>
   total: number
   litros: number
   isLoading: boolean
@@ -83,8 +86,10 @@ const useBaratao = (): BarataoData => {
       const isFuel = (cod: number) => !!classifyFuelSlug(nomeProduto.get(cod) ?? '')
       const porProduto: [number, number][] = []
       const porPosto: [number, number][] = []
+      const porProdutoPosto: [string, number][] = []
       const accProd = new Map<number, number>()
       const accPosto = new Map<number, number>()
+      const accCruz = new Map<string, number>()
       let total = 0
       let litros = 0
 
@@ -117,19 +122,22 @@ const useBaratao = (): BarataoData => {
           if (desc <= 0) continue
           accProd.set(it.produtoCodigo, (accProd.get(it.produtoCodigo) ?? 0) + desc)
           accPosto.set(emp, (accPosto.get(emp) ?? 0) + desc)
+          accCruz.set(`${it.produtoCodigo}|${emp}`, (accCruz.get(`${it.produtoCodigo}|${emp}`) ?? 0) + desc)
           total += desc
           litros += it.quantidade
         }
       }
       for (const [k, v] of accProd) porProduto.push([k, v])
       for (const [k, v] of accPosto) porPosto.push([k, v])
-      return { porProduto, porPosto, total, litros }
+      for (const [k, v] of accCruz) porProdutoPosto.push([k, v])
+      return { porProduto, porPosto, porProdutoPosto, total, litros }
     },
   })
 
   return {
     porProduto: new Map(data?.porProduto ?? []),
     porPosto: new Map(data?.porPosto ?? []),
+    porProdutoPosto: new Map(data?.porProdutoPosto ?? []),
     total: data?.total ?? 0,
     litros: data?.litros ?? 0,
     isLoading: enabled && isLoading,
