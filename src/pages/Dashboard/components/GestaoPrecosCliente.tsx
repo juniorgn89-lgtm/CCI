@@ -4,6 +4,7 @@ import { Search, Users, Info } from 'lucide-react'
 import { fetchGestaoPrecosCliente } from '@/api/supabase/gestaoPrecosCliente'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import HeaderHint from '@/components/tables/HeaderHint'
 
 const r3 = (v?: number | null) => (v == null ? '—' : `R$ ${v.toFixed(3).replace('.', ',')}`)
 const REGRA: Record<string, string> = {
@@ -54,7 +55,7 @@ const GestaoPrecosCliente = () => {
               <th className="px-2 py-2 text-center font-semibold">Prazo</th>
               <th className="px-2 py-2 text-right font-semibold">Preço base</th>
               <th className="px-2 py-2 text-right font-semibold">Ajuste</th>
-              <th className="px-2 py-2 text-right font-semibold" title="Preço final do contrato (base ± ajuste) — a referência do cliente">Preço calculado</th>
+              <HeaderHint label="Preço calculado" align="right" className="px-2 font-semibold" help="Preço final do contrato (base ± ajuste) — a referência do cliente." />
               <th className="px-3 py-2 font-semibold">Regra</th>
             </tr>
           </thead>

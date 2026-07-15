@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, ShieldCheck, Clock, Layers, CalendarRange, Radio } from 'lucide-react'
+import { ShieldCheck, Clock, Layers, CalendarRange, Radio } from 'lucide-react'
 import { useTabelasPrazo, type TabelaPrazoVM } from '@/pages/Dashboard/hooks/useTabelasPrazo'
+import { todayLocal } from '@/lib/period'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchProdutoEstoqueExtrato } from '@/api/endpoints/estoques'
-import type { ProdutoEstoqueExtrato } from '@/api/types/estoque'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,7 +26,7 @@ const Selo = ({ vig }: { vig: boolean }) =>
   )
 
 const GestaoPrecosTabelas = () => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const { data: tabelas = [], isLoading } = useTabelasPrazo()
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const nomePosto = useMemo(
@@ -65,15 +65,16 @@ const GestaoPrecosTabelas = () => {
     () => (empresasData?.resultados ?? []).map((e) => e.empresaCodigo),
     [empresasData],
   )
+  // UMA chamada REDE-WIDE (sem empresaCodigo → todos os postos), paginada. Antes
+  // era 1 requisição POR posto (fan-out estrangulado no teto de conexões do
+  // navegador → aba lenta em rede grande). `scopeCodes` fica na chave só pra
+  // isolar o cache por rede (a troca de posto não refaz o fetch).
   const { data: extratoRows = [] } = useQuery({
-    queryKey: ['gp-preco-cadastro', scopeCodes.join(',')],
-    queryFn: async () => {
-      const per = await Promise.all(scopeCodes.map((c) =>
-        fetchProdutoEstoqueExtrato({ empresaCodigo: c, exibeHistoricoCompra: false, limite: 2000 })
-          .then((r) => r.resultados)
-          .catch(() => [] as ProdutoEstoqueExtrato[])))
-      return per.flat()
-    },
+    queryKey: ['gp-preco-cadastro-rede', scopeCodes.join(',')],
+    queryFn: () => fetchAllPages(
+      (p) => fetchProdutoEstoqueExtrato({ exibeHistoricoCompra: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      2000, 20,
+    ),
     enabled: scopeCodes.length > 0,
     staleTime: 10 * 60 * 1000,
   })
@@ -143,10 +144,6 @@ const GestaoPrecosTabelas = () => {
               <Selo vig={vigenteDe(sel, today)} />
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sel.descricao}</h3>
             </div>
-            <button type="button" disabled title="Exportar é roadmap (read-only)"
-              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-semibold text-gray-400 dark:border-gray-700">
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Exportar XLSX
-            </button>
           </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-gray-100 bg-gray-50/60 px-4 py-2 text-[11px] text-gray-500 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
