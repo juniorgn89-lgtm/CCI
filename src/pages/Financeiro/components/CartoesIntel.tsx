@@ -266,7 +266,7 @@ const CartoesIntel = () => {
       <select
         value={mesesJanela}
         onChange={(e) => setMesesJanela(Number(e.target.value))}
-        className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+        className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800"
         aria-label="Período de análise"
       >
         {PERIODO_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -411,7 +411,7 @@ const CartoesIntel = () => {
       </ChartCard>
 
       {/* Painel com abas + árvore */}
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <IntelTabs<Aba>
           tabs={[{ id: 'atraso', label: 'Em atraso' }, { id: 'vencer', label: 'A vencer' }, { id: 'liquidados', label: 'Liquidados' }]}
           active={aba}

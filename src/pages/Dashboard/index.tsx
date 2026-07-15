@@ -43,7 +43,7 @@ const TAB_ICONS: Record<TabId, typeof Activity> = {
 }
 
 const TabSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <Skeleton key={i} className="h-12 w-full" />

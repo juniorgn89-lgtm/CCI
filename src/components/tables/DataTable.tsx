@@ -143,7 +143,7 @@ const DataTable = <T extends Record<string, unknown>>({
                 colSpan={g.span}
                 className={cn(
                   'h-auto py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider',
-                  g.label && 'bg-gray-100/60 text-gray-400 dark:bg-gray-800/60 dark:text-gray-500',
+                  g.label && 'bg-gray-100/60 text-gray-400 dark:bg-transparent dark:text-gray-500',
                   g.divider && divCls,
                 )}
               >
@@ -152,7 +152,7 @@ const DataTable = <T extends Record<string, unknown>>({
             ))}
           </TableRow>
         )}
-        <TableRow className="bg-gray-100 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800">
+        <TableRow className="bg-gray-100 hover:bg-gray-100 dark:bg-transparent dark:hover:bg-transparent">
           {columns.map((col, ci) => (
             <TableHead
               key={col.key}

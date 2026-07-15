@@ -200,7 +200,7 @@ const Pessoas = () => {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-[#0f0f0f]">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
           <input
@@ -211,7 +211,7 @@ const Pessoas = () => {
             className="h-9 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           />
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {([
             { v: 'ativos', l: 'Ativos' },
             { v: 'inativos', l: 'Inativos' },
@@ -237,7 +237,7 @@ const Pessoas = () => {
       </div>
 
       {/* Lista */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {isLoading ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -251,7 +251,7 @@ const Pessoas = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                 <tr>
                   <th className="px-4 py-2.5 text-left font-medium">Nome</th>
                   <th className="px-4 py-2.5 text-left font-medium">Cargo</th>

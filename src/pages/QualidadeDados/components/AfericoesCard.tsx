@@ -97,7 +97,7 @@ const AfericoesCard = ({ rows, isLoading }: Props) => {
   if (resumo.count === 0) return null
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-start gap-2.5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400">
           <FlaskConical className="h-5 w-5" />

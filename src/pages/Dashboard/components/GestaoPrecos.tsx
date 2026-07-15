@@ -120,7 +120,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade, baratao }: {
       </div>
 
       {/* Tabela praticado × tabela */}
-      <div className="rounded-2xl border border-[#e6ebf1] bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-[#e6ebf1] bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center gap-2 border-b border-[#f1f5f9] px-4 py-3 dark:border-gray-800">
           <h3 className="text-[13.5px] font-bold text-[#0f172a] dark:text-gray-100">Preço praticado × tabela</h3>
           <span className="rounded-md bg-[#f1f5f9] px-2 py-0.5 text-[10.5px] font-medium text-[#94a3b8] dark:bg-gray-800 dark:text-gray-400">clique numa linha pra ver de onde cedeu</span>
@@ -313,7 +313,7 @@ const GestaoPrecos = () => {
       )}
 
       {/* Sub-abas */}
-      <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+      <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
         {SUB_TABS.map((t) => {
           const active = sub === t.id
           return (

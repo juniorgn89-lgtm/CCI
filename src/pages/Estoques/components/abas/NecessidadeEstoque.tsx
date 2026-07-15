@@ -202,7 +202,7 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <div>
             <h3 className="flex items-center gap-1.5 text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -224,7 +224,7 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
                 onChange={(e) => setCoberturaInput(e.target.value)}
                 onBlur={applyCobertura}
                 onKeyDown={(e) => { if (e.key === 'Enter') applyCobertura() }}
-                className="h-8 w-16 rounded-md border border-gray-200 bg-white px-2 text-center text-xs tabular-nums text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                className="h-8 w-16 rounded-md border border-gray-200 bg-white px-2 text-center text-xs tabular-nums text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
               />
               dias
             </label>
@@ -235,13 +235,13 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
                 placeholder="Buscar produto ou Ref..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className="h-8 w-48 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                className="h-8 w-48 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
               />
             </div>
             <select
               value={categoria}
               onChange={(e) => setCategoria(e.target.value)}
-              className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-[#0f0f0f] dark:hover:bg-gray-800 dark:text-gray-200"
             >
               <option value="">Todas categorias</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}

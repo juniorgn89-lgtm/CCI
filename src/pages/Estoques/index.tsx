@@ -59,7 +59,7 @@ const JanelaSelect = ({
   value: 30 | 60 | 90
   onChange: (v: 30 | 60 | 90) => void
 }) => (
-  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
     {([30, 60, 90] as const).map((opt) => (
       <button
         key={opt}
@@ -156,7 +156,7 @@ const Estoques = () => {
                 'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
                 e.codigo === selectedCodigo
                   ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
               )}
             >
               {e.fantasia}

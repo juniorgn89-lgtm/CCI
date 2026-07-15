@@ -110,7 +110,7 @@ const PagarCalendario = ({ data }: { data: PayableRow[] }) => {
   }), [dias])
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">
           <CalendarRange className="h-4 w-4" />

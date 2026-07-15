@@ -201,14 +201,14 @@ const AgendaFinanceira = ({ receivables, payables, cartoes }: Props) => {
           <select
             value={mes}
             onChange={(e) => { setMes(Number(e.target.value)); setSelectedDay(null) }}
-            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800"
           >
             {MESES.map((m, i) => <option key={m} value={i}>{m}</option>)}
           </select>
           <select
             value={ano}
             onChange={(e) => { setAno(Number(e.target.value)); setSelectedDay(null) }}
-            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800"
           >
             {anos.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>

@@ -99,3 +99,30 @@ Classes: `bg-white rounded-xl border border-gray-200 shadow-sm p-6`
 | Desktop (1280px+) | 4-5 colunas | Expandida (`w-64`) |
 | Tablet (768px) | 2 colunas | Colapsada (`w-16`) |
 | Mobile (320px) | 1 coluna | Oculta (menu hambúrguer) |
+
+## Superfícies no modo escuro (padrão obrigatório)
+
+O modo claro é intocado. No escuro, toda tela de módulo desktop segue esta hierarquia
+de profundidade — **container quase-preto → filtros no tom mais escuro → cards/cabeçalhos
+transparentes por cima**. Telas novas DEVEM nascer com estes tokens.
+
+> A paleta de cinzas do Tailwind já é remapeada globalmente em `src/index.css` (calibrada
+> com o VSCode Dark). Os tokens abaixo são os *deltas* específicos deste padrão de superfície.
+
+| Superfície | Classe `dark:` | Observação |
+|---|---|---|
+| Container de seção ("Detalhamento…", wrapper de conteúdo da aba) | `dark:bg-gradient-to-b dark:from-gray-900 dark:to-black` | Mantém `bg-white`, borda, `rounded-xl`, `shadow-sm` do claro |
+| Card / gráfico DENTRO do container | `dark:bg-transparent` | Deixa o gradiente do container aparecer. Prop `cardBg="bg-white dark:bg-transparent"` |
+| Filtro / `<select>` / dropdown | `dark:bg-[#0f0f0f]` (+ `dark:hover:bg-gray-800`) | Mesmo tom das abas (`TopBarTabs`) |
+| Botão de sub-aba / segmented — INATIVO | `dark:bg-[#0f0f0f]` | Container do segmented também `dark:bg-[#0f0f0f]` |
+| Botão de sub-aba / segmented — ATIVO | `dark:bg-blue-700` (ou `bg-[#1e3a5f]`) | Não muda |
+| `<thead>` e célula de cabeçalho de grupo | `dark:bg-transparent` | **Nunca** opaco (`#0f0f0f`) no header — cria banda de dois tons |
+| Cards de setor tintados | `dark:from-{cor}-950/20 dark:to-gray-900` | Combustível=blue, Automotivos=amber, Conveniência=emerald |
+
+**Destaque da coluna "punchline"** (o número-resultado de cada grupo de coluna, colorido
+pelo tint do `<colgroup>`): Litros → `dark:text-sky-300`, Faturamento → `dark:text-amber-300`,
+Lucro/eficiência (L.B. por unidade, Ticket médio) → `dark:text-emerald-400`. Não recolorir
+colunas que já têm barra/heatmap/badge (vira ruído).
+
+Referências canônicas: `src/pages/Comercial/Vendas/Combustivel.tsx`,
+`src/pages/Comercial/Vendas/Pista.tsx`, `src/pages/Dashboard/components/BenchmarkSetor.tsx`.

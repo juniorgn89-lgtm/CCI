@@ -107,7 +107,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
         {/* Threshold + grupo + texto */}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
               {THRESHOLDS.map((t) => (
                 <button
                   key={t}

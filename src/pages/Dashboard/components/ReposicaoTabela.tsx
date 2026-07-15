@@ -33,7 +33,7 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
           <col className="w-[12%]" />
           <col className="w-[16%]" />
         </colgroup>
-        <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+        <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Ref.</th>
             <th className="px-3 py-2 text-left font-medium">Produto</th>

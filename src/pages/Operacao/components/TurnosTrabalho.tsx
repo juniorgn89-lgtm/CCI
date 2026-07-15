@@ -22,7 +22,7 @@ const TurnosTrabalho = ({ turnoRows }: TurnosTrabalhoProps) => {
     <div className="space-y-4">
       {/* Em Turno Agora — só faz sentido pro período corrente */}
       {!periodIsPast && (
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="mb-4 flex items-center gap-2">
           <div className="flex h-2.5 w-2.5 items-center justify-center">
             <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-green-400 opacity-75" />
@@ -72,7 +72,7 @@ const TurnosTrabalho = ({ turnoRows }: TurnosTrabalhoProps) => {
       )}
 
       {/* All shifts table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Histórico de Turnos</h3>
         </div>

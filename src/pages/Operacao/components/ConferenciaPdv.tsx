@@ -221,7 +221,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
     <div className="space-y-4">
       {/* ── Barra de controles ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+        <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {([
             { id: 'todos', label: 'Todos' },
             { id: 'pista', label: 'Pista' },
@@ -244,7 +244,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
             {visiveis.length} {visiveis.length === 1 ? 'PDV' : 'PDVs'} · {turnoLabel}
           </span>
           {turnos.length > 1 && (
-            <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+            <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
               {turnos.map((t) => (
                 <button
                   key={t.codigo}

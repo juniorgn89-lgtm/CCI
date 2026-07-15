@@ -125,7 +125,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
       </div>
 
       {/* Tabela administradora × dia */}
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="border-b border-gray-100 px-5 py-3.5 dark:border-gray-800">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -134,7 +134,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
               </h3>
               <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">Cada lote do adquirente cruzado com as vendas do sistema.</p>
             </div>
-            <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+            <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
               {([['nao', 'Não conciliado', naoConc.length], ['conc', 'Conciliado', conc.length]] as const).map(([id, label, n]) => (
                 <button
                   key={id}

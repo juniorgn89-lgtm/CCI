@@ -121,7 +121,7 @@ const BenchmarkPostos = () => {
   )
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       {/* Header — clicável pra colapsar/expandir */}
       <button
         type="button"
@@ -163,7 +163,7 @@ const BenchmarkPostos = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar posto..."
-              className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300"
             />
           </div>
         </div>
@@ -187,7 +187,7 @@ const BenchmarkPostos = () => {
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+              <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-4 py-2.5 text-left font-medium">
                     Posto

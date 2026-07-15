@@ -149,7 +149,7 @@ const DetalhamentoTab = ({ semRepasse, divergencias, filtro, onClearFiltro, isLo
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Detalhe para lançamento</h3>

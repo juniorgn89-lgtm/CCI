@@ -77,7 +77,7 @@ const SalesOverview = ({ dailyData, groupTable, salesByDay, productsByGroup, cat
   return (
     <div className="space-y-4">
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
         {subTabs.map((tab) => (
           <button
             key={tab.key}

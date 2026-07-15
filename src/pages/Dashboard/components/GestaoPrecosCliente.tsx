@@ -40,12 +40,12 @@ const GestaoPrecosCliente = () => {
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente ou produto…"
-            className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-[12.5px] focus:border-[#2563eb] focus:outline-none dark:border-gray-700 dark:bg-gray-900" />
+            className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-[12.5px] focus:border-[#2563eb] focus:outline-none dark:border-gray-700 dark:bg-[#0f0f0f]" />
         </div>
         <span className="text-[11px] text-gray-400">{filtradas.length} de {linhas.length}</span>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <table className="w-full text-[12.5px]">
           <thead>
             <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">

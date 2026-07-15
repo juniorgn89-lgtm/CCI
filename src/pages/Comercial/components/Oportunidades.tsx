@@ -218,7 +218,7 @@ const Oportunidades = () => {
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Oportunidades de lucro</h3>
               <p className="text-[11px] text-gray-400">Ordenadas por R$/período · clique para ver a análise</p>
             </div>
-            <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">
+            <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
               {(['todas', 'praca', 'margem', 'conveniencia'] as const).map((f) => (
                 <button key={f} type="button" onClick={() => setFiltro(f)}
                   className={cn('rounded-md px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors', filtro === f ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400')}>

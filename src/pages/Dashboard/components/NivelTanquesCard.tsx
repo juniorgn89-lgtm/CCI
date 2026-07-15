@@ -72,7 +72,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
   if (tanques.length === 0) return null
 
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
@@ -114,7 +114,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
 
       {/* Switcher de visão + filtro de status (vale pras duas visões) */}
       <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {(
             [
               { v: 'tanques', l: 'Tanques', Icon: LayoutGrid },
@@ -138,7 +138,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
         </div>
 
         {/* Status — filtra cards e resumo */}
-        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {(
             [
               { v: 'todos', l: 'Todos' },
@@ -164,7 +164,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
 
         {/* Produto — só na visão Tanques */}
         {view === 'tanques' && produtosUnicos.length > 1 && (
-          <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+          <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
             {['todos', ...produtosUnicos].map((p) => (
               <button
                 key={p}

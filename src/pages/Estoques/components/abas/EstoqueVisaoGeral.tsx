@@ -460,7 +460,7 @@ const Segmented = <T extends string | number>({
   onChange: (v: T) => void
   options: { value: T; label: string }[]
 }) => (
-  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
     {options.map((o) => (
       <button
         key={String(o.value)}

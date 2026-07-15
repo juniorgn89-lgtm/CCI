@@ -108,7 +108,7 @@ const MonitorPanel = () => {
       {/* Tabela de logs */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/60">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
+          <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-transparent dark:text-gray-400">
             <tr>
               <th className="px-3 py-2 text-left font-medium">Status</th>
               <th className="px-3 py-2 text-left font-medium">Ferramenta / Argumentos</th>

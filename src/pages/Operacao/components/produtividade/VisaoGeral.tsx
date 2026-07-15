@@ -324,7 +324,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
           <div>
             <div className="flex items-center gap-1.5">
@@ -340,7 +340,7 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
               Desempenho consolidado no período · expanda pra ver por combustível
             </p>
           </div>
-          <div className="inline-flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
+          <div className="inline-flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
             <button
               onClick={() => setFuelSel(new Set())}
               className={cn(
@@ -374,13 +374,13 @@ const VisaoGeral = ({ abastecimentos, abastComCusto, descAcrByFrentista }: Props
           <table className="w-full">
             <thead>
               {/* Títulos de grupo (padrão Operação · Financeiro · Eficiência) */}
-              <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-500">
+              <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-800 dark:bg-transparent dark:text-gray-500">
                 <th colSpan={3} className="px-2 py-1.5" />
                 <th colSpan={showConvertidos ? 3 : 2} className="px-3 py-1.5 text-center">Operação</th>
                 <th colSpan={5} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Financeiro</th>
                 <th colSpan={1} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Eficiência</th>
               </tr>
-              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-transparent">
                 <th className="w-8 px-2 py-2" />
                 <Th className="w-10">#</Th>
                 <ThSort label="Frentista" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />

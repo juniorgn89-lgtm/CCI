@@ -290,7 +290,7 @@ const AbastecimentoTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -366,7 +366,7 @@ const PrecoSuspeitoTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -600,7 +600,7 @@ const CupomMultiAbastTable = ({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
-        <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+        <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
           <tr>
             {selection && (
               <th className="w-8 px-3 py-2 text-left">
@@ -697,7 +697,7 @@ const VendaItemSemProdutoTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -756,7 +756,7 @@ const CaixaAbertoTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -819,7 +819,7 @@ const CaixaDiferencaTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -885,7 +885,7 @@ const EstoqueNegativoTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -940,7 +940,7 @@ const TituloSemVencTable = ({
   return (
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
-      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+      <thead className="bg-gray-100/50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
         <tr>
           {selection && (
             <th className="w-8 px-3 py-2 text-left">
@@ -1289,7 +1289,7 @@ const QualidadeDados = () => {
                 'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
                 e.codigo === selectedCodigo
                   ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
               )}
             >
               {e.fantasia}

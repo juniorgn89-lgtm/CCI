@@ -65,7 +65,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
           <Filter className="h-3.5 w-3.5" /> Filtros
         </span>
         {/* Tipo */}
-        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-gray-900">
+        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {tipos.map((tp) => (
             <button
               key={tp}
@@ -85,7 +85,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
           className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-semibold transition-colors',
             soAcima
               ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700/50 dark:bg-red-900/25 dark:text-red-300'
-              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800')}
+              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800')}
         >
           <TrendingUp className="h-3.5 w-3.5" /> Só acima do contrato
         </button>
@@ -137,7 +137,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
       </div>
 
       {/* Tabela por bandeira */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>

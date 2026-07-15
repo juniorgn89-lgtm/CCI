@@ -103,14 +103,14 @@ const VendaDetailModal = ({ open, onClose, title, products, showGroupFilter, ite
                   placeholder={showGroupFilter ? 'Buscar produto ou grupo...' : 'Buscar produto...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-[#0f0f0f] dark:text-gray-100 dark:placeholder:text-gray-500"
                 />
               </div>
               {showGroupFilter && (
                 <select
                   value={grupo}
                   onChange={(e) => setGrupo(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   <option value="">Todos os grupos</option>
                   {grupos.map((g) => (

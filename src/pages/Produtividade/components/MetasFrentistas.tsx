@@ -133,7 +133,7 @@ const MetasFrentistas = ({ empresaCodigo }: { empresaCodigo?: number | null } = 
     <div className="space-y-4">
       {/* ── Barra de controle: seletor + legenda ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+        <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-[#0f0f0f]">
           {METRICAS.map((m) => {
             const active = metrica === m.key
             return (
@@ -244,7 +244,7 @@ const MetasFrentistas = ({ empresaCodigo }: { empresaCodigo?: number | null } = 
       </div>
 
       {/* ── Tabela: Atingimento por frentista ── */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">
             Atingimento por frentista — {METRICA_LABEL[metrica]}
@@ -268,7 +268,7 @@ const MetasFrentistas = ({ empresaCodigo }: { empresaCodigo?: number | null } = 
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="bg-[#f3f4f6] dark:bg-gray-800/60">
+                <tr className="bg-[#f3f4f6] dark:bg-transparent">
                   <th className="px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     <span className="inline-flex items-center gap-1">Frentista<InfoHint text="A bolinha indica a faixa de atingimento do frentista (verde/âmbar/vermelho/sem meta)." /></span>
                   </th>

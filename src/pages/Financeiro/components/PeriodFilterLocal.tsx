@@ -27,7 +27,7 @@ const PeriodFilterLocal = ({ value, onChange, label = 'Por data de movimento', c
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+      <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
         <button
           type="button"
           onClick={() => onChange({ ...value, allPeriod: true })}
@@ -64,7 +64,7 @@ const PeriodFilterLocal = ({ value, onChange, label = 'Por data de movimento', c
           value={dataInicial}
           disabled={allPeriod}
           onChange={(e) => onChange({ ...value, dataInicial: e.target.value })}
-          className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+          className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
           aria-label="Data inicial"
         />
         <span className="text-xs text-gray-400">—</span>
@@ -73,7 +73,7 @@ const PeriodFilterLocal = ({ value, onChange, label = 'Por data de movimento', c
           value={dataFinal}
           disabled={allPeriod}
           onChange={(e) => onChange({ ...value, dataFinal: e.target.value })}
-          className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+          className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
           aria-label="Data final"
         />
       </div>

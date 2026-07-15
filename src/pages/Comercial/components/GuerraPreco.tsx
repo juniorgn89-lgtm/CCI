@@ -426,7 +426,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
                 selectedFuel === f.nome
                   ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                  : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
               )}
             >
               <Fuel className="h-3 w-3" />
@@ -567,7 +567,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                         'rounded-md px-2.5 py-1 text-[11px] font-medium tabular-nums transition-colors',
                         Math.abs(reducao - c) < 0.001
                           ? 'bg-[#1e3a5f] text-white dark:bg-blue-700'
-                          : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                          : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
                       )}
                     >
                       -R$ {moneyLraw(c).slice(0, 4)}
@@ -607,7 +607,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             {/* Comparação das 3 projeções de fechamento */}
             <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
               <table className="w-full text-xs">
-                <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
+                <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">
                       <span className="inline-flex items-center gap-1">
@@ -778,7 +778,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium">Data</th>
                       <th className="px-4 py-2 text-right font-medium">Queda no preço</th>
@@ -831,7 +831,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             {showTabela && (
               <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-800">
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium">Data</th>
                       <th className="px-4 py-2 text-right font-medium">Litros</th>

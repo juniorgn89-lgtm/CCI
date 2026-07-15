@@ -136,7 +136,7 @@ const GestaoPrecosTabelas = () => {
 
       {/* Detalhe */}
       {sel && (
-        <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[11px] font-semibold text-gray-400">{sel.ref}</span>

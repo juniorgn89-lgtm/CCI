@@ -259,7 +259,7 @@ const MargemPosto = () => {
             </div>
             <p className="text-[11px] text-gray-400">Clique numa unidade pra abrir o drill por combustível</p>
           </div>
-          <div className="flex items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">
+          <div className="flex items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
             <SortBtn k="margemL">Margem/L</SortBtn>
             <SortBtn k="lucroBruto">Lucro bruto</SortBtn>
             <SortBtn k="litros">Volume</SortBtn>

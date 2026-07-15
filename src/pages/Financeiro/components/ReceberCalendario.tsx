@@ -109,7 +109,7 @@ const ReceberCalendario = ({ data }: { data: ReceivableRow[] }) => {
   }), [dias])
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <CalendarRange className="h-4 w-4" />

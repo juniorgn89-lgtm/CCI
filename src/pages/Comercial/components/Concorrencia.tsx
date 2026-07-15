@@ -354,7 +354,7 @@ const Concorrencia = () => {
       {/* Seletor de posto */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12px] font-semibold text-gray-500 dark:text-gray-400">Meu posto:</span>
-        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
           {data.postos.map((p) => (
             <button key={p.empresaCodigo} type="button" onClick={() => { setPosto(p.empresaCodigo); setFuelSel(null) }}
               className={cn('rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors', posto === p.empresaCodigo ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300')}>
@@ -426,7 +426,7 @@ const Concorrencia = () => {
               </div>
               <p className="text-[11px] text-gray-400">Sua linha = preço médio realizado (fato) · pontos = observações de concorrentes</p>
             </div>
-            <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-gray-800">
+            <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
               {data.byFuel.map((f) => (
                 <button key={f.slug} type="button" onClick={() => setFuelSel(f.slug)}
                   className={cn('rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors', fuelChart.slug === f.slug ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400')}>

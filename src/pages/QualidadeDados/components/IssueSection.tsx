@@ -92,7 +92,7 @@ const IssueSection = ({ title, subtitle, Icon, issues, isLoading = false, embedd
   const Wrapper = embedded ? 'div' : 'section'
   const wrapperClass = embedded
     ? ''
-    : 'rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900'
+    : 'rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black'
 
   // Estado "tudo certo": categoria sem ocorrências não expande — check verde inline.
   const tudoCerto = !embedded && !isLoading && totalIssues === 0

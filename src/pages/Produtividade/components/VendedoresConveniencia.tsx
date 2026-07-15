@@ -125,7 +125,7 @@ const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | nu
   // Toggle de setor — sempre visível (Automotivos pode vir vazio se o cache
   // de funcionário ainda não foi re-apurado; o usuário precisa poder voltar).
   const toggle = (
-    <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
+    <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
       {SETOR_TABS.map((t) => (
         <button
           key={t.id}
@@ -213,7 +213,7 @@ const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | nu
       </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
           <div>
             <div className="flex items-center gap-1.5">
@@ -234,13 +234,13 @@ const VendedoresConveniencia = ({ empresaCodigo }: { empresaCodigo?: number | nu
           <table className="w-full">
             <thead>
               {/* Títulos de grupo (padrão Operação · Financeiro · Eficiência) */}
-              <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-500">
+              <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:border-gray-800 dark:bg-transparent dark:text-gray-500">
                 <th colSpan={2} className="px-2 py-1.5" />
                 <th colSpan={2} className="px-3 py-1.5 text-center">Operação</th>
                 <th colSpan={3} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Financeiro</th>
                 <th colSpan={1} className="border-l border-gray-200 px-3 py-1.5 text-center dark:border-gray-700">Eficiência</th>
               </tr>
-              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-transparent">
                 <th className="w-10 px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">#</th>
                 <ThSort label="Vendedor" k="nome" sortKey={sortKey} sortDir={sortDir} onClick={() => handleColumnSort('nome')} align="left" />
                 {COLS.map((c) => (
