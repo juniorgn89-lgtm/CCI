@@ -34,6 +34,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import { projecaoSazonal } from '@/lib/projection'
+import { todayLocal } from '@/lib/period'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
 /* ─── Cores por tipo de combustível ─── */
@@ -632,6 +633,34 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     }
   }, [dailyData, dataInicial, pilotoSazonal])
 
+  // PILOTO: série ESPERADA de litros por dia (ritmo × índice do dia-da-semana),
+  // contínua de data[0] até o fim do mês — alimenta a linha de projeção do gráfico
+  // "Litros vendidos por dia". Só quando há dias futuros (senão não há o que projetar).
+  const projLitrosDaily = useMemo(() => {
+    if (diaSerie.length === 0 || projecaoCombustivel.fat.diasRestantes <= 0) return undefined
+    const today = todayLocal()
+    const monthEnd = projecaoCombustivel.dataFinalProjecao
+    const idxRec = pilotoSazonal.linear ? {} : pilotoSazonal.indices.litros
+    const wof = (iso: string) => new Date(`${iso}T00:00:00`).getDay()
+    const idxOf = (iso: string) => idxRec[wof(iso)] ?? 1
+    const closed = diaSerie.filter((d) => d.data.slice(0, 10) < today)
+    const realizado = closed.reduce((s, d) => s + d.litros, 0)
+    const sumIdx = closed.reduce((s, d) => s + idxOf(d.data.slice(0, 10)), 0)
+    const ritmo = sumIdx > 0 ? realizado / sumIdx : (closed.length ? realizado / closed.length : 0)
+    const pad2 = (x: number) => String(x).padStart(2, '0')
+    const out: { data: string; esperado: number }[] = []
+    let cur = diaSerie[0].data.slice(0, 10)
+    let guard = 0
+    while (cur <= monthEnd && guard < 400) {
+      out.push({ data: cur, esperado: ritmo * idxOf(cur) })
+      const [y, m, d] = cur.split('-').map(Number)
+      const dt = new Date(y, m - 1, d + 1)
+      cur = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`
+      guard++
+    }
+    return out
+  }, [diaSerie, projecaoCombustivel, pilotoSazonal])
+
   /* ─── Projeção por combustível — TODAS as métricas (litros, lucro, margem,
    * L.B./litro) pro detalhe "Ver detalhes" dos KPIs. Projeta cada série diária
    * por combustível até o fim do mês (mesma engine do card executivo). */
@@ -1004,7 +1033,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     {/* Gráfico "Litros vendidos por dia" acompanhando a tabela (≥ 2 dias). */}
                     {diaSerie.length >= 2 && (
                       <div className="px-4 pb-1 pt-4">
-                        <AnaliseSemanalLineCard data={diaSerie} />
+                        <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} />
                       </div>
                     )}
                     <TablePager

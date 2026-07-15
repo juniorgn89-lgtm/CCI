@@ -110,6 +110,11 @@ interface AnaliseSemanalLineCardProps {
   /** Quando true, a LINHA/eixo/média/pico plotam o FATURAMENTO (data.faturamento)
    *  em vez da quantidade. O tooltip mantém a quantidade e ganha o faturamento. */
   plotFaturamento?: boolean
+  /** PILOTO: série ESPERADA por dia (ritmo × índice do dia-da-semana), contínua
+   *  a partir de data[0] até o fim do mês. Quando presente, o eixo X estende até
+   *  o fim do mês e uma linha tracejada de "projeção de fechamento" é sobreposta
+   *  — pra comparar cada dia realizado com o esperado. */
+  projecao?: { data: string; esperado: number }[]
   /** Cor da linha/área. Default: accent do tema (sensível ao dark). */
   accent?: string
   /** Faixa de fim de semana (sáb/dom). Default true. */
@@ -118,7 +123,7 @@ interface AnaliseSemanalLineCardProps {
   height?: number
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300 }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
@@ -164,42 +169,56 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
       if (values[i] > values[picoIdx]) picoIdx = i
       if (values[i] < values[baixaIdx]) baixaIdx = i
     }
-    const yMax = niceCeil(Math.max(...values, 1) * 1.08)
+
+    // Domínio do eixo X: com `projecao`, estende até o fim do mês (a série
+    // esperada é contínua a partir de data[0]); senão, só os dias realizados.
+    const proj = projecao && projecao.length > 1 ? projecao : null
+    const domDates = proj ? proj.map((p) => p.data) : data.map((d) => d.data)
+    const N = domDates.length
+    const projVals = proj ? proj.map((p) => p.esperado) : []
+    const yMax = niceCeil(Math.max(...values, ...projVals, 1) * 1.08)
 
     const x0 = 56, x1 = VBW - 18, yTop = 36, yBase = VBH - 42
-    const X = (i: number) => (n === 1 ? (x0 + x1) / 2 : x0 + (i / (n - 1)) * (x1 - x0))
+    const X = (i: number) => (N === 1 ? (x0 + x1) / 2 : x0 + (i / (N - 1)) * (x1 - x0))
     const Y = (v: number) => yBase - (v / yMax) * (yBase - yTop)
-    const slot = n > 1 ? (x1 - x0) / (n - 1) : x1 - x0
+    const slot = N > 1 ? (x1 - x0) / (N - 1) : x1 - x0
+    // Dias realizados ocupam os primeiros índices do domínio (data começa em data[0]).
     const pts = values.map((v, i) => ({ x: X(i), y: Y(v), v, i }))
     const line = splinePath(pts)
     const area = `${line} L ${pts[pts.length - 1].x.toFixed(1)} ${yBase} L ${pts[0].x.toFixed(1)} ${yBase} Z`
 
+    // Linha de projeção (esperado por dia) — tracejada, cobre o mês inteiro.
+    const projPts = proj ? proj.map((p, i) => ({ x: X(i), y: Y(p.esperado) })) : []
+    const projLine = projPts.length ? splinePath(projPts) : ''
+
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ v: yMax * f, y: Y(yMax * f) }))
 
-    // Faixas de fim de semana (sáb=6, dom=0).
+    // Faixas de fim de semana (sáb=6, dom=0) — sobre o domínio inteiro.
     const weekendBands = showWeekend
-      ? pts
-          .filter((p) => {
-            const d = new Date(`${data[p.i].data}T00:00:00`).getDay()
-            return d === 0 || d === 6
+      ? domDates
+          .map((dt, i) => {
+            const wd = new Date(`${dt}T00:00:00`).getDay()
+            if (wd !== 0 && wd !== 6) return null
+            const bx = Math.max(x0, X(i) - slot / 2)
+            return { x: bx, w: Math.min(slot, x1 - bx) }
           })
-          .map((p) => ({ x: Math.max(x0, p.x - slot / 2), w: Math.min(slot, x1 - Math.max(x0, p.x - slot / 2)) }))
+          .filter((b): b is { x: number; w: number } => b !== null)
       : []
 
     // Rótulos do eixo X — passo uniforme, ~1 a cada ~70px de largura (nunca colam).
     const maxLabels = Math.max(4, Math.floor((x1 - x0) / 70))
-    const step = Math.max(1, Math.ceil(n / maxLabels))
+    const step = Math.max(1, Math.ceil(N / maxLabels))
     const idxSet = new Set<number>()
-    for (let i = 0; i < n; i += step) idxSet.add(i)
+    for (let i = 0; i < N; i += step) idxSet.add(i)
     const maxMarked = Math.max(...idxSet)
-    if (maxMarked !== n - 1) {
-      if (n - 1 - maxMarked < step * 0.6) idxSet.delete(maxMarked)
-      idxSet.add(n - 1)
+    if (maxMarked !== N - 1) {
+      if (N - 1 - maxMarked < step * 0.6) idxSet.delete(maxMarked)
+      idxSet.add(N - 1)
     }
-    const xLabels = [...idxSet].sort((a, b) => a - b).map((i) => ({ x: X(i), label: ddmm(data[i].data) }))
+    const xLabels = [...idxSet].sort((a, b) => a - b).map((i) => ({ x: X(i), label: ddmm(domDates[i]) }))
 
-    return { n, media, picoIdx, baixaIdx, yMax, x0, x1, yTop, yBase, pts, line, area, ticks, weekendBands, xLabels, slot }
-  }, [data, plotFaturamento, showWeekend, VBW, VBH])
+    return { n, media, picoIdx, baixaIdx, yMax, x0, x1, yTop, yBase, pts, line, area, projLine, hasProj: !!proj, ticks, weekendBands, xLabels, slot }
+  }, [data, projecao, plotFaturamento, showWeekend, VBW, VBH])
 
   const pico = g.pts[g.picoIdx]
   const baixa = g.pts[g.baixaIdx]
@@ -257,6 +276,14 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
         </div>
       </div>
 
+      {/* Legenda do piloto de projeção (só quando há série esperada). */}
+      {g.hasProj && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-gray-500 dark:text-gray-400">
+          <span className="inline-flex items-center gap-1.5"><span className="h-[3px] w-4 rounded-full" style={{ backgroundColor: accent }} />Realizado</span>
+          <span className="inline-flex items-center gap-1.5"><svg width="18" height="4" className="overflow-visible"><line x1="0" y1="2" x2="18" y2="2" stroke="#7c3aed" strokeWidth="2" strokeDasharray="6 4" /></svg>Projeção esperada (por dia-da-semana, até o fim do mês)</span>
+        </div>
+      )}
+
       <div ref={wrapRef} className="relative mt-3" style={{ height: VBH }} onMouseMove={onMove} onMouseLeave={onLeave}>
         <svg viewBox={`0 0 ${VBW} ${VBH}`} width="100%" height={VBH} preserveAspectRatio="none" role="img" aria-label="Gráfico de litros vendidos por dia">
           <defs>
@@ -286,6 +313,11 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
           {/* Área + linha */}
           <path d={g.area} fill="url(#asArea)" />
           <path d={g.line} fill="none" stroke={accent} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* PILOTO: linha de projeção esperada (tracejada, roxa) até o fim do mês */}
+          {g.projLine && (
+            <path d={g.projLine} fill="none" stroke="#7c3aed" strokeWidth={2} strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+          )}
 
           {/* Linha de média (tracejada) + rótulo */}
           <line x1={g.x0} y1={yMedia} x2={g.x1} y2={yMedia} stroke={ct.mediaLine} strokeWidth={1.5} strokeDasharray="5 4" />
@@ -391,6 +423,23 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
                 )
               })()}
             </div>
+            {/* PILOTO: dia realizado vs o ESPERADO daquele dia (acima = puxou a
+                projeção pra cima; abaixo = pra baixo). */}
+            {projecao && hp.i < projecao.length && projecao[hp.i].esperado > 0 && (
+              <div className="mt-1 flex items-center justify-between gap-3 border-t border-gray-100 pt-1 dark:border-gray-700">
+                <span className="text-[10px] font-medium text-[#7c3aed] dark:text-violet-300">vs esperado do dia</span>
+                {(() => {
+                  const esp = projecao[hp.i].esperado
+                  const pct = ((valOf(data[hp.i]) - esp) / esp) * 100
+                  const up = pct >= 0
+                  return (
+                    <span className={cn('text-[11px] font-bold tabular-nums', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                      {up ? '▲ +' : '▼ '}{pct.toFixed(1).replace('.', ',')}%
+                    </span>
+                  )
+                })()}
+              </div>
+            )}
           </div>
         )}
       </div>
