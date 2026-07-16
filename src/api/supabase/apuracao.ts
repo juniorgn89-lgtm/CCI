@@ -1134,10 +1134,12 @@ export const aggregateVendaCache = (
     const info = produtoInfo.get(it.produtoCodigo)
     const setor: SetorVenda = info?.setor ?? 'conveniencia'
     if (setor === 'outros') continue  // fora dos 3 setores
-    // Combustível: custo = precoCusto × qtd. Demais: totalCusto.
-    const custo = setor === 'combustivel'
-      ? (it.precoCusto ?? 0) * (it.quantidade ?? 0)
-      : (it.totalCusto ?? 0)
+    // Custo = totalCusto do item (fallback precoCusto×qtd) — igual em todos os
+    // setores, combustível incluído, pra o LB bater com o CMV do WebPosto.
+    // (Espelha o compute.ts do cron apurar-cron.)
+    const custo = (it.totalCusto ?? 0) > 0
+      ? (it.totalCusto ?? 0)
+      : (it.precoCusto ?? 0) * (it.quantidade ?? 0)
     const vkey = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
     const ev = vmap.get(vkey)
     if (ev) {

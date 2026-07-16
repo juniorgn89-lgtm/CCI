@@ -397,9 +397,13 @@ export const aggregateVendaCache = (
     const info = produtoInfo.get(it.produtoCodigo)
     const setor: SetorVenda = info?.setor ?? 'conveniencia'
     if (setor === 'outros') continue
-    const custo = setor === 'combustivel'
-      ? (it.precoCusto ?? 0) * (it.quantidade ?? 0)
-      : (it.totalCusto ?? 0)
+    // Custo = `totalCusto` do item (o custo que o ERP gravou na venda), com
+    // fallback em precoCusto×qty quando o item não tem totalCusto. Combustível
+    // seguia SÓ precoCusto×qty e divergia ~0,03% do CMV do WebPosto; alinhado
+    // aos demais setores (e ao helper de CMV) pra o resultado bater com o WebPosto.
+    const custo = (it.totalCusto ?? 0) > 0
+      ? (it.totalCusto ?? 0)
+      : (it.precoCusto ?? 0) * (it.quantidade ?? 0)
     const vkey = `${it.empresaCodigo}|${data}|${it.produtoCodigo}`
     const ev = vmap.get(vkey)
     if (ev) {

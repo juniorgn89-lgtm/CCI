@@ -308,10 +308,9 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       if (it.quantidade <= 0) continue
       if (!autToday.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
       const setor = classify(it.produtoCodigo, isFuel, isPista)
-      // Combustível: custo = precoCusto × qtd. Demais: totalCusto.
-      const custo = setor === 'combustivel'
-        ? it.precoCusto * it.quantidade
-        : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
+      // Custo = totalCusto do item (fallback precoCusto×qtd) — igual em todos os
+      // setores, combustível incluído, pra o LB bater com o CMV do WebPosto.
+      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
       curr.push({ empresaCodigo: it.empresaCodigo, produtoCodigo: it.produtoCodigo,
         setor, nome: nomeDe(null, it.produtoCodigo),
         quantidade: it.quantidade, totalVenda: it.totalVenda, totalCusto: custo,
@@ -330,10 +329,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       if (it.quantidade <= 0 || !autToday.has(it.vendaCodigo)) continue
       const dia = (it.dataMovimento || '').slice(0, 10)
       if (!dia) continue
-      const setor = classify(it.produtoCodigo, isFuel, isPista)
-      const custo = setor === 'combustivel'
-        ? it.precoCusto * it.quantidade
-        : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
+      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
       dailyMap.set(dia, (dailyMap.get(dia) ?? 0) + (it.totalVenda - custo))
     }
     const dailyLB = Array.from(dailyMap.entries())
@@ -359,7 +355,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       const dia = (it.dataMovimento || '').slice(0, 10)
       if (!dia) continue
       const s = classify(it.produtoCodigo, isFuel, isPista)
-      const custo = s === 'combustivel' ? it.precoCusto * it.quantidade : (it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade)
+      const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
       addDaily(s, dia, it.totalVenda, it.totalVenda - custo, it.quantidade)
     }
     const dailySetorArr = (s: SetorId) => Array.from(dailyBySetor[s].entries())
