@@ -287,11 +287,11 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
       <table className="w-full text-sm">
         {/* Fundo levíssimo, uma cor por grupo de coluna. */}
         <colgroup>
-          <col /> {/* Empresa */}
-          {showQtd && <col span={2} className={GROUP_TINT.operacao} />} {/* Litros/Qtd */}
-          <col span={2} className={GROUP_TINT.financeiro} /> {/* Faturamento */}
-          <col span={3} className={GROUP_TINT.eficiencia} /> {/* Lucro bruto */}
-          <col span={2} className={GROUP_TINT.comparativo} /> {/* vs período anterior */}
+          <col />
+          {showQtd && <col span={2} className={GROUP_TINT.operacao} />}
+          <col span={2} className={GROUP_TINT.financeiro} />
+          <col span={3} className={GROUP_TINT.eficiencia} />
+          <col span={2} className={GROUP_TINT.comparativo} />
         </colgroup>
         <thead>
           <tr className="text-gray-400 dark:text-gray-500">
@@ -458,13 +458,13 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
         <table className="w-full text-sm">
           {/* Fundo levíssimo, uma cor por grupo de coluna. */}
           <colgroup>
-            <col /> {/* Empresa */}
-            <col className={GROUP_TINT.operacao} /> {/* Operação */}
-            {showFaturamento && <col className={GROUP_TINT.financeiro} />} {/* Faturamento */}
-            <col className={GROUP_TINT.financeiro} /> {/* Lucro bruto */}
-            <col className={GROUP_TINT.financeiro} /> {/* Margem */}
-            <col span={4} className={GROUP_TINT.comparativo} /> {/* Comparativo */}
-            <col span={3} className={GROUP_TINT.eficiencia} /> {/* Eficiência */}
+            <col />
+            <col className={GROUP_TINT.operacao} />
+            {showFaturamento && <col className={GROUP_TINT.financeiro} />}
+            <col className={GROUP_TINT.financeiro} />
+            <col className={GROUP_TINT.financeiro} />
+            <col span={4} className={GROUP_TINT.comparativo} />
+            <col span={3} className={GROUP_TINT.eficiencia} />
           </colgroup>
           <thead>
             {/* Linha de GRUPOS — Operação · Financeiro · Comparativo · Eficiência */}
