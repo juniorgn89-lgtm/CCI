@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -125,6 +125,27 @@ const Usuarios = () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  // Envia o email de redefinição de senha pro usuário (fluxo self-service do
+  // Supabase Auth → /redefinir-senha). O admin não define a senha; dispara o link.
+  const handleResetSenha = async (row: ProfileRow) => {
+    if (!row.email) { alert('Usuário sem email cadastrado.'); return }
+    if (!confirm(`Enviar link de redefinição de senha para ${row.email}?\nEle recebe um email e define a nova senha.`)) return
+    setBusyUserId(row.user_id)
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      if (!supabase) throw new Error('Supabase não configurado')
+      const { error } = await supabase.auth.resetPasswordForEmail(row.email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      })
+      if (error) throw error
+      alert(`Link de redefinição enviado para ${row.email}.`)
+    } catch (e) {
+      alert(`Erro ao enviar reset: ${(e as Error).message}`)
     } finally {
       setBusyUserId(null)
     }
@@ -450,6 +471,7 @@ const Usuarios = () => {
                         onTogglePodeApurar={() => handleTogglePodeApurar(p)}
                         onTogglePodeReabast={() => handleTogglePodeReabast(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
+                        onResetSenha={() => handleResetSenha(p)}
                         onDelete={() => handleDelete(p)}
                       />
                     ))}
@@ -799,10 +821,11 @@ interface UserRowProps {
   onTogglePodeApurar: () => void
   onTogglePodeReabast: () => void
   onToggleAtivo: () => void
+  onResetSenha: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1060,6 +1083,20 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             )}
           >
             {inativo ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={onResetSenha}
+            disabled={busy}
+            title={`Enviar link de redefinição de senha para ${p.email}`}
+            aria-label={`Enviar redefinição de senha para ${p.full_name || p.email}`}
+            className={cn(
+              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+              busy
+                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
+                : 'border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-400 dark:hover:bg-blue-900/20',
+            )}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={onDelete}
