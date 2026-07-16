@@ -15,6 +15,7 @@ import {
   DEFAULT_CONFIG,
 } from '@/store/manutencao'
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
+import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
 
 const APP_VERSION = 'v1.1.0'
 const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'contato@cci.app.br'
@@ -439,6 +440,9 @@ const Configuracoes = () => {
 
       {/* Segurança — Alterar senha */}
       <AlterarSenhaCard />
+
+      {/* Redefinir senha de outros usuários (só admin/master) */}
+      <RedefinirSenhaUsuariosCard />
 
       {/* Manutenção de Bombas */}
       <ManutencaoBombasSection />
