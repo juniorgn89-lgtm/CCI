@@ -107,9 +107,6 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
       .map((s) => ({ hora: `${String(s.h).padStart(2, '0')}h`, litros: s.litros }))
   }, [filtered])
 
-  // Projeção de fechamento do combustível. Usa `projecaoAvancada` projetando
-  // SEMPRE até o fim do mês do período (mesma metodologia dos cards de
-  // Combustível e da tabela), pra não zerar quando o período termina antes de hoje.
   // Projeção FISCAL de fechamento do combustível — a MESMA que os KPIs da página
   // mostram (engine `projecaoSazonal` sobre venda fiscal, vinda em `projecaoFiscal`).
   // Antes o modal recalculava por `projecaoAvancada` sobre o ABASTECIMENTO físico
