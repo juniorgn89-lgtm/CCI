@@ -1,9 +1,42 @@
 import { useEffect, useRef, useState } from 'react'
-import { Building2, ChevronDown } from 'lucide-react'
+import { Building2, ChevronDown, Network, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useFilters } from '@/hooks/useFilters'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import CompanySelect from '@/components/filters/CompanySelect'
 import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
+
+/**
+ * Atalho "Todos os postos" (rede consolidada = empresaCodigos vazio) — vive fora
+ * do dropdown de posto, logo abaixo da Rede. É um toggle radial: marcar consolida
+ * a rede inteira e limpa a seleção específica; escolher um posto no dropdown de
+ * baixo desmarca este atalho sozinho (a seleção passa a ter comprimento > 0).
+ */
+const TodosPostosToggle = ({ disabled }: { disabled?: boolean }) => {
+  const { empresaCodigos, setEmpresas } = useFilters()
+  const active = empresaCodigos.length === 0
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => { if (!active) setEmpresas([]) }}
+      className={cn(
+        'flex h-7 w-full items-center justify-between rounded-md border px-2 text-[11px] font-normal transition-colors xl:text-xs',
+        active
+          ? 'border-[#2563eb] bg-blue-50 text-[#1e3a5f] dark:border-blue-500/50 dark:bg-blue-950/30 dark:text-blue-100'
+          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+        disabled && 'pointer-events-none opacity-40',
+      )}
+    >
+      <span className="flex items-center gap-1.5 truncate">
+        <Network className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
+        <span className="truncate">Todos os postos</span>
+        <span className="text-[10px] text-gray-400">rede consolidada</span>
+      </span>
+      <Check className={cn('h-3.5 w-3.5 shrink-0 text-[#2563eb]', active ? 'opacity-100' : 'opacity-0')} />
+    </button>
+  )
+}
 
 interface HeaderContextMenuProps {
   /** Rótulo do contexto atual (posto/rede) — exibido na própria pílula. */
@@ -73,9 +106,10 @@ const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: H
           </p>
           <div className="flex flex-col gap-2">
             <RedeSwitcher />
+            {showCompanySelect && allowTodos && <TodosPostosToggle disabled={liveLock} />}
             {showCompanySelect && (
               <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-                <CompanySelect allowTodos={allowTodos} onApplied={() => setOpen(false)} />
+                <CompanySelect allowTodos={allowTodos} hideTodosRow={allowTodos} onApplied={() => setOpen(false)} />
               </span>
             )}
             <ComoFuncionaButton />
