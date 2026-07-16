@@ -50,7 +50,7 @@ export interface ProjecaoSazonalPiloto {
 
 const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, setor = 'combustivel'): ProjecaoSazonalPiloto => {
   const { empresaCodigos, dataInicial, comparisonMode } = useFilterStore()
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000, enabled })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000, enabled })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])
 

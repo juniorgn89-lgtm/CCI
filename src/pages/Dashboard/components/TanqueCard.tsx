@@ -88,34 +88,34 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
               {' '}em{' '}
               <span className="tabular-nums">{fmtDateShort(t.ultimaCompra.data)}</span>
               {t.ultimaCompra.valorEstimado > 0 && (
-                <> · <span className="tabular-nums" title="Estimado: volume × preço de custo do dia">
+                <> · <span className="inline-flex items-center gap-0.5 tabular-nums">
                   {formatCurrency(t.ultimaCompra.valorEstimado)}
+                  <InfoHint text="Estimado: volume × preço de custo do dia" />
                 </span></>
               )}
               {t.ultimaCompra.precoCusto > 0 && (
-                <> · <span className="whitespace-nowrap tabular-nums text-gray-500 dark:text-gray-400" title="Custo unitário (R$/L) na data da compra">
+                <> · <span className="inline-flex items-center gap-0.5 whitespace-nowrap tabular-nums text-gray-500 dark:text-gray-400">
                   {formatCurrency(t.ultimaCompra.precoCusto)}/L
+                  <InfoHint text="Custo unitário (R$/L) na data da compra" />
                 </span></>
               )}
             </span>
           </span>
         ) : (
-          <span
-            className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500"
-            title="Sem nota de compra cadastrada pra este produto nos últimos 90 dias."
-          >
+          <span className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Sem compras no período
+            <InfoHint text="Sem nota de compra cadastrada pra este produto nos últimos 90 dias." />
           </span>
         )}
         {t.necessidadeFimDoMes > 0 ? (
-            <span
-              className="inline-flex items-start gap-1 text-blue-700 dark:text-blue-400"
-              title="Projeção: consumo médio diário × dias restantes do mês − estoque atual"
-            >
+            <span className="inline-flex items-start gap-1 text-blue-700 dark:text-blue-400">
               <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                Comprar até fim do mês:{' '}
+                <span className="inline-flex items-center gap-0.5">
+                  Comprar até fim do mês
+                  <InfoHint text="Projeção: consumo médio diário × dias restantes do mês − estoque atual" />
+                </span>:{' '}
                 <span className="whitespace-nowrap font-semibold tabular-nums">
                   {formatLiters(t.necessidadeFimDoMes)}
                 </span>
@@ -127,12 +127,10 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
               </span>
             </span>
           ) : (
-            <span
-              className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500"
-              title="Sem consumo registrado no período — sistema não consegue projetar necessidade."
-            >
+            <span className="inline-flex items-start gap-1 italic text-gray-400 dark:text-gray-500">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Sem movimentação no período
+              <InfoHint text="Sem consumo registrado no período — sistema não consegue projetar necessidade." />
             </span>
           )}
         </div>

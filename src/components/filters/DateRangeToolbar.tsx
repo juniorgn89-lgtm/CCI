@@ -169,7 +169,7 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
           )}
         >
           <Eye className="h-3.5 w-3.5" />
-          Visualizar
+          Aplicar
           {dirty && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="Alterações não aplicadas" />}
         </button>
       )}

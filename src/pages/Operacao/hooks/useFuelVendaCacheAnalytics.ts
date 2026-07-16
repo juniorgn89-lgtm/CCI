@@ -44,7 +44,7 @@ const useFuelVendaCacheAnalytics = () => {
   // "Todos" ([]) = todos os postos PERMITIDOS (profiles), não a rede RLS inteira.
   // O cache vem rede-wide (RLS = rede toda); sem este recorte, a aba somaria
   // postos fora da permissão e divergiria da Visão Geral.
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
 

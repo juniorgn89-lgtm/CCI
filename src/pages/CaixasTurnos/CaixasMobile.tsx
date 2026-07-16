@@ -308,7 +308,7 @@ const TurnosTab = ({ turnoGroups }: { turnoGroups: TurnoGroup[] }) => {
 const CaixasMobile = () => {
   // Caixa é por-posto → um posto por vez, com seletor quando o filtro tem mais.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const postos = empresaCodigos.length === 0
     ? empresasPermitidas

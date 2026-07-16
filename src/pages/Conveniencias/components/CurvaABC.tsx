@@ -116,7 +116,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
       {/* Resumo A / B / C */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {resumo.map((r) => (
-          <div key={r.classe} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div key={r.classe} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex items-center gap-2">
               <span className={cn('inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold', classeStyle[r.classe])}>
                 {r.classe}
@@ -136,7 +136,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
       {/* Gráfico de grupos (clicável) + tabela classificada */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Faturamento por grupo */}
-        <div className="flex h-[640px] flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 xl:col-span-1">
+        <div className="flex h-[640px] flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black xl:col-span-1">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Faturamento - Por grupo de produto</h3>
           <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">Clique num grupo pra filtrar a curva ABC.</p>
           <div className="mt-3 min-h-0 flex-1 space-y-1.5 overflow-auto pr-1">
@@ -169,7 +169,7 @@ const CurvaABC = ({ products }: CurvaABCProps) => {
         </div>
 
         {/* Tabela classificada */}
-        <div className="flex h-[640px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 xl:col-span-2">
+        <div className="flex h-[640px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black xl:col-span-2">
           <div className="flex items-center justify-between gap-2 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Produtos por classe{selectedGroup ? ` · ${selectedGroup}` : ''}

@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
 import { PROJECAO_TOOLTIP_EXECUTIVA } from '@/lib/projection'
@@ -190,10 +191,11 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
 
           {/* Projeção fim do mês — só quando o período ainda tem dias futuros */}
           {projecao?.isProjetada && (
-            <section className="rounded-lg border border-blue-200 dark:border-blue-900/50" title={PROJECAO_TOOLTIP_EXECUTIVA}>
+            <section className="rounded-lg border border-blue-200 dark:border-blue-900/50">
               <div className="flex items-center gap-1.5 border-b border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
                 <LineChartIcon className="h-3.5 w-3.5" />
                 Projeção fim do mês
+                <InfoHint text={PROJECAO_TOOLTIP_EXECUTIVA} />
                 <span className="ml-auto normal-case font-normal text-blue-600/80 dark:text-blue-400/70">
                   Faltam {projecao.diasRestantes} dia{projecao.diasRestantes === 1 ? '' : 's'}
                 </span>
@@ -318,24 +320,19 @@ const Kpi = ({
   value,
   tone,
   hint,
-  tooltip,
 }: {
   Icon: typeof Wallet
   label: string
   value: string
   tone?: 'projecao'
   hint?: string
-  /** Tooltip nativo do navegador no card inteiro — usado pra explicar a métrica. */
-  tooltip?: string
 }) => (
   <div
-    title={tooltip}
     className={cn(
       'rounded-lg border p-2.5',
       tone === 'projecao'
         ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 to-white dark:border-blue-900/50 dark:from-blue-950/30 dark:to-gray-900'
         : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
-      tooltip && 'cursor-help',
     )}
   >
     <div className="flex items-center justify-between">

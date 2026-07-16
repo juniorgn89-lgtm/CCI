@@ -100,7 +100,7 @@ const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, ca
       </div>
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
       {projecao && (
-        <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+        <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
           <TrendingUp className="h-3 w-3 shrink-0" />
           <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
         </p>

@@ -516,13 +516,13 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                     {expanded ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
                     {p.posto}
                     {postoDestaque === p.posto && (
-                      <span
-                        title={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`}
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                      >
-                        <Trophy className="h-3 w-3" />
-                        Destaque
-                      </span>
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          <Trophy className="h-3 w-3" />
+                          Destaque
+                        </span>
+                        <InfoHint text={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`} />
+                      </>
                     )}
                   </span>
                 </td>

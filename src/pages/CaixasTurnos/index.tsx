@@ -45,7 +45,7 @@ const CaixasTurnos = () => {
   // Caixa/turno é por-posto (conferência e fechamento se conciliam por loja).
   // Mostra UM posto por vez, com seletor quando o filtro tem mais de um.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const postos = empresaCodigos.length === 0
     ? empresasPermitidas

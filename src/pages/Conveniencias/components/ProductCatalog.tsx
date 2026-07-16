@@ -77,7 +77,6 @@ const ProductCatalog = ({ products, gruposList }: ProductCatalogProps) => {
               'tabular-nums cursor-help',
               isProjetada && 'font-semibold text-blue-700 dark:text-blue-400',
             )}
-            title={PROJECAO_TOOLTIP_PRODUTO}
           >
             {formatCurrencyInt(proj)}
           </span>

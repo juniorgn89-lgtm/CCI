@@ -37,18 +37,20 @@ const CompBadge = ({ current, previous, label, title }: { current: number; previ
   const up = pct >= 0
   const Icon = up ? TrendingUp : TrendingDown
   return (
-    <span
-      title={title}
-      className={cn(
-        'mt-2 inline-flex items-center gap-1 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-        up
-          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/25 dark:text-emerald-400'
-          : 'bg-red-50 text-red-600 dark:bg-red-900/25 dark:text-red-400',
-      )}
-    >
-      <Icon className="h-3 w-3 shrink-0" />
-      {up ? '+' : ''}{pct.toFixed(1).replace('.', ',')}%
-      <span className="font-medium opacity-70">vs {label}</span>
+    <span className="mt-2 inline-flex items-center gap-1 self-start">
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+          up
+            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/25 dark:text-emerald-400'
+            : 'bg-red-50 text-red-600 dark:bg-red-900/25 dark:text-red-400',
+        )}
+      >
+        <Icon className="h-3 w-3 shrink-0" />
+        {up ? '+' : ''}{pct.toFixed(1).replace('.', ',')}%
+        <span className="font-medium opacity-70">vs {label}</span>
+      </span>
+      <InfoHint text={title} />
     </span>
   )
 }
@@ -406,7 +408,10 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             <p className="inline-flex flex-wrap items-center gap-1.5 text-[15px] font-bold text-white">
               <span
                 className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT_CONFIA[projResumo.confiabilidade])}
-                title={`${LABEL_CONFIA[projResumo.confiabilidade]} · ${projResumo.confiabilidadePct}%`}
+              />
+              <InfoHint
+                text={`${LABEL_CONFIA[projResumo.confiabilidade]} · ${projResumo.confiabilidadePct}%`}
+                className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
               Projeção
               <InfoHint
@@ -414,15 +419,20 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
               {projResumo.cmpPct !== null && (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-                    projResumo.cmpPct >= 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
-                  )}
-                  title={`Projeção da rede vs fechamento do ${cmpLabelLong} (${formatCurrencyInt(global.faturamentoAnoAnterior)})`}
-                >
-                  {projResumo.cmpPct >= 0 ? '▲' : '▼'} {projResumo.cmpPct >= 0 ? '+' : ''}{projResumo.cmpPct.toFixed(1).replace('.', ',')}% vs {cmpLabelLong}
-                </span>
+                <>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                      projResumo.cmpPct >= 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
+                    )}
+                  >
+                    {projResumo.cmpPct >= 0 ? '▲' : '▼'} {projResumo.cmpPct >= 0 ? '+' : ''}{projResumo.cmpPct.toFixed(1).replace('.', ',')}% vs {cmpLabelLong}
+                  </span>
+                  <InfoHint
+                    text={`Projeção da rede vs fechamento do ${cmpLabelLong} (${formatCurrencyInt(global.faturamentoAnoAnterior)})`}
+                    className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
+                  />
+                </>
               )}
             </p>
             <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Fim do mês'}</p>

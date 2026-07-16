@@ -102,7 +102,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
   }, [data.rows])
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex flex-wrap items-start justify-between gap-6">
         {/* Threshold + grupo + texto */}
         <div className="space-y-3">
@@ -138,7 +138,7 @@ const ParetoAnalysis = ({ products }: ParetoAnalysisProps) => {
           </div>
           <p className="max-w-md text-sm leading-relaxed text-gray-700 dark:text-gray-300">
             <span className="font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.rows.length)} produtos</span>, de{' '}
-            <span className="font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.totalVendidos)} vendidos</span> no mês,
+            <span className="font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.totalVendidos)} vendidos</span> no período,
             representam até <span className="font-bold text-gray-900 dark:text-gray-100">{threshold}%</span> do faturamento,
             totalizando <span className="font-bold text-gray-900 dark:text-gray-100">{formatCurrency(data.paretoFat)}</span>.
           </p>

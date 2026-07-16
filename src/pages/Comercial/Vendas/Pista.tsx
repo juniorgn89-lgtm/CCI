@@ -140,7 +140,7 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
       </div>
     )}
     {projecao && !loading && (
-      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
       </p>
@@ -183,7 +183,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const sz = useProjecaoSazonalPiloto(EMPTY_FUEL_DAILY, true, 'automotivos')
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira) — senão a aba
   // somaria postos fora da permissão e divergiria da Visão Geral.
-  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
   const empresaNome = useEmpresaNome()
@@ -1080,7 +1080,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por categoria</h2>
               <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Performance agregada dos grupos PS- por família de produto
+                Performance agregada dos grupos automotivos por família de produto
               </p>
             </div>
             {isLoadingVendas ? (
@@ -1103,7 +1103,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                     <col span={4} className={GROUP_TINT.financeiro} />
                     <col span={3} className={GROUP_TINT.eficiencia} />
                   </colgroup>
-                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <th className="px-3 py-1.5" />
                       <GroupTh first label="Operação" colSpan={1} />
@@ -1111,7 +1111,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                       <GroupTh label="Eficiência" colSpan={3} />
                     </tr>
                     <tr>
-                      <HeaderHint align="left" label="Categoria" help="Família agregada dos grupos PS- (filtros, lubrificantes, palhetas, etc.)." />
+                      <HeaderHint align="left" label="Categoria" help="Família agregada dos grupos automotivos (filtros, lubrificantes, palhetas, etc.)." />
                       <HeaderHint label="Qtde" help="Total de unidades vendidas na categoria." />
                       <HeaderHint groupStart label="Faturamento" help="Receita total da categoria (R$)." />
                       <HeaderHint label="Custo" help="Custo total da categoria (R$)." />
@@ -1159,7 +1159,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                     {idx === 0 && cats.length > 1 && (
                                       <span
                                         className="inline-flex shrink-0"
-                                        title="Categoria com maior faturamento"
                                         aria-label="Categoria com maior faturamento"
                                       >
                                         <Trophy className="h-3 w-3 text-amber-500" />
@@ -1168,7 +1167,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                                     {idx === cats.length - 1 && cats.length > 1 && (
                                       <span
                                         className="inline-flex shrink-0"
-                                        title="Categoria com menor faturamento"
                                         aria-label="Categoria com menor faturamento"
                                       >
                                         <TrendingDown className="h-3 w-3 text-red-500" />
@@ -1257,7 +1255,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                   value={estoqueFiltro}
                   onChange={(e) => setEstoqueFiltro(e.target.value as typeof estoqueFiltro)}
                   className="h-8 rounded-md border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  title="Filtra pela cobertura de estoque"
                 >
                   <option value="todos">Todos estoques</option>
                   <option value="critico">🔴 Crítico (&lt; 7d)</option>
@@ -1283,11 +1280,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <HeaderHint align="left" label="Ref." help="Código de referência (SKU) do produto." />
                       <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />
-                      <HeaderHint align="left" label="Categoria" help="Família PS- (filtros, lubrificantes, etc.)." />
+                      <HeaderHint align="left" label="Categoria" help="Família de produto automotivo (filtros, lubrificantes, palhetas, etc.)." />
                       <HeaderHint label="Unidades" help="Quantidade total de unidades vendidas." />
                       <HeaderHint label="Cobertura" help="Dias de estoque restantes: saldo atual ÷ venda diária média do período." />
                       <HeaderHint label="Faturamento" help="Receita total do produto (R$)." />

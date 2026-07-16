@@ -213,7 +213,7 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   // Consolidado rede-wide (cache apuracao_vendas). `single1Posto` libera o único
   // bloco por-posto que não consolida: saldo de estoque.
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira).
-  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
   // Índice sazonal (dia-da-semana) rede-wide do setor conveniência + total do mês

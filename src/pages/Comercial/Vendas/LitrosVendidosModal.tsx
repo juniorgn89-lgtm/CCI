@@ -68,7 +68,7 @@ const LitrosVendidosModal = ({ open, onClose, dataInicial, dataFinal }: Props) =
             <section className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
+                  <tr className="border-b border-gray-200 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:bg-transparent dark:text-gray-400">
                     <th className="px-2.5 py-2 text-left font-medium">Produto</th>
                     <th className="whitespace-nowrap px-2.5 py-2 text-right font-medium">Abertura</th>
                     <th className="whitespace-nowrap px-2.5 py-2 text-right font-medium"><Op>+</Op>Entrada</th>

@@ -41,7 +41,7 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
         onClick={() => onOpenChange(false)}
         className="mt-6 w-full rounded-lg bg-[#1e3a5f] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#162d4a] active:scale-[0.99]"
       >
-        Visualizar
+        Aplicar
       </button>
     </SheetContent>
   </Sheet>

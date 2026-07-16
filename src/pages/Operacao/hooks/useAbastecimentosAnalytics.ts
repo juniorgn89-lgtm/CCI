@@ -211,7 +211,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
   // o user não filtrou empresa específica (vê todas da rede).
   const { data: empresasDataForCount } = useQuery({
     queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
+    queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 10 * 60 * 1000,
   })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataForCount?.resultados ?? [])
@@ -364,7 +364,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
 
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
+    queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 10 * 60 * 1000,
   })
 

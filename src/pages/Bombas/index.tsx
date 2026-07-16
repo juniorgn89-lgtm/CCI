@@ -31,7 +31,7 @@ const Bombas = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // Bomba é físico por-posto (precisão centavo → segue live). Mostra UM posto por
   // vez, com seletor quando o filtro tem mais de um (Todos/subconjunto).
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const postos = empresaCodigos.length === 0
     ? empresasPermitidas

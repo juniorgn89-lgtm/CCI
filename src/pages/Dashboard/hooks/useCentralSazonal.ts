@@ -42,7 +42,7 @@ export interface CentralSazonal {
 
 const useCentralSazonal = (): CentralSazonal => {
   const { empresaCodigos, dataInicial } = useFilterStore()
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])
   const monthStart = `${(dataInicial || todayLocal()).slice(0, 7)}-01`

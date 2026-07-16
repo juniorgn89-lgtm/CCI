@@ -181,7 +181,7 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
       </div>
     )}
     {projecao && !loading && (
-      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400" title="Projeção para o fim do mês">
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
       </p>
@@ -1318,7 +1318,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     <div className="p-4">
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       {/* Chart 1: Litros (bar) + L.B./Litro (line) */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-transparent">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                           Litros vendidos e L.B./Litro por mês
                         </h3>
@@ -1362,7 +1362,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </div>
 
                       {/* Chart 2: Lucro bruto (bar) + Margem % (line) */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-transparent">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                           Lucro bruto e Margem por mês
                         </h3>
@@ -1437,11 +1437,11 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                   ) : (
                     <div className="grid grid-cols-1 items-stretch gap-4 p-4 lg:grid-cols-[1fr_1.12fr]">
                       {/* Esquerda: gráfico de linha premium (SVG à mão) */}
-                      <AnaliseSemanalLineCard data={semanalDaily} />
+                      <AnaliseSemanalLineCard data={semanalDaily} cardBg="bg-white dark:bg-transparent" />
 
                       {/* Direita: heatmap "Média por dia da semana × combustível" — h-full
                           pra empatar a altura com o card da esquerda (items-stretch). */}
-                      <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                      <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-transparent">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

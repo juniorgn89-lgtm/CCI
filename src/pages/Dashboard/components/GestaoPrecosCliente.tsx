@@ -30,7 +30,7 @@ const GestaoPrecosCliente = () => {
       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
         <Users className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
         <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhum preço especial por cliente</p>
-        <p className="mt-1 text-[12px] text-gray-400">Ingira a aba "Tabela de Preço" do Cadastro de Clientes do WebPosto — ver <code>docs/supabase-gestao-precos-cliente.sql</code>.</p>
+        <p className="mt-1 text-[12px] text-gray-400">Cadastre a tabela de preço por cliente no WebPosto para vê-la aqui.</p>
       </div>
     )
   }
@@ -78,7 +78,7 @@ const GestaoPrecosCliente = () => {
       </div>
 
       <p className="flex items-center gap-1.5 px-1 text-[11px] text-gray-400">
-        <Info className="h-3 w-3 shrink-0" /> Espelho do contrato por cliente (preço calculado = referência). A comparação <strong>praticado × contrato por cliente</strong> entra com o join venda→cliente (cron) — Fase 2.5.
+        <Info className="h-3 w-3 shrink-0" /> Espelho do contrato por cliente (preço calculado = referência). A comparação <strong>praticado × contrato por cliente</strong> chega em breve.
       </p>
     </div>
   )
