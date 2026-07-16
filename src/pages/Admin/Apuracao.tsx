@@ -36,6 +36,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
+import type { Abastecimento, LMC } from '@/api/types/combustivel'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchVendaResumo, fetchVendaFormasPagamento, fetchVendaItens, fetchVendaCodigosAutorizados } from '@/api/endpoints/vendas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
@@ -228,6 +229,10 @@ const Apuracao = () => {
   // Estado por mês durante apuração (em_andamento / erro)
   const [progress, setProgress] = useState<Map<number, MonthState>>(new Map())
   const [running, setRunning] = useState(false)
+  // Avisos de degradação por mês (ex.: /LMC ou /ABASTECIMENTO fora do ar). Fica
+  // FORA do `progress` porque este é recalculado do DB pelo refetchStatus — o
+  // aviso precisa sobreviver ao "apurado" pra não esconder o físico degradado.
+  const [avisos, setAvisos] = useState<Map<number, string>>(new Map())
 
   const computeStatus = (month: number): MonthState => {
     const ongoing = progress.get(month)
@@ -314,8 +319,20 @@ const Apuracao = () => {
         return set
       }
 
+      // /ABASTECIMENTO e /LMC têm um bug de 500 no servidor da Quality em certos
+      // meses (parse de datetime — jun/jul 2026). Eles alimentam só os caches
+      // FÍSICOS (abastecimento + custo via LMC). A apuração de VENDAS — o número
+      // que bate com o WebPosto — vem do /VENDA_ITEM e NÃO depende deles. Então
+      // degradamos pra vazio em vez de derrubar o mês inteiro no Promise.all: o
+      // cache de vendas é gravado mesmo com o endpoint físico fora do ar.
+      let abastFalhou = false
+      let lmcFalhou = false
       const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos, autorizados] = await Promise.all([
-        fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }),
+        fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }).catch((e) => {
+          abastFalhou = true
+          console.warn('[apuracao] /ABASTECIMENTO falhou — seguindo sem físico:', (e as Error)?.message)
+          return [] as Abastecimento[]
+        }),
         fetchAllPages(
           (p) => fetchLmc({
             empresaCodigo: empresasCodes,
@@ -323,7 +340,11 @@ const Apuracao = () => {
             ultimoCodigo: p.ultimoCodigo, limite: p.limite,
           }),
           1000, 50
-        ),
+        ).catch((e) => {
+          lmcFalhou = true
+          console.warn('[apuracao] /LMC falhou — custo físico degradado, vendas seguem via CMV:', (e as Error)?.message)
+          return [] as LMC[]
+        }),
         fetchVendaResumo({ dataInicial: start, dataFinal: end }),
         fetchCaixasAllEmpresas(),
         fetchFormasAllEmpresas(),
@@ -427,6 +448,20 @@ const Apuracao = () => {
         upsertVendasCache([...vendaRows, ...tombstones], currentUser?.id),
         upsertVendasFuncionarioCache(vendaFuncRows, currentUser?.id),
       ])
+      // Honestidade: se o físico degradou, registra o aviso (as vendas foram
+      // gravadas com o custo CMV/totalCusto, mas o abast/LMC daquele mês não).
+      setAvisos((prev) => {
+        const next = new Map(prev)
+        const partes: string[] = []
+        if (abastFalhou) partes.push('/ABASTECIMENTO')
+        if (lmcFalhou) partes.push('/LMC')
+        if (partes.length > 0) {
+          next.set(month, `${partes.join(' e ')} fora do ar (bug da Quality) — vendas apuradas via CMV; custo físico degradado neste mês.`)
+        } else {
+          next.delete(month)
+        }
+        return next
+      })
       return { ok: true, rows: rows.length }
     } catch (e) {
       const msg = (e as Error).message || 'Erro desconhecido'
@@ -663,6 +698,7 @@ const Apuracao = () => {
                 isFutureMonth={isFutureMonth}
                 isCurrentMonth={isCurrentMonth}
                 disabled={running}
+                aviso={avisos.get(month)}
                 onApurar={() => handleApurarMes(month)}
               />
             )
@@ -686,10 +722,12 @@ interface MonthCardProps {
   isFutureMonth: boolean
   isCurrentMonth: boolean
   disabled: boolean
+  /** Aviso de degradação da última apuração (ex.: /LMC fora do ar). */
+  aviso?: string
   onApurar: () => void
 }
 
-const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onApurar }: MonthCardProps) => {
+const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, aviso, onApurar }: MonthCardProps) => {
   const { Icon, color, statusLabel } = (() => {
     switch (state.status) {
       case 'em_andamento':
@@ -784,6 +822,15 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, onAp
               ? `${closedDaysCurrentMonth} dia${closedDaysCurrentMonth === 1 ? '' : 's'} fechado${closedDaysCurrentMonth === 1 ? '' : 's'} já cobertos. Reapurar quando virar o dia.`
               : `${closedDaysCurrentMonth} dia${closedDaysCurrentMonth === 1 ? '' : 's'} fechado${closedDaysCurrentMonth === 1 ? '' : 's'} pra apurar.`}
           </span>
+        </div>
+      )}
+
+      {/* Aviso de degradação — físico (abast/LMC) fora do ar na última apuração.
+          Vendas foram gravadas via CMV; o custo físico do mês ficou incompleto. */}
+      {aviso && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10.5px] leading-snug text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400">
+          <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{aviso}</span>
         </div>
       )}
 
