@@ -26,7 +26,7 @@ export interface ComercialFuelRow {
   margemL: number
   precoVenda: number
   precoCusto: number
-  /** % do volume do combustível com custo de reposição (>0). */
+  /** true quando o produto tem custo de reposição apurado (precoCusto > 0). */
   comCusto: boolean
 }
 
@@ -74,8 +74,12 @@ const diffDays = (fromIso: string, toIso: string): number => {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000)
 }
 
+// Comercial é REDE-WIDE (compara postos entre si) → ignora o filtro de empresa.
+// Referência estável pra não recomputar o memo do useRedeSetores. Ver moduloRedeWide.
+const REDE_WIDE: number[] = []
+
 const useComercialData = (): ComercialData => {
-  const rede = useRedeSetores()
+  const rede = useRedeSetores({ empresaCodigos: REDE_WIDE })
   const { dataFinal } = useFilterStore()
 
   const empresaCodigos = useMemo(

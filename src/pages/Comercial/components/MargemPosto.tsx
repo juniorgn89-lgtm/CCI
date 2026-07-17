@@ -23,13 +23,14 @@ const margemL = (v: number) => `${formatCurrency(v)}/L`
 
 /** Selo de frescor do custo de reposição. Verde discreto quando fresco; escala
  *  pra âmbar/vermelho conforme envelhece (mecanismo armado, dormente com dado
- *  fresco). É o que sustenta "a margem é fato" — custo velho = margem errada na
- *  virada de preço. */
+ *  fresco). A margem sai do CMV apurado (não é recalculada do LMC) — o selo só
+ *  sinaliza RISCO de a margem apurada estar desatualizada quando a última carga
+ *  (LMC) envelhece além de um reajuste recente. */
 const frescorTone = (staleDays: number | null) => {
-  if (staleDays == null) return { cls: 'text-gray-400', Icon: AlertTriangle, label: 'sem custo' }
-  if (staleDays <= 2) return { cls: 'text-emerald-600 dark:text-emerald-400', Icon: ShieldCheck, label: `custo ${''}` }
-  if (staleDays <= 7) return { cls: 'text-amber-600 dark:text-amber-400', Icon: AlertTriangle, label: 'custo' }
-  return { cls: 'text-red-600 dark:text-red-400', Icon: AlertTriangle, label: 'custo defasado' }
+  if (staleDays == null) return { cls: 'text-gray-400', Icon: AlertTriangle }
+  if (staleDays <= 2) return { cls: 'text-emerald-600 dark:text-emerald-400', Icon: ShieldCheck }
+  if (staleDays <= 7) return { cls: 'text-amber-600 dark:text-amber-400', Icon: AlertTriangle }
+  return { cls: 'text-red-600 dark:text-red-400', Icon: AlertTriangle }
 }
 
 const KpiCard = ({
@@ -126,7 +127,7 @@ const MargemPosto = () => {
     }
     const fazer: string[] = [
       `Priorizar os 3 piores postos: alinhá-los à média da rede vale uma estimativa de ${formatCurrencyInt(data.ganhoPotencial3Piores)} no período — sem vender 1 litro a mais.`,
-      'Atacar o custo onde a margem é baixa (renegociar bonificação) antes do preço — evita perder volume/frota.',
+      'Atacar o custo onde a margem é baixa (renegociar bonificação) antes do preço — evita perder volume.',
       'Definir uma régua de preço por praça (aba Concorrência) pra fechar a dispersão.',
     ]
     return { acontecendo, fazer }
@@ -176,7 +177,7 @@ const MargemPosto = () => {
           label="Margem média da rede" sub={`ponderada por volume · ${data.postos.length} unidades`}
           value={margemL(data.redeMargemL)}
           foot={<>LB total {formatCurrencyInt(data.redeLucroBruto)} · {formatLitersShort(data.redeLitros)}</>}
-          help="Margem média da rede em R$/L, ponderada pelo volume de cada posto (lucro bruto total ÷ litros totais). Usa o custo de reposição da última carga (LMC)."
+          help="Margem média da rede em R$/L, ponderada pelo volume de cada posto (lucro bruto total ÷ litros totais). O custo é o CMV apurado das vendas."
         />
         <KpiCard
           Icon={Trophy} label="Maior margem" sub="melhor posto" tone="green"
@@ -209,12 +210,12 @@ const MargemPosto = () => {
         {frescorOk ? <ShieldCheck className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
         <span className="font-medium">
           {frescorOk
-            ? `Custo de reposição atualizado — última carga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). A margem é fato sólido.`
-            : `Custo de reposição defasado em algum posto — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). A margem pode errar na virada de preço.`}
+            ? `Custo de reposição recente — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Boa base pra ler a margem.`
+            : `Custo de reposição defasado em algum posto — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Se houve reajuste recente, a margem apurada pode estar desatualizada.`}
         </span>
         <InfoHint
           className="ml-auto"
-          text="A margem usa o custo de reposição da última carga (LMC). Quando esse custo envelhece além do último reajuste, a margem exibida fica imprecisa. O selo escala de verde → âmbar → vermelho conforme a defasagem."
+          text="A margem sai do CMV apurado das vendas — não é recalculada do LMC. O selo usa a DATA da última carga (LMC) como sinal de frescor: se o custo de compra envelheceu além do último reajuste, a margem apurada pode estar desatualizada. Verde → âmbar → vermelho conforme a defasagem."
         />
       </div>
 
@@ -288,7 +289,7 @@ const MargemPosto = () => {
                   </span>
                   {p.coberturaCustoPct < 99.5 && (
                     <span className="hidden rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 md:inline">
-                      custo {p.coberturaCustoPct.toFixed(0)}%
+                      {p.coberturaCustoPct.toFixed(0)}% com custo
                     </span>
                   )}
 

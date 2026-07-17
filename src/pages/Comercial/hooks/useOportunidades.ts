@@ -67,8 +67,11 @@ const isoMinusDays = (iso: string, n: number): string => {
 const diffDays = (fromIso: string, toIso: string): number =>
   Math.round((new Date(`${toIso}T00:00:00`).getTime() - new Date(`${fromIso}T00:00:00`).getTime()) / 86_400_000)
 
+// Comercial é REDE-WIDE (rankeia postos) → ignora o filtro de empresa (ref estável).
+const REDE_WIDE: number[] = []
+
 const useOportunidades = (): OportunidadesData => {
-  const rede = useRedeSetores()
+  const rede = useRedeSetores({ empresaCodigos: REDE_WIDE })
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const desde = useMemo(() => isoMinusDays(dataFinal, 30), [dataFinal])
@@ -135,7 +138,12 @@ const useOportunidades = (): OportunidadesData => {
       for (const [slug, my] of myBySlug) {
         const a = agg.get(slug)
         if (!a || a.den <= 0 || my.volume <= 0) continue
-        pracaCovered.add(`${p.empresaCodigo}|${slug}`) // tem praça → não cai no fallback de rede
+        // Marca ANTES do check de gap DE PROPÓSITO: se o posto tem praça
+        // cadastrada pro combustível, a régua de praça manda. Abaixo da praça →
+        // vira op de Praça abaixo; já na/acima da praça → NÃO entra na alavanca
+        // Margem (subir mais empurraria o preço ACIMA da concorrência). Sem
+        // praça, o combustível cai no fallback de rede.
+        pracaCovered.add(`${p.empresaCodigo}|${slug}`)
         const praca = a.num / a.den
         const gap = praca - my.preco // >0 = posso subir até a praça
         if (gap <= 0.005) continue // já na praça ou acima
@@ -160,15 +168,16 @@ const useOportunidades = (): OportunidadesData => {
             `Volume de ${Math.round(my.volume).toLocaleString('pt-BR')} L no período: alinhar à praça = ${lbL(gap)}/L × volume = ${milShort(potencial)}.`,
             `Praça observada há ${a.stale}d (confiança ${conf}%). Mesma base do "Ganho de pricing" da aba Concorrência.`,
           ],
-          risco: 'Alinhar à praça assume volume pouco sensível (sem elasticidade — roadmap). Subir gradual e monitorar volume/frota.',
+          risco: 'Alinhar à praça assume volume pouco sensível (sem elasticidade — roadmap). Subir gradual e monitorar o volume.',
         })
       }
     }
 
     // ── Alavanca MARGEM vs REDE (coexistência): posto × combustível abaixo da
-    // média da rede. Pula combustível que já tem oportunidade de PRAÇA (régua
-    // melhor) → sem dupla contagem. Sem praça cadastrada, TODOS entram aqui — é o
-    // comportamento "por rede" de antes.
+    // média da rede. Pula combustível com PRAÇA cadastrada — já tratado pela
+    // régua de praça acima (abaixo da praça vira op de Praça; na/acima não
+    // sugere subir, pra não passar da concorrência). Sem praça cadastrada, TODOS
+    // entram aqui — é o comportamento "por rede" de antes.
     const fuelTot = new Map<number, { lb: number; litros: number }>()
     for (const p of comb.postos) {
       for (const pr of p.produtos) {
@@ -215,7 +224,7 @@ const useOportunidades = (): OportunidadesData => {
             `Volume de ${Math.round(pr.qtd).toLocaleString('pt-BR')} L no período: cada R$ 0,01/L recuperado = ${milShort(pr.qtd * 0.01)}.`,
             `Alvo conservador ${lbL(alvo)} (70% do caminho até a média) × volume = estimativa de ${milShort(potencial)}.`,
           ],
-          risco: 'Comparação interna (vs média da rede), não com a concorrência local. Pode haver motivo legítimo (mais concorrência/frota). Cadastre a praça pra a régua local.',
+          risco: 'Comparação interna (vs média da rede), não com a concorrência local. Pode haver motivo legítimo (mais concorrência na região). Cadastre a praça pra a régua local.',
         })
       }
     }

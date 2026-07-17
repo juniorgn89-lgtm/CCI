@@ -80,6 +80,7 @@ const SimStat = ({ label, value, tone }: { label: string; value: string; tone?: 
 const RadarMobile = () => {
   const { rows, fuelTypeData, isLoading } = useAbastecimentosAnalytics()
   const dataInicial = useFilterStore((s) => s.dataInicial)
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
 
   const fuelsByVolume = useMemo(
     () => [...fuelTypeData].filter((f) => f.litros > 0).sort((a, b) => b.litros - a.litros),
@@ -271,8 +272,8 @@ const RadarMobile = () => {
       score, tone, verdict, Icon, resumo,
       factors: [
         { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(2).replace('.', ',')}%` },
-        { label: 'Folga de elasticidade', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)}` : '—' },
-        { label: 'Momentum de volume', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
+        { label: 'Reação do volume', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)}` : '—' },
+        { label: 'Volume na semana', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
         { label: 'Resposta a cortes', value: histScore, hint: elasticidade != null ? `${cortes.length} corte(s)` : 'sem histórico' },
       ],
     }
@@ -294,7 +295,12 @@ const RadarMobile = () => {
 
   if (isLoading) return <LoadingScreen message="Carregando radar de preços…" />
   if (fuelsByVolume.length === 0) {
-    return <EmptyCard title="Sem vendas de combustível" desc="Não há vendas de combustível no período pra analisar. Selecione um posto e período no filtro." />
+    // O Radar usa o ritmo de bomba POR POSTO (abastecimento físico), que só vem
+    // com 1 posto selecionado — separa esse motivo do "sem vendas" de verdade.
+    if (empresaCodigos.length !== 1) {
+      return <EmptyCard title="Selecione um único posto" desc="O Radar de Preços analisa o ritmo de bomba por posto — escolha UM posto no filtro pra ver a simulação." />
+    }
+    return <EmptyCard title="Sem vendas de combustível" desc="Não há vendas de combustível no período pra analisar. Ajuste o período no filtro." />
   }
 
   const maxCut = Math.max(0.2, Math.ceil(agg.lbLitro * 100) / 100)
@@ -418,7 +424,7 @@ const RadarMobile = () => {
             />
             <div className="mt-1 flex justify-between text-[9.5px] tabular-nums text-gray-400">
               <span>R$ 0,00</span>
-              <span>break-even {moneyL(agg.lbLitro).slice(3)}</span>
+              <span>sem lucro a partir de {moneyL(agg.lbLitro).slice(3)}</span>
               <span>R$ {moneyLraw(maxCut).slice(0, 4)}</span>
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -510,7 +516,7 @@ const RadarMobile = () => {
 
           {/* Curva de elasticidade */}
           {elasticData.length > 0 && (
-            <Section Icon={Zap} title="Curva de elasticidade" accent="amber">
+            <Section Icon={Zap} title="Volume extra por corte" accent="amber">
               <p className="mb-2 text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">
                 Volume a mais necessário pra bancar cada corte (break-even){elasticidade != null && ' · "est." = crescimento previsto pela elasticidade observada'}.
               </p>

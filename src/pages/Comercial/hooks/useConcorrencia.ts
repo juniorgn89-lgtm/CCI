@@ -33,6 +33,10 @@ export interface FuelView {
   mediaPonderada: number | null
   indice: number | null
   gap: number | null
+  /** Frescor DESTE combustível = pior (maior) stale entre seus concorrentes.
+   *  `null` quando não há concorrente cadastrado. Usado no badge do gráfico
+   *  (antes ele mostrava o stale GLOBAL, que não batia com o combustível). */
+  maxStaleDays: number | null
   pontos: { data: string; preco: number; nome: string }[]
   minhaSerie: { data: string; preco: number }[]
 }
@@ -59,12 +63,16 @@ const isoMinusDays = (iso: string, n: number) => {
 const diffDays = (fromIso: string, toIso: string) =>
   Math.round((new Date(`${toIso}T00:00:00`).getTime() - new Date(`${fromIso}T00:00:00`).getTime()) / 86_400_000)
 
+// Comercial é REDE-WIDE → o "Meu posto" é seletor PRÓPRIO desta aba, então o
+// useRedeSetores precisa de TODOS os postos (ignora o filtro global). Ref estável.
+const REDE_WIDE: number[] = []
+
 const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const hoje = dataFinal // âncora de "hoje" coerente com o filtro
   const desde = useMemo(() => isoMinusDays(hoje, 30), [hoje])
-  const rede = useRedeSetores()
+  const rede = useRedeSetores({ empresaCodigos: REDE_WIDE })
 
   const { data: precos = [], isLoading: lP } = useQuery({
     queryKey: ['concorrencia', empresaCodigo, desde],
@@ -133,7 +141,9 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
     const compBySlug = new Map<FuelSlug, CompetidorAtual[]>()
     let freshnessMaxStaleDays: number | null = null
     for (const r of atualByKey.values()) {
-      const stale = diffDays(r.observado_em, hoje)
+      // Clamp em 0: se `observado_em` for futuro (relógio/âncora), stale negativo
+      // gerava confiança > 100% e frescor sempre "ok". Nunca menos que hoje.
+      const stale = Math.max(0, diffDays(r.observado_em, hoje))
       if (freshnessMaxStaleDays == null || stale > freshnessMaxStaleDays) freshnessMaxStaleDays = stale
       const arr = compBySlug.get(r.combustivel) ?? []
       arr.push({ nome: r.concorrente_nome, postos: r.concorrente_postos, preco: r.preco, observadoEm: r.observado_em, staleDays: stale })
@@ -155,10 +165,11 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
       const minhaSerie = [...(serieDia.get(slug)?.entries() ?? [])]
         .map(([data, v]) => ({ data, preco: v.lit > 0 ? v.fat / v.lit : 0 }))
         .sort((a, b) => a.data.localeCompare(b.data))
+      const maxStaleDays = competidores.length > 0 ? Math.max(...competidores.map((c) => c.staleDays)) : null
       byFuel.push({
         slug, label: FUEL_LABEL[slug],
         myPrice, myVolume: my?.volume ?? 0,
-        competidores, mediaPonderada, indice, gap,
+        competidores, mediaPonderada, indice, gap, maxStaleDays,
         pontos: (pontosBySlug.get(slug) ?? []).sort((a, b) => a.data.localeCompare(b.data)),
         minhaSerie,
       })
@@ -182,7 +193,13 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
         }
       }
     }
-    const indiceGeral = somaIdxDen > 0 ? (somaIdxNum / somaIdxDen) * 100 : null
+    // Ponderado por volume; mas se o volume vier 0 pra todos (ex.: sem venda no
+    // período, com preço e praça cadastrados), cai na MÉDIA SIMPLES dos índices
+    // por combustível — senão o KPI dizia "cadastre a praça" mesmo com praça.
+    const indicesValidos = byFuel.map((f) => f.indice).filter((v): v is number => v != null)
+    const indiceGeral = somaIdxDen > 0
+      ? (somaIdxNum / somaIdxDen) * 100
+      : (indicesValidos.length > 0 ? indicesValidos.reduce((s, v) => s + v, 0) / indicesValidos.length : null)
 
     // Autor do ÚLTIMO lançamento por concorrente (max created_at) — "quem lançou".
     const autores: Record<string, { porNome: string | null; em: string }> = {}

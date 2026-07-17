@@ -156,8 +156,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
       isProjetada: fatP.diasRestantes > 0,
       diasFechados: fatP.diasFechados,
       diasRestantes: fatP.diasRestantes,
-      monthEnd,
-      mediaLitrosDia: litrosP.mediaDiaria,
       // Baseline projetado (sem alteração de preço)
       fat: fatP.esperado, litros: litrosP.esperado, lucro: lucroP.esperado,
       margem: fatP.esperado > 0 ? (lucroP.esperado / fatP.esperado) * 100 : 0,
@@ -224,7 +222,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
       last,
       precoDelta: d(last.precoVenda, prev.precoVenda),
       custoDelta: d(last.precoCusto, prev.precoCusto),
-      lbDelta: prev.lbLitro !== 0 ? last.lbLitro / prev.lbLitro - 1 : 0,
       volDelta: d(last.litrosDia, prev.litrosDia),
     }
   }, [serie])
@@ -350,8 +347,8 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
       score, tone, verdict, Icon, resumo, refCut, breakEvenRef,
       factors: [
         { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(2).replace('.', ',')}%` },
-        { label: 'Folga de elasticidade', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)} p/ -${moneyL(refCut).slice(3)}` : '—' },
-        { label: 'Momentum de volume', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
+        { label: 'Reação do volume', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)} p/ -${moneyL(refCut).slice(3)}` : '—' },
+        { label: 'Volume na semana', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
         { label: 'Resposta a cortes', value: histScore, hint: elasticidade != null ? `${cortes.length} corte(s)` : 'sem histórico' },
       ],
     }
@@ -554,7 +551,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 />
                 <div className="mt-1 flex justify-between text-[10px] tabular-nums text-gray-400">
                   <span>R$ 0,00</span>
-                  <span>break-even em {moneyL(agg.lbLitro).slice(3)}</span>
+                  <span>sem lucro a partir de {moneyL(agg.lbLitro).slice(3)}</span>
                   <span>R$ {moneyLraw(maxCut).slice(0, 4)}</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -587,7 +584,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                   label="Nova L.B./L"
                   value={moneyL(sim.novoLb)}
                   tone={sim.belowBreakeven ? 'red' : sim.novoLb < lbMinSustentavel ? 'amber' : 'emerald'}
-                  help="Lucro bruto por litro atual menos a redução (sai direto da margem). Abaixo de zero = preço no/abaixo do custo."
+                  help="Lucro bruto por litro (média do período) menos a redução — é um retrato do estado ATUAL, não a projeção de fechamento (essa vem na tabela abaixo). Abaixo de zero = preço no/abaixo do custo."
                 />
                 <SimStat
                   label="Margem / L"
@@ -599,7 +596,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                   label="Volume p/ empatar"
                   value={sim.belowBreakeven ? '∞' : `+${pct1(sim.breakEvenGrowth)}`}
                   tone={sim.belowBreakeven ? 'red' : sim.breakEvenGrowth > 0.2 ? 'red' : sim.breakEvenGrowth > 0.1 ? 'amber' : 'emerald'}
-                  help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1. Abaixo do break-even = impossível empatar (∞)."
+                  help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1, sobre a média do período. Abaixo do break-even = impossível empatar (∞)."
                 />
               </div>
             </div>
@@ -617,7 +614,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                     </th>
                     <th className="px-3 py-2 text-right font-medium">Sem alteração</th>
                     <th className="px-3 py-2 text-right font-medium text-amber-600 dark:text-amber-400">Corte · sem reação</th>
-                    <th className="px-3 py-2 text-right font-medium text-blue-600 dark:text-blue-400">Corte · +elasticidade</th>
+                    <th className="px-3 py-2 text-right font-medium text-blue-600 dark:text-blue-400">Corte · com reação de volume</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -687,7 +684,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-500" />
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Curva de elasticidade</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Volume extra por corte</h4>
                 <InfoHint text="Para cada corte, a barra mostra o crescimento de volume necessário pra empatar o lucro: (L.B. atual ÷ (L.B. − corte)) − 1. Cor por risco (verde <10% · âmbar <20% · vermelho ≥20%). A linha azul é o crescimento estimado pela elasticidade observada." />
               </div>
               <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
@@ -916,7 +913,7 @@ const ViabilidadeHero = ({ viab, fuel }: { viab: ViabData; fuel: string }) => {
           <div>
             <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               Viabilidade da redução de preço · {fuel}
-              <InfoHint text="Score 0–100 = média ponderada de 4 fatores: saúde da margem (34%), folga de elasticidade num corte de R$0,10 (30%), momentum de volume na semana (16%) e resposta histórica a cortes (20%). ≥66 viável · 40–65 cautela · <40 alto risco." />
+              <InfoHint text="Score 0–100 = média ponderada de 4 fatores: saúde da margem (34%), reação do volume ao preço num corte de R$0,10 (30%), volume na semana (16%) e resposta histórica a cortes (20%). ≥66 viável · 40–65 cautela · <40 alto risco." />
             </p>
             <h3 className={cn('mt-0.5 text-xl font-bold', t.text)}>{viab.verdict}</h3>
             <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500 dark:text-gray-400">{viab.resumo}</p>

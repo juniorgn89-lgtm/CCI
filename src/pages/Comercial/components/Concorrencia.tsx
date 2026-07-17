@@ -154,10 +154,10 @@ const PrecoEditor = ({
                   <span>{nome}</span>
                 </div>
                 {autores[nome] && (
-                  <span className="mt-0.5 flex items-center gap-1 pl-[1.875rem] text-[10px] font-normal text-gray-400 dark:text-gray-500"
-                    title="Quem fez o último lançamento de preço deste concorrente">
+                  <span className="mt-0.5 flex items-center gap-1 pl-[1.875rem] text-[10px] font-normal text-gray-400 dark:text-gray-500">
                     <User className="h-2.5 w-2.5 shrink-0" />
                     {autores[nome].porNome ?? 'autor não registrado'} · {dataBR(autores[nome].em)}
+                    <InfoHint text="Quem fez o último lançamento de preço deste concorrente." />
                   </span>
                 )}
               </td>
@@ -345,9 +345,11 @@ const Concorrencia = () => {
     return <div className="space-y-4"><Skeleton className="h-10 w-72 rounded-lg" /><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /></div><Skeleton className="h-64 rounded-2xl" /></div>
   }
 
-  const stale = data.freshnessMaxStaleDays
+  // Frescor do combustível SELECIONADO (não o global) — o badge fica ao lado do
+  // gráfico daquele combustível, então o stale precisa ser o dele.
+  const stale = fuelChart?.maxStaleDays ?? null
   const frescorOk = stale != null && stale <= 3
-  const confianca = stale == null ? null : Math.max(20, 100 - stale * 4) // cai ~4pp/dia
+  const confianca = stale == null ? null : Math.min(100, Math.max(20, 100 - stale * 4)) // cai ~4pp/dia
 
   return (
     <div className="space-y-4">
@@ -386,22 +388,22 @@ const Concorrencia = () => {
             <DollarSign className="h-4 w-4 text-white/70" />
           </div>
           <p className="mt-2 text-3xl font-bold tabular-nums">{data.indiceGeral != null ? Math.round(data.indiceGeral) : '—'}</p>
-          <p className="mt-1 text-[11px] text-white/60">{data.indiceGeral != null ? (data.indiceGeral < 100 ? 'mais barato que a praça' : data.indiceGeral > 100 ? 'mais caro que a praça' : 'na média') : 'cadastre a praça'}</p>
+          <p className="mt-1 text-[11px] text-white/60">{data.indiceGeral != null ? (Math.abs(data.indiceGeral - 100) < 0.5 ? 'na média da praça' : `${Math.abs(Math.round(data.indiceGeral - 100))}% ${data.indiceGeral < 100 ? 'mais barato' : 'mais caro'} que a praça`) : 'cadastre a praça'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center justify-between"><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde posso subir</p><InfoHint text="Combustível onde você está mais abaixo da praça — há espaço pra subir o preço sem perder competitividade." /></div><TrendingUp className="h-4 w-4 text-emerald-500" /></div>
           <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{data.ondePossoSubir?.label ?? 'Nenhum'}</p>
-          <p className="mt-0.5 text-[11px] text-gray-500">{data.ondePossoSubir ? `${r3(data.ondePossoSubir.gap)}/L abaixo da praça` : 'tudo na praça ou acima'}</p>
+          <p className="mt-0.5 text-[11px] text-gray-500">{data.ondePossoSubir ? `dá pra cobrar ~${r3(data.ondePossoSubir.gap)}/L a mais` : 'tudo na praça ou acima'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-          <div className="flex items-center justify-between"><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde estou caro</p><InfoHint text="Combustível onde você está mais acima da praça — risco de perder volume/frota pra concorrência." /></div><TrendingDown className="h-4 w-4 text-red-500" /></div>
+          <div className="flex items-center justify-between"><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Onde estou caro</p><InfoHint text="Combustível onde você está mais acima da praça — risco de perder volume pra concorrência." /></div><TrendingDown className="h-4 w-4 text-red-500" /></div>
           <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{data.ondeEstouCaro?.label ?? 'Nenhum'}</p>
-          <p className="mt-0.5 text-[11px] text-gray-500">{data.ondeEstouCaro ? `${r3(Math.abs(data.ondeEstouCaro.gap))}/L acima · risco de volume` : 'tudo competitivo'}</p>
+          <p className="mt-0.5 text-[11px] text-gray-500">{data.ondeEstouCaro ? `~${r3(Math.abs(data.ondeEstouCaro.gap))}/L acima — risco de perder volume` : 'tudo competitivo'}</p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/10">
-          <div className="flex items-center justify-between"><div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80 dark:text-amber-400/80">Ganho de pricing</p><InfoHint className="text-amber-600/70 hover:text-amber-700 dark:text-amber-400/70" text="Estimativa (teto) do lucro adicional se você alinhasse à praça os combustíveis em que está mais barato, sem ficar acima do mercado." /></div><p className="text-[10px] text-amber-700/60">teto · alinhar à praça</p></div></div>
+          <div className="flex items-center justify-between"><div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80 dark:text-amber-400/80">Quanto dá pra ganhar</p><InfoHint className="text-amber-600/70 hover:text-amber-700 dark:text-amber-400/70" text="Estimativa (teto) do lucro adicional se você alinhasse à praça os combustíveis em que está mais barato, sem ficar acima do mercado." /></div><p className="text-[10px] text-amber-700/60">teto · alinhando à praça</p></div></div>
           <p className="mt-2 text-2xl font-bold tabular-nums text-amber-700 dark:text-amber-400">+{formatCurrencyInt(data.ganhoPricing)}</p>
-          <p className="mt-0.5 text-[10px] text-amber-700/70">estimativa · sem perder competitividade</p>
+          <p className="mt-0.5 text-[10px] text-amber-700/70">subindo os mais baratos até a praça</p>
         </div>
       </div>
 

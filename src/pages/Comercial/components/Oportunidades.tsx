@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Sparkles, TrendingUp, Percent, Zap, Fuel, ShoppingBag, ArrowRight,
-  Check, AlertTriangle, Lock, SlidersHorizontal,
+  Check, AlertTriangle, SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,6 +25,8 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
   const potencialSim = op.potencial * (frac / op.fracBase)
   const alvoSim = op.margemAtual != null && fullGap != null ? op.margemAtual + frac * fullGap : null
   const isBase = Math.abs(frac - op.fracBase) < 1e-9
+  // Referência da "distância" (o que é 100%): praça, média da rede ou potencial.
+  const refLabel = op.alavanca === 'praca' ? 'a praça' : op.alavanca === 'margem' ? 'a média da rede' : 'o potencial da rede'
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
       <div className="flex items-center gap-2 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-4 py-3 text-white">
@@ -48,6 +50,22 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
             <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-700/70 dark:text-emerald-400/70">estimativa · teto (volume constante)</p>
             {!isBase && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">what-if {Math.round(frac * 100)}% · base +{milShort(op.potencial)}</span>}
           </div>
+        </div>
+
+        {/* O QUE FAZER — a ação concreta, em destaque (acompanha o simulador). */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900/40 dark:bg-blue-950/20">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">O que fazer</p>
+          <p className="mt-0.5 text-[13px] leading-snug text-gray-800 dark:text-gray-100">
+            {op.margemAtual != null && alvoSim != null ? (
+              op.alavanca === 'praca' ? (
+                <>Cobrar <span className="font-bold tabular-nums">~R$ {(alvoSim - op.margemAtual).toFixed(2).replace('.', ',')}/L a mais</span> na bomba pra alinhar à praça (<span className="font-semibold tabular-nums">{lbL(alvoSim)}/L</span>).</>
+              ) : (
+                <>Cobrar <span className="font-bold tabular-nums">~R$ {(alvoSim - op.margemAtual).toFixed(2).replace('.', ',')}/L a mais</span> na bomba — a margem sobe pra <span className="font-semibold tabular-nums">{lbL(alvoSim)}/L</span>.</>
+              )
+            ) : (
+              <>Melhorar o <span className="font-semibold">mix da loja</span> pra puxar a margem de conveniência até {refLabel}.</>
+            )}
+          </p>
         </div>
 
         {/* de → para (só margem) */}
@@ -87,8 +105,9 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
         <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
           <div className="mb-2 flex items-center gap-1.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-gray-500" />
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Simular — fechar % do gap</p>
-            <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-gray-800">what-if · não grava</span>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Simular — até onde subir</p>
+            <InfoHint text={`Cada opção sobe ${op.alavanca === 'praca' ? 'o preço' : 'a margem'} uma fração do caminho até ${refLabel}: 100% = igualar à referência; frações menores = subir só parte do caminho (mais conservador). É só simulação — não grava nada.`} />
+            <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-gray-800">não grava</span>
           </div>
           <div className="flex items-center gap-1">
             {opts.map((f) => (
@@ -100,15 +119,15 @@ const DetailPanel = ({ op }: { op: Oportunidade }) => {
             ))}
           </div>
           <p className="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">
-            Fechando <span className="font-semibold">{Math.round(frac * 100)}%</span> do gap → ganho estimado <span className="font-bold text-emerald-600 dark:text-emerald-400">+{milShort(potencialSim)}</span>{!isBase && <span className="text-gray-400"> (base {Math.round(op.fracBase * 100)}%)</span>}
+            {alvoSim != null ? (
+              <>Subir pra <span className="font-semibold tabular-nums">{lbL(alvoSim)}/L</span> ({Math.round(frac * 100)}% do caminho até {refLabel}) → <span className="font-bold text-emerald-600 dark:text-emerald-400">+{milShort(potencialSim)}</span> no período</>
+            ) : (
+              <>Fechar <span className="font-semibold">{Math.round(frac * 100)}%</span> da diferença pra {refLabel} → <span className="font-bold text-emerald-600 dark:text-emerald-400">+{milShort(potencialSim)}</span> no período</>
+            )}
+            {!isBase && <span className="text-gray-400"> · sugerido {Math.round(op.fracBase * 100)}%</span>}
           </p>
         </div>
 
-        {/* Criar plano — roadmap (implica escrita/persistência); fica desabilitado. */}
-        <button type="button" disabled title="Execução na pista é roadmap — o módulo é read-only (diagnóstico e priorização)"
-          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-400 dark:border-gray-700">
-          <Lock className="h-3.5 w-3.5" /> Criar plano <span className="text-[10px] font-normal">(roadmap)</span>
-        </button>
         <p className="text-center text-[10px] text-gray-400">A IA diagnostica, prioriza e simula; a decisão e a execução são do gestor.</p>
       </div>
     </div>
@@ -170,7 +189,7 @@ const Oportunidades = () => {
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Maior alavanca</p>
-            <InfoHint text="A alavanca (Praça ou Conveniência) que concentra a maior fatia do potencial de lucro do período — por onde começar." />
+            <InfoHint text="A alavanca (Praça, Margem ou Conveniência) que concentra a maior fatia do potencial de lucro do período — por onde começar." />
           </div>
           <p className="text-[10px] text-gray-400">onde está o ganho</p>
           <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{data.maiorAlavanca ? ALAVANCA_META[data.maiorAlavanca.alavanca].label : '—'}</p>
