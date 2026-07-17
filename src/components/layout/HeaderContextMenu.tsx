@@ -28,12 +28,22 @@ const TodosPostosToggle = ({ disabled }: { disabled?: boolean }) => {
         disabled && 'pointer-events-none opacity-40',
       )}
     >
-      <span className="flex items-center gap-1.5 truncate">
+      <span className="flex min-w-0 items-center gap-1.5">
         <Network className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
-        <span className="truncate">Todos os postos</span>
-        <span className="text-[10px] text-gray-400">rede consolidada</span>
+        <span className="shrink-0">Todos os postos</span>
+        <span className="truncate text-[10px] text-gray-400">{active ? 'rede consolidada' : 'desmarcado'}</span>
       </span>
-      <Check className={cn('h-3.5 w-3.5 shrink-0 text-[#2563eb]', active ? 'opacity-100' : 'opacity-0')} />
+      {/* Caixinha explícita: quadrado vazio = desmarcado; azul c/ check = marcado. */}
+      <span
+        className={cn(
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+          active
+            ? 'border-[#2563eb] bg-[#2563eb] text-white'
+            : 'border-gray-300 bg-transparent dark:border-gray-600',
+        )}
+      >
+        {active && <Check className="h-3 w-3" />}
+      </span>
     </button>
   )
 }
@@ -100,7 +110,7 @@ const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: H
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900">
           <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Contexto
           </p>
@@ -109,7 +119,7 @@ const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: H
             {showCompanySelect && allowTodos && <TodosPostosToggle disabled={liveLock} />}
             {showCompanySelect && (
               <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-                <CompanySelect allowTodos={allowTodos} hideTodosRow={allowTodos} onApplied={() => setOpen(false)} />
+                <CompanySelect allowTodos={allowTodos} hideTodosRow={allowTodos} fullWidth onApplied={() => setOpen(false)} />
               </span>
             )}
             <ComoFuncionaButton />

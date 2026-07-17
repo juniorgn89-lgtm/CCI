@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Network, Check, ChevronDown, Loader2 } from 'lucide-react'
 import {
@@ -9,7 +8,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { fetchRedes, fetchEmpresasCountForRede } from '@/api/supabase/redes'
@@ -22,38 +20,20 @@ import { cn } from '@/lib/utils'
  * nova CHAVE. Refresh da página volta pra rede default do profile.
  */
 const RedeSwitcher = () => {
-  const supabaseUser = useAuthStore((s) => s.user)
+  // `isMaster` vem da auth store (carimbado no bootstrap do App) — instantâneo.
+  // Antes o RedeSwitcher refazia essa checagem async no Supabase a cada montagem,
+  // o que fazia o botão "pop-in" depois dos demais controles do painel.
+  const isMaster = useAuthStore((s) => s.isMaster)
   const tenant = useTenantStore((s) => s.rede)
   const setRede = useTenantStore((s) => s.setRede)
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const queryClient = useQueryClient()
 
-  // Verifica se o usuário logado é master (busca 1x ao montar).
-  // Filtra por user_id pra evitar erro do .single() em RLS multi-row.
-  const [isMaster, setIsMaster] = useState<boolean | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    const check = async () => {
-      if (!supabaseUser || !supabase) {
-        setIsMaster(false)
-        return
-      }
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_master')
-        .eq('user_id', supabaseUser.id)
-        .maybeSingle()
-      if (!cancelled) setIsMaster(!!data?.is_master)
-    }
-    check()
-    return () => { cancelled = true }
-  }, [supabaseUser])
-
   // Lista de redes (só fetcha quando confirmar que é master)
   const { data: redes = [] } = useQuery({
     queryKey: ['redes'],
     queryFn: fetchRedes,
-    enabled: isMaster === true,
+    enabled: isMaster,
     staleTime: 5 * 60 * 1000,
   })
 

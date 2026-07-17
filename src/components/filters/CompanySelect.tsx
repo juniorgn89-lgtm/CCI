@@ -28,12 +28,15 @@ interface CompanySelectProps {
    *  Aqui o dropdown lista SÓ postos específicos; sem seleção o rótulo vira um
    *  convite ("Selecione o posto") em vez de "Todos". */
   hideTodosRow?: boolean
+  /** Gatilho ocupa 100% da largura do container (ex.: coluna do painel de
+   *  contexto, onde deve alinhar com a Rede e o toggle). Default = largura fixa. */
+  fullWidth?: boolean
   /** Chamado quando a seleção é confirmada (Aplicar/escolha única) — o pai pode
    *  fechar o painel de contexto junto. */
   onApplied?: () => void
 }
 
-const CompanySelect = ({ allowTodos = true, hideTodosRow = false, onApplied }: CompanySelectProps = {}) => {
+const CompanySelect = ({ allowTodos = true, hideTodosRow = false, fullWidth = false, onApplied }: CompanySelectProps = {}) => {
   const [open, setOpen] = useState(false)
   const { empresaCodigos, setEmpresas } = useFilters()
   // Módulo gateado (allowTodos=false) → seleção ÚNICA: um posto por vez, aplica na hora.
@@ -113,7 +116,10 @@ const CompanySelect = ({ allowTodos = true, hideTodosRow = false, onApplied }: C
         <Button
           variant="outline"
           size="sm"
-          className="h-7 w-[200px] justify-between border-blue-200 bg-blue-50/50 text-[11px] font-normal hover:bg-blue-100/60 dark:border-blue-900/40 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 xl:w-[240px] xl:text-xs"
+          className={cn(
+            'h-7 justify-between border-blue-200 bg-blue-50/50 text-[11px] font-normal hover:bg-blue-100/60 dark:border-blue-900/40 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 xl:text-xs',
+            fullWidth ? 'w-full' : 'w-[200px] xl:w-[240px]',
+          )}
           disabled={isLoading}
         >
           <span className="flex items-center gap-1.5 truncate">
