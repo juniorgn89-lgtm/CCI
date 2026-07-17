@@ -29,13 +29,37 @@ const buildUrl = (
   return `${base}${p}?${sp.toString()}`
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// Retry com backoff pra rate-limit/erros transitórios. Sem isto, uma rodada do
+// cron que batia 429 (ou 500 blip) FALHAVA e não gravava — congelando o dia num
+// snapshot parcial (ex.: "today" para de atualizar de tarde e o dia fica meio).
+//   - 429 (rate-limit): recuperável → até MAX_429 tentativas, backoff exponencial
+//     (respeita Retry-After) — é o principal culpado do congelamento.
+//   - 5xx: tenta 1× (pode ser blip). O 500 de /ABASTECIMENTO·/LMC é PERSISTENTE
+//     (bug de datetime da Quality) — não adianta martelar; cai no degrade
+//     não-fatal do chamador (ABAST já tem catch; LMC vira [] no index.ts).
 const getJson = async <T>(url: string): Promise<T> => {
-  const res = await fetch(url)
-  if (!res.ok) {
+  const MAX_429 = 4
+  let attempt = 0
+  for (;;) {
+    const res = await fetch(url)
+    if (res.ok) return res.json() as Promise<T>
+    const status = res.status
+    const retryable = status === 429 ? attempt < MAX_429 : (status >= 500 && attempt < 1)
+    if (retryable) {
+      const ra = Number(res.headers.get('retry-after'))
+      const waitMs = Number.isFinite(ra) && ra > 0
+        ? Math.min(ra * 1000, 30_000)
+        : Math.min(1000 * 2 ** attempt, 15_000) + Math.floor(Math.random() * 400)
+      await res.body?.cancel().catch(() => {}) // libera o corpo antes de re-tentar
+      await sleep(waitMs)
+      attempt++
+      continue
+    }
     const body = await res.text().catch(() => '')
-    throw new Error(`Quality ${res.status} em ${url.split('?')[0]}: ${body.slice(0, 200)}`)
+    throw new Error(`Quality ${status} em ${url.split('?')[0]}: ${body.slice(0, 200)}`)
   }
-  return res.json() as Promise<T>
 }
 
 interface RedeCtx { baseURL: string; chave: string }

@@ -155,9 +155,16 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
     return all
   }
 
+  // /ABASTECIMENTO já cai pra [] em erro (catch interno). /LMC vira não-fatal
+  // aqui: o 500 persistente da Quality (bug de datetime) degrada só o CUSTO
+  // físico — NÃO derruba o mês. /VENDA_ITEM segue FATAL de propósito: se falhar,
+  // o Promise.all rejeita e nada é gravado (preserva o dado em vez de zerar).
   const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos] = await Promise.all([
     fetchAbastecimentosChunked(ctx, t.start, t.end),
-    fetchLmc(ctx, empresaCodes, lmcStart, t.end),
+    fetchLmc(ctx, empresaCodes, lmcStart, t.end).catch((e) => {
+      console.warn('[cron] /LMC falhou — custo físico degradado neste alvo:', (e as Error)?.message)
+      return []
+    }),
     fetchVendaResumo(ctx, t.start, t.end),
     seq<Caixa>((ec) => fetchCaixasEmpresa(ctx, ec, t.start, t.end)),
     seq<VendaFormaPagamento>((ec) => fetchFormasEmpresa(ctx, ec, t.start, t.end)),
