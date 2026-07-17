@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
+import { useRedeSetorDiaria } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { todayLocal } from '@/lib/period'
 import { fimDoMesIso, weekdayIndices, diasOperacaoProxy, projecaoSazonal, type ProjecaoAvancadaResult } from '@/lib/projection'
 
@@ -57,8 +57,10 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
   const monthStart = `${(dataInicial || todayLocal()).slice(0, 7)}-01`
   const histIni = monthsBackFirst(monthStart, 6)
   const histEnd = prevDay(monthStart)
-  // Só busca os 6 meses quando ligado (evita custo no dia a dia).
-  const { data: histRows = [], isLoading } = useRedeVendasCache(histIni, histEnd, { enabled })
+  // Só busca os 6 meses quando ligado (evita custo no dia a dia). Lê o AGREGADO
+  // por setor/dia (view) — a sazonal não precisa do detalhe por produto, então
+  // troca ~675 páginas de apuracao_vendas por 1–3. Ver useCentralSazonal.
+  const { data: histRows = [], isLoading } = useRedeSetorDiaria(histIni, histEnd, { enabled })
 
   // Período de comparação COMPLETO (mês inteiro anterior — ou o mesmo mês do ano
   // passado) pro badge. Comparar a projeção do mês CHEIO com um período PARCIAL
@@ -66,7 +68,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   const cmpStart = monthsBackFirst(monthStart, cmpOffset)
   const cmpEnd = prevDay(monthsBackFirst(monthStart, cmpOffset - 1))
-  const { data: cmpRows = [] } = useRedeVendasCache(cmpStart, cmpEnd, { enabled })
+  const { data: cmpRows = [] } = useRedeSetorDiaria(cmpStart, cmpEnd, { enabled })
 
   return useMemo(() => {
     const matchEmpresa = (code: number) => (empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code))

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTenantStore } from '@/store/tenant'
-import { fetchVendasCache, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
+import { fetchVendasCache, fetchVendasSetorDiaria, type ApuracaoVendaRow, type ApuracaoVendaSetorDiariaRow } from '@/api/supabase/apuracao'
 
 /**
  * Fetch CANÔNICO (compartilhado) das vendas rede-wide do cache `apuracao_vendas`
@@ -24,6 +24,27 @@ export const useRedeVendasCache = (
   return useQuery<ApuracaoVendaRow[]>({
     queryKey: ['rede-vendas-cache', rede?.id, dataInicial, dataFinal],
     queryFn: () => fetchVendasCache({ dataInicial, dataFinal }),
+    enabled: (opts?.enabled ?? true) && !!rede && !!dataInicial && !!dataFinal,
+    staleTime: opts?.staleTime ?? 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Variante LEVE do read rede-wide: lê a view `apuracao_vendas_setor_diaria`
+ * (agregado por posto/dia/setor) em vez do detalhe por produto. Pra consumidores
+ * que só precisam da série por setor (ex.: projeção sazonal da Central) — corta
+ * de ~675 páginas pra 1–3. Trocar de posto re-agrega no cliente sem refetch
+ * (chave rede-wide, sem `empresaCodigos`).
+ */
+export const useRedeSetorDiaria = (
+  dataInicial: string,
+  dataFinal: string,
+  opts?: { enabled?: boolean; staleTime?: number },
+) => {
+  const rede = useTenantStore((s) => s.rede)
+  return useQuery<ApuracaoVendaSetorDiariaRow[]>({
+    queryKey: ['rede-setor-diaria', rede?.id, dataInicial, dataFinal],
+    queryFn: () => fetchVendasSetorDiaria({ dataInicial, dataFinal }),
     enabled: (opts?.enabled ?? true) && !!rede && !!dataInicial && !!dataFinal,
     staleTime: opts?.staleTime ?? 5 * 60 * 1000,
   })

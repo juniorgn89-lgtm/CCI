@@ -1012,6 +1012,59 @@ export const fetchVendasCache = async (
   return perfDone('fetchVendasCache', 'apuracao_vendas', Array.from(byKey.values()), __t0)
 }
 
+/** Linha da VIEW `apuracao_vendas_setor_diaria` — 1 por (rede, empresa, dia, setor). */
+export interface ApuracaoVendaSetorDiariaRow {
+  rede_id: string
+  empresa_codigo: number
+  data: string // yyyy-MM-dd
+  setor: string
+  quantidade: number
+  total_venda: number
+  total_custo: number
+}
+
+/**
+ * Lê o AGREGADO por setor/dia (view `apuracao_vendas_setor_diaria`) em vez do
+ * detalhe por produto. Usado pela projeção sazonal da Central, que só precisa da
+ * série diária por setor — troca ~675 páginas de `apuracao_vendas` por 1–3.
+ * Ver docs/supabase-apuracao-vendas-setor-diaria.sql.
+ */
+export const fetchVendasSetorDiaria = async (
+  params: { dataInicial: string; dataFinal: string; empresaCodigos?: number[] },
+): Promise<ApuracaoVendaSetorDiariaRow[]> => {
+  if (!supabase) return []
+  const __t0 = perfNow()
+  const all: ApuracaoVendaSetorDiariaRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_vendas_setor_diaria')
+      .select('*')
+      .gte('data', params.dataInicial)
+      .lte('data', params.dataFinal)
+      // (empresa, data, setor) é único por rede (a RLS isola a rede) → ordem
+      // total pra paginação estável, mesmo padrão dos outros readers.
+      .order('data', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('setor', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_vendas_setor_diaria] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoVendaSetorDiariaRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return perfDone('fetchVendasSetorDiaria', 'apuracao_vendas_setor_diaria', all, __t0)
+}
+
 /**
  * Apaga as linhas de venda do cache no período (rede) — chamar ANTES do upsert.
  * Sem isso, vendas que deixaram de existir (ex.: canceladas depois de uma

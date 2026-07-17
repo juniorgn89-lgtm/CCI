@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
+import { useRedeSetorDiaria } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -48,7 +48,9 @@ const useCentralSazonal = (): CentralSazonal => {
   const monthStart = `${(dataInicial || todayLocal()).slice(0, 7)}-01`
   const histIni = monthsBackFirst(monthStart, 6)
   const histEnd = prevDay(monthStart)
-  const { data: histRows = [], isLoading } = useRedeVendasCache(histIni, histEnd)
+  // Agregado leve por setor/dia (view) — a sazonal só precisa da série por
+  // setor, então trocamos o read granular por produto pela view (675 páginas → 1–3).
+  const { data: histRows = [], isLoading } = useRedeSetorDiaria(histIni, histEnd)
 
   return useMemo(() => {
     // Escopo: "Todos" ([]) = postos PERMITIDOS (igual às abas e ao useRedeSetores).
