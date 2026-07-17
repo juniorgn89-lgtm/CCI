@@ -11,6 +11,9 @@ interface Params {
   /** Critério de data do filtro (espelha Abast./Fiscal/Movimento do webPosto).
    *  Omitido = default da API (= data do abastecimento). */
   tipoData?: TipoData
+  /** Chunks simultâneos. Default 4 (velocidade). A apuração passa 1 pra ficar
+   *  100% sequencial e não estourar o rate-limit sob CHAVE já sufocada. */
+  parallelChunks?: number
 }
 
 const fmtDate = (d: Date) =>
@@ -62,8 +65,9 @@ const fetchChunkWithRetry = async (
   }
 }
 
-// Paralelismo: 4 chunks simultâneos balanceia velocidade vs carga no servidor.
-// Subir mais que isso pode disparar rate-limit da Quality em períodos longos.
+// Paralelismo default: 4 chunks simultâneos balanceia velocidade vs carga no
+// servidor. Subir mais que isso pode disparar rate-limit da Quality em períodos
+// longos. A apuração sobrescreve pra 1 (sequencial).
 const PARALLEL_CHUNKS = 4
 
 export const fetchAbastecimentosChunked = async ({
@@ -71,14 +75,16 @@ export const fetchAbastecimentosChunked = async ({
   dataFinal,
   chunkDays = 7,
   tipoData,
+  parallelChunks = PARALLEL_CHUNKS,
 }: Params): Promise<Abastecimento[]> => {
   const chunks = splitDateRange(dataInicial, dataFinal, chunkDays)
+  const parallel = Math.max(1, parallelChunks)
 
   const results: Abastecimento[] = []
   let failed = 0
   let lastError: unknown = null
-  for (let i = 0; i < chunks.length; i += PARALLEL_CHUNKS) {
-    const batch = chunks.slice(i, i + PARALLEL_CHUNKS)
+  for (let i = 0; i < chunks.length; i += parallel) {
+    const batch = chunks.slice(i, i + parallel)
     const settled = await Promise.allSettled(
       batch.map(({ from, to }) => fetchChunkWithRetry(from, to, tipoData))
     )

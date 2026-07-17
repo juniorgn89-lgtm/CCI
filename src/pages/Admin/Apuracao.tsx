@@ -325,40 +325,53 @@ const Apuracao = () => {
         return set
       }
 
-      // /ABASTECIMENTO e /LMC têm um bug de 500 no servidor da Quality em certos
-      // meses (parse de datetime — jun/jul 2026). Eles alimentam só os caches
-      // FÍSICOS (abastecimento + custo via LMC). A apuração de VENDAS — o número
-      // que bate com o WebPosto — vem do /VENDA_ITEM e NÃO depende deles. Então
-      // degradamos pra vazio em vez de derrubar o mês inteiro no Promise.all: o
-      // cache de vendas é gravado mesmo com o endpoint físico fora do ar.
+      // Fetch SEQUENCIAL (um grupo por vez) em vez de Promise.all. Sob CHAVE
+      // rate-limitada, disparar os 9 grupos juntos estoura 429 e NADA é gravado.
+      // Sequencial + o circuit-breaker adaptativo do client mantém o rate sob o
+      // limite. É operação de FUNDO (o usuário lê do cache, instantâneo), então
+      // velocidade não importa aqui — confiabilidade sim. Entre grupos, checa o
+      // cancelamento pra o botão Cancelar responder rápido.
+      //
+      // Ordem: os dados de VENDA (o número que bate com o WebPosto) vêm PRIMEIRO,
+      // pegando a CHAVE mais fresca; a busca FÍSICA (/ABASTECIMENTO + /LMC), que é
+      // degradável (500 persistente da Quality) e pesada, vem por ÚLTIMO.
+      const bail = () => ({ ok: false as const, rows: 0, error: 'Cancelado' })
       let abastFalhou = false
       let lmcFalhou = false
-      const [abast, lmc, resumo, caixas, formasPgto, vendaItens, produtos, grupos, autorizados] = await Promise.all([
-        fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end }).catch((e) => {
-          abastFalhou = true
-          console.warn('[apuracao] /ABASTECIMENTO falhou — seguindo sem físico:', (e as Error)?.message)
-          return [] as Abastecimento[]
+
+      const resumo = await fetchVendaResumo({ dataInicial: start, dataFinal: end })
+      if (cancelRef.current) return bail()
+      const produtos = await fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20)
+      if (cancelRef.current) return bail()
+      const grupos = await fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20)
+      if (cancelRef.current) return bail()
+      const autorizados = await fetchAutorizadosAllEmpresas()
+      if (cancelRef.current) return bail()
+      const vendaItens = await fetchVendaItensAllEmpresas()
+      if (cancelRef.current) return bail()
+      const caixas = await fetchCaixasAllEmpresas()
+      if (cancelRef.current) return bail()
+      const formasPgto = await fetchFormasAllEmpresas()
+      if (cancelRef.current) return bail()
+      // Físico por último — degrada pra vazio em vez de derrubar o mês.
+      const abast = await fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end, parallelChunks: 1 }).catch((e) => {
+        abastFalhou = true
+        console.warn('[apuracao] /ABASTECIMENTO falhou — seguindo sem físico:', (e as Error)?.message)
+        return [] as Abastecimento[]
+      })
+      if (cancelRef.current) return bail()
+      const lmc = await fetchAllPages(
+        (p) => fetchLmc({
+          empresaCodigo: empresasCodes,
+          dataInicial: lmcStart, dataFinal: end,
+          ultimoCodigo: p.ultimoCodigo, limite: p.limite,
         }),
-        fetchAllPages(
-          (p) => fetchLmc({
-            empresaCodigo: empresasCodes,
-            dataInicial: lmcStart, dataFinal: end,
-            ultimoCodigo: p.ultimoCodigo, limite: p.limite,
-          }),
-          1000, 50
-        ).catch((e) => {
-          lmcFalhou = true
-          console.warn('[apuracao] /LMC falhou — custo físico degradado, vendas seguem via CMV:', (e as Error)?.message)
-          return [] as LMC[]
-        }),
-        fetchVendaResumo({ dataInicial: start, dataFinal: end }),
-        fetchCaixasAllEmpresas(),
-        fetchFormasAllEmpresas(),
-        fetchVendaItensAllEmpresas(),
-        fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
-        fetchAllPages((p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 20),
-        fetchAutorizadosAllEmpresas(),
-      ])
+        1000, 50
+      ).catch((e) => {
+        lmcFalhou = true
+        console.warn('[apuracao] /LMC falhou — custo físico degradado, vendas seguem via CMV:', (e as Error)?.message)
+        return [] as LMC[]
+      })
 
       const rows = computeApuracaoRows({
         redeId: rede.id,
@@ -496,17 +509,22 @@ const Apuracao = () => {
     cancelRef.current = false
     setCancelling(false)
     setRunning(true)
-    await apurarMes(month)
+    const result = await apurarMes(month)
     await refetchStatus()
     // Re-apurar reescreve TODAS as tabelas de cache; invalida o React Query
     // inteiro pra que Central, Conveniência, Dashboard etc. releiam na hora
     // (as chaves rede-vendas-* da Central não casavam com 'apuracao-cache').
     queryClient.invalidateQueries()
-    setProgress((prev) => {
-      const next = new Map(prev)
-      next.delete(month)
-      return next
-    })
+    // Só limpa o progresso em SUCESSO. Se falhou (ex.: 429 na Quality), MANTÉM o
+    // 'erro' visível — senão o card revertia pro "apurado · há Xh" antigo,
+    // mascarando a falha (usuário achava que reapurou mas nada foi gravado).
+    if (result.ok) {
+      setProgress((prev) => {
+        const next = new Map(prev)
+        next.delete(month)
+        return next
+      })
+    }
     setRunning(false)
     setCancelling(false)
     cancelRef.current = false
