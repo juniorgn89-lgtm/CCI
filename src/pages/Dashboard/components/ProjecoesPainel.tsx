@@ -232,7 +232,6 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   }, [combustivel, automotivos, conveniencia, global, projFatTotal, dataInicial])
   const cmpLabelLong = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const DOT_CONFIA = { alta: 'bg-emerald-400', media: 'bg-amber-400', baixa: 'bg-red-400' } as const
-  const LABEL_CONFIA = { alta: 'Confiança alta', media: 'Confiança média', baixa: 'Confiança baixa' } as const
 
   /* ─── Oscilação das projeções (colunas por dia) ───
    * Cada coluna = a projeção de fechamento do mês recalculada naquele dia, com a
@@ -408,10 +407,6 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             <p className="inline-flex flex-wrap items-center gap-1.5 text-[15px] font-bold text-white">
               <span
                 className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT_CONFIA[projResumo.confiabilidade])}
-              />
-              <InfoHint
-                text={`${LABEL_CONFIA[projResumo.confiabilidade]} · ${projResumo.confiabilidadePct}%`}
-                className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
               Projeção
               <InfoHint
