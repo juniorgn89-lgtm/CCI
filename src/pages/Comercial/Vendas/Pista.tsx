@@ -194,8 +194,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const fimEfetivo = dataFinal > hoje ? hoje : dataFinal
   const prevInicial = offsetPeriod(dataInicial, cmpOffset)
   const prevFinal = offsetPeriod(fimEfetivo, cmpOffset)
-  // Cache compartilhada — só pra ler `projectionMeta.daysRemaining`.
-  const { projectionMeta } = useAbastecimentosAnalytics()
+  // Só precisa de `projectionMeta` (cálculo de datas) — NÃO do físico. Com
+  // `physicalEnabled: false` a Pista não dispara /ABASTECIMENTO live à toa;
+  // fica 100% cache (venda + sazonal via view). Automotivos não tem detalhe
+  // por frentista/bomba aqui, então nada a buscar sob demanda.
+  const { projectionMeta } = useAbastecimentosAnalytics(undefined, { physicalEnabled: false })
 
   // Aba ativa (Visão Geral por padrão — mostra "Por categoria" + "Top 20 produtos")
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
