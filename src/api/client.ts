@@ -63,7 +63,28 @@ let rateLimitedUntil = 0 // timestamp (ms) até quando estamos em cooldown
 let spacingMs = 0 // intervalo mínimo entre saídas de request durante cooldown
 let lastRequestAt = 0 // quando o último GET foi liberado (agenda o espaçamento)
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+// --- Cancelamento de requisições em voo (ex.: botão "Cancelar" da apuração) ---
+// Sem plumbar AbortSignal por TODOS os endpoints: um "epoch" que, ao ser bumpado,
+// acorda todas as ESPERAS de backoff/espaçamento e faz as re-tentativas de 429
+// desistirem na hora. Como a maioria das requisições da tempestade fica parada no
+// backoff (até 15s), isso drena o storm quase imediatamente. Requisições NOVAS
+// (depois do abort) seguem normais — o epoch é monotônico e cada espera compara
+// contra o valor capturado, então só cancela quem estava esperando no momento.
+let abortEpoch = 0
+const backoffWaiters = new Set<() => void>()
+export const abortPendingRequests = () => {
+  abortEpoch++
+  for (const wake of backoffWaiters) wake()
+  backoffWaiters.clear()
+}
+
+// Sleep interrompível: acorda no timeout OU quando abortPendingRequests roda.
+const abortableSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    const wake = () => { clearTimeout(t); backoffWaiters.delete(wake); resolve() }
+    const t = setTimeout(wake, ms)
+    backoffWaiters.add(wake)
+  })
 
 // Request interceptor: gate adaptativo. Fora do cooldown, não faz nada (rápido).
 // Dentro do cooldown, reserva um "slot" espaçado — a reserva é síncrona (antes
@@ -74,7 +95,7 @@ client.interceptors.request.use(async (config) => {
     const scheduledAt = Math.max(now, lastRequestAt + spacingMs)
     lastRequestAt = scheduledAt
     const wait = scheduledAt - now
-    if (wait > 0) await sleep(wait)
+    if (wait > 0) await abortableSleep(wait)
   } else {
     lastRequestAt = now
   }
@@ -115,7 +136,10 @@ client.interceptors.response.use(
       if (attempt < MAX_429_RETRIES) {
         cfg._retry429 = attempt + 1
         const retryAfter = error.response.headers?.['retry-after'] as string | undefined
-        await sleep(retryDelayMs(attempt, retryAfter))
+        const epochAtWait = abortEpoch
+        await abortableSleep(retryDelayMs(attempt, retryAfter))
+        // Cancelado durante a espera → desiste na hora (não re-tenta).
+        if (abortEpoch !== epochAtWait) return Promise.reject(error)
         return client(cfg)
       }
     }

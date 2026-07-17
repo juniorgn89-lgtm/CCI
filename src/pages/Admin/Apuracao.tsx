@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, CheckCircle2, Clock, Loader2, Play, RefreshCw, AlertCircle, Database, Network, ChevronRight,
+  ArrowLeft, CheckCircle2, Clock, Loader2, Play, RefreshCw, AlertCircle, Database, Network, ChevronRight, Ban,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -33,6 +33,7 @@ import {
   type SetorVenda,
 } from '@/api/supabase/apuracao'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { abortPendingRequests } from '@/api/client'
 import { fetchAbastecimentosChunked } from '@/api/helpers/fetchAbastecimentosChunked'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { fetchLmc } from '@/api/endpoints/combustiveis'
@@ -229,6 +230,11 @@ const Apuracao = () => {
   // Estado por mês durante apuração (em_andamento / erro)
   const [progress, setProgress] = useState<Map<number, MonthState>>(new Map())
   const [running, setRunning] = useState(false)
+  // Cancelamento: o botão liga `cancelRef` (síncrono, lido dentro do loop) e
+  // `cancelling` (só pra UI). O "Apurar ano todo" para entre meses; um mês em
+  // andamento não escreve cache parcial se o cancel chegou antes dos upserts.
+  const cancelRef = useRef(false)
+  const [cancelling, setCancelling] = useState(false)
   // Avisos de degradação por mês (ex.: /LMC ou /ABASTECIMENTO fora do ar). Fica
   // FORA do `progress` porque este é recalculado do DB pelo refetchStatus — o
   // aviso precisa sobreviver ao "apurado" pra não esconder o físico degradado.
@@ -409,6 +415,11 @@ const Apuracao = () => {
       // Uma só agregação (2 passagens) produz vendas (por produto) + vendedores
       // (apuracao_vendas_funcionario, por empresa/dia/funcionario/setor de loja).
       const { vendaRows, funcRows: vendaFuncRows } = aggregateVendaCache(vendaItens, rede.id, produtoInfo, autorizados)
+
+      // Ponto de não-retorno das ESCRITAS: se o cancel chegou durante o fetch,
+      // aborta ANTES de gravar — o mês fica como estava (sem cache parcial).
+      if (cancelRef.current) return { ok: false, rows: 0, error: 'Cancelado' }
+
       // Remove ÓRFÃOS (chaves que existiam no cache mas sumiram do cálculo — ex.:
       // venda cancelada depois de uma apuração anterior). Duas camadas:
       //  1) DELETE do período (best-effort; pode ser no-op por RLS de DELETE).
@@ -470,7 +481,20 @@ const Apuracao = () => {
     }
   }
 
+  // Cancela a apuração em andamento: o loop do "ano todo" para antes do próximo
+  // mês; um mês em andamento não grava cache parcial (checkpoint no apurarMes).
+  // `abortPendingRequests` interrompe as esperas de backoff/re-tentativas de 429
+  // em voo — sem isso, a tempestade de requisições continuava por inércia (cada
+  // 429 esperando até 15s antes de desistir).
+  const handleCancelar = () => {
+    cancelRef.current = true
+    setCancelling(true)
+    abortPendingRequests()
+  }
+
   const handleApurarMes = async (month: number) => {
+    cancelRef.current = false
+    setCancelling(false)
     setRunning(true)
     await apurarMes(month)
     await refetchStatus()
@@ -484,13 +508,19 @@ const Apuracao = () => {
       return next
     })
     setRunning(false)
+    setCancelling(false)
+    cancelRef.current = false
   }
 
   const handleApurarAno = async () => {
+    cancelRef.current = false
+    setCancelling(false)
     setRunning(true)
     const today = todayParts()
     const maxMonth = year < today.year ? 12 : today.month
     for (let m = 1; m <= maxMonth; m++) {
+      // Cancelou? Para o loop antes de começar o próximo mês.
+      if (cancelRef.current) break
       // Só pula meses futuros (sem dados). Meses 'apurado' SÃO reapurados
       // — útil pra preencher colunas/tabelas novas (ex: apuracao_abastecimentos)
       // ou pegar correções retroativas da API Quality.
@@ -506,6 +536,8 @@ const Apuracao = () => {
     queryClient.invalidateQueries()
     setProgress(new Map())
     setRunning(false)
+    setCancelling(false)
+    cancelRef.current = false
   }
 
   if (authLoading) {
@@ -637,6 +669,25 @@ const Apuracao = () => {
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Apurar ano todo
           </button>
+          {/* Cancelar — só durante a apuração. Para o loop antes do próximo mês;
+              o mês em andamento pode levar até terminar o fetch atual (não grava
+              cache parcial). */}
+          {running && (
+            <button
+              onClick={handleCancelar}
+              disabled={cancelling}
+              title="Interrompe a apuração. O mês em andamento termina o passo atual sem gravar cache parcial; os próximos não rodam."
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+                cancelling
+                  ? 'cursor-not-allowed bg-red-100 text-red-400 dark:bg-red-950/30 dark:text-red-700'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              )}
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              {cancelling ? 'Cancelando…' : 'Cancelar'}
+            </button>
+          )}
         </div>
       </div>
 
