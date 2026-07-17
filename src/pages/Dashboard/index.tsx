@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -62,6 +63,17 @@ const Dashboard = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
   }
+
+  // Ao trocar de aba, a aba anterior desmonta e suas queries ficam SEM
+  // observador (inactive). Se ainda estavam buscando (ex.: Combustível live),
+  // continuariam rodando em segundo plano: "sujam" o indicador global de
+  // "Atualizando…" na aba nova e desperdiçam chamadas na Quality (pioram o
+  // rate-limit). Cancelar as inactive resolve os dois — as ativas da aba atual
+  // (com observador) não são tocadas.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    queryClient.cancelQueries({ type: 'inactive' })
+  }, [activeTab, queryClient])
 
   // Mobile: tela própria (KPIs + projeção + setores + ranking), no shell mobile.
   if (isMobile) return <CentralMobile />
