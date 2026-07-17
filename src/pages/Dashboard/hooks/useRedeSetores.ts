@@ -163,10 +163,14 @@ const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSet
  * @param options.enabled quando `false`, NÃO dispara os fetches pesados (venda
  *   da rede, produtos, grupos) — usado p/ carregar setor sob demanda (ex.: aba
  *   Produtividade só precisa disso em Conveniências/Automotivos). Default `true`.
+ * @param options.empresaCodigos override do filtro de posto. Módulos REDE-WIDE
+ *   (Comercial) passam `[]` (referência estável) pra ignorar a seleção global
+ *   sem mexer nela. Default = o filtro do store. Ver moduloRedeWide.
  */
-const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
+const useRedeSetores = (options?: { enabled?: boolean; empresaCodigos?: number[] }): RedeSetoresData => {
   const gate = options?.enabled ?? true
-  const { dataInicial, dataFinal, comparisonMode, empresaCodigos } = useFilterStore()
+  const { dataInicial, dataFinal, comparisonMode, empresaCodigos: empresaCodigosStore } = useFilterStore()
+  const empresaCodigos = options?.empresaCodigos ?? empresaCodigosStore
   const rede = useTenantStore((s) => s.rede)
 
   const split = useMemo(() => splitPeriodAtToday(dataInicial, dataFinal), [dataInicial, dataFinal])

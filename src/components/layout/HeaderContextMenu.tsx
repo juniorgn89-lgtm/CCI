@@ -57,6 +57,8 @@ interface HeaderContextMenuProps {
   allowTodos: boolean
   /** Trava de "ao vivo" — desabilita a troca de posto. */
   liveLock: boolean
+  /** Módulo rede-wide (compara postos) — esconde o seletor e mostra uma nota. */
+  redeWide?: boolean
 }
 
 /**
@@ -65,7 +67,7 @@ interface HeaderContextMenuProps {
  * (escondido); virou uma pílula visível com o contexto atual. Reaproveita os
  * componentes existentes (cada um com seu dropdown/modal); o painel só os empilha.
  */
-const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: HeaderContextMenuProps) => {
+const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock, redeWide = false }: HeaderContextMenuProps) => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -116,6 +118,11 @@ const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock }: H
           </p>
           <div className="flex flex-col gap-2">
             <RedeSwitcher />
+            {redeWide && (
+              <p className="rounded-md bg-gray-50 px-2 py-1.5 text-[11px] leading-snug text-gray-500 dark:bg-[#0f0f0f] dark:text-gray-400">
+                Este módulo compara <span className="font-medium text-gray-600 dark:text-gray-300">todos os postos</span> — o filtro de posto não se aplica aqui.
+              </p>
+            )}
             {showCompanySelect && allowTodos && <TodosPostosToggle disabled={liveLock} />}
             {showCompanySelect && (
               <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>

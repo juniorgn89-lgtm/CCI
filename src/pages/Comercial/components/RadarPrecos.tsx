@@ -17,12 +17,11 @@ import GuerraPreco from './GuerraPreco'
  * então a aba mostra UM posto por vez, com seletor quando o filtro tem mais de um.
  */
 const RadarPrecos = () => {
-  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  // Comercial é REDE-WIDE → ignora o filtro global de empresa. O Radar tem
+  // seletor de posto PRÓPRIO (abaixo), então oferece TODOS os postos permitidos.
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const postos = empresaCodigos.length === 0
-    ? empresasPermitidas
-    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
+  const postos = empresasPermitidas
   const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
   const postoCodes = postos.map((p) => p.codigo)
   const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)

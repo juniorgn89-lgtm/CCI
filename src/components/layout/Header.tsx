@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
-import { moduloPermiteTodos } from '@/lib/moduleScope'
+import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
@@ -48,7 +48,11 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const liveLock = useTopbarUi((s) => s.liveLock)
-  const showCompanySelect = empresasPermitidas.length !== 1
+  const pathname = useLocation().pathname
+  // Módulos REDE-WIDE (Comercial) comparam postos entre si → escondem o seletor
+  // de posto e ignoram o filtro (sem tocar na seleção global). Ver moduloRedeWide.
+  const redeWide = moduloRedeWide(pathname)
+  const showCompanySelect = empresasPermitidas.length !== 1 && !redeWide
 
   // Rótulo central (apagado) — qual POSTO o usuário está vendo. Regra de nome:
   // "Todos" quando rede-wide ([]); o nome de CADA posto selecionado quando há
@@ -71,8 +75,12 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   // Filtro de empresa (pílula) em TODAS as telas. Módulos gateados (operacionais
   // por-posto) não permitem "Todos" — a pílula esconde a opção e, quando ainda
   // não há posto escolhido, o rótulo pede a seleção.
-  const allowTodos = moduloPermiteTodos(useLocation().pathname)
-  const pillLabel = !allowTodos && empresaCodigos.length !== 1 ? 'Selecione um posto' : contextoLabel
+  const allowTodos = moduloPermiteTodos(pathname)
+  // Rede-wide ignora o filtro de posto → a pílula mostra a REDE (não o posto
+  // selecionado, que está sendo ignorado), pra não enganar.
+  const pillLabel = redeWide
+    ? (tenantNome ?? 'Todos')
+    : (!allowTodos && empresaCodigos.length !== 1 ? 'Selecione um posto' : contextoLabel)
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
@@ -164,7 +172,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
         <div className="flex items-center gap-2">
           {/* Pílula de contexto (posto/rede visível) ANTES do Atualizar, em todas as telas. */}
-          <HeaderContextMenu label={pillLabel} showCompanySelect={showCompanySelect} allowTodos={allowTodos} liveLock={liveLock} />
+          <HeaderContextMenu label={pillLabel} showCompanySelect={showCompanySelect} allowTodos={allowTodos} liveLock={liveLock} redeWide={redeWide} />
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL. */}
           <UltimaAtualizacaoInfo />
           <button
