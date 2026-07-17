@@ -66,6 +66,8 @@ export interface RedePostoRow {
   empresaCodigo: number
   posto: string
   qtd: number
+  /** Dias com venda>0 do setor no período (dia sem venda = posto não abriu). */
+  diasOperados: number
   qtdAnoAnterior: number
   faturamento: number
   faturamentoAnoAnterior: number
@@ -567,10 +569,15 @@ const useRedeSetores = (options?: { enabled?: boolean; empresaCodigos?: number[]
         produtos.sort((a, b) => b.lucroBruto - a.lucroBruto)
         const lucro = posto.fat - posto.custo
         const cupons = cuponsByES.get(`${empresaCodigo}|${id}`) ?? 0
+        // Dias OPERADOS = dias com venda>0 do setor neste posto (dia sem venda =
+        // posto não abriu). Da série diária por empresa já agregada na memo A.
+        const diaMap = dailyBySetorEmp[id].get(empresaCodigo)
+        const diasOperados = diaMap ? Array.from(diaMap.values()).filter((v) => v.qtd > 0).length : 0
         setor.postos.push({
           empresaCodigo,
           posto: nomePorEmpresa.get(empresaCodigo) ?? `Posto ${empresaCodigo}`,
           qtd: posto.qtd,
+          diasOperados,
           qtdAnoAnterior: pQtdAnt,
           faturamento: posto.fat,
           faturamentoAnoAnterior: pFatAnt,

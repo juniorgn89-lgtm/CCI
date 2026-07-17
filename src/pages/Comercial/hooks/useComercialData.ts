@@ -48,6 +48,8 @@ export interface ComercialPostoRow {
   custoStaleDays: number | null
   /** % do volume com custo de reposição apurado (>0). <100 = margem parcial. */
   coberturaCustoPct: number
+  /** Dias com venda>0 no período (dia sem venda = posto não abriu). */
+  diasOperados: number
   produtos: ComercialFuelRow[]
 }
 
@@ -152,6 +154,7 @@ const useComercialData = (): ComercialData => {
         custoDate,
         custoStaleDays: custoDate ? diffDays(custoDate, hoje) : null,
         coberturaCustoPct,
+        diasOperados: p.diasOperados,
         produtos: produtos.sort((a, b) => b.litros - a.litros),
       }
     })

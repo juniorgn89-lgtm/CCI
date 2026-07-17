@@ -152,7 +152,14 @@ const MargemPosto = () => {
   }
 
   const stale = data.custoStaleDaysMax
+  // Sem NENHUMA data de custo (LMC vazio/500 da Quality) → não dá pra checar
+  // frescor. Evita o "(nulld)" e deixa claro que a margem (CMV das vendas) não é
+  // afetada. É um 3º estado, neutro (nem verde nem âmbar).
+  const semCusto = stale == null
   const frescorOk = stale != null && stale <= 2
+  // Máx de dias operados na rede — pra sinalizar postos que abrem MENOS dias
+  // (volume menor explicado por dias fechados, não por "posto fraco").
+  const maxDias = Math.max(0, ...data.postos.map((p) => p.diasOperados))
   const SortBtn = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
     <button
       type="button"
@@ -200,18 +207,22 @@ const MargemPosto = () => {
         </div>
       </div>
 
-      {/* Selo de frescor do custo (verde/discreto quando fresco; escala se velho) */}
+      {/* Selo de frescor do custo — 3 estados: sem dado / recente / defasado. */}
       <div className={cn(
         'flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[12px]',
-        frescorOk
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
-          : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300',
+        semCusto
+          ? 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
+          : frescorOk
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+            : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300',
       )}>
-        {frescorOk ? <ShieldCheck className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
+        {frescorOk && !semCusto ? <ShieldCheck className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
         <span className="font-medium">
-          {frescorOk
-            ? `Custo de reposição recente — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Boa base pra ler a margem.`
-            : `Custo de reposição defasado em algum posto — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Se houve reajuste recente, a margem apurada pode estar desatualizada.`}
+          {semCusto
+            ? 'Sem dado de custo de reposição (LMC) no período — não dá pra checar o frescor. A margem usa o CMV apurado das vendas (não afetada).'
+            : frescorOk
+              ? `Custo de reposição recente — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Boa base pra ler a margem.`
+              : `Custo de reposição defasado em algum posto — carga mais antiga ${fmtDM(data.custoDateMaisAntiga)} (${stale}d). Se houve reajuste recente, a margem apurada pode estar desatualizada.`}
         </span>
         <InfoHint
           className="ml-auto"
@@ -290,6 +301,13 @@ const MargemPosto = () => {
                   {p.coberturaCustoPct < 99.5 && (
                     <span className="hidden rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 md:inline">
                       {p.coberturaCustoPct.toFixed(0)}% com custo
+                    </span>
+                  )}
+                  {/* Abre bem menos dias que o resto da rede (3+) → contexto pro
+                      volume menor (não é "posto fraco", é dias fechados). */}
+                  {p.diasOperados > 0 && maxDias - p.diasOperados >= 3 && (
+                    <span className="hidden rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 md:inline">
+                      abriu {p.diasOperados} de {maxDias} dias
                     </span>
                   )}
 
