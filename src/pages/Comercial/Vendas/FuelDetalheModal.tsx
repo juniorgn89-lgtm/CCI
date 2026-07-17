@@ -26,8 +26,12 @@ interface FuelDetalheModalProps {
   /** Resumo de VALOR do combustível (venda fiscal). O detalhe operacional
    *  (frentistas/bombas/hora) vem dos abastecimentos em `rows`. */
   fuel: FuelVendaFuelType | null
-  /** Todos os abastecimentos do período — o modal filtra pelo `fuel.nome` internamente. */
+  /** Todos os abastecimentos do período — o modal filtra pelo `fuel.nome` internamente.
+   *  Buscado SOB DEMANDA (só quando o modal abre): pode vir vazio enquanto `loading`. */
   rows: AbastecimentoRow[]
+  /** Físico (frentista/bomba/hora) ainda carregando (fetch sob demanda). Mostra
+   *  spinner nas seções operacionais; os indicadores de VALOR (venda) já aparecem. */
+  loading?: boolean
   /** Data inicial do período (ISO yyyy-mm-dd) — exibida no header de contexto. */
   dataInicial: string
   /** Data final do período (ISO yyyy-mm-dd). */
@@ -38,7 +42,7 @@ interface FuelDetalheModalProps {
   projecaoFiscal?: { fat: number; litros: number; lucro: number; margem: number } | null
 }
 
-const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, fuelColor, projecaoFiscal }: FuelDetalheModalProps) => {
+const FuelDetalheModal = ({ open, onClose, fuel, rows, loading = false, dataInicial, dataFinal, fuelColor, projecaoFiscal }: FuelDetalheModalProps) => {
   const ct = useChartTheme()
   // Filtra rows desse combustível
   const filtered = useMemo(
@@ -166,7 +170,9 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
             </span>
             <span className="text-gray-300 dark:text-gray-600">·</span>
             <span className="text-gray-600 dark:text-gray-400">
-              {formatNumber(filtered.length)} abastecimento{filtered.length === 1 ? '' : 's'}
+              {loading && filtered.length === 0
+                ? 'carregando abastecimentos…'
+                : `${formatNumber(filtered.length)} abastecimento${filtered.length === 1 ? '' : 's'}`}
             </span>
           </div>
 
@@ -214,7 +220,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                 Top frentistas
               </div>
               {topFrentistas.length === 0 ? (
-                <p className="px-3 py-6 text-center text-xs text-gray-400">Sem dados.</p>
+                <p className="px-3 py-6 text-center text-xs text-gray-400">{loading ? 'Carregando detalhe…' : 'Sem dados.'}</p>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {topFrentistas.map((f) => {
@@ -249,7 +255,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
                 Top bombas
               </div>
               {topBombas.length === 0 ? (
-                <p className="px-3 py-6 text-center text-xs text-gray-400">Sem dados.</p>
+                <p className="px-3 py-6 text-center text-xs text-gray-400">{loading ? 'Carregando detalhe…' : 'Sem dados.'}</p>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {topBombas.map((b) => {
@@ -285,7 +291,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, dataInicial, dataFinal, f
               Distribuição horária — litros vendidos por hora do dia
             </div>
             {porHora.length === 0 ? (
-              <p className="px-3 py-6 text-center text-xs text-gray-400">Sem dados.</p>
+              <p className="px-3 py-6 text-center text-xs text-gray-400">{loading ? 'Carregando detalhe…' : 'Sem dados.'}</p>
             ) : (
               <div className="p-3">
                 <ResponsiveContainer width="100%" height={200}>

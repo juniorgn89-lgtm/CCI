@@ -179,8 +179,17 @@ export interface ProjectionMeta {
   scaleFactor: number
 }
 
-const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
+const useAbastecimentosAnalytics = (
+  empresaCodigoOverride?: number | null,
+  opts?: { physicalEnabled?: boolean },
+) => {
   const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
+  // Físico live (/ABASTECIMENTO + LMC + mês anterior) SOB DEMANDA: a aba
+  // Combustível abre 100% do cache e só liga o físico quando o modal de detalhe
+  // (top frentistas/bombas/hora) abre. Outros consumidores (Operação·Bombas)
+  // não passam nada → default `true` (comportamento inalterado). O cache de
+  // abast (Supabase) segue carregando normal; isto gate só as chamadas Quality.
+  const wantFisico = opts?.physicalEnabled ?? true
   // Posto explícito (telas com seletor por-posto). `undefined` = legado (filtro).
   // `scopedCodes` = recorte efetivo; `empresaCodigoSingle` = posto único (raw).
   const scopedCodes = empresaCodigoOverride !== undefined
@@ -246,7 +255,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
   const { data: abastLive = [], isLoading: isLoadingAbastLive } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal, tipoData: abastTipoData }),
-    enabled: rawSingle && (!cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking)),
+    enabled: rawSingle && wantFisico && (!cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking)),
     placeholderData: keepPreviousData,
   })
 
@@ -254,7 +263,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
   const { data: prevMonthLive = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, tipoData: abastTipoData }),
-    enabled: rawSingle && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
+    enabled: rawSingle && wantFisico && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
     retry: false,
   })
 
@@ -327,7 +336,7 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
     // Só dispara LMC DEPOIS que a checagem do cache terminou — evita
     // fetch redundante enquanto isChecking=true e abastecimentos=[].
     // Cancela quando descobrimos que o cache tem custo embutido.
-    enabled: rawSingle && (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
+    enabled: rawSingle && wantFisico && (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
 
@@ -883,7 +892,17 @@ const useAbastecimentosAnalytics = (empresaCodigoOverride?: number | null) => {
     return { daysTotal, daysElapsed, daysRemaining, isProjectable, scaleFactor }
   }, [dataInicial, dataFinal])
 
-  return { ...computed, projectionMeta, isLoading, descAcrByFrentista }
+  // isLoadingBase: só o que a VIEW principal precisa (evolução 12m em cache) —
+  // NÃO inclui o físico live, pra abrir o modal de detalhe não re-skeletar a aba.
+  // isLoadingFisico: o físico sob demanda (abast live) — pro modal exibir spinner.
+  return {
+    ...computed,
+    projectionMeta,
+    isLoading,
+    isLoadingBase: isLoadingEvolution,
+    isLoadingFisico: isLoadingAbastLive,
+    descAcrByFrentista,
+  }
 }
 
 export default useAbastecimentosAnalytics

@@ -233,9 +233,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const single1Posto = empresaCodigos.length === 1
   const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
-  // ABASTECIMENTO só pro operacional por-posto: `rows` (modal de frentistas/
-  // bombas/hora — só com 1 posto) e `lbLitroData` (gráfico 12 meses, rede-wide).
-  const { rows, lbLitroData, isLoading: isLoadingAnalytics } = useAbastecimentosAnalytics()
   // VENDA fiscal CONSOLIDADA (cache apuracao_vendas) — fonte das métricas de
   // VALOR: KPIs, mix, ranking, projeção, tabela dia a dia e por combustível.
   const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros, isLoading: isLoadingValor } = useFuelVendaCacheAnalytics()
@@ -245,6 +242,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
   const [selectedFuel, setSelectedFuel] = useState<FuelVendaFuelType | null>(null)
+  // ABASTECIMENTO físico (frentista/bomba/hora) SOB DEMANDA: a aba abre 100% do
+  // cache (venda + evolução 12m). O físico live/Quality só liga quando o modal de
+  // detalhe por combustível abre (`selectedFuel !== null`) — e só com 1 posto.
+  // `lbLitroData` (gráfico 12 meses) segue vindo do cache, sempre.
+  const { rows, lbLitroData, isLoadingBase, isLoadingFisico } = useAbastecimentosAnalytics(
+    undefined,
+    { physicalEnabled: selectedFuel !== null },
+  )
   const [semanalFuelFilter, setSemanalFuelFilter] = useState('Todos')
   const [diaFuelFilter, setDiaFuelFilter] = useState('Todos')
   const [litrosModalOpen, setLitrosModalOpen] = useState(false)
@@ -998,8 +1003,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               </div>
             </div>
 
-            {/* Loading state — único pra todas as abas */}
-            {(isLoadingValor || isLoadingAnalytics) ? (
+            {/* Loading state — único pra todas as abas. Usa o loading BASE (venda
+                + evolução, ambos cache) — NÃO o físico sob demanda, senão abrir o
+                modal de detalhe re-skeletaria a aba inteira. */}
+            {(isLoadingValor || isLoadingBase) ? (
               <div className="space-y-2 p-5">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Skeleton key={i} className="h-10 rounded-md" />
@@ -1557,6 +1564,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
         onClose={() => setSelectedFuel(null)}
         fuel={selectedFuel}
         rows={rows}
+        loading={isLoadingFisico}
         dataInicial={dataInicial}
         dataFinal={dataFinal}
         fuelColor={fuelColor}
