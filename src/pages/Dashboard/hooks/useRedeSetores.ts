@@ -146,6 +146,11 @@ interface VendaAgg {
   descontos: number
 }
 
+/** Acumuladores por produto/posto — mantidos com granularidade por empresa na
+ *  agregação rede-wide (memo pesado), pra o filtro de posto ser barato depois. */
+interface ProdAcc { produtoCodigo: number; nome: string; qtd: number; fat: number; custo: number; acr: number; desc: number }
+interface PostoAcc { empresaCodigo: number; produtos: Map<number, ProdAcc>; qtd: number; fat: number; custo: number; acr: number; desc: number }
+
 const emptySetor = (id: SetorId, unidadeLabel: string, lbLabel: string): RedeSetor => ({
   id, unidadeLabel, lbLabel,
   qtd: 0, qtdAnoAnterior: 0, faturamento: 0, faturamentoAnoAnterior: 0, custo: 0, lucroBruto: 0,
@@ -246,21 +251,12 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     staleTime: 5 * 60 * 1000,
   })
 
-  return useMemo<RedeSetoresData>(() => {
-    const isLoading = lProd || lGrp || lClosed || lToday || lPrev
-
-    // Filtro de posto (client-side): respeita empresaCodigos SEM refetch — os
-    // dados já vêm rede-wide do cache, então mudar a seleção só re-agrega aqui.
-    // `[]` = Todos os postos (rede inteira). Consistente com a Central.
-    const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
-    // `quantidade > 0`: descarta linhas anômalas de qtd zero/negativa (ajustes/
-    // estornos) que ainda carregam valor no cache. As abas (Combustível/Pista/
-    // Conveniência + índice sazonal) já filtram assim — sem isto, o realizado e a
-    // projeção do painel divergiam ~1% dos cards. Ver [[project_projecao_sazonal]].
-    const closedRowsF = closedRows.filter((r) => matchPosto(r.empresa_codigo) && r.quantidade > 0)
-    const todayItensF = todayItens.filter((it) => matchPosto(it.empresaCodigo))
-    const anoAntRowsF = anoAntRows.filter((r) => matchPosto(r.empresa_codigo) && r.quantidade > 0)
-
+  // ── Memo A: agregação REDE-WIDE (posto-independente) ──────────────────────
+  // O scan pesado das linhas (cache fechado + hoje live) roda UMA vez e mantém
+  // granularidade POR EMPRESA em tudo — inclusive as séries diárias. Assim, a
+  // memo de baixo só filtra postos e soma (barato). Trocar de posto deixa de
+  // re-varrer milhares de linhas → seleção fica instantânea.
+  const agg = useMemo(() => {
     // Conjuntos de classificação (alias-expandido pros aliases de combustível).
     const isFuel = new Set<number>()
     const isPista = new Set<number>()
@@ -296,7 +292,16 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const nomeDe = (cacheNome: string | null | undefined, pc: number): string =>
       cacheNome || nomeProduto.get(pc) || `Produto ${pc}`
 
-    const curr: VendaAgg[] = closedRowsF
+    // `quantidade > 0`: descarta linhas anômalas de qtd zero/negativa (ajustes/
+    // estornos) que ainda carregam valor no cache. As abas (Combustível/Pista/
+    // Conveniência + índice sazonal) já filtram assim — sem isto, o realizado e a
+    // projeção do painel divergiam ~1% dos cards. Ver [[project_projecao_sazonal]].
+    // NOTA: SEM filtro de posto aqui — a memo de baixo aplica isso ao somar.
+    const closedRowsQ = closedRows.filter((r) => r.quantidade > 0)
+    const anoAntRowsQ = anoAntRows.filter((r) => r.quantidade > 0)
+    const todayValid = todayItens.filter((it) => it.quantidade > 0 && autToday.has(it.vendaCodigo))
+
+    const curr: VendaAgg[] = closedRowsQ
       .filter((r) => r.setor !== 'outros')  // 'outros' fica fora dos setores
       .map((r) => ({
         empresaCodigo: r.empresa_codigo, produtoCodigo: r.produto_codigo,
@@ -304,9 +309,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo,
         acrescimos: r.acrescimos ?? 0, descontos: r.descontos ?? 0,
       }))
-    for (const it of todayItensF) {
-      if (it.quantidade <= 0) continue
-      if (!autToday.has(it.vendaCodigo)) continue  // só vendas autorizadas (cruzamento /VENDA)
+    for (const it of todayValid) {
       const setor = classify(it.produtoCodigo, isFuel, isPista)
       // Custo = totalCusto do item (fallback precoCusto×qtd) — igual em todos os
       // setores, combustível incluído, pra o LB bater com o CMV do WebPosto.
@@ -317,60 +320,58 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         acrescimos: it.totalAcrescimo ?? 0, descontos: it.totalDesconto ?? 0 })
     }
 
-    // Série DIÁRIA de lucro bruto global (3 setores) — MESMA base do consolidado
-    // (cache fechado + hoje live), mantendo o eixo de DIA que a agregação por
-    // produto descarta. Alimenta a régua de projeção da Visão Geral (forma real).
-    const dailyMap = new Map<string, number>()
-    for (const r of closedRowsF) {
-      if (r.setor === 'outros') continue
-      dailyMap.set(r.data, (dailyMap.get(r.data) ?? 0) + (r.total_venda - r.total_custo))
+    // Série DIÁRIA de lucro bruto por EMPRESA → dia (a memo de baixo soma só os
+    // postos selecionados). Mantém o eixo de DIA que a agregação por produto
+    // descarta; alimenta a régua de projeção da Visão Geral (forma real).
+    const dailyLBByEmp = new Map<number, Map<string, number>>()
+    const addLB = (emp: number, data: string, lb: number) => {
+      let m = dailyLBByEmp.get(emp)
+      if (!m) { m = new Map(); dailyLBByEmp.set(emp, m) }
+      m.set(data, (m.get(data) ?? 0) + lb)
     }
-    for (const it of todayItensF) {
-      if (it.quantidade <= 0 || !autToday.has(it.vendaCodigo)) continue
+    for (const r of closedRowsQ) {
+      if (r.setor === 'outros') continue
+      addLB(r.empresa_codigo, r.data, r.total_venda - r.total_custo)
+    }
+    for (const it of todayValid) {
       const dia = (it.dataMovimento || '').slice(0, 10)
       if (!dia) continue
       const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
-      dailyMap.set(dia, (dailyMap.get(dia) ?? 0) + (it.totalVenda - custo))
+      addLB(it.empresaCodigo, dia, it.totalVenda - custo)
     }
-    const dailyLB = Array.from(dailyMap.entries())
-      .map(([data, lb]) => ({ data, lb }))
-      .sort((a, b) => a.data.localeCompare(b.data))
 
-    // Série DIÁRIA por SETOR (fat/LB/qtd) — base da projeção executiva
+    // Série DIÁRIA por SETOR + EMPRESA (fat/LB/qtd) — base da projeção executiva
     // (projecaoAvancada) por setor na Visão Geral, batendo com as abas.
-    const dailyBySetor: Record<SetorId, Map<string, { fat: number; lucro: number; qtd: number }>> = {
+    const dailyBySetorEmp: Record<SetorId, Map<number, Map<string, { fat: number; lucro: number; qtd: number }>>> = {
       combustivel: new Map(), automotivos: new Map(), conveniencia: new Map(),
     }
-    const addDaily = (s: SetorId, data: string, fat: number, lucro: number, qtd: number) => {
-      const e = dailyBySetor[s].get(data) ?? { fat: 0, lucro: 0, qtd: 0 }
+    const addDaily = (s: SetorId, emp: number, data: string, fat: number, lucro: number, qtd: number) => {
+      let byEmp = dailyBySetorEmp[s].get(emp)
+      if (!byEmp) { byEmp = new Map(); dailyBySetorEmp[s].set(emp, byEmp) }
+      const e = byEmp.get(data) ?? { fat: 0, lucro: 0, qtd: 0 }
       e.fat += fat; e.lucro += lucro; e.qtd += qtd
-      dailyBySetor[s].set(data, e)
+      byEmp.set(data, e)
     }
-    for (const r of closedRowsF) {
+    for (const r of closedRowsQ) {
       if (r.setor === 'outros') continue
-      addDaily(setorOf(r.setor, r.produto_codigo), r.data, r.total_venda, r.total_venda - r.total_custo, r.quantidade)
+      addDaily(setorOf(r.setor, r.produto_codigo), r.empresa_codigo, r.data, r.total_venda, r.total_venda - r.total_custo, r.quantidade)
     }
-    for (const it of todayItensF) {
-      if (it.quantidade <= 0 || !autToday.has(it.vendaCodigo)) continue
+    for (const it of todayValid) {
       const dia = (it.dataMovimento || '').slice(0, 10)
       if (!dia) continue
       const s = classify(it.produtoCodigo, isFuel, isPista)
       const custo = it.totalCusto > 0 ? it.totalCusto : it.precoCusto * it.quantidade
-      addDaily(s, dia, it.totalVenda, it.totalVenda - custo, it.quantidade)
+      addDaily(s, it.empresaCodigo, dia, it.totalVenda, it.totalVenda - custo, it.quantidade)
     }
-    const dailySetorArr = (s: SetorId) => Array.from(dailyBySetor[s].entries())
-      .map(([data, v]) => ({ data, faturamento: v.fat, lucroBruto: v.lucro, qtd: v.qtd }))
-      .sort((a, b) => a.data.localeCompare(b.data))
 
     // Ano anterior por (setor|empresa) → Map<produto, { qtd, lucro, nome }>. Guardar
     // por produto permite incluir itens que venderam SÓ no ano passado (senão o
     // total do ano anterior fica subestimado).
-    const seKey = (s: SetorId, e: number) => `${s}|${e}`
     const prevBySE = new Map<string, Map<number, { qtd: number; lucro: number; fat: number; nome: string }>>()
-    for (const r of anoAntRowsF) {
+    for (const r of anoAntRowsQ) {
       if (r.setor === 'outros') continue  // 'outros' fica fora dos setores
       const s = setorOf(r.setor, r.produto_codigo)
-      const k = seKey(s, r.empresa_codigo)
+      const k = `${s}|${r.empresa_codigo}`
       let m = prevBySE.get(k)
       if (!m) { m = new Map(); prevBySE.set(k, m) }
       const prev = m.get(r.produto_codigo) ?? { qtd: 0, lucro: 0, fat: 0, nome: nomeDe(r.produto_nome, r.produto_codigo) }
@@ -380,9 +381,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       m.set(r.produto_codigo, prev)
     }
 
-    // Estrutura por setor → posto → produto.
-    interface ProdAcc { produtoCodigo: number; nome: string; qtd: number; fat: number; custo: number; acr: number; desc: number }
-    interface PostoAcc { empresaCodigo: number; produtos: Map<number, ProdAcc>; qtd: number; fat: number; custo: number; acr: number; desc: number }
+    // Estrutura por setor → posto → produto (rede-wide; filtro de posto é depois).
     const setores: Record<SetorId, Map<number, PostoAcc>> = {
       combustivel: new Map(), automotivos: new Map(), conveniencia: new Map(),
     }
@@ -399,11 +398,12 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     // Cupons (vendaCodigo distinto) por "empresa|setor" — denominador do ticket
     // médio (= faturamento ÷ cupons). No cache vêm desnormalizados
     // por (empresa,dia,setor) em cada linha → dedup por essa chave e soma. No
-    // "hoje" (live) conta distinto direto dos itens.
+    // "hoje" (live) conta distinto direto dos itens. Chaveado por empresa, então
+    // o filtro de posto só lê as entradas dos postos escolhidos.
     const cuponsByES = new Map<string, number>()
     {
       const seenDay = new Set<string>()
-      for (const r of closedRowsF) {
+      for (const r of closedRowsQ) {
         if (r.setor === 'outros') continue
         const s = setorOf(r.setor, r.produto_codigo)
         const dayKey = `${r.empresa_codigo}|${r.data}|${s}`
@@ -413,8 +413,8 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
         cuponsByES.set(esk, (cuponsByES.get(esk) ?? 0) + (r.cupons ?? 0))
       }
       const todaySets = new Map<string, Set<number>>()
-      for (const it of todayItensF) {
-        if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
+      for (const it of todayValid) {
+        if (it.vendaCodigo == null) continue
         const s = classify(it.produtoCodigo, isFuel, isPista)
         const esk = `${it.empresaCodigo}|${s}`
         let set = todaySets.get(esk)
@@ -433,7 +433,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
     const cuponsByEG = new Map<string, number>()
     {
       const seenG = new Set<string>()
-      for (const r of closedRowsF) {
+      for (const r of closedRowsQ) {
         if (r.setor === 'outros' || r.setor === 'combustivel') continue
         const pk = `${r.empresa_codigo}|${r.produto_codigo}`
         cuponsByEP.set(pk, (cuponsByEP.get(pk) ?? 0) + (r.cupons_produto ?? 0))
@@ -446,8 +446,8 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       }
       const pSets = new Map<string, Set<number>>()
       const gSets = new Map<string, Set<number>>()
-      for (const it of todayItensF) {
-        if (it.quantidade <= 0 || it.vendaCodigo == null || !autToday.has(it.vendaCodigo)) continue
+      for (const it of todayValid) {
+        if (it.vendaCodigo == null) continue
         if (classify(it.produtoCodigo, isFuel, isPista) === 'combustivel') continue
         const pk = `${it.empresaCodigo}|${it.produtoCodigo}`
         let pset = pSets.get(pk); if (!pset) { pset = new Set(); pSets.set(pk, pset) }
@@ -461,11 +461,52 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       for (const [gk, set] of gSets) cuponsByEG.set(gk, (cuponsByEG.get(gk) ?? 0) + set.size)
     }
 
+    return { setores, prevBySE, cuponsByES, cuponsByEP, cuponsByEG, dailyLBByEmp, dailyBySetorEmp, grupoNomePorProduto }
+  }, [closedRows, todayItens, autToday, anoAntRows, produtosData, gruposData])
+
+  // ── Memo B: filtro de POSTO + rollup final (barato) ───────────────────────
+  return useMemo<RedeSetoresData>(() => {
+    const isLoading = lProd || lGrp || lClosed || lToday || lPrev
+    const { setores, prevBySE, cuponsByES, cuponsByEP, cuponsByEG, dailyLBByEmp, dailyBySetorEmp, grupoNomePorProduto } = agg
+
+    // Filtro de posto (client-side): respeita empresaCodigos SEM refetch — a
+    // agregação já veio rede-wide por empresa, então aqui só somamos os postos
+    // escolhidos. `[]` = Todos os postos (rede inteira). Consistente com a Central.
+    const matchPosto = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    const seKey = (s: SetorId, e: number) => `${s}|${e}`
+
+    // dailyLB global (3 setores) — soma os postos selecionados por dia.
+    const dailyMap = new Map<string, number>()
+    for (const [emp, m] of dailyLBByEmp) {
+      if (!matchPosto(emp)) continue
+      for (const [data, lb] of m) dailyMap.set(data, (dailyMap.get(data) ?? 0) + lb)
+    }
+    const dailyLB = Array.from(dailyMap.entries())
+      .map(([data, lb]) => ({ data, lb }))
+      .sort((a, b) => a.data.localeCompare(b.data))
+
+    // Série diária por setor, somando só os postos selecionados.
+    const dailySetorArr = (s: SetorId) => {
+      const m = new Map<string, { fat: number; lucro: number; qtd: number }>()
+      for (const [emp, dm] of dailyBySetorEmp[s]) {
+        if (!matchPosto(emp)) continue
+        for (const [data, v] of dm) {
+          const e = m.get(data) ?? { fat: 0, lucro: 0, qtd: 0 }
+          e.fat += v.fat; e.lucro += v.lucro; e.qtd += v.qtd
+          m.set(data, e)
+        }
+      }
+      return Array.from(m.entries())
+        .map(([data, v]) => ({ data, faturamento: v.fat, lucroBruto: v.lucro, qtd: v.qtd }))
+        .sort((a, b) => a.data.localeCompare(b.data))
+    }
+
     const buildSetor = (id: SetorId): RedeSetor => {
       const isComb = id === 'combustivel'
       const setor = emptySetor(id, isComb ? 'Litros' : 'Quantidade', isComb ? 'L.B. por litro' : 'L.B. por unidade')
       const postoMap = setores[id]
       for (const [empresaCodigo, posto] of postoMap) {
+        if (!matchPosto(empresaCodigo)) continue  // só os postos selecionados
         const produtos: RedeProdutoRow[] = []
         let pQtdAnt = 0, pLucroAnt = 0, pFatAnt = 0
         const prevMap = prevBySE.get(seKey(id, empresaCodigo)) ?? new Map<number, { qtd: number; lucro: number; fat: number; nome: string }>()
@@ -582,7 +623,7 @@ const useRedeSetores = (options?: { enabled?: boolean }): RedeSetoresData => {
       isLoading,
       hasRede,
     }
-  }, [closedRows, todayItens, autToday, anoAntRows, empresaCodigos, produtosData, gruposData, nomePorEmpresa, hasRede, comparisonMode, lProd, lGrp, lClosed, lToday, lPrev])
+  }, [agg, empresaCodigos, nomePorEmpresa, hasRede, comparisonMode, lProd, lGrp, lClosed, lToday, lPrev])
 }
 
 export default useRedeSetores
