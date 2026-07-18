@@ -199,10 +199,12 @@ const MargemPosto = () => {
           help="Posto com a menor margem por litro — o que mais puxa a média da rede pra baixo."
         />
         <KpiCard
-          Icon={ArrowUpRight} label="Ganho potencial" sub="estimativa · teto" tone="amber"
+          Icon={ArrowUpRight} label="Ganho potencial" sub="só combustível · teto" tone="amber"
           value={`+${formatCurrencyInt(data.ganhoPotencial3Piores)}`}
-          foot="no período · 3 piores → média (volume constante)"
-          help="Estimativa (teto) do lucro adicional no período se os 3 piores postos subissem até a média da rede, com volume constante. Não pressupõe vender mais litros."
+          foot={data.ganhoPotencialProjMes != null
+            ? <>no período · pro mês <span className="font-semibold">~+{formatCurrencyInt(data.ganhoPotencialProjMes)}</span></>
+            : 'no período · 3 piores → média (volume constante)'}
+          help="Só a lente de MARGEM DE COMBUSTÍVEL: teto do lucro adicional se os 3 piores postos subissem 100% até a média da rede, a volume constante. 'No período' = realizado; 'pro mês' = extrapolado até o fim do mês. O total PRIORIZADO de todas as alavancas (praça, margem, loja) está na aba Oportunidades — por isso os números diferem."
         />
         </div>
       </div>

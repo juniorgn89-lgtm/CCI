@@ -171,7 +171,7 @@ const Oportunidades = () => {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Potencial de lucro adicional</p>
                 <InfoHint className="text-white/60 hover:text-white" text="Soma do lucro adicional estimado de todas as oportunidades do período (praça, margem e conveniência). É um TETO, a custo e volume constantes — o ganho real depende da reação de mercado (elasticidade)." />
               </div>
-              <p className="text-[10px] text-white/50">estimativa · teto · no período</p>
+              <p className="text-[10px] text-white/50">praça + margem + loja · priorizado · no período</p>
             </div>
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10"><TrendingUp className="h-4 w-4" /></span>
           </div>

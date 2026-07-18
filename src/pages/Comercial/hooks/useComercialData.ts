@@ -63,6 +63,9 @@ export interface ComercialData {
   worst: ComercialPostoRow | null
   /** ESTIMATIVA (teto): R$ no período se os 3 piores subirem à média da rede. */
   ganhoPotencial3Piores: number
+  /** O mesmo ganho PROJETADO pro fim do mês (extrapolação linear). null quando
+   *  o período não é o mês corrente parcial (aí o ganho do período já é o final). */
+  ganhoPotencialProjMes: number | null
   /** Frescor agregado da rede: data de custo mais antiga entre os postos. */
   custoDateMaisAntiga: string | null
   custoStaleDaysMax: number | null
@@ -82,7 +85,7 @@ const REDE_WIDE: number[] = []
 
 const useComercialData = (): ComercialData => {
   const rede = useRedeSetores({ empresaCodigos: REDE_WIDE })
-  const { dataFinal } = useFilterStore()
+  const { dataInicial, dataFinal } = useFilterStore()
 
   const empresaCodigos = useMemo(
     () => rede.combustivel.postos.map((p) => p.empresaCodigo),
@@ -173,6 +176,23 @@ const useComercialData = (): ComercialData => {
       0,
     )
 
+    // Projeção pro FIM DO MÊS: extrapola linearmente pelo % do mês já decorrido.
+    // Correto mesmo com dias fechados — o volume realizado JÁ reflete os dias que
+    // cada posto abriu, então escalar pelo calendário respeita esse padrão. Só
+    // projeta quando o período é o MÊS CORRENTE começando no dia 1 e ainda aberto
+    // (senão o ganho já é o final). Estimativa grossa (mesmo teto, mais dias).
+    const hojeIso = todayLocal()
+    const [my, mm] = (dataInicial || hojeIso).split('-').map(Number)
+    const diasNoMes = new Date(my, mm, 0).getDate()
+    const ehMesCorrente = hojeIso.slice(0, 7) === `${my}-${String(mm).padStart(2, '0')}`
+    const fimIso = dataFinal < hojeIso ? dataFinal : hojeIso
+    const iniDia = Number((dataInicial || '').slice(8, 10))
+    const diaFim = ehMesCorrente ? Number(fimIso.slice(8, 10)) : diasNoMes
+    const podeProjetar = ehMesCorrente && iniDia === 1 && diaFim > 0 && diaFim < diasNoMes
+    const ganhoPotencialProjMes = podeProjetar
+      ? ganhoPotencial3Piores * (diasNoMes / diaFim)
+      : null
+
     // frescor agregado: data de custo mais antiga entre os postos com data
     let custoDateMaisAntiga: string | null = null
     for (const p of postos) {
@@ -190,12 +210,13 @@ const useComercialData = (): ComercialData => {
       best,
       worst,
       ganhoPotencial3Piores,
+      ganhoPotencialProjMes,
       custoDateMaisAntiga,
       custoStaleDaysMax,
       isLoading: rede.isLoading,
       hasRede: rede.hasRede,
     }
-  }, [rede, lmcRows])
+  }, [rede, lmcRows, dataInicial, dataFinal])
 }
 
 export default useComercialData
