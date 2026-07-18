@@ -88,6 +88,7 @@ const useFuelVendaCacheAnalytics = () => {
       if (r.quantidade <= 0) continue
       rows.push({
         data: r.data,
+        empresaCodigo: r.empresa_codigo,
         produtoCodigo: r.produto_codigo,
         combustivelNome: nome(r),
         litros: r.quantidade,
@@ -99,6 +100,12 @@ const useFuelVendaCacheAnalytics = () => {
         funcionarioCodigo: 0,
         bicoCodigo: 0,
       })
+    }
+
+    // Nome do posto por código (fantasia) — pra tabela "por posto" do dia a dia.
+    const postoNomes = new Map<number, string>()
+    for (const e of empresasData?.resultados ?? []) {
+      postoNomes.set(e.codigo, e.fantasia || e.razao || `Posto ${e.codigo}`)
     }
 
     // Período anterior (cards de KPI) — totais.
@@ -193,8 +200,8 @@ const useFuelVendaCacheAnalytics = () => {
       lbPorLitro: pLitros > 0 ? (pFat - pCusto) / pLitros : 0,
     }
 
-    return { rows, rowsSemanaAnt, dailyData, fuelTypeData, kpis, cmp, semanaAntLitros, hasEmpresa: true, isLoading }
-  }, [curRows, prevRows, semRows, empresaCodigos, permittedCodes, isLoading])
+    return { rows, rowsSemanaAnt, dailyData, fuelTypeData, kpis, cmp, semanaAntLitros, postoNomes, hasEmpresa: true, isLoading }
+  }, [curRows, prevRows, semRows, empresaCodigos, permittedCodes, empresasData, isLoading])
 }
 
 export default useFuelVendaCacheAnalytics

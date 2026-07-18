@@ -37,6 +37,9 @@ const shiftDays = (dateStr: string, days: number): string => {
 
 export interface FuelVendaRow {
   data: string // yyyy-MM-dd (dataMovimento)
+  /** Código do posto (cache é agregado por empresa/dia/produto). Opcional: a
+   *  fonte física/live não carimba. Usado na tabela "por posto" do dia a dia. */
+  empresaCodigo?: number
   produtoCodigo: number
   combustivelNome: string
   litros: number

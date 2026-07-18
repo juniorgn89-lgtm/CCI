@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, type CSSProperties, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
@@ -220,6 +220,176 @@ const FuelSelect = ({ options, value, onChange }: { options: string[]; value: st
   </div>
 )
 
+interface PostoDiaMatrix {
+  dayList: string[]
+  postos: { code: number; nome: string; litros: number[]; total: number; media: number; diasOp: number }[]
+  redeDia: number[]
+  totalRede: number
+}
+
+/** Tabela posto × dia (litros) — visão "por posto" do gráfico "Litros vendidos
+ *  por dia". Cada célula é tingida vs a MÉDIA do próprio posto (verde acima /
+ *  vermelho abaixo), pra saltar aos olhos quem puxou o dia da rede pra cima ou
+ *  pra baixo. Cabeçalho traz o dia-da-semana e as colunas de sáb/dom ganham a
+ *  faixa âmbar de fim de semana (mesma do gráfico). Ordenada por volume total. */
+const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
+  const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`
+  // Dia-da-semana curto (SEG..DOM) + flag de fim de semana por dia da matriz.
+  const dow = (d: string) => {
+    const g = new Date(`${d}T00:00:00`).getDay()
+    return { short: DOW_SHORT[(g + 6) % 7], weekend: g === 0 || g === 6 }
+  }
+  const meta = matrix.dayList.map(dow)
+  // Faixa de fim de semana — mesma cor do gráfico (#f8b73a a ~8%).
+  const WK: CSSProperties = { backgroundColor: 'rgba(248,183,58,0.08)' }
+  // Desvio do dia vs a média do próprio posto → cor. Alpha funciona nos 2 temas.
+  const tint = (v: number, media: number): CSSProperties => {
+    if (v <= 0 || media <= 0) return {}
+    const dev = (v - media) / media
+    if (Math.abs(dev) < 0.04) return {}
+    const a = Math.min(0.3, Math.abs(dev) * 0.55)
+    return { backgroundColor: dev > 0 ? `rgba(16,185,129,${a})` : `rgba(239,68,68,${a})` }
+  }
+  const divisor = 'border-r border-gray-100 dark:border-gray-800'
+  // Ranking da MÉDIA/dia é próprio (depende de dias abertos) — não segue o total.
+  const medias = matrix.postos.map((p) => p.media)
+  const mediaMax = matrix.postos.length > 1 ? Math.max(...medias) : Infinity
+  const mediaMin = matrix.postos.length > 1 ? Math.min(...medias) : -Infinity
+  // KPIs do cabeçalho (mesmos do gráfico): média/dia da rede e pico do período.
+  const n = matrix.dayList.length
+  const mediaRede = n > 0 ? matrix.totalRede / n : 0
+  const picoRede = matrix.redeDia.length ? Math.max(...matrix.redeDia) : 0
+  const picoIdx = picoRede > 0 ? matrix.redeDia.indexOf(picoRede) : -1
+  const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  const rangeLabel = (ini: string, fim: string) => {
+    const [ya, ma, da] = ini.split('-')
+    const [yb, mb, db] = fim.split('-')
+    if (ya === yb && ma === mb) return `${da}–${db} ${MESES_PT[+ma - 1]} ${yb}`
+    if (ya === yb) return `${da} ${MESES_PT[+ma - 1]} – ${db} ${MESES_PT[+mb - 1]} ${yb}`
+    return `${da} ${MESES_PT[+ma - 1]} ${ya} – ${db} ${MESES_PT[+mb - 1]} ${yb}`
+  }
+  const range = n > 0 ? rangeLabel(matrix.dayList[0], matrix.dayList[n - 1]) : ''
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-transparent">
+      {/* Cabeçalho igual ao gráfico: título + subtítulo + mini-KPIs. */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Litros vendidos por dia</h3>
+          <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{range} · por posto · volume diário da rede</p>
+        </div>
+        <div className="flex shrink-0 items-stretch gap-2">
+          <div className="rounded-lg border border-gray-200 bg-gray-50/60 px-2.5 py-1 text-center dark:border-gray-700 dark:bg-gray-800/50">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Média/dia</p>
+            <p className="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">{formatNumber(Math.round(mediaRede))}</p>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-center dark:border-emerald-800/50 dark:bg-emerald-900/20">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Pico</p>
+            <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{formatNumber(Math.round(picoRede))}</p>
+          </div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 text-xs">
+        <thead className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <tr>
+            <th className={cn('py-2 pl-1 pr-3 text-left font-semibold', divisor)}>Posto</th>
+            {matrix.dayList.map((d, i) => (
+              <th key={d} className="px-2 py-2 text-right font-semibold" style={meta[i].weekend ? WK : undefined}>
+                <div className="tabular-nums">{dm(d)}</div>
+                <div className={cn('text-[9px] font-normal', meta[i].weekend ? 'text-amber-600 dark:text-amber-500/90' : 'text-gray-400 dark:text-gray-600')}>{meta[i].short}</div>
+              </th>
+            ))}
+            <th className="border-l border-gray-200 px-3 py-2 text-right font-semibold dark:border-gray-700">Total</th>
+            <th className="px-3 py-2 text-right font-semibold">Média/dia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.postos.map((p, rowIdx) => (
+            <tr key={p.code}>
+              <td className={cn('py-1.5 pl-1 pr-3 text-gray-700 dark:text-gray-300', divisor)}>
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate font-medium" title={p.nome}>{p.nome}</span>
+                  {rowIdx === 0 && (
+                    <span className="inline-flex shrink-0" title="Maior volume do período" aria-label="Maior volume do período">
+                      <Trophy className="h-3 w-3 text-amber-500" />
+                    </span>
+                  )}
+                  {rowIdx === matrix.postos.length - 1 && matrix.postos.length > 1 && (
+                    <span className="inline-flex shrink-0" title="Menor volume do período" aria-label="Menor volume do período">
+                      <TrendingDown className="h-3 w-3 text-red-500" />
+                    </span>
+                  )}
+                </span>
+              </td>
+              {p.litros.map((v, i) => (
+                <td key={i} className="p-0.5" style={meta[i].weekend ? WK : undefined}>
+                  <div
+                    className={cn('rounded-md px-2 py-1.5 text-right tabular-nums', v > 0 ? 'font-medium text-gray-700 dark:text-gray-200' : 'text-gray-300 dark:text-gray-600')}
+                    style={tint(v, p.media)}
+                  >
+                    {v > 0 ? formatNumber(Math.round(v)) : '·'}
+                  </div>
+                </td>
+              ))}
+              <td
+                className={cn(
+                  'border-l border-gray-200 px-3 py-1.5 text-right font-bold tabular-nums dark:border-gray-700',
+                  matrix.postos.length > 1 && rowIdx === 0
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                    : matrix.postos.length > 1 && rowIdx === matrix.postos.length - 1
+                      ? 'bg-red-500/10 text-red-700 dark:text-red-300'
+                      : 'text-[#1e3a5f] dark:text-gray-100',
+                )}
+              >
+                {formatNumber(Math.round(p.total))}
+              </td>
+              <td
+                className={cn(
+                  'px-3 py-1.5 text-right font-semibold tabular-nums',
+                  p.media === mediaMax
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                    : p.media === mediaMin
+                      ? 'bg-red-500/10 text-red-700 dark:text-red-300'
+                      : 'font-normal text-gray-500 dark:text-gray-400',
+                )}
+              >
+                {formatNumber(Math.round(p.media))}
+              </td>
+            </tr>
+          ))}
+          {/* Rede = soma por dia (bate com a linha do gráfico). Faixa de fim de
+              semana também nos totais, pra a coluna destacar de cima a baixo. */}
+          <tr className="border-t-2 border-gray-300 font-bold text-gray-700 dark:border-gray-600 dark:text-gray-200">
+            <td className={cn('pt-2.5 pl-1 pr-3', divisor)}>Rede</td>
+            {matrix.redeDia.map((v, i) => (
+              <td
+                key={i}
+                className={cn('px-2 pb-1 pt-2.5 text-right tabular-nums', i === picoIdx && 'rounded ring-1 ring-inset ring-emerald-400 dark:ring-emerald-500/70')}
+                style={meta[i].weekend ? WK : undefined}
+                title={i === picoIdx ? 'Pico da rede no período' : undefined}
+              >
+                {formatNumber(Math.round(v))}
+              </td>
+            ))}
+            <td className="border-l border-gray-200 px-3 pt-2.5 text-right tabular-nums text-[#1e3a5f] dark:border-gray-700 dark:text-gray-100">
+              {formatNumber(Math.round(matrix.totalRede))}
+            </td>
+            <td className="px-3 pb-1 pt-2.5 text-right" title="Média/dia da rede no período">
+              <span className="rounded px-2 py-1 text-right tabular-nums text-gray-700 ring-1 ring-inset ring-slate-300 dark:text-gray-200 dark:ring-slate-500/70">
+                {formatNumber(Math.round(mediaRede))}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p className="mt-3 px-1 text-[11px] text-gray-400">
+        Cada célula é tingida vs a média do próprio posto no período: <span className="text-emerald-600 dark:text-emerald-400">verde</span> = dia acima da média · <span className="text-red-600 dark:text-red-400">vermelho</span> = abaixo. Assim dá pra ver quem puxou o volume da rede pra cima ou pra baixo em cada dia. Colunas em <span className="text-amber-600 dark:text-amber-500">âmbar</span> = fim de semana · “·” = posto não vendeu no dia.
+      </p>
+    </div>
+  )
+}
+
 interface ComercialVendasCombustivelProps {
   /** Quando `true`, não renderiza PageHeaderTitle/Actions/SelectCompanyState/VendasNav
    * — usado quando a página é montada como aba dentro do Vendas/index. */
@@ -235,7 +405,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   // VENDA fiscal CONSOLIDADA (cache apuracao_vendas) — fonte das métricas de
   // VALOR: KPIs, mix, ranking, projeção, tabela dia a dia e por combustível.
-  const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros, isLoading: isLoadingValor } = useFuelVendaCacheAnalytics()
+  const { rows: vendaRows, rowsSemanaAnt, dailyData, fuelTypeData, kpis: vendaKpis, cmp: vendaCmp, semanaAntLitros, postoNomes, isLoading: isLoadingValor } = useFuelVendaCacheAnalytics()
   const showSkeleton = useShowSkeleton(isLoadingValor, fuelTypeData.length > 0)
 
   const ct = useChartTheme()
@@ -256,6 +426,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   const [mesesFuelFilter, setMesesFuelFilter] = useState('Todos')
   // Página da tabela dia a dia (0-based; 0 = dias mais recentes).
   const [diaPage, setDiaPage] = useState(0)
+  // Visão do gráfico "Litros vendidos por dia": 'rede' (linha) ou 'posto' (matriz
+  // posto × dia) — pra enxergar quem puxa o volume da rede pra cima/baixo.
+  const [diaChartView, setDiaChartView] = useState<'rede' | 'posto'>('rede')
   // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
   // projeção por combustível.
   const [projDetalheAberto, setProjDetalheAberto] = useState(false)
@@ -404,6 +577,37 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
       .map((d) => ({ data: d.data, litros: d.litros, lbPorLitro: d.litros > 0 ? d.lucroBruto / d.litros : 0 })),
     [detalheDiaADia.days],
   )
+  // Matriz posto × dia (litros) pra visão "por posto" do gráfico. Mesmos dias e
+  // filtro de combustível da série da rede. Tinta por dia = vs a média do próprio
+  // posto (verde acima / vermelho abaixo) → salta quem puxou o dia pra cima/baixo.
+  const postoDiaMatrix = useMemo(() => {
+    const dayList = diaSerie.map((d) => d.data) // ascendente
+    if (dayList.length === 0) return null
+    const dayIdx = new Map(dayList.map((d, i) => [d, i]))
+    const src = diaFuelFilter === 'Todos' ? vendaRows : vendaRows.filter((r) => r.combustivelNome === diaFuelFilter)
+    const byPosto = new Map<number, number[]>()
+    for (const r of src) {
+      const code = r.empresaCodigo
+      if (code == null) continue
+      const di = dayIdx.get(r.data)
+      if (di === undefined) continue
+      let arr = byPosto.get(code)
+      if (!arr) { arr = new Array(dayList.length).fill(0); byPosto.set(code, arr) }
+      arr[di] += r.litros
+    }
+    const postos = Array.from(byPosto.entries())
+      .map(([code, litros]) => {
+        const total = litros.reduce((s, v) => s + v, 0)
+        const diasOp = litros.filter((v) => v > 0).length
+        const media = diasOp > 0 ? total / diasOp : 0
+        return { code, nome: postoNomes.get(code) ?? `Posto ${code}`, litros, total, media, diasOp }
+      })
+      .sort((a, b) => b.total - a.total)
+    const redeDia = dayList.map((_, i) => postos.reduce((s, p) => s + p.litros[i], 0))
+    const totalRede = redeDia.reduce((s, v) => s + v, 0)
+    return { dayList, postos, redeDia, totalRede }
+  }, [diaSerie, vendaRows, diaFuelFilter, postoNomes])
+
   const diaPageCount = Math.max(1, Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA))
   const diaPageSafe = Math.min(diaPage, diaPageCount - 1)
   const diasPagina = useMemo(
@@ -1024,11 +1228,39 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     ) : (
                     <>
                     {/* Gráfico "Litros vendidos por dia" acompanhando a tabela (≥ 2 dias). */}
-                    {diaSerie.length >= 2 && (
+                    {diaSerie.length >= 2 && (() => {
+                      const podePorPosto = !!postoDiaMatrix && postoDiaMatrix.postos.length > 1
+                      const verPorPosto = podePorPosto && diaChartView === 'posto'
+                      return (
                       <div className="px-4 pb-1 pt-4">
-                        <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} cardBg="bg-white dark:bg-transparent" />
+                        {/* Toggle Rede (linha) / Por posto (matriz posto × dia). */}
+                        {podePorPosto && (
+                          <div className="mb-2 flex items-center justify-end">
+                            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+                              {([['rede', 'Rede'], ['posto', 'Por posto']] as const).map(([id, label]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => setDiaChartView(id)}
+                                  className={cn(
+                                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                                    diaChartView === id
+                                      ? 'bg-white text-[#1e3a5f] shadow-sm dark:bg-gray-800 dark:text-gray-100'
+                                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {verPorPosto
+                          ? <PostoDiaTabela matrix={postoDiaMatrix!} />
+                          : <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} cardBg="bg-white dark:bg-transparent" />}
                       </div>
-                    )}
+                      )
+                    })()}
                     <TablePager
                       page={diaPageSafe}
                       pageCount={diaPageCount}
