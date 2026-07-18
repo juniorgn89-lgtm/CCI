@@ -260,6 +260,10 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
   const mediaRede = n > 0 ? matrix.totalRede / n : 0
   const picoRede = matrix.redeDia.length ? Math.max(...matrix.redeDia) : 0
   const picoIdx = picoRede > 0 ? matrix.redeDia.indexOf(picoRede) : -1
+  // Pior dia = menor dia COM venda (ignora dia sem dado). Espelha a baixa do gráfico.
+  const comVenda = matrix.redeDia.filter((v) => v > 0)
+  const baixaRede = comVenda.length ? Math.min(...comVenda) : 0
+  const baixaIdx = baixaRede > 0 ? matrix.redeDia.indexOf(baixaRede) : -1
   const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
   const rangeLabel = (ini: string, fim: string) => {
     const [ya, ma, da] = ini.split('-')
@@ -269,6 +273,16 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
     return `${da} ${MESES_PT[+ma - 1]} ${ya} – ${db} ${MESES_PT[+mb - 1]} ${yb}`
   }
   const range = n > 0 ? rangeLabel(matrix.dayList[0], matrix.dayList[n - 1]) : ''
+  // Paginação alinhada à DIREITA (15/página, igual à tabela de baixo): abre na
+  // janela mais recente e o paginador volta no tempo. Sem barra de rolagem.
+  const DIAS_PAGINA = 15
+  const pageCount = Math.max(1, Math.ceil(n / DIAS_PAGINA))
+  const [pagesBack, setPagesBack] = useState(0) // 0 = janela mais recente
+  const safeBack = Math.min(pagesBack, pageCount - 1)
+  const winEnd = n - safeBack * DIAS_PAGINA
+  const winStart = Math.max(0, winEnd - DIAS_PAGINA)
+  const visIdx = Array.from({ length: winEnd - winStart }, (_, j) => winStart + j)
+  const winRange = n > 0 ? `${dm(matrix.dayList[winStart])}–${dm(matrix.dayList[winEnd - 1])}` : ''
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-transparent">
       {/* Cabeçalho igual ao gráfico: título + subtítulo + mini-KPIs. */}
@@ -288,15 +302,22 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
           </div>
         </div>
       </div>
+      <TablePager
+        page={(pageCount - 1) - safeBack}
+        pageCount={pageCount}
+        onPrev={() => setPagesBack((b) => Math.min(pageCount - 1, b + 1))}
+        onNext={() => setPagesBack((b) => Math.max(0, b - 1))}
+        info={winRange}
+      />
       <div className="overflow-x-auto">
       <table className="w-full border-separate border-spacing-0 text-xs">
         <thead className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
           <tr>
             <th className={cn('py-2 pl-1 pr-3 text-left font-semibold', divisor)}>Posto</th>
-            {matrix.dayList.map((d, i) => (
-              <th key={d} className="px-2 py-2 text-right font-semibold" style={meta[i].weekend ? WK : undefined}>
-                <div className="tabular-nums">{dm(d)}</div>
-                <div className={cn('text-[9px] font-normal', meta[i].weekend ? 'text-amber-600 dark:text-amber-500/90' : 'text-gray-400 dark:text-gray-600')}>{meta[i].short}</div>
+            {visIdx.map((gi) => (
+              <th key={gi} className="px-2 py-2 text-right font-semibold" style={meta[gi].weekend ? WK : undefined}>
+                <div className="tabular-nums">{dm(matrix.dayList[gi])}</div>
+                <div className={cn('text-[9px] font-normal', meta[gi].weekend ? 'text-amber-600 dark:text-amber-500/90' : 'text-gray-400 dark:text-gray-600')}>{meta[gi].short}</div>
               </th>
             ))}
             <th className="border-l border-gray-200 px-3 py-2 text-right font-semibold dark:border-gray-700">Total</th>
@@ -321,16 +342,30 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
                   )}
                 </span>
               </td>
-              {p.litros.map((v, i) => (
-                <td key={i} className="p-0.5" style={meta[i].weekend ? WK : undefined}>
+              {visIdx.map((gi) => {
+                const v = p.litros[gi]
+                // Variação vs o dia anterior do mesmo posto (só quando os dois
+                // dias têm venda). Usa o índice GLOBAL, então o 1º dia da página
+                // ainda compara com o dia anterior (mesmo fora da página). Seta
+                // cinza, discreta — a cor da tinta já é a comparação com a média.
+                const prev = gi > 0 ? p.litros[gi - 1] : 0
+                const vd = gi > 0 && prev > 0 && v > 0 ? ((v - prev) / prev) * 100 : null
+                return (
+                <td key={gi} className="p-0.5" style={meta[gi].weekend ? WK : undefined}>
                   <div
-                    className={cn('rounded-md px-2 py-1.5 text-right tabular-nums', v > 0 ? 'font-medium text-gray-700 dark:text-gray-200' : 'text-gray-300 dark:text-gray-600')}
+                    className={cn('rounded-md px-2 py-1 text-right tabular-nums', v > 0 ? 'font-medium text-gray-700 dark:text-gray-200' : 'text-gray-300 dark:text-gray-600')}
                     style={tint(v, p.media)}
                   >
-                    {v > 0 ? formatNumber(Math.round(v)) : '·'}
+                    <div className="leading-tight">{v > 0 ? formatNumber(Math.round(v)) : '·'}</div>
+                    {vd !== null && (
+                      <div className="text-[9px] font-normal leading-tight text-gray-400 dark:text-gray-500">
+                        {vd > 0 ? '▲' : vd < 0 ? '▼' : ''}{Math.abs(Math.round(vd))}%
+                      </div>
+                    )}
                   </div>
                 </td>
-              ))}
+                )
+              })}
               <td
                 className={cn(
                   'border-l border-gray-200 px-3 py-1.5 text-right font-bold tabular-nums dark:border-gray-700',
@@ -361,16 +396,30 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
               semana também nos totais, pra a coluna destacar de cima a baixo. */}
           <tr className="border-t-2 border-gray-300 font-bold text-gray-700 dark:border-gray-600 dark:text-gray-200">
             <td className={cn('pt-2.5 pl-1 pr-3', divisor)}>Rede</td>
-            {matrix.redeDia.map((v, i) => (
+            {visIdx.map((gi) => {
+              const v = matrix.redeDia[gi]
+              const prev = gi > 0 ? matrix.redeDia[gi - 1] : 0
+              const vd = gi > 0 && prev > 0 && v > 0 ? ((v - prev) / prev) * 100 : null
+              return (
               <td
-                key={i}
-                className={cn('px-2 pb-1 pt-2.5 text-right tabular-nums', i === picoIdx && 'rounded ring-1 ring-inset ring-emerald-400 dark:ring-emerald-500/70')}
-                style={meta[i].weekend ? WK : undefined}
-                title={i === picoIdx ? 'Pico da rede no período' : undefined}
+                key={gi}
+                className={cn(
+                  'px-2 pb-1 pt-2.5 text-right tabular-nums',
+                  gi === picoIdx && 'rounded ring-1 ring-inset ring-emerald-400 dark:ring-emerald-500/70',
+                  gi === baixaIdx && 'rounded ring-1 ring-inset ring-amber-400 dark:ring-amber-500/70',
+                )}
+                style={meta[gi].weekend ? WK : undefined}
+                title={gi === picoIdx ? 'Pico da rede no período' : gi === baixaIdx ? 'Pior dia da rede no período' : undefined}
               >
-                {formatNumber(Math.round(v))}
+                <div className="leading-tight">{formatNumber(Math.round(v))}</div>
+                {vd !== null && (
+                  <div className="text-[9px] font-normal leading-tight text-gray-400 dark:text-gray-500">
+                    {vd > 0 ? '▲' : vd < 0 ? '▼' : ''}{Math.abs(Math.round(vd))}%
+                  </div>
+                )}
               </td>
-            ))}
+              )
+            })}
             <td className="border-l border-gray-200 px-3 pt-2.5 text-right tabular-nums text-[#1e3a5f] dark:border-gray-700 dark:text-gray-100">
               {formatNumber(Math.round(matrix.totalRede))}
             </td>
@@ -384,7 +433,7 @@ const PostoDiaTabela = ({ matrix }: { matrix: PostoDiaMatrix }) => {
       </table>
       </div>
       <p className="mt-3 px-1 text-[11px] text-gray-400">
-        Cada célula é tingida vs a média do próprio posto no período: <span className="text-emerald-600 dark:text-emerald-400">verde</span> = dia acima da média · <span className="text-red-600 dark:text-red-400">vermelho</span> = abaixo. Assim dá pra ver quem puxou o volume da rede pra cima ou pra baixo em cada dia. Colunas em <span className="text-amber-600 dark:text-amber-500">âmbar</span> = fim de semana · “·” = posto não vendeu no dia.
+        Cada célula é tingida vs a média do próprio posto no período: <span className="text-emerald-600 dark:text-emerald-400">verde</span> = dia acima da média · <span className="text-red-600 dark:text-red-400">vermelho</span> = abaixo. A setinha cinza (<span className="text-gray-500">▲/▼ %</span>) é a variação vs o dia anterior. Assim dá pra ver quem puxou o volume da rede pra cima ou pra baixo em cada dia. Colunas em <span className="text-amber-600 dark:text-amber-500">âmbar</span> = fim de semana · “·” = posto não vendeu no dia.
       </p>
     </div>
   )
@@ -1261,11 +1310,14 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </div>
                       )
                     })()}
+                    {/* Mesmo sentido do paginador da tabela "Por posto": abre na
+                        quinzena mais recente (última página), ‹ volta no tempo e
+                        › avança. diaPage interno segue 0 = mais recente. */}
                     <TablePager
-                      page={diaPageSafe}
+                      page={(diaPageCount - 1) - diaPageSafe}
                       pageCount={diaPageCount}
-                      onPrev={() => setDiaPage((p) => Math.max(0, p - 1))}
-                      onNext={() => setDiaPage((p) => Math.min(diaPageCount - 1, p + 1))}
+                      onPrev={() => setDiaPage((p) => Math.min(diaPageCount - 1, p + 1))}
+                      onNext={() => setDiaPage((p) => Math.max(0, p - 1))}
                       info={`${diasOrdenados.length} dias`}
                     />
                     <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
