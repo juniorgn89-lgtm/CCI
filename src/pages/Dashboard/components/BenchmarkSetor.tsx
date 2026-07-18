@@ -96,6 +96,7 @@ interface Maxes { qtd: number; fat: number; lucro: number; margem: number }
 /** Linha de dados (posto/grupo/produto) — células de métricas + trailing por setor. */
 const DataRow = ({
   label, vals, isComb, showFaturamento, maxes, barPct, ticket, small, plain, onClick, selected, rowClass,
+  highlightLucro, highlightMargem,
 }: {
   label: ReactNode
   vals: RowVals
@@ -111,6 +112,10 @@ const DataRow = ({
   onClick?: (e: React.MouseEvent) => void
   selected?: boolean
   rowClass?: string
+  /** Realça a célula de Lucro Bruto (posto "Destaque") — associa o badge ao nº. */
+  highlightLucro?: boolean
+  /** Realça a célula de Margem (posto "Menor margem"). */
+  highlightMargem?: boolean
 }) => {
   const qtdVar = variacaoPct(vals.qtd, vals.qtdAnoAnterior)
   const fatVar = variacaoPct(vals.faturamento, vals.faturamentoAnoAnterior)
@@ -121,6 +126,9 @@ const DataRow = ({
   const trailCls = cn('px-2 text-right tabular-nums', pad, txt)
   const numCls = cn('px-2 text-right tabular-nums', pad)
   const gStart = 'border-l border-gray-200 dark:border-gray-700'  // divisor entre grupos
+  // Realce da célula que EXPLICA o badge (âmbar = maior lucro; vermelho = pior margem).
+  const hlLucro = highlightLucro ? 'bg-amber-50/70 ring-1 ring-inset ring-amber-300/60 dark:bg-amber-950/25 dark:ring-amber-600/40' : ''
+  const hlMargem = highlightMargem ? 'bg-red-50/70 ring-1 ring-inset ring-red-300/60 dark:bg-red-950/25 dark:ring-red-600/40' : ''
   return (
     <tr onClick={onClick} aria-selected={selected} className={rowClass}>
       {label}
@@ -133,11 +141,11 @@ const DataRow = ({
         ? <td className={cn(numCls, gStart)}>{formatCurrencyInt(vals.faturamento)}</td>
         : <td className={cn('px-1.5 py-1', gStart)}><BarCell value={vals.faturamento} max={maxes.fat} formatted={formatCurrencyInt(vals.faturamento)} color="blue" align="near" maxWidthPct={barPct} /></td>)}
       {plain
-        ? <td className={cn(numCls, !showFaturamento && gStart)}>{formatCurrencyInt(vals.lucroBruto)}</td>
-        : <td className={cn('px-1.5 py-1', !showFaturamento && gStart)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={cn(numCls, !showFaturamento && gStart, hlLucro)}>{formatCurrencyInt(vals.lucroBruto)}</td>
+        : <td className={cn('px-1.5 py-1', !showFaturamento && gStart, hlLucro)}><BarCell value={vals.lucroBruto} max={maxes.lucro} formatted={formatCurrencyInt(vals.lucroBruto)} color="green" align="near" maxWidthPct={barPct} /></td>}
       {plain
-        ? <td className={numCls}>{fmtPct(vals.margem)}</td>
-        : <td className="px-1.5 py-1"><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="slate" align="near" maxWidthPct={barPct} /></td>}
+        ? <td className={cn(numCls, hlMargem)}>{fmtPct(vals.margem)}</td>
+        : <td className={cn('px-1.5 py-1', hlMargem)}><BarCell value={vals.margem} max={maxes.margem} formatted={fmtPct(vals.margem)} color="slate" align="near" maxWidthPct={barPct} /></td>}
       {/* Comparativo */}
       <td className={cn(antCls, gStart)}>{showFaturamento ? formatCurrencyInt(vals.faturamentoAnoAnterior) : formatNumber(Math.round(vals.qtdAnoAnterior))}</td>
       <td className={cn('px-2 text-right', pad)}><VariacaoBadge value={showFaturamento ? fatVar : qtdVar} /></td>
@@ -408,9 +416,11 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
 
   // Pior posto por MARGEM (não por lucro bruto) — justo: não penaliza posto
   // pequeno/que abre menos dias, só quem precifica pior. Marca "requer atenção".
+  // Pode coincidir com o Destaque (muito volume, margem magra) — mostramos os
+  // dois de propósito (é um insight: mais lucro total, mas a pior margem).
   const postoPiorMargem = useMemo(() => {
     if (aggregated.postos.length < 2) return null
-    const comVol = aggregated.postos.filter((p) => p.qtd > 0 && p.margem > 0)
+    const comVol = aggregated.postos.filter((p) => p.qtd > 0)
     if (comVol.length < 2) return null
     const pior = [...comVol].sort((a, b) => a.margem - b.margem)[0]
     return pior ? pior.posto : null
@@ -534,7 +544,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                         <InfoHint text={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`} />
                       </>
                     )}
-                    {postoPiorMargem === p.posto && postoDestaque !== p.posto && (
+                    {postoPiorMargem === p.posto && (
                       <>
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
                           <TrendingDown className="h-3 w-3" />
@@ -555,6 +565,8 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                     showFaturamento={showFaturamento}
                     maxes={maxPosto}
                     ticket={isComb ? null : p.ticketMedio}
+                    highlightLucro={postoDestaque === p.posto}
+                    highlightMargem={postoPiorMargem === p.posto}
                     onClick={() => { toggleExpand(postoKey); toggleSelected(postoKey) }}
                     selected={selected === postoKey}
                     rowClass={cn(
