@@ -127,8 +127,10 @@ const DataRow = ({
   const numCls = cn('px-2 text-right tabular-nums', pad)
   const gStart = 'border-l border-gray-200 dark:border-gray-700'  // divisor entre grupos
   // Realce da célula que EXPLICA o badge (âmbar = maior lucro; vermelho = pior margem).
-  const hlLucro = highlightLucro ? 'bg-amber-50/70 ring-1 ring-inset ring-amber-300/60 dark:bg-amber-950/25 dark:ring-amber-600/40' : ''
-  const hlMargem = highlightMargem ? 'bg-red-50/70 ring-1 ring-inset ring-red-300/60 dark:bg-red-950/25 dark:ring-red-600/40' : ''
+  // Realce do selo (Destaque=Lucro, Menor margem=Margem): CONTORNO, não fundo —
+  // um preenchimento ficaria atrás da barra e viraria cor suja (âmbar+verde=marrom).
+  const hlLucro = highlightLucro ? 'ring-1 ring-inset ring-amber-300/70 dark:ring-amber-500/40' : ''
+  const hlMargem = highlightMargem ? 'ring-1 ring-inset ring-red-300/70 dark:ring-red-500/40' : ''
   return (
     <tr onClick={onClick} aria-selected={selected} className={rowClass}>
       {label}
@@ -572,7 +574,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                     rowClass={cn(
                       'cursor-pointer border-b border-gray-100 font-semibold text-gray-900 transition-colors dark:border-gray-800 dark:text-gray-100',
                       selected === postoKey
-                        ? 'bg-amber-100 hover:bg-amber-200/70 dark:bg-amber-900/40 dark:hover:bg-amber-900/50'
+                        ? 'bg-blue-50/60 hover:bg-blue-100/60 dark:bg-blue-950/25 dark:hover:bg-blue-900/25'
                         : 'bg-gray-50/40 hover:bg-blue-50/60 dark:bg-gray-800/30 dark:hover:bg-blue-900/20',
                     )}
                   />
@@ -625,7 +627,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                           rowClass={cn(
                             'cursor-pointer border-b border-gray-100 font-medium text-gray-800 transition-colors dark:border-gray-800 dark:text-gray-200',
                             selected === grupoKey
-                              ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/25 dark:hover:bg-amber-900/35'
+                              ? 'bg-blue-50/50 hover:bg-blue-100/60 dark:bg-blue-950/20 dark:hover:bg-blue-900/20'
                               : 'bg-gray-50/30 hover:bg-blue-50/40 dark:bg-gray-800/20 dark:hover:bg-blue-900/15',
                           )}
                         />
@@ -645,7 +647,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                             rowClass={cn(
                               'cursor-pointer border-b border-gray-100 text-gray-600 transition-colors dark:border-gray-800 dark:text-gray-400',
                               selected === `${setorId}:prod:${p.posto}:${prod.produto}`
-                                ? 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30'
+                                ? 'bg-blue-50/50 hover:bg-blue-100/60 dark:bg-blue-950/15 dark:hover:bg-blue-900/20'
                                 : 'hover:bg-gray-50 dark:hover:bg-gray-800/40',
                             )}
                           />
