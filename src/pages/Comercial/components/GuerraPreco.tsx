@@ -398,6 +398,15 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
   const sparkCusto = serie.map((d) => ({ v: d.precoCusto }))
   const sparkVol = serie.map((d) => ({ v: d.litros }))
 
+  // Cenários estratégicos, curva de elasticidade e alertas ficam OCULTOS: usam só
+  // dados internos (sem preços de concorrentes integrados), então a projeção de
+  // reação de volume não é confiável o bastante pra guiar decisão. Religar quando
+  // a praça/concorrência entrar no sistema.
+  const MOSTRAR_ELASTICIDADE = false
+  // Tabela "Evolução diária" (detalhe técnico dia a dia) — oculta a pedido; é
+  // ruído pro dono. Religar aqui se precisar do detalhe.
+  const MOSTRAR_EVOLUCAO_DIARIA = false
+
   return (
     <div className="space-y-5 p-5">
       {/* ── Cabeçalho + seletor de combustível ── */}
@@ -663,7 +672,8 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             </div>
           </div>
 
-          {/* ── Cenários automáticos ── */}
+          {/* ── Cenários automáticos ── (ocultos até integrar concorrentes) */}
+          {MOSTRAR_ELASTICIDADE && (
           <div>
             <div className="mb-2 flex items-center gap-2">
               <Activity className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
@@ -677,8 +687,10 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               ))}
             </div>
           </div>
+          )}
 
-          {/* ── Elasticidade + Alertas ── */}
+          {/* ── Elasticidade + Alertas ── (ocultos até integrar concorrentes) */}
+          {MOSTRAR_ELASTICIDADE && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {/* Curva de elasticidade */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -763,6 +775,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               </p>
             </div>
           </div>
+          )}
 
           {/* ── Cortes de preço ── */}
           {cortes.length > 0 && (
@@ -812,7 +825,8 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
             </div>
           )}
 
-          {/* ── Evolução diária (colapsável — detalhe técnico) ── */}
+          {/* ── Evolução diária (colapsável — detalhe técnico) ── (oculta a pedido) */}
+          {MOSTRAR_EVOLUCAO_DIARIA && (
           <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
             <button
               type="button"
@@ -877,6 +891,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               </div>
             )}
           </div>
+          )}
         </>
       )}
     </div>

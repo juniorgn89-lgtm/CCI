@@ -306,6 +306,10 @@ const RadarMobile = () => {
   const maxCut = Math.max(0.2, Math.ceil(agg.lbLitro * 100) / 100)
   const VIcon = viab.Icon
 
+  // Alertas + curva de elasticidade ocultos (igual ao desktop): usam só dados
+  // internos, sem preços de concorrentes — não confiável pra decisão.
+  const MOSTRAR_ELASTICIDADE = false
+
   return (
     <div className="space-y-3 pb-2">
       <div className="flex items-center gap-2">
@@ -492,7 +496,8 @@ const RadarMobile = () => {
             )}
           </Section>
 
-          {/* Alertas */}
+          {/* Alertas (oculto até integrar concorrentes) */}
+          {MOSTRAR_ELASTICIDADE && (
           <Section Icon={Lightbulb} title="Alertas inteligentes" accent="amber">
             <div className="space-y-2">
               {alertas.length === 0 ? (
@@ -513,9 +518,10 @@ const RadarMobile = () => {
               Análise baseada nos dados da própria rede. Preços de concorrentes não estão integrados.
             </p>
           </Section>
+          )}
 
-          {/* Curva de elasticidade */}
-          {elasticData.length > 0 && (
+          {/* Curva de elasticidade (oculto até integrar concorrentes) */}
+          {MOSTRAR_ELASTICIDADE && elasticData.length > 0 && (
             <Section Icon={Zap} title="Volume extra por corte" accent="amber">
               <p className="mb-2 text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">
                 Volume a mais necessário pra bancar cada corte (break-even){elasticidade != null && ' · "est." = crescimento previsto pela elasticidade observada'}.
