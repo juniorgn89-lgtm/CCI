@@ -153,6 +153,12 @@ const PostoDiaTabela = ({ matrix, title, noun, formatValue }: PostoDiaTabelaProp
   const selDelta = pairOn && matrix.redeDia[pairIdx] > 0
     ? ((matrix.redeDia[selDay!] - matrix.redeDia[pairIdx]) / matrix.redeDia[pairIdx]) * 100
     : null
+  // Contorno azul da coluna selecionada, via inset box-shadow (compõe com a tinta
+  // das células). Topo no cabeçalho, laterais no corpo, base na linha Rede.
+  const SEL = 'rgba(96,165,250,0.65)'
+  const edgeTop: CSSProperties = { boxShadow: `inset 1px 0 0 ${SEL}, inset -1px 0 0 ${SEL}, inset 0 1px 0 ${SEL}` }
+  const edgeSide: CSSProperties = { boxShadow: `inset 1px 0 0 ${SEL}, inset -1px 0 0 ${SEL}` }
+  const edgeBottom: CSSProperties = { boxShadow: `inset 1px 0 0 ${SEL}, inset -1px 0 0 ${SEL}, inset 0 -1px 0 ${SEL}` }
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-transparent">
       {/* Cabeçalho igual ao gráfico: título + subtítulo + mini-KPIs. */}
@@ -209,10 +215,10 @@ const PostoDiaTabela = ({ matrix, title, noun, formatValue }: PostoDiaTabelaProp
                 onClick={() => pickDay(gi)}
                 title="Comparar com o mesmo dia da semana anterior"
                 className={cn(
-                  'cursor-pointer rounded px-2 py-2 text-right font-semibold transition-colors',
-                  selSet.has(gi) ? 'bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-400/60 dark:text-blue-300' : 'hover:bg-blue-500/[0.05]',
+                  'cursor-pointer px-2 py-2 text-right font-semibold transition-colors',
+                  selSet.has(gi) ? 'bg-blue-500/10 text-blue-600 dark:text-blue-300' : 'hover:bg-blue-500/[0.05]',
                 )}
-                style={meta[gi].weekend && !selSet.has(gi) ? WK : undefined}
+                style={selSet.has(gi) ? edgeTop : (meta[gi].weekend ? WK : undefined)}
               >
                 <div className="tabular-nums">{dm(matrix.dayList[gi])}</div>
                 <div className={cn('text-[9px] font-normal', selSet.has(gi) ? 'text-blue-500 dark:text-blue-300' : meta[gi].weekend ? 'text-amber-600 dark:text-amber-500/90' : 'text-gray-400 dark:text-gray-600')}>{meta[gi].short}</div>
@@ -247,7 +253,7 @@ const PostoDiaTabela = ({ matrix, title, noun, formatValue }: PostoDiaTabelaProp
                 const prev = weekAgo(p.valores, gi)
                 const vd = prev > 0 && v > 0 ? ((v - prev) / prev) * 100 : null
                 return (
-                <td key={gi} className="p-0.5" style={meta[gi].weekend ? WK : undefined}>
+                <td key={gi} className="p-0.5" style={{ ...(meta[gi].weekend ? WK : {}), ...(selSet.has(gi) ? edgeSide : {}) }}>
                   <div
                     className={cn('rounded-md px-2 py-1 text-right tabular-nums', v > 0 ? 'font-medium text-gray-700 dark:text-gray-200' : 'text-gray-300 dark:text-gray-600')}
                     style={tint(v, p.media)}
@@ -304,7 +310,7 @@ const PostoDiaTabela = ({ matrix, title, noun, formatValue }: PostoDiaTabelaProp
                   gi === picoIdx && 'rounded ring-1 ring-inset ring-emerald-400 dark:ring-emerald-500/70',
                   gi === baixaIdx && 'rounded ring-1 ring-inset ring-amber-400 dark:ring-amber-500/70',
                 )}
-                style={meta[gi].weekend ? WK : undefined}
+                style={selSet.has(gi) ? { ...(meta[gi].weekend ? WK : {}), ...edgeBottom } : (meta[gi].weekend ? WK : undefined)}
                 title={gi === picoIdx ? 'Pico da rede no período' : gi === baixaIdx ? 'Pior dia da rede no período' : undefined}
               >
                 <div className="leading-tight">{formatValue(v)}</div>
