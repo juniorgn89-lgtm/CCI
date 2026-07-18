@@ -406,6 +406,16 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
     return top && top.lucroBruto > 0 ? top.posto : null
   }, [aggregated])
 
+  // Pior posto por MARGEM (não por lucro bruto) — justo: não penaliza posto
+  // pequeno/que abre menos dias, só quem precifica pior. Marca "requer atenção".
+  const postoPiorMargem = useMemo(() => {
+    if (aggregated.postos.length < 2) return null
+    const comVol = aggregated.postos.filter((p) => p.qtd > 0 && p.margem > 0)
+    if (comVol.length < 2) return null
+    const pior = [...comVol].sort((a, b) => a.margem - b.margem)[0]
+    return pior ? pior.posto : null
+  }, [aggregated])
+
   const showFaturamento = setorId !== 'combustiveis'
   const isComb = setorId === 'combustiveis'
 
@@ -522,6 +532,15 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                           Destaque
                         </span>
                         <InfoHint text={`Maior Lucro Bruto do setor (${formatCurrency(p.lucroBruto)})`} />
+                      </>
+                    )}
+                    {postoPiorMargem === p.posto && postoDestaque !== p.posto && (
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                          <TrendingDown className="h-3 w-3" />
+                          Menor margem
+                        </span>
+                        <InfoHint text={`Menor margem do setor (${p.margem.toFixed(1).replace('.', ',')}%) — quem mais deixa dinheiro na mesa no preço. Independe de volume/dias abertos.`} />
                       </>
                     )}
                   </span>
