@@ -304,6 +304,18 @@ const MargemPosto = () => {
           </div>
         </div>
 
+        {/* Cabeçalho de colunas — cada uma com "?" explicando (mesmas larguras/
+            responsividade das linhas, então alinha). */}
+        <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-1.5 text-[9.5px] font-semibold uppercase tracking-wide text-gray-400 dark:border-gray-800 dark:text-gray-500">
+          <span className="w-5" />
+          <span className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">Posto</span>
+          <span className="hidden w-24 items-center justify-end gap-0.5 md:inline-flex">Volume<InfoHint text="Litros vendidos no período." /></span>
+          <span className="hidden w-24 items-center justify-end gap-0.5 lg:inline-flex">Lucro bruto<InfoHint text="Faturamento menos o custo (CMV) no período, em R$." /></span>
+          <span className="flex w-20 items-center justify-end gap-0.5">Margem/L<InfoHint text="Lucro bruto ÷ litros = quanto cada litro deixa de lucro. É a base do ranking." /></span>
+          <span className="flex w-[104px] items-center justify-end gap-0.5">O que fazer<InfoHint text="Verde 'no ponto' = na média da rede ou acima. Vermelho 'subir R$X/L' = quanto acrescentar no preço pra chegar na média." /></span>
+        </div>
+
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {rows.map((p, i) => {
             const fr = frescorTone(p.custoStaleDays)
@@ -361,7 +373,7 @@ const MargemPosto = () => {
                   {/* O QUE FAZER, sem % abstrato: verde "no ponto" ou vermelho "subir R$X". */}
                   {abaixo ? (
                     <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-bold text-red-600 dark:text-red-400">
-                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />subir {margemL(subir)}/L
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />subir {margemL(subir)}
                     </span>
                   ) : (
                     <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
