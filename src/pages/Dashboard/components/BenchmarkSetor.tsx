@@ -430,6 +430,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
 
   const showFaturamento = setorId !== 'combustiveis'
   const isComb = setorId === 'combustiveis'
+  const anyExpanded = expandidos.size > 0  // modo foco: recua o resto da tabela
 
   const allProds = aggregated.postos.flatMap((p) => p.produtos)
   const allGrupos = aggregated.postos.flatMap((p) => p.grupos)
@@ -529,9 +530,11 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
             </tr>
           </thead>
           <tbody>
+            {/* Modo foco: com algum posto aberto, os demais recuam (volta no hover). */}
             {aggregated.postos.map((p) => {
               const postoKey = `${setorId}:posto:${p.posto}`
               const expanded = expandidos.has(postoKey)
+              const dimmed = anyExpanded && !expanded
               const postoLabel = (
                 <td className="px-3 py-2 text-left">
                   <span className="inline-flex items-center gap-1.5">
@@ -572,10 +575,11 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
                     onClick={() => { toggleExpand(postoKey); toggleSelected(postoKey) }}
                     selected={selected === postoKey}
                     rowClass={cn(
-                      'cursor-pointer border-b border-gray-100 font-semibold text-gray-900 transition-colors dark:border-gray-800 dark:text-gray-100',
+                      'cursor-pointer border-b border-gray-100 font-semibold text-gray-900 transition dark:border-gray-800 dark:text-gray-100',
                       selected === postoKey
                         ? 'bg-blue-50/60 hover:bg-blue-100/60 dark:bg-blue-950/25 dark:hover:bg-blue-900/25'
                         : 'bg-gray-50/40 hover:bg-blue-50/60 dark:bg-gray-800/30 dark:hover:bg-blue-900/20',
+                      dimmed && 'opacity-40 hover:opacity-100',
                     )}
                   />
 
@@ -666,7 +670,10 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
               maxes={maxPosto}
               ticket={isComb ? null : aggregated.ticketMedio}
               plain
-              rowClass="border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              rowClass={cn(
+                'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 transition dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
+                anyExpanded && 'opacity-40 hover:opacity-100',
+              )}
             />
           </tbody>
         </table>
