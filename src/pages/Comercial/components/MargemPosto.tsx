@@ -121,7 +121,7 @@ const FuelDrill = ({ posto, redeMargemL }: { posto: ComercialPostoRow; redeMarge
   )
 }
 
-const MargemPosto = () => {
+const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void }) => {
   const data = useComercialData()
   const [sort, setSort] = useState<SortKey>('margemL')
   const [open, setOpen] = useState<number | null>(null)
@@ -145,12 +145,7 @@ const MargemPosto = () => {
         `O ${worst.posto} está ${margemL(redeMargemL - worst.margemL)}/L abaixo da média — é quem mais deixa dinheiro na mesa${piorFuel ? `, puxado pelo ${piorFuel.nome} (só ${margemL(piorFuel.margemL)} de margem)` : ''}.`,
       )
     }
-    const fazer: string[] = [
-      'Priorizar os 3 piores postos: alinhá-los à média da rede é a maior alavanca de margem — sem vender 1 litro a mais. O ganho em R$ está quantificado e priorizado na aba Oportunidades.',
-      'Atacar o custo onde a margem é baixa (renegociar bonificação) antes do preço — evita perder volume.',
-      'Definir uma régua de preço por praça (aba Concorrência) pra fechar a diferença entre postos.',
-    ]
-    return { acontecendo, fazer }
+    return { acontecendo }
   }, [data])
 
   if (data.isLoading) {
@@ -276,12 +271,20 @@ const MargemPosto = () => {
               </ul>
             </div>
             <div>
-              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">O que fazer</p>
-              <ol className="space-y-1.5">
-                {leitura.fazer.map((t, i) => (
-                  <li key={i} className="text-[12.5px] leading-snug text-gray-700 dark:text-gray-300">{i + 1}. {t}</li>
-                ))}
-              </ol>
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Como agir</p>
+              <p className="text-[12.5px] leading-snug text-gray-700 dark:text-gray-300">
+                Fechar essa diferença — alinhar os postos abaixo da média — é a maior alavanca de margem, <span className="font-medium">sem vender 1 litro a mais</span>. O <span className="font-medium">quanto vale em R$</span>, posto a posto e já priorizado, está na aba Oportunidades.
+              </p>
+              {onGoToOportunidades && (
+                <button
+                  type="button"
+                  onClick={onGoToOportunidades}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  Ver ação priorizada
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -293,7 +296,7 @@ const MargemPosto = () => {
           <div>
             <div className="flex items-center gap-1">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Ranking de margem por posto</h3>
-              <InfoHint text="Postos ordenados por margem/L (ou lucro bruto/volume, conforme o botão). Colunas: volume, lucro bruto, margem/L e o QUE FAZER — verde 'no ponto' = na média ou acima; vermelho 'subir R$X/L' = quanto acrescentar no preço pra chegar na média da rede. Clique numa unidade pra abrir o detalhe por combustível." />
+              <InfoHint text="Postos ordenados por margem/L (ou lucro bruto/volume, conforme o botão). Colunas: volume, lucro bruto, margem/L e a distância vs a média da rede (vermelho = abaixo, verde = na média ou acima). É o diagnóstico; a ação priorizada em R$ está na aba Oportunidades. Clique numa unidade pra abrir o detalhe por combustível." />
             </div>
             <p className="text-[11px] text-gray-400">Clique numa unidade pra abrir o drill por combustível</p>
           </div>
@@ -313,17 +316,18 @@ const MargemPosto = () => {
           <span className="hidden w-24 items-center justify-end gap-0.5 md:inline-flex">Volume<InfoHint text="Litros vendidos no período." /></span>
           <span className="hidden w-24 items-center justify-end gap-0.5 lg:inline-flex">Lucro bruto<InfoHint text="Faturamento menos o custo (CMV) no período, em R$." /></span>
           <span className="flex w-20 items-center justify-end gap-0.5">Margem/L<InfoHint text="Lucro bruto ÷ litros = quanto cada litro deixa de lucro. É a base do ranking." /></span>
-          <span className="flex w-[104px] items-center justify-end gap-0.5">O que fazer<InfoHint text="Verde 'no ponto' = na média da rede ou acima. Vermelho 'subir R$X/L' = quanto acrescentar no preço pra chegar na média." /></span>
+          <span className="flex w-[120px] items-center justify-end gap-0.5 whitespace-nowrap">vs média<InfoHint text="Distância da margem do posto até a média da rede, em R$/L. Vermelho = abaixo (deixa dinheiro na mesa); verde = na média ou acima. É diagnóstico — pra o quanto vale e o que fazer, veja a aba Oportunidades." /></span>
         </div>
 
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {rows.map((p, i) => {
             const fr = frescorTone(p.custoStaleDays)
             const isOpen = open === p.empresaCodigo
-            // Abaixo da média da rede = precisa mexer. `subir` = R$/L a acrescentar
-            // no preço pra chegar na média (ação concreta, sem % abstrato).
+            // Distância da margem do posto até a média da rede (diagnóstico, não
+            // ordem): `gap` negativo = abaixo (deixa dinheiro na mesa).
             const abaixo = data.redeMargemL > 0 && p.margemL < data.redeMargemL
-            const subir = data.redeMargemL - p.margemL
+            const gap = p.margemL - data.redeMargemL
+            const naMedia = Math.abs(gap) < 0.005
             return (
               <div key={p.empresaCodigo}>
                 <button
@@ -370,14 +374,19 @@ const MargemPosto = () => {
                     abaixo ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
                     {margemL(p.margemL)}
                   </span>
-                  {/* O QUE FAZER, sem % abstrato: verde "no ponto" ou vermelho "subir R$X". */}
+                  {/* DIAGNÓSTICO (não ordem): distância vs a média da rede. A ação
+                      priorizada em R$ mora na aba Oportunidades. */}
                   {abaixo ? (
-                    <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-bold text-red-600 dark:text-red-400">
-                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />subir {margemL(subir)}
+                    <span className="flex w-[120px] shrink-0 items-center justify-end gap-1 whitespace-nowrap text-[11px] font-bold text-red-600 dark:text-red-400">
+                      <TrendingDown className="h-3.5 w-3.5 shrink-0" />−{formatCurrency(-gap)} vs média
+                    </span>
+                  ) : naMedia ? (
+                    <span className="flex w-[120px] shrink-0 items-center justify-end gap-1 whitespace-nowrap text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />na média
                     </span>
                   ) : (
-                    <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />no ponto
+                    <span className="flex w-[120px] shrink-0 items-center justify-end gap-1 whitespace-nowrap text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />+{formatCurrency(gap)} vs média
                     </span>
                   )}
                 </button>

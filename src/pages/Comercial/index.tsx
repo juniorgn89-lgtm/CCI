@@ -20,7 +20,7 @@ type TabId = 'oportunidades' | 'margem' | 'concorrencia' | 'radar'
 
 const TABS: { id: TabId; label: string; Icon: typeof Trophy; subtitle: string }[] = [
   { id: 'oportunidades', label: 'Oportunidades', Icon: Sparkles, subtitle: 'Oportunidades de lucro priorizadas por IA' },
-  { id: 'margem', label: 'Margem por posto', Icon: Trophy, subtitle: 'Ranking de lucratividade por unidade' },
+  { id: 'margem', label: 'Margem por posto', Icon: Trophy, subtitle: 'Onde a margem vaza — placar e drill por combustível' },
   { id: 'concorrencia', label: 'Concorrência', Icon: Building2, subtitle: 'Inteligência de preço de praça' },
   { id: 'radar', label: 'Radar de Preços', Icon: Radar, subtitle: 'Guerra de preço — margem, elasticidade e simulação até o fechamento' },
 ]
@@ -84,7 +84,7 @@ const Comercial = () => {
       {activeTab !== 'radar' && <FlagBand />}
 
       <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
-        {activeTab === 'margem' && <MargemPosto />}
+        {activeTab === 'margem' && <MargemPosto onGoToOportunidades={() => setActiveTab('oportunidades')} />}
         {activeTab === 'oportunidades' && <Oportunidades />}
         {activeTab === 'concorrencia' && <Concorrencia />}
         {activeTab === 'radar' && (isMobile ? <RadarMobile /> : <RadarPrecos />)}
