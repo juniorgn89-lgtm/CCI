@@ -61,11 +61,6 @@ export interface ComercialData {
   redeLucroBruto: number
   best: ComercialPostoRow | null
   worst: ComercialPostoRow | null
-  /** ESTIMATIVA (teto): R$ no período se os 3 piores subirem à média da rede. */
-  ganhoPotencial3Piores: number
-  /** O mesmo ganho PROJETADO pro fim do mês (extrapolação linear). null quando
-   *  o período não é o mês corrente parcial (aí o ganho do período já é o final). */
-  ganhoPotencialProjMes: number | null
   /** Frescor agregado da rede: data de custo mais antiga entre os postos. */
   custoDateMaisAntiga: string | null
   custoStaleDaysMax: number | null
@@ -85,7 +80,7 @@ const REDE_WIDE: number[] = []
 
 const useComercialData = (): ComercialData => {
   const rede = useRedeSetores({ empresaCodigos: REDE_WIDE })
-  const { dataInicial, dataFinal } = useFilterStore()
+  const { dataFinal } = useFilterStore()
 
   const empresaCodigos = useMemo(
     () => rede.combustivel.postos.map((p) => p.empresaCodigo),
@@ -165,33 +160,9 @@ const useComercialData = (): ComercialData => {
     const ranked = [...postos].sort((a, b) => b.margemL - a.margemL)
     const best = ranked[0] ?? null
     const worst = ranked[ranked.length - 1] ?? null
-
-    // Estimativa (teto): 3 piores abaixo da média sobem à média, volume constante.
-    const piores = [...postos]
-      .filter((p) => p.margemL < redeMargemL && p.litros > 0)
-      .sort((a, b) => a.margemL - b.margemL)
-      .slice(0, 3)
-    const ganhoPotencial3Piores = piores.reduce(
-      (s, p) => s + (redeMargemL - p.margemL) * p.litros,
-      0,
-    )
-
-    // Projeção pro FIM DO MÊS: extrapola linearmente pelo % do mês já decorrido.
-    // Correto mesmo com dias fechados — o volume realizado JÁ reflete os dias que
-    // cada posto abriu, então escalar pelo calendário respeita esse padrão. Só
-    // projeta quando o período é o MÊS CORRENTE começando no dia 1 e ainda aberto
-    // (senão o ganho já é o final). Estimativa grossa (mesmo teto, mais dias).
-    const hojeIso = todayLocal()
-    const [my, mm] = (dataInicial || hojeIso).split('-').map(Number)
-    const diasNoMes = new Date(my, mm, 0).getDate()
-    const ehMesCorrente = hojeIso.slice(0, 7) === `${my}-${String(mm).padStart(2, '0')}`
-    const fimIso = dataFinal < hojeIso ? dataFinal : hojeIso
-    const iniDia = Number((dataInicial || '').slice(8, 10))
-    const diaFim = ehMesCorrente ? Number(fimIso.slice(8, 10)) : diasNoMes
-    const podeProjetar = ehMesCorrente && iniDia === 1 && diaFim > 0 && diaFim < diasNoMes
-    const ganhoPotencialProjMes = podeProjetar
-      ? ganhoPotencial3Piores * (diasNoMes / diaFim)
-      : null
+    // O ganho quantificado (3 piores → média, praça, loja) vive na aba
+    // Oportunidades — um número de ganho SÓ, pra não confundir. A Margem mostra o
+    // ranking + a DIFERENÇA entre postos (diagnóstico), não um "ganho" somável.
 
     // frescor agregado: data de custo mais antiga entre os postos com data
     let custoDateMaisAntiga: string | null = null
@@ -209,14 +180,12 @@ const useComercialData = (): ComercialData => {
       redeLucroBruto,
       best,
       worst,
-      ganhoPotencial3Piores,
-      ganhoPotencialProjMes,
       custoDateMaisAntiga,
       custoStaleDaysMax,
       isLoading: rede.isLoading,
       hasRede: rede.hasRede,
     }
-  }, [rede, lmcRows, dataInicial, dataFinal])
+  }, [rede, lmcRows])
 }
 
 export default useComercialData

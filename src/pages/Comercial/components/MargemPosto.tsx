@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Percent, Trophy, TrendingDown, ArrowUpRight, ChevronDown, Fuel,
+  Percent, Trophy, TrendingDown, ArrowUpRight, ChevronDown,
   ShieldCheck, AlertTriangle, Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -75,30 +75,51 @@ const KpiCard = ({
   )
 }
 
-const FuelDrill = ({ posto, redeMargemL }: { posto: ComercialPostoRow; redeMargemL: number }) => (
-  <div className="bg-gray-50 px-4 py-3 dark:bg-[#161616]">
-    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+const FuelDrill = ({ posto, redeMargemL }: { posto: ComercialPostoRow; redeMargemL: number }) => {
+  // Escala das barras = da MAIOR margem entre os combustíveis (ou a média da rede,
+  // pra a marca caber). Barra verde = acima da média; vermelha = abaixo.
+  const maxM = Math.max(redeMargemL, ...posto.produtos.filter((f) => f.comCusto).map((f) => f.margemL), 0.001)
+  const redePct = Math.min(100, (redeMargemL / maxM) * 100)
+  return (
+    <div className="space-y-2 bg-gray-50 px-4 py-3 dark:bg-[#161616]">
       {posto.produtos.map((f) => {
         const vs = redeMargemL > 0 ? ((f.margemL - redeMargemL) / redeMargemL) * 100 : 0
+        const acima = f.margemL >= redeMargemL
+        const barPct = f.comCusto ? Math.max(2, Math.min(100, (f.margemL / maxM) * 100)) : 0
+        const part = posto.litros > 0 ? (f.litros / posto.litros) * 100 : 0
         return (
-          <div key={f.produtoCodigo} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-gray-900">
-            <Fuel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-gray-800 dark:text-gray-200">{f.nome}</span>
-            {!f.comCusto && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-gray-800">sem custo</span>}
-            <span className="text-[11px] tabular-nums text-gray-400">{formatLitersShort(f.litros)}</span>
-            <span className={cn('w-16 text-right text-[12px] font-bold tabular-nums',
-              f.margemL >= redeMargemL ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-100')}>
-              {f.comCusto ? margemL(f.margemL) : '—'}
-            </span>
-            <span className={cn('w-12 text-right text-[10px] tabular-nums', vs >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-              {f.comCusto ? `${vs >= 0 ? '+' : ''}${vs.toFixed(0)}%` : ''}
-            </span>
+          <div key={f.produtoCodigo} className={cn(
+            'rounded-lg border-l-[3px] bg-white px-3 py-2 dark:bg-gray-900',
+            !f.comCusto ? 'border-gray-200 dark:border-gray-700' : acima ? 'border-emerald-400' : 'border-red-400',
+          )}>
+            <div className="flex items-center gap-2">
+              <span className={cn('h-2 w-2 shrink-0 rounded-full', !f.comCusto ? 'bg-gray-300' : acima ? 'bg-emerald-400' : 'bg-red-400')} />
+              <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-gray-800 dark:text-gray-200">{f.nome}</span>
+              <span className="shrink-0 text-[10px] tabular-nums text-gray-400">{formatLitersShort(f.litros)} · {part.toFixed(0)}% do vol.</span>
+              <span className={cn('w-16 shrink-0 text-right text-[12.5px] font-bold tabular-nums',
+                !f.comCusto ? 'text-gray-400' : acima ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                {f.comCusto ? margemL(f.margemL) : 'sem custo'}
+              </span>
+              <span className={cn('w-12 shrink-0 text-right text-[10px] font-semibold tabular-nums', vs >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {f.comCusto ? `${vs >= 0 ? '+' : ''}${vs.toFixed(0)}%` : ''}
+              </span>
+            </div>
+            {f.comCusto && (
+              <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className={cn('h-full rounded-full', acima ? 'bg-emerald-400' : 'bg-red-400')} style={{ width: `${barPct}%` }} />
+                {/* marca da média da rede */}
+                <div className="absolute top-1/2 h-3 w-[2px] -translate-y-1/2 bg-gray-500 dark:bg-gray-300" style={{ left: `calc(${redePct}% - 1px)` }} />
+              </div>
+            )}
           </div>
         )
       })}
+      <p className="pl-1 text-[10px] text-gray-400 dark:text-gray-500">
+        Barra = margem por litro · a marca cinza é a média da rede ({margemL(redeMargemL)}) · % = participação no volume do posto.
+      </p>
     </div>
-  </div>
-)
+  )
+}
 
 const MargemPosto = () => {
   const data = useComercialData()
@@ -115,20 +136,19 @@ const MargemPosto = () => {
   const leitura = useMemo(() => {
     const { best, worst, redeMargemL } = data
     if (!best || !worst || redeMargemL <= 0) return null
-    const dispersaoPct = best.margemL > 0 ? ((best.margemL - worst.margemL) / best.margemL) * 100 : 0
     const piorFuel = [...worst.produtos].filter((f) => f.comCusto).sort((a, b) => a.margemL - b.margemL)[0]
     const acontecendo: string[] = [
-      `Margem da rede a ${margemL(redeMargemL)}, mas dispersa: de ${margemL(worst.margemL)} (${worst.posto}) a ${margemL(best.margemL)} (${best.posto}) — variação de ${dispersaoPct.toFixed(0)}%, sinal de precificação por feeling.`,
+      `Seus postos cobram margens bem diferentes: do pior (${worst.posto}, ${margemL(worst.margemL)}) ao melhor (${best.posto}, ${margemL(best.margemL)}) — ${margemL(best.margemL - worst.margemL)}/L de diferença. Cada um está no preço por conta própria, sem uma régua comum.`,
     ]
     if (worst.vsRedePct < -10) {
       acontecendo.push(
-        `${worst.posto} está ${Math.abs(worst.vsRedePct).toFixed(0)}% abaixo da rede${piorFuel ? `, puxado pelo ${piorFuel.nome} (${margemL(piorFuel.margemL)})` : ''}.`,
+        `O ${worst.posto} está ${margemL(redeMargemL - worst.margemL)}/L abaixo da média — é quem mais deixa dinheiro na mesa${piorFuel ? `, puxado pelo ${piorFuel.nome} (só ${margemL(piorFuel.margemL)} de margem)` : ''}.`,
       )
     }
     const fazer: string[] = [
-      `Priorizar os 3 piores postos: alinhá-los à média da rede vale uma estimativa de ${formatCurrencyInt(data.ganhoPotencial3Piores)} no período — sem vender 1 litro a mais.`,
+      'Priorizar os 3 piores postos: alinhá-los à média da rede é a maior alavanca de margem — sem vender 1 litro a mais. O ganho em R$ está quantificado e priorizado na aba Oportunidades.',
       'Atacar o custo onde a margem é baixa (renegociar bonificação) antes do preço — evita perder volume.',
-      'Definir uma régua de preço por praça (aba Concorrência) pra fechar a dispersão.',
+      'Definir uma régua de preço por praça (aba Concorrência) pra fechar a diferença entre postos.',
     ]
     return { acontecendo, fazer }
   }, [data])
@@ -160,6 +180,10 @@ const MargemPosto = () => {
   // Máx de dias operados na rede — pra sinalizar postos que abrem MENOS dias
   // (volume menor explicado por dias fechados, não por "posto fraco").
   const maxDias = Math.max(0, ...data.postos.map((p) => p.diasOperados))
+  // Dispersão = diferença de margem entre o melhor e o pior posto. Diagnóstico do
+  // "tamanho do problema" (precificação sem régua) — NÃO é um "ganho" somável (o
+  // ganho quantificado fica só na aba Oportunidades, pra não confundir os números).
+  const dispersao = data.best && data.worst ? data.best.margemL - data.worst.margemL : 0
   const SortBtn = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
     <button
       type="button"
@@ -199,12 +223,12 @@ const MargemPosto = () => {
           help="Posto com a menor margem por litro — o que mais puxa a média da rede pra baixo."
         />
         <KpiCard
-          Icon={ArrowUpRight} label="Ganho potencial" sub="só combustível · teto" tone="amber"
-          value={`+${formatCurrencyInt(data.ganhoPotencial3Piores)}`}
-          foot={data.ganhoPotencialProjMes != null
-            ? <>no período · pro mês <span className="font-semibold">~+{formatCurrencyInt(data.ganhoPotencialProjMes)}</span></>
-            : 'no período · 3 piores → média (volume constante)'}
-          help="Só a lente de MARGEM DE COMBUSTÍVEL: teto do lucro adicional se os 3 piores postos subissem 100% até a média da rede, a volume constante. 'No período' = realizado; 'pro mês' = extrapolado até o fim do mês. O total PRIORIZADO de todas as alavancas (praça, margem, loja) está na aba Oportunidades — por isso os números diferem."
+          Icon={ArrowUpRight} label="Diferença entre postos" sub="melhor × pior margem" tone="amber"
+          value={`${margemL(dispersao)}`}
+          foot={data.best && data.worst
+            ? <>pior <span className="font-semibold">{data.worst.posto}</span> ({margemL(data.worst.margemL)}) · melhor <span className="font-semibold">{data.best.posto}</span> ({margemL(data.best.margemL)})</>
+            : ''}
+          help="Diferença de margem por litro entre o melhor e o pior posto. Dispersão alta = cada posto precifica no feeling (uns cobram bem, outros deixam dinheiro na mesa) — arrumar isso é a oportunidade. O quanto vale (em R$) está quantificado e priorizado na aba Oportunidades — aqui é o diagnóstico."
         />
         </div>
       </div>
@@ -269,7 +293,7 @@ const MargemPosto = () => {
           <div>
             <div className="flex items-center gap-1">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Ranking de margem por posto</h3>
-              <InfoHint text="Postos ordenados por margem/L (ou lucro bruto/volume, conforme o botão). Colunas: volume vendido, lucro bruto, margem/L e variação vs a média da rede. Clique numa unidade pra abrir o detalhe por combustível." />
+              <InfoHint text="Postos ordenados por margem/L (ou lucro bruto/volume, conforme o botão). Colunas: volume, lucro bruto, margem/L e o QUE FAZER — verde 'no ponto' = na média ou acima; vermelho 'subir R$X/L' = quanto acrescentar no preço pra chegar na média da rede. Clique numa unidade pra abrir o detalhe por combustível." />
             </div>
             <p className="text-[11px] text-gray-400">Clique numa unidade pra abrir o drill por combustível</p>
           </div>
@@ -284,22 +308,36 @@ const MargemPosto = () => {
           {rows.map((p, i) => {
             const fr = frescorTone(p.custoStaleDays)
             const isOpen = open === p.empresaCodigo
+            // Abaixo da média da rede = precisa mexer. `subir` = R$/L a acrescentar
+            // no preço pra chegar na média (ação concreta, sem % abstrato).
+            const abaixo = data.redeMargemL > 0 && p.margemL < data.redeMargemL
+            const subir = data.redeMargemL - p.margemL
             return (
               <div key={p.empresaCodigo}>
                 <button
                   type="button"
                   onClick={() => setOpen(isOpen ? null : p.empresaCodigo)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
+                  className={cn(
+                    'flex w-full items-center gap-3 border-l-[3px] px-4 py-3 text-left transition-colors',
+                    abaixo
+                      ? 'border-red-400 bg-red-50/50 hover:bg-red-50/80 dark:border-red-500/60 dark:bg-red-950/15 dark:hover:bg-red-950/25'
+                      : 'border-transparent hover:bg-gray-50 dark:hover:bg-white/5',
+                  )}
                 >
                   <span className="w-5 text-center text-[12px] font-bold text-gray-400">{i + 1}</span>
                   <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-300 transition-transform', isOpen && 'rotate-180')} />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-gray-800 dark:text-gray-200">{p.posto}</span>
 
-                  {/* selo de frescor por posto */}
-                  <span className={cn('hidden items-center gap-1 text-[10px] font-medium sm:inline-flex', fr.cls)}>
-                    <fr.Icon className="h-3 w-3" />
-                    {p.custoStaleDays != null ? fmtDM(p.custoDate) : 'sem custo'}
-                  </span>
+                  {/* Selo de frescor por posto — SÓ quando há data de custo (LMC).
+                      Sem data (ex.: /LMC 500), esconde: o banner âmbar acima já
+                      explica a situação da rede, e "sem custo" em todo mundo só
+                      confunde (a margem vem do CMV das vendas, não é afetada). */}
+                  {p.custoStaleDays != null && (
+                    <span className={cn('hidden items-center gap-1 text-[10px] font-medium sm:inline-flex', fr.cls)}>
+                      <fr.Icon className="h-3 w-3" />
+                      {fmtDM(p.custoDate)}
+                    </span>
+                  )}
                   {p.coberturaCustoPct < 99.5 && (
                     <span className="hidden rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 md:inline">
                       {p.coberturaCustoPct.toFixed(0)}% com custo
@@ -317,13 +355,19 @@ const MargemPosto = () => {
                   <span className="hidden w-24 text-right text-[12px] tabular-nums text-gray-500 dark:text-gray-400 lg:inline">{formatCurrencyInt(p.lucroBruto)}</span>
 
                   <span className={cn('w-20 text-right text-[13px] font-bold tabular-nums',
-                    p.margemL >= data.redeMargemL ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-100')}>
+                    abaixo ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
                     {margemL(p.margemL)}
                   </span>
-                  <span className={cn('w-14 text-right text-[11px] font-semibold tabular-nums',
-                    p.vsRedePct >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                    {p.vsRedePct >= 0 ? '+' : ''}{p.vsRedePct.toFixed(0)}%
-                  </span>
+                  {/* O QUE FAZER, sem % abstrato: verde "no ponto" ou vermelho "subir R$X". */}
+                  {abaixo ? (
+                    <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-bold text-red-600 dark:text-red-400">
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />subir {margemL(subir)}/L
+                    </span>
+                  ) : (
+                    <span className="flex w-[104px] shrink-0 items-center justify-end gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />no ponto
+                    </span>
+                  )}
                 </button>
                 {isOpen && <FuelDrill posto={p} redeMargemL={data.redeMargemL} />}
               </div>

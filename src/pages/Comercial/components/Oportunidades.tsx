@@ -282,8 +282,9 @@ const Oportunidades = () => {
         )}
       </div>
 
-      <p className="flex items-center gap-1.5 px-1 text-[11px] text-gray-400">
-        <Percent className="h-3 w-3" /> Potencial = estimativa (teto): gap × volume a custo/volume constante. <strong>Praça</strong> = gap até a concorrência local; <strong>Margem</strong> = gap até a média da rede (70% do caminho). Resultado real depende da elasticidade (roadmap).
+      <p className="flex items-start gap-1.5 px-1 text-[11px] leading-snug text-gray-400">
+        <Percent className="mt-0.5 h-3 w-3 shrink-0" />
+        <span>Estimativa de quanto dá pra ganhar a mais, mantendo o mesmo volume (não pressupõe vender mais litros). <strong>Praça</strong> = subir até o preço da vizinhança; <strong>Margem</strong> = subir 70% do caminho até a média dos seus postos. O ganho real depende de quanto o volume reage ao novo preço.</span>
       </p>
     </div>
   )
