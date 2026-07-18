@@ -914,6 +914,9 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
       lowSales,
       insights,
       gruposList,
+      /** Vendas agregadas por (posto, dia, produto) — pra tabela "por posto" do
+       *  gráfico diário (faturamento). Traz empresaCodigo, data e totalVenda. */
+      vendaAggs,
     }
   }, [
     curRows, prevRows, cmpRows, evoRows, produtosData, gruposData, estoqueRaw, empresaCodigos, permittedCodes,

@@ -23,6 +23,8 @@ import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/l
 import { cn } from '@/lib/utils'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
+import PostoDiaTabela, { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/PostoDiaTabela'
+import usePostoNomes from '@/hooks/usePostoNomes'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 
@@ -151,8 +153,12 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     groupTable,
     salesByDay,
     vendaItens,
+    vendaAggs,
     isLoading,
   } = useConvenienceData()
+  const postoNomes = usePostoNomes()
+  // Visão do gráfico diário: 'rede' (linha) ou 'posto' (matriz posto × dia).
+  const [diaChartView, setDiaChartView] = useState<'rede' | 'posto'>('rede')
 
   const cmpLabelFull = kpis?.comparisonMode === 'prevYear' ? 'Ano anterior' : 'Mês anterior'
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
@@ -221,6 +227,16 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
       .map((d) => ({ data: d.data, litros: d.qtd, faturamento: d.fat, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
     [realizadoDiaADia.days],
   )
+  // Matriz posto × dia (faturamento) pra visão "por posto" do gráfico.
+  const postoDiaMatrix = useMemo(() => {
+    const dayList = diaSerie.map((d) => d.data)
+    return buildPostoDiaMatrix(dayList, {
+      rows: vendaAggs,
+      empresa: (r) => r.empresaCodigo,
+      date: (r) => r.data,
+      value: (r) => r.totalVenda,
+    }, postoNomes)
+  }, [diaSerie, vendaAggs, postoNomes])
   // Linha de projeção esperada (FATURAMENTO por dia) pro gráfico "Faturamento por dia".
   const projFatDaily = useMemo(() => {
     if (diaSerie.length === 0 || projecaoFat.diasRestantes <= 0) return undefined
@@ -435,17 +451,45 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     <div className="px-5 py-12 text-center text-sm text-gray-400">Sem vendas no período.</div>
                   ) : (
                     <>
-                    {/* Gráfico "Quantidade vendida por dia" acompanhando a tabela (≥ 2 dias). */}
-                    {diaSerie.length >= 2 && (
+                    {/* Gráfico "Faturamento por dia" — toggle Rede (linha) / Por posto (matriz). */}
+                    {diaSerie.length >= 2 && (() => {
+                      const podePorPosto = !!postoDiaMatrix && postoDiaMatrix.postos.length > 1
+                      const verPorPosto = podePorPosto && diaChartView === 'posto'
+                      return (
                       <div className="px-4 pb-1 pt-4">
-                        <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} cardBg="bg-white dark:bg-transparent" />
+                        {podePorPosto && (
+                          <div className="mb-2 flex items-center justify-end">
+                            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+                              {([['rede', 'Rede'], ['posto', 'Por posto']] as const).map(([id, label]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => setDiaChartView(id)}
+                                  className={cn(
+                                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                                    diaChartView === id
+                                      ? 'bg-white text-[#1e3a5f] shadow-sm dark:bg-gray-800 dark:text-gray-100'
+                                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {verPorPosto
+                          ? <PostoDiaTabela matrix={postoDiaMatrix!} title="Faturamento por dia" noun="faturamento" formatValue={(v) => formatCurrencyInt(v)} />
+                          : <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} cardBg="bg-white dark:bg-transparent" />}
                       </div>
-                    )}
+                      )
+                    })()}
+                    {/* Mesmo sentido do paginador "Por posto": abre na quinzena mais recente. */}
                     <TablePager
-                      page={diaPageSafe}
+                      page={(diaPageCount - 1) - diaPageSafe}
                       pageCount={diaPageCount}
-                      onPrev={() => setDiaPage((p) => Math.max(0, p - 1))}
-                      onNext={() => setDiaPage((p) => Math.min(diaPageCount - 1, p + 1))}
+                      onPrev={() => setDiaPage((p) => Math.min(diaPageCount - 1, p + 1))}
+                      onNext={() => setDiaPage((p) => Math.max(0, p - 1))}
                       info={`${diasOrdenados.length} dias`}
                     />
                     <div className={cn('overflow-x-auto', diaPageCount <= 1 && 'pt-3')}>
