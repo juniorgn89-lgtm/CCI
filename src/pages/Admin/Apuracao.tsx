@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -58,6 +58,16 @@ interface MonthState {
   /** Última apuração — quem rodou (nome ou null) + quando (ISO ou null). */
   lastComputedAt?: string | null
   lastComputedByName?: string | null
+  /** Início da apuração em andamento (ms) — pro cronômetro no card. */
+  startedAt?: number
+  /** Etapa atual (ex.: "Buscando vendas...", "Gravando...") — em andamento. */
+  stage?: string
+}
+
+/** Tempo decorrido em m:ss a partir de milissegundos. */
+const fmtElapsed = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 /** Diferença entre data passada e agora em "há X". Curto e direto. */
@@ -230,6 +240,13 @@ const Apuracao = () => {
   // Estado por mês durante apuração (em_andamento / erro)
   const [progress, setProgress] = useState<Map<number, MonthState>>(new Map())
   const [running, setRunning] = useState(false)
+  // Relógio que anda de 1 em 1s só enquanto há apuração rodando — pro cronômetro.
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [running])
   // Cancelamento: o botão liga `cancelRef` (síncrono, lido dentro do loop) e
   // `cancelling` (só pra UI). O "Apurar ano todo" para entre meses; um mês em
   // andamento não escreve cache parcial se o cancel chegou antes dos upserts.
@@ -267,7 +284,12 @@ const Apuracao = () => {
     if (!end) return { ok: false, rows: 0, error: 'Mês ainda futuro' }
     const start = `${year}-${padMonth(month)}-01`
 
-    setProgress((prev) => new Map(prev).set(month, { status: 'em_andamento', expected: expectedRowsForMonth(year, month, empresasCount), actual: 0 }))
+    setProgress((prev) => new Map(prev).set(month, { status: 'em_andamento', expected: expectedRowsForMonth(year, month, empresasCount), actual: 0, startedAt: Date.now(), stage: 'Buscando vendas...' }))
+    // Atualiza só a ETAPA do mês em andamento (preserva o resto do estado).
+    const mark = (stage: string) => setProgress((prev) => {
+      const cur = prev.get(month)
+      return cur ? new Map(prev).set(month, { ...cur, stage }) : prev
+    })
     try {
       const empresasCodes = empresas.map((e) => e.codigo)
       const lmcStart = threeMonthsBefore(start)
@@ -354,6 +376,7 @@ const Apuracao = () => {
       const formasPgto = await fetchFormasAllEmpresas()
       if (cancelRef.current) return bail()
       // Físico por último — degrada pra vazio em vez de derrubar o mês.
+      mark('Buscando físico (bombas e custo)...')
       const abast = await fetchAbastecimentosChunked({ dataInicial: start, dataFinal: end, parallelChunks: 1 }).catch((e) => {
         abastFalhou = true
         console.warn('[apuracao] /ABASTECIMENTO falhou — seguindo sem físico:', (e as Error)?.message)
@@ -373,6 +396,7 @@ const Apuracao = () => {
         return [] as LMC[]
       })
 
+      mark('Calculando...')
       const rows = computeApuracaoRows({
         redeId: rede.id,
         empresaCodigos: empresasCodes,
@@ -455,6 +479,7 @@ const Apuracao = () => {
       // leitura paginada extra por mês, que pesava na apuração).
       // Fecha as portas de órfão nas demais tabelas de cache: apaga o período
       // antes de regravar (precisa das policies de DELETE no Supabase).
+      mark('Gravando...')
       await Promise.all([
         deleteCachePeriodo('apuracao_diaria', 'data', rede.id, start, end),
         deleteCachePeriodo('apuracao_fuel_diaria', 'data', rede.id, start, end),
@@ -768,6 +793,7 @@ const Apuracao = () => {
                 isCurrentMonth={isCurrentMonth}
                 disabled={running}
                 aviso={avisos.get(month)}
+                now={nowTick}
                 onApurar={() => handleApurarMes(month)}
               />
             )
@@ -793,15 +819,18 @@ interface MonthCardProps {
   disabled: boolean
   /** Aviso de degradação da última apuração (ex.: /LMC fora do ar). */
   aviso?: string
+  /** Relógio (ms) que anda de 1s em 1s — pro cronômetro da apuração. */
+  now: number
   onApurar: () => void
 }
 
-const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, aviso, onApurar }: MonthCardProps) => {
+const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, aviso, now, onApurar }: MonthCardProps) => {
   const { Icon, color, statusLabel } = (() => {
     switch (state.status) {
       case 'em_andamento':
         // Pulse (não spin) — o usuário pediu o nome piscando em vez de girando.
-        return { Icon: Loader2, color: 'text-blue-600 dark:text-blue-400 animate-pulse', statusLabel: 'Apurando...' }
+        // Mostra a ETAPA atual (ex.: "Buscando vendas...") quando disponível.
+        return { Icon: Loader2, color: 'text-blue-600 dark:text-blue-400 animate-pulse', statusLabel: state.stage ?? 'Apurando...' }
       case 'apurado':
         return { Icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', statusLabel: 'Apurado' }
       case 'parcial':
@@ -855,9 +884,14 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, avis
       </div>
       <div className="mt-2 flex items-center gap-1.5">
         <Icon className={cn('h-3.5 w-3.5 shrink-0', color)} />
-        <span className={cn('truncate text-xs font-medium', color)} title={statusLabel}>
+        <span className={cn('min-w-0 flex-1 truncate text-xs font-medium', color)} title={statusLabel}>
           {statusLabel}
         </span>
+        {state.status === 'em_andamento' && state.startedAt != null && (
+          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-blue-500 dark:text-blue-400">
+            {fmtElapsed(now - state.startedAt)}
+          </span>
+        )}
       </div>
 
       {/* Audit info — quem rodou a última apuração + quando.
