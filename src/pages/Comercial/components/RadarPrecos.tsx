@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { todayLocal } from '@/lib/period'
 import GuerraPreco from './GuerraPreco'
 
 /**
@@ -28,8 +28,13 @@ const RadarPrecos = () => {
     ? activeCodigo
     : (postos[0]?.codigo ?? null)
 
-  const { rows, fuelTypeData, isLoading } = useAbastecimentosAnalytics(selectedCodigo)
-  const dataInicial = useFilterStore((s) => s.dataInicial)
+  // Radar é decisão "pra frente": trava no MÊS CORRENTE (realizado até hoje +
+  // projeção sazonal até o fechamento), independente do filtro global — por isso
+  // a barra de datas some nesta aba e os valores são do dia corrente.
+  const monthStart = `${todayLocal().slice(0, 7)}-01`
+  const hoje = todayLocal()
+  const { rows, fuelTypeData, isLoading } = useAbastecimentosAnalytics(selectedCodigo, { periodo: { dataInicial: monthStart, dataFinal: hoje } })
+  const dataInicial = monthStart
 
   return (
     <div className="space-y-3">

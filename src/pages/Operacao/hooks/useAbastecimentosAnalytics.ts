@@ -31,6 +31,10 @@ export interface AbastecimentoRow {
   produtoCodigo: number
   litros: number
   valorUnitario: number
+  /** Preço de tabela (CADASTRADO) da bomba no momento do abastecimento — R$/L.
+   * É o preço "oficial" (o que o WebPosto mostra), distinto do praticado
+   * (valorUnitario). 0 quando a API não trouxe. */
+  precoCadastro: number
   /** Faturamento LÍQUIDO da linha (bruto − desconto), quando o item de venda
    * casa; senão é o valorTotal bruto do abastecimento. */
   valorTotal: number
@@ -181,9 +185,12 @@ export interface ProjectionMeta {
 
 const useAbastecimentosAnalytics = (
   empresaCodigoOverride?: number | null,
-  opts?: { physicalEnabled?: boolean },
+  opts?: { physicalEnabled?: boolean; periodo?: { dataInicial: string; dataFinal: string } },
 ) => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
+  const { empresaCodigos, dataInicial: storeIni, dataFinal: storeFim, comparisonMode, abastDateMode } = useFilterStore()
+  // Override de período (Radar trava no mês corrente). Default = filtro global.
+  const dataInicial = opts?.periodo?.dataInicial ?? storeIni
+  const dataFinal = opts?.periodo?.dataFinal ?? storeFim
   // Físico live (/ABASTECIMENTO + LMC + mês anterior) SOB DEMANDA: a aba
   // Combustível abre 100% do cache e só liga o físico quando o modal de detalhe
   // (top frentistas/bombas/hora) abre. Outros consumidores (Operação·Bombas)
@@ -528,6 +535,7 @@ const useAbastecimentosAnalytics = (
         produtoCodigo: a.codigoProduto,
         litros: a.quantidade,
         valorUnitario: a.valorUnitario,
+        precoCadastro: a.precoCadastro,
         valorTotal: fatLiq,
         desconto,
         precoCusto: cost,
@@ -855,6 +863,7 @@ const useAbastecimentosAnalytics = (
         produtoCodigo: a.codigoProduto,
         litros: a.quantidade,
         valorUnitario: a.valorUnitario,
+        precoCadastro: a.precoCadastro,
         valorTotal: fatLiq,
         desconto,
         precoCusto: cost,

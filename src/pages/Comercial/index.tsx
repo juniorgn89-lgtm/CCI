@@ -76,7 +76,8 @@ const Comercial = () => {
       </PageHeaderTitle>
 
       <PageHeaderActions>
-        <DateRangeToolbar />
+        {/* Radar trava no mês corrente (decisão pra frente) → sem filtro de data. */}
+        {activeTab !== 'radar' && <DateRangeToolbar />}
       </PageHeaderActions>
 
       {/* Flag global — no topo de todas as abas, EXCETO Radar (que usa dados da

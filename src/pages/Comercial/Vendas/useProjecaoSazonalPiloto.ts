@@ -48,8 +48,10 @@ export interface ProjecaoSazonalPiloto {
   cmpLabel: string
 }
 
-const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, setor = 'combustivel'): ProjecaoSazonalPiloto => {
-  const { empresaCodigos, dataInicial, comparisonMode } = useFilterStore()
+const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, setor = 'combustivel', dataInicialOverride?: string): ProjecaoSazonalPiloto => {
+  const { empresaCodigos, dataInicial: storeIni, comparisonMode } = useFilterStore()
+  // Override do mês (Radar trava no corrente). Default = filtro global.
+  const dataInicial = dataInicialOverride ?? storeIni
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000, enabled })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])
