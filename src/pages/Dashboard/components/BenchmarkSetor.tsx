@@ -198,12 +198,21 @@ const aggProdutos = (prods: ProdutoRow[]): RowVals => {
 
 type ViewMode = 'realizado' | 'projecoes'
 
+interface ProjProdutoRow {
+  produto: string
+  realLB: number; realFat: number; realLitros: number
+  projLB: number; projFat: number; projLit: number
+  lbAnt: number
+}
+
 interface ProjPostoRow {
   posto: string
   realLB: number; realFat: number; realLitros: number
   /** Projetados JÁ somados por posto (Σ realizado_setor × fator sazonal do posto). */
   projLB: number; projFat: number; projLit: number
   lbAnt: number
+  /** Quebra por produto (drill-down) — cada produto projetado pelo MESMO fator do setor. */
+  produtos: ProjProdutoRow[]
 }
 
 /** Segmento genérico (toggle) — reusado pelo seletor de setor/escopo. */
@@ -261,14 +270,34 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
     { realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 },
   )
 
-  const Linha = ({ posto, realLB, realFat, realLitros, projLB, projFat, projLit, lbAnt, bold }: ProjPostoRow & { bold?: boolean }) => {
+  const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set())
+  const toggle = (posto: string) => setExpandidos((prev) => {
+    const next = new Set(prev)
+    if (next.has(posto)) next.delete(posto); else next.add(posto)
+    return next
+  })
+
+  const Linha = ({ posto, realLB, realFat, realLitros, projLB, projFat, projLit, lbAnt, bold, sub, expandable, expanded, onClick }: Omit<ProjPostoRow, 'produtos'> & { bold?: boolean; sub?: boolean; expandable?: boolean; expanded?: boolean; onClick?: () => void }) => {
     const aRealizar = projLB - realLB
     const num = 'px-2 py-2 text-right tabular-nums'
-    const real = cn(num, bold ? '' : 'text-gray-500 dark:text-gray-400')
+    const real = cn(num, bold || sub ? '' : 'text-gray-500 dark:text-gray-400', sub && 'text-gray-400 dark:text-gray-500')
     const gl = 'border-l border-gray-200 dark:border-gray-700'
     return (
-      <tr className={cn('border-b border-gray-100 dark:border-gray-800', bold && 'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100')}>
-        <td className={cn('px-3 py-2 text-left', bold ? 'font-bold' : 'font-medium text-gray-800 dark:text-gray-200')}>{posto}</td>
+      <tr
+        className={cn(
+          'border-b border-gray-100 dark:border-gray-800',
+          bold && 'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
+          expandable && 'cursor-pointer transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-800/30',
+          sub && 'bg-gray-50/40 dark:bg-gray-900/30',
+        )}
+        onClick={onClick}
+      >
+        <td className={cn('px-3 py-2 text-left', bold ? 'font-bold' : sub ? 'pl-9 text-[12px] text-gray-500 dark:text-gray-400' : 'font-medium text-gray-800 dark:text-gray-200')}>
+          <span className="inline-flex items-center gap-1.5">
+            {expandable && (expanded ? <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" /> : <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />)}
+            {posto}
+          </span>
+        </td>
         {showQtd && (
           <>
             <td className={cn(real, gl)}>{formatNumber(Math.round(realLitros))}</td>
@@ -312,7 +341,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
             <GroupTh label={`vs ${cmpShort}`} colSpan={2} />
           </tr>
           <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            <HeaderHint align="left" label="Empresa" help="Posto da rede." />
+            <HeaderHint align="left" label="Empresa" help="Posto da rede. Clique pra expandir os produtos projetados." />
             {showQtd && (
               <>
                 <HeaderHint groupStart label={<>{qtdLabel}<br />realiz.</>} help={`${qtdLabel === 'Litros' ? 'Litros vendidos' : 'Quantidade vendida'} no período (realizado).`} />
@@ -329,7 +358,14 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => <Linha key={r.posto} {...r} />)}
+          {rows.map((r) => (
+            <Fragment key={r.posto}>
+              <Linha {...r} expandable={r.produtos.length > 0} expanded={expandidos.has(r.posto)} onClick={() => toggle(r.posto)} />
+              {expandidos.has(r.posto) && r.produtos.map((prod) => (
+                <Linha key={`${r.posto}:${prod.produto}`} {...prod} posto={prod.produto} sub />
+              ))}
+            </Fragment>
+          ))}
           <Linha posto="Total" realLB={total.realLB} realFat={total.realFat} realLitros={total.realLitros} projLB={total.projLB} projFat={total.projFat} projLit={total.projLit} lbAnt={total.lbAnt} bold />
         </tbody>
       </table>
@@ -736,13 +772,15 @@ const BenchmarkSetor = () => {
     }
     const build = (scopes: SetorId[]): ProjPostoRow[] => {
       const map = new Map<string, ProjPostoRow>()
+      // Produtos por posto (drill) — cada produto projetado pelo fator do SEU setor.
+      const prodMaps = new Map<string, Map<string, ProjProdutoRow>>()
       for (const sc of scopes) {
         const setorObj = sc === 'combustiveis' ? rede.combustivel : sc === 'automotivos' ? rede.automotivos : rede.conveniencia
         const singular: 'combustivel' | 'automotivos' | 'conveniencia' =
           sc === 'combustiveis' ? 'combustivel' : sc === 'automotivos' ? 'automotivos' : 'conveniencia'
         const { fFat, fLuc, fQtd } = fatores[singular]
         for (const p of setorObj.postos) {
-          const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 }
+          const e = map.get(p.posto) ?? { posto: p.posto, realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0, produtos: [] }
           e.realLB += p.lucroBruto; e.projLB += p.lucroBruto * fLuc
           e.realFat += p.faturamento; e.projFat += p.faturamento * fFat
           // Quantidade (litros p/ combustível, unidades p/ auto/conv). No bloco
@@ -751,7 +789,23 @@ const BenchmarkSetor = () => {
           e.realLitros += p.qtd; e.projLit += p.qtd * fQtd
           e.lbAnt += p.lucroBrutoAnoAnterior
           map.set(p.posto, e)
+          // Quebra por produto do posto (mesmo fator do setor).
+          let pm = prodMaps.get(p.posto)
+          if (!pm) { pm = new Map(); prodMaps.set(p.posto, pm) }
+          for (const prod of p.produtos) {
+            const fat = prod.precoVenda * prod.qtd
+            const pr = pm.get(prod.produto) ?? { produto: prod.produto, realLB: 0, realFat: 0, realLitros: 0, projLB: 0, projFat: 0, projLit: 0, lbAnt: 0 }
+            pr.realLB += prod.lucroBruto; pr.projLB += prod.lucroBruto * fLuc
+            pr.realFat += fat; pr.projFat += fat * fFat
+            pr.realLitros += prod.qtd; pr.projLit += prod.qtd * fQtd
+            pr.lbAnt += prod.lucroBrutoAnoAnterior
+            pm.set(prod.produto, pr)
+          }
         }
+      }
+      for (const [posto, e] of map) {
+        const pm = prodMaps.get(posto)
+        e.produtos = pm ? [...pm.values()].sort((a, b) => b.realLB - a.realLB) : []
       }
       return [...map.values()].sort((a, b) => b.realLB - a.realLB)
     }
