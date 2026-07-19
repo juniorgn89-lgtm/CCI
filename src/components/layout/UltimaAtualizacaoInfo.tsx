@@ -42,7 +42,8 @@ const UltimaAtualizacaoInfo = () => {
         {fetching && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
       </span>
-      {fetching ? 'Atualizando…' : <>Atualizado em {fmtDateTime(stampedAt)}</>}
+      {/* Mantém a data por extenso mesmo atualizando — só pisca enquanto busca. */}
+      <span className={fetching ? 'animate-pulse' : undefined}>Atualizado em {fmtDateTime(stampedAt)}</span>
     </span>
   )
 }
