@@ -1,11 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Info, TrendingDown, TrendingUp, Minus, Radar, Calculator, Fuel, ShieldCheck,
-  ShieldAlert, ShieldX, Gauge, AlertTriangle, Activity, Droplets, Target, Zap,
-  Lightbulb, ChevronDown, ChevronUp, CircleDollarSign, Flame,
+  ShieldAlert, ShieldX, AlertTriangle, Activity, Target, Zap, ArrowRight,
+  Lightbulb, ChevronDown, ChevronUp, Flame,
 } from 'lucide-react'
 import {
-  ResponsiveContainer, AreaChart, Area, ComposedChart, Bar, Line, XAxis, YAxis,
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   Tooltip, CartesianGrid, Cell,
 } from 'recharts'
 import { cn } from '@/lib/utils'
@@ -36,7 +36,6 @@ const weekdayOf = (iso: string) => {
   if (!y || !m || !d) return ''
   return WEEKDAY[new Date(y, m - 1, d).getDay()]
 }
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const pctLabel = (v: number) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2).replace('.', ',')}%`
 const pct1 = (v: number) => `${(v * 100).toFixed(2).replace('.', ',')}%`
 const moneyL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}` // preço por litro (3 casas)
@@ -268,7 +267,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
   // Competitividade — proxy interno honesto: preço recente vs. média do período.
   const compRatio = agg.precoVendaMedio > 0 ? wow.last.precoVenda / agg.precoVendaMedio - 1 : 0
   const compTone: Tone = compRatio < -0.004 ? 'emerald' : compRatio > 0.004 ? 'red' : 'amber'
-  const compLabel = compTone === 'emerald' ? 'Competitivo' : compTone === 'red' ? 'Acima da média' : 'Na média'
 
   // Simulador (dirigido pelo slider) — agora projeta até o fechamento do mês.
   const sim = useMemo(() => {
@@ -324,35 +322,31 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
       }))
   }, [agg.lbLitro, elasticidade])
 
-  // Veredito de viabilidade — combina margem, elasticidade (break-even de um corte
-  // referência de R$0,10), momentum de volume e resposta histórica a cortes.
-  const viab = useMemo(() => {
-    const refCut = Math.min(0.1, agg.lbLitro * 0.5)
-    const breakEvenRef = agg.lbLitro - refCut > 0 ? agg.lbLitro / (agg.lbLitro - refCut) - 1 : Infinity
-    const margemScore = clamp01((agg.margem - MARGEM_ATENCAO) / (MARGEM_SAUDAVEL * 1.6 - MARGEM_ATENCAO))
-    const elasticScore = isFinite(breakEvenRef) ? clamp01(1 - breakEvenRef / 0.25) : 0
-    const momentumScore = clamp01(0.5 + wow.volDelta * 3)
-    const histScore = elasticidade != null ? clamp01((elasticidade * refCut) / Math.max(0.0001, breakEvenRef)) : 0.4
-    const score = Math.round((0.34 * margemScore + 0.3 * elasticScore + 0.16 * momentumScore + 0.2 * histScore) * 100)
-    const tone: Tone = score >= 66 ? 'emerald' : score >= 40 ? 'amber' : 'red'
-    const verdict = score >= 66 ? 'Estratégia viável' : score >= 40 ? 'Viável com cautela' : 'Alto risco financeiro'
-    const Icon = score >= 66 ? ShieldCheck : score >= 40 ? ShieldAlert : ShieldX
-    const resumo =
-      score >= 66
-        ? `Margem com folga e elasticidade favorável — há espaço pra competir no preço cobrindo a perda com volume.`
-        : score >= 40
-          ? `Dá pra reduzir, mas a margem é apertada: só compensa se o volume reagir bem (~${pct1(breakEvenRef)} pra um corte de ${moneyL(refCut)}).`
-          : `Margem perto do piso e/ou volume sem reação. Reduzir preço agora tende a corroer o lucro sem retorno.`
-    return {
-      score, tone, verdict, Icon, resumo, refCut, breakEvenRef,
-      factors: [
-        { label: 'Saúde da margem', value: margemScore, hint: `${agg.margem.toFixed(2).replace('.', ',')}%` },
-        { label: 'Reação do volume', value: elasticScore, hint: isFinite(breakEvenRef) ? `+${pct1(breakEvenRef)} p/ -${moneyL(refCut).slice(3)}` : '—' },
-        { label: 'Volume na semana', value: momentumScore, hint: wow.hasPrev ? pctLabel(wow.volDelta) : '—' },
-        { label: 'Resposta a cortes', value: histScore, hint: elasticidade != null ? `${cortes.length} corte(s)` : 'sem histórico' },
-      ],
-    }
-  }, [agg, wow, elasticidade, cortes.length])
+  // Recomendação answer-first — só sinais CONFIÁVEIS (margem, custo 7d, volume 7d),
+  // sem elasticidade/concorrentes. Diz O QUE FAZER + COMO. 3 estados de preço.
+  const recomendacao = useMemo(() => {
+    const margemCritica = agg.margem < MARGEM_ATENCAO
+    const margemSaudavel = agg.margem >= MARGEM_SAUDAVEL
+    const custoSubindo = wow.hasPrev && wow.custoDelta > 0.01
+    const volCaindo = wow.hasPrev && wow.volDelta < -0.05
+    const folgaLb = Math.max(0, agg.lbLitro - lbMinSustentavel) // R$/L até o piso saudável
+    const estado: 'folga' | 'segure' | 'piso' =
+      margemCritica ? 'piso' : (!margemSaudavel || custoSubindo) ? 'segure' : 'folga'
+    const tone: Tone = estado === 'folga' ? 'emerald' : estado === 'segure' ? 'amber' : 'red'
+    const Icon = estado === 'folga' ? ShieldCheck : estado === 'segure' ? ShieldAlert : ShieldX
+    const titulo = estado === 'folga'
+      ? 'Você tem folga no preço'
+      : estado === 'segure'
+        ? 'Segure o preço'
+        : 'Margem no piso — não corte'
+    const margemTxt = `${agg.margem.toFixed(1).replace('.', ',')}%`
+    const comoFazer = estado === 'folga'
+      ? `Não precisa cortar pra vender — cada litro já sobra ${moneyL(agg.lbLitro)}/L de lucro.${folgaLb > 0.005 ? ` Se a concorrência apertar, dá pra ceder até ~R$ ${moneyLraw(folgaLb)}/L antes de encostar no piso saudável.` : ''}`
+      : estado === 'segure'
+        ? `${custoSubindo ? `O custo subiu ${pct1(wow.custoDelta)} em 7 dias e a margem está apertada (${margemTxt})` : `A margem está apertada (${margemTxt})`}. Cortar o preço agora come o lucro — segure${custoSubindo ? ' e observe o custo' : ''}${volCaindo ? '; o volume também vem caindo' : ''}.`
+        : `A margem está em ${margemTxt}, no piso. Qualquer corte vira prejuízo — ataque o custo (renegociar bonificação/frete), não o preço.`
+    return { estado, tone, Icon, titulo, comoFazer }
+  }, [agg, wow, lbMinSustentavel])
 
   // Alertas inteligentes — derivados de dados reais (sem concorrentes).
   const alertas = useMemo(() => {
@@ -394,9 +388,6 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
 
   const linhasDesc = [...serie].reverse()
   const maxCut = Math.max(0.2, Math.ceil(agg.lbLitro * 100) / 100)
-  const sparkPreco = serie.map((d) => ({ v: d.precoVenda }))
-  const sparkCusto = serie.map((d) => ({ v: d.precoCusto }))
-  const sparkVol = serie.map((d) => ({ v: d.litros }))
 
   // Cenários estratégicos, curva de elasticidade e alertas ficam OCULTOS: usam só
   // dados internos (sem preços de concorrentes integrados), então a projeção de
@@ -456,74 +447,17 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
         </div>
       ) : (
         <>
-          {/* ── HERO: Viabilidade da guerra de preço ── */}
-          <ViabilidadeHero viab={viab} fuel={selectedFuel} />
-
-          {/* ── Projeção até o fechamento do mês (baseline, sem alteração) ── */}
-          <ProjecaoFechamento proj={proj} />
-
-          {/* ── 3 cards executivos ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <ExecCard
-              id="preco"
-              Icon={CircleDollarSign}
-              tone="blue"
-              label="Preço de venda"
-              value={moneyL(agg.precoVendaMedio)}
-              sub="Preço médio do período"
-              delta={wow.hasPrev ? wow.precoDelta : undefined}
-              deltaLabel="vs. semana ant."
-              deltaGoodWhenUp
-              spark={sparkPreco}
-              sparkTone="blue"
-              pill={{ tone: compTone, label: compLabel }}
-              help="Preço médio ponderado pelos litros do período (faturamento ÷ litros). A variação compara a média dos últimos 7 dias com os 7 anteriores. A pílula classifica o preço recente vs. a média do período: abaixo = competitivo, acima = caro."
-              footer={<span>Competitividade <span className="text-gray-400">·</span> vs. sua média do período</span>}
-            />
-            <ExecCard
-              id="custo"
-              Icon={Flame}
-              tone={wow.custoDelta > 0.005 ? 'red' : wow.custoDelta < -0.005 ? 'emerald' : 'slate'}
-              label="Preço de custo"
-              value={moneyL(agg.precoCustoMedio)}
-              sub="Piso da redução de preço"
-              delta={wow.hasPrev ? wow.custoDelta : undefined}
-              deltaLabel="7 dias"
-              deltaGoodWhenUp={false}
-              spark={sparkCusto}
-              sparkTone={wow.custoDelta > 0.005 ? 'red' : 'emerald'}
-              help="Custo médio por litro = (faturamento − lucro) ÷ litros. A variação compara os últimos 7 dias com os 7 anteriores. A projeção 7d extrapola essa tendência linearmente (não é previsão de reajuste do fornecedor)."
-              footer={
-                wow.hasPrev && Math.abs(wow.custoDelta) > 0.003 ? (
-                  <span>Projeção 7d <span className="font-semibold text-gray-600 dark:text-gray-300">{moneyL(agg.precoCustoMedio * (1 + wow.custoDelta))}</span> <span className="text-gray-400">(tendência)</span></span>
-                ) : (
-                  <span>Custo estável nos últimos dias</span>
-                )
-              }
-            />
-            <ExecCard
-              id="vol"
-              Icon={Droplets}
-              tone="blue"
-              label="Volume"
-              value={`${formatNumber(agg.litrosDia)} L`}
-              sub="Litros por dia"
-              delta={wow.hasPrev ? wow.volDelta : undefined}
-              deltaLabel="vs. semana ant."
-              deltaGoodWhenUp
-              spark={sparkVol}
-              sparkTone="blue"
-              help="Litros por dia = total de litros ÷ dias com venda. A variação compara a média/dia dos últimos 7 dias com os 7 anteriores. Projeção 30d = litros/dia × 30. O impacto de -R$0,10 usa a elasticidade observada nos cortes anteriores."
-              footer={
-                <span>
-                  Proj. 30d <span className="font-semibold text-gray-600 dark:text-gray-300">{formatLiters(agg.litrosDia * 30)}</span>
-                  {elasticidade != null && (
-                    <> <span className="text-gray-400">·</span> -R$0,10 ≈ <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{pct1(Math.max(0, elasticidade * 0.1))}</span></>
-                  )}
-                </span>
-              }
-            />
-          </div>
+          {/* ── Recomendação answer-first: o que fazer + como + números de apoio ── */}
+          <RecomendacaoPreco
+            rec={recomendacao}
+            fuel={selectedFuel}
+            numeros={[
+              { label: 'Margem', value: `${agg.margem.toFixed(1).replace('.', ',')}%`, valueTone: margemTone },
+              { label: 'Preço médio', value: moneyL(agg.precoVendaMedio), trend: wow.hasPrev ? wow.precoDelta : undefined, trendGoodWhenUp: true },
+              { label: 'Custo (piso)', value: moneyL(agg.precoCustoMedio), trend: wow.hasPrev ? wow.custoDelta : undefined, trendGoodWhenUp: false },
+              { label: 'Volume/dia', value: `${formatNumber(agg.litrosDia)} L`, trend: wow.hasPrev ? wow.volDelta : undefined, trendGoodWhenUp: true },
+            ]}
+          />
 
           {/* ── Simulador estratégico ── */}
           <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-800/60 dark:to-gray-900">
@@ -532,7 +466,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Simulador de corte de preço
               </h4>
-              <InfoHint text="Aplica o corte do slider sobre o que ainda falta vender até o fim do mês (os dias já fechados não mudam). Compara 3 projeções de fechamento: sem alteração, com corte sem reação de volume e com corte + elasticidade estimada." />
+              <InfoHint text="Aplica o corte do slider sobre o que ainda falta vender até o fim do mês (os dias já fechados não mudam) e projeta o fechamento ANTES × DEPOIS do corte, mantendo o mesmo volume (cenário honesto)." />
               <span className="text-[11px] text-gray-400">— arraste pra projetar o fechamento</span>
             </div>
 
@@ -610,66 +544,78 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               </div>
             </div>
 
-            {/* Comparação das 3 projeções de fechamento */}
-            <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">
-                      <span className="inline-flex items-center gap-1">
-                        Projeção {horizonte.labelShort}
-                        <InfoHint text="Cada coluna projeta o fechamento somando o que já foi realizado + os dias que faltam. O corte só age sobre os dias futuros." />
-                      </span>
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium">Sem alteração</th>
-                    <th className="px-3 py-2 text-right font-medium text-amber-600 dark:text-amber-400">Corte · sem reação</th>
-                    <th className="px-3 py-2 text-right font-medium text-blue-600 dark:text-blue-400">Corte · com reação de volume</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  <CompareRow label="Faturamento" base={sim.baseline.fat} corte={sim.semReacao.fat} elast={sim.comElasticidade?.fat ?? null} fmt={formatCurrencyInt} />
-                  <CompareRow label="Lucro bruto" base={sim.baseline.lucro} corte={sim.semReacao.lucro} elast={sim.comElasticidade?.lucro ?? null} fmt={formatCurrencyInt} />
-                  <CompareRow label="Margem" base={sim.baseline.margem} corte={sim.semReacao.margem} elast={sim.comElasticidade?.margem ?? null} fmt={(v) => `${v.toFixed(2).replace('.', ',')}%`} />
-                  <CompareRow label="Volume" base={sim.baseline.litros} corte={sim.semReacao.litros} elast={sim.comElasticidade?.litros ?? null} fmt={(v) => formatLiters(v)} />
-                </tbody>
-              </table>
-            </div>
+            {/* ── Projeção do mês: ANTES × DEPOIS do corte (Lucro em destaque) ── */}
+            {(() => {
+              const deltaLucro = sim.semReacao.lucro - sim.baseline.lucro
+              const deltaPct = sim.baseline.lucro !== 0 ? deltaLucro / Math.abs(sim.baseline.lucro) : 0
+              const temCorte = reducao > 0
+              const pior = deltaLucro < 0
+              const apoio = [
+                { l: 'Faturamento', a: sim.baseline.fat, d: sim.semReacao.fat, fmt: formatCurrencyInt },
+                { l: 'Margem', a: sim.baseline.margem, d: sim.semReacao.margem, fmt: (v: number) => `${v.toFixed(1).replace('.', ',')}%` },
+                { l: 'Volume', a: sim.baseline.litros, d: sim.semReacao.litros, fmt: (v: number) => formatLiters(v) },
+              ]
+              return (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
+                    <h5 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Projeção do mês {horizonte.labelShort}</h5>
+                    <InfoHint text="Soma o que já foi realizado nos dias fechados + os dias que faltam. 'Hoje' = sem mexer no preço; 'Com o corte' = o corte do slider mantendo o MESMO volume (cenário honesto — se o volume reagir, melhora)." />
+                    <span className="ml-auto text-[11px] text-gray-400">{temCorte ? 'antes × depois do corte' : 'sem alteração de preço'}</span>
+                  </div>
 
-            {/* Mensagens executivas */}
-            <div className="mt-3 space-y-1.5">
-              {sim.belowBreakeven ? (
-                <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30">
-                  <ShieldX className="mt-0.5 h-4 w-4 shrink-0" />
-                  Com esse corte o preço fica no/abaixo do custo ({moneyL(agg.precoCustoMedio)}) — qualquer volume adicional só amplia o prejuízo.
-                </p>
-              ) : (
-                <>
-                  <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
-                    <TrendingDown className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
-                      Sem reação de volume, o lucro projetado {horizonte.label} cairia para <span className="font-bold">{formatCurrency(sim.semReacao.lucro)}</span> — {formatCurrency(sim.semReacao.lucro - sim.baseline.lucro)} vs. os {formatCurrency(sim.baseline.lucro)} sem alteração.
-                    </span>
-                  </p>
-                  {sim.comElasticidade && sim.expGrowth != null && (
-                    <p className={cn(
-                      'flex items-start gap-2 rounded-lg px-3 py-2 text-xs ring-1',
-                      sim.comElasticidade.lucro >= sim.baseline.lucro ? TONE.emerald.pill : TONE.amber.pill,
-                    )}>
-                      <Zap className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>
-                        Com elasticidade estimada de +{pct1(sim.expGrowth)}, o lucro projetado {sim.comElasticidade.lucro >= sim.baseline.lucro ? 'subiria' : 'ficaria'} em <span className="font-bold">{formatCurrency(sim.comElasticidade.lucro)}</span> e o volume em {formatLiters(sim.comElasticidade.litros)}.
-                      </span>
+                  {/* Lucro do mês em destaque */}
+                  <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Lucro do mês hoje</p>
+                      <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(sim.baseline.lucro)}</p>
+                    </div>
+                    {temCorte && (
+                      <>
+                        <ArrowRight className="mb-1.5 h-5 w-5 shrink-0 text-gray-300" />
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">com o corte de R$ {moneyLraw(reducao).slice(0, 4)}/L</p>
+                          <p className={cn('text-2xl font-bold tabular-nums', pior ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>{formatCurrency(sim.semReacao.lucro)}</p>
+                        </div>
+                        <span className={cn('mb-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ring-1', pior ? TONE.red.pill : TONE.emerald.pill)}>
+                          {pior ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+                          {formatCurrency(deltaLucro)} · {pctLabel(deltaPct)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Apoio: faturamento, margem, volume (antes → depois) */}
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {apoio.map((r) => (
+                      <div key={r.l} className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/40">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{r.l} {horizonte.labelShort}</p>
+                        <p className="text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                          {r.fmt(r.a)}
+                          {temCorte && <span className="text-gray-400"> → {r.fmt(r.d)}</span>}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {temCorte ? (
+                    <p className="mt-2.5 text-[10.5px] leading-snug text-gray-400">
+                      Considera o <span className="font-medium text-gray-500 dark:text-gray-400">mesmo volume</span>; se o corte trouxer mais litros, melhora — mas isso depende da reação do mercado. Pra empatar o lucro de hoje, o volume teria que crescer {sim.belowBreakeven ? 'o impossível (preço no custo)' : `~${pct1(sim.breakEvenGrowth)}`}.
                     </p>
+                  ) : (
+                    <p className="mt-2.5 text-[10.5px] leading-snug text-gray-400">Arraste o slider pra ver como um corte de preço muda o fechamento do mês.</p>
                   )}
-                  {sim.comElasticidade == null && reducao > 0 && (
-                    <p className="flex items-start gap-2 rounded-lg bg-gray-50 px-3 py-2 text-[11px] text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:ring-gray-700">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Sem histórico de cortes neste combustível, não há elasticidade estimada — a projeção com reação de volume fica indisponível.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+                </div>
+              )
+            })()}
+
+            {/* Aviso: preço no/abaixo do custo */}
+            {sim.belowBreakeven && reducao > 0 && (
+              <p className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30">
+                <ShieldX className="mt-0.5 h-4 w-4 shrink-0" />
+                Com esse corte o preço fica no/abaixo do custo ({moneyL(agg.precoCustoMedio)}) — qualquer volume adicional só amplia o prejuízo.
+              </p>
+            )}
           </div>
 
           {/* ── Cenários automáticos ── (ocultos até integrar concorrentes) */}
@@ -900,155 +846,53 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
 
 /* ═══════════════ Subcomponentes ═══════════════ */
 
-interface ViabFactor { label: string; value: number; hint: string }
-interface ViabData {
-  score: number
-  tone: Tone
-  verdict: string
-  Icon: typeof ShieldCheck
-  resumo: string
-  factors: ViabFactor[]
-}
+interface RecVM { estado: string; tone: Tone; Icon: typeof ShieldCheck; titulo: string; comoFazer: string }
+interface RecNumero { label: string; value: string; valueTone?: Tone; trend?: number; trendGoodWhenUp?: boolean }
 
-const ViabilidadeHero = ({ viab, fuel }: { viab: ViabData; fuel: string }) => {
-  const t = TONE[viab.tone]
+/** Bloco answer-first do Radar: o QUE FAZER (veredito de preço) + COMO + uma
+ *  linha enxuta de números de apoio (margem, preço, custo, volume). Substitui o
+ *  hero de score, a projeção e os 3 cards executivos. */
+const RecomendacaoPreco = ({ rec, fuel, numeros }: { rec: RecVM; fuel: string; numeros: RecNumero[] }) => {
+  const t = TONE[rec.tone]
   return (
     <div className={cn(
       'relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-lg dark:border-gray-700 dark:bg-gray-900',
       t.glow,
     )}>
-      {/* glow de fundo */}
       <div className={cn('pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br blur-3xl', t.grad)} />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        {/* Veredito */}
+        {/* Veredito + como fazer */}
         <div className="flex items-start gap-3.5">
           <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1', t.pill)}>
-            <viab.Icon className="h-6 w-6" />
+            <rec.Icon className="h-6 w-6" />
           </div>
           <div>
-            <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-              Viabilidade da redução de preço · {fuel}
-              <InfoHint text="Score 0–100 = média ponderada de 4 fatores: saúde da margem (34%), reação do volume ao preço num corte de R$0,10 (30%), volume na semana (16%) e resposta histórica a cortes (20%). ≥66 viável · 40–65 cautela · <40 alto risco." />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">O que fazer · {fuel}</p>
+            <h3 className={cn('mt-0.5 text-xl font-bold', t.text)}>{rec.titulo}</h3>
+            <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-gray-600 dark:text-gray-300">
+              <span className="font-semibold text-gray-500 dark:text-gray-400">Como: </span>{rec.comoFazer}
             </p>
-            <h3 className={cn('mt-0.5 text-xl font-bold', t.text)}>{viab.verdict}</h3>
-            <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500 dark:text-gray-400">{viab.resumo}</p>
           </div>
         </div>
 
-        {/* Score + fatores */}
-        <div className="flex items-center gap-5">
-          <div className="text-center">
-            <div className="relative flex h-20 w-20 items-center justify-center">
-              <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="34" fill="none" strokeWidth="7" className="stroke-gray-100 dark:stroke-gray-800" />
-                <circle
-                  cx="40" cy="40" r="34" fill="none" strokeWidth="7" strokeLinecap="round"
-                  stroke={t.hex}
-                  strokeDasharray={`${(viab.score / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className={cn('text-2xl font-bold tabular-nums', t.text)}>{viab.score}</span>
-                <span className="text-[9px] text-gray-400">/ 100</span>
+        {/* Números de apoio (viraram apoio, não manchete) */}
+        <div className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-4 lg:gap-x-5">
+          {numeros.map((nu) => {
+            const showTrend = nu.trend != null && Math.abs(nu.trend) > 0.0001
+            const good = nu.trend != null && (nu.trendGoodWhenUp ? nu.trend >= 0 : nu.trend <= 0)
+            return (
+              <div key={nu.label} className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">{nu.label}</p>
+                <p className={cn('text-base font-bold tabular-nums', nu.valueTone ? TONE[nu.valueTone].text : 'text-gray-900 dark:text-gray-100')}>{nu.value}</p>
+                {showTrend && (
+                  <p className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold tabular-nums', good ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                    {(nu.trend ?? 0) >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}{pctLabel(nu.trend ?? 0)}
+                  </p>
+                )}
               </div>
-            </div>
-          </div>
-          <div className="hidden w-44 space-y-1.5 sm:block">
-            {viab.factors.map((f) => (
-              <div key={f.label}>
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-gray-500 dark:text-gray-400">{f.label}</span>
-                  <span className="font-medium tabular-nums text-gray-600 dark:text-gray-300">{f.hint}</span>
-                </div>
-                <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div
-                    className={cn('h-full rounded-full', f.value >= 0.66 ? 'bg-emerald-500' : f.value >= 0.4 ? 'bg-amber-500' : 'bg-red-500')}
-                    style={{ width: `${Math.max(4, f.value * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
-      </div>
-    </div>
-  )
-}
-
-interface ExecCardProps {
-  id: string
-  Icon: typeof Gauge
-  tone: Tone
-  label: string
-  value: string
-  sub: string
-  delta?: number
-  deltaLabel: string
-  deltaGoodWhenUp: boolean
-  spark: { v: number }[]
-  sparkTone: Tone
-  pill?: { tone: Tone; label: string }
-  footer: ReactNode
-  help: string
-}
-
-const ExecCard = ({ id, Icon, tone, label, value, sub, delta, deltaLabel, deltaGoodWhenUp, spark, sparkTone, pill, footer, help }: ExecCardProps) => {
-  const t = TONE[tone]
-  const showDelta = delta !== undefined && Math.abs(delta) > 0.0001
-  const up = (delta ?? 0) >= 0
-  const good = deltaGoodWhenUp ? up : !up
-  const st = TONE[sparkTone]
-  return (
-    <div className={cn('relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900')}>
-      <div className={cn('pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br blur-2xl', t.grad)} />
-      <div className="relative flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg ring-1', t.pill)}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-            {label}
-            <InfoHint text={help} />
-          </span>
-        </div>
-        {pill && (
-          <span className={cn('inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ring-1', TONE[pill.tone].pill)}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', TONE[pill.tone].dot)} />
-            {pill.label}
-          </span>
-        )}
-      </div>
-      <div className="relative mt-2 flex items-end justify-between gap-2">
-        <div>
-          <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-          <p className="text-[10px] text-gray-400 dark:text-gray-500">{sub}</p>
-        </div>
-        {/* Sparkline */}
-        <div className="h-10 w-24 shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={spark} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`gpSpark-${id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={st.hex} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={st.hex} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <Area type="monotone" dataKey="v" stroke={st.hex} strokeWidth={1.75} fill={`url(#gpSpark-${id})`} dot={false} isAnimationActive={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      {showDelta && (
-        <div className="relative mt-1.5 flex items-center gap-1">
-          <span className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold tabular-nums', good ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-            {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-            {pctLabel(delta ?? 0)}
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500">{deltaLabel}</span>
-        </div>
-      )}
-      <div className="relative mt-2 border-t border-gray-100 pt-2 text-[10px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        {footer}
       </div>
     </div>
   )
@@ -1140,67 +984,6 @@ const CenarioCard = ({ c }: { c: CenarioVM }) => {
     </div>
   )
 }
-
-/* Painel de projeção até o fechamento do mês (baseline, sem alteração de preço). */
-interface ProjData {
-  isProjetada: boolean
-  diasFechados: number
-  diasRestantes: number
-  fat: number
-  litros: number
-  lucro: number
-  margem: number
-}
-
-const ProjecaoFechamento = ({ proj }: { proj: ProjData }) => {
-  const items: { label: string; value: string; Icon: typeof Droplets; help: string }[] = [
-    { label: 'Faturamento projetado', value: formatCurrency(proj.fat), Icon: CircleDollarSign, help: 'Faturamento estimado no fechamento do mês: realizado dos dias fechados + projeção dos dias restantes (média recente ajustada por tendência e dia da semana).' },
-    { label: 'Lucro projetado', value: formatCurrency(proj.lucro), Icon: Gauge, help: 'Lucro bruto estimado no fechamento, projetado pela mesma metodologia do faturamento.' },
-    { label: 'Margem projetada', value: `${proj.margem.toFixed(2).replace('.', ',')}%`, Icon: Activity, help: 'Lucro projetado ÷ faturamento projetado no fechamento.' },
-    { label: 'Volume projetado', value: formatLiters(proj.litros), Icon: Droplets, help: 'Litros estimados no fechamento do mês.' },
-  ]
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex flex-wrap items-center gap-2">
-        <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Projeção até o fechamento do mês</h4>
-        <InfoHint text="Cenário base, sem alteração de preço. Soma o que já foi realizado nos dias fechados com a projeção dos dias que faltam até o fim do mês." />
-        {proj.isProjetada ? (
-          <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-800"><CircleDollarSign className="h-3 w-3" />{proj.diasFechados} dias fechados</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">{proj.diasRestantes} dias restantes</span>
-          </span>
-        ) : (
-          <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">Período fechado — projeção = realizado</span>
-        )}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {items.map((it) => (
-          <div key={it.label} className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
-            <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-              <it.Icon className="h-3 w-3" />
-              {it.label}
-              <InfoHint text={it.help} />
-            </p>
-            <p className="mt-1 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{it.value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* Linha de comparação das 3 projeções de fechamento no simulador. */
-const CompareRow = ({ label, base, corte, elast, fmt }: { label: string; base: number; corte: number; elast: number | null; fmt: (v: number) => string }) => (
-  <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
-    <td className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">{label}</td>
-    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{fmt(base)}</td>
-    <td className={cn('px-3 py-2 text-right font-semibold tabular-nums', corte >= base ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{fmt(corte)}</td>
-    <td className={cn('px-3 py-2 text-right font-semibold tabular-nums', elast == null ? 'text-gray-300 dark:text-gray-600' : elast >= base ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-      {elast == null ? '—' : fmt(elast)}
-    </td>
-  </tr>
-)
 
 const Row = ({ label, value, tone, extra, help }: { label: string; value: string; tone?: Tone; extra?: string; help?: string }) => (
   <div className="flex items-center justify-between gap-2">
