@@ -14,6 +14,11 @@ import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@
 import useProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
 import InfoHint from '@/components/ui/InfoHint'
 import type { AbastecimentoRow, FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import type { FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
+import { classifyFuelSlug } from '@/api/supabase/concorrencia'
+
+/** Frescor da praça: acima disso o preço do concorrente é velho pra guiar corte. */
+const PRACA_STALE_WARN = 7 // dias
 
 interface GuerraPrecoProps {
   /** Abastecimentos brutos (já filtrados pelo período/posto) — fonte da série diária. */
@@ -24,6 +29,9 @@ interface GuerraPrecoProps {
   dataInicial?: string
   /** Combustível pré-selecionado ao abrir (drill da Visão Geral). */
   fuelInicial?: string
+  /** Preço de praça por combustível (concorrencia_precos) — amarra o concorrente
+   *  ao drill. Quando presente, destrava a leitura "vs praça" e os cenários. */
+  concorrenciaByFuel?: FuelView[]
 }
 
 /* ─── Referências de saúde de margem (heurística de varejo de combustível) ───
@@ -79,7 +87,7 @@ const TONE: Record<Tone, { pill: string; dot: string; text: string; grad: string
  * concorrentes): evolução de preço × custo × margem por litro, simulador de
  * elasticidade, cenários estratégicos e um veredito de viabilidade da redução.
  */
-const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoProps) => {
+const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaByFuel }: GuerraPrecoProps) => {
   const ct = useChartTheme()
   const fuelsByVolume = useMemo(
     () => [...fuelTypes].filter((f) => f.litros > 0).sort((a, b) => b.litros - a.litros),
@@ -87,6 +95,15 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
   )
   const [fuelSel, setFuelSel] = useState<string | null>(fuelInicial ?? null)
   const selectedFuel = fuelSel ?? fuelsByVolume[0]?.nome ?? ''
+
+  // Praça do combustível selecionado — casa o nome interno com o slug da
+  // concorrência (classifyFuelSlug). null = sem concorrente cadastrado p/ ele.
+  const praca = useMemo(() => {
+    const slug = classifyFuelSlug(selectedFuel)
+    if (!slug || !concorrenciaByFuel) return null
+    const v = concorrenciaByFuel.find((f) => f.slug === slug)
+    return v && v.mediaPonderada != null && v.mediaPonderada > 0 ? v : null
+  }, [concorrenciaByFuel, selectedFuel])
   const [reducao, setReducao] = useState(0.1)
   const [showTabela, setShowTabela] = useState(false)
 
@@ -283,6 +300,22 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
   // Margem por litro no preço ATUAL (cadastrado) — base do simulador e do teto.
   const lbAtualNow = Math.max(0, precoAtual - agg.precoCustoMedio)
 
+  // "vs praça": meu preço ATUAL (cadastrado, o da bomba) contra a média ponderada
+  // dos concorrentes. gap>0 = estou mais BARATO (posso subir); gap<0 = mais CARO.
+  // `velho` = praça defasada (>PRACA_STALE_WARN dias) → não deve guiar corte.
+  const vsPraca = useMemo(() => {
+    if (!praca || praca.mediaPonderada == null || praca.mediaPonderada <= 0) return null
+    const media = praca.mediaPonderada
+    return {
+      media,
+      gap: media - precoAtual,
+      indice: (precoAtual / media) * 100,
+      concorrentes: praca.competidores.length,
+      stale: praca.maxStaleDays,
+      velho: praca.maxStaleDays != null && praca.maxStaleDays > PRACA_STALE_WARN,
+    }
+  }, [praca, precoAtual])
+
   // Competitividade — proxy interno honesto: preço recente vs. média do período.
   const compRatio = agg.precoVendaMedio > 0 ? wow.last.precoVenda / agg.precoVendaMedio - 1 : 0
   const compTone: Tone = compRatio < -0.004 ? 'emerald' : compRatio > 0.004 ? 'red' : 'amber'
@@ -371,6 +404,17 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
   // Alertas inteligentes — derivados de dados reais (sem concorrentes).
   const alertas = useMemo(() => {
     const out: { tone: Tone; Icon: typeof Info; text: string }[] = []
+    // Sinal de PRAÇA (dado de concorrente, o mais forte) primeiro — mas só quando
+    // fresco; praça velha vira aviso de "atualize", nunca recomendação de corte.
+    if (vsPraca && !vsPraca.velho) {
+      if (vsPraca.gap > 0.02) {
+        out.push({ tone: 'emerald', Icon: TrendingUp, text: `Você está R$ ${moneyLraw(vsPraca.gap).slice(0, 4)}/L abaixo da praça (índice ${vsPraca.indice.toFixed(0)}%) — há espaço pra subir sem perder competitividade.` })
+      } else if (vsPraca.gap < -0.02) {
+        out.push({ tone: 'amber', Icon: Target, text: `Você está R$ ${moneyLraw(Math.abs(vsPraca.gap)).slice(0, 4)}/L acima da praça (índice ${vsPraca.indice.toFixed(0)}%) — atenção à competitividade.` })
+      }
+    } else if (vsPraca && vsPraca.velho) {
+      out.push({ tone: 'slate', Icon: AlertTriangle, text: `Preço de praça com ${vsPraca.stale} dias — atualize a concorrência antes de decidir pela praça.` })
+    }
     if (margemTone === 'red') {
       out.push({ tone: 'red', Icon: ShieldX, text: `Margem crítica (${agg.margem.toFixed(2).replace('.', ',')}%) — abaixo do piso sustentável de ~${MARGEM_ATENCAO}%.` })
     } else if (margemTone === 'amber') {
@@ -396,7 +440,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
       out.push({ tone: 'amber', Icon: Target, text: `Seu preço recente está ${pct1(compRatio)} acima da sua média do período.` })
     }
     return out.slice(0, 5)
-  }, [margemTone, agg.margem, wow, sim.breakEvenGrowth, elasticidade, cortes.length, compTone, compRatio])
+  }, [margemTone, agg.margem, wow, sim.breakEvenGrowth, elasticidade, cortes.length, compTone, compRatio, vsPraca])
 
   if (fuelsByVolume.length === 0) {
     return (
@@ -409,11 +453,13 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
   const linhasDesc = [...serie].reverse()
   const maxCut = Math.max(0.2, Math.ceil(lbAtualNow * 100) / 100)
 
-  // Cenários estratégicos, curva de elasticidade e alertas ficam OCULTOS: usam só
-  // dados internos (sem preços de concorrentes integrados), então a projeção de
-  // reação de volume não é confiável o bastante pra guiar decisão. Religar quando
-  // a praça/concorrência entrar no sistema.
-  const MOSTRAR_ELASTICIDADE = false
+  // Cenários estratégicos, curva de elasticidade e alertas ficavam OCULTOS por
+  // falta de referência de praça. Agora RELIGAM quando há concorrente cadastrado
+  // pra este combustível (vsPraca dá o alvo de mercado que ancora a decisão de
+  // corte). Sem praça, o drill segue enxuto (só dados internos). A reação de
+  // volume dos cenários ainda é ESTIMATIVA (rotulada) — a praça dá o porquê, não
+  // garante o volume.
+  const MOSTRAR_ELASTICIDADE = !!praca
   // Tabela "Evolução diária" (detalhe técnico dia a dia) — oculta a pedido; é
   // ruído pro dono. Religar aqui se precisar do detalhe.
   const MOSTRAR_EVOLUCAO_DIARIA = false
@@ -478,6 +524,51 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
               { label: 'Volume/dia', value: `${formatNumber(agg.litrosDia)} L`, trend: wow.hasPrev ? wow.volDelta : undefined, trendGoodWhenUp: true },
             ]}
           />
+
+          {/* ── Preço vs praça (concorrência manual) ── */}
+          {vsPraca && (
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Seu preço vs praça</h4>
+                <InfoHint text="Compara o seu preço ATUAL (cadastrado) com a média dos concorrentes, ponderada pelo nº de postos de cada um. Índice = seu preço ÷ média × 100 (abaixo de 100 = você mais barato). Dado MANUAL da aba Concorrência — vale o que a última observação vale." />
+                <span className="ml-auto text-[10px] font-medium">
+                  {vsPraca.velho ? (
+                    <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400"><AlertTriangle className="h-3 w-3" />praça de {vsPraca.stale} dias</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3 w-3" />praça de {vsPraca.stale ?? 0}d · {vsPraca.concorrentes} concorrente{vsPraca.concorrentes === 1 ? '' : 's'}</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Índice vs praça</p>
+                  <p className={cn('text-2xl font-bold tabular-nums', vsPraca.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>{vsPraca.indice.toFixed(0)}%</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Seu preço · média praça</p>
+                  <p className="text-[15px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{moneyL(precoAtual)} · {moneyL(vsPraca.media)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Diferença</p>
+                  <p className={cn('text-[15px] font-semibold tabular-nums', vsPraca.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                    {vsPraca.gap >= 0 ? 'você −' : 'você +'}R$ {moneyLraw(Math.abs(vsPraca.gap)).slice(0, 4)}/L
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-2 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                {vsPraca.velho
+                  ? `A última observação da praça é de ${vsPraca.stale} dias — confirme na aba Concorrência antes de decidir pela praça.`
+                  : vsPraca.gap > 0.02
+                    ? `Você está mais barato que a praça — há espaço pra subir até ~R$ ${moneyLraw(vsPraca.gap).slice(0, 4)}/L antes de encostar na média do mercado.`
+                    : vsPraca.gap < -0.02
+                      ? 'Você está mais caro que a praça — cortar aproxima do mercado, mas confira a margem no simulador antes.'
+                      : 'Você está praticamente na média da praça.'}
+              </p>
+            </div>
+          )}
 
           {/* ── Simulador estratégico ── */}
           <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-800/60 dark:to-gray-900">
@@ -569,6 +660,20 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
                 />
               </div>
             </div>
+
+            {/* Reflexo do corte na competitividade (vs praça, ao vivo com o slider). */}
+            {vsPraca && reducao > 0 && (
+              <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-blue-50/60 px-3 py-2 text-[11px] leading-snug text-blue-800 dark:bg-blue-950/20 dark:text-blue-200">
+                <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Com esse corte seu preço fica em <span className="font-semibold">{moneyL(sim.novoPreco)}</span> — índice <span className="font-semibold">{((sim.novoPreco / vsPraca.media) * 100).toFixed(0)}%</span> da praça
+                  {sim.novoPreco < vsPraca.media
+                    ? ` (R$ ${moneyLraw(vsPraca.media - sim.novoPreco).slice(0, 4)}/L abaixo da média)`
+                    : ` (R$ ${moneyLraw(sim.novoPreco - vsPraca.media).slice(0, 4)}/L acima da média)`}.
+                  {vsPraca.velho && <span className="text-blue-800/60 dark:text-blue-200/60"> Praça de {vsPraca.stale} dias — confirme.</span>}
+                </span>
+              </p>
+            )}
 
             {/* ── Projeção do mês: ANTES × DEPOIS do corte (Lucro em destaque) ── */}
             {(() => {
@@ -668,7 +773,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
             )}
           </div>
 
-          {/* ── Cenários automáticos ── (ocultos até integrar concorrentes) */}
+          {/* ── Cenários automáticos ── (só quando há praça cadastrada p/ o combustível) */}
           {MOSTRAR_ELASTICIDADE && (
           <div>
             <div className="mb-2 flex items-center gap-2">
@@ -685,7 +790,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
           </div>
           )}
 
-          {/* ── Elasticidade + Alertas ── (ocultos até integrar concorrentes) */}
+          {/* ── Elasticidade + Alertas ── (só quando há praça cadastrada p/ o combustível) */}
           {MOSTRAR_ELASTICIDADE && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {/* Curva de elasticidade */}
@@ -746,7 +851,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-amber-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Alertas inteligentes</h4>
-                <InfoHint text="Avisos gerados automaticamente a partir dos dados do período: margem perto do piso, custo subindo, volume exigido agressivo, queda/alta de volume e elasticidade baixa. Não há dados de concorrentes." />
+                <InfoHint text="Avisos gerados automaticamente a partir dos dados do período: posição vs praça (quando há concorrente cadastrado), margem perto do piso, custo subindo, volume exigido agressivo e queda/alta de volume. Preço de praça velho vira aviso pra atualizar, nunca recomendação de corte." />
               </div>
               <div className="mt-3 space-y-2">
                 {alertas.length === 0 ? (
@@ -767,7 +872,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoP
                 )}
               </div>
               <p className="mt-3 border-t border-gray-100 pt-2 text-[10px] leading-snug text-gray-400 dark:border-gray-800">
-                Análise baseada nos dados da própria rede. Preços de concorrentes não estão integrados ao sistema.
+                Combina os dados da própria rede com o preço de praça cadastrado na aba Concorrência (dado manual — vale o frescor da última observação).
               </p>
             </div>
           </div>

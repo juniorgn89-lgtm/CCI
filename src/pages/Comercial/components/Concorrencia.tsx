@@ -448,7 +448,15 @@ const Concorrencia = () => {
               </span>
             )}
           </div>
-          <MiniHistorico f={fuelChart} />
+          {/* Sem observação de concorrente = gráfico só com a minha linha fica
+              vazio e sem sentido; troca por uma nota (o histórico é comparativo). */}
+          {fuelChart.pontos.length > 0 ? (
+            <MiniHistorico f={fuelChart} />
+          ) : (
+            <p className="py-8 text-center text-[12px] text-gray-400 dark:text-gray-500">
+              Sem observação de concorrente neste combustível nos últimos 30 dias — cadastre um preço de praça na tabela acima pra ver o histórico comparado.
+            </p>
+          )}
         </div>
       )}
     </div>

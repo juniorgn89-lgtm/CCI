@@ -2,11 +2,18 @@ import { useMemo, useState } from 'react'
 import { Radar, ArrowRight, LayoutGrid, List, ChevronDown, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import InfoHint from '@/components/ui/InfoHint'
 import useComercialData from '@/pages/Comercial/hooks/useComercialData'
 import {
   classificar, acaoDe, SITUACAO_META, ACAO_META, TONE_CLASSES,
   type Situacao, type Acao,
 } from '@/lib/radarClassificacao'
+
+// Textos de ajuda ("?") dos conceitos-chave — reusados no Resumo e nos Cards.
+const HINT_MARGEM = 'Margem bruta = lucro bruto ÷ faturamento (o % que sobra de cada real vendido depois do custo). O "L.B./L" abaixo é o lucro bruto por litro — a folga que dá pra ceder no preço sem ter prejuízo.'
+const HINT_PRECO = 'Preço de venda médio do período (faturamento ÷ litros), ponderado pelo volume.'
+const HINT_CUSTO = 'Custo de reposição por litro — o "chão" do preço. Vender abaixo disso é prejuízo.'
+const HINT_VOLUME = 'Litros vendidos por dia OPERADO (dia sem venda = posto fechado, não entra na conta).'
 
 const moneyL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 const pct = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
@@ -97,9 +104,11 @@ const AnalisarBtn = ({ onClick }: { onClick: () => void }) => (
 )
 
 /** Mini-KPI dentro do card (aba Todos os cards). */
-const StatMini = ({ label, value, foot, tone }: { label: string; value: string; foot?: string; tone?: string }) => (
+const StatMini = ({ label, value, foot, tone, hint }: { label: string; value: string; foot?: string; tone?: string; hint?: string }) => (
   <div className="rounded-lg bg-gray-50/70 px-2.5 py-2 dark:bg-gray-800/40">
-    <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+    <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+      {label}{hint && <InfoHint text={hint} />}
+    </p>
     <p className={cn('text-[15px] font-bold tabular-nums text-gray-900 dark:text-gray-100', tone)}>{value}</p>
     {foot && <p className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{foot}</p>}
   </div>
@@ -190,14 +199,16 @@ const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
     return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem dados de combustível no período pra montar o radar.</div>
   }
 
-  const ChipKpi = ({ label, value, tone }: { label: string; value: number; tone?: 'red' | 'green' }) => (
+  const ChipKpi = ({ label, value, tone, hint }: { label: string; value: number; tone?: 'red' | 'green'; hint?: string }) => (
     <div className={cn(
       'rounded-xl border px-3 py-2 text-center',
       tone === 'red' ? 'border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/15'
         : tone === 'green' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/15'
           : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40',
     )}>
-      <p className={cn('text-[9px] font-semibold uppercase tracking-wider', tone === 'red' ? 'text-red-600 dark:text-red-400' : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>{label}</p>
+      <p className={cn('flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider', tone === 'red' ? 'text-red-600 dark:text-red-400' : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
+        {label}{hint && <InfoHint text={hint} />}
+      </p>
       <p className={cn('text-lg font-bold tabular-nums', tone === 'red' ? 'text-red-700 dark:text-red-300' : tone === 'green' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-100')}>{value}<span className="text-[10px] font-medium text-gray-400"> {label === 'POSTOS' ? '' : 'cards'}</span></p>
     </div>
   )
@@ -216,9 +227,9 @@ const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
           </div>
         </div>
         <div className="flex shrink-0 items-stretch gap-2">
-          <ChipKpi label="POSTOS" value={postos.length} />
-          <ChipKpi label="PERTO DO PISO" value={kpiPiso} tone="red" />
-          <ChipKpi label="COM FOLGA" value={kpiFolga} tone="green" />
+          <ChipKpi label="POSTOS" value={postos.length} hint="Postos da rede que entraram no radar (têm combustível com custo apurado no período)." />
+          <ChipKpi label="PERTO DO PISO" value={kpiPiso} tone="red" hint="Quantos combustíveis (posto × produto) estão com a margem perto do custo — cortar preço ali vende quase no prejuízo." />
+          <ChipKpi label="COM FOLGA" value={kpiFolga} tone="green" hint="Quantos combustíveis têm margem folgada — dá pra ceder preço se a concorrência apertar, sem encostar no piso." />
         </div>
       </div>
 
@@ -231,11 +242,12 @@ const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
           : 'border-gray-200 bg-gray-50/70 text-gray-500 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-400',
       )}>
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>
+        <span className="flex flex-wrap items-center gap-x-1">
           As situações (No limite / Folga) são <span className="font-semibold">referência pela margem, não regra</span> — quem manda é o <span className="font-semibold">custo</span>.
           {custoVelhoCount > 0
             ? ` ${custoVelhoCount} ${custoVelhoCount === 1 ? 'combustível está' : 'combustíveis estão'} com custo de mais de ${FRESCOR_WARN} dias — confirme antes de mexer no preço.`
             : ' Confira o frescor do custo em cada card antes de mexer no preço.'}
+          <InfoHint text={`Frescor do custo: verde = atualizado (até ${FRESCOR_OK} dias), amarelo = ${FRESCOR_OK + 1}–${FRESCOR_WARN} dias, vermelho = mais de ${FRESCOR_WARN} dias. "Custo sem data" = o sistema tem o VALOR do custo, mas não conseguiu confirmar de quando ele é (a fonte da data está indisponível). Custo velho pode inflar a margem — por isso o aviso.`} />
         </span>
       </div>
 
@@ -347,63 +359,82 @@ const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
         </div>
       )}
 
-      {/* ── TODOS OS CARDS — agrupado por combustível, com filtros ── */}
-      {view === 'cards' && (() => {
-        const porFuel = fuels
-          .filter((nome) => fFuel === 'todos' || nome === fFuel)
-          .map((nome) => ({ nome, cards: itensFiltrados.filter((i) => i.fuel === nome).sort((a, b) => b.margemPct - a.margemPct) }))
-          .filter((g) => g.cards.length > 0)
-        return (
-          <div className="space-y-5">
-            {porFuel.map((g) => (
-              <div key={g.nome}>
+      {/* ── TODOS OS CARDS — MESMA ordem do Resumo: ação → combustível (melhor→pior) → margem ── */}
+      {view === 'cards' && (
+        <div className="space-y-5">
+          {ACOES.map((acao) => {
+            const meta = ACAO_META[acao]
+            const lista = itensFiltrados.filter((i) => acaoDe(i.situacao) === acao)
+            if (lista.length === 0) return null
+            const tc = TONE_CLASSES[meta.tone]
+            // Subgrupo por combustível do MELHOR pro pior (igual ao Resumo).
+            const gruposFuel = [...new Set(lista.map((i) => i.fuel))]
+              .map((fuel) => {
+                const cards = [...lista].filter((i) => i.fuel === fuel).sort((a, b) => b.margemPct - a.margemPct)
+                const media = cards.reduce((s, i) => s + i.margemPct, 0) / cards.length
+                return { fuel, cards, media }
+              })
+              .sort((a, b) => b.media - a.media)
+            return (
+              <div key={acao}>
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[#2563eb]" />
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100">{g.nome}</h4>
-                  <span className="text-[11px] text-gray-400">piso {moneyL(pisoPorFuel.get(g.nome) ?? 0)}/L</span>
+                  <span className={cn('h-2.5 w-2.5 rounded-full', tc.dot)} />
+                  <h4 className={cn('text-sm font-bold', tc.text)}>{meta.titulo}</h4>
+                  <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{lista.length}</span>
+                  <span className="text-[11px] text-gray-400">{meta.sub}</span>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  {g.cards.map((it) => {
-                    const sm = SITUACAO_META[it.situacao]
-                    const stc = TONE_CLASSES[sm.tone]
-                    const rc = ressalvaCusto(it)
-                    return (
-                      <div key={`${it.postoCodigo}:${it.fuel}`} className="relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <span className={cn('absolute inset-x-0 top-0 h-[3px]', stc.dot)} />
-                        <div className="flex flex-col gap-2 p-3.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100">{it.posto}</p>
-                            <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold', stc.pill)}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', stc.dot)} />{sm.pill}
-                            </span>
-                          </div>
-                          <p className={cn('text-[12px] font-semibold leading-snug', stc.text)}>{sm.frase}</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatMini label="Preço médio" value={moneyL(it.precoMedio)} />
-                            <StatMini label="Margem" value={pct(it.margemPct)} foot={`L.B. ${moneyL(it.folgaL)}/L`} tone={stc.text} />
-                            <StatMini label="Custo (piso)" value={moneyL(it.custo)} foot={`folga ${moneyL(it.folgaL)}/L`} />
-                            <StatMini label="Volume/dia" value={litros(it.volumeDia)} />
-                          </div>
-                          <CustoFrescor dias={it.custoStaleDays} />
-                          {rc && (
-                            <p className="inline-flex items-start gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-semibold leading-snug text-red-700 dark:bg-red-950/30 dark:text-red-300">
-                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />{rc}
-                            </p>
-                          )}
-                        </div>
-                        <button type="button" onClick={() => onAnalisar(it.postoCodigo, it.fuel)}
-                          className="mt-auto border-t border-gray-100 py-2 text-center text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-[#2563eb] dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-blue-300">
-                          Analisar →
-                        </button>
+                <div className="space-y-4">
+                  {gruposFuel.map(({ fuel, cards }) => (
+                    <div key={fuel}>
+                      <p className="mb-1.5 flex items-center gap-1.5 pl-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {fuel}
+                        <span className="font-normal normal-case text-gray-400">· piso {moneyL(pisoPorFuel.get(fuel) ?? 0)}/L</span>
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                        {cards.map((it) => {
+                          const sm = SITUACAO_META[it.situacao]
+                          const stc = TONE_CLASSES[sm.tone]
+                          const rc = ressalvaCusto(it)
+                          return (
+                            <div key={`${it.postoCodigo}:${it.fuel}`} className="relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                              <span className={cn('absolute inset-x-0 top-0 h-[3px]', stc.dot)} />
+                              <div className="flex flex-col gap-2 p-3.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100">{it.posto}</p>
+                                  <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold', stc.pill)}>
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', stc.dot)} />{sm.pill}
+                                  </span>
+                                </div>
+                                <p className={cn('text-[12px] font-semibold leading-snug', stc.text)}>{sm.frase}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <StatMini label="Preço médio" value={moneyL(it.precoMedio)} hint={HINT_PRECO} />
+                                  <StatMini label="Margem" value={pct(it.margemPct)} foot={`L.B. ${moneyL(it.folgaL)}/L`} tone={stc.text} hint={HINT_MARGEM} />
+                                  <StatMini label="Custo (piso)" value={moneyL(it.custo)} foot={`folga ${moneyL(it.folgaL)}/L`} hint={HINT_CUSTO} />
+                                  <StatMini label="Volume/dia" value={litros(it.volumeDia)} hint={HINT_VOLUME} />
+                                </div>
+                                <CustoFrescor dias={it.custoStaleDays} />
+                                {rc && (
+                                  <p className="inline-flex items-start gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-semibold leading-snug text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />{rc}
+                                  </p>
+                                )}
+                              </div>
+                              <button type="button" onClick={() => onAnalisar(it.postoCodigo, it.fuel)}
+                                className="mt-auto border-t border-gray-100 py-2 text-center text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-[#2563eb] dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-blue-300">
+                                Analisar →
+                              </button>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        )
-      })()}
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

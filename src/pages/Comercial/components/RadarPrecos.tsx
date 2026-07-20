@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CloudOff } from 'lucide-react'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import useConcorrencia from '@/pages/Comercial/hooks/useConcorrencia'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -35,6 +36,10 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
   const monthStart = `${todayLocal().slice(0, 7)}-01`
   const hoje = todayLocal()
   const { rows, fuelTypeData, isLoading, fisicoIndisponivel } = useAbastecimentosAnalytics(selectedCodigo, { periodo: { dataInicial: monthStart, dataFinal: hoje } })
+  // Preço de praça (concorrência) do posto — amarra o preço observado do
+  // concorrente ao drill por combustível. Lê o mesmo `concorrencia_precos` da aba
+  // Concorrência; não depende da Quality (é dado manual em Supabase).
+  const concorrencia = useConcorrencia(selectedCodigo)
 
   return (
     <div className="space-y-3">
@@ -86,7 +91,7 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
             </div>
           </div>
         ) : (
-          <GuerraPreco rows={rows} fuelTypes={fuelTypeData} dataInicial={monthStart} fuelInicial={fuelInicial} />
+          <GuerraPreco rows={rows} fuelTypes={fuelTypeData} dataInicial={monthStart} fuelInicial={fuelInicial} concorrenciaByFuel={concorrencia.byFuel} />
         )}
       </section>
     </div>
