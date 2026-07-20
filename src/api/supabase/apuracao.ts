@@ -346,9 +346,17 @@ interface FetchAbastCacheParams {
   dataFinal: string
 }
 
-/** Lê abastecimentos do cache pra um período (paginação cursor sequencial).
- *  Tentei paralelizar via range mas Postgres saturou — cada page virou 4s.
- *  Serial cursor com índice composto fica ~250ms por page. */
+/** Lê abastecimentos do cache pra um período (paginação por .range()).
+ *  Ordena por `data_fiscal` — a coluna dos índices (idx_apuracao_abast_rede_data
+ *  e idx_apuracao_abast_rede_empresa_data). O cursor antigo paginava por
+ *  `abastecimento_codigo`, que NÃO é chave de índice: pedir um período recente
+ *  fazia o Postgres varrer o histórico inteiro do posto em ordem de código até
+ *  alcançar as datas pedidas — rápido quando a tabela era pequena, mas
+ *  `statement timeout` depois que cresceu. Ordenando por data_fiscal o range
+ *  scan bate direto no índice. A ordem (data_fiscal, empresa_codigo,
+ *  abastecimento_codigo) é TOTAL (abast_codigo é único por rede+empresa), então
+ *  o .range() não pula linhas nas fronteiras de 1000 — mesmo padrão dos demais
+ *  leitores de cache (fetchVendasCache/fetchApuracaoFuelDiaria). */
 export const fetchAbastecimentosCache = async (
   params: FetchAbastCacheParams
 ): Promise<AbastecimentoCacheRow[]> => {
@@ -356,8 +364,8 @@ export const fetchAbastecimentosCache = async (
   const __t0 = perfNow()
   const all: AbastecimentoCacheRow[] = []
   const pageSize = 1000
-  let cursor = -1
-  while (true) {
+  let from = 0
+  for (;;) {
     // Seleção explícita das colunas usadas no front (rede_id sai porque
     // já é filtrado por RLS, e a economia de payload acumula em 10k rows).
     let query = supabase
@@ -365,11 +373,10 @@ export const fetchAbastecimentosCache = async (
       .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario,valor_total,placa,preco_custo,preco_cadastro,tabela_preco_a,tabela_preco_b,tabela_preco_c')
       .gte('data_fiscal', params.dataInicial)
       .lte('data_fiscal', params.dataFinal)
+      .order('data_fiscal', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
       .order('abastecimento_codigo', { ascending: true })
-      .limit(pageSize)
-    if (cursor >= 0) {
-      query = query.gt('abastecimento_codigo', cursor)
-    }
+      .range(from, from + pageSize - 1)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -379,10 +386,9 @@ export const fetchAbastecimentosCache = async (
       break
     }
     const rows = (data ?? []) as AbastecimentoCacheRow[]
-    if (rows.length === 0) break
     all.push(...rows)
     if (rows.length < pageSize) break
-    cursor = rows[rows.length - 1].abastecimento_codigo
+    from += pageSize
   }
   return perfDone('fetchAbastecimentosCache', 'apuracao_abastecimentos', all, __t0)
 }
