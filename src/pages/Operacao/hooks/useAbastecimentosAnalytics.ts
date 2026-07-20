@@ -259,11 +259,15 @@ const useAbastecimentosAnalytics = (
   })
 
   // Current period — live só quando cache MISS (ou fora do modo FISCAL).
-  const { data: abastLive = [], isLoading: isLoadingAbastLive } = useQuery({
+  const { data: abastLive = [], isLoading: isLoadingAbastLive, isError: isErrorAbastLive } = useQuery({
     queryKey: ['abastecimentos', dataInicial, dataFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial, dataFinal, tipoData: abastTipoData }),
     enabled: rawSingle && wantFisico && (!cacheActive || (!abastCacheCurrent.isCacheHit && !abastCacheCurrent.isChecking)),
     placeholderData: keepPreviousData,
+    // O fetchAbastecimentosChunked já tenta cada janela 1× de novo por dentro;
+    // sem travar aqui, o react-query empilha +3 tentativas por cima → martela a
+    // Quality quando ela está fora (os 400 em série no console). 1 retry basta.
+    retry: false,
   })
 
   // Mês anterior — mesmo padrão.
@@ -314,6 +318,12 @@ const useAbastecimentosAnalytics = (
   // ao useOperacaoData — mantém comportamento legado em MISS (sem regressão).
   const abastecimentos = cacheActive && abastCacheCurrent.isCacheHit ? abastCacheCurrent.abastecimentos : abastLive
   const prevMonthAbast = cacheActive && abastCachePrev.isCacheHit ? abastCachePrev.abastecimentos : prevMonthLive
+
+  // Físico do período INDISPONÍVEL: o live falhou por completo (todas as janelas
+  // deram erro na Quality) E o cache não está suprindo → não há físico pra
+  // mostrar. Sinaliza pra UI exibir um estado honesto ("Quality fora do ar"),
+  // não um vazio mudo que o dono confunde com "sem movimento".
+  const fisicoIndisponivel = rawSingle && wantFisico && isErrorAbastLive && abastecimentos.length === 0
   // evolutionAbast saiu — substituído por `evolutionDaily` (ApuracaoDiariaRow[])
   // que é consumido direto no agregado mensal.
 
@@ -910,6 +920,8 @@ const useAbastecimentosAnalytics = (
     isLoading,
     isLoadingBase: isLoadingEvolution,
     isLoadingFisico: isLoadingAbastLive,
+    /** Físico do período não pôde ser carregado (Quality fora + sem cache). */
+    fisicoIndisponivel,
     descAcrByFrentista,
   }
 }

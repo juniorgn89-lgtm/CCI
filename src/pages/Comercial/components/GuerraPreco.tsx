@@ -22,6 +22,8 @@ interface GuerraPrecoProps {
   fuelTypes: FuelTypeRow[]
   /** Data inicial do período (ISO) — define o mês a projetar até o fechamento. */
   dataInicial?: string
+  /** Combustível pré-selecionado ao abrir (drill da Visão Geral). */
+  fuelInicial?: string
 }
 
 /* ─── Referências de saúde de margem (heurística de varejo de combustível) ───
@@ -77,13 +79,13 @@ const TONE: Record<Tone, { pill: string; dot: string; text: string; grad: string
  * concorrentes): evolução de preço × custo × margem por litro, simulador de
  * elasticidade, cenários estratégicos e um veredito de viabilidade da redução.
  */
-const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
+const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial }: GuerraPrecoProps) => {
   const ct = useChartTheme()
   const fuelsByVolume = useMemo(
     () => [...fuelTypes].filter((f) => f.litros > 0).sort((a, b) => b.litros - a.litros),
     [fuelTypes],
   )
-  const [fuelSel, setFuelSel] = useState<string | null>(null)
+  const [fuelSel, setFuelSel] = useState<string | null>(fuelInicial ?? null)
   const selectedFuel = fuelSel ?? fuelsByVolume[0]?.nome ?? ''
   const [reducao, setReducao] = useState(0.1)
   const [showTabela, setShowTabela] = useState(false)
@@ -229,18 +231,22 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
     }
   }, [serie])
 
-  // Cortes de preço: dias em que o preço de venda caiu vs o dia anterior.
+  // Cortes de preço: dias em que o preço de TABELA (cadastrado) caiu vs o dia
+  // anterior. Usa o cadastrado (o preço "oficial" da bomba); cai pro realizado
+  // só nos dias sem preço de tabela — assim "queda" e "novo preço" batem.
   const cortes = useMemo(() => {
     const out: { data: string; queda: number; novoPreco: number; varLitros: number; varLb: number }[] = []
+    const precoRef = (d: { precoCadastro: number; precoVenda: number }) => (d.precoCadastro > 0 ? d.precoCadastro : d.precoVenda)
     for (let i = 1; i < serie.length; i++) {
       const cur = serie[i]
       const prev = serie[i - 1]
-      const queda = cur.precoVenda - prev.precoVenda
+      const precoCur = precoRef(cur)
+      const queda = precoCur - precoRef(prev)
       if (queda < -0.005) {
         out.push({
           data: cur.data,
           queda,
-          novoPreco: cur.precoVenda,
+          novoPreco: precoCur,
           varLitros: prev.litros > 0 ? cur.litros / prev.litros - 1 : 0,
           varLb: prev.lbLitro !== 0 ? cur.lbLitro / prev.lbLitro - 1 : 0,
         })
@@ -530,30 +536,36 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                 </div>
               </div>
 
-              {/* Stats por litro (rápidos) */}
-              <div className="grid grid-cols-2 gap-2 lg:w-[300px]">
+              {/* Stats por litro — de tanto → para tanto (hoje → com corte). */}
+              <div className="grid grid-cols-2 gap-2 lg:w-[360px]">
                 <SimStat
-                  label="Novo preço"
+                  label="Preço / L"
+                  from={moneyL(precoAtual)}
                   value={moneyL(sim.novoPreco)}
-                  help="Preço médio de venda menos a redução aplicada no slider."
+                  help="Preço atual (cadastrado) menos a redução do slider → o novo preço na bomba."
                 />
                 <SimStat
-                  label="Nova L.B./L"
+                  label="L.B. / L"
+                  from={moneyL(lbAtualNow)}
                   value={moneyL(sim.novoLb)}
                   tone={sim.belowBreakeven ? 'red' : sim.novoLb < lbMinSustentavel ? 'amber' : 'emerald'}
-                  help="Lucro bruto por litro (média do período) menos a redução — é um retrato do estado ATUAL, não a projeção de fechamento (essa vem na tabela abaixo). Abaixo de zero = preço no/abaixo do custo."
+                  help="Lucro bruto por litro no preço atual (preço − custo) menos a redução. Abaixo de zero = preço no/abaixo do custo."
                 />
                 <SimStat
                   label="Margem / L"
+                  from={`${(precoAtual > 0 ? (lbAtualNow / precoAtual) * 100 : 0).toFixed(2).replace('.', ',')}%`}
                   value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(2).replace('.', ',')}%` : '—'}
                   tone={sim.margemFinal >= MARGEM_SAUDAVEL ? 'emerald' : sim.margemFinal >= MARGEM_ATENCAO ? 'amber' : 'red'}
-                  help={`Nova L.B./litro ÷ novo preço. Cores: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica.`}
+                  help={`L.B./litro ÷ preço. Cores: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica.`}
                 />
                 <SimStat
                   label="Volume p/ empatar"
                   value={sim.belowBreakeven ? '∞' : `+${pct1(sim.breakEvenGrowth)}`}
                   tone={sim.belowBreakeven ? 'red' : sim.breakEvenGrowth > 0.2 ? 'red' : sim.breakEvenGrowth > 0.1 ? 'amber' : 'emerald'}
-                  help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1, sobre a média do período. Abaixo do break-even = impossível empatar (∞)."
+                  foot={sim.belowBreakeven
+                    ? 'preço no custo — não dá pra empatar'
+                    : `empatando, o lucro do mês fica em ${formatCurrency(sim.baseline.lucro)}`}
+                  help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1. Empatando, o lucro do mês fica igual ao de hoje (sem cortar). Abaixo do break-even = impossível empatar (∞)."
                 />
               </div>
             </div>
@@ -633,6 +645,16 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
                   ) : (
                     <p className="mt-2.5 text-[10.5px] leading-snug text-gray-400">Arraste o slider pra ver como um corte de preço muda o fechamento do mês.</p>
                   )}
+
+                  {/* Honestidade de base: a projeção do drill é FÍSICA (bomba), não o
+                      fiscal da Central. Serve pra decidir a DIREÇÃO do corte, não como
+                      valor contábil exato — não deixar o dono crer num R$ que não bate. */}
+                  <p className="mt-2 flex items-start gap-1.5 border-t border-gray-100 pt-2 text-[10px] leading-snug text-gray-400 dark:border-gray-800">
+                    <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>
+                      Base: <span className="font-medium">venda física da bomba</span> (a mesma do dia a dia desta tela). O fechamento <span className="font-medium">fiscal</span> do mês na Central da Rede pode diferir um pouco — use este número pra decidir a <span className="font-medium">direção e o tamanho do corte</span>, não como valor contábil exato.
+                    </span>
+                  </p>
                 </div>
               )
             })()}
@@ -757,7 +779,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial }: GuerraPrecoProps) => {
               <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
                 <TrendingDown className="h-4 w-4 text-red-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cortes de preço no período</h4>
-                <InfoHint text="Dias em que o preço médio caiu mais de R$0,005 vs. o dia anterior. As colunas de volume e L.B./litro comparam o dia do corte com o dia anterior — a leitura indica se o volume reagiu ao corte." />
+                <InfoHint text="Dias em que o preço de TABELA (cadastrado) caiu mais de R$0,005 vs. o dia anterior — 'Novo preço' é o cadastrado após o corte (o realizado só entra nos dias sem preço de tabela). As colunas de volume e L.B./litro comparam o dia do corte com o dia anterior — a leitura indica se o volume reagiu ao corte." />
                 <span className="text-[11px] text-gray-400">— {cortes.length} {cortes.length === 1 ? 'dia' : 'dias'} com queda de preço</span>
               </div>
               <div className="overflow-x-auto">
@@ -929,13 +951,27 @@ const RecomendacaoPreco = ({ rec, fuel, numeros }: { rec: RecVM; fuel: string; n
   )
 }
 
-const SimStat = ({ label, value, tone, help }: { label: string; value: string; tone?: Tone; help: string }) => (
-  <div className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900">
+const SimStat = ({ label, value, from, foot, tone, help }: { label: string; value: string; from?: string; foot?: string; tone?: Tone; help: string }) => (
+  <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-gray-900">
     <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
       {label}
       <InfoHint text={help} />
     </p>
-    <p className={cn('mt-0.5 text-base font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
+    {from ? (
+      <div className="mt-1 space-y-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-gray-400">Hoje</span>
+          <span className="text-[13px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{from}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-gray-400">Com corte</span>
+          <span className={cn('text-[17px] font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</span>
+        </div>
+      </div>
+    ) : (
+      <p className={cn('mt-0.5 text-[17px] font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
+    )}
+    {foot && <p className="mt-1 text-[10px] leading-snug text-gray-400 dark:text-gray-500">{foot}</p>}
   </div>
 )
 
