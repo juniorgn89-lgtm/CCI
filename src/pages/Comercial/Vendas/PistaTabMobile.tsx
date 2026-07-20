@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Wrench, Percent, Ticket, ShoppingBag, Layers, Trophy } from 'lucide-react'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -66,12 +66,17 @@ const PistaTabMobile = () => {
 
   // Rows do cache (automotivos, posto selecionado) → itens agregados. Ticket
   // médio vem do `cupons` (distinto por empresa+dia+setor), dedup por dia.
-  const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
-  const toItens = (rows: ApuracaoVendaRow[]) =>
-    rows
+  // useCallback + match inline: funções PURAS de (rows, empresaCodigos) com
+  // identidade estável → os memos listam a função nas deps (sem eslint-disable) e
+  // o React Compiler preserva a memoização. Mesmo comportamento de antes.
+  const toItens = useCallback((rows: ApuracaoVendaRow[]) => {
+    const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
+    return rows
       .filter((r) => r.setor === 'automotivos' && match(r.empresa_codigo) && r.quantidade !== 0)
       .map((r) => ({ produtoCodigo: r.produto_codigo, quantidade: r.quantidade, totalVenda: r.total_venda, totalCusto: r.total_custo, dataMovimento: r.data }))
-  const sumCupons = (rows: ApuracaoVendaRow[]): number => {
+  }, [empresaCodigos])
+  const sumCupons = useCallback((rows: ApuracaoVendaRow[]): number => {
+    const match = (code: number) => empresaCodigos.length === 0 || empresaCodigos.includes(code)
     const byDay = new Map<string, number>()
     for (const r of rows) {
       if (r.setor !== 'automotivos' || !match(r.empresa_codigo) || r.cupons <= 0) continue
@@ -80,10 +85,10 @@ const PistaTabMobile = () => {
     let t = 0
     for (const v of byDay.values()) t += v
     return t
-  }
-  const vendaItens = useMemo(() => toItens(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const vendaItensPrev = useMemo(() => toItens(cachePrev), [cachePrev, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, empresaCodigos]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [empresaCodigos])
+  const vendaItens = useMemo(() => toItens(cacheCur), [cacheCur, toItens])
+  const vendaItensPrev = useMemo(() => toItens(cachePrev), [cachePrev, toItens])
+  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, sumCupons])
 
   const data = useMemo(() => {
     if (!produtosData || !gruposData) return null

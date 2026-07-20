@@ -176,14 +176,13 @@ const useConcorrencia = (empresaCodigo: number | null): ConcorrenciaData => {
     }
 
     // KPIs agregados (ponderados por volume onde faz sentido).
-    let somaMyVol = 0, somaIdxNum = 0, somaIdxDen = 0, ganhoPricing = 0
+    let somaIdxNum = 0, somaIdxDen = 0, ganhoPricing = 0
     let ondePossoSubir: ConcorrenciaData['ondePossoSubir'] = null
     let ondeEstouCaro: ConcorrenciaData['ondeEstouCaro'] = null
     for (const f of byFuel) {
       if (f.myPrice != null && f.mediaPonderada != null) {
         somaIdxNum += f.myPrice * f.myVolume
         somaIdxDen += f.mediaPonderada * f.myVolume
-        somaMyVol += f.myVolume
         if (f.gap != null && f.gap > 0) {
           ganhoPricing += f.gap * f.myVolume
           if (!ondePossoSubir || f.gap > ondePossoSubir.gap) ondePossoSubir = { slug: f.slug, label: f.label, gap: f.gap }

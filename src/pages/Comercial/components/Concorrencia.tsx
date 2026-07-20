@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X, Trash2, Check, History, RotateCcw, User, ChevronDown,
@@ -314,11 +314,13 @@ const HistoricoExclusoes = ({ empresaCodigo }: { empresaCodigo: number }) => {
 const Concorrencia = () => {
   const [posto, setPosto] = useState<number | null>(null)
   // `data.postos` vem do useRedeSetores (independe do posto), então a 1ª render
-  // já lista os postos e o efeito seleciona o primeiro.
+  // já lista os postos. Seleciona o primeiro AJUSTANDO O ESTADO NO RENDER (padrão
+  // React p/ default derivado de dado assíncrono) — guardado por `posto == null`,
+  // então dispara uma única vez e re-renderiza na hora, sem effect nem cascata.
   const data = useConcorrencia(posto)
-  useEffect(() => {
-    if (posto == null && data.postos.length > 0) setPosto(data.postos[0].empresaCodigo)
-  }, [data.postos, posto])
+  if (posto == null && data.postos.length > 0) {
+    setPosto(data.postos[0].empresaCodigo)
+  }
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const usarPraca = useComercialFlags((s) => s.usarPrecoPraca)
   const [fuelSel, setFuelSel] = useState<FuelSlug | null>(null)

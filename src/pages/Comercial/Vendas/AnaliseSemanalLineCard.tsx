@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Sparkles } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useChartTheme } from '@/lib/chartTheme'
@@ -130,7 +130,12 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
-  const valOf = (d: { litros: number; faturamento?: number }) => (plotFaturamento ? (d.faturamento ?? 0) : d.litros)
+  // useCallback pra ter identidade estável por `plotFaturamento` — assim os memos
+  // que o usam (g/insight) podem listá-lo nas deps sem recomputar a cada render.
+  const valOf = useCallback(
+    (d: { litros: number; faturamento?: number }) => (plotFaturamento ? (d.faturamento ?? 0) : d.litros),
+    [plotFaturamento],
+  )
   // Formato dos números de CHART (eixo/média/pico/insight) — compacto no R$.
   const fmtVal = (v: number): string => {
     if (!plotFaturamento) return formatNumber(Math.round(v))
@@ -221,14 +226,14 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
     const xLabels = [...idxSet].sort((a, b) => a - b).map((i) => ({ x: X(i), label: ddmm(domDates[i]) }))
 
     return { n, media, picoIdx, baixaIdx, yMax, x0, x1, yTop, yBase, pts, line, area, projLine, hasProj: !!proj, ticks, weekendBands, xLabels, slot }
-  }, [data, projecao, plotFaturamento, showWeekend, VBW, VBH])
+  }, [data, projecao, valOf, showWeekend, VBW, VBH])
 
   const pico = g.pts[g.picoIdx]
   const baixa = g.pts[g.baixaIdx]
   const yMedia = g.yBase - (g.media / g.yMax) * (g.yBase - g.yTop)
 
   // Resumo em linguagem natural (derivado da série).
-  const insight = useMemo(() => buildInsight(data.map((d) => ({ data: d.data, litros: valOf(d) }))), [data, plotFaturamento])
+  const insight = useMemo(() => buildInsight(data.map((d) => ({ data: d.data, litros: valOf(d) }))), [data, valOf])
   const vsMediaTxt = Math.abs(insight.vsMedia) >= 3
     ? `, ${insight.vsMedia > 0 ? 'acima' : 'abaixo'} da média (${pct1(insight.vsMedia)})`
     : ', em linha com a média'

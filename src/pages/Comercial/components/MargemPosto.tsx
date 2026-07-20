@@ -33,6 +33,20 @@ const frescorTone = (staleDays: number | null) => {
   return { cls: 'text-red-600 dark:text-red-400', Icon: AlertTriangle }
 }
 
+/** Botão de ordenação do ranking (escopo de módulo — não recriar no render). */
+const SortBtn = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
+      active ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400',
+    )}
+  >
+    {children}
+  </button>
+)
+
 const KpiCard = ({
   label, sub, value, foot, tone = 'plain', Icon, help,
 }: {
@@ -179,18 +193,6 @@ const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void
   // "tamanho do problema" (precificação sem régua) — NÃO é um "ganho" somável (o
   // ganho quantificado fica só na aba Oportunidades, pra não confundir os números).
   const dispersao = data.best && data.worst ? data.best.margemL - data.worst.margemL : 0
-  const SortBtn = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
-    <button
-      type="button"
-      onClick={() => setSort(k)}
-      className={cn(
-        'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
-        sort === k ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400',
-      )}
-    >
-      {children}
-    </button>
-  )
 
   return (
     <div className="space-y-4">
@@ -301,9 +303,9 @@ const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void
             <p className="text-[11px] text-gray-400">Clique numa unidade pra abrir o drill por combustível</p>
           </div>
           <div className="flex items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
-            <SortBtn k="margemL">Margem/L</SortBtn>
-            <SortBtn k="lucroBruto">Lucro bruto</SortBtn>
-            <SortBtn k="litros">Volume</SortBtn>
+            <SortBtn active={sort === 'margemL'} onClick={() => setSort('margemL')}>Margem/L</SortBtn>
+            <SortBtn active={sort === 'lucroBruto'} onClick={() => setSort('lucroBruto')}>Lucro bruto</SortBtn>
+            <SortBtn active={sort === 'litros'} onClick={() => setSort('litros')}>Volume</SortBtn>
           </div>
         </div>
 

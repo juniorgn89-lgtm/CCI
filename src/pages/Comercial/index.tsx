@@ -4,7 +4,6 @@ import useTabParam from '@/hooks/useTabParam'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useComercialFlags } from '@/store/comercialFlags'
-import useIsMobile from '@/hooks/useIsMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
@@ -14,7 +13,6 @@ const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'
 const Oportunidades = lazy(() => import('@/pages/Comercial/components/Oportunidades'))
 const Concorrencia = lazy(() => import('@/pages/Comercial/components/Concorrencia'))
 const RadarPrecos = lazy(() => import('@/pages/Comercial/components/RadarPrecos'))
-const RadarMobile = lazy(() => import('@/pages/Comercial/RadarMobile'))
 
 type TabId = 'oportunidades' | 'margem' | 'concorrencia' | 'radar'
 
@@ -63,7 +61,6 @@ const FlagBand = () => {
 
 const Comercial = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
-  const isMobile = useIsMobile()
 
   return (
     <div className="space-y-4">
@@ -88,7 +85,7 @@ const Comercial = () => {
         {activeTab === 'margem' && <MargemPosto onGoToOportunidades={() => setActiveTab('oportunidades')} />}
         {activeTab === 'oportunidades' && <Oportunidades />}
         {activeTab === 'concorrencia' && <Concorrencia />}
-        {activeTab === 'radar' && (isMobile ? <RadarMobile /> : <RadarPrecos />)}
+        {activeTab === 'radar' && <RadarPrecos />}
       </Suspense>
     </div>
   )

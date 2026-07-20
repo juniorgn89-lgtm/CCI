@@ -191,20 +191,24 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
   }, [sazonalProj, agg])
 
   // Horizonte da simulação: futuro (até o fechamento) quando há dias restantes;
-  // senão, retrospectivo sobre o período fechado.
-  const horizonte = proj.isProjetada
-    ? {
-        label: 'até o fechamento do mês',
-        labelShort: 'até o fechamento',
-        volVar: proj.litrosRest, preco: proj.precoRest, lb: proj.lbRest,
-        fix: { fat: proj.fatReal, litros: proj.litrosReal, lucro: proj.lucroReal },
-      }
-    : {
-        label: 'no período',
-        labelShort: 'no período',
-        volVar: agg.totLitros, preco: agg.precoVendaMedio, lb: agg.lbLitro,
-        fix: { fat: 0, litros: 0, lucro: 0 },
-      }
+  // senão, retrospectivo sobre o período fechado. Memoizado pra não recriar o
+  // objeto a cada render (senão os memos que dependem dele recomputam sempre).
+  const horizonte = useMemo(
+    () => proj.isProjetada
+      ? {
+          label: 'até o fechamento do mês',
+          labelShort: 'até o fechamento',
+          volVar: proj.litrosRest, preco: proj.precoRest, lb: proj.lbRest,
+          fix: { fat: proj.fatReal, litros: proj.litrosReal, lucro: proj.lucroReal },
+        }
+      : {
+          label: 'no período',
+          labelShort: 'no período',
+          volVar: agg.totLitros, preco: agg.precoVendaMedio, lb: agg.lbLitro,
+          fix: { fat: 0, litros: 0, lucro: 0 },
+        },
+    [proj, agg],
+  )
 
   // Projeta um cenário de fechamento: corte `r` (R$/L, aplicado só no que falta
   // vender) e crescimento de volume `g` (fração) sobre os dias futuros.
@@ -338,7 +342,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
       lbAtual, novoLb, belowBreakeven, novoPreco, breakEvenGrowth, expGrowth, margemFinal,
       baseline, semReacao, comElasticidade,
     }
-  }, [agg, precoAtual, reducao, elasticidade, cenarioProj])
+  }, [precoAtual, lbAtualNow, reducao, elasticidade, cenarioProj])
 
   // Cenários automáticos (cortes-padrão). Inviável = abaixo do break-even.
   const cenarios = useMemo(() => {

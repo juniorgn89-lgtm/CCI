@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode, useMemo, useState } from 'react'
+import { lazy, Suspense, type ReactNode, useCallback, useMemo, useState } from 'react'
 import { Wrench, Package, TrendingUp, TrendingDown, Minus, DollarSign, Search, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
@@ -17,7 +17,8 @@ import { offsetPeriod, todayLocal } from '@/lib/period'
 import { classifySetor } from '@/lib/setorClassification'
 import { GROUP_TINT } from '@/lib/groupTint'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
-import PostoDiaTabela, { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/PostoDiaTabela'
+import PostoDiaTabela from '@/pages/Comercial/Vendas/PostoDiaTabela'
+import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import usePostoNomes from '@/hooks/usePostoNomes'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
@@ -270,7 +271,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
 
   // Rows do cache (automotivos, posto selecionado) → "itens" agregados que os
   // memos já consomem (vendaCodigo dispensado). `[]` = rede; subconjunto = recorte.
-  const toAggItens = (rows: ApuracaoVendaRow[]): AggItem[] => {
+  // useCallback: funções PURAS de (rows, empresaCodigos, permittedCodes) — a
+  // identidade estável deixa os memos abaixo listarem a função nas deps (sem
+  // eslint-disable) e o React Compiler preservar a memoização. Mesmo
+  // comportamento de antes (recomputa quando o escopo de posto muda).
+  const toAggItens = useCallback((rows: ApuracaoVendaRow[]): AggItem[] => {
     const match = (code: number) => empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     return rows
       .filter((r) => r.setor === 'automotivos' && match(r.empresa_codigo) && r.quantidade !== 0)
@@ -282,10 +287,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
         dataMovimento: r.data,
         empresaCodigo: r.empresa_codigo,
       }))
-  }
+  }, [empresaCodigos, permittedCodes])
   // Cupons distintos com produto de pista (dedup por empresa+dia — o valor é
   // desnormalizado por linha). Denominador do ticket médio.
-  const sumCupons = (rows: ApuracaoVendaRow[]): number => {
+  const sumCupons = useCallback((rows: ApuracaoVendaRow[]): number => {
     const match = (code: number) => empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code)
     const byDay = new Map<string, number>()
     for (const r of rows) {
@@ -295,11 +300,11 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     let t = 0
     for (const v of byDay.values()) t += v
     return t
-  }
-  const vendaItens = useMemo(() => toAggItens(cacheCur), [cacheCur, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
-  const vendaItensPrev = useMemo(() => toAggItens(cachePrev), [cachePrev, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
-  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
-  const cuponsPrev = useMemo(() => sumCupons(cachePrev), [cachePrev, empresaCodigos, permittedCodes]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [empresaCodigos, permittedCodes])
+  const vendaItens = useMemo(() => toAggItens(cacheCur), [cacheCur, toAggItens])
+  const vendaItensPrev = useMemo(() => toAggItens(cachePrev), [cachePrev, toAggItens])
+  const cuponsAtual = useMemo(() => sumCupons(cacheCur), [cacheCur, sumCupons])
+  const cuponsPrev = useMemo(() => sumCupons(cachePrev), [cachePrev, sumCupons])
 
   // Cruza tudo: pista produtos + vendas, agrupado por categoria
   const computed = useMemo(() => {

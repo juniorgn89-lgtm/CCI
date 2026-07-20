@@ -103,6 +103,22 @@ const AnalisarBtn = ({ onClick }: { onClick: () => void }) => (
   </button>
 )
 
+/** Chip de KPI do topo (POSTOS / PERTO DO PISO / COM FOLGA). Escopo de módulo
+ *  (não recriar no render). */
+const ChipKpi = ({ label, value, tone, hint }: { label: string; value: number; tone?: 'red' | 'green'; hint?: string }) => (
+  <div className={cn(
+    'rounded-xl border px-3 py-2 text-center',
+    tone === 'red' ? 'border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/15'
+      : tone === 'green' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/15'
+        : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40',
+  )}>
+    <p className={cn('flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider', tone === 'red' ? 'text-red-600 dark:text-red-400' : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
+      {label}{hint && <InfoHint text={hint} />}
+    </p>
+    <p className={cn('text-lg font-bold tabular-nums', tone === 'red' ? 'text-red-700 dark:text-red-300' : tone === 'green' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-100')}>{value}<span className="text-[10px] font-medium text-gray-400"> {label === 'POSTOS' ? '' : 'cards'}</span></p>
+  </div>
+)
+
 /** Mini-KPI dentro do card (aba Todos os cards). */
 const StatMini = ({ label, value, foot, tone, hint }: { label: string; value: string; foot?: string; tone?: string; hint?: string }) => (
   <div className="rounded-lg bg-gray-50/70 px-2.5 py-2 dark:bg-gray-800/40">
@@ -198,20 +214,6 @@ const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
   if (!data.hasRede || itens.length === 0) {
     return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem dados de combustível no período pra montar o radar.</div>
   }
-
-  const ChipKpi = ({ label, value, tone, hint }: { label: string; value: number; tone?: 'red' | 'green'; hint?: string }) => (
-    <div className={cn(
-      'rounded-xl border px-3 py-2 text-center',
-      tone === 'red' ? 'border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/15'
-        : tone === 'green' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/15'
-          : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40',
-    )}>
-      <p className={cn('flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider', tone === 'red' ? 'text-red-600 dark:text-red-400' : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
-        {label}{hint && <InfoHint text={hint} />}
-      </p>
-      <p className={cn('text-lg font-bold tabular-nums', tone === 'red' ? 'text-red-700 dark:text-red-300' : tone === 'green' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-100')}>{value}<span className="text-[10px] font-medium text-gray-400"> {label === 'POSTOS' ? '' : 'cards'}</span></p>
-    </div>
-  )
 
   return (
     <div className="space-y-4">
