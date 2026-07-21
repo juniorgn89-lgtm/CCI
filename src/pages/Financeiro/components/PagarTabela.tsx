@@ -1,17 +1,15 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  CreditCard, FileText, ReceiptText, Smartphone, MoreHorizontal, Layers,
+  FileText, Landmark, Smartphone, ArrowLeftRight, Building2, MoreHorizontal, Layers,
   Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { fetchAdministradoras } from '@/api/endpoints/financeiro'
-import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
-import type { Cartao } from '@/api/types/financeiro'
-import { buildReceberRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import { buildPagarRows, type InstPagar, type PagarRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -27,7 +25,7 @@ const endOfMonthISO = (iso: string) => {
 }
 
 const PAGE_SIZE = 12
-type FiltroInst = 'todos' | InstReceber
+type FiltroInst = 'todos' | InstPagar
 type Periodo = 'todos' | 'hoje' | 'semana' | 'mes' | 'atrasados'
 const PERIODOS: { id: Periodo; label: string }[] = [
   { id: 'todos', label: 'Todos' },
@@ -37,30 +35,28 @@ const PERIODOS: { id: Periodo; label: string }[] = [
   { id: 'atrasados', label: 'Atrasados' },
 ]
 
-const INSTR: { id: InstReceber; label: string; Icon: typeof CreditCard; badge: string }[] = [
-  { id: 'cartoes', label: 'Cartões', Icon: CreditCard, badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
-  { id: 'apps', label: 'Apps', Icon: Smartphone, badge: 'bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-300' },
-  { id: 'notas', label: 'Notas a prazo', Icon: FileText, badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
-  { id: 'faturas', label: 'Faturas', Icon: ReceiptText, badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
+const INSTR: { id: InstPagar; label: string; Icon: typeof FileText; badge: string }[] = [
+  { id: 'boleto', label: 'Boleto', Icon: FileText, badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
+  { id: 'tributo', label: 'Tributo', Icon: Landmark, badge: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
+  { id: 'pix', label: 'PIX', Icon: Smartphone, badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
+  { id: 'transferencia', label: 'Transferência', Icon: ArrowLeftRight, badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
+  { id: 'convenio', label: 'Convênio', Icon: Building2, badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
   { id: 'outros', label: 'Outros', Icon: MoreHorizontal, badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
 ]
-const instMeta = (id: InstReceber) => INSTR.find((i) => i.id === id)!
+const instMeta = (id: InstPagar) => INSTR.find((i) => i.id === id)!
 
 interface Props {
-  titulos: ReceivableRow[]
-  duplicatas: DuplicataRow[]
-  cartoes: Cartao[]
+  payables: PayableRow[]
   dateFilter?: ReactNode
 }
 
 /**
- * Contas a Receber — UMA tabela unificando os 3 streams (Cartões /CARTAO ·
- * Títulos /TITULO_RECEBER · Duplicatas /DUPLICATA) com coluna Instrumento. Os
- * cards de instrumento (Cartões·Notas·Faturas·Cheques·Outros·Todos) filtram a
- * tabela. Janela "Até 2 semanas" (vencendo até hoje+14) / "Tudo em aberto".
- * Sem dupla contagem. READ-ONLY (Ações = ver detalhe).
+ * Contas a Pagar por INSTRUMENTO (Boleto · Tributo · PIX · Transferência ·
+ * Convênio · Outros, pelo tipoLancamento do /TITULO_PAGAR). Cards de instrumento
+ * (passo 1) + período (passo 2) filtram uma tabela única, com Posto, fornecedor
+ * multi, ordenação, faixa de atraso, paginação e export. READ-ONLY.
  */
-const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
+const PagarTabela = ({ payables, dateFilter }: Props) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
@@ -68,32 +64,19 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
   )
   const nomePosto = (cod: number) => empresaNome.get(cod) ?? `Posto ${cod}`
 
-  // Modalidade por administradora (crédito/débito vs carteira digital/PIX) →
-  // separa "Apps" de "Cartões". Join por empresa+administradora.
-  const { data: admData } = useQuery({ queryKey: ['administradoras'], queryFn: () => fetchAdministradoras({ limite: 2000 }), staleTime: 30 * 60 * 1000 })
-  const adminTipo = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const a of admData?.resultados ?? []) m.set(`${a.empresaCodigo}-${a.administradoraCodigo}`, a.tipo || '')
-    return m
-  }, [admData])
-
   const [inst, setInst] = useState<FiltroInst>('todos')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
-  const [clientesSel, setClientesSel] = useState<string[]>([])
-  const [buscaCli, setBuscaCli] = useState('')
-  const [abertoCli, setAbertoCli] = useState(false)
-  const [ordenar, setOrdenar] = useState<'vencimento' | 'maiorValor' | 'menorValor' | 'maiorAtraso' | 'cliente'>('vencimento')
+  const [fornSel, setFornSel] = useState<string[]>([])
+  const [buscaForn, setBuscaForn] = useState('')
+  const [abertoForn, setAbertoForn] = useState(false)
+  const [ordenar, setOrdenar] = useState<'vencimento' | 'maiorValor' | 'menorValor' | 'maiorAtraso' | 'fornecedor'>('vencimento')
   const [atrasoFaixa, setAtrasoFaixa] = useState<'todos' | '30' | '60' | '90' | '90+'>('todos')
   const [page, setPage] = useState(0)
   const [detalhe, setDetalhe] = useState<string | null>(null)
 
-  // Linhas unificadas dos 3 streams (fonte única — bate com o dashboard).
-  const rows: RecebRow[] = useMemo(
-    () => buildReceberRows(titulos, duplicatas, cartoes, adminTipo),
-    [titulos, duplicatas, cartoes, adminTipo],
-  )
+  // Linhas de pagáveis em aberto (fonte única — bate com o dashboard).
+  const rows: PagarRow[] = useMemo(() => buildPagarRows(payables), [payables])
 
-  // Escopo = período + cliente (base dos cards E da tabela).
   const escopo = useMemo(() => {
     const hoje = todayISO()
     const eow = endOfWeekISO(hoje)
@@ -101,21 +84,20 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
     let base = rows.filter((r) => {
       if (periodo === 'todos') return true
       if (periodo === 'atrasados') return r.vencido
-      if (r.vencido) return false // Hoje/Semana/Mês = a vencer
+      if (r.vencido) return false
       const v = r.vencimento
       if (periodo === 'hoje') return v === hoje
       if (periodo === 'semana') return v >= hoje && v <= eow
-      return v >= hoje && v <= eom // mes
+      return v >= hoje && v <= eom
     })
-    if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
+    if (fornSel.length > 0) base = base.filter((r) => fornSel.includes(r.fornecedor))
     return base
-  }, [rows, periodo, clientesSel])
+  }, [rows, periodo, fornSel])
 
-  // Cards de instrumento (totais do escopo).
   const cards = useMemo(() => {
     const acc: Record<FiltroInst, { total: number; count: number }> = {
-      todos: { total: 0, count: 0 }, cartoes: { total: 0, count: 0 }, apps: { total: 0, count: 0 }, notas: { total: 0, count: 0 },
-      faturas: { total: 0, count: 0 }, outros: { total: 0, count: 0 },
+      todos: { total: 0, count: 0 }, boleto: { total: 0, count: 0 }, tributo: { total: 0, count: 0 },
+      pix: { total: 0, count: 0 }, transferencia: { total: 0, count: 0 }, convenio: { total: 0, count: 0 }, outros: { total: 0, count: 0 },
     }
     for (const r of escopo) {
       acc.todos.total += r.valor; acc.todos.count += 1
@@ -124,14 +106,14 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
     return acc
   }, [escopo])
 
-  // Contagem de títulos por período (respeita instrumento + cliente, NÃO o
+  // Contagem de títulos por período (respeita instrumento + fornecedor, NÃO o
   // período — é o número que cada pill mostraria ao ser clicado).
   const periodoCounts = useMemo(() => {
     const hoje = todayISO()
     const eow = endOfWeekISO(hoje)
     const eom = endOfMonthISO(hoje)
     let base = rows
-    if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
+    if (fornSel.length > 0) base = base.filter((r) => fornSel.includes(r.fornecedor))
     if (inst !== 'todos') base = base.filter((r) => r.instrumento === inst)
     const c: Record<Periodo, number> = { todos: 0, hoje: 0, semana: 0, mes: 0, atrasados: 0 }
     for (const r of base) {
@@ -143,19 +125,18 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
       if (v >= hoje && v <= eom) c.mes += 1
     }
     return c
-  }, [rows, clientesSel, inst])
+  }, [rows, fornSel, inst])
 
-  // Lista de clientes (todos os pendentes) pro dropdown.
-  const clientes = useMemo(
-    () => [...new Set(rows.map((r) => r.cliente))].sort((a, b) => a.localeCompare(b)),
+  const fornecedores = useMemo(
+    () => [...new Set(rows.map((r) => r.fornecedor))].sort((a, b) => a.localeCompare(b)),
     [rows],
   )
-  const clientesFiltrados = useMemo(() => {
-    const q = buscaCli.trim().toLowerCase()
-    return q ? clientes.filter((c) => c.toLowerCase().includes(q)) : clientes
-  }, [clientes, buscaCli])
-  const labelCli = clientesSel.length === 0 ? '' : clientesSel.length === 1 ? clientesSel[0] : `${clientesSel.length} clientes`
-  const temFiltro = inst !== 'todos' || periodo !== 'todos' || clientesSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
+  const fornFiltrados = useMemo(() => {
+    const q = buscaForn.trim().toLowerCase()
+    return q ? fornecedores.filter((f) => f.toLowerCase().includes(q)) : fornecedores
+  }, [fornecedores, buscaForn])
+  const labelForn = fornSel.length === 0 ? '' : fornSel.length === 1 ? fornSel[0] : `${fornSel.length} fornecedores`
+  const temFiltro = inst !== 'todos' || periodo !== 'todos' || fornSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
 
   const rowsAll = useMemo(() => {
     let base = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
@@ -173,7 +154,7 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
       case 'maiorValor': arr.sort((a, b) => b.valor - a.valor); break
       case 'menorValor': arr.sort((a, b) => a.valor - b.valor); break
       case 'maiorAtraso': arr.sort((a, b) => b.diasAtraso - a.diasAtraso); break
-      case 'cliente': arr.sort((a, b) => a.cliente.localeCompare(b.cliente)); break
+      case 'fornecedor': arr.sort((a, b) => a.fornecedor.localeCompare(b.fornecedor)); break
       default:
         arr.sort((a, b) => {
           if (a.vencido !== b.vencido) return a.vencido ? -1 : 1
@@ -190,22 +171,22 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
   const ultimo = Math.min(rowsAll.length, (pageSafe + 1) * PAGE_SIZE)
 
   const trocarInst = (id: FiltroInst) => { setInst(id); setPage(0); setDetalhe(null) }
-  const toggleCli = (nome: string) => {
-    setClientesSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
+  const toggleForn = (nome: string) => {
+    setFornSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
     setPage(0); setDetalhe(null)
   }
   const limparFiltros = () => {
-    setInst('todos'); setPeriodo('todos'); setClientesSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaCli(''); setPage(0)
+    setInst('todos'); setPeriodo('todos'); setFornSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaForn(''); setPage(0)
   }
 
   const exportar = () => {
-    const header = ['Cliente', 'Posto', 'Instrumento', 'Valor', 'Vencimento', 'Status', 'Documento']
-    const linhas = rowsAll.map((r) => [r.cliente, nomePosto(r.empresa), instMeta(r.instrumento).label, r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
+    const header = ['Fornecedor', 'Posto', 'Instrumento', 'Valor', 'Vencimento', 'Status', 'Documento']
+    const linhas = rowsAll.map((r) => [r.fornecedor, nomePosto(r.empresa), instMeta(r.instrumento).label, r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
     const csv = [header, ...linhas].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
     const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `contas-a-receber-${inst}.csv`; a.click()
+    a.href = url; a.download = `contas-a-pagar-${inst}.csv`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -213,11 +194,10 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
 
   return (
     <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Contas a Receber</h3>
-          <InfoHint text="Recebíveis em aberto dos 3 streams (Cartões /CARTAO · Títulos /TITULO_RECEBER · Faturas /DUPLICATA) numa tabela só. Clique num card de instrumento pra filtrar. Sem dupla contagem (título faturado vira duplicata). Somente leitura." />
+          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Contas a Pagar</h3>
+          <InfoHint text="Títulos a pagar em aberto (/TITULO_PAGAR) por instrumento (tipoLancamento: Boleto · Tributo · PIX · Transferência · Convênio · Outros). Clique num card pra filtrar. Somente leitura." />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {dateFilter}
@@ -228,13 +208,12 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
         </div>
       </div>
 
-      {/* Cards de instrumento (filtro) — Passo 1 */}
       <p className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
         <MousePointerClick className="h-3.5 w-3.5 text-[#2563eb]" />
         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2563eb] text-[9px] font-bold text-white">1</span>
         Escolha o <span className="font-semibold text-gray-700 dark:text-gray-200">instrumento</span> (clique num card) — depois o período, no passo 2.
       </p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {([{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR]).map(({ id, label, Icon }) => {
           const ativo = inst === id
           const c = cards[id]
@@ -254,7 +233,6 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
         })}
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
@@ -280,38 +258,38 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-gray-500 dark:text-gray-400">Cliente</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-500 dark:text-gray-400">Fornecedor</label>
           <div className="relative w-80">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            <input type="text" value={abertoCli ? buscaCli : labelCli}
-              onChange={(e) => { setBuscaCli(e.target.value); setAbertoCli(true) }}
-              onFocus={() => { setAbertoCli(true); setBuscaCli('') }}
-              onBlur={() => setTimeout(() => setAbertoCli(false), 150)}
-              placeholder="Todos os clientes"
+            <input type="text" value={abertoForn ? buscaForn : labelForn}
+              onChange={(e) => { setBuscaForn(e.target.value); setAbertoForn(true) }}
+              onFocus={() => { setAbertoForn(true); setBuscaForn('') }}
+              onBlur={() => setTimeout(() => setAbertoForn(false), 150)}
+              placeholder="Todos os fornecedores"
               className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-8 text-[13px] text-gray-700 placeholder:text-gray-400 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200" />
-            {clientesSel.length > 0 && !abertoCli && (
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); setClientesSel([]); setPage(0) }} aria-label="Limpar clientes"
+            {fornSel.length > 0 && !abertoForn && (
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); setFornSel([]); setPage(0) }} aria-label="Limpar fornecedores"
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
-            {abertoCli && (
+            {abertoForn && (
               <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-[#161616]">
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); setClientesSel([]); setPage(0) }}
-                  className={cn('block w-full px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', clientesSel.length === 0 ? 'font-semibold text-[#2563eb]' : 'text-gray-600 dark:text-gray-300')}>
-                  Todos os clientes
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); setFornSel([]); setPage(0) }}
+                  className={cn('block w-full px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', fornSel.length === 0 ? 'font-semibold text-[#2563eb]' : 'text-gray-600 dark:text-gray-300')}>
+                  Todos os fornecedores
                 </button>
-                {clientesFiltrados.length === 0 ? (
-                  <p className="px-3 py-2 text-[12px] text-gray-400">Nenhum cliente encontrado</p>
-                ) : clientesFiltrados.map((c) => {
-                  const marcado = clientesSel.includes(c)
+                {fornFiltrados.length === 0 ? (
+                  <p className="px-3 py-2 text-[12px] text-gray-400">Nenhum fornecedor encontrado</p>
+                ) : fornFiltrados.map((f) => {
+                  const marcado = fornSel.includes(f)
                   return (
-                    <button key={c} type="button" onMouseDown={(e) => { e.preventDefault(); toggleCli(c) }}
+                    <button key={f} type="button" onMouseDown={(e) => { e.preventDefault(); toggleForn(f) }}
                       className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', marcado ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200')}>
                       <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', marcado ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
                         {marcado && <Check className="h-3 w-3" />}
                       </span>
-                      <span className="truncate">{c}</span>
+                      <span className="truncate">{f}</span>
                     </button>
                   )
                 })}
@@ -326,7 +304,7 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
             <option value="maiorValor">Maior valor</option>
             <option value="menorValor">Menor valor</option>
             <option value="maiorAtraso">Maior atraso</option>
-            <option value="cliente">Cliente (A–Z)</option>
+            <option value="fornecedor">Fornecedor (A–Z)</option>
           </select>
         </div>
         <div>
@@ -347,12 +325,11 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
         )}
       </div>
 
-      {/* Tabela */}
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-gray-200 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:border-gray-700 dark:text-gray-500">
-              <th className="py-2 pr-3">Cliente</th>
+              <th className="py-2 pr-3">Fornecedor</th>
               <th className="py-2 px-3">Posto</th>
               <th className="py-2 px-3">Instrumento</th>
               <th className="py-2 px-3 text-right">Valor</th>
@@ -363,7 +340,7 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
           </thead>
           <tbody>
             {pageRows.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhum recebível encontrado</td></tr>
+              <tr><td colSpan={7} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhuma conta a pagar encontrada</td></tr>
             ) : pageRows.map((r) => {
               const m = instMeta(r.instrumento)
               const aberto = detalhe === r.key
@@ -371,7 +348,7 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
                 <Fragment key={r.key}>
                   <tr className="border-b border-gray-100 last:border-0 dark:border-gray-800">
                     <td className="py-2.5 pr-3">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{r.cliente}</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{r.fornecedor}</p>
                       {r.sub && <p className="text-[11px] text-gray-400 dark:text-gray-500">{r.sub}</p>}
                     </td>
                     <td className="py-2.5 px-3 text-gray-600 dark:text-gray-300">{nomePosto(r.empresa)}</td>
@@ -400,7 +377,7 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
                     <tr className="bg-gray-50/60 dark:bg-gray-800/30">
                       <td colSpan={7} className="px-3 py-2.5">
                         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-                          <DetItem label="Cliente" value={r.cliente} />
+                          <DetItem label="Fornecedor" value={r.fornecedor} />
                           <DetItem label="Posto" value={nomePosto(r.empresa)} />
                           <DetItem label="Instrumento" value={m.label} />
                           <DetItem label="Documento" value={r.documento || '—'} />
@@ -419,11 +396,10 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
         </table>
       </div>
 
-      {/* Paginação */}
       {rowsAll.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <span className="text-[11px] text-gray-400 dark:text-gray-500">
-            Mostrando {primeiro}-{ultimo} de {rowsAll.length} {rowsAll.length === 1 ? 'recebível' : 'recebíveis'}
+            Mostrando {primeiro}-{ultimo} de {rowsAll.length} {rowsAll.length === 1 ? 'conta' : 'contas'}
           </span>
           {totalPages > 1 && (
             <div className="inline-flex items-center gap-1">
@@ -451,4 +427,4 @@ const DetItem = ({ label, value }: { label: string; value: string }) => (
   </div>
 )
 
-export default ReceberTabela
+export default PagarTabela

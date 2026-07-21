@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Clock, CalendarDays, Wallet } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
-import PagarCalendario from '@/pages/Financeiro/components/PagarCalendario'
 import {
   IntelHeader, AnalisePanel, KpiHero, KpiCard,
 } from '@/pages/Financeiro/components/shared/financeIntel'
@@ -142,9 +141,6 @@ const PayablesIntel = ({ data, saldoEmCaixa }: Props) => {
           footer={`${m.qtdAVencer} títulos · próx. ${m.proximoVenc ? brDate(m.proximoVenc) : '—'}`}
         />
       </div>
-
-      {/* Calendário de pagamento — a pagar por dia de vencimento, por semana. */}
-      <PagarCalendario data={data} />
     </div>
   )
 }

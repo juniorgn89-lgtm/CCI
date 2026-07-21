@@ -1,5 +1,5 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
-import { Receipt, CreditCard, Settings, LayoutDashboard, Sparkles } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
+import { Receipt, CreditCard, Settings, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -8,14 +8,11 @@ import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
 import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
-import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
-import SaldoAbertoCards from '@/pages/Financeiro/components/SaldoAbertoCards'
-import AgingVencidos from '@/pages/Financeiro/components/AgingVencidos'
-import ProximosVencimentos from '@/pages/Financeiro/components/ProximosVencimentos'
+import PosicaoAberto from '@/pages/Financeiro/components/PosicaoAberto'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
+import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
 import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
-const DashboardMensal = lazy(() => import('@/pages/Financeiro/components/DashboardMensal'))
 const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
 const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
 // Módulo Cartões (conciliação) embutido como aba do Financeiro.
@@ -27,7 +24,6 @@ import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
   dashboard: LayoutDashboard,
-  inteligencia: Sparkles,
   receber: Receipt,
   pagar: CreditCard,
   cartoes: CreditCard,
@@ -70,37 +66,13 @@ const Financeiro = () => {
     receivablesAtraso,
     payablesAtraso,
     duplicatasAberto,
-    cardNotasNaoFaturadas,
-    cardDuplicatasAberto,
-    cardPagarAberto,
-    cartoesAppsAVencer,
-    cartoesReceberBruto,
-    cartoesReceberLiquido,
-    cartoesReceberCount,
-    carteiraDigitalItems,
-    modoRecebimento,
     cartoesAVencer,
     pmr,
-    pmp,
     receivablesPagos,
     saldoEmCaixa,
     isLoading,
   } = useFinanceData(localPeriod)
 
-  // Posição líquida (hero) — a receber em aberto (títulos + duplicatas) − a pagar.
-  const posicao = useMemo(() => {
-    const aReceber = receivablesAtraso.reduce((s, r) => s + r.valor, 0)
-      + duplicatasAberto.reduce((s, d) => s + d.saldoRestante, 0)
-    const aReceberVencido = receivablesAtraso.reduce((s, r) => (r.statusTag === 'vencido' ? s + r.valor : s), 0)
-      + duplicatasAberto.reduce((s, d) => (d.statusTag === 'vencido' ? s + d.saldoRestante : s), 0)
-    const aPagar = cardPagarAberto.total
-    return {
-      posicao: aReceber - aPagar,
-      aReceber,
-      aPagar,
-      vencidoTotal: aReceberVencido + cardPagarAberto.vencidoTotal,
-    }
-  }, [receivablesAtraso, duplicatasAberto, cardPagarAberto])
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
 
@@ -159,34 +131,19 @@ const Financeiro = () => {
                 <TableSkeleton />
               ) : (
                 <Suspense fallback={<TableSkeleton />}>
-                  {activeTab === 'dashboard' && <DashboardMensal />}
-                  {activeTab === 'inteligencia' && (
+                  {activeTab === 'dashboard' && (
                     <div className="space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Saldo em aberto</h2>
                         <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
                       </div>
-                      <SaldoAbertoCards
-                        posicao={posicao}
-                        notasNaoFaturadas={cardNotasNaoFaturadas}
-                        duplicatasAberto={cardDuplicatasAberto}
-                        pagarAberto={cardPagarAberto}
+                      <PosicaoAberto
+                        titulos={receivablesAtraso}
+                        duplicatas={duplicatasAberto}
+                        cartoes={cartoesAVencer}
+                        payables={payablesAtraso}
                       />
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
-                        <AgingVencidos receivables={receivablesAtraso} payables={payablesAtraso} duplicatas={duplicatasAberto} />
-                        <ProximosVencimentos receivables={receivablesAtraso} payables={payablesAtraso} duplicatas={duplicatasAberto} />
-                      </div>
                       <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
-                      <CartoesEModo
-                        cartoesAppsAVencer={cartoesAppsAVencer}
-                        cartoesReceberBruto={cartoesReceberBruto}
-                        cartoesReceberLiquido={cartoesReceberLiquido}
-                        cartoesReceberCount={cartoesReceberCount}
-                        carteiraDigitalItems={carteiraDigitalItems}
-                        modoRecebimento={modoRecebimento}
-                        pmr={pmr}
-                        pmp={pmp}
-                      />
                     </div>
                   )}
                   {activeTab === 'receber' && (
@@ -207,10 +164,11 @@ const Financeiro = () => {
                   )}
                   {activeTab === 'pagar' && (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
-                      </div>
                       <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
+                      <PagarTabela
+                        payables={payablesAtraso}
+                        dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
+                      />
                     </div>
                   )}
                   {activeTab === 'cartoes' && (
