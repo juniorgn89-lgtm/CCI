@@ -9,6 +9,7 @@ import { useFocusMode } from '@/store/focusMode'
 import Header from '@/components/layout/Header'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
+import ApuracaoAlertaBanner from '@/components/feedback/ApuracaoAlertaBanner'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
@@ -258,6 +259,10 @@ const AppLayout = () => {
               }
             />
           )}
+
+          {/* Aviso urgente: apuração atrasada pro período aplicado (fora do <main>
+              pra não borrar/pulsar com o conteúdo). */}
+          {showFilters && <ApuracaoAlertaBanner />}
 
           <main
             ref={mainRef}

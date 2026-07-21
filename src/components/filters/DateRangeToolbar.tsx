@@ -5,6 +5,7 @@ import PeriodPresetSelect from '@/components/filters/PeriodPresetSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
 import { useTopbarUi } from '@/store/topbarUi'
+import useApuracaoAtrasada from '@/hooks/useApuracaoAtrasada'
 import { cn } from '@/lib/utils'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -87,21 +88,27 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   // Azul = período automático; laranja = personalizado. Sempre reflete o draft
   // (o que o usuário está vendo nos inputs), não o que está commitado.
   const auto = isAutoPeriod(draftIni, draftFim)
+  // VERMELHO tem prioridade: a apuração está atrasada pro período APLICADO, então
+  // o dado que o usuário vê está incompleto — a data não pode fingir que está
+  // completa ("até dia X" em azul). O banner urgente dá o detalhe.
+  const { atrasada } = useApuracaoAtrasada()
   // Datas: largura média. Sem labels empilhados (a barra inteira fica mais baixa)
   // — o contexto vem do placeholder nativo + tooltip (title). pr-6 abre espaço
   // pro botão de calendário; esconde o indicador nativo (usamos o nosso).
   const inputClass = cn(
     'h-7 pr-6 text-xs transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0',
     stacked ? 'w-full' : 'w-[118px]',
-    auto
-      ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
-      : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
+    atrasada
+      ? 'border-red-400 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300'
+      : auto
+        ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
+        : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
   )
 
   return (
     <div
       aria-disabled={liveLock}
-      title={liveLock ? 'Ao Vivo: período fixado no agora' : undefined}
+      title={liveLock ? 'Ao Vivo: período fixado no agora' : atrasada ? 'Apuração atrasada — os dados deste período estão incompletos' : undefined}
       className={cn(
         'flex gap-1.5',
         stacked ? 'w-full flex-col items-stretch gap-2' : 'items-center',
