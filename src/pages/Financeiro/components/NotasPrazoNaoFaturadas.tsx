@@ -106,7 +106,9 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
   const pctPotencial = totalAberto > 0 ? (stats.total / totalAberto) * 100 : 0
 
   const toggle = (cod: number) => setAberto((prev) => {
-    const n = new Set(prev); n.has(cod) ? n.delete(cod) : n.add(cod); return n
+    const n = new Set(prev)
+    if (n.has(cod)) n.delete(cod); else n.add(cod)
+    return n
   })
 
   return (

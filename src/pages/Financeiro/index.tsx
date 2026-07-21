@@ -12,6 +12,7 @@ import CartoesEModo from '@/pages/Financeiro/components/CartoesEModo'
 import SaldoAbertoCards from '@/pages/Financeiro/components/SaldoAbertoCards'
 import AgingVencidos from '@/pages/Financeiro/components/AgingVencidos'
 import ProximosVencimentos from '@/pages/Financeiro/components/ProximosVencimentos'
+import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
 const DashboardMensal = lazy(() => import('@/pages/Financeiro/components/DashboardMensal'))
@@ -192,6 +193,7 @@ const Financeiro = () => {
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
                       </div>
+                      <ReceberTabela data={receivablesAtraso} />
                       <ReceivablesIntel
                         data={receivablesAtraso}
                         duplicatas={duplicatasAberto}

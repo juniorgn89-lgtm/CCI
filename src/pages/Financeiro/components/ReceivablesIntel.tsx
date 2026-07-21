@@ -3,7 +3,6 @@ import { AlertTriangle, CalendarClock, Percent, Users } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { TituloReceber } from '@/api/types/financeiro'
-import ReceberCalendario from '@/pages/Financeiro/components/ReceberCalendario'
 import {
   IntelHeader, AnalisePanel, KpiHero, KpiCard,
 } from '@/pages/Financeiro/components/shared/financeIntel'
@@ -295,9 +294,6 @@ const ReceivablesIntel = ({ data, pagos, pmr }: Props) => {
           <p className="mt-1 text-[9px] text-gray-400">1–30 · 31–60 · 60d+ · meta {META_INADIMPLENCIA}%</p>
         </KpiCard>
       </div>
-
-      {/* Calendário de recebimento — a receber por dia de vencimento, por semana. */}
-      <ReceberCalendario data={data} />
     </div>
   )
 }
