@@ -56,13 +56,16 @@ const useApuracaoAtrasada = (): ApuracaoAtraso => {
   })
 
   return useMemo(() => {
-    if (!split.closedDays || !closedEnd) {
+    // Sem rede conectada não há apuração pra estar atrasada — o null de
+    // `ultimoApurado` NÃO é "nada apurado", é "sem contexto". Sem esse guarda, o
+    // picker de rede (master, sem rede) mostrava o alerta indevidamente.
+    if (!rede || !split.closedDays || !closedEnd) {
       return { atrasada: false, faltando: 0, ultimoApurado, fechadoAte: null }
     }
     const dias = enumerateDays(closedIni, closedEnd)
     const faltando = ultimoApurado ? dias.filter((d) => d > ultimoApurado).length : dias.length
     return { atrasada: faltando > 0, faltando, ultimoApurado, fechadoAte: closedEnd }
-  }, [split.closedDays, closedIni, closedEnd, ultimoApurado])
+  }, [rede, split.closedDays, closedIni, closedEnd, ultimoApurado])
 }
 
 export default useApuracaoAtrasada
