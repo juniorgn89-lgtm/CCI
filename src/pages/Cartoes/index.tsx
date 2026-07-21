@@ -32,8 +32,13 @@ const TAB_META: { id: CartaoTab; label: string; Icon: typeof CreditCard }[] = [
   { id: 'parametros', label: 'Parâmetros', Icon: SlidersHorizontal },
 ]
 
-const Cartoes = () => {
-  const [tab, setTab] = useTabParam<CartaoTab>('resultado', isCartaoTab)
+const Cartoes = ({ embedded = false }: { embedded?: boolean } = {}) => {
+  // Sub-aba: standalone usa ?tab= (deep-link); embutido no Financeiro usa estado
+  // local pra NÃO colidir com o ?tab= do módulo pai.
+  const [tabUrl, setTabUrl] = useTabParam<CartaoTab>('resultado', isCartaoTab)
+  const [tabLocal, setTabLocal] = useState<CartaoTab>('resultado')
+  const tab = embedded ? tabLocal : tabUrl
+  const setTab = (t: CartaoTab) => { if (embedded) setTabLocal(t); else setTabUrl(t) }
   const [revisaoOn, setRevisaoOn] = useState(false)
   // Filtro interno do Detalhamento quando se clica numa linha do Resultado.
   const [filtro, setFiltro] = useState<{ empresaCodigo: number; bandeira: string; dia: string } | null>(null)
@@ -90,13 +95,38 @@ const Cartoes = () => {
 
   return (
     <div className="space-y-4">
-      <PageHeaderTitle>
-        <TopBarTabs active={tab} onChange={(id) => { setFiltro(null); setTab(id as CartaoTab) }} tabs={TAB_META.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))} />
-      </PageHeaderTitle>
+      {embedded ? (
+        /* Embutido no Financeiro: sub-abas inline + toolbar de data inline (o
+           header do topo pertence ao módulo Financeiro). */
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex flex-wrap gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+            {TAB_META.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => { setFiltro(null); setTab(t.id) }}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors',
+                  tab === t.id ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                )}
+              >
+                <t.Icon className="h-3.5 w-3.5" />{t.label}
+              </button>
+            ))}
+          </div>
+          <DateRangeToolbar />
+        </div>
+      ) : (
+        <>
+          <PageHeaderTitle>
+            <TopBarTabs active={tab} onChange={(id) => { setFiltro(null); setTab(id as CartaoTab) }} tabs={TAB_META.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))} />
+          </PageHeaderTitle>
 
-      <PageHeaderActions>
-        <DateRangeToolbar />
-      </PageHeaderActions>
+          <PageHeaderActions>
+            <DateRangeToolbar />
+          </PageHeaderActions>
+        </>
+      )}
 
       {/* Barra de revisão automática (opt-in) — vale pro Resultado e Detalhamento. */}
       {tab !== 'parametros' && tab !== 'taxas' && (

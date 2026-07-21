@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { Receipt, CreditCard, Settings, LayoutDashboard, CalendarDays } from 'lucide-react'
+import { Receipt, CreditCard, Settings, LayoutDashboard, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -14,21 +14,22 @@ import AgingVencidos from '@/pages/Financeiro/components/AgingVencidos'
 import ProximosVencimentos from '@/pages/Financeiro/components/ProximosVencimentos'
 import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
+const DashboardMensal = lazy(() => import('@/pages/Financeiro/components/DashboardMensal'))
 const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
 const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
-const CartoesIntel = lazy(() => import('@/pages/Financeiro/components/CartoesIntel'))
-const AgendaFinanceira = lazy(() => import('@/pages/Financeiro/components/AgendaFinanceira'))
+// Módulo Cartões (conciliação) embutido como aba do Financeiro.
+const CartoesModule = lazy(() => import('@/pages/Cartoes'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
-  visao: LayoutDashboard,
+  dashboard: LayoutDashboard,
+  inteligencia: Sparkles,
   receber: Receipt,
   pagar: CreditCard,
   cartoes: CreditCard,
-  agenda: CalendarDays,
 }
 
 const TableSkeleton = () => (
@@ -77,7 +78,6 @@ const Financeiro = () => {
     cartoesReceberCount,
     carteiraDigitalItems,
     modoRecebimento,
-    cartoesAVencer,
     pmr,
     pmp,
     receivablesPagos,
@@ -157,7 +157,8 @@ const Financeiro = () => {
                 <TableSkeleton />
               ) : (
                 <Suspense fallback={<TableSkeleton />}>
-                  {activeTab === 'visao' && (
+                  {activeTab === 'dashboard' && <DashboardMensal />}
+                  {activeTab === 'inteligencia' && (
                     <div className="space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Saldo em aberto</h2>
@@ -208,14 +209,7 @@ const Financeiro = () => {
                     </div>
                   )}
                   {activeTab === 'cartoes' && (
-                    <CartoesIntel />
-                  )}
-                  {activeTab === 'agenda' && (
-                    <AgendaFinanceira
-                      receivables={receivablesAtraso}
-                      payables={payablesAtraso}
-                      cartoes={cartoesAVencer}
-                    />
+                    <CartoesModule embedded />
                   )}
                 </Suspense>
               )}
