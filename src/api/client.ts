@@ -54,10 +54,12 @@ client.interceptors.request.use((config) => {
 //   2. Backoff + retry (response interceptor): em vez de deixar o 429 propagar
 //      como "vazio"/erro, espera e re-tenta — respeita Retry-After quando existe,
 //      senão backoff exponencial com jitter. Teto de MAX_429_RETRIES por request.
-const MAX_429_RETRIES = 4
-const COOLDOWN_MS = 8_000 // janela de cooldown, renovada a cada novo 429
+const MAX_429_RETRIES = 6 // era 4 — sob throttle sustentado da CHAVE (cron + front
+                          // competindo pela cota) 4 esgotava e o GET falhava.
+const COOLDOWN_MS = 12_000 // janela de cooldown, renovada a cada novo 429
 const SPACING_START_MS = 150 // espaçamento inicial ao entrar em cooldown
-const SPACING_MAX_MS = 1_200 // teto do espaçamento entre GETs sob pressão
+const SPACING_MAX_MS = 2_000 // teto do espaçamento entre GETs sob pressão (mais
+                             // paciente = drena a fila em vez de re-estourar)
 
 let rateLimitedUntil = 0 // timestamp (ms) até quando estamos em cooldown
 let spacingMs = 0 // intervalo mínimo entre saídas de request durante cooldown

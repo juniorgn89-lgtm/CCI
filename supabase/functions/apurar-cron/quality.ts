@@ -40,7 +40,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 //     (bug de datetime da Quality) — não adianta martelar; cai no degrade
 //     não-fatal do chamador (ABAST já tem catch; LMC vira [] no index.ts).
 const getJson = async <T>(url: string): Promise<T> => {
-  const MAX_429 = 4
+  const MAX_429 = 6 // era 4 — sob throttle pesado da CHAVE, 4 esgotava e o dia ficava parcial
   let attempt = 0
   for (;;) {
     const res = await fetch(url)
@@ -50,8 +50,8 @@ const getJson = async <T>(url: string): Promise<T> => {
     if (retryable) {
       const ra = Number(res.headers.get('retry-after'))
       const waitMs = Number.isFinite(ra) && ra > 0
-        ? Math.min(ra * 1000, 30_000)
-        : Math.min(1000 * 2 ** attempt, 15_000) + Math.floor(Math.random() * 400)
+        ? Math.min(ra * 1000, 45_000)
+        : Math.min(1000 * 2 ** attempt, 20_000) + Math.floor(Math.random() * 500)
       await res.body?.cancel().catch(() => {}) // libera o corpo antes de re-tentar
       await sleep(waitMs)
       attempt++
@@ -91,7 +91,11 @@ const addDaysStr = (dateStr: string, days: number): string => {
 export const fetchAbastecimentosChunked = async (
   ctx: RedeCtx, dataInicial: string, dataFinal: string,
 ): Promise<Abastecimento[]> => {
-  const CHUNK = 7, PARALLEL = 4
+  // PARALLEL=2 (era 4): o apurarMes já dispara 8 grupos de fetch em paralelo
+  // (Promise.all), então 4 chunks de abast por cima estouravam o rate-limit da
+  // CHAVE (429 em série, principalmente no backfill de vários dias). 2 mantém
+  // velocidade decente e alivia a rajada — reliability > velocidade num cron.
+  const CHUNK = 7, PARALLEL = 2
   const chunks: { from: string; to: string }[] = []
   let from = dataInicial
   while (from <= dataFinal) {
