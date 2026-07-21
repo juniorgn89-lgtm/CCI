@@ -506,12 +506,12 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
   })
 
   return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-          <Icon className="h-3.5 w-3.5" />
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+      <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <Icon className="h-4 w-4" />
         </span>
-        <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{titulo}</h4>
+        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{titulo}</h4>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -853,7 +853,7 @@ const BenchmarkSetor = () => {
       </div>
 
       {view === 'realizado' && (
-        <div className="mt-4 space-y-10">
+        <div className="mt-4 space-y-6">
           {setorBlocos.map((s) => (
             <SetorRealizadoBloco
               key={s.id}
@@ -876,14 +876,14 @@ const BenchmarkSetor = () => {
               Período sem dias futuros — a projeção é igual ao realizado (nada a projetar).
             </div>
           )}
-          <div className="space-y-8">
+          <div className="space-y-6">
             {projBlocos.map((b) => (
-              <div key={b.id}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                    <b.Icon className="h-3.5 w-3.5" />
+              <div key={b.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+                <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    <b.Icon className="h-4 w-4" />
                   </span>
-                  <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{b.titulo}</h4>
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{b.titulo}</h4>
                 </div>
                 <ProjecaoEmpresaTable
                   rows={b.rows}
