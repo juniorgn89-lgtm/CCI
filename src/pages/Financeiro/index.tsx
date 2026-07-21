@@ -79,6 +79,7 @@ const Financeiro = () => {
     cartoesReceberCount,
     carteiraDigitalItems,
     modoRecebimento,
+    cartoesAVencer,
     pmr,
     pmp,
     receivablesPagos,
@@ -190,15 +191,17 @@ const Financeiro = () => {
                   )}
                   {activeTab === 'receber' && (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
-                      </div>
-                      <ReceberTabela data={receivablesAtraso} />
                       <ReceivablesIntel
                         data={receivablesAtraso}
                         duplicatas={duplicatasAberto}
                         pagos={receivablesPagos}
                         pmr={pmr}
+                      />
+                      <ReceberTabela
+                        titulos={receivablesAtraso}
+                        duplicatas={duplicatasAberto}
+                        cartoes={cartoesAVencer}
+                        dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
                       />
                     </div>
                   )}
