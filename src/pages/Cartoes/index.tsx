@@ -143,18 +143,18 @@ const Cartoes = ({ embedded = false }: { embedded?: boolean } = {}) => {
             )}
           >
             <Wand2 className="h-3.5 w-3.5" />
-            {revisaoOn ? 'Revisão automática ligada' : 'Revisar pendências (automático)'}
+            {revisaoOn ? 'Casando datas trocadas do adquirente' : 'Casar datas trocadas do adquirente'}
           </button>
           <InfoHint
             className="text-violet-400 hover:text-violet-600 dark:text-violet-400"
-            text="Passada extra (opcional) que resolve LOTE DESLOCADO: quando o EDI posta o repasse no dia errado, ela casa um 'sem repasse' com um lote da MESMA bandeira e posto, mesmo valor, até 7 dias de distância, e marca como conciliado (badge 'lote deslocado'). É cruzamento determinístico de lotes que já existem — NÃO é IA/modelo e NÃO altera nenhum valor. A visão base (sem o botão) continua sendo a conciliação exata."
+            text="Às vezes o adquirente posta o repasse com a DATA TROCADA no arquivo (EDI): manda no dia 18 o que era do dia 17. Aí o sistema não acha o dinheiro no dia certo e marca 'Sem repasse' — mesmo ele tendo caído num dia vizinho. Ligado, isto dá uma 2ª passada e RESGATA esses casos: procura um repasse solto do MESMO posto, MESMA bandeira e MESMO valor, até 7 dias de distância, e remarca como Conciliado (selo 'lote deslocado'). Não é IA e NÃO muda nenhum valor — só cruza lotes que já existem e troca o rótulo. Desligado (padrão) = conciliação exata, casando só no dia certo."
           />
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
-            <Info className="h-3 w-3" /> cruzamento determinístico de lotes — não altera valores
+            <Info className="h-3 w-3" /> casa "sem repasse" que era só data trocada no adquirente (±7 dias) — não muda valores
           </span>
           {revisaoOn && recuperados && (
             <span className="ml-auto rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-900/25 dark:text-violet-300">
-              recuperados: {recuperados.n} · {formatCurrencyInt(recuperados.valor)}
+              {recuperados.n} {recuperados.n === 1 ? 'lote era' : 'lotes eram'} só data trocada · {formatCurrencyInt(recuperados.valor)} conciliado
             </span>
           )}
         </div>
