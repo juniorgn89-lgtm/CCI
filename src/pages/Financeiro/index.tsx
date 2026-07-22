@@ -7,7 +7,6 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useFinanceiroLayout } from '@/store/moduleLayout'
-import TitulosEmAtraso from '@/pages/Financeiro/components/TitulosEmAtraso'
 import PosicaoAberto from '@/pages/Financeiro/components/PosicaoAberto'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
@@ -65,7 +64,6 @@ const Financeiro = () => {
     kpis,
     receivablesAtraso,
     payablesAtraso,
-    duplicatasAberto,
     cartoesAVencer,
     pmr,
     receivablesPagos,
@@ -139,25 +137,20 @@ const Financeiro = () => {
                       </div>
                       <PosicaoAberto
                         titulos={receivablesAtraso}
-                        duplicatas={duplicatasAberto}
                         cartoes={cartoesAVencer}
                         payables={payablesAtraso}
                       />
-                      <TitulosEmAtraso receivablesData={receivablesAtraso} payablesData={payablesAtraso} />
                     </div>
                   )}
                   {activeTab === 'receber' && (
                     <div className="space-y-3">
                       <ReceivablesIntel
                         data={receivablesAtraso}
-                        duplicatas={duplicatasAberto}
                         pagos={receivablesPagos}
                         pmr={pmr}
                       />
                       <ReceberTabela
                         titulos={receivablesAtraso}
-                        duplicatas={duplicatasAberto}
-                        cartoes={cartoesAVencer}
                         dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
                       />
                     </div>

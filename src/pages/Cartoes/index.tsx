@@ -165,6 +165,7 @@ const Cartoes = ({ embedded = false }: { embedded?: boolean } = {}) => {
         <DetalhamentoTab
           semRepasse={view?.semRepasse ?? []}
           divergencias={view?.divergencias ?? []}
+          repasseSemVenda={view?.repasseSemVenda ?? []}
           filtro={filtro}
           onClearFiltro={() => setFiltro(null)}
           isLoading={isLoading}

@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ChevronDown, Network, Check } from 'lucide-react'
+import { Building2, ChevronDown, Network, Check, Search } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useFilters } from '@/hooks/useFilters'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -45,11 +44,14 @@ const CompanySelect = ({ allowTodos = true, hideTodosRow = false, fullWidth = fa
   // Rascunho local: a seleção só é APLICADA (e dispara fetch) ao clicar em
   // "Aplicar". Sem isso, cada checkbox recarregava os dados na hora.
   const [draft, setDraft] = useState<number[]>(empresaCodigos)
-  // Ressincroniza o rascunho com o aplicado toda vez que o menu abre (descarta
-  // rascunhos não aplicados de uma abertura anterior).
-  useEffect(() => {
-    if (open) setDraft(empresaCodigos)
-  }, [open, empresaCodigos])
+  const [busca, setBusca] = useState('')
+  // Ao abrir, ressincroniza o rascunho com o aplicado (descarta rascunhos não
+  // aplicados de uma abertura anterior) e limpa a busca. Feito no onOpenChange
+  // (evento), não em efeito.
+  const onOpenChange = (v: boolean) => {
+    setOpen(v)
+    if (v) { setDraft(empresaCodigos); setBusca('') }
+  }
 
   const { data: empresasData, isLoading } = useQuery({
     queryKey: ['empresas'],
@@ -60,6 +62,8 @@ const CompanySelect = ({ allowTodos = true, hideTodosRow = false, fullWidth = fa
   // Aplica a restrição do usuário (profiles.empresa_codigos). Master/sem
   // restrição vê todas; supervisor/frentista restrito vê só as permitidas.
   const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const q = busca.trim().toLowerCase()
+  const empresasFiltradas = q ? empresas.filter((e) => (e.fantasia || '').toLowerCase().includes(q)) : empresas
 
   // `[]` = "Todos os postos" → a rede inteira consolidada. É a mesma semântica
   // que o Dashboard/Central já usa (matchesEmpresa trata lista vazia como rede
@@ -111,7 +115,7 @@ const CompanySelect = ({ allowTodos = true, hideTodosRow = false, fullWidth = fa
   const TriggerIcon = !single && !hideTodosRow && empresaCodigos.length === 0 ? Network : Building2
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -138,54 +142,84 @@ const CompanySelect = ({ allowTodos = true, hideTodosRow = false, fullWidth = fa
             Este módulo funciona com <span className="font-medium text-gray-600 dark:text-gray-300">uma empresa por vez</span>.
           </p>
         )}
+
+        {/* Pesquisa — não deixa o typeahead do menu roubar o que se digita (mas
+            permite Esc pra fechar). */}
+        <div className="px-2 pb-1.5" onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation() }}>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Pesquisar posto..."
+              autoFocus
+              className="h-7 w-full rounded-md border border-gray-200 bg-white pl-7 pr-2 text-[12px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
+            />
+          </div>
+        </div>
         <DropdownMenuSeparator />
 
         {single ? (
           /* Seleção ÚNICA (módulos gateados) — clique aplica na hora e fecha. */
-          empresas.map((empresa) => {
-            const sel = empresaCodigos.length === 1 && empresaCodigos[0] === empresa.codigo
-            return (
-              <DropdownMenuItem
-                key={empresa.codigo}
-                onSelect={() => pickSingle(empresa.codigo)}
-                className={cn('gap-2 text-[13px]', sel && 'font-semibold text-[#1e3a5f] dark:text-blue-200')}
-              >
-                <Check className={cn('h-3.5 w-3.5 shrink-0', sel ? 'text-[#2563eb]' : 'opacity-0')} />
-                {empresa.fantasia}
-              </DropdownMenuItem>
-            )
-          })
+          <div className="max-h-56 overflow-y-auto">
+            {empresasFiltradas.length === 0 ? (
+              <p className="px-2 py-3 text-center text-[12px] text-gray-400">Nenhum posto encontrado.</p>
+            ) : empresasFiltradas.map((empresa) => {
+              const sel = empresaCodigos.length === 1 && empresaCodigos[0] === empresa.codigo
+              return (
+                <DropdownMenuItem
+                  key={empresa.codigo}
+                  onSelect={() => pickSingle(empresa.codigo)}
+                  className={cn('gap-2 text-[13px]', sel && 'font-semibold text-[#1e3a5f] dark:text-blue-200')}
+                >
+                  <Check className={cn('h-3.5 w-3.5 shrink-0', sel ? 'text-[#2563eb]' : 'opacity-0')} />
+                  {empresa.fantasia}
+                </DropdownMenuItem>
+              )
+            })}
+          </div>
         ) : (
           <>
             {/* Todos os postos → rede consolidada ([]). Só nos módulos que permitem
                 E quando o atalho não foi movido pra fora (hideTodosRow). */}
             {allowTodos && !hideTodosRow && (
               <>
-                <DropdownMenuCheckboxItem
-                  checked={allSelected}
-                  onCheckedChange={() => selectAll()}
-                  onSelect={(e) => e.preventDefault()}
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); selectAll() }}
+                  className="flex items-center justify-between gap-2"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Network className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <Network className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
                     <span className="font-medium">Todos os postos</span>
                     <span className="text-[10px] text-gray-400">rede consolidada</span>
                   </span>
-                </DropdownMenuCheckboxItem>
+                  <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', allSelected ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                    {allSelected && <Check className="h-3 w-3" />}
+                  </span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
             )}
 
-            {empresas.map((empresa) => (
-              <DropdownMenuCheckboxItem
-                key={empresa.codigo}
-                checked={draft.includes(empresa.codigo)}
-                onCheckedChange={() => toggle(empresa.codigo)}
-                onSelect={(e) => e.preventDefault()}
-              >
-                {empresa.fantasia}
-              </DropdownMenuCheckboxItem>
-            ))}
+            <div className="max-h-56 overflow-y-auto">
+              {empresasFiltradas.length === 0 ? (
+                <p className="px-2 py-3 text-center text-[12px] text-gray-400">Nenhum posto encontrado.</p>
+              ) : empresasFiltradas.map((empresa) => {
+                const sel = draft.includes(empresa.codigo)
+                return (
+                  <DropdownMenuItem
+                    key={empresa.codigo}
+                    onSelect={(e) => { e.preventDefault(); toggle(empresa.codigo) }}
+                    className="flex items-center justify-between gap-2 text-[13px]"
+                  >
+                    <span className="truncate">{empresa.fantasia}</span>
+                    <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', sel ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                      {sel && <Check className="h-3 w-3" />}
+                    </span>
+                  </DropdownMenuItem>
+                )
+              })}
+            </div>
 
             <DropdownMenuSeparator />
 

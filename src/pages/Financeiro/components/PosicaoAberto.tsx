@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownUp, HandCoins, CreditCard, ArrowUpCircle } from 'lucide-react'
+import { ArrowDownUp, HandCoins, CreditCard, ArrowUpCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
-import type { ReceivableRow, DuplicataRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
 import {
   buildReceberRows, buildPagarRows, type InstReceber, type InstPagar,
@@ -12,7 +12,6 @@ import {
 
 interface Props {
   titulos: ReceivableRow[]
-  duplicatas: DuplicataRow[]
   cartoes: Cartao[]
   payables: PayableRow[]
 }
@@ -78,15 +77,19 @@ const TONE: Record<Tone, { ring: string; iconBg: string; value: string }> = {
 }
 
 /** Card de um bucket: total grande + composição por instrumento (que SOMA o
- *  total) + rodapé vencidas/a vencer. */
+ *  total) + rodapé vencidas/a vencer. `alerta` mostra um aviso âmbar no rodapé
+ *  (usado nos cartões: bruto não conciliado). */
 const BucketCard = ({
-  title, sub, Icon, tone, agg,
+  title, sub, Icon, tone, agg, vencidoLabel = 'Vencidas', aVencerLabel = 'A vencer', alerta,
 }: {
   title: string
   sub: string
   Icon: typeof HandCoins
   tone: Tone
   agg: Agg
+  vencidoLabel?: string
+  aVencerLabel?: string
+  alerta?: string
 }) => {
   const st = TONE[tone]
   return (
@@ -124,22 +127,29 @@ const BucketCard = ({
       </div>
 
       {/* Rodapé — vencidas / a vencer */}
-      <div className="mt-auto grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+      <div className={cn('grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-gray-800', !alerta && 'mt-auto')}>
         <div>
           <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Vencidas
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {vencidoLabel}
           </p>
           <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrencyInt(agg.vencidoTotal)}</p>
           <p className="text-[10px] text-gray-400">{agg.vencidoCount} {agg.vencidoCount === 1 ? 'título' : 'títulos'}</p>
         </div>
         <div>
           <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> A vencer
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {aVencerLabel}
           </p>
           <p className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{formatCurrencyInt(agg.aVencerTotal)}</p>
           <p className="text-[10px] text-gray-400">{agg.aVencerCount} {agg.aVencerCount === 1 ? 'título' : 'títulos'}</p>
         </div>
       </div>
+
+      {alerta && (
+        <div className="mt-3 flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-[10px] leading-tight text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{alerta}</span>
+        </div>
+      )}
     </section>
   )
 }
@@ -147,10 +157,12 @@ const BucketCard = ({
 /**
  * Posição em aberto RECONCILIADA, na mesma fonte das tabelas (lib/instrumentos).
  * Separa a COBRANÇA (dívida de cliente: notas+faturas+outros → bate com a aba
- * Receber) dos CARTÕES/APPS a compensar (a adquirente paga; não é cobrança, não
- * conta como inadimplência). "A pagar" bate com a aba Pagar. Sem dupla contagem.
+ * Receber) dos CARTÕES/APPS (bruto pendente do /CARTAO, NÃO conciliado com o
+ * adquirente — pode conter baixa não feita; a conciliação real vive na aba
+ * Cartões). "A pagar" bate com a aba Pagar. Vencidos do hero = clientes + a
+ * pagar (cartão vencido é suspeito, não entra como atraso real).
  */
-const PosicaoAberto = ({ titulos, duplicatas, cartoes, payables }: Props) => {
+const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
   // Modalidade por administradora (separa Apps de Cartões) — mesma query da
   // tabela (chave ['administradoras'] → cache compartilhado, sem fetch extra).
   const { data: admData } = useQuery({ queryKey: ['administradoras'], queryFn: () => fetchAdministradoras({ limite: 2000 }), staleTime: 30 * 60 * 1000 })
@@ -161,8 +173,8 @@ const PosicaoAberto = ({ titulos, duplicatas, cartoes, payables }: Props) => {
   }, [admData])
 
   const recebRows = useMemo(
-    () => buildReceberRows(titulos, duplicatas, cartoes, adminTipo),
-    [titulos, duplicatas, cartoes, adminTipo],
+    () => buildReceberRows(titulos, cartoes, adminTipo),
+    [titulos, cartoes, adminTipo],
   )
   const clientes = useMemo(() => aggregate(recebRows, CLIENTES_ORDER, RECEBER_META), [recebRows])
   const cartaoApps = useMemo(() => aggregate(recebRows, CARTAO_ORDER, RECEBER_META), [recebRows])
@@ -210,7 +222,18 @@ const PosicaoAberto = ({ titulos, duplicatas, cartoes, payables }: Props) => {
       </section>
 
       <BucketCard title="A receber de clientes" sub="Cobrança · bate com a aba Receber" Icon={HandCoins} tone="emerald" agg={clientes} />
-      <BucketCard title="Cartões e apps" sub="A compensar · a adquirente paga" Icon={CreditCard} tone="blue" agg={cartaoApps} />
+      <BucketCard
+        title="Cartões e apps"
+        sub="Bruto pendente · não conciliado"
+        Icon={CreditCard}
+        tone="blue"
+        agg={cartaoApps}
+        vencidoLabel="Vencidos (rever)"
+        aVencerLabel="A compensar"
+        alerta={cartaoApps.vencidoTotal > 0
+          ? `Bruto do /CARTAO, sem conciliar com o adquirente. Os ${formatCurrencyInt(cartaoApps.vencidoTotal)} vencidos podem ser baixa não feita no ERP — confira na aba Cartões.`
+          : 'Bruto do /CARTAO, sem conciliar com o adquirente. Feche na aba Cartões.'}
+      />
       <BucketCard title="A pagar em aberto" sub="Bate com a aba Pagar" Icon={ArrowUpCircle} tone="red" agg={pagar} />
     </div>
   )

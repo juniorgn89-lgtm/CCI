@@ -30,7 +30,7 @@ import type { Cartao, CartaoRemessa } from '@/api/types/financeiro'
 const TOL = 1.0
 const REV_JANELA = 7 // dias — casa lote deslocado dentro dessa distância.
 
-export type StatusKind = 'conciliado' | 'a_creditar' | 'valor_divergente' | 'sem_repasse' | 'aguardando'
+export type StatusKind = 'conciliado' | 'a_creditar' | 'valor_divergente' | 'sem_repasse' | 'repasse_sem_venda' | 'aguardando'
 export type MotivoKind = 'sem_repasse_vencido' | 'sem_repasse_nao_localizado'
 
 export interface AdminDiaRow {
@@ -61,6 +61,11 @@ export interface DetalheItem {
   nsu: string
   motivo: MotivoKind
   motivoTexto: string
+  /** Líquido esperado pelo CONTRATO (bruto − comissão% − tarifa fixa). Ajuda o
+   *  lançamento quando não há repasse no EDI pra dizer o líquido real. */
+  liquidoEsperado: number
+  /** % de comissão do contrato usada no cálculo (0 se a adm não tem cadastro). */
+  taxaContratoPct: number
 }
 
 /** Divergência de LOTE (bandeira×dia×posto) — não se atribui a uma venda só. */
@@ -73,6 +78,24 @@ export interface DivergenciaLote {
   repasse: number
   delta: number
   registros: number
+  /** Referência(s) do lote no EDI (pra achar o repasse no portal/WebPosto). */
+  lotes: string[]
+}
+
+/** Repasse do adquirente SEM venda no sistema (espelho do "sem repasse"): a
+ *  adquirente creditou um lote que não tem /CARTAO correspondente — provável
+ *  venda não lançada no ERP. */
+export interface RepasseSemVenda {
+  key: string
+  empresaCodigo: number
+  bandeira: string
+  tipo: string
+  diaLiq: string
+  repasse: number
+  liquido: number
+  taxaPct: number
+  /** Referência(s) do lote no EDI (pra achar o repasse no portal/WebPosto). */
+  lotes: string[]
 }
 
 /** Taxa efetiva × contrato por bandeira — detector de sobrecobrança do adquirente. */
@@ -110,6 +133,7 @@ export interface CartoesView {
   }
   semRepasse: DetalheItem[]
   divergencias: DivergenciaLote[]
+  repasseSemVenda: RepasseSemVenda[]
   vendasPendentes: number[]
 }
 
@@ -140,9 +164,16 @@ const normalizeRemessa = (r: CartaoRemessa) => ({
   bruto: r.valorRemessa ?? 0,
   liquido: r.valorLiquido ?? 0,
   taxaRs: r.taxasDespesas ?? 0,
+  // Referência do LOTE — único identificador que o EDI dá pra achar o repasse no
+  // portal/WebPosto (o /CARTAO_REMESSA não traz NSU nem quebra por transação).
+  ref: (r.cartaoRemessaReferenciaCodigo || String(r.cartaoRemessaCodigo ?? r.codigo ?? '')).trim(),
 })
 
-const diaLiquidacao = (c: Cartao) => (c.dataPagamento || c.vencimento || '').slice(0, 10)
+// "Bom para" = dia do crédito, que é como o WebPosto concilia e o resto do app
+// trata (useFinanceData usa `vencimento` pra vencido/a-vencer). Prioriza
+// `vencimento` (bom-para); `dataPagamento` pode vir provisório/D+1 e jogava
+// crédito não-vencido (bom-para futuro) pra "sem repasse" indevidamente.
+const diaLiquidacao = (c: Cartao) => (c.vencimento || c.dataPagamento || '').slice(0, 10)
 const diaVenda = (c: Cartao) => (c.dataMovimento || c.dataFiscal || '').slice(0, 10)
 
 interface Cell {
@@ -156,6 +187,7 @@ interface Cell {
   liquido: number
   taxaRsAcc: number
   rows: Cartao[]
+  remessaRefs: string[]
   revBruto?: number
   revLiquido?: number
   revTaxaRs?: number
@@ -233,7 +265,7 @@ const useCartoesConciliacao = () => {
       const getCell = (empresaCodigo: number, bandeira: string, tipo: string, dia: string): Cell => {
         const key = `${empresaCodigo}||${bandeira}||${dia}`
         let c = cells.get(key)
-        if (!c) { c = { key, empresaCodigo, bandeira, tipo, dia, brutoSistema: 0, brutoRepasse: 0, liquido: 0, taxaRsAcc: 0, rows: [] }; cells.set(key, c) }
+        if (!c) { c = { key, empresaCodigo, bandeira, tipo, dia, brutoSistema: 0, brutoRepasse: 0, liquido: 0, taxaRsAcc: 0, rows: [], remessaRefs: [] }; cells.set(key, c) }
         return c
       }
       for (const c of cartaoAll) {
@@ -250,10 +282,13 @@ const useCartoesConciliacao = () => {
         cell.brutoRepasse += r.bruto
         cell.liquido += r.liquido
         cell.taxaRsAcc += r.taxaRs
+        if (r.ref && !cell.remessaRefs.includes(r.ref)) cell.remessaRefs.push(r.ref)
       }
 
       const classify = (cell: Cell): { status: StatusKind; motivo?: MotivoKind } => {
         if (cell.brutoRepasse > 0) {
+          // Adquirente creditou mas o sistema não tem venda → venda não lançada.
+          if (cell.brutoSistema === 0) return { status: 'repasse_sem_venda' }
           if (Math.abs(cell.brutoSistema - cell.brutoRepasse) > TOL) return { status: 'valor_divergente' }
           // Espelha o WebPosto: lote vinculado E o bom-para (dia de crédito) já
           // passou = CONCILIADO; se o crédito ainda é futuro = VINCULADO (a creditar).
@@ -303,14 +338,24 @@ const useCartoesConciliacao = () => {
         ])
         const nomeFunc = new Map<number, string>()
         for (const f of funcs) nomeFunc.set(f.funcionarioCodigo, f.nome)
-        for (const v of vendas) vendedorPorVenda.set(v.vendaCodigo, nomeFunc.get(v.funcionarioCodigo) || '—')
+        for (const v of vendas) vendedorPorVenda.set(v.vendaCodigo, nomeFunc.get(v.funcionarioCodigo) || 'não identificado')
       }
+
+      // Taxa de contrato por administradora (pro líquido esperado E pro detector
+      // de taxas mais abaixo — mapa único).
+      const comissaoOf = new Map<number, number>()
+      const taxaTxOf = new Map<number, number>()
+      for (const a of admAll) { comissaoOf.set(a.administradoraCodigo, a.percentualComissao ?? 0); taxaTxOf.set(a.administradoraCodigo, a.taxaTransacao ?? 0) }
+      /** Líquido esperado pelo CONTRATO (bruto − comissão% − tarifa fixa). */
+      const liquidoEsperadoDe = (administradoraCodigo: number, valor: number) =>
+        valor * (1 - (comissaoOf.get(administradoraCodigo) ?? 0) / 100) - (taxaTxOf.get(administradoraCodigo) ?? 0)
 
       const buildView = (revisado: boolean): CartoesView => {
         const adminDia: AdminDiaRow[] = []
         const kpis = { conciliado: { valor: 0, registros: 0 }, semConciliar: { valor: 0, registros: 0 }, aguardando: { valor: 0, registros: 0 }, conciliavelTotal: 0, pctConciliavel: 0 }
         const semRepasse: DetalheItem[] = []
         const divergencias: DivergenciaLote[] = []
+        const repasseSemVenda: RepasseSemVenda[] = []
         const vendasPendentes = new Set<number>()
 
         for (const cell of cells.values()) {
@@ -332,13 +377,17 @@ const useCartoesConciliacao = () => {
           else if (status === 'aguardando' || status === 'a_creditar') { kpis.aguardando.valor += cell.brutoSistema; kpis.aguardando.registros += cell.rows.length }
           else if (status === 'sem_repasse' && motivo) {
             kpis.semConciliar.valor += cell.brutoSistema; kpis.semConciliar.registros += cell.rows.length
-            const texto = motivo === 'sem_repasse_nao_localizado' ? 'repasse vencido, não localizado no EDI' : `sem repasse do adquirente (vencido em ${ddmm(cell.dia)})`
+            const texto = motivo === 'sem_repasse_nao_localizado'
+              ? `não localizado no EDI carregado (liquidação ${ddmm(cell.dia)}) — confirme no portal do adquirente antes de tratar como perda`
+              : `sem repasse no EDI carregado (liquidação ${ddmm(cell.dia)}) — confirme no portal do adquirente antes de tratar como perda`
             for (const c of cell.rows) {
               vendasPendentes.add(c.vendaCodigo)
               semRepasse.push({
                 empresaCodigo: c.empresaCodigo, vendaCodigo: c.vendaCodigo, valor: c.valor, bandeira: cell.bandeira,
-                vendedor: vendedorPorVenda.get(c.vendaCodigo) || '—', dia: diaVenda(c), diaLiq: cell.dia,
+                vendedor: vendedorPorVenda.get(c.vendaCodigo) || 'não identificado', dia: diaVenda(c), diaLiq: cell.dia,
                 aut: c.autorizacao || '—', nsu: c.nsu || c.nsuTef || '—', motivo, motivoTexto: texto,
+                liquidoEsperado: liquidoEsperadoDe(c.administradoraCodigo, c.valor),
+                taxaContratoPct: comissaoOf.get(c.administradoraCodigo) ?? 0,
               })
             }
           } else if (status === 'valor_divergente') {
@@ -347,6 +396,16 @@ const useCartoesConciliacao = () => {
             divergencias.push({
               key: cell.key, empresaCodigo: cell.empresaCodigo, bandeira: cell.bandeira, diaLiq: cell.dia,
               sistema: cell.brutoSistema, repasse: cell.brutoRepasse, delta, registros: cell.rows.length,
+              lotes: cell.remessaRefs,
+            })
+          } else if (status === 'repasse_sem_venda') {
+            // Adquirente pagou, sem venda no sistema — entra no "sem conciliar"
+            // (precisa de lançamento) e vira detalhe no espelho.
+            kpis.semConciliar.valor += bruto; kpis.semConciliar.registros += 1
+            repasseSemVenda.push({
+              key: cell.key, empresaCodigo: cell.empresaCodigo, bandeira: cell.bandeira, tipo: cell.tipo,
+              diaLiq: cell.dia, repasse: bruto, liquido, taxaPct: bruto > 0 ? (taxaRs / bruto) * 100 : 0,
+              lotes: cell.remessaRefs,
             })
           }
         }
@@ -355,16 +414,14 @@ const useCartoesConciliacao = () => {
         adminDia.sort((a, b) => (a.dia === b.dia ? b.brutoSistema - a.brutoSistema : b.dia.localeCompare(a.dia)))
         semRepasse.sort((a, b) => b.diaLiq.localeCompare(a.diaLiq))
         divergencias.sort((a, b) => b.diaLiq.localeCompare(a.diaLiq))
-        return { adminDia, kpis, semRepasse, divergencias, vendasPendentes: [...vendasPendentes] }
+        repasseSemVenda.sort((a, b) => b.diaLiq.localeCompare(a.diaLiq))
+        return { adminDia, kpis, semRepasse, divergencias, repasseSemVenda, vendasPendentes: [...vendasPendentes] }
       }
 
       // ── Taxa efetiva × contrato por bandeira (detector de sobrecobrança) ──
       // Efetiva = Σ taxasDespesas ÷ Σ valorRemessa do repasse. Contrato =
       // percentualComissao do cadastro + tarifa fixa/transação. Δ > 0 = pagou a
       // mais do que o contrato. Read-only; só compara valores que já existem.
-      const comissaoOf = new Map<number, number>()
-      const taxaTxOf = new Map<number, number>()
-      for (const a of admAll) { comissaoOf.set(a.administradoraCodigo, a.percentualComissao ?? 0); taxaTxOf.set(a.administradoraCodigo, a.taxaTransacao ?? 0) }
       const nTxOf = new Map<number, number>()
       for (const c of cartaoAll) nTxOf.set(c.administradoraCodigo, (nTxOf.get(c.administradoraCodigo) ?? 0) + 1)
       const taxaAgg = new Map<number, { bruto: number; taxa: number; lotes: number }>()

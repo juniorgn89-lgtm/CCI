@@ -1,17 +1,15 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  CreditCard, FileText, ReceiptText, Smartphone, MoreHorizontal, Layers,
+  FileText, ReceiptText, MoreHorizontal, Layers,
   Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { fetchAdministradoras } from '@/api/endpoints/financeiro'
-import type { ReceivableRow, DuplicataRow } from '@/pages/Financeiro/hooks/useFinanceData'
-import type { Cartao } from '@/api/types/financeiro'
-import { buildReceberRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import { buildCobrancaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -37,9 +35,9 @@ const PERIODOS: { id: Periodo; label: string }[] = [
   { id: 'atrasados', label: 'Atrasados' },
 ]
 
-const INSTR: { id: InstReceber; label: string; Icon: typeof CreditCard; badge: string }[] = [
-  { id: 'cartoes', label: 'Cartões', Icon: CreditCard, badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
-  { id: 'apps', label: 'Apps', Icon: Smartphone, badge: 'bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-300' },
+// Só instrumentos de cobrança de cliente. Cartões/apps não entram aqui (são
+// recebíveis a compensar — vivem no dash e na aba Cartões).
+const INSTR: { id: InstReceber; label: string; Icon: typeof FileText; badge: string }[] = [
   { id: 'notas', label: 'Notas a prazo', Icon: FileText, badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
   { id: 'faturas', label: 'Faturas', Icon: ReceiptText, badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
   { id: 'outros', label: 'Outros', Icon: MoreHorizontal, badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
@@ -48,34 +46,23 @@ const instMeta = (id: InstReceber) => INSTR.find((i) => i.id === id)!
 
 interface Props {
   titulos: ReceivableRow[]
-  duplicatas: DuplicataRow[]
-  cartoes: Cartao[]
   dateFilter?: ReactNode
 }
 
 /**
- * Contas a Receber — UMA tabela unificando os 3 streams (Cartões /CARTAO ·
- * Títulos /TITULO_RECEBER · Duplicatas /DUPLICATA) com coluna Instrumento. Os
- * cards de instrumento (Cartões·Notas·Faturas·Cheques·Outros·Todos) filtram a
- * tabela. Janela "Até 2 semanas" (vencendo até hoje+14) / "Tudo em aberto".
- * Sem dupla contagem. READ-ONLY (Ações = ver detalhe).
+ * Contas a Receber — COBRANÇA de cliente (títulos /TITULO_RECEBER pendentes),
+ * com coluna Instrumento (Notas a prazo · Faturas · Outros). Cartões/apps NÃO
+ * entram: são recebíveis a compensar da adquirente (ficam no dash e na aba
+ * Cartões), não cobrança. Assim o "Todos/Atrasados" da tabela bate 1:1 com o
+ * card "Em atraso" da Inteligência. READ-ONLY (Ações = ver detalhe).
  */
-const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
+const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
     [empresasData],
   )
   const nomePosto = (cod: number) => empresaNome.get(cod) ?? `Posto ${cod}`
-
-  // Modalidade por administradora (crédito/débito vs carteira digital/PIX) →
-  // separa "Apps" de "Cartões". Join por empresa+administradora.
-  const { data: admData } = useQuery({ queryKey: ['administradoras'], queryFn: () => fetchAdministradoras({ limite: 2000 }), staleTime: 30 * 60 * 1000 })
-  const adminTipo = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const a of admData?.resultados ?? []) m.set(`${a.empresaCodigo}-${a.administradoraCodigo}`, a.tipo || '')
-    return m
-  }, [admData])
 
   const [inst, setInst] = useState<FiltroInst>('todos')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
@@ -87,11 +74,9 @@ const ReceberTabela = ({ titulos, duplicatas, cartoes, dateFilter }: Props) => {
   const [page, setPage] = useState(0)
   const [detalhe, setDetalhe] = useState<string | null>(null)
 
-  // Linhas unificadas dos 3 streams (fonte única — bate com o dashboard).
-  const rows: RecebRow[] = useMemo(
-    () => buildReceberRows(titulos, duplicatas, cartoes, adminTipo),
-    [titulos, duplicatas, cartoes, adminTipo],
-  )
+  // Só cobrança de cliente (notas/faturas/outros). Cartões/apps ficam no dash e
+  // na aba Cartões — aqui bate 1:1 com o card "Em atraso" da Inteligência.
+  const rows: RecebRow[] = useMemo(() => buildCobrancaRows(titulos), [titulos])
 
   // Escopo = período + cliente (base dos cards E da tabela).
   const escopo = useMemo(() => {

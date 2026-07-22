@@ -1,24 +1,39 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Sparkles, TriangleAlert, CircleCheck, Clock, CircleAlert, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import HeaderHint from '@/components/tables/HeaderHint'
-import type { CartoesResult, CartoesView, StatusKind } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
+import BarCell from '@/components/tables/BarCell'
+import type { CartoesResult, CartoesView, StatusKind, AdminDiaRow } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
 
 const fmtPct = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
+const fmtSigned = (v: number) => `${v < 0 ? '−' : '+'}${formatCurrency(Math.abs(v))}`
+const gStart = 'border-l border-gray-200 dark:border-gray-700'
+
+/** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema. */
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-transparent dark:text-gray-500', !first && gStart)}>
+    {label}
+  </th>
+)
 
 const STATUS: Record<StatusKind, { label: string; cls: string; dot: string }> = {
   conciliado: { label: 'Conciliado', cls: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
   a_creditar: { label: 'Vinculado · a creditar', cls: 'text-teal-700 dark:text-teal-400', dot: 'bg-teal-500' },
   valor_divergente: { label: 'Valor divergente', cls: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
   sem_repasse: { label: 'Sem repasse', cls: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
+  repasse_sem_venda: { label: 'Repasse sem venda', cls: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500' },
   aguardando: { label: 'Aguardando', cls: 'text-amber-700 dark:text-amber-500', dot: 'bg-amber-500' },
 }
 
 const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, onRowClick }: { coverage?: CartoesResult['coverage']; view?: CartoesView; empresaNome: Map<number, string>; isLoading: boolean; tratadosCount: number; onRowClick?: (empresaCodigo: number, bandeira: string, dia: string) => void }) => {
   const nomePosto = (c: number) => empresaNome.get(c) || `Posto ${c}`
-  // "Não conciliado" abre primeiro (é o que precisa de ação).
-  const [subTab, setSubTab] = useState<'nao' | 'conc'>('nao')
+  // "A resolver" abre primeiro (é o que precisa de ação). "A receber" = futuro
+  // (aguardando, bom-para lá na frente) — separado pra não assustar com previsão.
+  const [subTab, setSubTab] = useState<'resolver' | 'receber' | 'conc'>('resolver')
+  // Guarda os postos ABERTOS (começa vazio → tudo colapsado no refresh; o usuário
+  // expande o posto que quer olhar).
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
   if (isLoading && !view) {
     return (
       <div className="space-y-4">
@@ -32,9 +47,52 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
   if (!view || !coverage) return <p className="px-5 py-12 text-center text-sm text-gray-400">Selecione um período pra conciliar.</p>
 
   const { kpis, adminDia } = view
-  const naoConc = adminDia.filter((r) => r.status !== 'conciliado')
+  // 3 baldes por TEMPO/estado: A resolver (problema presente) · A receber (futuro,
+  // aguardando/a creditar) · Conciliado (já recebido).
+  const RESOLVER: StatusKind[] = ['sem_repasse', 'valor_divergente', 'repasse_sem_venda']
+  const resolver = adminDia.filter((r) => RESOLVER.includes(r.status))
+  const receber = adminDia.filter((r) => r.status === 'aguardando' || r.status === 'a_creditar')
   const conc = adminDia.filter((r) => r.status === 'conciliado')
-  const rows = subTab === 'conc' ? conc : naoConc
+  const rows = subTab === 'conc' ? conc : subTab === 'receber' ? receber : resolver
+
+  // Agrupa por POSTO (colapsável) com subtotais — igual à conciliação do WebPosto.
+  const toggleGrupo = (cod: number) => setExpanded((prev) => {
+    const n = new Set(prev)
+    if (n.has(cod)) n.delete(cod); else n.add(cod)
+    return n
+  })
+  const grupos = (() => {
+    const m = new Map<number, AdminDiaRow[]>()
+    for (const r of rows) { const arr = m.get(r.empresaCodigo); if (arr) arr.push(r); else m.set(r.empresaCodigo, [r]) }
+    return [...m.entries()]
+      .map(([empresaCodigo, rs]) => {
+        const somaBruto = rs.reduce((s, r) => s + r.brutoSistema, 0)
+        const somaRepasse = rs.reduce((s, r) => s + r.brutoRepasse, 0)
+        const somaLiquido = rs.reduce((s, r) => s + r.liquido, 0)
+        const somaDelta = rs.reduce((s, r) => s + r.delta, 0)
+        const taxaPct = somaRepasse > 0 ? ((somaRepasse - somaLiquido) / somaRepasse) * 100 : 0
+        return { empresaCodigo, rows: rs, somaBruto, somaRepasse, somaLiquido, somaDelta, taxaPct }
+      })
+      .sort((a, b) => b.somaBruto - a.somaBruto)
+  })()
+  const maxBruto = Math.max(1, ...grupos.map((g) => g.somaBruto))
+  const maxDeltaAbs = Math.max(1, ...grupos.map((g) => Math.abs(g.somaDelta)))
+  // "Maior diferença" só faz sentido no A resolver (onde Δ importa).
+  const postoPiorDelta = subTab === 'resolver' && grupos.length > 0
+    ? grupos.reduce((mx, g) => (Math.abs(g.somaDelta) > Math.abs(mx.somaDelta) ? g : mx)).empresaCodigo
+    : -1
+  const tot = {
+    bruto: grupos.reduce((s, g) => s + g.somaBruto, 0),
+    repasse: grupos.reduce((s, g) => s + g.somaRepasse, 0),
+    liquido: grupos.reduce((s, g) => s + g.somaLiquido, 0),
+    delta: grupos.reduce((s, g) => s + g.somaDelta, 0),
+  }
+  const totTaxa = tot.repasse > 0 ? ((tot.repasse - tot.liquido) / tot.repasse) * 100 : 0
+  const subChip = subTab === 'conc'
+    ? { label: 'Conciliado', cls: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' }
+    : subTab === 'receber'
+      ? { label: 'A receber', cls: 'text-amber-700 dark:text-amber-500', dot: 'bg-amber-500' }
+      : { label: 'A resolver', cls: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' }
 
   return (
     <div className="space-y-4">
@@ -135,7 +193,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
               <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">Cada lote do adquirente cruzado com as vendas do sistema.</p>
             </div>
             <div className="inline-flex items-center gap-0.5 self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-              {([['nao', 'Não conciliado', naoConc.length], ['conc', 'Conciliado', conc.length]] as const).map(([id, label, n]) => (
+              {([['resolver', 'A resolver', resolver.length], ['receber', 'A receber', receber.length], ['conc', 'Conciliado', conc.length]] as const).map(([id, label, n]) => (
                 <button
                   key={id}
                   type="button"
@@ -143,7 +201,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors',
                     subTab === id
-                      ? id === 'conc' ? 'bg-emerald-600 text-white' : 'bg-[#1e3a5f] text-white'
+                      ? id === 'conc' ? 'bg-emerald-600 text-white' : id === 'receber' ? 'bg-amber-600 text-white' : 'bg-[#1e3a5f] text-white'
                       : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200',
                   )}
                 >
@@ -156,69 +214,115 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800 dark:text-gray-500">
-              <tr>
-                <HeaderHint align="left" className="px-5" label="Administradora" help="Bandeira/adquirente do cartão (ex.: VISA DÉBITO GETNET) e a modalidade (débito/crédito)." />
-                <HeaderHint align="left" label="Posto" help="Empresa/posto da rede onde o recebível liquidou. A conciliação é por posto — igual ao WebPosto." />
-                <HeaderHint align="left" label="Dia" help="Dia de LIQUIDAÇÃO (dataPagamento) — quando o adquirente credita. É por ele que casamos com o repasse do EDI, não pelo dia da venda." />
-                <HeaderHint label="Bruto sistema" help="Soma dos recebíveis do sistema (/CARTAO) que liquidam neste dia, por bandeira e posto." />
-                <HeaderHint label="Bruto repasse" help="Bruto do lote repassado pelo adquirente (/CARTAO_REMESSA) neste dia." />
-                <HeaderHint label="Δ" help="Diferença sistema − repasse. Zero (dentro de centavos) = conciliado." />
-                <HeaderHint label="Taxa %" help="Taxa APLICADA pelo adquirente no lote (taxa em R$ ÷ bruto). É fato do EDI — a divergência de taxa contratada fica fora desta fase." />
+            <thead className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <GroupTh first label="Posto" colSpan={1} />
+                <GroupTh label="Sistema" colSpan={1} />
+                <GroupTh label="Adquirente" colSpan={3} />
+                <GroupTh label="Conciliação" colSpan={2} />
+              </tr>
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <HeaderHint align="left" className="px-5" label="Posto / bandeira" help="Agrupado por posto (como o WebPosto concilia). Clique num posto pra abrir os lotes." />
+                <HeaderHint className={gStart} label="Bruto" help="Soma dos recebíveis do sistema (/CARTAO) que liquidam, por posto." />
+                <HeaderHint className={gStart} label="Repasse" help="Bruto repassado pelo adquirente (/CARTAO_REMESSA)." />
                 <HeaderHint label="Líquido" help="Valor líquido creditado pelo adquirente (bruto − taxa)." />
-                <HeaderHint align="left" className="px-5" label="Status" help="Conciliado (bate) · Valor divergente (lote difere) · Sem repasse (venceu e não veio) · Aguardando (EDI ainda não carregou o dia)." />
+                <HeaderHint label="Taxa %" help="Taxa efetiva do repasse (taxa em R$ ÷ bruto repassado)." />
+                <HeaderHint className={gStart} label="Δ" help="Diferença sistema − repasse. Zero (dentro de centavos) = conciliado." />
+                <HeaderHint align="left" className="px-5" label="Situação" help="A resolver (problema) · A receber (aguardando, futuro) · Conciliado. Ao abrir o posto, aparece o status detalhado de cada lote." />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {rows.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-gray-400">
-                  {adminDia.length === 0 ? 'Sem vendas de cartão no período.' : subTab === 'nao' ? 'Nada pendente — tudo conciliado ou aguardando.' : 'Nada conciliado ainda neste período.'}
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-400">
+                  {adminDia.length === 0 ? 'Sem vendas de cartão no período.' : subTab === 'resolver' ? 'Nada a resolver — tudo conciliado ou a receber.' : subTab === 'receber' ? 'Nada a receber no futuro neste período.' : 'Nada conciliado ainda neste período.'}
                 </td></tr>
               )}
-              {rows.map((r) => {
-                const s = STATUS[r.status]
-                const clicavel = !!onRowClick && (r.status === 'sem_repasse' || r.status === 'valor_divergente')
+              {grupos.map((g) => {
+                const aberto = expanded.has(g.empresaCodigo)
+                const pior = g.empresaCodigo === postoPiorDelta
+                const zero = Math.abs(g.somaDelta) < 0.005
                 return (
-                  <tr
-                    key={r.key}
-                    onClick={clicavel ? () => onRowClick!(r.empresaCodigo, r.bandeira, r.dia) : undefined}
-                    title={clicavel ? 'Ver no Detalhamento' : undefined}
-                    className={cn('text-gray-700 dark:text-gray-300', clicavel ? 'cursor-pointer hover:bg-blue-50/60 dark:hover:bg-blue-900/15' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
-                  >
-                    <td className="px-5 py-2.5">
-                      <span className="flex items-center gap-2">
-                        <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded bg-gray-100 text-[9px] font-bold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                          {r.bandeira.slice(0, 4)}
+                  <Fragment key={g.empresaCodigo}>
+                    {/* Linha-resumo do POSTO (padrão Central: barra, subtotal, badge) */}
+                    <tr onClick={() => toggleGrupo(g.empresaCodigo)} className="cursor-pointer bg-gray-50/60 hover:bg-gray-100/70 dark:bg-gray-800/40 dark:hover:bg-gray-800/70">
+                      <td className="px-5 py-2">
+                        <span className="flex items-center gap-2 text-[13px] font-semibold text-gray-800 dark:text-gray-100">
+                          <ChevronRight className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', aberto && 'rotate-90')} />
+                          {nomePosto(g.empresaCodigo)}
+                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-300">{g.rows.length} {g.rows.length === 1 ? 'lote' : 'lotes'}</span>
+                          {pior && !zero && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                              <TriangleAlert className="h-3 w-3" /> Maior diferença
+                            </span>
+                          )}
                         </span>
-                        <span>
-                          <span className="block font-medium text-gray-900 dark:text-gray-100">{r.bandeira}</span>
-                          {r.tipo && <span className="block text-[11px] text-gray-400">{r.tipo}</span>}
+                      </td>
+                      <td className={cn('px-1.5 py-1', gStart)}><BarCell value={g.somaBruto} max={maxBruto} formatted={formatCurrencyInt(g.somaBruto)} color="blue" align="near" /></td>
+                      <td className={cn('px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300', gStart)}>{g.somaRepasse > 0 ? formatCurrencyInt(g.somaRepasse) : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{g.somaLiquido > 0 ? formatCurrencyInt(g.somaLiquido) : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{g.somaRepasse > 0 ? fmtPct(g.taxaPct) : '—'}</td>
+                      {zero
+                        ? <td className={cn('px-3 py-2 text-right tabular-nums text-gray-400', gStart)}>R$ 0,00</td>
+                        : <td className={cn('px-1.5 py-1', gStart, pior && 'ring-1 ring-inset ring-red-300/70 dark:ring-red-500/40')}><BarCell value={Math.abs(g.somaDelta)} max={maxDeltaAbs} formatted={fmtSigned(g.somaDelta)} color="red" align="near" /></td>}
+                      <td className="px-5 py-2">
+                        <span className={cn('inline-flex items-center gap-1.5 text-[12px] font-medium', subChip.cls)}>
+                          <span className={cn('h-1.5 w-1.5 rounded-full', subChip.dot)} /> {subChip.label}
                         </span>
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300">{nomePosto(r.empresaCodigo)}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-gray-500 dark:text-gray-400">{formatDate(r.dia)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(r.brutoSistema)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{r.brutoRepasse > 0 ? formatCurrency(r.brutoRepasse) : '—'}</td>
-                    <td className={cn('px-3 py-2.5 text-right tabular-nums', Math.abs(r.delta) < 0.005 ? 'text-gray-400' : 'font-semibold text-red-600 dark:text-red-400')}>
-                      {formatCurrency(r.delta)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{r.brutoRepasse > 0 ? `${r.taxaPct.toFixed(2).replace('.', ',')}%` : '—'}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{r.liquido > 0 ? formatCurrency(r.liquido) : '—'}</td>
-                    <td className="px-5 py-2.5">
-                      <span className={cn('inline-flex items-center gap-1.5 text-[12px] font-medium', s.cls)}>
-                        <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} /> {s.label}
-                      </span>
-                      {r.revisao && (
-                        <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" title="Conciliado pela revisão automática (lote adjacente).">
-                          revisão
-                        </span>
-                      )}
-                      {clicavel && <ChevronRight className="ml-1.5 inline h-3.5 w-3.5 align-text-bottom text-gray-300 dark:text-gray-600" />}
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {aberto && g.rows.map((r) => {
+                      const s = STATUS[r.status]
+                      const clicavel = !!onRowClick && (r.status === 'sem_repasse' || r.status === 'valor_divergente' || r.status === 'repasse_sem_venda')
+                      const dz = Math.abs(r.delta) < 0.005
+                      return (
+                        <tr
+                          key={r.key}
+                          onClick={clicavel ? () => onRowClick!(r.empresaCodigo, r.bandeira, r.dia) : undefined}
+                          title={clicavel ? 'Ver no Detalhamento' : undefined}
+                          className={cn('text-gray-700 dark:text-gray-300', clicavel ? 'cursor-pointer hover:bg-blue-50/60 dark:hover:bg-blue-900/15' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
+                        >
+                          <td className="py-2 pl-9 pr-3">
+                            <span className="flex items-center gap-2">
+                              <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded bg-gray-100 text-[9px] font-bold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">{r.bandeira.slice(0, 4)}</span>
+                              <span>
+                                <span className="block font-medium text-gray-900 dark:text-gray-100">{r.bandeira}</span>
+                                <span className="block text-[11px] text-gray-400">{r.tipo ? `${r.tipo} · ` : ''}{formatDate(r.dia)}</span>
+                              </span>
+                            </span>
+                          </td>
+                          <td className={cn('px-3 py-2 text-right tabular-nums', gStart)}>{formatCurrency(r.brutoSistema)}</td>
+                          <td className={cn('px-3 py-2 text-right tabular-nums', gStart)}>{r.brutoRepasse > 0 ? formatCurrency(r.brutoRepasse) : '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.liquido > 0 ? formatCurrency(r.liquido) : '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{r.brutoRepasse > 0 ? `${r.taxaPct.toFixed(2).replace('.', ',')}%` : '—'}</td>
+                          <td className={cn('px-3 py-2 text-right tabular-nums', gStart, dz ? 'text-gray-400' : 'font-semibold text-red-600 dark:text-red-400')}>{formatCurrency(r.delta)}</td>
+                          <td className="px-5 py-2">
+                            <span className={cn('inline-flex items-center gap-1.5 text-[12px] font-medium', s.cls)}>
+                              <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} /> {s.label}
+                            </span>
+                            {r.revisao && (
+                              <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" title="Conciliado pela revisão automática (lote adjacente).">
+                                revisão
+                              </span>
+                            )}
+                            {clicavel && <ChevronRight className="ml-1.5 inline h-3.5 w-3.5 align-text-bottom text-gray-300 dark:text-gray-600" />}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </Fragment>
                 )
               })}
+              {grupos.length > 0 && (
+                <tr className="border-t-2 border-gray-200 bg-gray-50/70 text-[13px] font-semibold text-gray-800 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-100">
+                  <td className="px-5 py-2.5">Total</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', gStart)}>{formatCurrencyInt(tot.bruto)}</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', gStart)}>{tot.repasse > 0 ? formatCurrencyInt(tot.repasse) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{tot.liquido > 0 ? formatCurrencyInt(tot.liquido) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{tot.repasse > 0 ? fmtPct(totTaxa) : '—'}</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', gStart, Math.abs(tot.delta) < 0.005 ? 'text-gray-400' : 'text-red-600 dark:text-red-400')}>{fmtSigned(tot.delta)}</td>
+                  <td className="px-5 py-2.5" />
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -1,11 +1,18 @@
-import type { ReceivableRow, DuplicataRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
 
 /**
  * Fonte ÚNICA de classificação e montagem das linhas de Contas a Receber e a
  * Pagar. As tabelas (ReceberTabela/PagarTabela) E o dashboard consomem estas
  * funções, então os totais BATEM por construção — não há lógica duplicada que
- * possa divergir. Sem dupla contagem: título convertido (virou duplicata) sai.
+ * possa divergir.
+ *
+ * A receber = títulos pendentes (/TITULO_RECEBER) + cartões (/CARTAO). O título
+ * pendente É a dívida em aberto — a receber não tem pagamento parcial, então o
+ * valor cheio é o saldo devido. NÃO usamos /DUPLICATA como stream separado: um
+ * título faturado (convertido=true) já está aqui como "fatura", e cruzar com a
+ * duplicata só escondia recebíveis quando a duplicata não voltava completa da API
+ * (o card "Em atraso" via 137 títulos e a tabela mostrava 21). Fonte = os títulos.
  */
 
 const todayISO = () => new Date().toISOString().split('T')[0]
@@ -37,46 +44,51 @@ export const isApp = (s: string) => {
   return x.includes('digital') || x.includes('pix') || x.includes('carteira') || x.includes('app')
 }
 
-/** Título NÃO faturado → instrumento pelo `tipo`; faturado (convertido=true) sai
- *  (é representado pela duplicata) pra não dobrar. Cheque (raro) cai em Outros. */
-export const catTituloReceber = (r: ReceivableRow): InstReceber | null => {
-  if (r.convertido === true) return null
+/** Instrumento do título a receber. Faturado (convertido=true) = fatura/boleto;
+ *  não faturado com "nota" no tipo = nota a prazo; resto = outros. NUNCA descarta
+ *  — o título pendente é a dívida em aberto (a receber não tem pagamento parcial,
+ *  então o valor cheio é o saldo devido). */
+export const catTituloReceber = (r: ReceivableRow): InstReceber => {
+  if (r.convertido === true) return 'faturas'
   return (r.tipo || '').toLowerCase().includes('nota') ? 'notas' : 'outros'
 }
 
-/** Une os 3 streams (Cartões /CARTAO · Títulos /TITULO_RECEBER · Duplicatas
- *  /DUPLICATA) em linhas pendentes, sem dupla contagem. `adminTipo` mapeia
- *  `${empresaCodigo}-${administradoraCodigo}` → tipo da administradora. */
+/** Só a dívida de CLIENTE (títulos pendentes): notas, faturas, outros. É o que a
+ *  aba Contas a Receber (cobrança) mostra — cartões/apps ficam de fora, pois são
+ *  recebíveis a compensar da adquirente, não cobrança de cliente. */
+export const buildCobrancaRows = (titulos: ReceivableRow[]): RecebRow[] => {
+  const hoje = todayISO()
+  const out: RecebRow[] = []
+  for (const t of titulos) {
+    if (!t.pendente) continue
+    const cat = catTituloReceber(t)
+    const venc = onlyDate(t.dataVencimento)
+    const vencido = !!venc && venc < hoje
+    const sub = cat === 'faturas' ? (t.tipo?.trim() || 'Fatura / boleto') : (t.tipo || '—')
+    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub, valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '' })
+  }
+  return out
+}
+
+/** Recebíveis COMPLETOS: cobrança de cliente + cartões/apps a compensar (/CARTAO).
+ *  Usado só pelo dashboard (que mostra o bloco "Cartões e apps" à parte).
+ *  `adminTipo` mapeia `${empresaCodigo}-${administradoraCodigo}` → tipo (separa
+ *  Apps de Cartões). */
 export const buildReceberRows = (
   titulos: ReceivableRow[],
-  duplicatas: DuplicataRow[],
   cartoes: Cartao[],
   adminTipo: Map<string, string>,
 ): RecebRow[] => {
   const hoje = todayISO()
-  const out: RecebRow[] = []
+  const cartaoRows: RecebRow[] = []
   for (const c of cartoes) {
     if (!c.pendente) continue
     const venc = onlyDate(c.vencimento)
     const vencido = !!venc && venc < hoje
     const modal = adminTipo.get(`${c.empresaCodigo}-${c.administradoraCodigo}`) || c.adiministradoraDescricao || ''
-    out.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '' })
+    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '' })
   }
-  for (const d of duplicatas) {
-    if (!d.pendente) continue
-    const venc = onlyDate(d.vencimento)
-    const vencido = !!venc && venc < hoje
-    out.push({ key: `d${d.codigo}`, empresa: d.empresaCodigo, instrumento: 'faturas', cliente: (d.nomeCliente || `Cliente ${d.clienteCodigo}`).trim(), sub: 'Duplicata / boleto', valor: d.saldoRestante, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: d.numeroDocumento || '' })
-  }
-  for (const t of titulos) {
-    if (!t.pendente) continue
-    const cat = catTituloReceber(t)
-    if (!cat) continue
-    const venc = onlyDate(t.dataVencimento)
-    const vencido = !!venc && venc < hoje
-    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub: t.tipo || '—', valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '' })
-  }
-  return out
+  return [...cartaoRows, ...buildCobrancaRows(titulos)]
 }
 
 /* ─────────────── A PAGAR ─────────────── */

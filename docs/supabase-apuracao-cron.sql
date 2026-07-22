@@ -11,8 +11,15 @@ alter table redes add column if not exists apuracao_auto boolean not null defaul
 -- logado. Este SQL agenda a chamada HTTP via pg_cron + pg_net.
 --
 -- PRÉ-REQUISITOS (rodar no SQL Editor do projeto Supabase):
---   1. Fazer deploy da função:
+--   1. Fazer deploy da função — SEMPRE com --no-verify-jwt:
 --        supabase functions deploy apurar-cron --no-verify-jwt
+--      ⚠️ CRÍTICO: TODO redeploy PRECISA da flag `--no-verify-jwt`. Um deploy sem
+--      ela RELIGA o "Verify JWT" da plataforma, e o cron passa a bater 401
+--      (UNAUTHORIZED_NO_AUTH_HEADER / "Missing authorization header") — o gateway
+--      barra ANTES da função rodar, porque o cron manda `x-cron-secret` mas não
+--      manda `Authorization: Bearer <jwt>`. Sintoma: cron.job_run_details =
+--      "succeeded" mas net._http_response = 401 e nada apura. Fix: redeployar com
+--      a flag (ou desligar "Verify JWT" em Edge Functions → apurar-cron → Settings).
 --   2. Definir o segredo da função (CLI):
 --        supabase secrets set CRON_SECRET="<um-segredo-forte-aleatorio>"
 --      (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já são injetados pelo runtime.)

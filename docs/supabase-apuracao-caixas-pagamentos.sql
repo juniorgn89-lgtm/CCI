@@ -50,8 +50,10 @@ create index if not exists idx_apuracao_caixas_rede_empresa_data
 create table if not exists public.apuracao_formas_pagamento (
   rede_id uuid not null references public.redes(id) on delete cascade,
   empresa_codigo int not null,
-  venda_codigo int not null,
-  venda_prazo_codigo int not null,
+  -- bigint: alguns códigos de venda (ex.: tenant de demonstração sintético)
+  -- passam do teto de int4 (~2,1 bi). Reais cabem em int, mas bigint é seguro.
+  venda_codigo bigint not null,
+  venda_prazo_codigo bigint not null,
   data_movimento date,
   vencimento date,
   -- Forma
