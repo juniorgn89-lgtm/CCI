@@ -17,6 +17,7 @@ const Inteligencia = lazy(() => import('@/pages/Inteligencia'))
 const Operacao = lazy(() => import('@/pages/Operacao'))
 const Produtividade = lazy(() => import('@/pages/Produtividade'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
+const Compliance = lazy(() => import('@/pages/Compliance'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Pessoas = lazy(() => import('@/pages/Pessoas'))
@@ -64,6 +65,7 @@ const AppRoutes = () => {
           {/* Fechamento de Caixa aposentado do menu — rotas antigas caem no dashboard. */}
           <Route path="/fechamento-caixa" element={<Navigate to="/dashboard" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
+          <Route path="/compliance" element={<Suspense fallback={<RouteFallback />}><Compliance /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
