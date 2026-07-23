@@ -4,7 +4,7 @@ import { ArrowLeft, CloudOff } from 'lucide-react'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useConcorrencia from '@/pages/Comercial/hooks/useConcorrencia'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { todayLocal } from '@/lib/period'
@@ -53,21 +53,7 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
         </button>
         {postos.length > 1 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            {postos.map((e) => (
-              <button
-                key={e.codigo}
-                type="button"
-                onClick={() => onTrocarPosto(e.codigo)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
-                  e.codigo === selectedCodigo
-                    ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                    : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
-                )}
-              >
-                {e.fantasia}
-              </button>
-            ))}
+            <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={onTrocarPosto} />
           </div>
         )}
       </div>

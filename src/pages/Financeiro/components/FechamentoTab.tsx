@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { Skeleton } from '@/components/ui/skeleton'
+import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 
 const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
 
@@ -39,27 +39,19 @@ const FechamentoTab = () => {
 
   return (
     <div className="space-y-3">
-      {/* Seletor de posto LOCAL — o filtro do topo NÃO é alterado. */}
+      {/* Seletor de posto LOCAL — o filtro do topo NÃO é alterado. Chips quando
+          são poucos; dropdown com busca quando há muitos (escala). */}
       {postos.length > 1 && (
+        <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
             <Building2 className="h-3.5 w-3.5" /> Posto:
           </span>
-          {postos.map((e) => (
-            <button
-              key={e.codigo}
-              type="button"
-              onClick={() => setActiveCodigo(e.codigo)}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
-                e.codigo === selectedCodigo
-                  ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-                  : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
-              )}
-            >
-              {e.fantasia}
-            </button>
-          ))}
+          <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+        </div>
+        <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">
+          O fechamento de caixa se concilia <span className="font-medium text-gray-500 dark:text-gray-400">por loja</span> (cada posto tem seus próprios caixas e turnos) — por isso você escolhe o posto aqui. A seleção vale <span className="font-medium text-gray-500 dark:text-gray-400">só nesta aba</span>: não altera o filtro do topo nem as outras abas do Financeiro.
+        </p>
         </div>
       )}
       <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>

@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 import { todayLocal } from '@/lib/period'
 import { isPastPeriod, cn } from '@/lib/utils'
 import { formatNumber, formatLiters } from '@/lib/formatters'
@@ -324,21 +325,7 @@ const CaixasMobile = () => {
 
   const postoTabs = postos.length > 1 ? (
     <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-      {postos.map((e) => (
-        <button
-          key={e.codigo}
-          type="button"
-          onClick={() => setActiveCodigo(e.codigo)}
-          className={cn(
-            'shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
-            e.codigo === selectedCodigo
-              ? 'bg-[#1e3a5f] text-white'
-              : 'border border-gray-200 bg-white text-gray-500 dark:border-[#303030] dark:bg-[#1a1a1a] dark:text-gray-400',
-          )}
-        >
-          {e.fantasia}
-        </button>
-      ))}
+      <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
     </div>
   ) : null
 
