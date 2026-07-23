@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { Receipt, CreditCard, Settings, LayoutDashboard } from 'lucide-react'
+import { Receipt, CreditCard, Settings, LayoutDashboard, ClipboardCheck } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -16,6 +16,9 @@ const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/Receiv
 const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
 // Módulo Cartões (conciliação) embutido como aba do Financeiro.
 const CartoesModule = lazy(() => import('@/pages/Cartoes'))
+// Aba Fechamento — copiloto por exceção + seletor de posto LOCAL (não usa o
+// filtro global, pra não vazar o posto pras outras abas/módulos).
+const FechamentoTab = lazy(() => import('@/pages/Financeiro/components/FechamentoTab'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
@@ -25,6 +28,7 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   dashboard: LayoutDashboard,
   receber: Receipt,
   pagar: CreditCard,
+  fechamento: ClipboardCheck,
   cartoes: CreditCard,
 }
 
@@ -164,6 +168,7 @@ const Financeiro = () => {
                       />
                     </div>
                   )}
+                  {activeTab === 'fechamento' && <FechamentoTab />}
                   {activeTab === 'cartoes' && (
                     <CartoesModule embedded />
                   )}

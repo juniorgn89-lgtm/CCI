@@ -111,13 +111,14 @@ export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layo
 
 // Bump no nome da store força reset pra essa aba específica (rename
 // indicadores → visao não casaria com o merge do migrate).
-// -v7: Dashboard Mensal removido; a antiga "Inteligência" (Saldo em aberto +
-// Títulos em atraso) vira a aba "Dashboard". Restam Dashboard · Receber · Pagar ·
-// Cartões. Storekey nova = defaults limpos pros usuários existentes.
-export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v7', [
+// -v8: aba "Fechamento" (copiloto de fechamento de caixa por exceção) entra entre
+// Pagar e Cartões. -v7: Dashboard Mensal removido; a antiga "Inteligência" virou
+// "Dashboard". Storekey nova = defaults limpos pros usuários existentes.
+export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v8', [
   { id: 'dashboard', label: 'Dashboard', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
+  { id: 'fechamento', label: 'Fechamento', visible: true },
   { id: 'cartoes', label: 'Cartões', visible: true },
 ])
 
