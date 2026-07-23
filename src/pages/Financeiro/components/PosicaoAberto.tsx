@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { ArrowDownUp, HandCoins, CreditCard, ArrowUpCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
+import { useChartTheme } from '@/lib/chartTheme'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
 import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
@@ -154,6 +156,126 @@ const BucketCard = ({
   )
 }
 
+/** Cor da fatia por classe de dot (Tailwind → hex, pro Recharts). */
+const DOT_HEX: Record<string, string> = {
+  'bg-blue-500': '#3b82f6',
+  'bg-teal-500': '#14b8a6',
+  'bg-emerald-500': '#10b981',
+  'bg-violet-500': '#8b5cf6',
+  'bg-amber-500': '#f59e0b',
+  'bg-red-500': '#ef4444',
+  'bg-gray-400': '#9ca3af',
+}
+
+/** Rosca de composição — pequena, com total ao centro + legenda com %. */
+const CompDonut = ({ title, total, items }: { title: string; total: number; items: Item[] }) => {
+  const ct = useChartTheme()
+  const data = items.filter((i) => i.total > 0)
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{title}</p>
+      {data.length === 0 || total <= 0 ? (
+        <div className="flex h-[120px] items-center justify-center text-xs text-gray-400">Nada em aberto.</div>
+      ) : (
+        <div className="mt-2 flex items-center gap-3">
+          <div className="relative h-[120px] w-[120px] shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data} dataKey="total" nameKey="label" cx="50%" cy="50%" innerRadius={38} outerRadius={54} paddingAngle={2} stroke="none">
+                  {data.map((it) => <Cell key={it.id} fill={DOT_HEX[it.dot] ?? '#9ca3af'} />)}
+                </Pie>
+                <Tooltip formatter={((v: number) => formatCurrencyInt(v)) as never} contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[9px] uppercase tracking-wide text-gray-400">Total</span>
+              <span className="text-[12px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(total)}</span>
+            </div>
+          </div>
+          <ul className="min-w-0 flex-1 space-y-1">
+            {data.map((it) => (
+              <li key={it.id} className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="flex min-w-0 items-center gap-1.5 text-gray-600 dark:text-gray-300">
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', it.dot)} />
+                  <span className="truncate">{it.label}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">{Math.round((it.total / total) * 100)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/* ─── "Tempo de atraso" (aging) — faixas por dias de atraso ─── */
+
+interface AgingBuckets { aVencer: number; d30: number; d60: number; d90: number; d90plus: number }
+
+const agingDe = (rows: { valor: number; vencido: boolean; diasAtraso: number }[]): AgingBuckets => {
+  const b: AgingBuckets = { aVencer: 0, d30: 0, d60: 0, d90: 0, d90plus: 0 }
+  for (const r of rows) {
+    if (!r.vencido) { b.aVencer += r.valor; continue }
+    const d = r.diasAtraso
+    if (d <= 30) b.d30 += r.valor
+    else if (d <= 60) b.d60 += r.valor
+    else if (d <= 90) b.d90 += r.valor
+    else b.d90plus += r.valor
+  }
+  return b
+}
+
+const AGING_SEG: { key: keyof AgingBuckets; label: string; color: string }[] = [
+  { key: 'aVencer', label: 'A vencer', color: '#10b981' },
+  { key: 'd30', label: '1–30 dias', color: '#f59e0b' },
+  { key: 'd60', label: '31–60 dias', color: '#f97316' },
+  { key: 'd90', label: '61–90 dias', color: '#ef4444' },
+  { key: 'd90plus', label: '+90 dias', color: '#b91c1c' },
+]
+
+/** Barra empilhada (CSS) das faixas de atraso de um lado. */
+const AgingBar = ({ label, buckets }: { label: string; buckets: AgingBuckets }) => {
+  const total = AGING_SEG.reduce((s, seg) => s + buckets[seg.key], 0)
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+        <span className="font-medium text-gray-600 dark:text-gray-300">{label}</span>
+        <span className="tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(total)}</span>
+      </div>
+      {total <= 0 ? (
+        <div className="h-3 w-full rounded-full bg-gray-100 dark:bg-gray-800" />
+      ) : (
+        <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          {AGING_SEG.map((seg) => {
+            const w = (buckets[seg.key] / total) * 100
+            return w > 0 ? <div key={seg.key} title={`${seg.label}: ${formatCurrencyInt(buckets[seg.key])}`} style={{ width: `${w}%`, backgroundColor: seg.color }} /> : null
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Card "Tempo de atraso": barras de aging pra receber (clientes) e a pagar. */
+const AgingCard = ({ receber, pagar }: { receber: AgingBuckets; pagar: AgingBuckets }) => (
+  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Tempo de atraso</p>
+    <p className="mt-0.5 text-[11px] text-gray-400">Onde está o vencido — e há quanto tempo.</p>
+    <div className="mt-3 space-y-3">
+      <AgingBar label="A receber de clientes" buckets={receber} />
+      <AgingBar label="A pagar" buckets={pagar} />
+    </div>
+    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2.5 dark:border-gray-800">
+      {AGING_SEG.map((seg) => (
+        <span key={seg.key} className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color }} />{seg.label}
+        </span>
+      ))}
+    </div>
+  </section>
+)
+
 /**
  * Posição em aberto RECONCILIADA, na mesma fonte das tabelas (lib/instrumentos).
  * Separa a COBRANÇA (dívida de cliente: notas+faturas+outros → bate com a aba
@@ -176,9 +298,18 @@ const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
     () => buildReceberRows(titulos, cartoes, adminTipo),
     [titulos, cartoes, adminTipo],
   )
+  const pagarRows = useMemo(() => buildPagarRows(payables), [payables])
   const clientes = useMemo(() => aggregate(recebRows, CLIENTES_ORDER, RECEBER_META), [recebRows])
   const cartaoApps = useMemo(() => aggregate(recebRows, CARTAO_ORDER, RECEBER_META), [recebRows])
-  const pagar = useMemo(() => aggregate(buildPagarRows(payables), PAGAR_ORDER, PAGAR_META), [payables])
+  const pagar = useMemo(() => aggregate(pagarRows, PAGAR_ORDER, PAGAR_META), [pagarRows])
+
+  // "Tempo de atraso": aging da COBRANÇA de cliente (notas+faturas+outros) e do
+  // a pagar. Cartões ficam de fora (vencido de cartão é suspeito, não cobrança).
+  const agingReceber = useMemo(
+    () => agingDe(recebRows.filter((r) => (CLIENTES_ORDER as string[]).includes(r.instrumento))),
+    [recebRows],
+  )
+  const agingPagar = useMemo(() => agingDe(pagarRows), [pagarRows])
 
   const aReceberTotal = clientes.total + cartaoApps.total
   const posicao = aReceberTotal - pagar.total
@@ -187,6 +318,7 @@ const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
   const vencidoCobranca = clientes.vencidoTotal + pagar.vencidoTotal
 
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* Hero — posição líquida */}
       <section className="flex flex-col rounded-2xl border border-[#1e3a5f]/30 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-5 shadow-sm">
@@ -235,6 +367,17 @@ const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
           : 'Bruto do /CARTAO, sem conciliar com o adquirente. Feche na aba Cartões.'}
       />
       <BucketCard title="A pagar em aberto" sub="Bate com a aba Pagar" Icon={ArrowUpCircle} tone="red" agg={pagar} />
+    </div>
+
+    {/* Faixa premium — composição por instrumento (rosca + %) */}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <CompDonut title="A receber de clientes" total={clientes.total} items={clientes.items} />
+      <CompDonut title="Cartões e apps" total={cartaoApps.total} items={cartaoApps.items} />
+      <CompDonut title="A pagar em aberto" total={pagar.total} items={pagar.items} />
+    </div>
+
+    {/* Tempo de atraso (aging) */}
+    <AgingCard receber={agingReceber} pagar={agingPagar} />
     </div>
   )
 }
