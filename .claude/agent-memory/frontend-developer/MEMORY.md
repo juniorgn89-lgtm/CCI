@@ -80,6 +80,13 @@
 - Visão Geral: 3 cards de ênfase por saldo em aberto = `SaldoAbertoCards.tsx` (notas não faturadas / duplicatas em aberto / a pagar em aberto). Hook expõe `cardNotasNaoFaturadas`, `cardDuplicatasAberto`, `cardPagarAberto`, `duplicatasAberto`.
 - CartoesIntel tem seletor de período (3/6/12/24 meses, state local `mesesJanela`); modal de detalhe mostra Taxa % e Taxa R$ separadas + tfoot com total/efetiva.
 
+## Compliance ANP Module (margem regulatória, read-only spike)
+- Page `src/pages/Compliance/index.tsx` + hook `hooks/useComplianceMargens.ts`. Reconstrói margem regulatória = placa (novoPrecoA de /TROCA_PRECO realizada) − CMP (Σqtd×precoCusto/Σqtd de /COMPRA_ITEM). Rede-wide cache, subset por scopedCodes.
+- Placa/margem só fazem sentido com UM posto (`umPosto = scopedCount === 1`); com vários mostra só CMP consolidado.
+- Seção "Indicadores históricos (365d)": série DIÁRIA margem(dia)=placa(dia)−cmpDiario(dia), janela FIXA [dataFinal−364..dataFinal] (independe do período do filtro). Queries hist gated `enabled: dataFinal && scopedCodes.length===1`, janelas troca −455d / compra −394d (buffers p/ forward-fill placa 90d + CMP trailing 30d).
+- CMP diário = média ponderada das compras trailing-30d (sliding two-pointer; zera sumQty/sumCost quando janela vazia p/ evitar drift float); forward-fill; null antes da 1ª compra. Modelo v1 (custo por estoque = Fase 2).
+- Indicadores: MM30/90/180/365 (trailingMean), mediana/P25/P75/min/max/stdPop (helpers puros no hook), alerta histórico = desvioVsMM90 c/ faixas fixas 20/40/70. Todos rotulados como v1, "não é veredito ANP".
+
 ## Available shadcn/ui Components
 badge, button, card, dropdown-menu, input, select, separator, sheet, skeleton, table, tabs
 - DropdownMenu includes DropdownMenuCheckboxItem (used for CompanySelect multi-select)

@@ -22,13 +22,64 @@ const FAIXA_AMARELO = 20 // < 20% = Verde
 const FAIXA_LARANJA = 40 // 20–40% = Amarelo
 const FAIXA_VERMELHO = 70 // 40–70% = Laranja / > 70% = Vermelho
 
-/** Classifica |desvio %| numa faixa de status (limites fixos da Fase 1). */
-const faixaDeDesvio = (desvioPctAbs: number): StatusFaixa => {
+/** Classifica |desvio %| numa faixa de status (limites fixos da Fase 1).
+ *  Exportado pra ser a FONTE ÚNICA dos limites (Detalhe + Visão Geral). */
+export const faixaDeDesvio = (desvioPctAbs: number): StatusFaixa => {
   if (desvioPctAbs < FAIXA_AMARELO) return 'verde'
   if (desvioPctAbs < FAIXA_LARANJA) return 'amarelo'
   if (desvioPctAbs < FAIXA_VERMELHO) return 'laranja'
   return 'vermelho'
 }
+
+/* ─── Janela dos indicadores históricos (365d fixos, terminando no dataFinal) ─── */
+
+/** Nº de dias da janela histórica fixa. */
+const HIST_DIAS = 365
+/** Buffer de trocas antes do início da janela (forward-fill da placa). */
+const HIST_BUFFER_TROCA = 90
+/** Janela do CMP diário = média ponderada das compras dos últimos 30 dias. */
+const HIST_CMP_JANELA = 30
+
+/** Soma `n` dias a uma data ISO (yyyy-MM-dd) e devolve ISO. */
+const addDaysIso = (iso: string, n: number): string => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + n)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+/* ─── Estatística (helpers puros, sem dependências) ─── */
+
+/** Média aritmética. null se vazio. */
+const mean = (xs: number[]): number | null =>
+  xs.length === 0 ? null : xs.reduce((s, v) => s + v, 0) / xs.length
+
+/** Desvio-padrão POPULACIONAL. null se vazio. */
+const stdPop = (xs: number[]): number | null => {
+  if (xs.length === 0) return null
+  const m = xs.reduce((s, v) => s + v, 0) / xs.length
+  const variance = xs.reduce((s, v) => s + (v - m) * (v - m), 0) / xs.length
+  return Math.sqrt(variance)
+}
+
+/** Percentil (interpolação linear) sobre um array ASCENDENTE. null se vazio. */
+const percentile = (sortedAsc: number[], p: number): number | null => {
+  const n = sortedAsc.length
+  if (n === 0) return null
+  if (n === 1) return sortedAsc[0]
+  const rank = (p / 100) * (n - 1)
+  const lo = Math.floor(rank)
+  const hi = Math.ceil(rank)
+  if (lo === hi) return sortedAsc[lo]
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (rank - lo)
+}
+
+/** Média dos últimos `win` valores NÃO-nulos de uma série diária. */
+const trailingMean = (vals: (number | null)[], win: number): number | null =>
+  mean(vals.slice(Math.max(0, vals.length - win)).filter((v): v is number => v !== null))
+
+/** Série de médias móveis trailing (janela `win`) — um ponto por dia. */
+const rollingMean = (vals: (number | null)[], win: number): (number | null)[] =>
+  vals.map((_, i) => mean(vals.slice(Math.max(0, i - win + 1), i + 1).filter((v): v is number => v !== null)))
 
 /**
  * Ponto da série temporal por combustível (uma troca de preço realizada no
@@ -78,6 +129,76 @@ export interface CmpRow {
   statusFaixa: StatusFaixa | null
 }
 
+/**
+ * Ponto DIÁRIO da reconstrução histórica (365d fixos). `margem` = placa − CMP
+ * diário; `mm30`/`mm90` = médias móveis trailing da margem (overlay do gráfico).
+ * Valores null nos dias sem placa e/ou sem custo conhecido.
+ */
+export interface FuelDailyPoint {
+  /** Dia (yyyy-MM-dd). */
+  data: string
+  /** Placa à vista vigente no dia (forward-fill da última troca ≤ dia). */
+  placa: number | null
+  /** CMP diário = média ponderada das compras dos últimos 30 dias (modelo v1). */
+  cmp: number | null
+  /** Margem regulatória do dia (placa − CMP). null se placa ou CMP indisponível. */
+  margem: number | null
+  /** Média móvel 30d da margem no dia. */
+  mm30: number | null
+  /** Média móvel 90d da margem no dia. */
+  mm90: number | null
+}
+
+/** Comparativo da margem atual vs. uma média móvel (diferença R$/L e %). */
+export interface HistComparativo {
+  /** Janela da média móvel em dias (30, 90, 180 ou 365). */
+  janela: number
+  /** Valor da média móvel (R$/L). null se sem dado na janela. */
+  mm: number | null
+  /** Diferença absoluta margem atual − média (R$/L). */
+  difAbs: number | null
+  /** Diferença % ((atual − média) / média × 100). null se média ≤ 0. */
+  difPct: number | null
+}
+
+/**
+ * Indicadores históricos por combustível sobre a janela FIXA de 365 dias
+ * terminando no `dataFinal` global. Só é populado com UM posto no escopo
+ * (placa/margem são por posto). Modelo v1 — ver disclaimers na tela.
+ */
+export interface HistIndicadores {
+  produtoCodigo: number
+  nome: string
+  /** Série diária (365 pontos) placa/CMP/margem + médias móveis. */
+  daily: FuelDailyPoint[]
+  /** Margem não-nula mais recente da série. */
+  margemAtual: number | null
+  /** Médias móveis trailing terminando no dataFinal. */
+  mm30: number | null
+  mm90: number | null
+  mm180: number | null
+  mm365: number | null
+  /** Estatísticas das margens diárias não-nulas dos últimos 365 dias. */
+  mediana: number | null
+  p25: number | null
+  p75: number | null
+  minimo: number | null
+  maximo: number | null
+  /** Desvio-padrão populacional das margens diárias. */
+  desvioPadrao: number | null
+  /** Comparativos margem atual vs. médias móveis 30/90/180/365. */
+  comparativos: HistComparativo[]
+  /** Desvio % da margem atual vs. a média móvel de 90 dias. null se MM90 ≤ 0. */
+  desvioVsMM90: number | null
+  /** Faixa de status HISTÓRICA (de |desvioVsMM90|). null se não computável. */
+  statusFaixaHist: StatusFaixa | null
+  /** Nº de dias COM margem real (placa+custo) na janela — cobertura efetiva.
+   *  Menor que 365 quando a integração ainda não tem 1 ano de dado. */
+  coberturaDias: number
+  /** Primeiro dia com margem real (yyyy-MM-dd). null se nenhum. */
+  desde: string | null
+}
+
 /** Linha do log de troca de preço (audit-trail preview do /TROCA_PRECO). */
 export interface TrocaLogRow {
   key: string
@@ -101,9 +222,13 @@ export interface TrocaLogRow {
 interface ComplianceMargensResult {
   cmpRows: CmpRow[]
   trocaLog: TrocaLogRow[]
+  /** Indicadores históricos (365d fixos) por combustível. [] se >1 posto. */
+  histIndicadores: HistIndicadores[]
   /** Nº de postos no escopo atual (seleção ou rede permitida). */
   scopedCount: number
   isLoading: boolean
+  /** Carregando as séries históricas (queries de 365d + buffer). */
+  isLoadingHist: boolean
   error: unknown
 }
 
@@ -163,8 +288,34 @@ const useComplianceMargens = (): ComplianceMargensResult => {
     ),
   })
 
-  const computed = useMemo(() => {
-    // Mapa produtoCodigo → Produto e conjunto dos códigos que são combustível.
+  /* ─── Séries históricas (365d fixos terminando no dataFinal) ─── */
+  // Só valem para UM posto (placa/margem são por posto) — evitamos os fetches
+  // longos quando há vários postos no escopo. Buffer antes da janela: 90d pra
+  // conhecer a placa no início e 30d pro CMP trailing.
+  const histEnabled = !!dataFinal && scopedCodes.length === 1
+  const histTrocaInicio = dataFinal ? addDaysIso(dataFinal, -(HIST_DIAS + HIST_BUFFER_TROCA)) : ''
+  const histCompraInicio = dataFinal ? addDaysIso(dataFinal, -(HIST_DIAS + HIST_CMP_JANELA - 1)) : ''
+
+  const { data: trocasHistRaw = [], isLoading: isLoadingTrocasHist } = useQuery({
+    queryKey: ['trocaPreco', 'rede', 'hist', histTrocaInicio, dataFinal],
+    queryFn: () => fetchAllPages<TrocaPreco>(
+      (p) => fetchTrocaPreco({ dataInicial: histTrocaInicio, dataFinal, realizada: true, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 80,
+    ),
+    enabled: histEnabled,
+  })
+
+  const { data: compraHistRaw = [], isLoading: isLoadingCompraHist } = useQuery({
+    queryKey: ['compraItem', 'rede', 'hist', histCompraInicio, dataFinal],
+    queryFn: () => fetchAllPages<CompraItem>(
+      (p) => fetchCompraItem({ dataInicial: histCompraInicio, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 40,
+    ),
+    enabled: histEnabled,
+  })
+
+  // Catálogo compartilhado: mapa produtoCodigo → nome e conjunto de combustíveis.
+  const catalog = useMemo(() => {
     const produtoByCodigo = new Map<number, Produto>(produtosData.map((p) => [p.produtoCodigo, p]))
     const fuelCodes = new Set<number>()
     for (const p of produtosData) {
@@ -172,6 +323,11 @@ const useComplianceMargens = (): ComplianceMargensResult => {
     }
     const nomeDe = (codigo: number): string =>
       fuelLabel(produtoByCodigo.get(codigo)?.nome ?? '') || `Produto ${codigo}`
+    return { fuelCodes, nomeDe }
+  }, [produtosData])
+
+  const computed = useMemo(() => {
+    const { fuelCodes, nomeDe } = catalog
 
     // Recorta os datasets rede-wide pelo escopo de postos.
     const compraItens = subset(compraItensRaw, scopedCodes)
@@ -303,13 +459,187 @@ const useComplianceMargens = (): ComplianceMargensResult => {
     trocaLog.sort((a, b) => b.sortKey.localeCompare(a.sortKey))
 
     return { cmpRows, trocaLog }
-  }, [produtosData, compraItensRaw, trocasRaw, scopedCodes])
+  }, [catalog, compraItensRaw, trocasRaw, scopedCodes])
+
+  /* ─── Indicadores históricos (365d fixos) — reconstrução dia a dia ─── */
+  const histIndicadores = useMemo<HistIndicadores[]>(() => {
+    // Placa/margem são por posto → só computa com UM posto no escopo.
+    if (!dataFinal || scopedCodes.length !== 1) return []
+    const { fuelCodes, nomeDe } = catalog
+
+    // Lista CONTÍNUA de 365 dias terminando no dataFinal (independe do início do
+    // período selecionado). ISO yyyy-MM-dd compara lexicograficamente = cronológico.
+    const dias: string[] = []
+    let cursor = addDaysIso(dataFinal, -(HIST_DIAS - 1))
+    while (cursor <= dataFinal) {
+      dias.push(cursor)
+      cursor = addDaysIso(cursor, 1)
+    }
+
+    // Agrupa compras (custo) e placas (troca) por combustível, recortadas no escopo.
+    interface HistCompra { date: string; qty: number; cost: number }
+    interface HistPlaca { sortKey: string; date: string; placa: number }
+    const comprasByProd = new Map<number, HistCompra[]>()
+    for (const item of subset(compraHistRaw, scopedCodes)) {
+      if (!fuelCodes.has(item.produtoCodigo)) continue
+      const qty = item.quantidade ?? 0
+      if (qty <= 0) continue
+      const date = (item.dataEntrada ?? '').split('T')[0]
+      if (!date) continue
+      const arr = comprasByProd.get(item.produtoCodigo) ?? []
+      arr.push({ date, qty, cost: item.precoCusto ?? 0 })
+      comprasByProd.set(item.produtoCodigo, arr)
+    }
+    const placasByProd = new Map<number, HistPlaca[]>()
+    for (const troca of subset(trocasHistRaw, scopedCodes)) {
+      if (troca.realizada !== true) continue
+      const date = (troca.data ?? '').split('T')[0]
+      if (!date) continue
+      const sortKey = `${date}T${troca.hora ?? ''}`
+      for (const it of troca.precoItens ?? []) {
+        if (!fuelCodes.has(it.codigoProduto)) continue
+        const arr = placasByProd.get(it.codigoProduto) ?? []
+        arr.push({ sortKey, date, placa: it.novoPrecoA ?? 0 })
+        placasByProd.set(it.codigoProduto, arr)
+      }
+    }
+
+    const codigos = new Set<number>([...comprasByProd.keys(), ...placasByProd.keys()])
+    const rows: { row: HistIndicadores; qty: number }[] = []
+
+    for (const codigo of codigos) {
+      const placas = (placasByProd.get(codigo) ?? []).slice().sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      if (placas.length === 0) continue // sem placa não há margem regulatória
+      const compras = (comprasByProd.get(codigo) ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
+
+      // Ponteiros monotônicos: placa (forward-fill) + janela trailing-30d do CMP.
+      let pi = 0
+      let lastPlaca: number | null = null
+      let ci = 0 // entra na janela (data ≤ dia)
+      let wi = 0 // sai da janela (data < dia−29)
+      let sumQty = 0
+      let sumCost = 0
+      let lastCmp: number | null = null
+      let anyPurchase = false
+
+      const daily: FuelDailyPoint[] = dias.map((dia) => {
+        // placa(dia) = última troca realizada com data ≤ dia.
+        while (pi < placas.length && placas[pi].date <= dia) {
+          lastPlaca = placas[pi].placa
+          pi++
+        }
+        const placa = lastPlaca
+
+        // cmp(dia) = Σ(qtd×custo)/Σ(qtd) das compras em [dia−29 ... dia].
+        const lowIso = addDaysIso(dia, -(HIST_CMP_JANELA - 1))
+        while (ci < compras.length && compras[ci].date <= dia) {
+          sumQty += compras[ci].qty
+          sumCost += compras[ci].qty * compras[ci].cost
+          anyPurchase = true
+          ci++
+        }
+        while (wi < ci && compras[wi].date < lowIso) {
+          sumQty -= compras[wi].qty
+          sumCost -= compras[wi].qty * compras[wi].cost
+          wi++
+        }
+        // Janela vazia: zera explicitamente pra evitar resíduo de ponto flutuante
+        // (adição/subtração da mesma qtd não devolve exatamente 0).
+        if (wi === ci) {
+          sumQty = 0
+          sumCost = 0
+        }
+        let cmp: number | null
+        if (sumQty > 1e-9) {
+          cmp = sumCost / sumQty
+          lastCmp = cmp
+        } else {
+          cmp = anyPurchase ? lastCmp : null // forward-fill; null antes da 1ª compra
+        }
+
+        const margem = placa !== null && cmp !== null ? placa - cmp : null
+        return { data: dia, placa, cmp, margem, mm30: null, mm90: null }
+      })
+
+      // Médias móveis trailing por dia (curvas do gráfico).
+      const margens = daily.map((p) => p.margem)
+      const mm30Serie = rollingMean(margens, 30)
+      const mm90Serie = rollingMean(margens, 90)
+      daily.forEach((p, i) => {
+        p.mm30 = mm30Serie[i]
+        p.mm90 = mm90Serie[i]
+      })
+
+      const validMargens = margens.filter((v): v is number => v !== null)
+      if (validMargens.length === 0) continue
+      const sortedAsc = validMargens.slice().sort((a, b) => a - b)
+
+      // Margem atual = margem não-nula mais recente.
+      let margemAtual: number | null = null
+      for (let i = daily.length - 1; i >= 0; i--) {
+        if (daily[i].margem !== null) {
+          margemAtual = daily[i].margem
+          break
+        }
+      }
+
+      const mm30 = trailingMean(margens, 30)
+      const mm90 = trailingMean(margens, 90)
+      const mm180 = trailingMean(margens, 180)
+      const mm365 = trailingMean(margens, 365)
+
+      const buildComp = (janela: number, mm: number | null): HistComparativo => ({
+        janela,
+        mm,
+        difAbs: mm !== null && margemAtual !== null ? margemAtual - mm : null,
+        difPct: mm !== null && mm > 0 && margemAtual !== null ? ((margemAtual - mm) / mm) * 100 : null,
+      })
+
+      let desvioVsMM90: number | null = null
+      let statusFaixaHist: StatusFaixa | null = null
+      if (mm90 !== null && mm90 > 0 && margemAtual !== null) {
+        desvioVsMM90 = ((margemAtual - mm90) / mm90) * 100
+        statusFaixaHist = faixaDeDesvio(Math.abs(desvioVsMM90))
+      }
+
+      rows.push({
+        qty: compras.reduce((s, c) => s + c.qty, 0),
+        row: {
+          produtoCodigo: codigo,
+          nome: nomeDe(codigo),
+          daily,
+          margemAtual,
+          mm30,
+          mm90,
+          mm180,
+          mm365,
+          mediana: percentile(sortedAsc, 50),
+          p25: percentile(sortedAsc, 25),
+          p75: percentile(sortedAsc, 75),
+          minimo: sortedAsc[0],
+          maximo: sortedAsc[sortedAsc.length - 1],
+          desvioPadrao: stdPop(validMargens),
+          comparativos: [buildComp(30, mm30), buildComp(90, mm90), buildComp(180, mm180), buildComp(365, mm365)],
+          desvioVsMM90,
+          statusFaixaHist,
+          coberturaDias: validMargens.length,
+          desde: daily.find((p) => p.margem !== null)?.data ?? null,
+        },
+      })
+    }
+
+    return rows
+      .sort((a, b) => b.qty - a.qty || a.row.nome.localeCompare(b.row.nome))
+      .map((r) => r.row)
+  }, [catalog, compraHistRaw, trocasHistRaw, scopedCodes, dataFinal])
 
   return {
     cmpRows: computed.cmpRows,
     trocaLog: computed.trocaLog,
+    histIndicadores,
     scopedCount: scopedCodes.length,
     isLoading: isLoadingProdutos || isLoadingCompra || isLoadingTrocas,
+    isLoadingHist: histEnabled && (isLoadingTrocasHist || isLoadingCompraHist),
     error: errorCompra ?? errorTrocas ?? null,
   }
 }
