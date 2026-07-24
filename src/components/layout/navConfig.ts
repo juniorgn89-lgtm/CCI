@@ -1,5 +1,5 @@
 import {
-  BarChart3, Warehouse, DollarSign, Brain, Gauge,
+  BarChart3, Warehouse, DollarSign, Brain, Fuel,
   Network, ShieldAlert, UsersRound, TrendingUp, Radio, ShieldCheck,
 } from 'lucide-react'
 
@@ -40,7 +40,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Posto',
     items: [
-      { label: 'Operação', path: '/operacao', icon: Gauge },
+      { label: 'Operação', path: '/operacao', icon: Fuel },
       { label: 'Produtividade', path: '/produtividade', icon: BarChart3 },
     ],
   },

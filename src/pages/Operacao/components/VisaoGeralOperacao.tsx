@@ -1,9 +1,10 @@
 import { Fragment, useMemo, useState } from 'react'
-import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, ChevronRight, CircleDollarSign, LineChart, Trophy, Warehouse } from 'lucide-react'
+import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, ChevronRight, CircleDollarSign, LineChart, Trophy, Warehouse, Gauge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import BarCell from '@/components/tables/BarCell'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
@@ -39,6 +40,8 @@ const STATUS_META: Record<StatusKind, { label: string; cls: string }> = {
 interface Props {
   postos: PostoOption[]
   onOpenPosto: (codigo: number, tab?: DetailTab) => void
+  /** Se o usuário pode ver Reabastecimento — controla a opção no menu "Analisar". */
+  canReabastecimento: boolean
 }
 
 /**
@@ -48,7 +51,7 @@ interface Props {
  * leva pra aba Bombas naquele posto. Só leitura, nunca inventa número:
  * combustível sem apuração aparece como "—".
  */
-const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
+const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) => {
   const { byPosto, isLoading: fuelLoading, hasCache } = usePostosLitros()
   const { tanques, isLoading: tankLoading } = useReabastecimento({ includeDetalhes: true })
 
@@ -195,7 +198,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
               <SortTh label="Posto" k="nome" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="py-2 pl-4 pr-3" />
               <SortTh label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="border-l border-gray-200 py-2 px-3 dark:border-gray-700" />
               <SortTh label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
-              <th className="border-l border-gray-200 py-2 px-3 dark:border-gray-700">Nível</th>
+              <th className="border-l border-gray-200 py-2 px-3 dark:border-gray-700">Por status</th>
               <SortTh label="Reposição" k="reposicao" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
               <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="border-l border-gray-200 py-2 px-3 dark:border-gray-700" />
               <th className="py-2 pl-3 pr-4 text-right">Ação</th>
@@ -242,11 +245,30 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
                     <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800">
                       <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold', sm.cls)}>{sm.label}</span>
                     </td>
-                    <td className="py-2.5 pl-3 pr-4 text-right">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); onOpenPosto(r.codigo, 'bombas') }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                        <LineChart className="h-3.5 w-3.5" />Analisar
-                      </button>
+                    <td className="py-2.5 pl-3 pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      {canReabastecimento ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button"
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                              <LineChart className="h-3.5 w-3.5" />Analisar<ChevronDown className="h-3 w-3 opacity-70" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'bombas')}>
+                              <Gauge className="h-3.5 w-3.5 text-gray-500" />Analisar em Bombas
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'reabastecimento')}>
+                              <Fuel className="h-3.5 w-3.5 text-gray-500" />Ver no Reabastecimento
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <button type="button" onClick={() => onOpenPosto(r.codigo, 'bombas')}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                          <LineChart className="h-3.5 w-3.5" />Analisar
+                        </button>
+                      )}
                     </td>
                   </tr>
                   {isOpen && (
@@ -257,12 +279,14 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
                             <Warehouse className="h-3.5 w-3.5" />Reposição por combustível · {r.nome}
                           </p>
                           <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => onOpenPosto(r.codigo, 'reabastecimento')}
-                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                              <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
-                            </button>
+                            {canReabastecimento && (
+                              <button type="button" onClick={() => onOpenPosto(r.codigo, 'reabastecimento')}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                                <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
+                              </button>
+                            )}
                             <button type="button" onClick={() => onOpenPosto(r.codigo, 'bombas')}
-                              className="inline-flex items-center gap-1 rounded-lg bg-[#1e3a5f] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#16293f] dark:bg-blue-700 dark:hover:bg-blue-600">
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#2563eb] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#2563eb] transition-colors hover:bg-blue-50 dark:border-blue-500 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-950/30">
                               <LineChart className="h-3.5 w-3.5" />Analisar em Bombas
                             </button>
                           </div>

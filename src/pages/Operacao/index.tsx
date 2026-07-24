@@ -115,7 +115,7 @@ const Operacao = () => {
       )}
 
       <Suspense fallback={<TabFallback />}>
-        {activeTab === 'geral' && <VisaoGeralOperacao postos={postos} onOpenPosto={abrirPosto} />}
+        {activeTab === 'geral' && <VisaoGeralOperacao postos={postos} onOpenPosto={abrirPosto} canReabastecimento={canVerReab} />}
         {activeTab === 'bombas' && <Bombas embedded empresaCodigo={selectedCodigo} />}
         {activeTab === 'reabastecimento' && <Reabastecimento embedded empresaCodigo={selectedCodigo} />}
       </Suspense>
