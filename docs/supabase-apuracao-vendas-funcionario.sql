@@ -10,9 +10,10 @@
 -- Granularidade: 1 linha por (rede, empresa, data, funcionario, setor). Guarda
 -- faturamento, custo, quantidade, acréscimos/descontos, nº de LINHAS e nº de
 -- CUPONS (vendaCodigo distinto daquele funcionário no setor/dia) — pro ticket
--- médio = faturamento ÷ cupons (igual ao BI). Só setores de loja
--- (automotivos/conveniencia); combustível fica de fora (= frentista via
--- abastecimentos). Só vendas autorizadas (situacao='A').
+-- médio = faturamento ÷ cupons (igual ao BI). Cobre loja (automotivos/
+-- conveniencia) E combustível — o frentista registra a venda de combustível, então
+-- funcionarioCodigo = frentista da pista (base da produtividade rede, já que o
+-- /ABASTECIMENTO físico está indisponível). Só vendas autorizadas (situacao='A').
 --
 -- Rode no SQL Editor do Supabase.
 

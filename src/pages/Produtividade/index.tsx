@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import useTabParam from '@/hooks/useTabParam'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Building2 } from 'lucide-react'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { formatLitersShort } from '@/lib/formatters'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -17,14 +18,15 @@ import { useFilterStore } from '@/store/filters'
 import { subTabs, type SubTab } from '@/pages/Operacao/components/produtividade/subTabs'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useOperacaoData'
 import useIsMobile from '@/hooks/useIsMobile'
 import ProdutividadeMobile from '@/pages/Produtividade/ProdutividadeMobile'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import VendedoresConveniencia from '@/pages/Produtividade/components/VendedoresConveniencia'
-import ProdutividadeTodos from '@/pages/Produtividade/components/ProdutividadeTodos'
 
+const VisaoGeralProdutividade = lazy(() => import('@/pages/Produtividade/components/VisaoGeralProdutividade'))
 const ProdutividadeTab = lazy(() => import('@/pages/Operacao/components/ProdutividadeTab'))
 const MetasFrentistas = lazy(() => import('@/pages/Produtividade/components/MetasFrentistas'))
 
@@ -47,34 +49,25 @@ const ritmoPorHoraAtiva = (rows: AbastecimentoRow[]): number => {
 }
 
 /**
- * Página Produtividade — header + DateRangeToolbar + 3 abas: Visão Geral (rede),
- * Frentistas (combustível) e Vendedores (conveniência), seguindo o padrão
- * Header → Tabs → Content.
+ * Página Produtividade — Visão Geral (rede inteira) + Frentistas + Vendedores +
+ * Metas. A Visão Geral resume a produtividade da pista de TODOS os postos; as
+ * abas de detalhe são por-posto, com seletor em pílula (badge = litros do posto).
+ * Sem gate de 1 posto: a Visão Geral abre a rede; o detalhe escolhe um posto. O
+ * dado pesado single-posto (useOperacaoData) só roda nas abas de detalhe.
  */
 const Produtividade = () => {
-  // Produtividade de frentista é por-posto (frentista trabalha numa loja). Mostra
-  // UM posto por vez, com seletor quando o filtro tem mais de um (Todos/subconjunto).
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const postos = empresaCodigos.length === 0
     ? empresasPermitidas
     : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
-  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
+  const [detailPosto, setDetailPosto] = useState<number | null>(null)
   const postoCodes = postos.map((p) => p.codigo)
-  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
-    ? activeCodigo
+  const selectedCodigo = detailPosto != null && postoCodes.includes(detailPosto)
+    ? detailPosto
     : (postos[0]?.codigo ?? null)
 
-  const {
-    kpis,
-    frentistaRows,
-    abastecimentoRows,
-    abastecimentoRowsPrev,
-    isLoading,
-    hasEmpresa,
-  } = useOperacaoData(selectedCodigo)
-  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
   const [prodTab, setProdTab] = useTabParam<SubTab>(
     'visao',
@@ -87,26 +80,28 @@ const Produtividade = () => {
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
     setProdTab(visibleTabs[0].id as SubTab)
   }
-  // Produtividade do frentista usa SEMPRE a data de abastecimento como base
-  // (sem o seletor Abast./Fiscal/Movimento). Fixa o modo ao montar a tela.
+  const isDetail = prodTab !== 'visao'
+
+  // Produtividade do frentista usa SEMPRE a data de abastecimento como base.
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
   const setAbastDateMode = useFilterStore((s) => s.setAbastDateMode)
   useEffect(() => {
     if (abastDateMode !== 'ABAST') setAbastDateMode('ABAST')
   }, [abastDateMode, setAbastDateMode])
 
-  // Linhas com custo por abastecimento (lucro bruto), do useAbastecimentosAnalytics
-  // (LMC/cache). Alimentam o Lucro bruto por dia da tabela; "—" até o custo chegar.
-  const { rows: abastComCusto, descAcrByFrentista } = useAbastecimentosAnalytics(selectedCodigo)
+  // Dado pesado single-posto SÓ nas abas de detalhe — a Visão Geral é rede-wide
+  // (usa seu próprio hook leve). null desliga o fetch quando estamos na Visão Geral.
+  const detailCodigo = isDetail ? selectedCodigo : null
+  const { kpis, frentistaRows, abastecimentoRows, abastecimentoRowsPrev, isLoading } = useOperacaoData(detailCodigo)
+  const { rows: abastComCusto, descAcrByFrentista } = useAbastecimentosAnalytics(detailCodigo)
+  const showSkeleton = useShowSkeleton(isLoading, !!kpis)
 
   const ritmo = useMemo(() => ritmoPorHoraAtiva(abastecimentoRows), [abastecimentoRows])
   const ritmoPrev = useMemo(() => ritmoPorHoraAtiva(abastecimentoRowsPrev), [abastecimentoRowsPrev])
-
   const topFrentista = useMemo(() => {
     const ativos = frentistaRows.filter((f) => f.ativo && f.litrosVendidos > 0)
     return ativos.sort((a, b) => b.litrosVendidos - a.litrosVendidos)[0] ?? null
   }, [frentistaRows])
-
   const topKpis = useMemo(
     () => kpis
       ? {
@@ -122,14 +117,25 @@ const Produtividade = () => {
     [kpis, ritmo, ritmoPrev, topFrentista],
   )
 
-  // Mobile: tela própria (KPIs + ranking de frentistas).
+  // Badge de litros por posto pras pílulas do detalhe.
+  const { byPosto } = usePostosLitros()
+  const badges = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const p of postos) {
+      const l = byPosto.get(p.codigo)?.litros
+      if (l != null && l > 0) m.set(p.codigo, formatLitersShort(l))
+    }
+    return m
+  }, [postos, byPosto])
+
   if (isMobile) return <ProdutividadeMobile />
-  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
-  if (empresaCodigos.length !== 1) return <SelectCompanyState />
+  if (postos.length === 0) return <SelectCompanyState />
+
+  const abrirPosto = (codigo: number, tab: SubTab) => { setDetailPosto(codigo); setProdTab(tab) }
 
   return (
     <div className="space-y-6">
-      {hasEmpresa && visibleTabs.length > 0 && (
+      {visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs
             active={prodTab}
@@ -145,47 +151,43 @@ const Produtividade = () => {
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
-      {hasEmpresa && (
-        <HeaderTray>
-          <ModuleSettings
-            title="Produtividade"
-            tabs={layoutTabs}
-            toggleVisibility={toggleVisibility}
-            moveUp={moveUp}
-            moveDown={moveDown}
-            reset={reset}
-          />
-        </HeaderTray>
-      )}
+      <HeaderTray>
+        <ModuleSettings
+          title="Produtividade"
+          tabs={layoutTabs}
+          toggleVisibility={toggleVisibility}
+          moveUp={moveUp}
+          moveDown={moveDown}
+          reset={reset}
+        />
+      </HeaderTray>
 
-      {/* Seletor de posto — só quando o filtro tem mais de um (Todos/subconjunto). */}
-      {postos.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+      {/* Seletor de posto (pílulas + litros) — só nas abas de detalhe e com >1 posto. */}
+      {isDetail && postos.length > 1 && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+              <Building2 className="h-3.5 w-3.5" /> Posto:
+            </span>
+            <PostoLocalSelect variant="pill" badges={badges} postos={postos} value={selectedCodigo} onChange={setDetailPosto} />
+          </div>
+          <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">
+            Frentistas, Vendedores e Metas são <span className="font-medium text-gray-500 dark:text-gray-400">por posto</span> — escolha um aqui. O número na pílula é o volume de combustível do posto no período. A visão da rede fica na aba <span className="font-medium text-gray-500 dark:text-gray-400">Visão Geral</span>.
+          </p>
         </div>
       )}
 
-      {postos.length === 0 && (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          Nenhum posto disponível.
-        </p>
-      )}
+      <Suspense fallback={<TabFallback />}>
+        {prodTab === 'visao' && <VisaoGeralProdutividade postos={postos} onOpenPosto={abrirPosto} />}
 
-      {hasEmpresa && prodTab === 'visao' && <ProdutividadeTodos empresaCodigo={selectedCodigo} />}
+        {prodTab === 'vendedores' && <VendedoresConveniencia empresaCodigo={selectedCodigo} />}
 
-      {hasEmpresa && prodTab === 'vendedores' && <VendedoresConveniencia empresaCodigo={selectedCodigo} />}
+        {prodTab === 'metas' && <MetasFrentistas empresaCodigo={selectedCodigo} />}
 
-      {hasEmpresa && prodTab === 'metas' && (
-        <Suspense fallback={<TabFallback />}>
-          <MetasFrentistas empresaCodigo={selectedCodigo} />
-        </Suspense>
-      )}
-
-      {hasEmpresa && prodTab === 'frentistas' && (
-        showSkeleton ? (
-          <TabFallback />
-        ) : (
-          <Suspense fallback={<TabFallback />}>
+        {prodTab === 'frentistas' && (
+          showSkeleton ? (
+            <TabFallback />
+          ) : (
             <ProdutividadeTab
               abastecimentoRows={abastecimentoRows}
               abastComCusto={abastComCusto}
@@ -193,9 +195,9 @@ const Produtividade = () => {
               isLoading={isLoading}
               topKpis={topKpis}
             />
-          </Suspense>
-        )
-      )}
+          )
+        )}
+      </Suspense>
     </div>
   )
 }

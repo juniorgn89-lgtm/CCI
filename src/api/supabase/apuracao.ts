@@ -1177,8 +1177,10 @@ export const aggregateVendaCache = (
     if (setor !== 'combustivel') {
       add(grupoSets, `${it.empresaCodigo}|${data}|${info?.grupo || 'Sem grupo'}`, it.vendaCodigo)
       add(produtoSets, `${it.empresaCodigo}|${data}|${it.produtoCodigo}`, it.vendaCodigo)
-      if (it.funcionarioCodigo) add(funcSets, `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`, it.vendaCodigo)
     }
+    // Cupons por funcionário AGORA incluem combustível (o frentista registra a
+    // venda → funcionarioCodigo = frentista). Base da produtividade da pista.
+    if (it.funcionarioCodigo) add(funcSets, `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`, it.vendaCodigo)
   }
   const cuponsByDay = new Map<string, number>()
   for (const [k, s] of setorSets) cuponsByDay.set(k, s.size)
@@ -1227,13 +1229,14 @@ export const aggregateVendaCache = (
         cupons_produto: setor === 'combustivel' ? 0 : (produtoSets.get(`${it.empresaCodigo}|${data}|${it.produtoCodigo}`)?.size ?? 0),
       })
     }
-    // funcRows — só loja (automotivos/conveniência) e com funcionário.
-    if (setor !== 'combustivel' && it.funcionarioCodigo) {
+    // funcRows — todos os setores COM funcionário (combustível incluído: o
+    // frentista da pista registra a venda). Custo com fallback (igual vendaRows).
+    if (it.funcionarioCodigo) {
       const fkey = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
       const ef = fmap.get(fkey)
       if (ef) {
         ef.faturamento += it.totalVenda ?? 0
-        ef.custo += it.totalCusto ?? 0
+        ef.custo += custo
         ef.quantidade += it.quantidade ?? 0
         ef.acrescimos += it.totalAcrescimo ?? 0
         ef.descontos += it.totalDesconto ?? 0
@@ -1246,7 +1249,7 @@ export const aggregateVendaCache = (
           funcionario_codigo: it.funcionarioCodigo,
           setor,
           faturamento: it.totalVenda ?? 0,
-          custo: it.totalCusto ?? 0,
+          custo,
           quantidade: it.quantidade ?? 0,
           acrescimos: it.totalAcrescimo ?? 0,
           descontos: it.totalDesconto ?? 0,

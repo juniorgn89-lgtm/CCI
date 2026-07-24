@@ -380,10 +380,15 @@ export const aggregateVendaCache = (
     if (!data || it.vendaCodigo == null) continue
     add(setorSets, `${it.empresaCodigo}|${data}|${setor}`, it.vendaCodigo)
     if (setor !== 'combustivel') {
+      // cupons por grupo/produto seguem só pra loja (não fazem sentido em combustível).
       add(grupoSets, `${it.empresaCodigo}|${data}|${info?.grupo || 'Sem grupo'}`, it.vendaCodigo)
       add(produtoSets, `${it.empresaCodigo}|${data}|${it.produtoCodigo}`, it.vendaCodigo)
-      if (it.funcionarioCodigo) add(funcSets, `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`, it.vendaCodigo)
     }
+    // Cupons por funcionário — AGORA inclui combustível: no posto o frentista
+    // registra a venda de combustível, então funcionarioCodigo = frentista da
+    // pista. Base da produtividade (litros/frentista) pelo fiscal (o /ABASTECIMENTO
+    // físico está indisponível — ver produtividade rede).
+    if (it.funcionarioCodigo) add(funcSets, `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`, it.vendaCodigo)
   }
   const cuponsByDay = new Map<string, number>()
   for (const [k, s] of setorSets) cuponsByDay.set(k, s.size)
@@ -432,12 +437,14 @@ export const aggregateVendaCache = (
         cupons_produto: setor === 'combustivel' ? 0 : (produtoSets.get(`${it.empresaCodigo}|${data}|${it.produtoCodigo}`)?.size ?? 0),
       })
     }
-    if (setor !== 'combustivel' && it.funcionarioCodigo) {
+    // Por funcionário AGORA inclui combustível (funcionarioCodigo = frentista).
+    // Usa o `custo` com fallback (mesma base do WebPosto) em vez de só totalCusto.
+    if (it.funcionarioCodigo) {
       const fkey = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
       const ef = fmap.get(fkey)
       if (ef) {
         ef.faturamento += it.totalVenda ?? 0
-        ef.custo += it.totalCusto ?? 0
+        ef.custo += custo
         ef.quantidade += it.quantidade ?? 0
         ef.acrescimos += it.totalAcrescimo ?? 0
         ef.descontos += it.totalDesconto ?? 0
@@ -450,7 +457,7 @@ export const aggregateVendaCache = (
           funcionario_codigo: it.funcionarioCodigo,
           setor,
           faturamento: it.totalVenda ?? 0,
-          custo: it.totalCusto ?? 0,
+          custo,
           quantidade: it.quantidade ?? 0,
           acrescimos: it.totalAcrescimo ?? 0,
           descontos: it.totalDesconto ?? 0,
