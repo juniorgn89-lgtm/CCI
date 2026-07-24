@@ -67,22 +67,33 @@ const TanqueCard = ({ t, subtitle }: { t: ReabastTanque; subtitle?: string }) =>
           {t.nivelPct.toFixed(2)}%
         </span>
       </div>
-      <p className="mt-1.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-        {formatLiters(t.estoqueAtual)} de {formatLiters(t.capacidade)}
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+        <span>{formatLiters(t.estoqueAtual)} de {formatLiters(t.capacidade)}</span>
+        {t.estoqueFonte === 'estimado' && t.medicaoData ? (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+            · estimado agora (medição {fmtDateShort(t.medicaoData)})
+            <InfoHint text="Estimativa do estoque AGORA = físico da última medição do tanque (LMC) + o que entrou/saiu desde então. Aproxima a 'Estoque Rede' do WebPosto (que re-mede o tanque ao vivo); pode diferir um pouco por perda/sobra do dia." />
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-normal text-amber-600 dark:text-amber-400">
+            · escritural
+            <InfoHint text="Sem medição física recente no LMC pra este tanque — mostrando o estoque escritural (contábil) do /TANQUES, que pode divergir do físico pela perda/sobra." />
+          </span>
+        )}
       </p>
 
       {/* Rodapé: última compra + necessidade — fixado embaixo (mt-auto) pra
           os cards ficarem alinhados mesmo com conteúdos diferentes. */}
       <div className="mt-auto flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs dark:border-gray-800">
         {t.ultimaCompra ? (
-          <span className="inline-flex items-start gap-1 text-gray-600 dark:text-gray-400">
-            <ShoppingCart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-            <span>
-              <span className="inline-flex items-center gap-0.5">
-                Última compra
-                <InfoHint text="Última nota de compra do produto (nota de entrada), refletida assim que CADASTRADA no sistema — não espera a escrituração no LMC. NF cancelada é desconsiderada automaticamente. Como a nota é do produto, tanques do mesmo combustível mostram a mesma última compra." />
+          <span className="flex items-start gap-1.5 rounded-lg bg-gray-50 px-2 py-1.5 ring-1 ring-inset ring-gray-200 dark:bg-gray-800/50 dark:ring-gray-700">
+            <ShoppingCart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
+            <span className="text-gray-600 dark:text-gray-300">
+              <span className="inline-flex items-center gap-0.5 font-semibold text-gray-800 dark:text-gray-100">
+                Última compra do produto
+                <InfoHint text="Última nota de compra do PRODUTO (nota de entrada), refletida assim que CADASTRADA no sistema — não espera a escrituração no LMC. NF cancelada é desconsiderada automaticamente. Como a nota é por produto (não por tanque), todos os tanques do mesmo combustível mostram a mesma compra — não é dobro." />
               </span>:{' '}
-              <span className="whitespace-nowrap font-medium tabular-nums text-gray-800 dark:text-gray-200">
+              <span className="whitespace-nowrap font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {formatLiters(t.ultimaCompra.volume)}
               </span>
               {' '}em{' '}

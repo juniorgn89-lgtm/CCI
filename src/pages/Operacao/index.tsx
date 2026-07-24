@@ -8,6 +8,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useIsMobile from '@/hooks/useIsMobile'
 import { formatLitersShort } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -81,12 +82,18 @@ const Operacao = () => {
     ...(canVerReab ? [{ id: 'reabastecimento', label: 'Reabastecimento', Icon: Fuel }] : []),
   ]
 
-  const abrirPosto = (codigo: number) => { setDetailPosto(codigo); setTab('bombas') }
+  const abrirPosto = (codigo: number, destino: 'bombas' | 'reabastecimento' = 'bombas') => {
+    setDetailPosto(codigo)
+    setTab(destino === 'reabastecimento' && !canVerReab ? 'bombas' : destino)
+  }
 
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={tabs} />
+        <div className="flex items-center gap-1.5">
+          <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={tabs} />
+          <InfoHint side="bottom" text="Visão Geral: a rede inteira num quadro — litros, tanques e reposição de cada posto. Bombas: abre um posto e mostra litros por bomba, desgaste e aferições. Reabastecimento: abre um posto e mostra o nível dos tanques e quanto comprar até o fim do mês." />
+        </div>
       </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />

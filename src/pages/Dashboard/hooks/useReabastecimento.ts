@@ -24,6 +24,12 @@ export interface ReabastTanque {
   produtoNome: string
   capacidade: number
   estoqueAtual: number
+  /** Origem do `estoqueAtual`: 'estimado' = físico da última medição do LMC +
+   * movimento do book desde então (aproxima o ao-vivo do ERP); 'escritural' =
+   * contábil puro do /TANQUES (fallback quando não há medição no LMC). */
+  estoqueFonte: 'estimado' | 'escritural'
+  /** Data (yyyy-MM-dd) da medição física que ancora a estimativa; null se escritural. */
+  medicaoData: string | null
   nivelPct: number
   nivel: ReabastNivel
   /** Última nota de compra do PRODUTO (via /COMPRA_ITEM) — reflete a NF assim que
@@ -223,6 +229,44 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     return m
   }, [lmcData, includeDetalhes, today])
 
+  // Âncora física por tanque = medição (fechamento) do LMC mais recente + o
+  // escritural DAQUELE dia. Serve pra estimar o estoque "agora": físico da
+  // medição + movimento do book desde então (escritural atual − escritural da
+  // medição) — aproxima o ao-vivo da "Estoque Rede" do ERP sem gauge. Só dias
+  // com medição real (fechamento > 0); guarda a data pra ser honesto no frescor.
+  const fisicoByTanque = useMemo(() => {
+    const m = new Map<string, { fisico: number; escrituralMedicao: number; data: string }>()
+    if (!includeDetalhes) return m
+    for (const lmc of lmcData) {
+      const data = lmc.dataMovimento?.slice(0, 10)
+      if (!data) continue
+      for (const lt of lmc.lmcTanque ?? []) {
+        if (!lt.fechamento || lt.fechamento <= 0) continue
+        const key = `${lmc.empresaCodigo}-${lt.tanqueCodigo}`
+        const prev = m.get(key)
+        if (!prev || data > prev.data) m.set(key, { fisico: lt.fechamento, escrituralMedicao: lt.escritural ?? 0, data })
+      }
+    }
+    return m
+  }, [lmcData, includeDetalhes])
+
+  // Ref do tanque = número sequencial 1..N POR POSTO (ordenado por código), como
+  // o "Ref" 1/2/3 do ERP. A API não expõe o código externo real, então numeramos.
+  const tanqueSeq = useMemo(() => {
+    const byEmpresa = new Map<number, number[]>()
+    for (const t of tanquesAll) {
+      const arr = byEmpresa.get(t.empresaCodigo) ?? []
+      arr.push(t.tanqueCodigo)
+      byEmpresa.set(t.empresaCodigo, arr)
+    }
+    const seq = new Map<string, number>()
+    for (const [emp, codes] of byEmpresa) {
+      codes.sort((a, b) => a - b)
+      codes.forEach((c, i) => seq.set(`${emp}-${c}`, i + 1))
+    }
+    return seq
+  }, [tanquesAll])
+
   // Dias decorridos e restantes do mês corrente (pra projeção)
   const diasDoMes = useMemo(() => {
     const last = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
@@ -235,7 +279,19 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     return tanquesAll
       .map((t) => {
         const capacidade = Number(t.capacidade) || 0
-        const estoqueAtual = Number(t.estoqueEscritural) || 0
+        const estoqueEscritural = Number(t.estoqueEscritural) || 0
+        // Estoque estimado "agora" = físico da última medição + movimento do book
+        // desde então (escritural atual − escritural do dia da medição). Aproxima
+        // o ao-vivo do ERP. Sem medição no LMC → escritural puro (fallback).
+        const anchor = fisicoByTanque.get(`${t.empresaCodigo}-${t.tanqueCodigo}`)
+        const usaEstimativa = !!anchor && anchor.escrituralMedicao > 0
+        const estoqueAtual = usaEstimativa
+          ? Math.max(0, anchor!.fisico + (estoqueEscritural - anchor!.escrituralMedicao))
+          : estoqueEscritural
+        const estoqueFonte: 'estimado' | 'escritural' = usaEstimativa ? 'estimado' : 'escritural'
+        const medicaoData = usaEstimativa ? anchor!.data : null
+        // Ref do tanque = sequência 1..N por posto (espelha o "Ref" do ERP).
+        const tanqueRef = tanqueSeq.get(`${t.empresaCodigo}-${t.tanqueCodigo}`) ?? t.tanqueCodigo
         const nivelPct = capacidade > 0 ? (estoqueAtual / capacidade) * 100 : 0
         const nivel: ReabastNivel =
           nivelPct < CRITICO_THRESHOLD ? 'critico' :
@@ -255,11 +311,13 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
           empresaCodigo: t.empresaCodigo,
           empresaNome: empresaMap.get(t.empresaCodigo) ?? `Empresa ${t.empresaCodigo}`,
           tanqueCodigo: t.tanqueCodigo,
-          tanqueNome: t.name || `Tanque ${t.tanqueCodigo}`,
+          tanqueNome: t.name || `Tanque ${tanqueRef}`,
           produtoCodigo: t.produtoCodigo,
           produtoNome: produtoMap.get(t.produtoCodigo) ?? `Produto ${t.produtoCodigo}`,
           capacidade,
           estoqueAtual,
+          estoqueFonte,
+          medicaoData,
           nivelPct,
           nivel,
           ultimaCompra,
@@ -273,7 +331,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
         if (order[a.nivel] !== order[b.nivel]) return order[a.nivel] - order[b.nivel]
         return a.nivelPct - b.nivelPct
       })
-  }, [tanquesAll, empresaMap, produtoMap, detalhesByTanque, ultimaCompraByProduto, diasDecorridos, diasRestantesMes])
+  }, [tanquesAll, empresaMap, produtoMap, detalhesByTanque, fisicoByTanque, tanqueSeq, ultimaCompraByProduto, diasDecorridos, diasRestantesMes])
 
   const baixos = useMemo(() => tanques.filter((t) => t.nivel !== 'ok'), [tanques])
   const criticos = useMemo(() => tanques.filter((t) => t.nivel === 'critico'), [tanques])

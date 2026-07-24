@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, TrendingDown, LayoutGrid, ClipboardList } from 'lucide-react'
+import { Fuel, AlertTriangle, CheckCircle2, Clock, Loader2, LayoutGrid, ClipboardList } from 'lucide-react'
 import { formatLiters } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
@@ -93,24 +93,6 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
         <StatCard label="Alerta" value={resumo.alerta} sub="entre 20% e 30%" icon={Clock} color="amber" hint="Tanques entre 20% e 30% da capacidade — atenção ao reabastecimento." />
         <StatCard label="OK" value={resumo.ok} sub="acima de 30%" icon={CheckCircle2} color="emerald" hint="Tanques acima de 30% da capacidade — nível saudável." />
       </div>
-
-      {/* Necessidade total — strip azul destacado */}
-      {resumo.totalNecessidade > 0 && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 bg-blue-50/60 px-5 py-3 dark:border-blue-900/40 dark:bg-blue-900/20">
-          <TrendingDown className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-              Necessidade total até fim do mês
-            </p>
-            <p className="text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">
-              {formatLiters(resumo.totalNecessidade)}
-            </p>
-          </div>
-          <p className="ml-auto text-[11px] text-blue-600/70 dark:text-blue-400/70">
-            Projeção baseada no consumo médio diário do mês
-          </p>
-        </div>
-      )}
 
       {/* Switcher de visão + filtro de status (vale pras duas visões) */}
       <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">

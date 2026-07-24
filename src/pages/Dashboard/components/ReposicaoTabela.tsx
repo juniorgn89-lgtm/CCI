@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import BarCell from '@/components/tables/BarCell'
 import InfoHint from '@/components/ui/InfoHint'
-import { formatLiters } from '@/lib/formatters'
+import { formatLiters, formatPercent } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { calcularMaxes, type ReposicaoLinha, type ReposicaoMaxes } from '@/pages/Dashboard/components/reposicao'
 
@@ -26,10 +26,11 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <table className="w-full table-fixed text-xs">
         <colgroup>
-          <col className="w-[70px]" />
-          <col className="w-[28%]" />
+          <col className="w-[64px]" />
+          <col className="w-[24%]" />
           <col className="w-[16%]" />
-          <col className="w-[14%]" />
+          <col className="w-[13%]" />
+          <col className="w-[9%]" />
           <col className="w-[12%]" />
           <col className="w-[16%]" />
         </colgroup>
@@ -39,6 +40,7 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
             <th className="px-3 py-2 text-left font-medium">Produto</th>
             <th className="px-3 py-2 text-right font-medium">Estoque atual</th>
             <th className="px-3 py-2 text-right font-medium">Capacidade</th>
+            <th className="px-3 py-2 text-right font-medium">Nível</th>
             <th className="px-3 py-2 text-right font-medium">Ritmo/dia</th>
             <th className="px-3 py-2 text-right font-medium">Sugestão</th>
           </tr>
@@ -82,6 +84,14 @@ const ReposicaoTabela = ({ linhas, maxes }: ReposicaoTabelaProps) => {
                 <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                   {/* Capacidade é referência estática (tamanho do tanque) — sem barra. */}
                   {formatLiters(r.capacidade)}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {/* Nível = estoque/capacidade, com a mesma criticidade dos cards. */}
+                  {(() => {
+                    const pct = r.capacidade > 0 ? (r.estoque / r.capacidade) * 100 : 0
+                    const cor = pct < 20 ? 'text-red-600 dark:text-red-400' : pct < 30 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                    return <span className={cn('font-semibold tabular-nums', cor)}>{formatPercent(pct)}</span>
+                  })()}
                 </td>
                 <td className="px-2 py-1.5">
                   {/* Verde = consumo/vendas (positivo). */}

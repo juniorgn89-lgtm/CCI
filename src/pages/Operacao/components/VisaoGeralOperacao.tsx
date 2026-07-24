@@ -1,15 +1,19 @@
-import { useMemo, useState } from 'react'
-import { Droplets, AlertTriangle, Fuel, ArrowRight, ChevronDown, ChevronUp, CircleDollarSign } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
+import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, ChevronRight, CircleDollarSign, LineChart, Trophy, Warehouse } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
+import BarCell from '@/components/tables/BarCell'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
-import useReabastecimento from '@/pages/Dashboard/hooks/useReabastecimento'
+import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
+import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
+import { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/reposicao'
 import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
 
 type StatusKind = 'critico' | 'atencao' | 'ok' | 'sem-dado'
 type SortKey = 'nome' | 'litros' | 'faturamento' | 'reposicao' | 'status'
+type DetailTab = 'bombas' | 'reabastecimento'
 
 interface VgRow {
   codigo: number
@@ -34,15 +38,15 @@ const STATUS_META: Record<StatusKind, { label: string; cls: string }> = {
 
 interface Props {
   postos: PostoOption[]
-  onOpenPosto: (codigo: number) => void
+  onOpenPosto: (codigo: number, tab?: DetailTab) => void
 }
 
 /**
- * Visão Geral da Operação — rede inteira num quadro só: o resumo do que as abas
- * Bombas (litros/faturamento de combustível) e Reabastecimento (tanques +
- * reposição) mostram, POR POSTO. Fonte rede-wide barata: cache de vendas por
- * setor + tanques ao vivo. Clicar num posto abre o detalhe (aba Bombas). Só
- * leitura — nunca inventa número: combustível sem apuração aparece como "—".
+ * Visão Geral da Operação — rede inteira no estilo da Central: cabeçalho
+ * agrupado, heatmap e linha expansível (drill-down). Cada posto abre a reposição
+ * por produto (mesma tabela do Reabastecimento) e traz um botão "Analisar" que
+ * leva pra aba Bombas naquele posto. Só leitura, nunca inventa número:
+ * combustível sem apuração aparece como "—".
  */
 const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
   const { byPosto, isLoading: fuelLoading, hasCache } = usePostosLitros()
@@ -50,48 +54,57 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
 
   const postoSet = useMemo(() => new Set(postos.map((p) => p.codigo)), [postos])
 
-  const rows: VgRow[] = useMemo(() => {
-    // Tanques agregados por posto (só os postos do escopo do filtro).
-    const tankAgg = new Map<number, { crit: number; alerta: number; ok: number; reposicao: number }>()
+  // Tanques do escopo, agrupados por posto — base das linhas E do drill.
+  const tanquesByPosto = useMemo(() => {
+    const m = new Map<number, ReabastTanque[]>()
     for (const t of tanques) {
       if (!postoSet.has(t.empresaCodigo)) continue
-      const a = tankAgg.get(t.empresaCodigo) ?? { crit: 0, alerta: 0, ok: 0, reposicao: 0 }
-      if (t.nivel === 'critico') a.crit += 1
-      else if (t.nivel === 'alerta') a.alerta += 1
-      else a.ok += 1
-      a.reposicao += t.necessidadeFimDoMes
-      tankAgg.set(t.empresaCodigo, a)
+      const arr = m.get(t.empresaCodigo) ?? []
+      arr.push(t)
+      m.set(t.empresaCodigo, arr)
     }
+    return m
+  }, [tanques, postoSet])
+
+  // Reposição por produto por posto (drill) + máximos compartilhados (comparáveis).
+  const linhasByPosto = useMemo(() => {
+    const m = new Map<number, ReposicaoLinha[]>()
+    for (const [cod, ts] of tanquesByPosto) m.set(cod, aggregarPorProduto(ts))
+    return m
+  }, [tanquesByPosto])
+  const sharedMaxes = useMemo(
+    () => calcularMaxes([...linhasByPosto.values()].map((linhas) => ({ linhas }))),
+    [linhasByPosto],
+  )
+
+  const rows: VgRow[] = useMemo(() => {
     return postos.map((p) => {
       const fuel = byPosto.get(p.codigo)
-      const t = tankAgg.get(p.codigo)
-      const tanquesTotal = t ? t.crit + t.alerta + t.ok : 0
-      const status: StatusKind = !t || tanquesTotal === 0
-        ? 'sem-dado'
-        : t.crit > 0 ? 'critico' : t.alerta > 0 ? 'atencao' : 'ok'
-      return {
-        codigo: p.codigo,
-        nome: p.fantasia,
-        litros: fuel?.litros ?? 0,
-        faturamento: fuel?.faturamento ?? 0,
-        crit: t?.crit ?? 0,
-        alerta: t?.alerta ?? 0,
-        ok: t?.ok ?? 0,
-        tanques: tanquesTotal,
-        reposicao: t?.reposicao ?? 0,
-        status,
+      const ts = tanquesByPosto.get(p.codigo) ?? []
+      let crit = 0, alerta = 0, ok = 0, reposicao = 0
+      for (const t of ts) {
+        if (t.nivel === 'critico') crit += 1
+        else if (t.nivel === 'alerta') alerta += 1
+        else ok += 1
+        reposicao += t.necessidadeFimDoMes
       }
+      const status: StatusKind = ts.length === 0
+        ? 'sem-dado'
+        : crit > 0 ? 'critico' : alerta > 0 ? 'atencao' : 'ok'
+      return { codigo: p.codigo, nome: p.fantasia, litros: fuel?.litros ?? 0, faturamento: fuel?.faturamento ?? 0, crit, alerta, ok, tanques: ts.length, reposicao, status }
     })
-  }, [postos, postoSet, byPosto, tanques])
+  }, [postos, byPosto, tanquesByPosto])
 
   const totais = useMemo(() => ({
     litros: rows.reduce((s, r) => s + r.litros, 0),
     faturamento: rows.reduce((s, r) => s + r.faturamento, 0),
     postosCriticos: rows.filter((r) => r.crit > 0).length,
     reposicao: rows.reduce((s, r) => s + r.reposicao, 0),
+    tanques: rows.reduce((s, r) => s + r.tanques, 0),
   }), [rows])
 
   const maxLitros = useMemo(() => Math.max(1, ...rows.map((r) => r.litros)), [rows])
+  const topLitros = useMemo(() => (hasCache ? rows.reduce((mx, r) => Math.max(mx, r.litros), 0) : -1), [rows, hasCache])
 
   const [sortKey, setSortKey] = useState<SortKey>('litros')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -114,8 +127,15 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
     return arr
   }, [rows, sortKey, sortDir])
 
-  const loading = (fuelLoading || tankLoading) && rows.every((r) => r.litros === 0 && r.tanques === 0)
+  const [aberto, setAberto] = useState<Set<number>>(new Set())
+  const toggleAberto = (cod: number) => setAberto((prev) => {
+    const next = new Set(prev)
+    if (next.has(cod)) next.delete(cod)
+    else next.add(cod)
+    return next
+  })
 
+  const loading = (fuelLoading || tankLoading) && rows.every((r) => r.litros === 0 && r.tanques === 0)
   if (loading) {
     return (
       <div className="space-y-4">
@@ -126,6 +146,8 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
       </div>
     )
   }
+
+  const COLS = 7
 
   return (
     <div className="space-y-4">
@@ -153,59 +175,107 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
         </p>
       )}
 
-      {/* Tabela por posto */}
+      {/* Tabela por posto — estilo Central (grupos + heatmap + drill) */}
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Resumo por posto</h3>
-          <InfoHint text="Cada linha = um posto. Litros e faturamento vêm da apuração de combustível; tanques e reposição, ao vivo. Clique no posto pra abrir o detalhe (Bombas)." />
+          <InfoHint text="Cada linha = um posto. Clique na linha pra abrir a reposição por combustível; use Analisar pra ir ao detalhe (Bombas). Litros/faturamento vêm da apuração; tanques e reposição, ao vivo." />
         </div>
         <table className="w-full text-[13px]">
           <thead>
+            {/* Linha de grupos */}
+            <tr>
+              <th className="py-1.5" />
+              <GroupTh first label="Combustível" colSpan={2} />
+              <GroupTh label="Tanques" colSpan={2} />
+              <GroupTh label="Situação" colSpan={2} />
+            </tr>
+            {/* Linha de colunas */}
             <tr className="border-b border-gray-200 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:border-gray-700 dark:text-gray-500">
               <SortTh label="Posto" k="nome" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="py-2 pl-4 pr-3" />
-              <SortTh label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
+              <SortTh label="Litros" k="litros" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="border-l border-gray-200 py-2 px-3 dark:border-gray-700" />
               <SortTh label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
-              <th className="py-2 px-3">Tanques</th>
+              <th className="border-l border-gray-200 py-2 px-3 dark:border-gray-700">Nível</th>
               <SortTh label="Reposição" k="reposicao" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
-              <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="py-2 px-3" />
-              <th className="py-2 pl-3 pr-4" />
+              <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="border-l border-gray-200 py-2 px-3 dark:border-gray-700" />
+              <th className="py-2 pl-3 pr-4 text-right">Ação</th>
             </tr>
           </thead>
           <tbody>
             {rowsSorted.map((r) => {
               const sm = STATUS_META[r.status]
+              const isOpen = aberto.has(r.codigo)
+              const linhas = linhasByPosto.get(r.codigo) ?? []
               return (
-                <tr key={r.codigo} onClick={() => onOpenPosto(r.codigo)}
-                  className="group cursor-pointer border-b border-gray-100 transition-colors last:border-0 hover:bg-blue-50/40 dark:border-gray-800 dark:hover:bg-blue-950/20">
-                  <td className="py-2.5 pl-4 pr-3 font-medium text-gray-900 dark:text-gray-100">{r.nome}</td>
-                  <td className="py-2.5 px-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 sm:block dark:bg-gray-800">
-                        <div className="h-full rounded-full bg-blue-500/80" style={{ width: `${Math.round((r.litros / maxLitros) * 100)}%` }} />
+                <Fragment key={r.codigo}>
+                  <tr onClick={() => toggleAberto(r.codigo)}
+                    className="group cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40 dark:border-gray-800 dark:hover:bg-blue-950/20">
+                    <td className="py-2.5 pl-4 pr-3">
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className={cn('h-4 w-4 shrink-0 text-gray-300 transition-transform dark:text-gray-600', isOpen && 'rotate-90 text-[#2563eb] dark:text-blue-400')} />
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{r.nome}</span>
+                        {hasCache && r.litros === topLitros && r.litros > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                            <Trophy className="h-3 w-3" />Destaque
+                          </span>
+                        )}
                       </div>
-                      <span className="tabular-nums text-gray-700 dark:text-gray-200">{hasCache ? formatLiters(r.litros) : '—'}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatCurrencyInt(r.faturamento) : '—'}</td>
-                  <td className="py-2.5 px-3">
-                    {r.tanques === 0 ? (
-                      <span className="text-[11px] text-gray-400">—</span>
-                    ) : (
-                      <div className="flex items-center gap-2 text-[11px] tabular-nums">
-                        {r.crit > 0 && <Dot cls="bg-red-500" n={r.crit} title="críticos" />}
-                        {r.alerta > 0 && <Dot cls="bg-amber-500" n={r.alerta} title="em alerta" />}
-                        {r.ok > 0 && <Dot cls="bg-emerald-500" n={r.ok} title="ok" />}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-gray-700 dark:text-gray-200">{r.reposicao > 0 ? formatLiters(r.reposicao) : '—'}</td>
-                  <td className="py-2.5 px-3">
-                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold', sm.cls)}>{sm.label}</span>
-                  </td>
-                  <td className="py-2.5 pl-3 pr-4 text-right">
-                    <ArrowRight className="ml-auto h-4 w-4 text-gray-300 transition-colors group-hover:text-[#2563eb] dark:text-gray-600" />
-                  </td>
-                </tr>
+                    </td>
+                    <td className="border-l border-gray-100 px-2 py-1.5 dark:border-gray-800">
+                      {hasCache
+                        ? <BarCell value={r.litros} max={maxLitros} formatted={formatLiters(r.litros)} color="blue" align="near" maxWidthPct={70} />
+                        : <span className="block px-1.5 text-right text-gray-400">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatCurrencyInt(r.faturamento) : '—'}</td>
+                    <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800">
+                      {r.tanques === 0 ? (
+                        <span className="text-[11px] text-gray-400">—</span>
+                      ) : (
+                        <div className="flex items-center gap-2 text-[11px] tabular-nums">
+                          {r.crit > 0 && <Dot cls="bg-red-500" n={r.crit} title="críticos" />}
+                          {r.alerta > 0 && <Dot cls="bg-amber-500" n={r.alerta} title="em alerta" />}
+                          {r.ok > 0 && <Dot cls="bg-emerald-500" n={r.ok} title="ok" />}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-200">{r.reposicao > 0 ? formatLiters(r.reposicao) : '—'}</td>
+                    <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800">
+                      <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold', sm.cls)}>{sm.label}</span>
+                    </td>
+                    <td className="py-2.5 pl-3 pr-4 text-right">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); onOpenPosto(r.codigo, 'bombas') }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                        <LineChart className="h-3.5 w-3.5" />Analisar
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="bg-gray-50/50 dark:bg-gray-800/20">
+                      <td colSpan={COLS} className="px-4 py-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <Warehouse className="h-3.5 w-3.5" />Reposição por combustível · {r.nome}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => onOpenPosto(r.codigo, 'reabastecimento')}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                              <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
+                            </button>
+                            <button type="button" onClick={() => onOpenPosto(r.codigo, 'bombas')}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#1e3a5f] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#16293f] dark:bg-blue-700 dark:hover:bg-blue-600">
+                              <LineChart className="h-3.5 w-3.5" />Analisar em Bombas
+                            </button>
+                          </div>
+                        </div>
+                        {linhas.length === 0 ? (
+                          <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-[12px] text-gray-400 dark:border-gray-700">Sem tanques cadastrados neste posto.</p>
+                        ) : (
+                          <ReposicaoTabela linhas={linhas} maxes={sharedMaxes} />
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
           </tbody>
@@ -213,11 +283,11 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
             <tfoot>
               <tr className="border-t border-gray-200 text-[13px] font-semibold dark:border-gray-700">
                 <td className="py-2.5 pl-4 pr-3 text-gray-500 dark:text-gray-400">Rede · {rows.length} postos</td>
-                <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatLiters(totais.litros) : '—'}</td>
-                <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatCurrencyInt(totais.faturamento) : '—'}</td>
-                <td className="py-2.5 px-3 text-[11px] text-gray-400">{formatNumber(rows.reduce((s, r) => s + r.tanques, 0))} tanques</td>
-                <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(totais.reposicao)}</td>
-                <td className="py-2.5 px-3" colSpan={2} />
+                <td className="border-l border-gray-100 px-3 py-2.5 text-right tabular-nums text-gray-900 dark:border-gray-800 dark:text-gray-100">{hasCache ? formatLiters(totais.litros) : '—'}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatCurrencyInt(totais.faturamento) : '—'}</td>
+                <td className="border-l border-gray-100 px-3 py-2.5 text-[11px] text-gray-400 dark:border-gray-800">{formatNumber(totais.tanques)} tanques</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(totais.reposicao)}</td>
+                <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800" colSpan={2} />
               </tr>
             </tfoot>
           )}
@@ -226,6 +296,12 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto }: Props) => {
     </div>
   )
 }
+
+const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; first?: boolean }) => (
+  <th colSpan={colSpan} className={cn('bg-gray-100/60 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-transparent dark:text-gray-500', !first && 'border-l border-gray-200 dark:border-gray-700')}>
+    {label}
+  </th>
+)
 
 const RedeCard = ({ label, value, sub, hint, Icon, tint, iconCls }: {
   label: string; value: string; sub?: string; hint: string; Icon: typeof Droplets; tint: string; iconCls: string
