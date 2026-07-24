@@ -28,9 +28,10 @@ const TabFallback = () => (
   </div>
 )
 
-const Bombas = ({ embedded = false }: { embedded?: boolean } = {}) => {
+const Bombas = ({ embedded = false, empresaCodigo }: { embedded?: boolean; empresaCodigo?: number | null } = {}) => {
   // Bomba é físico por-posto (precisão centavo → segue live). Mostra UM posto por
-  // vez, com seletor quando o filtro tem mais de um (Todos/subconjunto).
+  // vez. Embedded na Operação, o posto vem do shell (seletor em pílulas lá em
+  // cima); standalone, seletor próprio quando o filtro tem mais de um posto.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -39,9 +40,9 @@ const Bombas = ({ embedded = false }: { embedded?: boolean } = {}) => {
     : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
   const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
   const postoCodes = postos.map((p) => p.codigo)
-  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
-    ? activeCodigo
-    : (postos[0]?.codigo ?? null)
+  const selectedCodigo = embedded
+    ? (empresaCodigo ?? postos[0]?.codigo ?? null)
+    : (activeCodigo != null && postoCodes.includes(activeCodigo) ? activeCodigo : (postos[0]?.codigo ?? null))
 
   const { kpis, bombaRows, bombaRowsPrev, isLoading, hasEmpresa } = useOperacaoData(selectedCodigo)
   // Aferições do posto (afericao=true) — saída física de teste de bomba.
@@ -80,8 +81,8 @@ const Bombas = ({ embedded = false }: { embedded?: boolean } = {}) => {
         </>
       )}
 
-      {/* Seletor de posto — só quando o filtro tem mais de um (Todos/subconjunto). */}
-      {postos.length > 1 && (
+      {/* Seletor de posto — só standalone; embedded na Operação o shell é dono. */}
+      {!embedded && postos.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
         </div>

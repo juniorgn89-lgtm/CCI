@@ -10,7 +10,7 @@ export interface PostoOption { codigo: number; fantasia: string }
 /** Acima disso, a fileira de chips vira bagunça → dropdown com busca. */
 const MAX_CHIPS = 8
 
-const PostoDropdown = ({ postos, value, onChange }: { postos: PostoOption[]; value: number | null; onChange: (c: number) => void }) => {
+const PostoDropdown = ({ postos, value, onChange, badges }: { postos: PostoOption[]; value: number | null; onChange: (c: number) => void; badges?: Map<number, string> }) => {
   const [open, setOpen] = useState(false)
   const [busca, setBusca] = useState('')
   const sel = postos.find((p) => p.codigo === value)
@@ -61,6 +61,11 @@ const PostoDropdown = ({ postos, value, onChange }: { postos: PostoOption[]; val
                 >
                   <Check className={cn('h-3.5 w-3.5 shrink-0', isSel ? 'text-[#2563eb]' : 'opacity-0')} />
                   <span className="truncate">{p.fantasia}</span>
+                  {badges?.get(p.codigo) && (
+                    <span className="ml-auto shrink-0 rounded bg-gray-100 px-1 text-[10px] font-bold tabular-nums text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                      {badges.get(p.codigo)}
+                    </span>
+                  )}
                 </DropdownMenuItem>
               )
             })
@@ -71,15 +76,57 @@ const PostoDropdown = ({ postos, value, onChange }: { postos: PostoOption[]; val
   )
 }
 
+interface PostoLocalSelectProps {
+  postos: PostoOption[]
+  value: number | null
+  onChange: (c: number) => void
+  /** `chip` (padrão) = botões soltos; `pill` = grupo estilo "Período" com badge. */
+  variant?: 'chip' | 'pill'
+  /** Texto opcional por posto (ex.: litros do período) mostrado como badge. */
+  badges?: Map<number, string>
+}
+
 /**
  * Seletor de UM posto LOCAL (não mexe no filtro global). Chips quando são poucos
  * (rápido, 1 clique); dropdown com busca quando há muitos (escala pra dezenas de
  * postos). Renderize DENTRO de um container flex — o pai controla label/rótulo.
- * Retorna null com ≤1 posto (nada a escolher).
+ * Retorna null com ≤1 posto (nada a escolher). `variant="pill"` usa o mesmo
+ * estilo das pílulas de Período (fundo agrupado + badge de contagem por posto).
  */
-const PostoLocalSelect = ({ postos, value, onChange }: { postos: PostoOption[]; value: number | null; onChange: (c: number) => void }) => {
+const PostoLocalSelect = ({ postos, value, onChange, variant = 'chip', badges }: PostoLocalSelectProps) => {
   if (postos.length <= 1) return null
-  if (postos.length > MAX_CHIPS) return <PostoDropdown postos={postos} value={value} onChange={onChange} />
+  if (postos.length > MAX_CHIPS) return <PostoDropdown postos={postos} value={value} onChange={onChange} badges={badges} />
+
+  if (variant === 'pill') {
+    return (
+      <div className="inline-flex flex-wrap gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+        {postos.map((e) => {
+          const ativo = e.codigo === value
+          const badge = badges?.get(e.codigo)
+          return (
+            <button
+              key={e.codigo}
+              type="button"
+              onClick={() => onChange(e.codigo)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+                ativo ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+            >
+              {e.fantasia}
+              {badge && (
+                <span className={cn('rounded px-1 text-[10px] font-bold tabular-nums',
+                  ativo ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <>
       {postos.map((e) => (

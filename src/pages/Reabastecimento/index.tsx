@@ -14,7 +14,7 @@ import ReabastecimentoMobile from '@/pages/Reabastecimento/ReabastecimentoMobile
  * rede), então a consolidação aqui = um card por posto do filtro: Todos = todos
  * os postos empilhados; subconjunto = esses; 1 posto = um.
  */
-const Reabastecimento = ({ embedded = false }: { embedded?: boolean } = {}) => {
+const Reabastecimento = ({ embedded = false, empresaCodigo }: { embedded?: boolean; empresaCodigo?: number | null } = {}) => {
   const { empresaCodigos } = useFilterStore()
   const isMobile = useIsMobile()
 
@@ -31,6 +31,21 @@ const Reabastecimento = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   // Embedded (dentro de Operação) roda só no desktop — o mobile é servido pelo OperacaoMobile.
   if (!embedded && isMobile) return <ReabastecimentoMobile />
+
+  // Embedded na Operação = UM posto por vez (o shell escolhe pela pílula).
+  if (embedded) {
+    return (
+      <div className="space-y-6">
+        {empresaCodigo == null ? (
+          <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            Nenhum posto disponível.
+          </p>
+        ) : (
+          <NivelTanquesCard empresaCodigo={empresaCodigo} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
