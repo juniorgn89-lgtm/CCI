@@ -315,7 +315,7 @@ const SortTh = ({ label, k, sortKey, sortDir, onSort, align, className }: {
 }) => {
   const active = sortKey === k
   return (
-    <th className={className}>
+    <th className={cn(className, align === 'right' && 'text-right')}>
       <button type="button" onClick={() => onSort(k)}
         className={cn('inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-gray-600 dark:hover:text-gray-300',
           align === 'right' && 'flex-row-reverse', active ? 'text-[#2563eb] dark:text-blue-300' : '')}>

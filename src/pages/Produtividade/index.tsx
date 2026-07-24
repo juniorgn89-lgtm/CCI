@@ -73,7 +73,10 @@ const Produtividade = () => {
     'visao',
     (v): v is SubTab => v === 'visao' || v === 'frentistas' || v === 'vendedores' || v === 'metas',
   )
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useProdutividadeLayout()
+  const { tabs: layoutTabsAll, toggleVisibility, moveUp, moveDown, reset } = useProdutividadeLayout()
+  // Aba "Metas" oculta por ora (decisão de produto) — filtrada aqui, some do tab
+  // bar E do menu de configuração. O store segue intacto (reativa removendo isto).
+  const layoutTabs = useMemo(() => layoutTabsAll.filter((t) => t.id !== 'metas'), [layoutTabsAll])
   const subTabByKey = useMemo(() => new Map(subTabs.map((t) => [t.key, t])), [])
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Se a aba ativa foi ocultada, cai pra primeira visível.

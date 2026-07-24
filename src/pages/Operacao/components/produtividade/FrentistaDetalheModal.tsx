@@ -92,7 +92,7 @@ const FrentistaDetalheModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-2xl flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-4xl flex-col overflow-hidden">
         {navegavel && (
           <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="frentista anterior" nextLabel="próximo frentista" />
         )}
