@@ -10,13 +10,19 @@ import { create } from 'zustand'
 interface TopbarUiState {
   filterDirty: boolean
   liveLock: boolean
+  /** Aplica o período em rascunho — registrado pelo DateRangeToolbar; chamado
+   *  pelo CTA central do AppLayout ("Clique aqui para aplicar o filtro"). */
+  applyFilter: (() => void) | null
   setFilterDirty: (v: boolean) => void
   setLiveLock: (v: boolean) => void
+  setApplyFilter: (fn: (() => void) | null) => void
 }
 
 export const useTopbarUi = create<TopbarUiState>((set) => ({
   filterDirty: false,
   liveLock: false,
+  applyFilter: null,
   setFilterDirty: (filterDirty) => set({ filterDirty }),
   setLiveLock: (liveLock) => set({ liveLock }),
+  setApplyFilter: (applyFilter) => set({ applyFilter }),
 }))

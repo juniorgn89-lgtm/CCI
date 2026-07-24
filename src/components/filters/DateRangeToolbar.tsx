@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import PeriodPresetSelect from '@/components/filters/PeriodPresetSelect'
 import { useFilters } from '@/hooks/useFilters'
@@ -75,10 +75,17 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   // são sempre do agora. Publica o estado "sujo" pro AppLayout embaçar a tela.
   const liveLock = useTopbarUi((s) => s.liveLock)
   const setFilterDirty = useTopbarUi((s) => s.setFilterDirty)
+  const setApplyFilter = useTopbarUi((s) => s.setApplyFilter)
   const dirty = (draftIni !== periodIni || draftFim !== periodFim) && !liveLock
   useEffect(() => { setFilterDirty(dirty) }, [dirty, setFilterDirty])
   useEffect(() => () => setFilterDirty(false), [setFilterDirty])
-  const handleVisualizar = () => setPeriodo(draftIni, draftFim)
+  // Publica o "aplicar" (rascunho atual) pro CTA central do AppLayout. Só no
+  // desktop (stacked=mobile aplica na hora, sem rascunho).
+  useEffect(() => {
+    if (stacked) return
+    setApplyFilter(dirty ? () => setPeriodo(draftIni, draftFim) : null)
+    return () => setApplyFilter(null)
+  }, [stacked, dirty, draftIni, draftFim, setPeriodo, setApplyFilter])
   // Modo empilhado (mobile): aplica na hora — sem rascunho/botão próprio (o
   // sheet tem um único "Visualizar"). No desktop segue com rascunho + Visualizar.
   const commitIni = (v: string) => { setDraftIni(v); if (stacked) setPeriodo(v, draftFim) }
@@ -162,24 +169,9 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
           <Calendar className="h-3.5 w-3.5" />
         </button>
       </div>
-      {!stacked && (
-        <button
-          type="button"
-          onClick={handleVisualizar}
-          disabled={!dirty}
-          title={dirty ? 'Aplicar o período selecionado' : 'Período já aplicado'}
-          className={cn(
-            'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all',
-            dirty
-              ? 'animate-pulse bg-[#1e3a5f] text-white shadow-lg ring-2 ring-orange-400 ring-offset-1 hover:bg-[#162a44] dark:ring-offset-gray-900'
-              : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
-          )}
-        >
-          <Eye className="h-3.5 w-3.5" />
-          Aplicar
-          {dirty && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="Alterações não aplicadas" />}
-        </button>
-      )}
+      {/* Sem botão "Aplicar" no canto — quando há mudança pendente, o AppLayout
+          mostra um CTA central ("Clique aqui para aplicar o filtro") sobre o
+          conteúdo embaçado. Mobile (stacked) aplica na hora, sem botão. */}
     </div>
   )
 }

@@ -30,6 +30,7 @@ import TopBar from '@/components/layout/TopBar'
 import SuporteCaduWidget from '@/components/cadu/SuporteCaduWidget'
 import useIsMobile from '@/hooks/useIsMobile'
 import MobileShell from '@/components/mobile/MobileShell'
+import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
 
 /**
@@ -63,6 +64,7 @@ const AppLayout = () => {
   // Período alterado e não aplicado → embaça o conteúdo (a TopBar com o botão
   // Visualizar fica nítida, virando o foco da tela).
   const filterDirty = useTopbarUi((s) => s.filterDirty)
+  const applyFilter = useTopbarUi((s) => s.applyFilter)
   // Recorte APLICADO mudou e os dados estão sendo buscados → pulsa o conteúdo
   // ("atualizando"). Os filtros/topbar ficam nítidos (fora do <main>).
   const dataUpdating = useDataUpdating()
@@ -239,7 +241,7 @@ const AppLayout = () => {
 
         {/* Painel de conteúdo — cantos arredondados sobre o fundo cinza do shell
             (estilo Gmail). TopBar + main vivem dentro dele. */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 md:m-2 md:rounded-2xl">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 md:m-2 md:rounded-2xl">
           {/* TopBar consolidada — título (slot-portal por página) + cluster único de
               filtros. Fica fixa no topo (irmã do <main> que rola). O período
               (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
@@ -284,6 +286,20 @@ const AppLayout = () => {
               <Outlet />
             </ErrorBoundary>
           </main>
+
+          {/* CTA central "aplicar filtro" — aparece sobre o conteúdo embaçado
+              quando há mudança de período pendente (substitui o antigo botão
+              "Aplicar" do canto). Fora do <main> pra não borrar e seguir clicável. */}
+          {showFilters && filterDirty && applyFilter && (
+            <button
+              type="button"
+              onClick={() => applyFilter()}
+              className="absolute left-1/2 top-1/2 z-30 inline-flex -translate-x-1/2 -translate-y-1/2 animate-pulse items-center gap-2 rounded-xl bg-[#1e3a5f] px-5 py-3 text-sm font-semibold text-white shadow-2xl ring-4 ring-orange-400/60 transition-all hover:animate-none hover:bg-[#162a44] hover:ring-orange-400"
+            >
+              <Eye className="h-4 w-4" />
+              Clique aqui para aplicar o filtro
+            </button>
+          )}
         </div>
       </div>
 
