@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Warehouse, Package, RefreshCw, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,7 +14,6 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useEstoquesLayout } from '@/store/moduleLayout'
-import EstoqueVisaoGeral from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
 import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
 import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
@@ -22,6 +21,8 @@ import NecessidadeEstoque from '@/pages/Estoques/components/abas/NecessidadeEsto
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 import useIsMobile from '@/hooks/useIsMobile'
 import EstoqueMobile from '@/pages/Estoques/EstoqueMobile'
+
+const EstoqueVisaoGeralRede = lazy(() => import('@/pages/Estoques/components/abas/EstoqueVisaoGeralRede'))
 
 const TAB_ICONS: Record<string, typeof Warehouse> = {
   visao: LayoutDashboard,
@@ -80,6 +81,14 @@ const JanelaSelect = ({
   </div>
 )
 
+/**
+ * Página Estoques — Visão Geral (rede inteira) + abas de detalhe por-posto
+ * (Estoque geral / Giro / Média de vendas / Necessidade). A Visão Geral resume
+ * o estoque de TODOS os postos do filtro (hook leve rede-wide); as abas de
+ * detalhe são por-posto, com seletor em pílula. Sem gate de 1 posto: a Visão
+ * Geral abre a rede; o detalhe escolhe um posto. O dado pesado single-posto
+ * (useEstoqueAnalytics) só roda nas abas de detalhe.
+ */
 const Estoques = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useEstoquesLayout()
   const visibleTabs = layoutTabs.filter((t) => t.visible)
@@ -96,9 +105,8 @@ const Estoques = () => {
   // estoque médio, média de venda e a necessidade de reabastecimento derivada.
   const [janelaDias, setJanelaDias] = useState<30 | 60 | 90>(30)
 
-  // Estoque é FÍSICO por-posto → a tela mostra UM posto por vez, com seletor de
-  // posto quando o filtro tem mais de um (Todos/subconjunto). Respeita o filtro
-  // sem alterar o estado global.
+  // Estoque é FÍSICO por-posto → o detalhe mostra UM posto por vez, com seletor
+  // quando o filtro tem mais de um. Respeita o filtro sem alterar o estado global.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -111,10 +119,13 @@ const Estoques = () => {
     ? activeCodigo
     : (postos[0]?.codigo ?? null)
 
-  const { productAnalytics, categorias, estoqueValorMensal, isLoading, hasEmpresa } = useEstoqueAnalytics(coberturaDias, janelaDias, selectedCodigo)
+  // Abas de detalhe são single-posto; a Visão Geral é rede-wide. O hook pesado
+  // (fan-out de estoque + histórico do posto) SÓ roda no detalhe — null desliga
+  // o fetch na Visão Geral (que usa seu próprio hook leve).
+  const isDetail = activeTab !== 'visao'
+  const { productAnalytics, categorias, isLoading } = useEstoqueAnalytics(coberturaDias, janelaDias, isDetail ? selectedCodigo : null)
 
-  // Abas cuja métrica depende da janela e mostram o seletor NO PARENT. A Visão
-  // Geral tem o seletor na própria barra de controles → fica fora desta lista.
+  // Abas cuja métrica depende da janela e mostram o seletor NO PARENT.
   const showJanelaSelector = ['giro', 'mediaVendas', 'necessidade'].includes(activeTab)
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
@@ -123,12 +134,17 @@ const Estoques = () => {
 
   // Mobile: tela própria (Reposição / Estoque / Giro).
   if (isMobile) return <EstoqueMobile />
-  // Módulo gateado: exige EXATAMENTE 1 posto (não permite "Todos" nem múltiplos).
-  if (empresaCodigos.length !== 1) return <SelectCompanyState />
+  // Sem posto disponível (nenhuma empresa permitida) → estado de seleção.
+  if (postos.length === 0) return <SelectCompanyState />
+
+  const abrirPosto = (codigo: number, tab: 'geral' | 'giro' | 'necessidade') => {
+    setActiveCodigo(codigo)
+    setActiveTab(tab)
+  }
 
   return (
     <div className="space-y-6">
-      {hasEmpresa && visibleTabs.length > 0 && (
+      {visibleTabs.length > 0 && (
         <PageHeaderTitle>
           <TopBarTabs
             tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: TAB_ICONS[t.id] ?? Warehouse }))}
@@ -144,72 +160,50 @@ const Estoques = () => {
           webPosto, cujo "Qtd" não muda com a data). Histórico fixo de 6m é
           interno. Sem DateRangeToolbar aqui → a barra de período não aparece. */}
 
-      {/* Seletor de posto — estoque é por-posto; mostra UM posto por vez. Aparece
-          só quando o filtro tem mais de um posto (Todos/subconjunto). */}
-      {postos.length > 1 && (
+      {/* Seletor de posto — só nas abas de DETALHE (single-posto) e com >1 posto.
+          A Visão Geral é rede-wide e não usa seletor. */}
+      {isDetail && postos.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+          <PostoLocalSelect variant="pill" postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
         </div>
       )}
 
-      {postos.length === 0 && (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          Nenhum posto disponível.
-        </p>
-      )}
-
-      {hasEmpresa && (
+      {visibleTabs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+          <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma aba visível. Use o botão ⚙️ para personalizar.</p>
+        </div>
+      ) : activeTab === 'visao' ? (
+        <Suspense fallback={<TableSkeleton />}>
+          <EstoqueVisaoGeralRede postos={postos} onOpenPosto={abrirPosto} />
+        </Suspense>
+      ) : showSkeleton ? (
+        <TableSkeleton />
+      ) : (
         <>
-          {/* Tabs */}
-          {visibleTabs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
-              <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma aba visível. Use o botão ⚙️ para personalizar.</p>
+          {showJanelaSelector && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <CalendarRange className="h-3.5 w-3.5" />
+                Janela de cálculo
+              </span>
+              <JanelaSelect value={janelaDias} onChange={setJanelaDias} />
+              <span className="text-[11px] tabular-nums text-gray-400/80 dark:text-gray-500/80">
+                {fmtJanelaPeriodo(janelaDias)}
+              </span>
             </div>
-          ) : (
-            <>
-              {/* Content (abas na TopBar) */}
-              {showSkeleton ? (
-                <TableSkeleton />
-              ) : (
-                <>
-                  {showJanelaSelector && (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        <CalendarRange className="h-3.5 w-3.5" />
-                        Janela de cálculo
-                      </span>
-                      <JanelaSelect value={janelaDias} onChange={setJanelaDias} />
-                      <span className="text-[11px] tabular-nums text-gray-400/80 dark:text-gray-500/80">
-                        {fmtJanelaPeriodo(janelaDias)}
-                      </span>
-                    </div>
-                  )}
-                  {activeTab === 'visao' && (
-                    <EstoqueVisaoGeral
-                      data={productAnalytics}
-                      categorias={categorias}
-                      valorMensal={estoqueValorMensal}
-                      janelaDias={janelaDias}
-                      onJanelaChange={setJanelaDias}
-                      onNavigateTab={setActiveTab}
-                    />
-                  )}
-                  {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
-                  {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
-                  {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
-                  {activeTab === 'necessidade' && (
-                    <NecessidadeEstoque
-                      data={productAnalytics}
-                      categorias={categorias}
-                      coberturaDias={coberturaDias}
-                      janelaDias={janelaDias}
-                      onCoberturaChange={setCoberturaDias}
-                    />
-                  )}
-                </>
-              )}
-            </>
+          )}
+          {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
+          {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
+          {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
+          {activeTab === 'necessidade' && (
+            <NecessidadeEstoque
+              data={productAnalytics}
+              categorias={categorias}
+              coberturaDias={coberturaDias}
+              janelaDias={janelaDias}
+              onCoberturaChange={setCoberturaDias}
+            />
           )}
         </>
       )}
