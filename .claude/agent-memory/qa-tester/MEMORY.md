@@ -58,10 +58,15 @@ No instant `opacity: 0` content flash occurs.
 - AppLayout: `src/components/layout/AppLayout.tsx`
 
 ### App Startup
-- Credentials: `VITE_APP_USER=admin`, `VITE_APP_PASSWORD=admin123`
-- Dev server: `http://localhost:5173`
-- Auth: `sessionStorage.getItem('app_authenticated') === 'true'`
-- Auth uses local credentials from env, not API auth endpoint.
+- **ATUALIZADO 2026-07-27** (a nota antiga de login por env var/sessionStorage estava obsoleta —
+  confirmado lendo `src/store/auth.ts` + `src/App.tsx` no HEAD atual): auth é 100% Supabase
+  (`@supabase/supabase-js`). `useAuthStore.session` é populado por `supabase.auth.getSession()`
+  no boot + `onAuthStateChange`. Bootstrap mora em `App.tsx` (`useAuthBootstrap`), carrega perfil/
+  rede via `loadTenantForUser()` (tabela `profiles`, fallback `frentistas`). `isLoading` começa
+  `true` pra evitar flash de `/login` — mas ver nota em Landing sobre esse flag não ser checado
+  em toda tela pública.
+- Dev server: `http://localhost:5173` — se ocupado (processo órfão de sessão anterior), Vite sobe
+  em 5174+ automaticamente; ler o output do `npm run dev` pra confirmar a porta real.
 - ErrorBoundary IS present in AppLayout.tsx with `key={pathname}`. Renders ErrorState (white bg).
   If ErrorBoundary catches a crash, user sees a white card with error message, not a black screen.
   True black screen = animate-fade-in opacity:0 issue, not a JS crash.
@@ -80,3 +85,36 @@ No instant `opacity: 0` content flash occurs.
 - `animate-fade-in` requires `forwards` fill-mode to stay visible — fixed in tailwind.config.ts.
 - Modules requiring empresa selection to show data: Estoques, Produtividade.
 - Modules that work without empresa: Dashboard, Combustiveis, Conveniencias, Financeiro, Produtos.
+
+## Landing Page pública (rota `/`, `src/pages/Landing/index.tsx`)
+QA completo em 2026-07-27 (real, via Playwright headless — ver seção "Ambiente de Teste" abaixo).
+Detalhe técnico completo (medições px por breakpoint) em [landing_page.md](landing_page.md).
+
+- **BUG MÉDIO confirmado**: o "phone" flutuante do hero (position:absolute, height:344, dentro de
+  um painel `overflow:hidden` cuja altura no mobile vem só do conteúdo em fluxo) clipa no topo
+  (~80px @375px, ~58px @414px) — corta o mini-logo "Visor360" e "LUCRO HOJE". Passa a caber sozinho
+  a partir de ~640px. Ver arquivo detalhado pra medições exatas por largura.
+- **Achado (não é bug de código, é decisão a confirmar)**: `initUiScale()` (`src/lib/uiScale.ts`)
+  roda incondicional em `main.tsx` pra QUALQUER rota, inclusive a Landing pública — aplica CSS
+  `zoom` (ex.: 0.889 @1280px) pensado só pro dashboard interno em telas <1440px. A Landing tem
+  comentário "NÃO redesenhar" mas na prática renderiza em ~89% do pixel literal na maioria das
+  telas de notebook. Não quebra nada (sem overflow), mas vale confirmar se é intencional.
+- Sem console errors, sem requests não-GET, sem 404 (`/landing/SIMBOLO.png` e
+  `/landing/analise-semanal-full.png` = 200), fontes Bricolage Grotesque + Instrument Sans
+  carregam de verdade (document.fonts confirma, não cai pro fallback).
+- Anchors do menu (`#modulos #ia #representantes #contato`) rolam certo; `#contato` (última seção)
+  não fica flush-no-topo por ser fim de página — normal, não é bug.
+- `Landing.tsx` só checa `session`, não `isLoading`, antes de decidir redirecionar usuário logado
+  pra `/dashboard` — risco teórico de flash da landing pública num user já autenticado (não testado
+  ao vivo, fora do escopo — a task não pedia login).
+
+## Ambiente de Teste (Playwright)
+Em pelo menos uma sessão (2026-07-27) os `browser_*` tools MCP citados na persona qa-tester NÃO
+estavam registrados — `ToolSearch` (por nome exato e por palavra-chave "browser"/"playwright")
+não achou nada. Workaround que funcionou bem e não sujou o projeto: instalar Playwright
+standalone (`npm init -y && npm install playwright@1.62.0 && npx playwright install chromium`)
+num diretório à parte dentro do scratchpad da sessão (NUNCA no `package.json` do Visor360) e
+rodar scripts Node (`require('playwright')`) direto, sem o wrapper MCP. Dá pra cobrir 100% do
+roteiro (screenshots, console, network incl. auditoria READ-ONLY, `document.fonts`,
+`getBoundingClientRect` pra medir clipping, cliques/navegação) assim. Checar `ToolSearch` de novo
+no início de cada sessão nova antes de assumir que precisa desse workaround.
