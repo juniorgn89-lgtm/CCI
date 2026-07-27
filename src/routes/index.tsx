@@ -5,6 +5,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import { importDashboard } from '@/routes/prefetch'
 import Login from '@/pages/Login'
+import Landing from '@/pages/Landing'
 
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 
@@ -47,6 +48,10 @@ const GerenteCombustiveis = lazy(() => import('@/pages/Gerente/CombustiveisGeren
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* Landing institucional pública — a "capa" do app na raiz. Visitante vê a
+          landing; usuário logado é redirecionado pro painel dentro da própria
+          Landing (gate por sessão). Fica FORA do ProtectedRoute de propósito. */}
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/redefinir-senha" element={<Suspense fallback={<RouteFallback />}><RedefinirSenha /></Suspense>} />
       <Route path="/frentista/auto" element={<Suspense fallback={<RouteFallback />}><FrentistaAutoLogin /></Suspense>} />
@@ -54,7 +59,6 @@ const AppRoutes = () => {
       {/* Gerente routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
           <Route path="/ao-vivo" element={<Suspense fallback={<RouteFallback />}><AoVivo /></Suspense>} />
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />

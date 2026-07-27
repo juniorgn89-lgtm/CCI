@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { Eye, EyeOff, User, BarChart3, Mail, Lock, ArrowRight, ShieldCheck, Clock } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
@@ -29,16 +29,12 @@ const schedulePrefetch = (fn: () => void): (() => void) => {
   return () => window.clearTimeout(id)
 }
 
-// URL da landing institucional (deploy separado: cci.app.br). O logo do login
-// volta pra cá. Configurável por ambiente; default = produção.
-const LANDING_URL = (import.meta.env.VITE_LANDING_URL as string) || 'https://cci.app.br'
-
 // Marca CCI oficial — reutilizada no topo do painel navy (escuro) e na versão
 // mobile do form (claro). Símbolo dos 3 triângulos + wordmark com "360" teal.
-// Clicável: volta pra landing (cci.app.br).
+// Clicável: volta pra landing institucional (a raiz `/` do app).
 const BrandMark = ({ light = false }: { light?: boolean }) => (
-  <a
-    href={LANDING_URL}
+  <Link
+    to="/"
     aria-label="Ir para a página inicial do Visor360"
     className="flex w-fit items-center gap-[11px] rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/60"
   >
@@ -55,7 +51,7 @@ const BrandMark = ({ light = false }: { light?: boolean }) => (
     >
       Visor<span className={light ? 'text-[#14b8a6]' : 'text-[#0F766E] dark:text-[#14b8a6]'}>360</span>
     </span>
-  </a>
+  </Link>
 )
 
 // Barras ilustrativas do mock "Faturamento · 7 dias" (placeholder, pré-auth).
