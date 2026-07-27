@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
+import { setUiScaleSuspended } from '@/lib/uiScale'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -55,6 +56,7 @@ const LANDING_CSS = `
 @keyframes v360-floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:980px){
   .v360-landing .v360-hero{grid-template-columns:1fr!important}
+  .v360-landing .v360-heromock{min-height:480px}
   .v360-landing .v360-ia{grid-template-columns:1fr!important;gap:36px!important}
   .v360-landing .v360-publicos{grid-template-columns:1fr!important}
   .v360-landing .v360-modulos{grid-template-columns:repeat(2,1fr)!important}
@@ -64,6 +66,7 @@ const LANDING_CSS = `
   .v360-landing .v360-modulos{grid-template-columns:1fr!important}
   .v360-landing .v360-numeros{grid-template-columns:repeat(2,1fr)!important}
   .v360-landing .v360-navmenu{display:none!important}
+  .v360-landing .v360-nav{justify-content:center!important}
   .v360-landing .v360-h1{font-size:34px!important}
   .v360-landing .v360-wrap{padding-left:20px!important;padding-right:20px!important}
   .v360-landing .v360-heropad{padding:40px 24px 44px!important}
@@ -79,6 +82,8 @@ const Landing = () => {
   useEffect(() => {
     const prevTitle = document.title
     document.title = 'Visor360 — Gestão inteligente para redes de postos'
+    // A landing é peça pixel-specific → sem o auto-zoom do dashboard denso.
+    setUiScaleSuspended(true)
     const links: HTMLLinkElement[] = []
     const add = (rel: string, href: string, cross?: boolean) => {
       const l = document.createElement('link')
@@ -93,6 +98,7 @@ const Landing = () => {
     add('stylesheet', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap')
     return () => {
       document.title = prevTitle
+      setUiScaleSuspended(false)
       links.forEach((l) => l.remove())
     }
   }, [])
@@ -106,7 +112,7 @@ const Landing = () => {
       <div style={{ width: '100%', overflow: 'hidden' }}>
 
         {/* ===================== NAV ===================== */}
-        <div className="v360-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap', maxWidth: 1200, margin: '0 auto', padding: '26px 40px 0' }}>
+        <div className="v360-wrap v360-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap', maxWidth: 1200, margin: '0 auto', padding: '26px 40px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             <img src="/landing/SIMBOLO.png" style={{ width: 34, height: 34, objectFit: 'contain' }} alt="" />
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 23, color: '#16293f', letterSpacing: '-.01em' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
@@ -145,7 +151,7 @@ const Landing = () => {
               </div>
             </div>
 
-            <div style={{ position: 'relative', background: 'radial-gradient(900px 560px at 60% 20%,#22456b 0%,#16293f 60%,#101f31 100%)', overflow: 'hidden' }}>
+            <div className="v360-heromock" style={{ position: 'relative', background: 'radial-gradient(900px 560px at 60% 20%,#22456b 0%,#16293f 60%,#101f31 100%)', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: -80, right: -60, width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle,rgba(252,182,25,.25) 0%,rgba(252,182,25,0) 70%)' }} />
               <div style={{ position: 'relative', padding: '52px 44px 60px' }}>
                 <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 40px 80px -30px rgba(0,0,0,.6)', border: '1px solid rgba(255,255,255,.12)', background: '#fff' }}>

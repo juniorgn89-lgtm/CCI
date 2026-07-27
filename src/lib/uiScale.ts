@@ -34,6 +34,9 @@ const MOBILE_BP = 768 // abaixo disso o shell mobile assume
 let mode: UiScaleMode = 'auto'
 let current = 1
 let raf = 0
+// Suspende a escala (força 100%) enquanto ativo — usado na landing pública, que
+// é peça pixel-specific e não deve encolher como o dashboard denso faz.
+let suspended = false
 
 const readMode = (): UiScaleMode => {
   try {
@@ -50,6 +53,7 @@ const readMode = (): UiScaleMode => {
 }
 
 const pickZoom = (realWidth: number): number => {
+  if (suspended) return 1 // landing pública — sempre 100%
   if (realWidth < MOBILE_BP) return 1 // shell mobile — nunca escala
   if (mode !== 'auto') return mode / 100 // manual fixo
   if (realWidth >= DESIGN_WIDTH) return 1
@@ -82,6 +86,16 @@ export const initUiScale = (): void => {
 }
 
 export const getUiScaleMode = (): UiScaleMode => mode
+
+/**
+ * Suspende (true) ou religa (false) a escala global. A landing pública força
+ * 100% no mount e religa o modo do usuário no unmount. Não persiste — é de
+ * sessão, atrelado ao ciclo de vida da página.
+ */
+export const setUiScaleSuspended = (v: boolean): void => {
+  suspended = v
+  apply()
+}
 
 /** Troca o modo (Configurações), persiste e re-aplica na hora. */
 export const setUiScaleMode = (m: UiScaleMode): void => {
