@@ -199,7 +199,10 @@ const CompDonut = ({ title, total, items }: { title: string; total: number; item
                   <span className={cn('h-2 w-2 shrink-0 rounded-full', it.dot)} />
                   <span className="truncate">{it.label}</span>
                 </span>
-                <span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">{Math.round((it.total / total) * 100)}%</span>
+                <span className="flex shrink-0 items-center gap-2.5 tabular-nums">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">{formatCurrencyInt(it.total)}</span>
+                  <span className="w-9 text-right text-gray-400 dark:text-gray-500">{Math.round((it.total / total) * 100)}%</span>
+                </span>
               </li>
             ))}
           </ul>
