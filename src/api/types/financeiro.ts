@@ -115,6 +115,18 @@ export interface Duplicata {
   planoContaGerencialCodigo: number
 }
 
+/** Plano de contas gerencial (cadastro) — fonte do mapa código → descrição pro
+ *  filtro de Contas a Pagar/Receber (o título a receber só traz o código). */
+export interface PlanoContaGerencial {
+  codigo: number
+  planoContaCodigo: number
+  descricao: string
+  hierarquia: string
+  natureza: string
+  tipo: string
+  apuraDre: boolean
+}
+
 export interface MovimentoConta {
   codigo: number
   empresaCodigo: number

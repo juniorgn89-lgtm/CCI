@@ -35,6 +35,8 @@ export interface RecebRow {
   vencido: boolean
   diasAtraso: number
   documento: string
+  /** Código do plano de contas gerencial (nome resolvido via usePlanoContasMap). */
+  planoContaCod: number
 }
 
 /** Modalidade "app/carteira digital" (vs cartão crédito/débito) pelo tipo da
@@ -65,7 +67,7 @@ export const buildCobrancaRows = (titulos: ReceivableRow[]): RecebRow[] => {
     const venc = onlyDate(t.dataVencimento)
     const vencido = !!venc && venc < hoje
     const sub = cat === 'faturas' ? (t.tipo?.trim() || 'Fatura / boleto') : (t.tipo || '—')
-    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub, valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '' })
+    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub, valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '', planoContaCod: Number((t as Record<string, unknown>).planoContaGerencialCodigo ?? 0) })
   }
   return out
 }
@@ -86,7 +88,10 @@ export const buildReceberRows = (
     const venc = onlyDate(c.vencimento)
     const vencido = !!venc && venc < hoje
     const modal = adminTipo.get(`${c.empresaCodigo}-${c.administradoraCodigo}`) || c.adiministradoraDescricao || ''
-    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '' })
+    // Cartões são recebíveis a compensar da adquirente, sem plano de contas
+    // gerencial (conceito de título/duplicata) — e só alimentam o dashboard,
+    // nunca o filtro "Plano de contas". 0 → "Sem plano".
+    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '', planoContaCod: 0 })
   }
   return [...cartaoRows, ...buildCobrancaRows(titulos)]
 }
@@ -111,6 +116,8 @@ export interface PagarRow {
   vencido: boolean
   diasAtraso: number
   documento: string
+  /** Código do plano de contas gerencial (nome resolvido via usePlanoContasMap). */
+  planoContaCod: number
 }
 
 /** Instrumento do pagável pelo tipoLancamento da Quality (enum conhecido). */
@@ -139,6 +146,7 @@ export const buildPagarRows = (payables: PayableRow[]): PagarRow[] => {
       valor: p.saldoRestante, valorTotal: p.valor, valorPago: p.valorPago,
       vencimento: venc, vencido, diasAtraso: p.diasAtraso,
       documento: String((p as Record<string, unknown>).numeroTitulo ?? ''),
+      planoContaCod: Number((p as Record<string, unknown>).planoContaGerencialCodigo ?? 0),
     })
   }
   return out

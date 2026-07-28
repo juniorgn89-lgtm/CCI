@@ -12,6 +12,7 @@ import type {
   CartaoPagar,
   CartaoRemessa,
   Administradora,
+  PlanoContaGerencial,
 } from '@/api/types/financeiro'
 
 interface FetchTitulosReceberParams {
@@ -145,6 +146,9 @@ export const fetchTitulosPagar = (params?: FetchTitulosPagarParams) =>
 
 export const fetchDuplicatas = (params?: FetchDuplicatasParams) =>
   client.get<PaginatedResponse<Duplicata>>('/DUPLICATA', { params }).then((res) => res.data)
+
+export const fetchPlanoContaGerencial = (params?: { ultimoCodigo?: number; limite?: number }) =>
+  client.get<PaginatedResponse<PlanoContaGerencial>>('/PLANO_CONTA_GERENCIAL', { params }).then((res) => res.data)
 
 export const fetchMovimentosConta = (params?: FetchMovimentosContaParams) =>
   client.get<PaginatedResponse<MovimentoConta>>('/MOVIMENTO_CONTA', { params }).then((res) => res.data)

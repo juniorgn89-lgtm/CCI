@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Landmark, Smartphone, ArrowLeftRight, Building2, MoreHorizontal, Layers,
@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
 import { buildPagarRows, type InstPagar, type PagarRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
@@ -64,12 +65,18 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
   )
   const nomePosto = (cod: number) => empresaNome.get(cod) ?? `Posto ${cod}`
 
+  const planoMap = usePlanoContasMap()
+  const planoNome = useCallback((cod: number) => planoMap.get(cod) || 'Sem plano', [planoMap])
+
   const [inst, setInst] = useState<FiltroInst>('todos')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
   const [fornSel, setFornSel] = useState<string[]>([])
   const [buscaForn, setBuscaForn] = useState('')
   const [abertoForn, setAbertoForn] = useState(false)
-  const [ordenar, setOrdenar] = useState<'vencimento' | 'maiorValor' | 'menorValor' | 'maiorAtraso' | 'fornecedor'>('vencimento')
+  const [planoSel, setPlanoSel] = useState<string[]>([])
+  const [buscaPlano, setBuscaPlano] = useState('')
+  const [abertoPlano, setAbertoPlano] = useState(false)
+  const [ordenar, setOrdenar] = useState<'vencimento' | 'maiorValor' | 'menorValor' | 'maiorAtraso' | 'fornecedor' | 'posto'>('vencimento')
   const [atrasoFaixa, setAtrasoFaixa] = useState<'todos' | '30' | '60' | '90' | '90+'>('todos')
   const [page, setPage] = useState(0)
   const [detalhe, setDetalhe] = useState<string | null>(null)
@@ -91,8 +98,9 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
       return v >= hoje && v <= eom
     })
     if (fornSel.length > 0) base = base.filter((r) => fornSel.includes(r.fornecedor))
+    if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
     return base
-  }, [rows, periodo, fornSel])
+  }, [rows, periodo, fornSel, planoSel, planoNome])
 
   const cards = useMemo(() => {
     const acc: Record<FiltroInst, { total: number; count: number }> = {
@@ -114,6 +122,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
     const eom = endOfMonthISO(hoje)
     let base = rows
     if (fornSel.length > 0) base = base.filter((r) => fornSel.includes(r.fornecedor))
+    if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
     if (inst !== 'todos') base = base.filter((r) => r.instrumento === inst)
     const c: Record<Periodo, number> = { todos: 0, hoje: 0, semana: 0, mes: 0, atrasados: 0 }
     for (const r of base) {
@@ -125,7 +134,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
       if (v >= hoje && v <= eom) c.mes += 1
     }
     return c
-  }, [rows, fornSel, inst])
+  }, [rows, fornSel, planoSel, planoNome, inst])
 
   const fornecedores = useMemo(
     () => [...new Set(rows.map((r) => r.fornecedor))].sort((a, b) => a.localeCompare(b)),
@@ -136,7 +145,16 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
     return q ? fornecedores.filter((f) => f.toLowerCase().includes(q)) : fornecedores
   }, [fornecedores, buscaForn])
   const labelForn = fornSel.length === 0 ? '' : fornSel.length === 1 ? fornSel[0] : `${fornSel.length} fornecedores`
-  const temFiltro = inst !== 'todos' || periodo !== 'todos' || fornSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
+  const planos = useMemo(
+    () => [...new Set(rows.map((r) => planoNome(r.planoContaCod)))].sort((a, b) => a.localeCompare(b)),
+    [rows, planoNome],
+  )
+  const planosFiltrados = useMemo(() => {
+    const q = buscaPlano.trim().toLowerCase()
+    return q ? planos.filter((p) => p.toLowerCase().includes(q)) : planos
+  }, [planos, buscaPlano])
+  const labelPlano = planoSel.length === 0 ? '' : planoSel.length === 1 ? planoSel[0] : `${planoSel.length} planos`
+  const temFiltro = inst !== 'todos' || periodo !== 'todos' || fornSel.length > 0 || planoSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
 
   const rowsAll = useMemo(() => {
     let base = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
@@ -155,6 +173,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
       case 'menorValor': arr.sort((a, b) => a.valor - b.valor); break
       case 'maiorAtraso': arr.sort((a, b) => b.diasAtraso - a.diasAtraso); break
       case 'fornecedor': arr.sort((a, b) => a.fornecedor.localeCompare(b.fornecedor)); break
+      case 'posto': arr.sort((a, b) => (empresaNome.get(a.empresa) ?? '').localeCompare(empresaNome.get(b.empresa) ?? '') || a.fornecedor.localeCompare(b.fornecedor)); break
       default: {
         // "Mais próximo": menor distância da data de vencimento até hoje (passado
         // OU futuro). O que vence/venceu PERTO de hoje fica no topo; os bem antigos
@@ -168,7 +187,21 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
       }
     }
     return arr
-  }, [escopo, inst, atrasoFaixa, ordenar])
+  }, [escopo, inst, atrasoFaixa, ordenar, empresaNome])
+
+  // Totais por grupo (posto OU fornecedor) — pro agrupador com totalizador.
+  // Contagem e soma do "a pagar" de TODO o dataset filtrado, não só da página.
+  const grupoTotais = useMemo(() => {
+    const porPosto = new Map<number, { count: number; total: number }>()
+    const porForn = new Map<string, { count: number; total: number }>()
+    for (const r of rowsAll) {
+      const p = porPosto.get(r.empresa) ?? { count: 0, total: 0 }
+      p.count += 1; p.total += r.valor; porPosto.set(r.empresa, p)
+      const f = porForn.get(r.fornecedor) ?? { count: 0, total: 0 }
+      f.count += 1; f.total += r.valor; porForn.set(r.fornecedor, f)
+    }
+    return { porPosto, porForn }
+  }, [rowsAll])
 
   const totalPages = Math.max(1, Math.ceil(rowsAll.length / PAGE_SIZE))
   const pageSafe = Math.min(page, totalPages - 1)
@@ -181,8 +214,12 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
     setFornSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
     setPage(0); setDetalhe(null)
   }
+  const togglePlano = (nome: string) => {
+    setPlanoSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
+    setPage(0); setDetalhe(null)
+  }
   const limparFiltros = () => {
-    setInst('todos'); setPeriodo('todos'); setFornSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaForn(''); setPage(0)
+    setInst('todos'); setPeriodo('todos'); setFornSel([]); setPlanoSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaForn(''); setBuscaPlano(''); setPage(0)
   }
 
   const exportar = () => {
@@ -304,6 +341,46 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
           </div>
         </div>
         <div>
+          <label className="mb-1 block text-[11px] font-medium text-gray-500 dark:text-gray-400">Plano de contas</label>
+          <div className="relative w-80">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input type="text" value={abertoPlano ? buscaPlano : labelPlano}
+              onChange={(e) => { setBuscaPlano(e.target.value); setAbertoPlano(true) }}
+              onFocus={() => { setAbertoPlano(true); setBuscaPlano('') }}
+              onBlur={() => setTimeout(() => setAbertoPlano(false), 150)}
+              placeholder="Todos os planos"
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-8 text-[13px] text-gray-700 placeholder:text-gray-400 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200" />
+            {planoSel.length > 0 && !abertoPlano && (
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); setPlanoSel([]); setPage(0) }} aria-label="Limpar planos"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {abertoPlano && (
+              <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-[#161616]">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); setPlanoSel([]); setPage(0) }}
+                  className={cn('block w-full px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', planoSel.length === 0 ? 'font-semibold text-[#2563eb]' : 'text-gray-600 dark:text-gray-300')}>
+                  Todos os planos
+                </button>
+                {planosFiltrados.length === 0 ? (
+                  <p className="px-3 py-2 text-[12px] text-gray-400">Nenhum plano encontrado</p>
+                ) : planosFiltrados.map((p) => {
+                  const marcado = planoSel.includes(p)
+                  return (
+                    <button key={p} type="button" onMouseDown={(e) => { e.preventDefault(); togglePlano(p) }}
+                      className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', marcado ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200')}>
+                      <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', marcado ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                        {marcado && <Check className="h-3 w-3" />}
+                      </span>
+                      <span className="truncate">{p}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
           <label className="mb-1 block text-[11px] font-medium text-gray-500 dark:text-gray-400">Ordenar por</label>
           <select value={ordenar} onChange={(e) => { setOrdenar(e.target.value as typeof ordenar); setPage(0) }} className={selCls}>
             <option value="vencimento">Vencimento (mais próximo)</option>
@@ -311,6 +388,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
             <option value="menorValor">Menor valor</option>
             <option value="maiorAtraso">Maior atraso</option>
             <option value="fornecedor">Fornecedor (A–Z)</option>
+            <option value="posto">Posto (A–Z)</option>
           </select>
         </div>
         <div>
@@ -349,11 +427,32 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
           <tbody>
             {pageRows.length === 0 ? (
               <tr><td colSpan={9} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhuma conta a pagar encontrada</td></tr>
-            ) : pageRows.map((r) => {
+            ) : pageRows.map((r, i) => {
               const m = instMeta(r.instrumento)
               const aberto = detalhe === r.key
+              // Agrupador (por posto OU fornecedor): cabeçalho com o total do grupo
+              // quando a chave muda (ou na 1ª linha da página).
+              const agrupPosto = ordenar === 'posto'
+              const agrupForn = ordenar === 'fornecedor'
+              const chave = agrupPosto ? String(r.empresa) : r.fornecedor
+              const chaveAnt = i > 0 ? (agrupPosto ? String(pageRows[i - 1].empresa) : pageRows[i - 1].fornecedor) : ''
+              const novoGrupo = (agrupPosto || agrupForn) && (i === 0 || chave !== chaveAnt)
+              const grupoNome = agrupPosto ? nomePosto(r.empresa) : r.fornecedor
+              const tot = agrupPosto ? grupoTotais.porPosto.get(r.empresa) : grupoTotais.porForn.get(r.fornecedor)
               return (
                 <Fragment key={r.key}>
+                  {novoGrupo && (
+                    <tr className="bg-gray-100/80 dark:bg-gray-800/50">
+                      <td colSpan={9} className="px-3 py-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[12px] font-semibold text-gray-700 dark:text-gray-200">{grupoNome}</span>
+                          <span className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+                            {tot?.count ?? 0} {(tot?.count ?? 0) === 1 ? 'título' : 'títulos'} · A pagar {formatCurrency(tot?.total ?? 0)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   <tr className="border-b border-gray-100 last:border-0 dark:border-gray-800">
                     <td className="py-2.5 pr-3">
                       <p className="font-medium text-gray-900 dark:text-gray-100">{r.fornecedor}</p>

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, ReceiptText, MoreHorizontal, Layers,
@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
 import { buildCobrancaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
@@ -64,11 +65,17 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   )
   const nomePosto = (cod: number) => empresaNome.get(cod) ?? `Posto ${cod}`
 
+  const planoMap = usePlanoContasMap()
+  const planoNome = useCallback((cod: number) => planoMap.get(cod) || 'Sem plano', [planoMap])
+
   const [inst, setInst] = useState<FiltroInst>('todos')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
   const [clientesSel, setClientesSel] = useState<string[]>([])
   const [buscaCli, setBuscaCli] = useState('')
   const [abertoCli, setAbertoCli] = useState(false)
+  const [planoSel, setPlanoSel] = useState<string[]>([])
+  const [buscaPlano, setBuscaPlano] = useState('')
+  const [abertoPlano, setAbertoPlano] = useState(false)
   const [ordenar, setOrdenar] = useState<'vencimento' | 'maiorValor' | 'menorValor' | 'maiorAtraso' | 'cliente'>('vencimento')
   const [atrasoFaixa, setAtrasoFaixa] = useState<'todos' | '30' | '60' | '90' | '90+'>('todos')
   const [page, setPage] = useState(0)
@@ -93,8 +100,9 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       return v >= hoje && v <= eom // mes
     })
     if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
+    if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
     return base
-  }, [rows, periodo, clientesSel])
+  }, [rows, periodo, clientesSel, planoSel, planoNome])
 
   // Cards de instrumento (totais do escopo).
   const cards = useMemo(() => {
@@ -117,6 +125,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
     const eom = endOfMonthISO(hoje)
     let base = rows
     if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
+    if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
     if (inst !== 'todos') base = base.filter((r) => r.instrumento === inst)
     const c: Record<Periodo, number> = { todos: 0, hoje: 0, semana: 0, mes: 0, atrasados: 0 }
     for (const r of base) {
@@ -128,7 +137,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       if (v >= hoje && v <= eom) c.mes += 1
     }
     return c
-  }, [rows, clientesSel, inst])
+  }, [rows, clientesSel, planoSel, planoNome, inst])
 
   // Lista de clientes (todos os pendentes) pro dropdown.
   const clientes = useMemo(
@@ -140,7 +149,16 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
     return q ? clientes.filter((c) => c.toLowerCase().includes(q)) : clientes
   }, [clientes, buscaCli])
   const labelCli = clientesSel.length === 0 ? '' : clientesSel.length === 1 ? clientesSel[0] : `${clientesSel.length} clientes`
-  const temFiltro = inst !== 'todos' || periodo !== 'todos' || clientesSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
+  const planos = useMemo(
+    () => [...new Set(rows.map((r) => planoNome(r.planoContaCod)))].sort((a, b) => a.localeCompare(b)),
+    [rows, planoNome],
+  )
+  const planosFiltrados = useMemo(() => {
+    const q = buscaPlano.trim().toLowerCase()
+    return q ? planos.filter((p) => p.toLowerCase().includes(q)) : planos
+  }, [planos, buscaPlano])
+  const labelPlano = planoSel.length === 0 ? '' : planoSel.length === 1 ? planoSel[0] : `${planoSel.length} planos`
+  const temFiltro = inst !== 'todos' || periodo !== 'todos' || clientesSel.length > 0 || planoSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
 
   const rowsAll = useMemo(() => {
     let base = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
@@ -179,8 +197,12 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
     setClientesSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
     setPage(0); setDetalhe(null)
   }
+  const togglePlano = (nome: string) => {
+    setPlanoSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
+    setPage(0); setDetalhe(null)
+  }
   const limparFiltros = () => {
-    setInst('todos'); setPeriodo('todos'); setClientesSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaCli(''); setPage(0)
+    setInst('todos'); setPeriodo('todos'); setClientesSel([]); setPlanoSel([]); setOrdenar('vencimento'); setAtrasoFaixa('todos'); setBuscaCli(''); setBuscaPlano(''); setPage(0)
   }
 
   const exportar = () => {
@@ -297,6 +319,46 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                         {marcado && <Check className="h-3 w-3" />}
                       </span>
                       <span className="truncate">{c}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-gray-500 dark:text-gray-400">Plano de contas</label>
+          <div className="relative w-80">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input type="text" value={abertoPlano ? buscaPlano : labelPlano}
+              onChange={(e) => { setBuscaPlano(e.target.value); setAbertoPlano(true) }}
+              onFocus={() => { setAbertoPlano(true); setBuscaPlano('') }}
+              onBlur={() => setTimeout(() => setAbertoPlano(false), 150)}
+              placeholder="Todos os planos"
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-8 text-[13px] text-gray-700 placeholder:text-gray-400 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200" />
+            {planoSel.length > 0 && !abertoPlano && (
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); setPlanoSel([]); setPage(0) }} aria-label="Limpar planos"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {abertoPlano && (
+              <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-[#161616]">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); setPlanoSel([]); setPage(0) }}
+                  className={cn('block w-full px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', planoSel.length === 0 ? 'font-semibold text-[#2563eb]' : 'text-gray-600 dark:text-gray-300')}>
+                  Todos os planos
+                </button>
+                {planosFiltrados.length === 0 ? (
+                  <p className="px-3 py-2 text-[12px] text-gray-400">Nenhum plano encontrado</p>
+                ) : planosFiltrados.map((p) => {
+                  const marcado = planoSel.includes(p)
+                  return (
+                    <button key={p} type="button" onMouseDown={(e) => { e.preventDefault(); togglePlano(p) }}
+                      className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-800', marcado ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200')}>
+                      <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', marcado ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                        {marcado && <Check className="h-3 w-3" />}
+                      </span>
+                      <span className="truncate">{p}</span>
                     </button>
                   )
                 })}
