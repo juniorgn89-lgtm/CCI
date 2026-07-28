@@ -250,7 +250,7 @@ const Segmented = ({ tabs, active, onSelect }: {
  * ant." compara o PROJETADO com o período anterior. Margem projetada = margem
  * realizada (proporcional), por isso não há coluna de margem.
  */
-const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort, fimProjLabel, compact }: {
+const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort, fimProjLabel, compact, semDrill }: {
   rows: ProjPostoRow[]
   isProjetando: boolean
   /** Mostra a coluna de quantidade (Litros p/ combustível, Qtd p/ auto/conv). */
@@ -260,6 +260,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
   cmpShort: string
   fimProjLabel: string
   compact?: boolean // empilhado: banner/rodapé/margem-topo vêm do pai (uma vez só).
+  semDrill?: boolean // Global consolidado: sem expansão por produto (drill removido).
 }) => {
   const total = rows.reduce(
     (a, r) => ({
@@ -341,7 +342,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
             <GroupTh label={`vs ${cmpShort}`} colSpan={2} />
           </tr>
           <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            <HeaderHint align="left" label="Empresa" help="Posto da rede. Clique pra expandir os produtos projetados." />
+            <HeaderHint align="left" label="Empresa" help={semDrill ? 'Posto da rede.' : 'Posto da rede. Clique pra expandir os produtos projetados.'} />
             {showQtd && (
               <>
                 <HeaderHint groupStart label={<>{qtdLabel}<br />realiz.</>} help={`${qtdLabel === 'Litros' ? 'Litros vendidos' : 'Quantidade vendida'} no período (realizado).`} />
@@ -359,12 +360,16 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
         </thead>
         <tbody>
           {rows.map((r) => (
-            <Fragment key={r.posto}>
-              <Linha {...r} expandable={r.produtos.length > 0} expanded={expandidos.has(r.posto)} onClick={() => toggle(r.posto)} />
-              {expandidos.has(r.posto) && r.produtos.map((prod) => (
-                <Linha key={`${r.posto}:${prod.produto}`} {...prod} posto={prod.produto} sub />
-              ))}
-            </Fragment>
+            semDrill ? (
+              <Linha key={r.posto} {...r} />
+            ) : (
+              <Fragment key={r.posto}>
+                <Linha {...r} expandable={r.produtos.length > 0} expanded={expandidos.has(r.posto)} onClick={() => toggle(r.posto)} />
+                {expandidos.has(r.posto) && r.produtos.map((prod) => (
+                  <Linha key={`${r.posto}:${prod.produto}`} {...prod} posto={prod.produto} sub />
+                ))}
+              </Fragment>
+            )
           ))}
           <Linha posto="Total" realLB={total.realLB} realFat={total.realFat} realLitros={total.realLitros} projLB={total.projLB} projFat={total.projFat} projLit={total.projLit} lbAnt={total.lbAnt} bold />
         </tbody>
@@ -893,6 +898,7 @@ const BenchmarkSetor = () => {
                   cmpShort={cmpShort}
                   fimProjLabel={fimProjLabel}
                   compact
+                  semDrill={b.id === 'global'}
                 />
               </div>
             ))}
