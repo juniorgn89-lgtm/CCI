@@ -399,17 +399,21 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     enabled: true,
   })
 
-  // Sem `apenasPendente`: esse flag da Quality retorna SÓ situação "Aberto" e
-  // descarta os "Parcial" (com pagamento parcial e saldo em aberto), que o
-  // webPosto soma em "A pagar". Trazemos tudo na janela e filtramos por saldo no
-  // toPayableRow. staleTime alto porque o payload é grande (todos os títulos do
-  // período, não só os abertos).
+  // `apenasPendente: true` — SÓ os títulos EM ABERTO, e é essencial. Sem o flag a
+  // API traz TODOS (≈99% já PAGOS, ordenados por código crescente = mais antigos
+  // primeiro), e a paginação (30 págs × 1000) se esgota nos pagos antigos ANTES de
+  // alcançar os abertos recentes: a rede mostrava só ~2 fornecedores (INSS de
+  // código baixo) e sumia com Ipiranga, distribuidoras etc. Com o flag, os abertos
+  // (poucos milhares) cabem na paginação e TODOS os fornecedores aparecem. Custo:
+  // o flag descarta situação "Parcial" — raríssimo (0 nesta rede); se voltar a
+  // existir, tratar à parte. Os PAGOS (pro PMP) vêm da busca dedicada abaixo.
   const { data: titulosPagarPendRaw = [], isLoading: isLoadingPagarPend } = useQuery({
     queryKey: ['titulosPagarPend', 'rede'],
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({
         dataInicial: SNAPSHOT_INICIO,
         dataFinal: SNAPSHOT_FIM,
+        apenasPendente: true,
         ultimoCodigo: p.ultimoCodigo,
         limite: p.limite,
       }),
@@ -469,6 +473,24 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     enabled: true,
   })
 
+  // Títulos a pagar PAGOS nos últimos 180 dias (por data de PAGAMENTO) — base do
+  // PMP. Busca dedicada porque o snapshot de pendentes agora só traz abertos
+  // (apenasPendente); a janela por PAGAMENTO pega os pagos recentes sem o
+  // truncamento que os escondia quando o PMP lia o snapshot inteiro.
+  const { data: titulosPagarPagosRaw = [] } = useQuery({
+    queryKey: ['titulosPagarPagos', 'rede'],
+    queryFn: () => fetchAllPages(
+      (p) => fetchTitulosPagar({
+        dataInicial: pmrInicio,
+        dataFinal: hojeStr,
+        dataFiltro: 'PAGAMENTO',
+        ultimoCodigo: p.ultimoCodigo,
+        limite: p.limite,
+      }),
+      1000, 20,
+    ),
+  })
+
   // Saldo em caixa/banco (/CONTA) — pro card "Impacto no Caixa" da aba Pagar.
   const { data: contasRaw = [] } = useQuery({
     queryKey: ['contas', 'rede'],
@@ -487,6 +509,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const cartoes = useSubset(cartoesRaw, scopedCodes)
   const titulosReceberPend = useSubset(titulosReceberPendRaw, scopedCodes)
   const titulosPagarPend = useSubset(titulosPagarPendRaw, scopedCodes)
+  const titulosPagarPagos = useSubset(titulosPagarPagosRaw, scopedCodes)
   const duplicatasPend = useSubset(duplicatasPendRaw, scopedCodes)
   const cartoesPend = useSubset(cartoesPendRaw, scopedCodes)
   const titulosReceberPagos = useSubset(titulosReceberPagosRaw, scopedCodes)
@@ -682,11 +705,11 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       : null
 
     // --- PMP (atraso médio de pagamento) — análogo ao PMR, nos pagáveis ---
-    // Reusa o snapshot `titulosPagarPend` (que já traz os PAGOS), sem fetch novo:
-    // média de (dataPagamento − vencimento) dos títulos pagos nos últimos 180d.
-    // Mesma base do PMR (dias vs vencimento; negativo = pago adiantado).
+    // Usa a busca dedicada de pagos (`titulosPagarPagos`, janela 180d por data de
+    // PAGAMENTO): média de (dataPagamento − vencimento). Mesma base do PMR (dias
+    // vs vencimento; negativo = pago adiantado).
     const diasPagamentoPagar: number[] = []
-    for (const t of titulosPagarPend) {
+    for (const t of titulosPagarPagos) {
       if ((t.situacao ?? '').toUpperCase() !== 'PAGO') continue
       const pag = (t.dataPagamento ?? '').split('T')[0]
       const venc = (t.vencimento ?? '').split('T')[0]
@@ -789,7 +812,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       pmr,
       pmp,
     }
-  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim, pmrInicio])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, titulosPagarPagos, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim, pmrInicio])
 
   return {
     ...computed,
