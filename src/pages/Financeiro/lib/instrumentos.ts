@@ -1,5 +1,5 @@
 import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
-import type { Cartao } from '@/api/types/financeiro'
+import type { Cartao, Duplicata } from '@/api/types/financeiro'
 
 /**
  * Fonte ÚNICA de classificação e montagem das linhas de Contas a Receber e a
@@ -41,6 +41,11 @@ export interface RecebRow {
   planoContaCod: number
   /** Código da duplicata que agrupou o título (fatura) — pra consolidar. 0 = sem fatura. */
   duplicataCod: number
+  /** Bruto antes do abatimento (cartão: antes da taxa da adquirente; fatura: antes de
+   *  desconto/baixa). `valor` já é o líquido/saldo a receber. Ausente = valor É o bruto. */
+  bruto?: number
+  /** Já baixado/pago (fatura com baixa parcial). Ausente/0 = nada pago. */
+  pago?: number
 }
 
 /** Modalidade "app/carteira digital" (vs cartão crédito/débito) pelo tipo da
@@ -76,14 +81,46 @@ export const buildCobrancaRows = (titulos: ReceivableRow[]): RecebRow[] => {
   return out
 }
 
+/** Faturas a receber a partir das DUPLICATAS em aberto (Pendente + Parcial): 1 linha por
+ *  duplicata, `valor` = SALDO (líquido − pago), `bruto`/`pago` pras colunas. Espelha a
+ *  tela "Duplicatas" do WebPosto, incluindo baixas parciais. `duplicataCod` liga às notas
+ *  (títulos convertidos). Fonte ÚNICA das faturas: aba Receber E dashboard. */
+export const buildFaturaRows = (duplicatas: Duplicata[]): RecebRow[] => {
+  const hoje = todayISO()
+  return duplicatas.map((d) => {
+    const venc = onlyDate(d.vencimento)
+    const vencido = !!venc && venc < hoje
+    const saldo = Math.max(0, (d.valorLiquido ?? d.valorDuplicata ?? 0) - (d.valorPago ?? 0))
+    return {
+      key: `d${d.duplicataCodigo}`,
+      empresa: d.empresaCodigo,
+      instrumento: 'faturas',
+      cliente: (d.nomeCliente || `Cliente ${d.clienteCodigo}`).trim(),
+      sub: d.situacao === 'Parcial' ? 'Baixa parcial' : 'Fatura',
+      valor: saldo,
+      bruto: d.valorDuplicata ?? saldo,
+      pago: d.valorPago ?? 0,
+      vencimento: venc,
+      vencido,
+      diasAtraso: vencido ? diffDays(venc, hoje) : 0,
+      documento: d.numeroDocumento || '',
+      docNumero: d.duplicataCodigo,
+      planoContaCod: d.planoContaGerencialCodigo || 0,
+      duplicataCod: d.duplicataCodigo,
+    }
+  })
+}
+
 /** Recebíveis COMPLETOS: cobrança de cliente + cartões/apps a compensar (/CARTAO).
  *  Usado só pelo dashboard (que mostra o bloco "Cartões e apps" à parte).
- *  `adminTipo` mapeia `${empresaCodigo}-${administradoraCodigo}` → tipo (separa
- *  Apps de Cartões). */
+ *  `adminTipo` mapeia `${empresaCodigo}-${administradoraCodigo}` → tipo (separa Apps de
+ *  Cartões). Com `duplicatas`, as FATURAS vêm delas (saldo real, mesma fonte da aba
+ *  Receber) no lugar das faturas-título. */
 export const buildReceberRows = (
   titulos: ReceivableRow[],
   cartoes: Cartao[],
   adminTipo: Map<string, string>,
+  duplicatas?: Duplicata[],
 ): RecebRow[] => {
   const hoje = todayISO()
   const cartaoRows: RecebRow[] = []
@@ -92,12 +129,19 @@ export const buildReceberRows = (
     const venc = onlyDate(c.vencimento)
     const vencido = !!venc && venc < hoje
     const modal = adminTipo.get(`${c.empresaCodigo}-${c.administradoraCodigo}`) || c.adiministradoraDescricao || ''
-    // Cartões são recebíveis a compensar da adquirente, sem plano de contas
-    // gerencial (conceito de título/duplicata) — e só alimentam o dashboard,
-    // nunca o filtro "Plano de contas". 0 → "Sem plano".
-    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '', docNumero: 0, planoContaCod: 0, duplicataCod: 0 })
+    // Cartão a receber = LÍQUIDO (bruto − taxa da adquirente): é o que de fato cai
+    // na conta, análogo ao saldo das faturas. `taxaPercentual` vem preenchido na
+    // transação (~99% dos casos); `bruto` guarda o valor cheio pra referência.
+    // Sem plano de contas (não é título/duplicata) — só alimenta o dashboard.
+    const taxaPct = c.taxaPercentual ?? 0
+    const liquido = Math.round(c.valor * (1 - taxaPct / 100) * 100) / 100
+    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: liquido, bruto: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '', docNumero: 0, planoContaCod: 0, duplicataCod: 0 })
   }
-  return [...cartaoRows, ...buildCobrancaRows(titulos)]
+  const cobranca = buildCobrancaRows(titulos)
+  if (!duplicatas) return [...cartaoRows, ...cobranca]
+  // Faturas das duplicatas (saldo real, com baixa parcial) substituem as faturas-título.
+  const notasOutros = cobranca.filter((r) => r.instrumento !== 'faturas')
+  return [...cartaoRows, ...notasOutros, ...buildFaturaRows(duplicatas)]
 }
 
 /* ─────────────── A PAGAR ─────────────── */

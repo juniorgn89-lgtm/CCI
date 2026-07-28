@@ -143,6 +143,7 @@ const Financeiro = () => {
                         titulos={receivablesAtraso}
                         cartoes={cartoesAVencer}
                         payables={payablesAtraso}
+                        periodo={localPeriod}
                       />
                     </div>
                   )}

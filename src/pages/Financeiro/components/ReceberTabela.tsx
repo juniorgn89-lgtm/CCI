@@ -9,8 +9,10 @@ import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
-import { buildCobrancaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
+import { buildCobrancaRows, buildFaturaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -36,37 +38,11 @@ const PERIODOS: { id: Periodo; label: string }[] = [
   { id: 'atrasados', label: 'Atrasados' },
 ]
 
-// Fatura consolidada: as Notas faturadas (convertidas) agrupadas por duplicata —
-// espelha o relatório "Faturas" do WebPosto (1 linha por fatura). `titulos` guarda
-// as notas que a compõem, mostradas ao expandir.
-type LinhaReceb = RecebRow & { titulos?: RecebRow[] }
-
-/** Agrupa por duplicata: valor = soma das notas; vencimento = o mais antigo
- *  (define o atraso); nº do documento = código da duplicata. */
-const consolidarFaturas = (rows: RecebRow[]): LinhaReceb[] => {
-  const g = new Map<number, RecebRow[]>()
-  for (const r of rows) {
-    const arr = g.get(r.duplicataCod || 0)
-    if (arr) arr.push(r)
-    else g.set(r.duplicataCod || 0, [r])
-  }
-  const out: LinhaReceb[] = []
-  for (const [dup, titulos] of g) {
-    const t0 = titulos[0]
-    out.push({
-      ...t0,
-      key: `f${dup}`,
-      valor: titulos.reduce((s, x) => s + x.valor, 0),
-      vencimento: titulos.map((x) => x.vencimento).filter(Boolean).sort()[0] || t0.vencimento,
-      vencido: titulos.some((x) => x.vencido),
-      diasAtraso: titulos.reduce((mx, x) => Math.max(mx, x.diasAtraso), 0),
-      sub: `${titulos.length} ${titulos.length === 1 ? 'nota' : 'notas'}`,
-      docNumero: dup,
-      titulos,
-    })
-  }
-  return out
-}
+// Fatura = 1 duplicata em aberto (espelha a tela "Duplicatas" do WebPosto).
+// `titulos` guarda as notas (títulos convertidos) que a compõem, mostradas ao
+// expandir; `bruto`/`pago` alimentam as colunas Bruto · Pago · A receber, sendo
+// o saldo (líquido − pago) o `valor` da linha.
+type LinhaReceb = RecebRow & { titulos?: RecebRow[]; pago?: number }
 
 // Só instrumentos de cobrança de cliente. Cartões/apps não entram aqui (são
 // recebíveis a compensar — vivem no dash e na aba Cartões).
@@ -97,8 +73,13 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   )
   const nomePosto = (cod: number) => empresaNome.get(cod) ?? `Posto ${cod}`
 
+  // Escopo de empresa/permissão — pra as duplicatas (rede-wide) casarem com os títulos.
+  const scopedCodes = useScopedEmpresaCodes()
+
   const planoMap = usePlanoContasMap()
   const planoNome = useCallback((cod: number) => planoMap.get(cod) || 'Sem plano', [planoMap])
+  // Fonte das FATURAS = duplicatas em aberto (bruto/pago/saldo, espelha o WebPosto).
+  const duplicatas = useDuplicatasReceber()
 
   const [inst, setInst] = useState<FiltroInst>('todos')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
@@ -113,9 +94,29 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const [page, setPage] = useState(0)
   const [detalhe, setDetalhe] = useState<string | null>(null)
 
-  // Só cobrança de cliente (notas/faturas/outros). Cartões/apps ficam no dash e
-  // na aba Cartões — aqui bate 1:1 com o card "Em atraso" da Inteligência.
-  const rows: RecebRow[] = useMemo(() => buildCobrancaRows(titulos), [titulos])
+  // Cobrança de cliente. NOTAS/OUTROS vêm dos títulos pendentes; FATURAS vêm das
+  // duplicatas em aberto (1 linha por fatura, com saldo real e baixa parcial) — as
+  // notas convertidas viram as "N notas" que cada fatura expande. Cartões/apps ficam
+  // no dash e na aba Cartões.
+  const rows: LinhaReceb[] = useMemo(() => {
+    const todosTitulos = buildCobrancaRows(titulos)
+    const notasOutros = todosTitulos.filter((r) => r.instrumento !== 'faturas')
+    const titByDup = new Map<number, RecebRow[]>()
+    for (const t of todosTitulos) {
+      if (t.instrumento !== 'faturas') continue
+      const arr = titByDup.get(t.duplicataCod)
+      if (arr) arr.push(t); else titByDup.set(t.duplicataCod, [t])
+    }
+    const dupsScoped = scopedCodes.length > 0 ? duplicatas.filter((d) => scopedCodes.includes(d.empresaCodigo)) : duplicatas
+    // Faturas = mesma fonte do dashboard (buildFaturaRows); aqui só anexamos as notas
+    // que compõem cada uma, pra a expansão "N notas".
+    const faturas: LinhaReceb[] = buildFaturaRows(dupsScoped).map((f) => {
+      const notas = titByDup.get(f.duplicataCod)
+      if (!notas?.length) return f
+      return { ...f, sub: `${notas.length} ${notas.length === 1 ? 'nota' : 'notas'}`, planoContaCod: f.planoContaCod || notas[0].planoContaCod, titulos: notas }
+    })
+    return [...notasOutros, ...faturas]
+  }, [titulos, duplicatas, scopedCodes])
 
   // Escopo = período + cliente (base dos cards E da tabela).
   const escopo = useMemo(() => {
@@ -142,14 +143,11 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       todos: { total: 0, count: 0 }, cartoes: { total: 0, count: 0 }, apps: { total: 0, count: 0 }, notas: { total: 0, count: 0 },
       faturas: { total: 0, count: 0 }, outros: { total: 0, count: 0 },
     }
+    // Cada linha já é 1 recebível (a fatura é 1 duplicata, valorada pelo saldo). Soma direta.
     for (const r of escopo) {
       acc.todos.total += r.valor; acc.todos.count += 1
       acc[r.instrumento].total += r.valor; acc[r.instrumento].count += 1
     }
-    // Faturas consolidam por duplicata → o card conta FATURAS, não títulos.
-    const fatDups = new Set<number>()
-    for (const r of escopo) if (r.instrumento === 'faturas') fatDups.add(r.duplicataCod || 0)
-    acc.faturas.count = fatDups.size
     return acc
   }, [escopo])
 
@@ -198,8 +196,6 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
 
   const rowsAll = useMemo(() => {
     let base: LinhaReceb[] = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
-    // Aba Faturas: consolida os títulos por duplicata — 1 linha por fatura (espelha o WebPosto).
-    if (inst === 'faturas') base = consolidarFaturas(base)
     if (atrasoFaixa !== 'todos') {
       base = base.filter((r) => {
         const d = r.diasAtraso
@@ -229,6 +225,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const pageRows = rowsAll.slice(pageSafe * PAGE_SIZE, pageSafe * PAGE_SIZE + PAGE_SIZE)
   const primeiro = rowsAll.length === 0 ? 0 : pageSafe * PAGE_SIZE + 1
   const ultimo = Math.min(rowsAll.length, (pageSafe + 1) * PAGE_SIZE)
+  const nCols = inst === 'faturas' ? 9 : 7 // aba Faturas troca "Valor" por Bruto · Pago · A receber
 
   const trocarInst = (id: FiltroInst) => { setInst(id); setPage(0); setDetalhe(null) }
   const toggleCli = (nome: string) => {
@@ -244,8 +241,10 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   }
 
   const exportar = () => {
-    const header = ['Cliente', 'Posto', 'Instrumento', 'Nº documento', 'Valor', 'Vencimento', 'Status', 'Documento']
-    const linhas = rowsAll.map((r) => [r.cliente, nomePosto(r.empresa), instMeta(r.instrumento).label, r.docNumero ? String(r.docNumero) : '', r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
+    const fatCols = inst === 'faturas' // aba Faturas exporta Bruto · Pago · Saldo
+    const brl = (n: number) => n.toFixed(2).replace('.', ',')
+    const header = ['Cliente', 'Posto', 'Instrumento', 'Nº documento', ...(fatCols ? ['Valor bruto', 'Valor pago', 'Saldo a receber'] : ['Valor']), 'Vencimento', 'Status', 'Documento']
+    const linhas = rowsAll.map((r) => [r.cliente, nomePosto(r.empresa), instMeta(r.instrumento).label, r.docNumero ? String(r.docNumero) : '', ...(fatCols ? [brl(r.bruto ?? r.valor), brl(r.pago ?? 0), brl(r.valor)] : [brl(r.valor)]), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
     const csv = [header, ...linhas].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
     const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -440,7 +439,15 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
               <th className="py-2 pr-3">Cliente</th>
               <th className="py-2 px-3">Posto</th>
               <th className="py-2 px-3">Instrumento</th>
-              <th className="py-2 px-3 text-right">Valor</th>
+              {inst === 'faturas' ? (
+                <>
+                  <th className="py-2 px-3 text-right">Bruto</th>
+                  <th className="py-2 px-3 text-right">Pago</th>
+                  <th className="py-2 px-3 text-right">A receber</th>
+                </>
+              ) : (
+                <th className="py-2 px-3 text-right">Valor</th>
+              )}
               <th className="py-2 px-3">Vencimento</th>
               <th className="py-2 px-3">Status</th>
               <th className="py-2 pl-3 text-right">Ações</th>
@@ -448,7 +455,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
           </thead>
           <tbody>
             {pageRows.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhum recebível encontrado</td></tr>
+              <tr><td colSpan={nCols} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhum recebível encontrado</td></tr>
             ) : pageRows.map((r) => {
               const m = instMeta(r.instrumento)
               const aberto = detalhe === r.key
@@ -465,7 +472,15 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                         <m.Icon className="h-3 w-3" />{m.label}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
+                    {inst === 'faturas' ? (
+                      <>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatCurrency(r.bruto ?? r.valor)}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{r.pago ? formatCurrency(r.pago) : '—'}</td>
+                        <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
+                      </>
+                    ) : (
+                      <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
+                    )}
                     <td className="py-2.5 px-3 tabular-nums text-gray-600 dark:text-gray-300">{brDate(r.vencimento)}</td>
                     <td className="py-2.5 px-3">
                       <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
@@ -483,7 +498,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                   </tr>
                   {aberto && (
                     <tr className="bg-gray-50/60 dark:bg-gray-800/30">
-                      <td colSpan={7} className="px-3 py-2.5">
+                      <td colSpan={nCols} className="px-3 py-2.5">
                         {r.titulos ? (
                           <div className="space-y-1.5">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
@@ -502,6 +517,24 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                                 </tbody>
                               </table>
                             </div>
+                            {(() => {
+                              // A fatura mostra o SALDO; as notas somam o BRUTO. Expõe a ponte
+                              // (ajustes da duplicata + baixa parcial) pra a soma fechar com a linha-mãe.
+                              const bruto = r.bruto ?? (r.titulos ?? []).reduce((s, x) => s + x.valor, 0)
+                              const pago = r.pago ?? 0
+                              const ajuste = r.valor + pago - bruto // líquido − bruto (desconto/acréscimo/imposto)
+                              const temAjuste = Math.abs(ajuste) >= 0.005
+                              const temPago = pago >= 0.005
+                              if (!temAjuste && !temPago) return null
+                              return (
+                                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-0.5 border-t border-gray-100 pt-1.5 text-[11px] tabular-nums text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                  <span>Bruto <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(bruto)}</span></span>
+                                  {temAjuste && <span>{ajuste < 0 ? 'Descontos/impostos' : 'Acréscimos'} <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(ajuste)}</span></span>}
+                                  {temPago && <span>Pago <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(-pago)}</span></span>}
+                                  <span>Saldo <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</span></span>
+                                </div>
+                              )
+                            })()}
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
@@ -513,7 +546,15 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                             <DetItem label="Detalhe" value={r.sub || '—'} />
                             <DetItem label="Vencimento" value={brDate(r.vencimento)} />
                             <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
-                            <DetItem label="Valor" value={formatCurrency(r.valor)} />
+                            {r.instrumento === 'faturas' ? (
+                              <>
+                                <DetItem label="Valor bruto" value={formatCurrency(r.bruto ?? r.valor)} />
+                                <DetItem label="Valor pago" value={r.pago ? formatCurrency(r.pago) : '—'} />
+                                <DetItem label="Saldo a receber" value={formatCurrency(r.valor)} />
+                              </>
+                            ) : (
+                              <DetItem label="Valor" value={formatCurrency(r.valor)} />
+                            )}
                           </div>
                         )}
                       </td>

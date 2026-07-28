@@ -6,16 +6,19 @@ import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { useChartTheme } from '@/lib/chartTheme'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
-import type { ReceivableRow, PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { ReceivableRow, PayableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
 import {
   buildReceberRows, buildPagarRows, type InstReceber, type InstPagar,
 } from '@/pages/Financeiro/lib/instrumentos'
+import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
+import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 
 interface Props {
   titulos: ReceivableRow[]
   cartoes: Cartao[]
   payables: PayableRow[]
+  periodo?: LocalPeriodFilter
 }
 
 const RECEBER_META: Record<InstReceber, { label: string; dot: string }> = {
@@ -82,7 +85,7 @@ const TONE: Record<Tone, { ring: string; iconBg: string; value: string }> = {
  *  total) + rodapé vencidas/a vencer. `alerta` mostra um aviso âmbar no rodapé
  *  (usado nos cartões: bruto não conciliado). */
 const BucketCard = ({
-  title, sub, Icon, tone, agg, vencidoLabel = 'Vencidas', aVencerLabel = 'A vencer', alerta,
+  title, sub, Icon, tone, agg, vencidoLabel = 'Vencidas', aVencerLabel = 'A vencer', alerta, bruto,
 }: {
   title: string
   sub: string
@@ -92,6 +95,7 @@ const BucketCard = ({
   vencidoLabel?: string
   aVencerLabel?: string
   alerta?: string
+  bruto?: number
 }) => {
   const st = TONE[tone]
   return (
@@ -106,6 +110,11 @@ const BucketCard = ({
         </div>
       </div>
       <p className={cn('mt-3 text-[22px] font-bold tabular-nums', st.value)}>{formatCurrencyInt(agg.total)}</p>
+      {bruto != null && bruto > agg.total + 0.5 && (
+        <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+          Bruto <span className="tabular-nums">{formatCurrencyInt(bruto)}</span> · taxa <span className="tabular-nums">−{formatCurrencyInt(bruto - agg.total)}</span>
+        </p>
+      )}
       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
         {agg.count} {agg.count === 1 ? 'título em aberto' : 'títulos em aberto'}
       </p>
@@ -287,7 +296,7 @@ const AgingCard = ({ receber, pagar }: { receber: AgingBuckets; pagar: AgingBuck
  * Cartões). "A pagar" bate com a aba Pagar. Vencidos do hero = clientes + a
  * pagar (cartão vencido é suspeito, não entra como atraso real).
  */
-const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
+const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
   // Modalidade por administradora (separa Apps de Cartões) — mesma query da
   // tabela (chave ['administradoras'] → cache compartilhado, sem fetch extra).
   const { data: admData } = useQuery({ queryKey: ['administradoras'], queryFn: () => fetchAdministradoras({ limite: 2000 }), staleTime: 30 * 60 * 1000 })
@@ -297,13 +306,35 @@ const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
     return m
   }, [admData])
 
+  // Faturas do dashboard = MESMA fonte da aba Receber (duplicatas em aberto, saldo real
+  // com baixa parcial), respeitando o escopo de posto/permissão.
+  const duplicatas = useDuplicatasReceber()
+  const scopedCodes = useScopedEmpresaCodes()
+  const dupsScoped = useMemo(() => {
+    // Mesmo recorte dos títulos: escopo de posto + período local (por dataMovimento,
+    // só quando o usuário escolhe "Por data"; o default é o snapshot completo).
+    const lpAll = periodo?.allPeriod ?? true
+    const ini = periodo?.dataInicial ?? ''
+    const fim = periodo?.dataFinal ?? ''
+    return duplicatas.filter((d) => {
+      if (scopedCodes.length > 0 && !scopedCodes.includes(d.empresaCodigo)) return false
+      if (lpAll) return true
+      const dm = (d.dataMovimento ?? '').split('T')[0]
+      return !!dm && dm >= ini && dm <= fim
+    })
+  }, [duplicatas, scopedCodes, periodo])
   const recebRows = useMemo(
-    () => buildReceberRows(titulos, cartoes, adminTipo),
-    [titulos, cartoes, adminTipo],
+    () => buildReceberRows(titulos, cartoes, adminTipo, dupsScoped),
+    [titulos, cartoes, adminTipo, dupsScoped],
   )
   const pagarRows = useMemo(() => buildPagarRows(payables), [payables])
   const clientes = useMemo(() => aggregate(recebRows, CLIENTES_ORDER, RECEBER_META), [recebRows])
   const cartaoApps = useMemo(() => aggregate(recebRows, CARTAO_ORDER, RECEBER_META), [recebRows])
+  // Bruto dos cartões/apps (antes da taxa) — referência ao lado do líquido.
+  const cartaoBruto = useMemo(
+    () => recebRows.filter((r) => (CARTAO_ORDER as string[]).includes(r.instrumento)).reduce((s, r) => s + (r.bruto ?? r.valor), 0),
+    [recebRows],
+  )
   const pagar = useMemo(() => aggregate(pagarRows, PAGAR_ORDER, PAGAR_META), [pagarRows])
 
   // "Tempo de atraso": aging da COBRANÇA de cliente (notas+faturas+outros) e do
@@ -359,15 +390,16 @@ const PosicaoAberto = ({ titulos, cartoes, payables }: Props) => {
       <BucketCard title="A receber de clientes" sub="Cobrança · bate com a aba Receber" Icon={HandCoins} tone="emerald" agg={clientes} />
       <BucketCard
         title="Cartões e apps"
-        sub="Bruto pendente · não conciliado"
+        sub="Líquido estimado · após taxa"
         Icon={CreditCard}
         tone="blue"
         agg={cartaoApps}
+        bruto={cartaoBruto}
         vencidoLabel="Vencidos (rever)"
         aVencerLabel="A compensar"
         alerta={cartaoApps.vencidoTotal > 0
-          ? `Bruto do /CARTAO, sem conciliar com o adquirente. Os ${formatCurrencyInt(cartaoApps.vencidoTotal)} vencidos podem ser baixa não feita no ERP — confira na aba Cartões.`
-          : 'Bruto do /CARTAO, sem conciliar com o adquirente. Feche na aba Cartões.'}
+          ? `Líquido estimado pela taxa do /CARTAO (bruto ${formatCurrencyInt(cartaoBruto)}). Os ${formatCurrencyInt(cartaoApps.vencidoTotal)} vencidos podem ser baixa não feita no ERP. O realizado é conciliado na aba Cartões.`
+          : `Líquido estimado pela taxa do /CARTAO (bruto ${formatCurrencyInt(cartaoBruto)}). O realizado é conciliado na aba Cartões.`}
       />
       <BucketCard title="A pagar em aberto" sub="Bate com a aba Pagar" Icon={ArrowUpCircle} tone="red" agg={pagar} />
     </div>
