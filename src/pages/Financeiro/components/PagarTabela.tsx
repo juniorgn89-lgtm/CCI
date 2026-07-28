@@ -155,11 +155,17 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
       case 'menorValor': arr.sort((a, b) => a.valor - b.valor); break
       case 'maiorAtraso': arr.sort((a, b) => b.diasAtraso - a.diasAtraso); break
       case 'fornecedor': arr.sort((a, b) => a.fornecedor.localeCompare(b.fornecedor)); break
-      default:
-        arr.sort((a, b) => {
-          if (a.vencido !== b.vencido) return a.vencido ? -1 : 1
-          return a.vencimento.localeCompare(b.vencimento)
-        })
+      default: {
+        // "Mais próximo": menor distância da data de vencimento até hoje (passado
+        // OU futuro). O que vence/venceu PERTO de hoje fica no topo; os bem antigos
+        // (ex.: 2022) vão pro fim — é o OPOSTO de "Maior atraso", não um clone dele.
+        const hoje = new Date().setHours(0, 0, 0, 0)
+        const dist = (venc: string) => {
+          const t = new Date(`${venc}T00:00:00`).getTime()
+          return Number.isNaN(t) ? Infinity : Math.abs(t - hoje)
+        }
+        arr.sort((a, b) => dist(a.vencimento) - dist(b.vencimento))
+      }
     }
     return arr
   }, [escopo, inst, atrasoFaixa, ordenar])
@@ -180,8 +186,8 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
   }
 
   const exportar = () => {
-    const header = ['Fornecedor', 'Posto', 'Instrumento', 'Valor', 'Vencimento', 'Status', 'Documento']
-    const linhas = rowsAll.map((r) => [r.fornecedor, nomePosto(r.empresa), instMeta(r.instrumento).label, r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
+    const header = ['Fornecedor', 'Posto', 'Instrumento', 'Valor', 'Pago', 'A pagar', 'Vencimento', 'Status', 'Documento']
+    const linhas = rowsAll.map((r) => [r.fornecedor, nomePosto(r.empresa), instMeta(r.instrumento).label, r.valorTotal.toFixed(2).replace('.', ','), r.valorPago.toFixed(2).replace('.', ','), r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
     const csv = [header, ...linhas].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
     const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -333,6 +339,8 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
               <th className="py-2 px-3">Posto</th>
               <th className="py-2 px-3">Instrumento</th>
               <th className="py-2 px-3 text-right">Valor</th>
+              <th className="py-2 px-3 text-right">Pago</th>
+              <th className="py-2 px-3 text-right">A pagar</th>
               <th className="py-2 px-3">Vencimento</th>
               <th className="py-2 px-3">Status</th>
               <th className="py-2 pl-3 text-right">Ações</th>
@@ -340,7 +348,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
           </thead>
           <tbody>
             {pageRows.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhuma conta a pagar encontrada</td></tr>
+              <tr><td colSpan={9} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhuma conta a pagar encontrada</td></tr>
             ) : pageRows.map((r) => {
               const m = instMeta(r.instrumento)
               const aberto = detalhe === r.key
@@ -357,6 +365,8 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
                         <m.Icon className="h-3 w-3" />{m.label}
                       </span>
                     </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(r.valorTotal)}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{r.valorPago > 0 ? formatCurrency(r.valorPago) : <span className="text-gray-300 dark:text-gray-600">—</span>}</td>
                     <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
                     <td className="py-2.5 px-3 tabular-nums text-gray-600 dark:text-gray-300">{brDate(r.vencimento)}</td>
                     <td className="py-2.5 px-3">
@@ -375,7 +385,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
                   </tr>
                   {aberto && (
                     <tr className="bg-gray-50/60 dark:bg-gray-800/30">
-                      <td colSpan={7} className="px-3 py-2.5">
+                      <td colSpan={9} className="px-3 py-2.5">
                         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
                           <DetItem label="Fornecedor" value={r.fornecedor} />
                           <DetItem label="Posto" value={nomePosto(r.empresa)} />
@@ -384,7 +394,9 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
                           <DetItem label="Detalhe" value={r.sub || '—'} />
                           <DetItem label="Vencimento" value={brDate(r.vencimento)} />
                           <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
-                          <DetItem label="Valor" value={formatCurrency(r.valor)} />
+                          <DetItem label="Valor" value={formatCurrency(r.valorTotal)} />
+                          <DetItem label="Pago" value={formatCurrency(r.valorPago)} />
+                          <DetItem label="A pagar" value={formatCurrency(r.valor)} />
                         </div>
                       </td>
                     </tr>

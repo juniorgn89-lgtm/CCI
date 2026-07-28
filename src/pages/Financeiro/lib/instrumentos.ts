@@ -101,7 +101,12 @@ export interface PagarRow {
   instrumento: InstPagar
   fornecedor: string
   sub: string
+  /** Saldo em aberto (o que falta pagar) — usado nos agregados e na coluna "A pagar". */
   valor: number
+  /** Valor total do título, antes das baixas. */
+  valorTotal: number
+  /** Já pago (soma das baixas parciais). */
+  valorPago: number
   vencimento: string
   vencido: boolean
   diasAtraso: number
@@ -131,7 +136,8 @@ export const buildPagarRows = (payables: PayableRow[]): PagarRow[] => {
       key: `p${p.codigo}`, empresa: p.empresaCodigo, instrumento: catPagar(p),
       fornecedor: (p.nomeFornecedor || `Fornecedor ${p.fornecedorCodigo}`).trim(),
       sub: p.descricao?.trim() || parc || p.tipo || '—',
-      valor: p.saldoRestante, vencimento: venc, vencido, diasAtraso: p.diasAtraso,
+      valor: p.saldoRestante, valorTotal: p.valor, valorPago: p.valorPago,
+      vencimento: venc, vencido, diasAtraso: p.diasAtraso,
       documento: String((p as Record<string, unknown>).numeroTitulo ?? ''),
     })
   }
