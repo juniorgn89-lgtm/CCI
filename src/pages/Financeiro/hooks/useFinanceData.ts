@@ -1,11 +1,24 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchTitulosReceber, fetchTitulosPagar, fetchMovimentosConta, fetchCartao, fetchContas, fetchDuplicatas } from '@/api/endpoints/financeiro'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { MovimentoConta, TituloReceber, TituloPagar, Duplicata } from '@/api/types/financeiro'
+
+// Stale-while-revalidate pros snapshots de títulos em aberto: mostra o dado do
+// cache NA HORA (sem espera) e rebusca por trás ao abrir a aba / focar a janela.
+// Títulos a receber/pagar mudam a cada venda; o default global (staleTime 30min,
+// refetchOnMount/Focus false) deixava o número atrás do WebPosto. keepPreviousData
+// evita "piscar carregando" durante o refetch em background (o spinner do Header
+// já sinaliza que está atualizando).
+const FRESH_SNAPSHOT = {
+  staleTime: 30_000,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: true,
+  placeholderData: keepPreviousData,
+} as const
 
 /**
  * Filtro de período LOCAL (independente do filtro global) aplicado aos snapshots
@@ -386,6 +399,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
 
   const { data: titulosReceberPendRaw = [], isLoading: isLoadingReceberPend } = useQuery({
     queryKey: ['titulosReceberPend', 'rede'],
+    ...FRESH_SNAPSHOT,
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosReceber({
         dataInicial: SNAPSHOT_INICIO,
@@ -409,6 +423,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // existir, tratar à parte. Os PAGOS (pro PMP) vêm da busca dedicada abaixo.
   const { data: titulosPagarPendRaw = [], isLoading: isLoadingPagarPend } = useQuery({
     queryKey: ['titulosPagarPend', 'rede'],
+    ...FRESH_SNAPSHOT,
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({
         dataInicial: SNAPSHOT_INICIO,
@@ -427,6 +442,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // Mesma janela ampla dos demais pendentes (podem estar vencidas há tempo).
   const { data: duplicatasPendRaw = [], isLoading: isLoadingDuplicatasPend } = useQuery({
     queryKey: ['duplicatasPend', 'rede'],
+    ...FRESH_SNAPSHOT,
     queryFn: () => fetchAllPages(
       (p) => fetchDuplicatas({
         dataInicial: SNAPSHOT_INICIO,
@@ -442,6 +458,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
 
   const { data: cartoesPendRaw = [] } = useQuery({
     queryKey: ['cartaoPend', 'rede'],
+    ...FRESH_SNAPSHOT,
     queryFn: () => fetchAllPages(
       (p) => fetchCartao({
         dataInicial: cartaoSnapInicio,
@@ -479,6 +496,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // truncamento que os escondia quando o PMP lia o snapshot inteiro.
   const { data: titulosPagarPagosRaw = [] } = useQuery({
     queryKey: ['titulosPagarPagos', 'rede'],
+    ...FRESH_SNAPSHOT,
     queryFn: () => fetchAllPages(
       (p) => fetchTitulosPagar({
         dataInicial: pmrInicio,
