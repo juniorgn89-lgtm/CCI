@@ -356,6 +356,26 @@ export interface CartaoPagar {
   codigo: number
 }
 
+/**
+ * Vale / Falta de Caixa / Sobra de Caixa por funcionário (/INTEGRACAO/VALE_FUNCIONARIO).
+ * `origem`: "Vale" (adiantamento/desconto), "Falta de Caixa" (o operador deve),
+ * "Sobra de Caixa". `caixaCodigo` liga ao caixa do fechamento; `quitado` = já acertado.
+ */
+export interface ValeFuncionario {
+  funcionarioCreditoCodigo: number
+  empresaCodigo: number
+  funcionarioCodigo: number
+  funcionarioReferencia: number | null
+  origem: string
+  descricao: string
+  data: string
+  valor: number
+  turno: number
+  quitado: boolean
+  caixaCodigo: number
+  codigo: number
+}
+
 export interface Conta {
   codigo: number
   empresaCodigo: number

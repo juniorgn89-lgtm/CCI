@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import useOperacaoData, { type ConferenciaCaixa } from '@/pages/Operacao/hooks/useOperacaoData'
-import { fetchCartao, fetchCaixas } from '@/api/endpoints/financeiro'
+import { fetchCartao, fetchCaixas, fetchValesFuncionario } from '@/api/endpoints/financeiro'
+import type { ValeFuncionario } from '@/api/types/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { todayLocal } from '@/lib/period'
 import { difCaixa, isCartaoForma } from '@/lib/difCaixa'
@@ -47,6 +48,15 @@ export type CausaTier = 'atual' | 'historico' | 'misto'
 export interface Evidencia {
   texto: string
   tier: EvidenciaTier
+}
+
+/** Falta/Sobra de Caixa lançada no ERP pra este caixa (/VALE_FUNCIONARIO) — a
+ *  resolução OFICIAL da diferença: quem deve/tem a mais e se já quitou. */
+export interface LancamentoCaixa {
+  origem: string
+  valor: number
+  quitado: boolean
+  descricao: string
 }
 
 /** Banda de tolerância aplicada a este caixa. */
@@ -103,6 +113,8 @@ export interface ExcecaoCaixa {
   isCartao: boolean
   /** Quebra do caixa por forma (apresentado × apurado × diferença) — p/ o modal "detalhe do caixa". */
   formasDetalhe: { nome: string; apresentado: number; apurado: number; diferenca: number }[]
+  /** Falta/Sobra de Caixa lançada no ERP pra este caixa (resolução oficial da diferença). */
+  lancamentos: LancamentoCaixa[]
 }
 
 export interface FechamentoExcecaoData {
@@ -271,6 +283,36 @@ const useFechamentoExcecao = (empresaCodigoOverride?: number | null): Fechamento
     staleTime: 30 * 60 * 1000,
   })
 
+  // Faltas/Sobras de Caixa lançadas no ERP (/VALE_FUNCIONARIO) — o registro OFICIAL
+  // da diferença de cada caixa. Só as origens de caixa ligam por caixaCodigo (o Vale
+  // de adiantamento vem com caixaCodigo=0). Indexado por caixaCodigo.
+  const { data: valesRaw = [] } = useQuery({
+    queryKey: ['excecao-vales', scopedCodes.join(','), dataInicial, dataFinal],
+    queryFn: async () => {
+      const lists = await Promise.all(
+        (scopedCodes.length > 0 ? scopedCodes : []).map((ec) =>
+          fetchAllPages(
+            (p) => fetchValesFuncionario({ empresaCodigo: [ec], dataInicial, dataFinal, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+            1000, 10,
+          ),
+        ),
+      )
+      return lists.flat()
+    },
+    enabled: hasEmpresa && !!dataInicial && !!dataFinal,
+    staleTime: 5 * 60 * 1000,
+  })
+  const valesByCaixa = useMemo(() => {
+    const m = new Map<number, ValeFuncionario[]>()
+    for (const v of valesRaw) {
+      if (!v.caixaCodigo) continue
+      const arr = m.get(v.caixaCodigo)
+      if (arr) arr.push(v)
+      else m.set(v.caixaCodigo, [v])
+    }
+    return m
+  }, [valesRaw])
+
   // Deriva banda por PDV + histórico por operador + taxa média da rede.
   const hist90 = useMemo(() => {
     const fech = hist90Raw.filter((c) => c.fechado)
@@ -354,6 +396,24 @@ const useFechamentoExcecao = (empresaCodigoOverride?: number | null): Fechamento
           tier: 'atual',
         })
       }
+      // Falta/Sobra de Caixa lançada no ERP pra este caixa = registro oficial da diferença.
+      const lancamentos: LancamentoCaixa[] = (valesByCaixa.get(c.caixaCodigo) ?? []).map((v) => ({
+        origem: v.origem, valor: v.valor, quitado: v.quitado, descricao: v.descricao,
+      }))
+      if (lancamentos.length > 0) {
+        const totFalta = lancamentos.filter((l) => /falta/i.test(l.origem)).reduce((s, l) => s + l.valor, 0)
+        const totSobra = lancamentos.filter((l) => /sobra/i.test(l.origem)).reduce((s, l) => s + l.valor, 0)
+        const partes: string[] = []
+        if (totFalta > EPS) partes.push(`Falta de Caixa ${brl(totFalta)}`)
+        if (totSobra > EPS) partes.push(`Sobra de Caixa ${brl(totSobra)}`)
+        if (partes.length > 0) {
+          const naoQuit = lancamentos.some((l) => !l.quitado)
+          evidencias.unshift({
+            texto: `Lançado no ERP: ${partes.join(' + ')} — ${naoQuit ? 'a quitar com o operador' : 'já quitado'}. Registro oficial da diferença deste caixa.`,
+            tier: 'atual',
+          })
+        }
+      }
 
       fila.push({
         key: `${c.caixaCodigo}-${c.dataMovimento.slice(0, 10)}`,
@@ -377,6 +437,7 @@ const useFechamentoExcecao = (empresaCodigoOverride?: number | null): Fechamento
         formaDominante: causa.formaDominante,
         isCartao: causa.isCartao,
         formasDetalhe: formasFull.map((f) => ({ nome: f.nome, apresentado: f.apresentado, apurado: f.apurado, diferenca: f.diferenca })),
+        lancamentos,
       })
     }
 
@@ -399,7 +460,7 @@ const useFechamentoExcecao = (empresaCodigoOverride?: number | null): Fechamento
       isLoading,
       hasEmpresa,
     }
-  }, [turnoRows, conferenciaPdv, taxaContratadaMediaPct, hist90, isLoading, hasEmpresa])
+  }, [turnoRows, conferenciaPdv, taxaContratadaMediaPct, hist90, valesByCaixa, isLoading, hasEmpresa])
 }
 
 export default useFechamentoExcecao

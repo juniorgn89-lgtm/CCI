@@ -13,6 +13,7 @@ import type {
   CartaoRemessa,
   Administradora,
   PlanoContaGerencial,
+  ValeFuncionario,
 } from '@/api/types/financeiro'
 
 interface FetchTitulosReceberParams {
@@ -152,6 +153,24 @@ export const fetchPlanoContaGerencial = (params?: { ultimoCodigo?: number; limit
 
 export const fetchMovimentosConta = (params?: FetchMovimentosContaParams) =>
   client.get<PaginatedResponse<MovimentoConta>>('/MOVIMENTO_CONTA', { params }).then((res) => res.data)
+
+interface FetchValeFuncionarioParams {
+  dataInicial: string
+  dataFinal: string
+  empresaCodigo?: number[]
+  vendaCodigo?: number
+  ultimoCodigo?: number
+  limite?: number
+  quitado?: boolean
+  /** C = Sobra de Caixa · D = Falta de Caixa · V = Vale (omitir = todas). */
+  origem?: 'C' | 'D' | 'V'
+  dataHoraAtualizacao?: string
+}
+
+/** Vales / faltas / sobras de caixa por funcionário (/VALE_FUNCIONARIO). GET,
+ *  honra empresaCodigo; cursor por `ultimoCodigo`. */
+export const fetchValesFuncionario = (params: FetchValeFuncionarioParams) =>
+  client.get<PaginatedResponse<ValeFuncionario>>('/VALE_FUNCIONARIO', { params }).then((res) => res.data)
 
 export const fetchCaixas = (params?: FetchCaixasParams) =>
   client.get<PaginatedResponse<Caixa>>('/CAIXA', { params }).then((res) => res.data)

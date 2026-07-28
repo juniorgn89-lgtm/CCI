@@ -208,6 +208,11 @@ const FechamentoExcecao = ({ empresaCodigo }: { empresaCodigo?: number | null } 
                       <span className="flex items-center gap-1.5">
                         <span className="truncate text-[13px] font-semibold text-gray-900 dark:text-gray-100">{e.operador}</span>
                         <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase', m.bg, m.text)}>{m.label}</span>
+                        {e.lancamentos.length > 0 && (
+                          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#eef2ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#4338ca] dark:bg-indigo-900/30 dark:text-indigo-400">
+                            <ShieldCheck className="h-2.5 w-2.5" /> ERP
+                          </span>
+                        )}
                       </span>
                       <span className="truncate text-[11px] text-gray-500 dark:text-gray-400">{e.pdvLabel} · {e.causa}</span>
                     </span>
@@ -300,6 +305,30 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
               <InfoHint text="Confiança = força do casamento dos sinais determinísticos (proporção que casa), não um peso arbitrário." />
             </div>
           </div>
+
+          {/* Lançamento oficial no ERP (Falta/Sobra de Caixa) — resolução da diferença */}
+          {sel.lancamentos.length > 0 && (() => {
+            const totFalta = sel.lancamentos.filter((l) => /falta/i.test(l.origem)).reduce((s, l) => s + l.valor, 0)
+            const totSobra = sel.lancamentos.filter((l) => /sobra/i.test(l.origem)).reduce((s, l) => s + l.valor, 0)
+            const naoQuit = sel.lancamentos.some((l) => !l.quitado)
+            return (
+              <div className={cn('rounded-xl border p-3', naoQuit ? 'border-[#fde68a] bg-[#fffbeb] dark:border-amber-900/50 dark:bg-amber-900/20' : 'border-[#bbf7d0] bg-[#f0fdf4] dark:border-emerald-900/50 dark:bg-emerald-900/20')}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-gray-900 dark:text-gray-100">
+                    <ShieldCheck className="h-4 w-4 text-[#4338ca]" /> Lançado no ERP
+                  </span>
+                  <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold', naoQuit ? 'bg-[#fef3c7] text-[#b45309] dark:bg-amber-900/40 dark:text-amber-300' : 'bg-[#dcfce7] text-[#15803d] dark:bg-emerald-900/40 dark:text-emerald-300')}>
+                    {naoQuit ? 'A quitar' : 'Quitado'}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px]">
+                  {totFalta > 0 && <span className="text-gray-700 dark:text-gray-300">Falta de Caixa <strong className="tabular-nums text-[#b91c1c] dark:text-red-400">{formatCurrency(totFalta)}</strong></span>}
+                  {totSobra > 0 && <span className="text-gray-700 dark:text-gray-300">Sobra de Caixa <strong className="tabular-nums text-[#15803d] dark:text-emerald-400">{formatCurrency(totSobra)}</strong></span>}
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Registro oficial da diferença deste caixa, do /VALE_FUNCIONARIO.</p>
+              </div>
+            )
+          })()}
 
           {/* Evidências */}
           <div>
