@@ -36,6 +36,38 @@ const PERIODOS: { id: Periodo; label: string }[] = [
   { id: 'atrasados', label: 'Atrasados' },
 ]
 
+// Fatura consolidada: as Notas faturadas (convertidas) agrupadas por duplicata —
+// espelha o relatório "Faturas" do WebPosto (1 linha por fatura). `titulos` guarda
+// as notas que a compõem, mostradas ao expandir.
+type LinhaReceb = RecebRow & { titulos?: RecebRow[] }
+
+/** Agrupa por duplicata: valor = soma das notas; vencimento = o mais antigo
+ *  (define o atraso); nº do documento = código da duplicata. */
+const consolidarFaturas = (rows: RecebRow[]): LinhaReceb[] => {
+  const g = new Map<number, RecebRow[]>()
+  for (const r of rows) {
+    const arr = g.get(r.duplicataCod || 0)
+    if (arr) arr.push(r)
+    else g.set(r.duplicataCod || 0, [r])
+  }
+  const out: LinhaReceb[] = []
+  for (const [dup, titulos] of g) {
+    const t0 = titulos[0]
+    out.push({
+      ...t0,
+      key: `f${dup}`,
+      valor: titulos.reduce((s, x) => s + x.valor, 0),
+      vencimento: titulos.map((x) => x.vencimento).filter(Boolean).sort()[0] || t0.vencimento,
+      vencido: titulos.some((x) => x.vencido),
+      diasAtraso: titulos.reduce((mx, x) => Math.max(mx, x.diasAtraso), 0),
+      sub: `${titulos.length} ${titulos.length === 1 ? 'nota' : 'notas'}`,
+      docNumero: dup,
+      titulos,
+    })
+  }
+  return out
+}
+
 // Só instrumentos de cobrança de cliente. Cartões/apps não entram aqui (são
 // recebíveis a compensar — vivem no dash e na aba Cartões).
 const INSTR: { id: InstReceber; label: string; Icon: typeof FileText; badge: string }[] = [
@@ -114,6 +146,10 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       acc.todos.total += r.valor; acc.todos.count += 1
       acc[r.instrumento].total += r.valor; acc[r.instrumento].count += 1
     }
+    // Faturas consolidam por duplicata → o card conta FATURAS, não títulos.
+    const fatDups = new Set<number>()
+    for (const r of escopo) if (r.instrumento === 'faturas') fatDups.add(r.duplicataCod || 0)
+    acc.faturas.count = fatDups.size
     return acc
   }, [escopo])
 
@@ -161,7 +197,9 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const temFiltro = inst !== 'todos' || periodo !== 'todos' || clientesSel.length > 0 || planoSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
 
   const rowsAll = useMemo(() => {
-    let base = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
+    let base: LinhaReceb[] = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
+    // Aba Faturas: consolida os títulos por duplicata — 1 linha por fatura (espelha o WebPosto).
+    if (inst === 'faturas') base = consolidarFaturas(base)
     if (atrasoFaixa !== 'todos') {
       base = base.filter((r) => {
         const d = r.diasAtraso
@@ -255,7 +293,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                 <Icon className={cn('h-3.5 w-3.5', ativo ? 'text-[#2563eb]' : 'text-gray-400')} />
               </div>
               <p className={cn('mt-1 text-[15px] font-bold tabular-nums', ativo ? 'text-[#1e3a5f] dark:text-blue-300' : 'text-gray-900 dark:text-gray-100')}>{formatCurrency(c.total)}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500">{c.count} {c.count === 1 ? 'título' : 'títulos'}</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">{c.count} {id === 'faturas' ? (c.count === 1 ? 'fatura' : 'faturas') : (c.count === 1 ? 'título' : 'títulos')}</p>
             </button>
           )
         })}
@@ -446,17 +484,38 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                   {aberto && (
                     <tr className="bg-gray-50/60 dark:bg-gray-800/30">
                       <td colSpan={7} className="px-3 py-2.5">
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-                          <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
-                          <DetItem label="Cliente" value={r.cliente} />
-                          <DetItem label="Posto" value={nomePosto(r.empresa)} />
-                          <DetItem label="Instrumento" value={m.label} />
-                          <DetItem label="Documento" value={r.documento || '—'} />
-                          <DetItem label="Detalhe" value={r.sub || '—'} />
-                          <DetItem label="Vencimento" value={brDate(r.vencimento)} />
-                          <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
-                          <DetItem label="Valor" value={formatCurrency(r.valor)} />
-                        </div>
+                        {r.titulos ? (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                              {r.titulos.length} {r.titulos.length === 1 ? 'nota' : 'notas'} nesta fatura
+                            </p>
+                            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                              <table className="w-full text-[12px]">
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                  {r.titulos.map((t) => (
+                                    <tr key={t.key} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                                      <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">Nota {t.docNumero || '—'}</td>
+                                      <td className="px-3 py-1.5 tabular-nums text-gray-500 dark:text-gray-400">{brDate(t.vencimento)}</td>
+                                      <td className="px-3 py-1.5 text-right tabular-nums font-medium text-gray-900 dark:text-gray-100">{formatCurrency(t.valor)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
+                            <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
+                            <DetItem label="Cliente" value={r.cliente} />
+                            <DetItem label="Posto" value={nomePosto(r.empresa)} />
+                            <DetItem label="Instrumento" value={m.label} />
+                            <DetItem label="Documento" value={r.documento || '—'} />
+                            <DetItem label="Detalhe" value={r.sub || '—'} />
+                            <DetItem label="Vencimento" value={brDate(r.vencimento)} />
+                            <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
+                            <DetItem label="Valor" value={formatCurrency(r.valor)} />
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -471,7 +530,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       {rowsAll.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <span className="text-[11px] text-gray-400 dark:text-gray-500">
-            Mostrando {primeiro}-{ultimo} de {rowsAll.length} {rowsAll.length === 1 ? 'recebível' : 'recebíveis'}
+            Mostrando {primeiro}-{ultimo} de {rowsAll.length} {inst === 'faturas' ? (rowsAll.length === 1 ? 'fatura' : 'faturas') : (rowsAll.length === 1 ? 'recebível' : 'recebíveis')}
           </span>
           {totalPages > 1 && (
             <div className="inline-flex items-center gap-1">

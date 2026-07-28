@@ -39,6 +39,8 @@ export interface RecebRow {
   docNumero: number
   /** Código do plano de contas gerencial (nome resolvido via usePlanoContasMap). */
   planoContaCod: number
+  /** Código da duplicata que agrupou o título (fatura) — pra consolidar. 0 = sem fatura. */
+  duplicataCod: number
 }
 
 /** Modalidade "app/carteira digital" (vs cartão crédito/débito) pelo tipo da
@@ -69,7 +71,7 @@ export const buildCobrancaRows = (titulos: ReceivableRow[]): RecebRow[] => {
     const venc = onlyDate(t.dataVencimento)
     const vencido = !!venc && venc < hoje
     const sub = cat === 'faturas' ? (t.tipo?.trim() || 'Fatura / boleto') : (t.tipo || '—')
-    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub, valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '', docNumero: Number((t as Record<string, unknown>).tituloNumero ?? 0), planoContaCod: Number((t as Record<string, unknown>).planoContaGerencialCodigo ?? 0) })
+    out.push({ key: `t${t.codigo}`, empresa: t.empresaCodigo, instrumento: cat, cliente: (t.nomeCliente || `Cliente ${t.clienteCodigo}`).trim(), sub, valor: t.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: t.documento || '', docNumero: Number((t as Record<string, unknown>).tituloNumero ?? 0), planoContaCod: Number((t as Record<string, unknown>).planoContaGerencialCodigo ?? 0), duplicataCod: Number((t as Record<string, unknown>).duplicataCodigo ?? 0) })
   }
   return out
 }
@@ -93,7 +95,7 @@ export const buildReceberRows = (
     // Cartões são recebíveis a compensar da adquirente, sem plano de contas
     // gerencial (conceito de título/duplicata) — e só alimentam o dashboard,
     // nunca o filtro "Plano de contas". 0 → "Sem plano".
-    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '', docNumero: 0, planoContaCod: 0 })
+    cartaoRows.push({ key: `c${c.codigo}`, empresa: c.empresaCodigo, instrumento: isApp(modal) ? 'apps' : 'cartoes', cliente: (c.clienteRazao || c.clienteReferencia || 'Cartão').trim(), sub: c.adiministradoraDescricao || 'Cartão', valor: c.valor, vencimento: venc, vencido, diasAtraso: vencido ? diffDays(venc, hoje) : 0, documento: c.nsu || c.autorizacao || '', docNumero: 0, planoContaCod: 0, duplicataCod: 0 })
   }
   return [...cartaoRows, ...buildCobrancaRows(titulos)]
 }
