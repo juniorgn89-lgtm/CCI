@@ -447,10 +447,10 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                     <tr className="bg-gray-50/60 dark:bg-gray-800/30">
                       <td colSpan={7} className="px-3 py-2.5">
                         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
+                          <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
                           <DetItem label="Cliente" value={r.cliente} />
                           <DetItem label="Posto" value={nomePosto(r.empresa)} />
                           <DetItem label="Instrumento" value={m.label} />
-                          <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
                           <DetItem label="Documento" value={r.documento || '—'} />
                           <DetItem label="Detalhe" value={r.sub || '—'} />
                           <DetItem label="Vencimento" value={brDate(r.vencimento)} />
