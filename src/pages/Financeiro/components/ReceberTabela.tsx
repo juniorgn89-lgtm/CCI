@@ -206,8 +206,8 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   }
 
   const exportar = () => {
-    const header = ['Cliente', 'Posto', 'Instrumento', 'Valor', 'Vencimento', 'Status', 'Documento']
-    const linhas = rowsAll.map((r) => [r.cliente, nomePosto(r.empresa), instMeta(r.instrumento).label, r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
+    const header = ['Cliente', 'Posto', 'Instrumento', 'Nº documento', 'Valor', 'Vencimento', 'Status', 'Documento']
+    const linhas = rowsAll.map((r) => [r.cliente, nomePosto(r.empresa), instMeta(r.instrumento).label, r.docNumero ? String(r.docNumero) : '', r.valor.toFixed(2).replace('.', ','), brDate(r.vencimento), r.vencido ? `Atrasado ${r.diasAtraso}d` : 'A vencer', r.documento])
     const csv = [header, ...linhas].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
     const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -450,6 +450,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                           <DetItem label="Cliente" value={r.cliente} />
                           <DetItem label="Posto" value={nomePosto(r.empresa)} />
                           <DetItem label="Instrumento" value={m.label} />
+                          <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
                           <DetItem label="Documento" value={r.documento || '—'} />
                           <DetItem label="Detalhe" value={r.sub || '—'} />
                           <DetItem label="Vencimento" value={brDate(r.vencimento)} />
