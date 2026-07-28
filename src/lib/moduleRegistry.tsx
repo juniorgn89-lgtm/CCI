@@ -3,7 +3,7 @@ import {
   CreditCard, LayoutDashboard, Eye, HandCoins, Calculator, Filter, ListChecks,
   ShieldCheck, CalendarClock, AlertTriangle, Droplets, Wrench, Store, Tag, Radio, Layers,
   TrendingUp, Gauge, Sparkles, BarChart3, Trophy, Building2, Radar, Wallet, Warehouse,
-  Users, SearchCheck, Target,
+  Users, SearchCheck, Target, Brain,
   type LucideIcon,
 } from 'lucide-react'
 import { IlRede, IlProjecao, IlConfianca, IlFiscal } from '@/components/potencial/ilustracoes'
@@ -694,6 +694,60 @@ export const REGISTRY: Record<string, ModuleMeta> = {
             <Secao icon={HandCoins} titulo="Por que importa">
               É a base pra cruzar gente com resultado (Produtividade) e pra saber quem está ativo em cada unidade — sem depender de planilha paralela.
             </Secao>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/inteligencia': {
+    Icon: Brain,
+    nome: 'Inteligência',
+    subtitle: 'o analista de IA da rede',
+    potencial: {
+      '': {
+        title: 'Inteligência — o potencial desta tela',
+        description: 'O analista de IA que lê a rede e diz, em português claro, onde está a perda e quanto ela vale.',
+        body: (
+          <>
+            <Secao icon={Sparkles} titulo="O que ela faz">
+              Um <strong>analista de IA</strong> que lê os dados já apurados da rede e responde em linguagem de dono: onde o resultado está escapando, qual posto está fora da curva e quanto vale corrigir — sem você garimpar planilha.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Vira número em <strong>decisão</strong>: em vez de abrir dez telas atrás do problema, você pergunta e ele aponta o que atacar primeiro, com o valor em reais do lado.
+            </Secao>
+            <NotaHonesta>
+              É <strong>só leitura</strong>: a IA analisa e sugere a partir do que já foi apurado — não altera preço, nota nem qualquer valor no sistema. Quem decide é você.
+            </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
+  '/compliance': {
+    Icon: ShieldCheck,
+    nome: 'Compliance ANP',
+    subtitle: 'margem regulatória (placa − CMP)',
+    potencial: {
+      '': {
+        title: 'Compliance ANP — o potencial desta tela',
+        description: 'A margem regulatória por posto e combustível — placa menos custo — pra enxergar o que a fiscalização enxergaria.',
+        body: (
+          <>
+            <Secao icon={Eye} titulo="O que ela faz">
+              Reconstrói, por <strong>posto × combustível</strong>, a <strong>margem regulatória</strong> = preço de placa (à vista) − <strong>CMP</strong> (custo médio ponderado das notas de compra), com um panorama por faixa (verde/amarelo/laranja/vermelho) e o detalhe com histórico de 365 dias.
+            </Secao>
+            <Secao icon={Calculator} titulo="Como é calculado">
+              <span className="block">• <strong>CMP</strong> = Σ(quantidade × custo) ÷ Σ(quantidade) das compras do período — não o último preço.</span>
+              <span className="block">• <strong>Margem</strong> = placa vigente − CMP. Tudo de dados GET (/COMPRA_ITEM + /TROCA_PRECO), read-only.</span>
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Enxergar a margem que a ANP olharia — <strong>sem promoção nem desconto</strong> — antes de virar questionamento, e ter a trilha pra reconciliar placa e custo contra o ERP.
+            </Secao>
+            <NotaHonesta>
+              É <strong>validação/spike</strong>: a margem <strong>regulatória</strong> (placa − CMP) não é a <strong>operacional</strong> do dia a dia, e uma cor aqui <strong>não</strong> é veredito oficial da ANP. A placa é por posto — selecione um posto pra ver placa e margem.
+            </NotaHonesta>
           </>
         ),
       },

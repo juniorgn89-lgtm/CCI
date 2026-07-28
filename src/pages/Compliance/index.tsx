@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
-import { ShieldCheck, AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight } from 'lucide-react'
-import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
+import { AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight } from 'lucide-react'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import HeaderHint from '@/components/tables/HeaderHint'
@@ -629,20 +628,6 @@ const Compliance = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeaderTitle placement="header">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-          <ShieldCheck className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-              Compliance ANP · Validação
-            </h1>
-            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-              Margem regulatória (placa − CMP) reconstruída de dados GET · spike
-            </p>
-          </div>
-        </div>
-      </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>

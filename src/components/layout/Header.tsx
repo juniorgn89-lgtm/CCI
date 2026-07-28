@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
 import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -143,13 +143,13 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
           {/* Logo + nome — fixos na barra de topo (fora do menu que recolhe,
               estilo Gmail). Marca CCI oficial: símbolo dos 3 triângulos +
-              wordmark com "360" em teal. Link externo pro Portal CCI. */}
-          <a
-            href="https://portal-cci-eight.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Abrir Portal CCI"
-            title="Abrir Portal CCI"
+              wordmark com "360" em teal. Clicar volta pra Central da Rede (home
+              do app). Antes apontava pro deploy externo do portal (aposentado
+              quando a landing virou a raiz `/` do próprio app). */}
+          <Link
+            to="/dashboard"
+            aria-label="Ir para a Central da Rede"
+            title="Central da Rede"
             className="group mr-1 flex shrink-0 items-center gap-2.5"
           >
             <img
@@ -163,7 +163,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
               </span>
               <span className="text-[10px] text-gray-500 dark:text-white/55">Gestão de postos</span>
             </span>
-          </a>
+          </Link>
 
           {/* Slot de título do módulo no Header (ao lado do logo), preenchido por
               páginas com <PageHeaderTitle placement="header">. Piloto: Central da Rede. */}

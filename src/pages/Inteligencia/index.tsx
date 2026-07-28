@@ -1,8 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
-import TopBar from '@/components/layout/TopBar'
 import useIsMobile from '@/hooks/useIsMobile'
 import InteligenciaMobile from './InteligenciaMobile'
 
@@ -34,16 +32,6 @@ const Inteligencia = () => {
 
   return (
     <div className="space-y-3">
-      <TopBar
-        className="sticky -top-4 z-30 -mx-4 -mt-4 md:-top-5 md:-mx-6 md:-mt-5"
-        title={
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-            <FocusModeToggle />
-          </div>
-        }
-      />
-
       <Suspense fallback={<TabFallback />}>
         <AssistenteInteligente />
       </Suspense>
