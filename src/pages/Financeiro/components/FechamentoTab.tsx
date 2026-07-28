@@ -4,7 +4,7 @@ import { Building2 } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { Skeleton } from '@/components/ui/skeleton'
+import IAAnalisando from '@/components/feedback/IAAnalisando'
 import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 
 const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
@@ -54,7 +54,7 @@ const FechamentoTab = () => {
         </p>
         </div>
       )}
-      <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+      <Suspense fallback={<div className="relative min-h-[520px]"><IAAnalisando /></div>}>
         <FechamentoExcecao empresaCodigo={selectedCodigo} />
       </Suspense>
     </div>

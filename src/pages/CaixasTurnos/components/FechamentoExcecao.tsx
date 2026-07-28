@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
+import IAAnalisando from '@/components/feedback/IAAnalisando'
 import { Skeleton } from '@/components/ui/skeleton'
 import useFechamentoExcecao, {
   type ExcecaoCaixa, type ExcecaoClasse, type CausaTier, type EvidenciaTier, type SparkPonto,
@@ -114,10 +115,14 @@ const FechamentoExcecao = ({ empresaCodigo }: { empresaCodigo?: number | null } 
   if (!hasEmpresa) return <SelectCompanyState />
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-20 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
-        <Skeleton className="h-[420px] w-full rounded-2xl" />
+      <div className="relative min-h-[520px]">
+        {/* Esqueleto borrado ao fundo + overlay "a IA está analisando" por cima. */}
+        <div aria-hidden className="space-y-4 opacity-50 blur-[1px]">
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+          <Skeleton className="h-[420px] w-full rounded-2xl" />
+        </div>
+        <IAAnalisando />
       </div>
     )
   }
