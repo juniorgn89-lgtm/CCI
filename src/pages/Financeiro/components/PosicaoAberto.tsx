@@ -9,7 +9,7 @@ import { fetchAdministradoras } from '@/api/endpoints/financeiro'
 import type { ReceivableRow, PayableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
 import {
-  buildReceberRows, buildPagarRows, type InstReceber, type InstPagar,
+  buildReceberRows, buildPagarRows, scopeDuplicatas, type InstReceber, type InstPagar,
 } from '@/pages/Financeiro/lib/instrumentos'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
@@ -310,19 +310,9 @@ const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
   // com baixa parcial), respeitando o escopo de posto/permissão.
   const duplicatas = useDuplicatasReceber()
   const scopedCodes = useScopedEmpresaCodes()
-  const dupsScoped = useMemo(() => {
-    // Mesmo recorte dos títulos: escopo de posto + período local (por dataMovimento,
-    // só quando o usuário escolhe "Por data"; o default é o snapshot completo).
-    const lpAll = periodo?.allPeriod ?? true
-    const ini = periodo?.dataInicial ?? ''
-    const fim = periodo?.dataFinal ?? ''
-    return duplicatas.filter((d) => {
-      if (scopedCodes.length > 0 && !scopedCodes.includes(d.empresaCodigo)) return false
-      if (lpAll) return true
-      const dm = (d.dataMovimento ?? '').split('T')[0]
-      return !!dm && dm >= ini && dm <= fim
-    })
-  }, [duplicatas, scopedCodes, periodo])
+  // Recorte das faturas = escopo de posto + período local. MESMO helper da aba Receber
+  // e do badge (fonte única), pra os três baterem sob qualquer filtro de data.
+  const dupsScoped = useMemo(() => scopeDuplicatas(duplicatas, scopedCodes, periodo), [duplicatas, scopedCodes, periodo])
   const recebRows = useMemo(
     () => buildReceberRows(titulos, cartoes, adminTipo, dupsScoped),
     [titulos, cartoes, adminTipo, dupsScoped],
@@ -347,9 +337,9 @@ const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
 
   const aReceberTotal = clientes.total + cartaoApps.total
   const posicao = aReceberTotal - pagar.total
-  // Vencidos que importam = dívida de cliente + a pagar (cartão a compensar não
-  // é "vencido de cobrança").
-  const vencidoCobranca = clientes.vencidoTotal + pagar.vencidoTotal
+  // Vencidos = TUDO a receber vencido (clientes + cartões/apps) + a pagar vencido —
+  // mesma base do badge das abas, pra o dash "fechar" com elas.
+  const vencidoTotal = clientes.vencidoTotal + cartaoApps.vencidoTotal + pagar.vencidoTotal
 
   return (
     <div className="space-y-4">
@@ -383,7 +373,7 @@ const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
           </div>
         </div>
         <div className="mt-auto pt-3">
-          <span className="text-[11px] text-white/50">{formatCurrencyInt(vencidoCobranca)} vencidos (clientes + a pagar)</span>
+          <span className="text-[11px] text-white/50">{formatCurrencyInt(vencidoTotal)} vencidos (a receber + a pagar)</span>
         </div>
       </section>
 
@@ -398,8 +388,8 @@ const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
         vencidoLabel="Vencidos (rever)"
         aVencerLabel="A compensar"
         alerta={cartaoApps.vencidoTotal > 0
-          ? `Líquido estimado pela taxa do /CARTAO (bruto ${formatCurrencyInt(cartaoBruto)}). Os ${formatCurrencyInt(cartaoApps.vencidoTotal)} vencidos podem ser baixa não feita no ERP. O realizado é conciliado na aba Cartões.`
-          : `Líquido estimado pela taxa do /CARTAO (bruto ${formatCurrencyInt(cartaoBruto)}). O realizado é conciliado na aba Cartões.`}
+          ? `Valor líquido estimado: o bruto (${formatCurrencyInt(cartaoBruto)}) menos a taxa. Os ${formatCurrencyInt(cartaoApps.vencidoTotal)} marcados como vencidos provavelmente já caíram na conta — falta só dar baixa no sistema.`
+          : `Valor líquido estimado: o bruto (${formatCurrencyInt(cartaoBruto)}) menos a taxa cobrada.`}
       />
       <BucketCard title="A pagar em aberto" sub="Bate com a aba Pagar" Icon={ArrowUpCircle} tone="red" agg={pagar} />
     </div>
