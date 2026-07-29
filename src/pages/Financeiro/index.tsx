@@ -27,7 +27,8 @@ import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
 
-// buildReceberRows sem cartões (cartoes=[]) nunca toca no adminTipo — mapa vazio basta.
+// adminTipo só rotula app vs cartão — não muda a CONTAGEM de vencidos; mapa vazio cai no
+// fallback pela descrição da administradora e basta pro badge.
 const NO_ADMIN = new Map<string, string>()
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
@@ -81,10 +82,10 @@ const Financeiro = () => {
     isLoading,
   } = useFinanceData(localPeriod)
 
-  // Badge das abas = MESMA base do dashboard/tabelas (snapshot de pendentes), NÃO o
-  // período-scoped do `kpis` — senão o número não bate com o que a aba lista. Conta os
-  // VENCIDOS de cobrança de cliente (notas + faturas de duplicata + outros); cartões/app
-  // ficam de fora (vencido de cartão é suspeito, não cobrança — igual o dashboard).
+  // Badge das abas = MESMA base do que a aba LISTA (snapshot de pendentes), NÃO o
+  // período-scoped do `kpis` — senão o número não bate com o que o usuário vê. Conta
+  // TODOS os recebíveis vencidos que a aba Receber mostra: notas + faturas de duplicata
+  // + outros + cartões + apps (o toggle "com cartões e app" vem ligado). A pagar = idem.
   const duplicatas = useDuplicatasReceber()
   const scopedCodes = useScopedEmpresaCodes()
   const overdueCounts = useMemo(() => {
@@ -95,10 +96,10 @@ const Financeiro = () => {
     }
     const dups = (scopedCodes.length > 0 ? duplicatas.filter((d) => scopedCodes.includes(d.empresaCodigo)) : duplicatas)
       .filter((d) => inRange(d.dataMovimento))
-    const receber = buildReceberRows(receivablesAtraso, [], NO_ADMIN, dups).filter((r) => r.vencido).length
+    const receber = buildReceberRows(receivablesAtraso, cartoesAVencer, NO_ADMIN, dups).filter((r) => r.vencido).length
     const pagar = buildPagarRows(payablesAtraso).filter((r) => r.vencido).length
     return { receber, pagar }
-  }, [receivablesAtraso, payablesAtraso, duplicatas, scopedCodes, localPeriod])
+  }, [receivablesAtraso, payablesAtraso, cartoesAVencer, duplicatas, scopedCodes, localPeriod])
 
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
@@ -120,7 +121,7 @@ const Financeiro = () => {
                     ? overdueCounts.pagar
                     : 0
                 const badgeTitle = t.id === 'receber'
-                  ? `${overdue} ${overdue === 1 ? 'recebível de cliente vencido' : 'recebíveis de cliente vencidos'} (cartões e app não contam)`
+                  ? `${overdue} ${overdue === 1 ? 'recebível vencido' : 'recebíveis vencidos'}`
                   : `${overdue} ${overdue === 1 ? 'conta a pagar vencida' : 'contas a pagar vencidas'}`
                 return {
                   id: t.id,
