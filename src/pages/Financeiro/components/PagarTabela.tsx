@@ -10,7 +10,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
-import { buildPagarRows, type InstPagar, type PagarRow } from '@/pages/Financeiro/lib/instrumentos'
+import { buildPagarRows, gridColsCards, type InstPagar, type PagarRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -113,6 +113,14 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
     }
     return acc
   }, [escopo])
+
+  // Cards visíveis — esconde os zerados (menos ruído). Mantém sempre "Todos" e o
+  // card ativo, pra a seleção não sumir ao trocar o período.
+  const visibleCards = useMemo(
+    () => [{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR]
+      .filter(({ id }) => id === 'todos' || id === inst || cards[id].count > 0),
+    [cards, inst],
+  )
 
   // Contagem de títulos por período (respeita instrumento + fornecedor, NÃO o
   // período — é o número que cada pill mostraria ao ser clicado).
@@ -256,8 +264,8 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2563eb] text-[9px] font-bold text-white">1</span>
         Escolha o <span className="font-semibold text-gray-700 dark:text-gray-200">instrumento</span> (clique num card) — depois o período, no passo 2.
       </p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-        {([{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR]).map(({ id, label, Icon }) => {
+      <div className={cn('grid gap-2', gridColsCards(visibleCards.length, 4, 7))}>
+        {visibleCards.map(({ id, label, Icon }) => {
           const ativo = inst === id
           const c = cards[id]
           return (

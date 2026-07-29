@@ -203,3 +203,26 @@ export const buildPagarRows = (payables: PayableRow[]): PagarRow[] => {
   }
   return out
 }
+
+/* ─────────────── UI — grid dos cards de instrumento ─────────────── */
+
+// Strings literais (JIT do Tailwind precisa vê-las inteiras no fonte).
+const SM_COLS: Record<number, string> = {
+  1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4',
+}
+const LG_COLS: Record<number, string> = {
+  1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-7',
+}
+
+/**
+ * Classes de coluna do grid dos cards de instrumento, capadas pelo nº de cards
+ * VISÍVEIS — quando os zerados são ocultados, o grid encolhe junto (sem coluna
+ * vazia à direita). Sempre 2 colunas no mobile; `maxSm`/`maxLg` são o teto por
+ * breakpoint (preserva o layout original quando todos os cards aparecem).
+ */
+export const gridColsCards = (n: number, maxSm: number, maxLg: number): string => {
+  const sm = Math.min(Math.max(n, 1), maxSm)
+  const lg = Math.min(Math.max(n, 1), maxLg)
+  return `grid-cols-2 ${SM_COLS[sm]} ${LG_COLS[lg]}`
+}

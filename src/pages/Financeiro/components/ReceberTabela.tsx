@@ -14,7 +14,7 @@ import type { Cartao } from '@/api/types/financeiro'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
-import { buildCobrancaRows, buildCartaoRows, buildFaturaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import { buildCobrancaRows, buildCartaoRows, buildFaturaRows, gridColsCards, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -173,6 +173,14 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
     return acc
   }, [escopoView])
 
+  // Cards visíveis — respeita o toggle de cartões/app e esconde os zerados (menos
+  // ruído). Mantém sempre "Todos" e o card ativo (a seleção não some ao filtrar).
+  const visibleCards = useMemo(
+    () => [{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR]
+      .filter(({ id }) => (incluirCartoes || !isCartaoApp(id)) && (id === 'todos' || id === inst || cards[id].count > 0)),
+    [cards, inst, incluirCartoes],
+  )
+
   // Contagem de títulos por período (respeita instrumento + cliente, NÃO o
   // período — é o número que cada pill mostraria ao ser clicado).
   const periodoCounts = useMemo(() => {
@@ -320,8 +328,8 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
           </span>
         </button>
       </div>
-      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3', incluirCartoes ? 'lg:grid-cols-6' : 'lg:grid-cols-4')}>
-        {([{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR].filter((x) => incluirCartoes || !isCartaoApp(x.id))).map(({ id, label, Icon }) => {
+      <div className={cn('grid gap-2', gridColsCards(visibleCards.length, 3, 6))}>
+        {visibleCards.map(({ id, label, Icon }) => {
           const ativo = inst === id
           const c = cards[id]
           return (
