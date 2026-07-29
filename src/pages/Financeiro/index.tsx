@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Receipt, CreditCard, Settings, LayoutDashboard, ClipboardCheck } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
@@ -20,9 +20,15 @@ const CartoesModule = lazy(() => import('@/pages/Cartoes'))
 // filtro global, pra não vazar o posto pras outras abas/módulos).
 const FechamentoTab = lazy(() => import('@/pages/Financeiro/components/FechamentoTab'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
+import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
+import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
+import { buildReceberRows, buildPagarRows } from '@/pages/Financeiro/lib/instrumentos'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
+
+// buildReceberRows sem cartões (cartoes=[]) nunca toca no adminTipo — mapa vazio basta.
+const NO_ADMIN = new Map<string, string>()
 
 const TAB_ICONS: Record<string, typeof Receipt> = {
   dashboard: LayoutDashboard,
@@ -75,6 +81,25 @@ const Financeiro = () => {
     isLoading,
   } = useFinanceData(localPeriod)
 
+  // Badge das abas = MESMA base do dashboard/tabelas (snapshot de pendentes), NÃO o
+  // período-scoped do `kpis` — senão o número não bate com o que a aba lista. Conta os
+  // VENCIDOS de cobrança de cliente (notas + faturas de duplicata + outros); cartões/app
+  // ficam de fora (vencido de cartão é suspeito, não cobrança — igual o dashboard).
+  const duplicatas = useDuplicatasReceber()
+  const scopedCodes = useScopedEmpresaCodes()
+  const overdueCounts = useMemo(() => {
+    const inRange = (iso?: string) => {
+      if (localPeriod.allPeriod) return true
+      const d = (iso ?? '').split('T')[0]
+      return !!d && d >= localPeriod.dataInicial && d <= localPeriod.dataFinal
+    }
+    const dups = (scopedCodes.length > 0 ? duplicatas.filter((d) => scopedCodes.includes(d.empresaCodigo)) : duplicatas)
+      .filter((d) => inRange(d.dataMovimento))
+    const receber = buildReceberRows(receivablesAtraso, [], NO_ADMIN, dups).filter((r) => r.vencido).length
+    const pagar = buildPagarRows(payablesAtraso).filter((r) => r.vencido).length
+    return { receber, pagar }
+  }, [receivablesAtraso, payablesAtraso, duplicatas, scopedCodes, localPeriod])
+
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
 
@@ -90,12 +115,12 @@ const Financeiro = () => {
             onChange={setActiveTab}
             tabs={visibleTabs.map((t) => {
                 const overdue = t.id === 'receber'
-                  ? (kpis?.countVencidosReceber ?? 0)
+                  ? overdueCounts.receber
                   : t.id === 'pagar'
-                    ? (kpis?.countVencidosPagar ?? 0)
+                    ? overdueCounts.pagar
                     : 0
                 const badgeTitle = t.id === 'receber'
-                  ? `${overdue} ${overdue === 1 ? 'título a receber vencido' : 'títulos a receber vencidos'}`
+                  ? `${overdue} ${overdue === 1 ? 'recebível de cliente vencido' : 'recebíveis de cliente vencidos'} (cartões e app não contam)`
                   : `${overdue} ${overdue === 1 ? 'conta a pagar vencida' : 'contas a pagar vencidas'}`
                 return {
                   id: t.id,
