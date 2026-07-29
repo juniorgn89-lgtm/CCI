@@ -396,6 +396,10 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   // 3 anos pra trás: recebíveis de cartão vencidos e não baixados podem ser
   // antigos (parcelados/atrasos da administradora). Cobre o "a receber" do webPosto.
   const cartaoSnapInicio = offsetDateByDays(hojeStr, 1095)
+  // 24m pra trás: cobre os títulos a pagar com baixa PARCIAL (situação "Parcial") que
+  // o apenasPendente descarta — os parciais espalham por ~24m (janela menor perde
+  // alguns; mais ampla encarece a paginação, que já é grande sem o flag).
+  const parcialInicio = offsetDateByDays(hojeStr, 730)
 
   const { data: titulosReceberPendRaw = [], isLoading: isLoadingReceberPend } = useQuery({
     queryKey: ['titulosReceberPend', 'rede'],
@@ -436,6 +440,25 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     ),
     enabled: true,
     staleTime: 5 * 60 * 1000,
+  })
+
+  // PARCIAIS a pagar: o `apenasPendente` acima traz só "Aberto" — a API descarta a
+  // situação "Parcial" (títulos com baixa parcial, que ainda TÊM saldo). Esse é o gap
+  // exato vs o "A pagar" do webPosto (provado: Aberto = card do app; Aberto+Parcial =
+  // saldo do webPosto). Busca dedicada SEM o flag + filtro no cliente (a API não tem
+  // filtro de situação), igual às duplicatas parciais do a receber. Cara (paginação
+  // grande) → janela 24m + cache longo; roda em background, não bloqueia os abertos.
+  const { data: titulosPagarParciaisRaw = [] } = useQuery({
+    queryKey: ['titulosPagarParciais', 'rede'],
+    queryFn: async () => {
+      const all = await fetchAllPages(
+        (p) => fetchTitulosPagar({ dataInicial: parcialInicio, dataFinal: SNAPSHOT_FIM, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+        1000, 60,
+      )
+      return all.filter((t) => (t.situacao ?? '').toUpperCase() === 'PARCIAL')
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
   })
 
   // Duplicatas EM ABERTO (snapshot) — /DUPLICATA não baixadas (pendente=true).
@@ -527,6 +550,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const cartoes = useSubset(cartoesRaw, scopedCodes)
   const titulosReceberPend = useSubset(titulosReceberPendRaw, scopedCodes)
   const titulosPagarPend = useSubset(titulosPagarPendRaw, scopedCodes)
+  const titulosPagarParciais = useSubset(titulosPagarParciaisRaw, scopedCodes)
   const titulosPagarPagos = useSubset(titulosPagarPagosRaw, scopedCodes)
   const duplicatasPend = useSubset(duplicatasPendRaw, scopedCodes)
   const cartoesPend = useSubset(cartoesPendRaw, scopedCodes)
@@ -595,7 +619,8 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
     const receivablesAtraso: ReceivableRow[] = titulosReceberPend
       .map((t) => toReceivableRow(t, hoje))
       .filter((r) => inRange(r.dataMovimento))
-    const payablesAtraso: PayableRow[] = titulosPagarPend
+    // Abertos (apenasPendente) + PARCIAIS (busca dedicada) = o "A pagar" completo do webPosto.
+    const payablesAtraso: PayableRow[] = [...titulosPagarPend, ...titulosPagarParciais]
       .map((t) => toPayableRow(t, hoje))
       .filter((r) => inRange(r.dataMovimento))
     const duplicatasAberto: DuplicataRow[] = duplicatasPend
@@ -830,7 +855,7 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
       pmr,
       pmp,
     }
-  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, titulosPagarPagos, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim, pmrInicio])
+  }, [titulosReceber, titulosPagar, titulosReceberPend, titulosPagarPend, titulosPagarParciais, titulosPagarPagos, duplicatasPend, titulosReceberPagos, movimentos, movimentosPrev, cartoes, cartoesPend, prevDataInicial, prevDataFinal, diasNoPeriodo, dataInicial, dataFinal, lpAll, lpInicio, lpFim, pmrInicio])
 
   return {
     ...computed,
