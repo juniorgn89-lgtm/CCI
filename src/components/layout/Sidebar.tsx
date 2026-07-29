@@ -24,6 +24,7 @@ import {
   ArrowUpCircle,
   Trophy,
   Building2,
+  Radar,
   Gauge,
   Tag,
   Sun,
@@ -82,6 +83,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },
     { label: 'Margem por posto', to: '/comercial?tab=margem', Icon: Trophy },
     { label: 'Concorrência', to: '/comercial?tab=concorrencia', Icon: Building2 },
+    { label: 'Radar de Preços', to: '/comercial?tab=radar', Icon: Radar },
   ],
   '/inteligencia': [
     { label: 'Cadu IA', to: '/inteligencia', Icon: Sparkles },
