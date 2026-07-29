@@ -4,6 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { ArrowDownUp, HandCoins, CreditCard, ArrowUpCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
+import ShareReportButton from '@/components/feedback/ShareReportButton'
+import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { useChartTheme } from '@/lib/chartTheme'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
 import type { ReceivableRow, PayableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
@@ -341,8 +343,39 @@ const PosicaoAberto = ({ titulos, cartoes, payables, periodo }: Props) => {
   // mesma base do badge das abas, pra o dash "fechar" com elas.
   const vencidoTotal = clientes.vencidoTotal + cartaoApps.vencidoTotal + pagar.vencidoTotal
 
+  // Resumo pra compartilhar (PDF): a foto da posição em aberto — KPIs, vencidos e a
+  // composição de cada bucket. Mesmos números da tela.
+  const buildReport = (): ReportPayload => {
+    const comp = (items: Item[]) => items.map((i) => ({ label: i.label, value: formatCurrencyInt(i.total) }))
+    return {
+      title: 'Posição em aberto',
+      subtitle: `${escopoLabel(scopedCodes.length)} · ${periodoLabel(periodo)}`,
+      kpis: [
+        { label: 'Posição líquida', value: formatCurrencyInt(posicao), tone: posicao >= 0 ? 'pos' : 'neg' },
+        { label: 'A receber de clientes', value: formatCurrencyInt(clientes.total), tone: 'neutral' },
+        { label: 'Cartões e apps (líq.)', value: formatCurrencyInt(cartaoApps.total), tone: 'neutral' },
+        { label: 'A pagar em aberto', value: formatCurrencyInt(pagar.total), tone: 'neg' },
+      ],
+      sections: [
+        { title: 'Vencidos', rows: [
+          { label: 'A receber de clientes', value: formatCurrencyInt(clientes.vencidoTotal), sub: `${clientes.vencidoCount} ${clientes.vencidoCount === 1 ? 'título' : 'títulos'}` },
+          { label: 'Cartões e apps (rever)', value: formatCurrencyInt(cartaoApps.vencidoTotal), sub: `${cartaoApps.vencidoCount} ${cartaoApps.vencidoCount === 1 ? 'transação' : 'transações'}` },
+          { label: 'A pagar', value: formatCurrencyInt(pagar.vencidoTotal), sub: `${pagar.vencidoCount} ${pagar.vencidoCount === 1 ? 'conta' : 'contas'}` },
+          { label: 'Total vencido', value: formatCurrencyInt(vencidoTotal), strong: true },
+        ] },
+        ...(clientes.items.length ? [{ title: 'Composição (a receber)', rows: comp(clientes.items) }] : []),
+        ...(cartaoApps.items.length ? [{ title: 'Composição (cartões e apps)', rows: comp(cartaoApps.items) }] : []),
+        ...(pagar.items.length ? [{ title: 'Composição (a pagar)', rows: comp(pagar.items) }] : []),
+      ],
+      footnote: 'Somente leitura · posição em aberto (pendências). Cartões/apps pelo líquido estimado. Gerado no Visor360.',
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <ShareReportButton filename="financeiro-visao-geral.pdf" build={buildReport} />
+      </div>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* Hero — posição líquida */}
       <section className="flex flex-col rounded-2xl border border-[#1e3a5f]/30 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-5 shadow-sm">

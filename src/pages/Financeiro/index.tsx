@@ -187,6 +187,7 @@ const Financeiro = () => {
                       <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
                       <PagarTabela
                         payables={payablesAtraso}
+                        periodoLocal={localPeriod}
                         dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
                       />
                     </div>

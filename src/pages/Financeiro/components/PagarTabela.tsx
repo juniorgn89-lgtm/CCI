@@ -5,11 +5,14 @@ import {
   Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import ShareReportButton from '@/components/feedback/ShareReportButton'
+import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
-import type { PayableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { PayableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
+import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 import { buildPagarRows, gridColsCards, type InstPagar, type PagarRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
@@ -49,6 +52,8 @@ const instMeta = (id: InstPagar) => INSTR.find((i) => i.id === id)!
 interface Props {
   payables: PayableRow[]
   dateFilter?: ReactNode
+  /** Período local — só pro rótulo do PDF de compartilhamento. */
+  periodoLocal?: LocalPeriodFilter
 }
 
 /**
@@ -57,7 +62,8 @@ interface Props {
  * (passo 1) + período (passo 2) filtram uma tabela única, com Posto, fornecedor
  * multi, ordenação, faixa de atraso, paginação e export. READ-ONLY.
  */
-const PagarTabela = ({ payables, dateFilter }: Props) => {
+const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
+  const scopedCodes = useScopedEmpresaCodes()
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
@@ -241,6 +247,60 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
     URL.revokeObjectURL(url)
   }
 
+  // Resumo pra compartilhar (PDF) = EXATAMENTE a visão filtrada na tela (rowsAll já
+  // respeita instrumento, faixa de atraso, fornecedor, plano e período). Os filtros
+  // ativos vão no subtítulo pra o destinatário saber que fatia é essa.
+  const CAP_LISTA = 30
+  const buildReport = (): ReportPayload => {
+    const rows = rowsAll
+    const total = rows.reduce((s, r) => s + r.valor, 0)
+    const vencTotal = rows.filter((r) => r.vencido).reduce((s, r) => s + r.valor, 0)
+
+    const filtros: string[] = []
+    if (inst !== 'todos') filtros.push(instMeta(inst).label)
+    if (periodo !== 'todos') filtros.push(PERIODOS.find((p) => p.id === periodo)?.label ?? '')
+    if (atrasoFaixa !== 'todos') filtros.push(atrasoFaixa === '90+' ? 'atraso +90d' : `atraso até ${atrasoFaixa}d`)
+    if (fornSel.length) filtros.push(fornSel.length === 1 ? fornSel[0] : `${fornSel.length} fornecedores`)
+    if (planoSel.length) filtros.push(planoSel.length === 1 ? planoSel[0] : `${planoSel.length} planos`)
+
+    // Quebra por instrumento do conjunto filtrado — só quando não há filtro de instrumento.
+    const porInst = new Map<InstPagar, { total: number; count: number }>()
+    for (const r of rows) {
+      const g = porInst.get(r.instrumento) ?? { total: 0, count: 0 }
+      g.total += r.valor; g.count += 1
+      porInst.set(r.instrumento, g)
+    }
+    const instRows = INSTR.filter((i) => porInst.has(i.id)).map((i) => {
+      const g = porInst.get(i.id)!
+      return { label: i.label, value: formatCurrencyInt(g.total), sub: `${g.count} ${g.count === 1 ? 'título' : 'títulos'}` }
+    })
+
+    const lista = rows.slice(0, CAP_LISTA).map((r) => ({
+      label: `${r.fornecedor} · ${nomePosto(r.empresa)}`,
+      value: formatCurrencyInt(r.valor),
+      sub: `${r.documento ? `Doc ${r.documento} · ` : ''}${instMeta(r.instrumento).label} · venc. ${brDate(r.vencimento)}${r.vencido ? ` · atrasado ${r.diasAtraso}d` : ''}`,
+    }))
+
+    return {
+      title: 'Contas a Pagar',
+      subtitle: [escopoLabel(scopedCodes.length), periodoLabel(periodoLocal), ...filtros].filter(Boolean).join(' · '),
+      kpis: [
+        { label: 'A pagar (na tela)', value: formatCurrencyInt(total), tone: 'neg' },
+        { label: 'Vencido', value: formatCurrencyInt(vencTotal), tone: 'neg' },
+        { label: 'A vencer', value: formatCurrencyInt(total - vencTotal), tone: 'neutral' },
+      ],
+      sections: [
+        ...(inst === 'todos' && instRows.length > 1 ? [{ title: 'Por instrumento', rows: instRows }] : []),
+        {
+          title: `Contas (${rows.length})`,
+          rows: lista,
+          note: rows.length > CAP_LISTA ? `Mostrando ${CAP_LISTA} de ${rows.length} (ordem atual da tela).` : undefined,
+        },
+      ],
+      footnote: 'Somente leitura · saldo em aberto (o que falta pagar). Gerado no Visor360.',
+    }
+  }
+
   const selCls = 'rounded-lg border border-gray-200 bg-white py-2 pl-3 pr-8 text-[13px] text-gray-700 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200'
 
   return (
@@ -252,6 +312,7 @@ const PagarTabela = ({ payables, dateFilter }: Props) => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {dateFilter}
+          <ShareReportButton filename="contas-a-pagar.pdf" build={buildReport} />
           <button type="button" onClick={exportar} disabled={rowsAll.length === 0}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
             <Download className="h-3.5 w-3.5" />Exportar

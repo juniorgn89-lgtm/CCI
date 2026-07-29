@@ -5,8 +5,10 @@ import {
   Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check, CreditCard, Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import ShareReportButton from '@/components/feedback/ShareReportButton'
+import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
 import type { ReceivableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
@@ -294,6 +296,64 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
     URL.revokeObjectURL(url)
   }
 
+  // Resumo pra compartilhar (PDF) = EXATAMENTE a visão filtrada na tela (rowsAll já
+  // respeita instrumento, faixa de atraso, cliente, plano, período e o toggle de
+  // cartões). Os filtros ativos vão no subtítulo.
+  const CAP_LISTA = 30
+  const buildReport = (): ReportPayload => {
+    const rows = rowsAll
+    const total = rows.reduce((s, r) => s + r.valor, 0)
+    const vencTotal = rows.filter((r) => r.vencido).reduce((s, r) => s + r.valor, 0)
+
+    const filtros: string[] = []
+    if (inst !== 'todos') filtros.push(instMeta(inst).label)
+    if (periodo !== 'todos') filtros.push(PERIODOS.find((p) => p.id === periodo)?.label ?? '')
+    if (atrasoFaixa !== 'todos') filtros.push(atrasoFaixa === '90+' ? 'atraso +90d' : `atraso até ${atrasoFaixa}d`)
+    if (clientesSel.length) filtros.push(clientesSel.length === 1 ? clientesSel[0] : `${clientesSel.length} clientes`)
+    if (planoSel.length) filtros.push(planoSel.length === 1 ? planoSel[0] : `${planoSel.length} planos`)
+    filtros.push(incluirCartoes ? 'com cartões e app' : 'sem cartões e app')
+
+    const porInst = new Map<InstReceber, { total: number; count: number }>()
+    for (const r of rows) {
+      const g = porInst.get(r.instrumento) ?? { total: 0, count: 0 }
+      g.total += r.valor; g.count += 1
+      porInst.set(r.instrumento, g)
+    }
+    const instRows = INSTR.filter((i) => porInst.has(i.id)).map((i) => {
+      const g = porInst.get(i.id)!
+      const unidade = i.id === 'faturas' ? (g.count === 1 ? 'fatura' : 'faturas') : isCartaoApp(i.id) ? (g.count === 1 ? 'transação' : 'transações') : (g.count === 1 ? 'título' : 'títulos')
+      return { label: i.label, value: formatCurrencyInt(g.total), sub: `${g.count} ${unidade}` }
+    })
+
+    const lista = rows.slice(0, CAP_LISTA).map((r) => {
+      const doc = r.docNumero ? `Doc ${r.docNumero}` : r.documento ? `Doc ${r.documento}` : ''
+      return {
+        label: `${r.cliente} · ${nomePosto(r.empresa)}`,
+        value: formatCurrencyInt(r.valor),
+        sub: `${doc ? `${doc} · ` : ''}${instMeta(r.instrumento).label} · venc. ${brDate(r.vencimento)}${r.vencido ? ` · atrasado ${r.diasAtraso}d` : ''}`,
+      }
+    })
+
+    return {
+      title: 'Contas a Receber',
+      subtitle: [escopoLabel(scopedCodes.length), periodoLabel(periodoLocal), ...filtros].filter(Boolean).join(' · '),
+      kpis: [
+        { label: 'A receber (na tela)', value: formatCurrencyInt(total), tone: 'pos' },
+        { label: 'Vencido', value: formatCurrencyInt(vencTotal), tone: 'neg' },
+        { label: 'A vencer', value: formatCurrencyInt(total - vencTotal), tone: 'neutral' },
+      ],
+      sections: [
+        ...(inst === 'todos' && instRows.length > 1 ? [{ title: 'Por instrumento', rows: instRows }] : []),
+        {
+          title: `Recebíveis (${rows.length})`,
+          rows: lista,
+          note: rows.length > CAP_LISTA ? `Mostrando ${CAP_LISTA} de ${rows.length} (ordem atual da tela).` : undefined,
+        },
+      ],
+      footnote: 'Somente leitura · saldo a receber em aberto. Cartões/apps pelo líquido estimado. Gerado no Visor360.',
+    }
+  }
+
   const selCls = 'rounded-lg border border-gray-200 bg-white py-2 pl-3 pr-8 text-[13px] text-gray-700 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200'
 
   return (
@@ -306,6 +366,7 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {dateFilter}
+          <ShareReportButton filename="contas-a-receber.pdf" build={buildReport} />
           <button type="button" onClick={exportar} disabled={rowsAll.length === 0}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
             <Download className="h-3.5 w-3.5" />Exportar
