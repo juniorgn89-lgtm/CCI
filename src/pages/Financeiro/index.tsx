@@ -22,7 +22,7 @@ const FechamentoTab = lazy(() => import('@/pages/Financeiro/components/Fechament
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
-import { buildReceberRows, buildPagarRows } from '@/pages/Financeiro/lib/instrumentos'
+import { buildReceberRows, buildPagarRows, scopeDuplicatas } from '@/pages/Financeiro/lib/instrumentos'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import FinanceiroMobile from '@/pages/Financeiro/FinanceiroMobile'
@@ -89,13 +89,7 @@ const Financeiro = () => {
   const duplicatas = useDuplicatasReceber()
   const scopedCodes = useScopedEmpresaCodes()
   const overdueCounts = useMemo(() => {
-    const inRange = (iso?: string) => {
-      if (localPeriod.allPeriod) return true
-      const d = (iso ?? '').split('T')[0]
-      return !!d && d >= localPeriod.dataInicial && d <= localPeriod.dataFinal
-    }
-    const dups = (scopedCodes.length > 0 ? duplicatas.filter((d) => scopedCodes.includes(d.empresaCodigo)) : duplicatas)
-      .filter((d) => inRange(d.dataMovimento))
+    const dups = scopeDuplicatas(duplicatas, scopedCodes, localPeriod)
     const receber = buildReceberRows(receivablesAtraso, cartoesAVencer, NO_ADMIN, dups).filter((r) => r.vencido).length
     const pagar = buildPagarRows(payablesAtraso).filter((r) => r.vencido).length
     return { receber, pagar }
@@ -183,6 +177,7 @@ const Financeiro = () => {
                       <ReceberTabela
                         titulos={receivablesAtraso}
                         cartoes={cartoesAVencer}
+                        periodoLocal={localPeriod}
                         dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
                       />
                     </div>

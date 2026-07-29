@@ -148,6 +148,26 @@ export const buildReceberRows = (
   return [...cartaoRows, ...notasOutros, ...buildFaturaRows(duplicatas)]
 }
 
+/** Recorte das duplicatas (faturas) por escopo de posto + período local (por
+ *  `dataMovimento`). Fonte ÚNICA do recorte pra o dashboard, a aba Receber E o badge
+ *  baterem sob qualquer filtro. `periodo` ausente ou `allPeriod` = snapshot completo
+ *  (sem filtro de data), que é o default das pendências. */
+export const scopeDuplicatas = (
+  duplicatas: Duplicata[],
+  scopedCodes: number[],
+  periodo?: { allPeriod?: boolean; dataInicial?: string; dataFinal?: string },
+): Duplicata[] => {
+  const lpAll = periodo?.allPeriod ?? true
+  const ini = periodo?.dataInicial ?? ''
+  const fim = periodo?.dataFinal ?? ''
+  return duplicatas.filter((d) => {
+    if (scopedCodes.length > 0 && !scopedCodes.includes(d.empresaCodigo)) return false
+    if (lpAll) return true
+    const dm = (d.dataMovimento ?? '').split('T')[0]
+    return !!dm && dm >= ini && dm <= fim
+  })
+}
+
 /* ─────────────── A PAGAR ─────────────── */
 
 export type InstPagar = 'boleto' | 'tributo' | 'pix' | 'transferencia' | 'convenio' | 'outros'

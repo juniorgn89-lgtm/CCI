@@ -9,12 +9,12 @@ import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
-import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { ReceivableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
 import type { Cartao } from '@/api/types/financeiro'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
-import { buildCobrancaRows, buildCartaoRows, buildFaturaRows, gridColsCards, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import { buildCobrancaRows, buildCartaoRows, buildFaturaRows, gridColsCards, scopeDuplicatas, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -62,6 +62,9 @@ interface Props {
   titulos: ReceivableRow[]
   cartoes: Cartao[]
   dateFilter?: ReactNode
+  /** Período local (por dataMovimento) — recorta as faturas igual ao dashboard.
+   *  Nome "Local" pra não colidir com o state `periodo` das pílulas internas. */
+  periodoLocal?: LocalPeriodFilter
 }
 
 /**
@@ -71,7 +74,7 @@ interface Props {
  * tabela com seus vencimentos; desligado, só cobrança de cliente — assim o usuário vê
  * o a receber COM e SEM cartões. READ-ONLY (Ações = ver detalhe).
  */
-const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
+const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
@@ -121,7 +124,7 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
       const arr = titByDup.get(t.duplicataCod)
       if (arr) arr.push(t); else titByDup.set(t.duplicataCod, [t])
     }
-    const dupsScoped = scopedCodes.length > 0 ? duplicatas.filter((d) => scopedCodes.includes(d.empresaCodigo)) : duplicatas
+    const dupsScoped = scopeDuplicatas(duplicatas, scopedCodes, periodoLocal)
     // Faturas = mesma fonte do dashboard (buildFaturaRows); aqui só anexamos as notas
     // que compõem cada uma, pra a expansão "N notas".
     const faturas: LinhaReceb[] = buildFaturaRows(dupsScoped).map((f) => {
@@ -132,7 +135,7 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
     // Cartões/App (líquido, com vencimento) — a visão liga/desliga via toggle.
     const cartaoApps = buildCartaoRows(cartoes, adminTipo)
     return [...cartaoApps, ...notasOutros, ...faturas]
-  }, [titulos, cartoes, adminTipo, duplicatas, scopedCodes])
+  }, [titulos, cartoes, adminTipo, duplicatas, scopedCodes, periodoLocal])
 
   // Escopo = período + cliente (base dos cards E da tabela).
   const escopo = useMemo(() => {
