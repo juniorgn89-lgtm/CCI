@@ -2,17 +2,19 @@ import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, ReceiptText, MoreHorizontal, Layers,
-  Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check,
+  Search, Download, Eye, ChevronLeft, ChevronRight, MousePointerClick, X, Check, CreditCard, Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { fetchAdministradoras } from '@/api/endpoints/financeiro'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
+import type { Cartao } from '@/api/types/financeiro'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
 import usePlanoContasMap from '@/pages/Financeiro/hooks/usePlanoContasMap'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
-import { buildCobrancaRows, buildFaturaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
+import { buildCobrancaRows, buildCartaoRows, buildFaturaRows, type InstReceber, type RecebRow } from '@/pages/Financeiro/lib/instrumentos'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const addDaysISO = (iso: string, n: number) => {
@@ -44,28 +46,32 @@ const PERIODOS: { id: Periodo; label: string }[] = [
 // o saldo (líquido − pago) o `valor` da linha.
 type LinhaReceb = RecebRow & { titulos?: RecebRow[]; pago?: number }
 
-// Só instrumentos de cobrança de cliente. Cartões/apps não entram aqui (são
-// recebíveis a compensar — vivem no dash e na aba Cartões).
+// Instrumentos de recebível. Cartões/App = recebíveis a compensar da adquirente;
+// entram só quando o toggle "cartões e app" está ligado (o usuário vê com e sem).
 const INSTR: { id: InstReceber; label: string; Icon: typeof FileText; badge: string }[] = [
   { id: 'notas', label: 'Notas a prazo', Icon: FileText, badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
   { id: 'faturas', label: 'Faturas', Icon: ReceiptText, badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
+  { id: 'cartoes', label: 'Cartões', Icon: CreditCard, badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
+  { id: 'apps', label: 'App', Icon: Smartphone, badge: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300' },
   { id: 'outros', label: 'Outros', Icon: MoreHorizontal, badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
 ]
+const isCartaoApp = (i: FiltroInst) => i === 'cartoes' || i === 'apps'
 const instMeta = (id: InstReceber) => INSTR.find((i) => i.id === id)!
 
 interface Props {
   titulos: ReceivableRow[]
+  cartoes: Cartao[]
   dateFilter?: ReactNode
 }
 
 /**
- * Contas a Receber — COBRANÇA de cliente (títulos /TITULO_RECEBER pendentes),
- * com coluna Instrumento (Notas a prazo · Faturas · Outros). Cartões/apps NÃO
- * entram: são recebíveis a compensar da adquirente (ficam no dash e na aba
- * Cartões), não cobrança. Assim o "Todos/Atrasados" da tabela bate 1:1 com o
- * card "Em atraso" da Inteligência. READ-ONLY (Ações = ver detalhe).
+ * Contas a Receber — recebíveis do cliente (títulos /TITULO_RECEBER pendentes +
+ * faturas das duplicatas) com coluna Instrumento. Cartões/App (recebíveis a compensar
+ * da adquirente, /CARTAO) entram sob um TOGGLE: ligado, somam ao "Todos" e aparecem na
+ * tabela com seus vencimentos; desligado, só cobrança de cliente — assim o usuário vê
+ * o a receber COM e SEM cartões. READ-ONLY (Ações = ver detalhe).
  */
-const ReceberTabela = ({ titulos, dateFilter }: Props) => {
+const ReceberTabela = ({ titulos, cartoes, dateFilter }: Props) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
@@ -80,8 +86,16 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const planoNome = useCallback((cod: number) => planoMap.get(cod) || 'Sem plano', [planoMap])
   // Fonte das FATURAS = duplicatas em aberto (bruto/pago/saldo, espelha o WebPosto).
   const duplicatas = useDuplicatasReceber()
+  // Modalidade por administradora (separa App de Cartão) — mesma query do dash.
+  const { data: admData } = useQuery({ queryKey: ['administradoras'], queryFn: () => fetchAdministradoras({ limite: 2000 }), staleTime: 30 * 60 * 1000 })
+  const adminTipo = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const a of admData?.resultados ?? []) m.set(`${a.empresaCodigo}-${a.administradoraCodigo}`, a.tipo || '')
+    return m
+  }, [admData])
 
   const [inst, setInst] = useState<FiltroInst>('todos')
+  const [incluirCartoes, setIncluirCartoes] = useState(true)
   const [periodo, setPeriodo] = useState<Periodo>('todos')
   const [clientesSel, setClientesSel] = useState<string[]>([])
   const [buscaCli, setBuscaCli] = useState('')
@@ -115,8 +129,10 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       if (!notas?.length) return f
       return { ...f, sub: `${notas.length} ${notas.length === 1 ? 'nota' : 'notas'}`, planoContaCod: f.planoContaCod || notas[0].planoContaCod, titulos: notas }
     })
-    return [...notasOutros, ...faturas]
-  }, [titulos, duplicatas, scopedCodes])
+    // Cartões/App (líquido, com vencimento) — a visão liga/desliga via toggle.
+    const cartaoApps = buildCartaoRows(cartoes, adminTipo)
+    return [...cartaoApps, ...notasOutros, ...faturas]
+  }, [titulos, cartoes, adminTipo, duplicatas, scopedCodes])
 
   // Escopo = período + cliente (base dos cards E da tabela).
   const escopo = useMemo(() => {
@@ -137,6 +153,12 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
     return base
   }, [rows, periodo, clientesSel, planoSel, planoNome])
 
+  // Visão = escopo com/sem cartões/app conforme o toggle. Base dos cards e da tabela.
+  const escopoView = useMemo(
+    () => (incluirCartoes ? escopo : escopo.filter((r) => !isCartaoApp(r.instrumento))),
+    [escopo, incluirCartoes],
+  )
+
   // Cards de instrumento (totais do escopo).
   const cards = useMemo(() => {
     const acc: Record<FiltroInst, { total: number; count: number }> = {
@@ -144,12 +166,12 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       faturas: { total: 0, count: 0 }, outros: { total: 0, count: 0 },
     }
     // Cada linha já é 1 recebível (a fatura é 1 duplicata, valorada pelo saldo). Soma direta.
-    for (const r of escopo) {
+    for (const r of escopoView) {
       acc.todos.total += r.valor; acc.todos.count += 1
       acc[r.instrumento].total += r.valor; acc[r.instrumento].count += 1
     }
     return acc
-  }, [escopo])
+  }, [escopoView])
 
   // Contagem de títulos por período (respeita instrumento + cliente, NÃO o
   // período — é o número que cada pill mostraria ao ser clicado).
@@ -157,7 +179,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
     const hoje = todayISO()
     const eow = endOfWeekISO(hoje)
     const eom = endOfMonthISO(hoje)
-    let base = rows
+    let base = incluirCartoes ? rows : rows.filter((r) => !isCartaoApp(r.instrumento))
     if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
     if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
     if (inst !== 'todos') base = base.filter((r) => r.instrumento === inst)
@@ -171,7 +193,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       if (v >= hoje && v <= eom) c.mes += 1
     }
     return c
-  }, [rows, clientesSel, planoSel, planoNome, inst])
+  }, [rows, clientesSel, planoSel, planoNome, inst, incluirCartoes])
 
   // Lista de clientes (todos os pendentes) pro dropdown.
   const clientes = useMemo(
@@ -195,7 +217,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const temFiltro = inst !== 'todos' || periodo !== 'todos' || clientesSel.length > 0 || planoSel.length > 0 || ordenar !== 'vencimento' || atrasoFaixa !== 'todos'
 
   const rowsAll = useMemo(() => {
-    let base: LinhaReceb[] = inst === 'todos' ? escopo : escopo.filter((r) => r.instrumento === inst)
+    let base: LinhaReceb[] = inst === 'todos' ? escopoView : escopoView.filter((r) => r.instrumento === inst)
     if (atrasoFaixa !== 'todos') {
       base = base.filter((r) => {
         const d = r.diasAtraso
@@ -218,7 +240,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
         })
     }
     return arr
-  }, [escopo, inst, atrasoFaixa, ordenar])
+  }, [escopoView, inst, atrasoFaixa, ordenar])
 
   const totalPages = Math.max(1, Math.ceil(rowsAll.length / PAGE_SIZE))
   const pageSafe = Math.min(page, totalPages - 1)
@@ -228,6 +250,14 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
   const nCols = inst === 'faturas' ? 9 : 7 // aba Faturas troca "Valor" por Bruto · Pago · A receber
 
   const trocarInst = (id: FiltroInst) => { setInst(id); setPage(0); setDetalhe(null) }
+  const toggleCartoes = () => {
+    setIncluirCartoes((v) => {
+      const nv = !v
+      if (!nv && isCartaoApp(inst)) setInst('todos') // saiu de um card de cartão/app
+      return nv
+    })
+    setPage(0); setDetalhe(null)
+  }
   const toggleCli = (nome: string) => {
     setClientesSel((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]))
     setPage(0); setDetalhe(null)
@@ -273,13 +303,25 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
       </div>
 
       {/* Cards de instrumento (filtro) — Passo 1 */}
-      <p className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-        <MousePointerClick className="h-3.5 w-3.5 text-[#2563eb]" />
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2563eb] text-[9px] font-bold text-white">1</span>
-        Escolha o <span className="font-semibold text-gray-700 dark:text-gray-200">instrumento</span> (clique num card) — depois o período, no passo 2.
-      </p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {([{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR]).map(({ id, label, Icon }) => {
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+          <MousePointerClick className="h-3.5 w-3.5 text-[#2563eb]" />
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2563eb] text-[9px] font-bold text-white">1</span>
+          Escolha o <span className="font-semibold text-gray-700 dark:text-gray-200">instrumento</span> (clique num card) — depois o período, no passo 2.
+        </p>
+        <button type="button" onClick={toggleCartoes} role="switch" aria-checked={incluirCartoes}
+          className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+            incluirCartoes ? 'border-[#2563eb] bg-blue-50 text-[#2563eb] dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300'
+              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400')}>
+          <CreditCard className="h-3.5 w-3.5" />
+          {incluirCartoes ? 'Com cartões e app' : 'Sem cartões e app'}
+          <span className={cn('relative ml-0.5 h-3.5 w-6 rounded-full transition-colors', incluirCartoes ? 'bg-[#2563eb]' : 'bg-gray-300 dark:bg-gray-600')}>
+            <span className={cn('absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white transition-all', incluirCartoes ? 'left-3' : 'left-0.5')} />
+          </span>
+        </button>
+      </div>
+      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3', incluirCartoes ? 'lg:grid-cols-6' : 'lg:grid-cols-4')}>
+        {([{ id: 'todos' as const, label: 'Todos', Icon: Layers }, ...INSTR].filter((x) => incluirCartoes || !isCartaoApp(x.id))).map(({ id, label, Icon }) => {
           const ativo = inst === id
           const c = cards[id]
           return (
@@ -292,7 +334,7 @@ const ReceberTabela = ({ titulos, dateFilter }: Props) => {
                 <Icon className={cn('h-3.5 w-3.5', ativo ? 'text-[#2563eb]' : 'text-gray-400')} />
               </div>
               <p className={cn('mt-1 text-[15px] font-bold tabular-nums', ativo ? 'text-[#1e3a5f] dark:text-blue-300' : 'text-gray-900 dark:text-gray-100')}>{formatCurrency(c.total)}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500">{c.count} {id === 'faturas' ? (c.count === 1 ? 'fatura' : 'faturas') : (c.count === 1 ? 'título' : 'títulos')}</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">{c.count} {id === 'faturas' ? (c.count === 1 ? 'fatura' : 'faturas') : isCartaoApp(id) ? (c.count === 1 ? 'transação' : 'transações') : (c.count === 1 ? 'título' : 'títulos')}</p>
             </button>
           )
         })}

@@ -156,6 +156,7 @@ const Financeiro = () => {
                       />
                       <ReceberTabela
                         titulos={receivablesAtraso}
+                        cartoes={cartoesAVencer}
                         dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
                       />
                     </div>
