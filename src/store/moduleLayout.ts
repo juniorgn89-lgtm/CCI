@@ -87,7 +87,10 @@ const createModuleLayoutStore = (storeName: string, defaultTabs: ModuleTab[]) =>
 // Vendas (Combustível/Pista/Conveniência, por-posto) entraram na Central, que
 // virou o hub único. O bump de versão acima força o migrate a re-sincronizar os
 // layouts persistidos com estes defaults (adiciona ids novos, remove desconhecidos).
-export const useDashboardLayout = createModuleLayoutStore('visor360-dashboard-layout', [
+// Storekey 'central' (não 'dashboard'): a antiga 'visor360-dashboard-layout' COLIDIA
+// com o useDashboardLayoutStore (seções do dashboard, shape { sections }) — duas
+// stores zustand gravando na mesma key se sobrescreviam. Key própria resolve.
+export const useDashboardLayout = createModuleLayoutStore('visor360-central-layout', [
   { id: 'setor', label: 'Visão Geral', visible: true },
   { id: 'combustivel', label: 'Combustível', visible: true },
   { id: 'pista', label: 'Automotivo', visible: true },
@@ -111,15 +114,16 @@ export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layo
 
 // Bump no nome da store força reset pra essa aba específica (rename
 // indicadores → visao não casaria com o merge do migrate).
-// -v8: aba "Fechamento" (copiloto de fechamento de caixa por exceção) entra entre
-// Pagar e Cartões. -v7: Dashboard Mensal removido; a antiga "Inteligência" virou
-// "Dashboard". Storekey nova = defaults limpos pros usuários existentes.
-export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v8', [
+// -v9: abas "Fechamento" e "Cartões" OCULTAS por padrão (visible:false) — seguem
+// acessíveis pela engrenagem (ModuleSettings), é reversível. Storekey nova pra valer
+// pros usuários existentes. -v8: aba "Fechamento" entrou entre Pagar e Cartões. -v7:
+// Dashboard Mensal removido; a antiga "Inteligência" virou "Dashboard".
+export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v9', [
   { id: 'dashboard', label: 'Dashboard', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
-  { id: 'fechamento', label: 'Fechamento', visible: true },
-  { id: 'cartoes', label: 'Cartões', visible: true },
+  { id: 'fechamento', label: 'Fechamento', visible: false },
+  { id: 'cartoes', label: 'Cartões', visible: false },
 ])
 
 // v16: Visão Geral saiu do Vendas (Combustível é o novo landing). O bump de

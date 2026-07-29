@@ -64,8 +64,8 @@ const AppRoutes = () => {
           <Route path="/estoques" element={<Suspense fallback={<RouteFallback />}><Estoques /></Suspense>} />
           <Route path="/reabastecimento" element={<Navigate to="/operacao?tab=reabastecimento" replace />} />
           <Route path="/financeiro" element={<Suspense fallback={<RouteFallback />}><Financeiro /></Suspense>} />
-          {/* Cartões foi movido pra dentro do Financeiro (aba Cartões). */}
-          <Route path="/cartoes" element={<Navigate to="/financeiro?tab=cartoes" replace />} />
+          {/* Cartões virou aba do Financeiro (hoje oculta) — a rota antiga cai na home do Financeiro. */}
+          <Route path="/cartoes" element={<Navigate to="/financeiro" replace />} />
           {/* Fechamento de Caixa aposentado do menu — rotas antigas caem no dashboard. */}
           <Route path="/fechamento-caixa" element={<Navigate to="/dashboard" replace />} />
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />

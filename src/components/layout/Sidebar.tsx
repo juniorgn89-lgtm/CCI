@@ -16,18 +16,16 @@ import {
   Store,
   ShoppingBag,
   LayoutDashboard,
-  Target,
   Package,
   RefreshCw,
-  Boxes,
   ShoppingCart,
   ClipboardList,
   ArrowDownCircle,
   ArrowUpCircle,
-  Activity,
   Trophy,
   Building2,
   Gauge,
+  Tag,
   Sun,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -78,6 +76,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Combustível', to: '/dashboard?tab=combustivel', Icon: Fuel },
     { label: 'Automotivo', to: '/dashboard?tab=pista', Icon: Wrench },
     { label: 'Conveniência', to: '/dashboard?tab=conveniencia', Icon: Store },
+    { label: 'Gestão de Preços', to: '/dashboard?tab=precos', Icon: Tag },
   ],
   '/comercial': [
     { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },
@@ -88,28 +87,26 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Cadu IA', to: '/inteligencia', Icon: Sparkles },
   ],
   '/operacao': [
-    { label: 'Bombas', to: '/operacao', Icon: Gauge },
+    { label: 'Visão Geral', to: '/operacao', Icon: LayoutGrid },
+    { label: 'Bombas', to: '/operacao?tab=bombas', Icon: Gauge },
     { label: 'Reabastecimento', to: '/operacao?tab=reabastecimento', Icon: Fuel },
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
     { label: 'Frentistas', to: '/produtividade?tab=frentistas', Icon: Fuel },
     { label: 'Vendedores', to: '/produtividade?tab=vendedores', Icon: ShoppingBag },
-    { label: 'Metas', to: '/produtividade?tab=metas', Icon: Target },
   ],
   '/estoques': [
     { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },
     { label: 'Estoque geral', to: '/estoques?tab=geral', Icon: Package },
     { label: 'Giro', to: '/estoques?tab=giro', Icon: RefreshCw },
-    { label: 'Estoque médio', to: '/estoques?tab=estoqueMedio', Icon: Boxes },
     { label: 'Média de venda (6m)', to: '/estoques?tab=mediaVendas', Icon: ShoppingCart },
     { label: 'Necessidade', to: '/estoques?tab=necessidade', Icon: ClipboardList },
   ],
   '/financeiro': [
-    { label: 'Visão Geral', to: '/financeiro', Icon: LayoutDashboard },
+    { label: 'Dashboard', to: '/financeiro', Icon: LayoutDashboard },
     { label: 'Receber', to: '/financeiro?tab=receber', Icon: ArrowDownCircle },
     { label: 'Pagar', to: '/financeiro?tab=pagar', Icon: ArrowUpCircle },
-    { label: 'Fluxo de Caixa', to: '/financeiro?tab=fluxo', Icon: Activity },
   ],
 }
 
