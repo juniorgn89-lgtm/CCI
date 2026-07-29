@@ -61,25 +61,35 @@ const GestaoPrecosTabelas = () => {
   // Preço de VENDA de CADASTRO (campo "Preço de Venda A" do ERP), por posto e
   // produto — /PRODUTO_ESTOQUE_EXTRATO. É o "praticado" que a tela compara com o
   // valor da tabela. Indexado pelo empresaCodigo que vem em cada linha.
-  const scopeCodes = useMemo(
-    () => (empresasData?.resultados ?? []).map((e) => e.empresaCodigo),
-    [empresasData],
-  )
-  // UMA chamada REDE-WIDE (sem empresaCodigo → todos os postos), paginada. Antes
-  // era 1 requisição POR posto (fan-out estrangulado no teto de conexões do
-  // navegador → aba lenta em rede grande). `scopeCodes` fica na chave só pra
-  // isolar o cache por rede (a troca de posto não refaz o fetch).
+  // Postos referenciados pelas tabelas — a "Praticado" só existe pra eles. Fan-out
+  // SÓ nesses (não na rede inteira): o /PRODUTO_ESTOQUE_EXTRATO EXIGE empresaCodigo
+  // (a chamada rede-wide "sem empresaCodigo" volta vazia — era por isso que
+  // Praticado/Diferença apareciam sempre "—"), mas o conjunto é pequeno (só os
+  // postos que têm tabela de preço), então não recria o storm de conexões.
+  const postosNecessarios = useMemo(() => {
+    const s = new Set<number>()
+    for (const t of tabelas) for (const it of t.itens) if (it.empresaCodigo != null) s.add(it.empresaCodigo)
+    return [...s].sort((a, b) => a - b)
+  }, [tabelas])
+
+  // Preço de VENDA de cadastro ("Preço de Venda A" do ERP), por posto e produto —
+  // o "praticado" que a tela compara com o valor da tabela. Uma query só, com os
+  // postos necessários paginados em paralelo.
   const { data: extratoRows = [] } = useQuery({
-    queryKey: ['gp-preco-cadastro-rede', scopeCodes.join(',')],
-    queryFn: () => fetchAllPages(
-      (p) => fetchProdutoEstoqueExtrato({ exibeHistoricoCompra: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
-      2000, 20,
-    ),
-    enabled: scopeCodes.length > 0,
-    staleTime: 10 * 60 * 1000,
+    queryKey: ['gp-preco-cadastro', postosNecessarios.join(',')],
+    queryFn: async () => (
+      await Promise.all(
+        postosNecessarios.map((codigo) => fetchAllPages(
+          (p) => fetchProdutoEstoqueExtrato({ empresaCodigo: codigo, exibeHistoricoCompra: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+          1000, 20,
+        )),
+      )
+    ).flat(),
+    enabled: postosNecessarios.length > 0,
+    staleTime: 30 * 60 * 1000,
   })
   const precoCadastro = useMemo(() => {
-    // `${empresaCodigo}|${produtoCodigo}` (do posto) + `all|${produtoCodigo}` (rede, fallback).
+    // `${empresaCodigo}|${produtoCodigo}` (do posto) + `all|${produtoCodigo}` (fallback).
     const m = new Map<string, number>()
     for (const r of extratoRows) {
       if (!(r.precoVenda > 0)) continue
