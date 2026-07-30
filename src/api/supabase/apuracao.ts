@@ -1232,6 +1232,12 @@ export const aggregateVendaCache = (
     // funcRows — todos os setores COM funcionário (combustível incluído: o
     // frentista da pista registra a venda). Custo com fallback (igual vendaRows).
     if (it.funcionarioCodigo) {
+      // Litros de gasolina (comum+aditivada) e aditivada (subconjunto), só
+      // combustível — pro mix por frentista (= aditivada ÷ gasolina). Mesmo
+      // critério do buildScoreInputs e do compute.ts do cron.
+      const nomeUp = (info?.nome ?? '').toUpperCase()
+      const gasQ = setor === 'combustivel' && nomeUp.includes('GASOLINA') ? (it.quantidade ?? 0) : 0
+      const aditQ = gasQ > 0 && nomeUp.includes('ADITIVADA') ? (it.quantidade ?? 0) : 0
       const fkey = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
       const ef = fmap.get(fkey)
       if (ef) {
@@ -1241,6 +1247,8 @@ export const aggregateVendaCache = (
         ef.acrescimos += it.totalAcrescimo ?? 0
         ef.descontos += it.totalDesconto ?? 0
         ef.linhas += 1
+        ef.gasolina_litros = (ef.gasolina_litros ?? 0) + gasQ
+        ef.aditivada_litros = (ef.aditivada_litros ?? 0) + aditQ
       } else {
         fmap.set(fkey, {
           rede_id: redeId,
@@ -1255,6 +1263,8 @@ export const aggregateVendaCache = (
           descontos: it.totalDesconto ?? 0,
           linhas: 1,
           cupons: funcSets.get(fkey)?.size ?? 0,
+          gasolina_litros: gasQ,
+          aditivada_litros: aditQ,
         })
       }
     }

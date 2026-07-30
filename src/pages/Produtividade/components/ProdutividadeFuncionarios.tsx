@@ -278,7 +278,7 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
   const { rows, kpis } = data
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = rangeLabel(dataInicial, dataFinal)
-  const { byFunc: gruposByFunc, evolucaoByFunc, isLoading: loadingGrupos } = useGruposFuncionario(postoCodigo)
+  const { byFunc: gruposByFunc, evolucaoByFunc, combByFunc, isLoading: loadingGrupos } = useGruposFuncionario(postoCodigo)
   const { byFunc: auto12m, isLoading: loading12m } = useAutomotivos12m(postoCodigo)
   const [busca, setBusca] = useState('')
 
@@ -393,7 +393,7 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
 
           {/* Combustíveis + Grupos lado a lado */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <CombustivelTable combustiveis={sel.combustiveis} />
+            <CombustivelTable combustiveis={combByFunc.get(sel.funcionarioCodigo) ?? []} />
             <GruposPanel grupos={gruposByFunc.get(sel.funcionarioCodigo)} loading={loadingGrupos} />
           </div>
 

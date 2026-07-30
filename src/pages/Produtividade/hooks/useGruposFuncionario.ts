@@ -6,6 +6,7 @@ import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { classifySetor } from '@/lib/setorClassification'
 import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
+import type { CombustivelBreak } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 
 /**
  * Derivações AO VIVO por funcionário a partir do `/VENDA_ITEM` do período (que o
@@ -47,7 +48,7 @@ export interface EvolucaoFunc {
 
 const useGruposFuncionario = (
   postoCodigo?: number | null,
-): { byFunc: Map<number, GrupoVenda[]>; evolucaoByFunc: Map<number, EvolucaoFunc>; isLoading: boolean } => {
+): { byFunc: Map<number, GrupoVenda[]>; evolucaoByFunc: Map<number, EvolucaoFunc>; combByFunc: Map<number, CombustivelBreak[]>; isLoading: boolean } => {
   const { dataInicial, dataFinal } = useFilterStore()
   const empresaCodigos = postoCodigo != null ? [postoCodigo] : []
   const hasEmpresa = empresaCodigos.length > 0
@@ -90,20 +91,22 @@ const useGruposFuncionario = (
     staleTime: 30 * 60 * 1000,
   })
 
-  const { byFunc, evolucaoByFunc } = useMemo(() => {
+  const { byFunc, evolucaoByFunc, combByFunc } = useMemo(() => {
     const byFunc = new Map<number, GrupoVenda[]>()
     const evolucaoByFunc = new Map<number, EvolucaoFunc>()
-    if (!produtosData || !gruposData) return { byFunc, evolucaoByFunc }
+    const combByFunc = new Map<number, CombustivelBreak[]>()
+    if (!produtosData || !gruposData) return { byFunc, evolucaoByFunc, combByFunc }
 
-    // produtoCodigo → { setor, grupo (nome) }.
+    // produtoCodigo → { setor, grupo (nome), nome do produto }.
     const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
     const grupoNome = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
-    const info = new Map<number, { setor: string; grupo: string; aditivada: boolean }>()
+    const info = new Map<number, { setor: string; grupo: string; nome: string; aditivada: boolean }>()
     for (const p of produtosData) {
       const setor = classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo))
       info.set(p.produtoCodigo, {
         setor,
         grupo: grupoNome.get(p.grupoCodigo) ?? 'Sem grupo',
+        nome: p.nome ?? `Produto ${p.produtoCodigo}`,
         // Aditivada = combustível cujo nome contém "ADITIVADA" (mesmo critério do
         // frentistaScore, pra a série bater com o KPI "Litros aditivada").
         aditivada: setor === 'combustivel' && (p.nome ?? '').toUpperCase().includes('ADITIVADA'),
@@ -111,6 +114,7 @@ const useGruposFuncionario = (
     }
 
     const acc = new Map<number, Map<string, GrupoVenda>>() // grupos (automotivos)
+    const combAcc = new Map<number, Map<number, CombustivelBreak>>() // combustível por produto (detalhe)
     // dia → { litros qty/R$ de combustível, aditivada qty/R$, itens/R$ de automotivos }
     const evo = new Map<number, Map<string, { lq: number; lf: number; adq: number; adf: number; ai: number; af: number }>>()
     for (const it of itens) {
@@ -130,6 +134,17 @@ const useGruposFuncionario = (
           if (pi.aditivada) { d.adq += it.quantidade ?? 0; d.adf += it.totalVenda ?? 0 }
         } else { d.ai += it.quantidade ?? 0; d.af += it.totalVenda ?? 0 }
         em.set(dia, d)
+      }
+
+      // Quebra por combustível (pro detalhe): litros/abast/faturamento por produto.
+      if (pi.setor === 'combustivel') {
+        let cm = combAcc.get(it.funcionarioCodigo)
+        if (!cm) { cm = new Map(); combAcc.set(it.funcionarioCodigo, cm) }
+        const c = cm.get(it.produtoCodigo) ?? { produtoCodigo: it.produtoCodigo, nome: pi.nome, litros: 0, abastecimentos: 0, faturamento: 0 }
+        c.litros += it.quantidade ?? 0
+        c.abastecimentos += 1
+        c.faturamento += it.totalVenda ?? 0
+        cm.set(it.produtoCodigo, c)
       }
 
       // Grupos: só automotivos.
@@ -161,10 +176,15 @@ const useGruposFuncionario = (
       evolucaoByFunc.set(cod, { litros, aditivada, automotivos })
     }
 
-    return { byFunc, evolucaoByFunc }
+    // Quebra por combustível por funcionário (maior litragem primeiro).
+    for (const [cod, cm] of combAcc) {
+      combByFunc.set(cod, [...cm.values()].sort((a, b) => b.litros - a.litros))
+    }
+
+    return { byFunc, evolucaoByFunc, combByFunc }
   }, [itens, autorizados, produtosData, gruposData])
 
-  return { byFunc, evolucaoByFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
+  return { byFunc, evolucaoByFunc, combByFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
 }
 
 export default useGruposFuncionario

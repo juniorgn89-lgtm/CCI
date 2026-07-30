@@ -61,24 +61,27 @@ const numTone = (t: Tone) => t === 'green' ? 'text-emerald-600 dark:text-emerald
     : t === 'red' ? 'text-red-600 dark:text-red-400 font-semibold'
       : 'text-gray-700 dark:text-gray-300'
 
-/* ─── KPI hero + cards ─── */
-const KpiCard = ({ label, value, Icon, tone, sub, hero }: { label: string; value: string; Icon: typeof Wrench; tone: 'navy' | 'purple' | 'green' | 'blue'; sub?: ReactNode; hero?: boolean }) => {
-  const chip = tone === 'purple' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
-    : tone === 'green' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-      : tone === 'blue' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-        : 'bg-white/10 text-blue-200'
-  return (
-    <div className={cn('flex flex-col rounded-2xl border p-5 shadow-sm',
-      hero ? 'border-[#1b2739] bg-gradient-to-br from-[#13233b] to-[#0b1420] text-white' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]')}>
-      <div className="flex items-start justify-between gap-2">
-        <p className={cn('text-[11px] font-semibold uppercase tracking-wide', hero ? 'text-blue-200/80' : 'text-gray-400 dark:text-gray-500')}>{label}</p>
-        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', chip)}><Icon className="h-4 w-4" /></div>
-      </div>
-      <p className={cn('mt-2 font-bold leading-none tabular-nums', hero ? 'text-[36px] text-white' : 'text-[26px] text-gray-900 dark:text-gray-100')}>{value}</p>
-      {sub && <div className={cn('mt-2 text-[11.5px] tabular-nums', hero ? 'text-blue-200/70' : 'text-gray-400 dark:text-gray-500')}>{sub}</div>}
-    </div>
-  )
+/* ─── KPI hero + cards (mesmos tons tintados da Visão Geral) ─── */
+const KPI_TINT: Record<'green' | 'purple' | 'blue', string> = {
+  green: 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900',
+  purple: 'from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900',
+  blue: 'from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900',
 }
+const KPI_CHIP: Record<'green' | 'purple' | 'blue', string> = {
+  green: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+  purple: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+  blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+}
+const KpiCard = ({ label, value, Icon, tone, sub, hero }: { label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple' | 'blue'; sub?: ReactNode; hero?: boolean }) => (
+  <div className={cn('flex flex-col rounded-2xl border border-gray-200 bg-gradient-to-br p-5 shadow-sm dark:border-gray-800', KPI_TINT[tone])}>
+    <div className="flex items-start justify-between gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', KPI_CHIP[tone])}><Icon className="h-4 w-4" /></div>
+    </div>
+    <p className={cn('mt-2 font-bold leading-none tabular-nums text-gray-900 dark:text-gray-100', hero ? 'text-[36px]' : 'text-[26px]')}>{value}</p>
+    {sub && <div className="mt-2 text-[11.5px] tabular-nums text-gray-400 dark:text-gray-500">{sub}</div>}
+  </div>
+)
 
 const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
   <th className={cn('whitespace-nowrap px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500', right ? 'text-right' : 'text-left')}>{children}</th>
@@ -203,7 +206,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
-        <KpiCard hero label="Faturamento automotivos · rede" value={fmtR(rede.automotivos)} Icon={Wrench} tone="navy" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} funcionários`} />
+        <KpiCard hero label="Faturamento automotivos · rede" value={fmtR(rede.automotivos)} Icon={Wrench} tone="green" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} funcionários`} />
         <KpiCard label="Litros de aditivada" value={fmtL(rede.aditivada)} Icon={Droplet} tone="purple" />
         <KpiCard label="Mix de aditivada · rede" value={fmtMix(rede.mix)} Icon={Gauge} tone="purple" />
         <KpiCard label="Abastecimentos · rede" value={fmtN(rede.abast)} Icon={Fuel} tone="blue" />
@@ -231,7 +234,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px]">
             <thead className="border-b border-gray-100 dark:border-gray-800">
-              <tr><Th>Posto</Th><Th right>Automotivos</Th><Th right>Aditivada</Th><Th right>Mix</Th><Th right>Ticket</Th><Th right>Equipe</Th><Th right>Status</Th></tr>
+              <tr><Th>Posto</Th><Th right>Automotivos</Th><Th right>Aditivada</Th><Th right>Mix</Th><Th right>Abast.</Th><Th right>Ticket</Th><Th right>Equipe</Th><Th right>Status</Th></tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
               {postoRows.map((r) => {
@@ -250,6 +253,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
                       </div>
                     </td>
                     <td className={cn('px-3 py-2.5 text-right text-[12.5px] tabular-nums', numTone(s.mixTone))}>{fmtMix(r.mix)}</td>
+                    <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-600 dark:text-gray-300">{fmtN(r.abast)}</td>
                     <td className={cn('px-3 py-2.5 text-right text-[12.5px] tabular-nums', numTone(s.tktTone))}>{fmtR(r.ticket)}</td>
                     <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-600 dark:text-gray-300">{r.equipe}</td>
                     <td className="px-3 py-2.5 text-right"><span className={cn('inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold', PILL[s.tone])}>{s.label}</span></td>
@@ -262,6 +266,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
                 <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-800 dark:text-gray-200">{fmtRi(rede.automotivos)}</td>
                 <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtL(rede.aditivada)}</td>
                 <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtMix(rede.mix)}</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(rede.abast)}</td>
                 <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtR(rede.ticket)}</td>
                 <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(rede.equipe)}</td>
                 <td className="px-3 py-2.5" />

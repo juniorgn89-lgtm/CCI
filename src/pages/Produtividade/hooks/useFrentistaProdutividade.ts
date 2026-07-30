@@ -1,23 +1,16 @@
 import { useMemo } from 'react'
-import { useFilterStore } from '@/store/filters'
-import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import useVendedoresConveniencia from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
-import { buildScoreInputs, type ScoreAbastRow } from '@/lib/frentistaScore'
-import { todayLocal } from '@/lib/period'
+import useRedeProdutividadeCache from '@/pages/Produtividade/hooks/useRedeProdutividadeCache'
 
 /**
- * Produtividade de FRENTISTA (por posto), do jeito do design de referência: junta,
- * POR funcionário, o faturamento de "automotivos" (produtos de LOJA/pista — vem do
- * cache `apuracao_vendas_funcionario` setor=automotivos) com as métricas de
- * COMBUSTÍVEL (litros de aditivada, mix, abastecimentos — vêm ao vivo do spine de
- * abastecimentos). Duas fontes, mesma chave `funcionarioCodigo`.
+ * Produtividade de FRENTISTA por posto — LÊ DO CACHE apurado
+ * (`apuracao_vendas_funcionario`, via `useRedeProdutividadeCache` para 1 posto):
+ * automotivos de LOJA (setor=automotivos) + aditivada/gasolina/abastecimentos de
+ * COMBUSTÍVEL (setor=combustivel, colunas apuradas). NÃO usa mais o /ABASTECIMENTO
+ * ao vivo (que anda 500 em jun/jul e zerava o combustível). Só dias apurados.
  *
- * "Automotivos" = produto de loja (lubrificante/óleo), NÃO combustível automotivo.
- * "Aditivada" = gasolina premium (combustível). "Atendimentos" = nº de abastecimentos.
- * "Mix de aditivada" = litros aditivada ÷ litros de gasolina (igual ao score).
- *
- * TEND. = projeção linear de fim de mês (realizado × dias-no-mês ÷ dias-decorridos),
- * só quando o período termina no mês corrente; senão o fator é 1 (mês fechado).
+ * A quebra por combustível do DETALHE (produto a produto) não vem do cache — o
+ * detalhe monta ela do /VENDA_ITEM (ver useGruposFuncionario). Aqui `combustiveis`
+ * fica vazio (o Resumo/Visão Geral não usam).
  */
 
 /** Quebra por combustível dentro de um funcionário — pro detalhe. */
@@ -72,133 +65,23 @@ export interface FrentistaProdData {
   rows: FuncProdRow[]
   kpis: FrentistaProdKpis
   podios: { automotivo: Podio[]; aditivada: Podio[]; atendimentos: Podio[] }
-  /** Fator de projeção de fim de mês (1 = sem projeção). */
+  /** Fator de projeção de fim de mês (1 = sem projeção; cache apurado sempre 1). */
   projFactor: number
   isLoading: boolean
   hasEmpresa: boolean
 }
 
-const useFrentistaProdutividade = (postoCodigo?: number | null, opts?: { lean?: boolean }): FrentistaProdData => {
-  const { dataInicial, dataFinal } = useFilterStore()
-  // Combustível vem SÓ do analytics (rows com custo). Antes puxava também o
-  // useOperacaoData (hook pesado — caixas, formas, DRE, mês anterior…) apenas
-  // pra um fallback redundante; removido pra aliviar o fan-out do Resumo da rede.
-  // `lean` (usado pelo Resumo) pula custo/evolução/mês-anterior no analytics.
-  const { rows: abastComCusto, isLoading: lFuel } = useAbastecimentosAnalytics(postoCodigo, { lean: opts?.lean })
-  const store = useVendedoresConveniencia('automotivos', postoCodigo)
-  const hasEmpresa = postoCodigo != null
+const EMPTY_KPIS: FrentistaProdKpis = { automotivo: 0, aditivadaLitros: 0, mixPct: 0, abastecimentos: 0, ticketMedio: 0 }
+const EMPTY_PODIOS = { automotivo: [], aditivada: [], atendimentos: [] }
 
+const useFrentistaProdutividade = (postoCodigo?: number | null, _opts?: { lean?: boolean }): FrentistaProdData => {
+  const { byPosto, isLoading } = useRedeProdutividadeCache(postoCodigo != null ? [postoCodigo] : [])
   return useMemo(() => {
-    // Fator de projeção de fim de mês — SÓ vale em janela mês-a-data (começa no
-    // dia 1º do mês corrente e termina hoje). Numa janela custom (ex.: 10–15/jul)
-    // a projeção pra fim do mês não faz sentido, então o fator fica 1.
-    const today = todayLocal()
-    const fimEf = dataFinal && dataFinal < today ? dataFinal : today
-    const [fy, fm, fd] = fimEf.split('-').map(Number)
-    const [iy, im, id] = (dataInicial ?? '').split('-').map(Number)
-    const [ty, tm] = today.split('-').map(Number)
-    const diasNoMes = new Date(fy, fm, 0).getDate()
-    const mesADataAtual = iy === ty && im === tm && id === 1 && fy === ty && fm === tm && fd > 0
-    const projFactor = mesADataAtual ? diasNoMes / fd : 1
-
-    // Combustível por funcionário (aditivada/gasolina/abast) — do analytics.
-    const fuelRows: ScoreAbastRow[] = abastComCusto.map((r) => ({
-      frentistaCodigo: r.frentistaCodigo,
-      combustivelNome: r.combustivelNome,
-      litros: r.litros,
-      valorTotal: r.valorTotal,
-      lucroBruto: r.lucroBruto,
-      precoCusto: r.precoCusto,
-    }))
-
-    // Nome por código (do combustível) — o store cobre o resto.
-    const nomeByCod = new Map<number, string>()
-    for (const r of abastComCusto) if (!nomeByCod.has(r.frentistaCodigo)) nomeByCod.set(r.frentistaCodigo, r.frentistaNome)
-
-    // Métricas de combustível por funcionário (aditivada/gasolina/abast).
-    const fuelInputs = buildScoreInputs(fuelRows)
-
-    // Quebra por combustível por funcionário (pro detalhe).
-    const combByFunc = new Map<number, Map<number, CombustivelBreak>>()
-    const pushComb = (cod: number, produtoCodigo: number, nome: string, litros: number, valorTotal: number) => {
-      let m = combByFunc.get(cod)
-      if (!m) { m = new Map(); combByFunc.set(cod, m) }
-      const c = m.get(produtoCodigo) ?? { produtoCodigo, nome, litros: 0, abastecimentos: 0, faturamento: 0 }
-      c.litros += litros
-      c.abastecimentos += 1
-      c.faturamento += valorTotal
-      m.set(produtoCodigo, c)
+    if (postoCodigo == null) {
+      return { rows: [], kpis: EMPTY_KPIS, podios: EMPTY_PODIOS, projFactor: 1, isLoading: false, hasEmpresa: false }
     }
-    for (const r of abastComCusto) pushComb(r.frentistaCodigo, r.produtoCodigo, r.combustivelNome, r.litros, r.valorTotal)
-
-    // Store de automotivos (loja) por funcionário.
-    const storeByCod = new Map(store.rows.map((r) => [r.funcionarioCodigo, r]))
-
-    // União dos funcionários das duas fontes.
-    const codes = new Set<number>([...fuelInputs.keys(), ...store.rows.map((r) => r.funcionarioCodigo)])
-
-    const rows: FuncProdRow[] = [...codes].map((cod) => {
-      const fi = fuelInputs.get(cod)
-      const sv = storeByCod.get(cod)
-      const aditivada = fi?.aditivadaLitros ?? 0
-      const gasolina = fi?.gasolinaLitros ?? 0
-      const abast = fi?.abastecimentos ?? 0
-      const automotivo = sv?.faturamento ?? 0
-      return {
-        funcionarioCodigo: cod,
-        nome: sv?.nome ?? nomeByCod.get(cod) ?? `Funcionário ${cod}`,
-        ativo: sv?.ativo ?? true,
-        automotivo,
-        automotivoTend: automotivo * projFactor,
-        cupons: sv?.cupons ?? 0,
-        ticket: sv?.ticketMedio ?? 0,
-        itens: sv?.itens ?? 0,
-        aditivadaLitros: aditivada,
-        aditivadaTend: aditivada * projFactor,
-        gasolinaLitros: gasolina,
-        mixPct: gasolina > 0 ? (aditivada / gasolina) * 100 : 0,
-        abastecimentos: abast,
-        abastTend: abast * projFactor,
-        litros: fi?.litros ?? 0,
-        faturamentoCombustivel: fi?.faturamento ?? 0,
-        combustiveis: [...(combByFunc.get(cod)?.values() ?? [])].sort((a, b) => b.litros - a.litros),
-      }
-    }).sort((a, b) => b.automotivo - a.automotivo || b.aditivadaLitros - a.aditivadaLitros)
-
-    // KPIs do posto.
-    const totAdit = rows.reduce((s, r) => s + r.aditivadaLitros, 0)
-    const totGas = rows.reduce((s, r) => s + r.gasolinaLitros, 0)
-    const totAuto = rows.reduce((s, r) => s + r.automotivo, 0)
-    const totCupons = rows.reduce((s, r) => s + r.cupons, 0)
-    const kpis: FrentistaProdKpis = {
-      automotivo: totAuto,
-      aditivadaLitros: totAdit,
-      mixPct: totGas > 0 ? (totAdit / totGas) * 100 : 0,
-      abastecimentos: rows.reduce((s, r) => s + r.abastecimentos, 0),
-      ticketMedio: totCupons > 0 ? totAuto / totCupons : 0,
-    }
-
-    // Pódios (top 7, só quem tem valor).
-    const podio = (sel: (r: FuncProdRow) => number): Podio[] =>
-      rows
-        .filter((r) => sel(r) > 0)
-        .map((r) => ({ funcionarioCodigo: r.funcionarioCodigo, nome: r.nome, valor: sel(r) }))
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 7)
-
-    return {
-      rows,
-      kpis,
-      podios: {
-        automotivo: podio((r) => r.automotivo),
-        aditivada: podio((r) => r.aditivadaLitros),
-        atendimentos: podio((r) => r.abastecimentos),
-      },
-      projFactor,
-      isLoading: lFuel || store.isLoading,
-      hasEmpresa,
-    }
-  }, [abastComCusto, store.rows, store.isLoading, lFuel, hasEmpresa, dataInicial, dataFinal])
+    return byPosto.get(postoCodigo) ?? { rows: [], kpis: EMPTY_KPIS, podios: EMPTY_PODIOS, projFactor: 1, isLoading, hasEmpresa: true }
+  }, [byPosto, postoCodigo, isLoading])
 }
 
 export default useFrentistaProdutividade
