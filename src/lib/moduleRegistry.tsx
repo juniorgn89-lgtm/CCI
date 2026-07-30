@@ -3,7 +3,7 @@ import {
   CreditCard, LayoutDashboard, Eye, HandCoins, Calculator, Filter, ListChecks,
   ShieldCheck, CalendarClock, AlertTriangle, Droplets, Wrench, Store, Tag, Radio, Layers,
   TrendingUp, Gauge, Sparkles, BarChart3, Trophy, Building2, Radar, Wallet, Warehouse,
-  Users, SearchCheck, Target, Brain,
+  Users, SearchCheck, Brain,
   type LucideIcon,
 } from 'lucide-react'
 import { IlRede, IlProjecao, IlConfianca, IlFiscal } from '@/components/potencial/ilustracoes'
@@ -596,56 +596,28 @@ export const REGISTRY: Record<string, ModuleMeta> = {
     potencial: {
       '': {
         title: 'Visão Geral — o potencial desta tela',
-        description: 'O desempenho da equipe num painel: quem produz e quanto.',
+        description: 'A equipe da pista num painel: quem puxa automotivo e aditivada.',
         body: (
           <>
             <Secao icon={Users} titulo="O que ela faz">
-              Consolida a produtividade da equipe — litros por frentista, vendas por vendedor — filtrável por setor (combustível, conveniência, automotivos).
+              Mostra, por funcionário, o <strong>faturamento de automotivos</strong>, os <strong>litros de aditivada</strong>, o mix, os abastecimentos e o ticket — com a <strong>projeção de fim de mês</strong> (Tend.) e os pódios de quem mais vende.
             </Secao>
             <Secao icon={HandCoins} titulo="Por que importa">
-              Gente é o maior custo variável: ver quem rende (e quem não) mostra onde treinar, reconhecer e dimensionar a escala.
+              Gente é o maior custo variável: ver quem empurra aditivada e automotivo (e quem não) mostra onde treinar, quem reconhecer e quanto a equipe deixa na mesa.
             </Secao>
           </>
         ),
       },
-      frentistas: {
-        title: 'Frentistas — o potencial desta tela',
-        description: 'O ranking da pista: litros e atendimentos por frentista.',
+      funcionarios: {
+        title: 'Funcionários — o potencial desta tela',
+        description: 'O raio-x de cada um: o que vendeu, quanto e em quê.',
         body: (
           <>
-            <Secao icon={Droplets} titulo="O que ela faz">
-              Ordena os frentistas por <strong>litros vendidos e atendimentos</strong>, por posto e turno.
+            <Secao icon={Wrench} titulo="O que ela faz">
+              Clica no funcionário e abre o detalhe: automotivos e combustíveis vendidos, os <strong>grupos de produto</strong> que ele gira e o <strong>histórico de 12 meses</strong>.
             </Secao>
             <Secao icon={Trophy} titulo="Por que importa">
-              Revela o topo (pra replicar a técnica) e o fundo (pra treinar) — e sustenta meta e bonificação com número, não com percepção.
-            </Secao>
-          </>
-        ),
-      },
-      vendedores: {
-        title: 'Vendedores — o potencial desta tela',
-        description: 'Quem transforma o fluxo da pista em venda de loja.',
-        body: (
-          <>
-            <Secao icon={Store} titulo="O que ela faz">
-              Ranqueia os <strong>vendedores da conveniência</strong> por faturamento e itens — quem converte o movimento em loja.
-            </Secao>
-            <Secao icon={HandCoins} titulo="Por que importa">
-              A conveniência é margem alta: identificar o bom vendedor e a boa prática multiplica o lucro por cliente que já está no posto.
-            </Secao>
-          </>
-        ),
-      },
-      metas: {
-        title: 'Metas — o potencial desta tela',
-        description: 'A expectativa vira número: metas por frentista e o acompanhamento.',
-        body: (
-          <>
-            <Secao icon={Target} titulo="O que ela faz">
-              Define e acompanha <strong>metas por frentista</strong> — o quanto se espera vs o realizado.
-            </Secao>
-            <Secao icon={HandCoins} titulo="Por que importa">
-              Meta clara alinha a equipe e dá base pra bonificar com justiça — todo mundo sabe o alvo e onde está em relação a ele.
+              É a conversa de feedback com número na mão — o que cobrar de cada um, onde está o topo pra replicar e quem precisa de apoio.
             </Secao>
           </>
         ),

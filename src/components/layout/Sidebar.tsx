@@ -14,7 +14,6 @@ import {
   Fuel,
   Wrench,
   Store,
-  ShoppingBag,
   LayoutDashboard,
   Package,
   RefreshCw,
@@ -95,8 +94,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   ],
   '/produtividade': [
     { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
-    { label: 'Frentistas', to: '/produtividade?tab=frentistas', Icon: Fuel },
-    { label: 'Vendedores', to: '/produtividade?tab=vendedores', Icon: ShoppingBag },
+    { label: 'Funcionários', to: '/produtividade?tab=funcionarios', Icon: Users },
   ],
   '/estoques': [
     { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },

@@ -136,14 +136,8 @@ export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout-v
   { id: 'conferencia', label: 'Conferência por PDV', visible: true },
 ])
 
-// -v2: reset limpo após trocar as sub-abas (Projeções/Metas/Destaques saíram;
-// Frentistas/Vendedores viraram abas ao lado da Visão Geral).
-export const useProdutividadeLayout = createModuleLayoutStore('visor360-produtividade-layout-v2', [
-  { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'frentistas', label: 'Frentistas', visible: true },
-  { id: 'vendedores', label: 'Vendedores', visible: true },
-  { id: 'metas', label: 'Metas', visible: true },
-])
+// Produtividade não usa mais moduleLayout: virou 2 abas fixas (Dash + Funcionários)
+// controladas por useTabParam no próprio módulo. Store removida com o rebuild.
 
 // Inteligência não tem mais layout de abas: a Análise & Comparação foi removida
 // e o Radar de Preços foi pro módulo Comercial — sobrou só o Cadu IA.
