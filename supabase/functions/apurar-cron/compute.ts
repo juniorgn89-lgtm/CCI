@@ -166,6 +166,10 @@ export interface ApuracaoVendaFuncionarioUpsert {
   rede_id: string; empresa_codigo: number; data: string; funcionario_codigo: number
   setor: string; faturamento: number; custo: number; quantidade: number
   acrescimos: number; descontos: number; linhas: number; cupons: number
+  // Só em setor='combustivel': litros de gasolina (comum+aditivada) e de aditivada
+  // (subconjunto) — pro mix de aditivada por frentista (mix = aditivada ÷ gasolina).
+  // Mesmo critério do buildScoreInputs (isGasolina/isAditivada por nome).
+  aditivada_litros: number; gasolina_litros: number
 }
 
 interface ComputeRowsInput {
@@ -440,6 +444,11 @@ export const aggregateVendaCache = (
     // Por funcionário AGORA inclui combustível (funcionarioCodigo = frentista).
     // Usa o `custo` com fallback (mesma base do WebPosto) em vez de só totalCusto.
     if (it.funcionarioCodigo) {
+      // Litros de gasolina (comum+aditivada) e de aditivada (subconjunto) — só
+      // combustível — pro mix de aditivada por frentista (= aditivada ÷ gasolina).
+      const nomeUp = (info?.nome ?? '').toUpperCase()
+      const gasQ = setor === 'combustivel' && nomeUp.includes('GASOLINA') ? (it.quantidade ?? 0) : 0
+      const aditQ = gasQ > 0 && nomeUp.includes('ADITIVADA') ? (it.quantidade ?? 0) : 0
       const fkey = `${it.empresaCodigo}|${data}|${it.funcionarioCodigo}|${setor}`
       const ef = fmap.get(fkey)
       if (ef) {
@@ -449,6 +458,8 @@ export const aggregateVendaCache = (
         ef.acrescimos += it.totalAcrescimo ?? 0
         ef.descontos += it.totalDesconto ?? 0
         ef.linhas += 1
+        ef.gasolina_litros += gasQ
+        ef.aditivada_litros += aditQ
       } else {
         fmap.set(fkey, {
           rede_id: redeId,
@@ -463,6 +474,8 @@ export const aggregateVendaCache = (
           descontos: it.totalDesconto ?? 0,
           linhas: 1,
           cupons: funcSets.get(fkey)?.size ?? 0,
+          gasolina_litros: gasQ,
+          aditivada_litros: aditQ,
         })
       }
     }
