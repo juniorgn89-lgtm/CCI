@@ -6,6 +6,7 @@ import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useFrentistaProdutividade, { type FrentistaProdData, type FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
+import useRedeProdutividadeCache from '@/pages/Produtividade/hooks/useRedeProdutividadeCache'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import type { Empresa } from '@/api/types/empresa'
 
@@ -399,16 +400,32 @@ const RedeLoading = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<numb
   )
 }
 
+const RedeCacheLoading = () => (
+  <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-16 text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.02] dark:text-gray-300">
+    <Loader2 className="h-5 w-5 animate-spin text-[#2563eb]" /> Carregando resumo da rede…
+  </div>
+)
+
 const ProdutividadeRede = ({ postos }: { postos: Empresa[] }) => {
-  const [byPosto, setByPosto] = useState<Map<number, FrentistaProdData>>(() => new Map())
+  const codes = useMemo(() => postos.map((p) => p.codigo), [postos])
+  // Fonte primária: cache rede-wide (uma leitura, dias apurados). Sem fan-out.
+  const cache = useRedeProdutividadeCache(codes)
+
+  // Fan-out ao vivo — só FALLBACK quando não há nada apurado no período.
+  const [fanout, setFanout] = useState<Map<number, FrentistaProdData>>(() => new Map())
   const onData = useCallback((cod: number, d: FrentistaProdData) => {
-    setByPosto((prev) => { const n = new Map(prev); n.set(cod, d); return n })
+    setFanout((prev) => { const n = new Map(prev); n.set(cod, d); return n })
   }, [])
-  const ready = postos.length > 0 && postos.every((p) => { const d = byPosto.get(p.codigo); return d && !d.isLoading })
+
+  if (cache.isLoading) return <RedeCacheLoading />
+  if (cache.hasCache) return <RedeView postos={postos} byPosto={cache.byPosto} />
+
+  // Cache vazio (período não apurado) → cai no fan-out ao vivo.
+  const ready = postos.length > 0 && postos.every((p) => { const d = fanout.get(p.codigo); return d && !d.isLoading })
   return (
     <>
       {postos.map((p) => <PostoLoader key={p.codigo} posto={p} onData={onData} />)}
-      {ready ? <RedeView postos={postos} byPosto={byPosto} /> : <RedeLoading postos={postos} byPosto={byPosto} />}
+      {ready ? <RedeView postos={postos} byPosto={fanout} /> : <RedeLoading postos={postos} byPosto={fanout} />}
     </>
   )
 }

@@ -1285,6 +1285,11 @@ export interface ApuracaoVendaFuncionarioRow {
   linhas: number
   /** Nº de cupons (vendaCodigo distinto) do funcionário no (setor, dia). */
   cupons: number
+  /** Só em setor='combustivel': litros de aditivada e de gasolina (comum+aditivada)
+   * — pro mix por frentista (= aditivada ÷ gasolina). Ausentes antes da migração
+   * `supabase-apuracao-vendas-funcionario-mix.sql`; ler com `?? 0`. */
+  aditivada_litros?: number
+  gasolina_litros?: number
   computed_at: string
   computed_by: string | null
 }
