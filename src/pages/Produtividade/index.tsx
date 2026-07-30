@@ -106,7 +106,7 @@ const Produtividade = () => {
         {showSkeleton ? (
           <TabFallback />
         ) : prodTab === 'dash' ? (
-          <ProdutividadeDash data={data} onOpenFuncionario={(cod) => { setSelFunc(cod); setProdTab('funcionarios') }} />
+          <ProdutividadeDash data={data} postoNome={postos.find((p) => p.codigo === selectedCodigo)?.fantasia} onOpenFuncionario={(cod) => { setSelFunc(cod); setProdTab('funcionarios') }} />
         ) : (
           <ProdutividadeFuncionarios data={data} postoCodigo={selectedCodigo} selId={selFunc} onSelect={setSelFunc} />
         )}
