@@ -124,9 +124,16 @@ interface AnaliseSemanalLineCardProps {
   /** Classe de fundo/borda do card (default `bg-white dark:bg-gray-900`). Serve
    *  pra harmonizar o card com o visual dos KPI cards no modo escuro. */
   cardBg?: string
+  /** Escopo no subtítulo ("volume diário <scope>"). Default 'da rede'; passe ''
+   *  (ou outro texto) quando a série não for rede-wide (ex.: um funcionário). */
+  scope?: string
+  /** Tipo do gráfico: 'line' (spline suave, default) ou 'bar' (uma barra por dia).
+   *  Barras evitam que a suavização "invente" curvas entre pontos — melhor pra
+   *  séries esparsas/spiky (ex.: turnos de um frentista). */
+  chartType?: 'line' | 'bar'
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900' }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900', scope = 'da rede', chartType = 'line' }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
@@ -269,7 +276,7 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
           <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-            {rangeLabel(data[0].data, data[data.length - 1].data)} · {noun} diário da rede
+            {rangeLabel(data[0].data, data[data.length - 1].data)} · {noun} diário{scope ? ` ${scope}` : ''}
           </p>
         </div>
         <div className="flex shrink-0 items-stretch gap-2">
@@ -318,9 +325,30 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             <text key={`yl${i}`} x={g.x0 - 10} y={t.y + 3.5} textAnchor="end" fontSize={11} fill={ct.axis} style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtVal(t.v)}</text>
           ))}
 
-          {/* Área + linha */}
-          <path d={g.area} fill="url(#asArea)" />
-          <path d={g.line} fill="none" stroke={accent} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Marcas: barras (uma por dia) OU área + linha suavizada */}
+          {chartType === 'bar' ? (
+            g.pts.map((p) => {
+              const bw = Math.max(3, Math.min(g.slot * 0.62, 42))
+              const fill = p.i === g.picoIdx ? '#15803d' : p.i === g.baixaIdx ? '#b45309' : accent
+              return (
+                <rect
+                  key={p.i}
+                  x={p.x - bw / 2}
+                  y={p.y}
+                  width={bw}
+                  height={Math.max(1, g.yBase - p.y)}
+                  rx={3}
+                  fill={fill}
+                  opacity={hp && hp.i !== p.i ? 0.55 : 1}
+                />
+              )
+            })
+          ) : (
+            <>
+              <path d={g.area} fill="url(#asArea)" />
+              <path d={g.line} fill="none" stroke={accent} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+            </>
+          )}
 
           {/* PILOTO: linha de projeção esperada (tracejada, roxa) até o fim do mês */}
           {g.projLine && (
@@ -339,15 +367,15 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
           {/* Guia vertical do hover */}
           {hp && <line x1={hp.x} y1={g.yTop} x2={hp.x} y2={g.yBase} stroke={ct.axis} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />}
 
-          {/* Pontos */}
-          {g.pts.map((p) => {
+          {/* Pontos (só no modo linha; nas barras a cor da barra já marca pico/vale) */}
+          {chartType === 'line' && g.pts.map((p) => {
             if (p.i === g.picoIdx) return <circle key={p.i} cx={p.x} cy={p.y} r={6} fill="#15803d" stroke="#fff" strokeWidth={2} filter="url(#asPtShadow)" />
             if (p.i === g.baixaIdx) return <circle key={p.i} cx={p.x} cy={p.y} r={6} fill="#b45309" stroke="#fff" strokeWidth={2} filter="url(#asPtShadow)" />
             return <circle key={p.i} cx={p.x} cy={p.y} r={4} fill="#fff" stroke={accent} strokeWidth={2} />
           })}
 
-          {/* Realce do ponto sob o cursor */}
-          {hp && <circle cx={hp.x} cy={hp.y} r={5.5} fill="none" stroke={accent} strokeWidth={2.5} />}
+          {/* Realce do ponto sob o cursor (só no modo linha) */}
+          {chartType === 'line' && hp && <circle cx={hp.x} cy={hp.y} r={5.5} fill="none" stroke={accent} strokeWidth={2.5} />}
 
           {/* Callout do pico (verde) */}
           <g>
