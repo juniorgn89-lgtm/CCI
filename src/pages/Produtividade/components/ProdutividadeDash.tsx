@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Search, Trophy, Wrench, Droplet, Fuel, Gauge, Receipt, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Search, Trophy, Wrench, Droplet, Fuel, Gauge, Receipt, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
@@ -105,10 +105,10 @@ const StatusPill = ({ s }: { s: StatusInfo }) => (
 )
 
 /* Tendência (projeção do fim do mês) como seta + %; absoluto no tooltip. */
-const Tend = ({ pct, titulo }: { pct: number; titulo: string }) => (
-  <span title={titulo} className="inline-flex items-center gap-0.5 text-[10px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-    <TrendingUp className="h-2.5 w-2.5" />{fmtMix(pct)}
-  </span>
+/* Projeção de fim de mês como VALOR ABSOLUTO neutro (não um "▲%" verde, que
+   lia como crescimento do frentista e ficava absurdo no começo do mês). */
+const Tend = ({ value }: { value: string }) => (
+  <span title="Projeção de fim de mês no ritmo atual" className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">proj. {value}</span>
 )
 
 const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
@@ -120,9 +120,10 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
   const { kpis, podios, rows, projFactor } = data
 
   const rowByCod = useMemo(() => new Map(rows.map((r) => [r.funcionarioCodigo, r])), [rows])
-  // Tendência = ritmo do mês (dias no mês ÷ decorridos). Uniforme por métrica/pessoa
-  // (é o mesmo fator); > 0 só no mês corrente. No mês fechado não há projeção.
-  const tendPct = (projFactor - 1) * 100
+  // Projeção de fim de mês (projFactor, vindo do hook). Só mostra quando a janela
+  // é mês-a-data E já passou ~1/3 do mês (projFactor ≤ 3) — cedo demais a
+  // extrapolação linear é ruído (dia 3 de 31 projetaria ×10).
+  const showProj = projFactor > 1 && projFactor <= 3
 
   // Média do posto pra o status = mesma base dos KPIs (agregado do posto).
   const avgMix = kpis.mixPct
@@ -234,20 +235,20 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
                     <td className="px-3 py-[11px]">
                       <div className="flex flex-col items-end">
                         <span className="text-[12.5px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{fmtR(r.automotivo)}</span>
-                        {tendPct > 0 && <Tend pct={tendPct} titulo={`Projeção fim do mês: ${fmtR(r.automotivoTend)}`} />}
+                        {showProj && <Tend value={fmtR(r.automotivoTend)} />}
                       </div>
                     </td>
                     <td className="px-3 py-[11px]">
                       <div className="flex flex-col items-end">
                         <span className="text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtL(r.aditivadaLitros)}</span>
-                        {tendPct > 0 && <Tend pct={tendPct} titulo={`Projeção fim do mês: ${fmtL(r.aditivadaTend)}`} />}
+                        {showProj && <Tend value={fmtL(r.aditivadaTend)} />}
                       </div>
                     </td>
                     <td className={cn('px-3 py-[11px] text-right text-[12.5px] tabular-nums', s.causa === 'mix' ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300')}>{fmtMix(r.mixPct)}</td>
                     <td className="px-3 py-[11px]">
                       <div className="flex flex-col items-end">
                         <span className="text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(r.abastecimentos)}</span>
-                        {tendPct > 0 && <Tend pct={tendPct} titulo={`Projeção fim do mês: ${fmtN(r.abastTend)}`} />}
+                        {showProj && <Tend value={fmtN(r.abastTend)} />}
                       </div>
                     </td>
                     <td className={cn('px-3 py-[11px] text-right text-[12.5px] tabular-nums', s.causa === 'ticket' ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300')}>{fmtR(r.ticket)}</td>
@@ -260,7 +261,7 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
         </div>
 
         <div className="border-t border-gray-100 px-4 py-2.5 text-[10.5px] leading-relaxed text-gray-400 dark:border-gray-800 dark:text-gray-500">
-          Tendência = projeção do fim do mês vs o realizado. "Abaixo da média" compara com a média do próprio posto no período.
+"proj." = projeção linear de fim de mês, no ritmo atual (só aparece em janela mês-a-data, depois de ~1/3 do mês). "Abaixo da média" compara com a média do próprio posto no período.
         </div>
       </div>
     </div>

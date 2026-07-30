@@ -178,7 +178,7 @@ const GruposPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?: boo
       <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
         <Package className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Grupos de produto</h3>
-        <InfoHint text="Faturamento de produtos automotivos de loja (setor Pista) do funcionário no período, por grupo. Ao vivo do /VENDA_ITEM, só vendas autorizadas — o total bate com o card Automotivos." />
+        <InfoHint text="Faturamento de produtos automotivos de loja (setor Pista) do funcionário no período, por grupo. Ao vivo do /VENDA_ITEM, só vendas autorizadas. Aproxima-se do card Automotivos — que vem da apuração fechada; como os grupos são ao vivo, podem divergir no movimento de hoje." />
         {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{fmtRi(total)}</span>}
       </div>
       {loading ? (
@@ -217,9 +217,12 @@ const Chart12m = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) =
   const max = Math.max(1, ...pts.map((p) => p.valor))
   const total = pts.reduce((s, p) => s + p.valor, 0)
   const vazio = pts.length === 0 || pts.every((p) => p.valor === 0)
+  const curI = pts.length - 1 // mês corrente (parcial) = último do range
+  // "Pior mês" IGNORA o mês corrente: um acumulado parcial baixo não é
+  // "vendeu pouco", é "o mês ainda não fechou".
   let worstI = -1, worstV = Infinity
-  pts.forEach((p, i) => { if (p.valor > 0 && p.valor < worstV) { worstV = p.valor; worstI = i } })
-  const curI = pts.length - 1 // mês corrente = último do range
+  pts.forEach((p, i) => { if (i !== curI && p.valor > 0 && p.valor < worstV) { worstV = p.valor; worstI = i } })
+  const curParcial = (pts[curI]?.valor ?? 0) > 0
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
       <div className="mb-3 flex items-center gap-1.5">
@@ -261,9 +264,10 @@ const Chart12m = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) =
           </div>
           <div className="mt-1 flex gap-1.5">
             {pts.map((p, i) => (
-              <span key={p.ym} className={cn('flex-1 truncate text-center text-[9.5px]', i === curI ? 'font-semibold text-gray-500 dark:text-gray-300' : 'text-gray-400')}>{p.label}</span>
+              <span key={p.ym} className={cn('flex-1 truncate text-center text-[9.5px]', i === curI ? 'font-semibold text-gray-500 dark:text-gray-300' : 'text-gray-400')}>{p.label}{i === curI && curParcial ? '*' : ''}</span>
             ))}
           </div>
+          {curParcial && <p className="mt-1.5 text-[9.5px] text-gray-400 dark:text-gray-500">* {pts[curI].label} é o mês corrente — parcial, acumulado até hoje.</p>}
         </>
       )}
     </div>

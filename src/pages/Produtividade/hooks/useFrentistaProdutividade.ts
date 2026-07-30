@@ -80,19 +80,23 @@ export interface FrentistaProdData {
 }
 
 const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdData => {
-  const { dataFinal } = useFilterStore()
+  const { dataInicial, dataFinal } = useFilterStore()
   const { abastecimentoRows, isLoading: lOper, hasEmpresa } = useOperacaoData(postoCodigo)
   const { rows: abastComCusto } = useAbastecimentosAnalytics(postoCodigo)
   const store = useVendedoresConveniencia('automotivos', postoCodigo)
 
   return useMemo(() => {
-    // Fator de projeção de fim de mês (linear pelo ritmo do mês corrente).
+    // Fator de projeção de fim de mês — SÓ vale em janela mês-a-data (começa no
+    // dia 1º do mês corrente e termina hoje). Numa janela custom (ex.: 10–15/jul)
+    // a projeção pra fim do mês não faz sentido, então o fator fica 1.
     const today = todayLocal()
     const fimEf = dataFinal && dataFinal < today ? dataFinal : today
     const [fy, fm, fd] = fimEf.split('-').map(Number)
+    const [iy, im, id] = (dataInicial ?? '').split('-').map(Number)
     const [ty, tm] = today.split('-').map(Number)
     const diasNoMes = new Date(fy, fm, 0).getDate()
-    const projFactor = fy === ty && fm === tm && fd > 0 ? diasNoMes / fd : 1
+    const mesADataAtual = iy === ty && im === tm && id === 1 && fy === ty && fm === tm && fd > 0
+    const projFactor = mesADataAtual ? diasNoMes / fd : 1
 
     // Fonte de combustível: linhas com custo (analytics) senão as cruas (fallback).
     const usaCusto = abastComCusto.length > 0
@@ -206,7 +210,7 @@ const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdDa
       isLoading: lOper || store.isLoading,
       hasEmpresa,
     }
-  }, [abastComCusto, abastecimentoRows, store.rows, store.isLoading, lOper, hasEmpresa, dataFinal])
+  }, [abastComCusto, abastecimentoRows, store.rows, store.isLoading, lOper, hasEmpresa, dataInicial, dataFinal])
 }
 
 export default useFrentistaProdutividade
