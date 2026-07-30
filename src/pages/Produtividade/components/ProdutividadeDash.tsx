@@ -25,10 +25,11 @@ const iniciais = (nome: string) =>
 const semCadastro = (nome: string) => !nome || nome === '—' || /^Funcion[aá]rio\s+\d+$/i.test(nome)
 
 /* ─── KPI (cards tintados; verde = R$, roxo = aditivada) ─── */
-type KpiTone = 'green' | 'purple'
+type KpiTone = 'green' | 'purple' | 'blue'
 const KPI_TONE: Record<KpiTone, { card: string; chip: string; icon: string }> = {
   green: { card: 'from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900', chip: 'bg-emerald-100 dark:bg-emerald-900/30', icon: 'text-emerald-600 dark:text-emerald-400' },
   purple: { card: 'from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900', chip: 'bg-violet-100 dark:bg-violet-900/30', icon: 'text-violet-600 dark:text-violet-400' },
+  blue: { card: 'from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900', chip: 'bg-blue-100 dark:bg-blue-900/30', icon: 'text-blue-600 dark:text-blue-400' },
 }
 const KpiCard = ({ label, value, Icon, tone, sub }: { label: string; value: string; Icon: typeof Wrench; tone: KpiTone; sub?: ReactNode }) => {
   const t = KPI_TONE[tone]
@@ -159,13 +160,14 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
 
   return (
     <div className="space-y-4">
-      {/* KPIs — comparação "vs mês anterior" não existe no hook, então só o card de
-          ticket traz a linha de apoio (nº de abastecimentos). */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* KPIs (5 cards). Comparação "vs mês anterior" não existe no hook, então
+          nenhum card traz linha de delta. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard label="Faturamento automotivos" value={fmtR(kpis.automotivo)} Icon={Wrench} tone="green" />
         <KpiCard label="Litros de aditivada" value={fmtL(kpis.aditivadaLitros)} Icon={Droplet} tone="purple" />
         <KpiCard label="Mix de aditivada" value={fmtMix(kpis.mixPct)} Icon={Gauge} tone="purple" />
-        <KpiCard label="Ticket médio automotivos" value={fmtR(kpis.ticketMedio)} Icon={Receipt} tone="green" sub={`${fmtN(kpis.abastecimentos)} abastecimentos`} />
+        <KpiCard label="Abastecimentos" value={fmtN(kpis.abastecimentos)} Icon={Fuel} tone="blue" />
+        <KpiCard label="Ticket médio automotivos" value={fmtR(kpis.ticketMedio)} Icon={Receipt} tone="green" />
       </div>
 
       {/* Pódios (Top 3) */}

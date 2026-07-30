@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Wrench, Droplet, Gauge, Receipt, Trophy, AlertTriangle, Lightbulb, Loader2, CheckCircle2 } from 'lucide-react'
+import { Wrench, Droplet, Gauge, Receipt, Fuel, Trophy, AlertTriangle, Lightbulb, Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
@@ -60,10 +60,11 @@ const numTone = (t: Tone) => t === 'green' ? 'text-emerald-600 dark:text-emerald
       : 'text-gray-700 dark:text-gray-300'
 
 /* ─── KPI hero + cards ─── */
-const KpiCard = ({ label, value, Icon, tone, sub, hero }: { label: string; value: string; Icon: typeof Wrench; tone: 'navy' | 'purple' | 'green'; sub?: ReactNode; hero?: boolean }) => {
+const KpiCard = ({ label, value, Icon, tone, sub, hero }: { label: string; value: string; Icon: typeof Wrench; tone: 'navy' | 'purple' | 'green' | 'blue'; sub?: ReactNode; hero?: boolean }) => {
   const chip = tone === 'purple' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
     : tone === 'green' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-      : 'bg-white/10 text-blue-200'
+      : tone === 'blue' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+        : 'bg-white/10 text-blue-200'
   return (
     <div className={cn('flex flex-col rounded-2xl border p-5 shadow-sm',
       hero ? 'border-[#1b2739] bg-gradient-to-br from-[#13233b] to-[#0b1420] text-white' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]')}>
@@ -199,11 +200,12 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
         <KpiCard hero label="Faturamento automotivos · rede" value={fmtR(rede.automotivos)} Icon={Wrench} tone="navy" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} funcionários`} />
         <KpiCard label="Litros de aditivada" value={fmtL(rede.aditivada)} Icon={Droplet} tone="purple" />
         <KpiCard label="Mix de aditivada · rede" value={fmtMix(rede.mix)} Icon={Gauge} tone="purple" />
-        <KpiCard label="Ticket médio · rede" value={fmtR(rede.ticket)} Icon={Receipt} tone="green" sub={`${fmtN(rede.abast)} abastecimentos`} />
+        <KpiCard label="Abastecimentos · rede" value={fmtN(rede.abast)} Icon={Fuel} tone="blue" />
+        <KpiCard label="Ticket médio · rede" value={fmtR(rede.ticket)} Icon={Receipt} tone="green" />
       </div>
 
       {/* Leitura do analista */}
