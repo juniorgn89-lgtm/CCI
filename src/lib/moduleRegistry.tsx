@@ -622,6 +622,20 @@ export const REGISTRY: Record<string, ModuleMeta> = {
           </>
         ),
       },
+      rede: {
+        title: 'Resumo da rede — o potencial desta tela',
+        description: 'Todos os postos num quadro só: quem lidera e quem puxa a média.',
+        body: (
+          <>
+            <Secao icon={Building2} titulo="O que ela faz">
+              Consolida os <strong>postos</strong> num ranking — automotivos, aditivada, mix e ticket — com a leitura de quem está acima e abaixo da média ponderada da rede, e os funcionários que precisam de atenção em qualquer posto.
+            </Secao>
+            <Secao icon={HandCoins} titulo="Por que importa">
+              Mostra onde está o dinheiro na mesa: o posto que puxa o mix pra baixo, quanto renderia se chegasse à média, e quem replicar. Comparar postos vira decisão, não achismo.
+            </Secao>
+          </>
+        ),
+      },
     },
   },
 

@@ -21,11 +21,13 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 
 const ProdutividadeDash = lazy(() => import('@/pages/Produtividade/components/ProdutividadeDash'))
 const ProdutividadeFuncionarios = lazy(() => import('@/pages/Produtividade/components/ProdutividadeFuncionarios'))
+const ProdutividadeRede = lazy(() => import('@/pages/Produtividade/components/ProdutividadeRede'))
 
-type ProdTab = 'dash' | 'funcionarios'
+type ProdTab = 'dash' | 'funcionarios' | 'rede'
 const TABS: { id: ProdTab; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: 'dash', label: 'Visão Geral', Icon: LayoutDashboard },
   { id: 'funcionarios', label: 'Funcionários', Icon: Users },
+  { id: 'rede', label: 'Resumo da rede', Icon: Building2 },
 ]
 
 const TabFallback = () => (
@@ -54,7 +56,7 @@ const Produtividade = () => {
     : (postos[0]?.codigo ?? null)
 
   const isMobile = useIsMobile()
-  const [prodTab, setProdTab] = useTabParam<ProdTab>('dash', (v): v is ProdTab => v === 'dash' || v === 'funcionarios')
+  const [prodTab, setProdTab] = useTabParam<ProdTab>('dash', (v): v is ProdTab => v === 'dash' || v === 'funcionarios' || v === 'rede')
   // Funcionário selecionado (compartilhado entre as abas): clicar numa linha do
   // Dash abre esse funcionário na aba Funcionários.
   const [selFunc, setSelFunc] = useState<number | null>(null)
@@ -92,8 +94,9 @@ const Produtividade = () => {
         <DateRangeToolbar />
       </PageHeaderActions>
 
-      {/* Seletor de posto (pílulas + litros) — a produtividade é por posto. */}
-      {postos.length > 1 && (
+      {/* Seletor de posto (pílulas + litros) — a produtividade é por posto.
+          No Resumo da rede é rede-wide, então o seletor fica escondido. */}
+      {postos.length > 1 && prodTab !== 'rede' && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
             <Building2 className="h-3.5 w-3.5" /> Posto:
@@ -103,7 +106,9 @@ const Produtividade = () => {
       )}
 
       <Suspense fallback={<TabFallback />}>
-        {showSkeleton ? (
+        {prodTab === 'rede' ? (
+          <ProdutividadeRede postos={postos} />
+        ) : showSkeleton ? (
           <TabFallback />
         ) : prodTab === 'dash' ? (
           <ProdutividadeDash data={data} postoNome={postos.find((p) => p.codigo === selectedCodigo)?.fantasia} onOpenFuncionario={(cod) => { setSelFunc(cod); setProdTab('funcionarios') }} />
