@@ -13,7 +13,7 @@ import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, ScrollTabs, Segmented, Badge, ProgressBar, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
-import { brl, brlShort, liters, variacaoPct } from '@/components/mobile/format'
+import { brl, brlShort, liters } from '@/components/mobile/format'
 
 const scoreTone = (s: number): Tone => (s >= 70 ? 'emerald' : s >= 40 ? 'amber' : 'rose')
 const metaTone = (pct: number): Tone => (pct >= 100 ? 'emerald' : pct >= 70 ? 'amber' : 'rose')
@@ -23,9 +23,11 @@ type SortKey = 'litros' | 'score' | 'faturamento'
 const TABS = [{ id: 'ranking', label: 'Ranking' }, { id: 'metas', label: 'Metas' }]
 
 /**
- * Produtividade — versão mobile. Reusa useOperacaoData + useAbastecimentosAnalytics
- * (score) + useMetasStore. Abas: Ranking (frentistas ordenáveis) e Metas (meta vs
- * realizado por frentista — mês anterior ou manual). Mesmos números do desktop.
+ * Produtividade — versão mobile. Modelo DIFERENTE do desktop (que é automotivos/
+ * mix/ticket de loja): aqui é ranking por LITROS vendidos + score de desempenho +
+ * metas. Reusa useOperacaoData + useAbastecimentosAnalytics (score) + useMetasStore.
+ * Abas: Ranking (frentistas ordenáveis) e Metas (meta vs realizado por frentista).
+ * NÃO alinhado ao desktop ainda — os números aqui são de combustível, não de loja.
  */
 const ProdutividadeMobile = () => {
   // Produtividade de frentista é por-posto → um posto por vez, com seletor.
@@ -97,7 +99,10 @@ const ProdutividadeMobile = () => {
 
   const wrap = (inner: ReactNode) => (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+      <div>
+        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+        <p className="text-[11px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
+      </div>
       {postoTabs}
       {inner}
     </div>
@@ -112,13 +117,15 @@ const ProdutividadeMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+      <div>
+        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
+        <p className="text-[11px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
+      </div>
       {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard label="Frentistas ativos" tone="blue" Icon={Users} value={formatNumber(kpis.frentistasAtivos)} />
-        <KpiCard label="Abastecimentos" tone="navy" Icon={Receipt}
-          value={formatNumber(kpis.totalAbastecimentos)} delta={variacaoPct(kpis.totalAbastecimentos, kpis.prevTotalAbastecimentos)} deltaLabel="mês ant." />
+        <KpiCard label="Abastecimentos" tone="navy" Icon={Receipt} value={formatNumber(kpis.totalAbastecimentos)} />
         <KpiCard label="Top frentista" tone="amber" Icon={Trophy} value={top ? liters(top.litros) : '—'} sub={top?.nome} />
       </div>
 
@@ -167,7 +174,7 @@ const ProdutividadeMobile = () => {
           </Section>
 
           <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
-            Score 0–100 combina lucro, automotivo, mix aditivada, ticket e nº de abastecimentos do período.
+            Score 0–100 combina lucro, automotivo/litros, mix de aditivada, ticket médio, ticket de automotivos e nº de abastecimentos do período.
           </p>
         </>
       ) : (
