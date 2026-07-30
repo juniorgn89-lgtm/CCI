@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Sparkles } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useChartTheme } from '@/lib/chartTheme'
@@ -131,9 +131,12 @@ interface AnaliseSemanalLineCardProps {
    *  Barras evitam que a suavização "invente" curvas entre pontos — melhor pra
    *  séries esparsas/spiky (ex.: turnos de um frentista). */
   chartType?: 'line' | 'bar'
+  /** Conteúdo extra no cabeçalho (à esquerda dos chips Média/Pico) — ex.: um
+   *  segmented control pra alternar a métrica plotada. */
+  headerExtra?: ReactNode
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900', scope = 'da rede', chartType = 'line' }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900', scope = 'da rede', chartType = 'line', headerExtra }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
@@ -279,7 +282,8 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
             {rangeLabel(data[0].data, data[data.length - 1].data)} · {noun} diário{scope ? ` ${scope}` : ''}
           </p>
         </div>
-        <div className="flex shrink-0 items-stretch gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {headerExtra}
           <div className="rounded-lg border border-gray-200 bg-gray-50/60 px-2.5 py-1 text-center dark:border-gray-700 dark:bg-gray-800/50">
             <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Média/dia</p>
             <p className="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">{fmtVal(g.media)}</p>
