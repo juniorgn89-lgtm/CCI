@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Building2, ChevronDown, Network, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFilters } from '@/hooks/useFilters'
+import { useFilterStore } from '@/store/filters'
+import { useTenantStore } from '@/store/tenant'
+import { useTopbarUi } from '@/store/topbarUi'
+import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { fetchEmpresas } from '@/api/endpoints/empresas'
+import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
 import CompanySelect from '@/components/filters/CompanySelect'
 import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
@@ -48,28 +56,40 @@ const TodosPostosToggle = ({ disabled }: { disabled?: boolean }) => {
   )
 }
 
-interface HeaderContextMenuProps {
-  /** Rótulo do contexto atual (posto/rede) — exibido na própria pílula. */
-  label: string
-  /** Mostra o seletor de posto (escondido quando o usuário tem 1 posto). */
-  showCompanySelect: boolean
-  /** Permite "Todos os postos" (rede consolidada). False = módulo gateado. */
-  allowTodos: boolean
-  /** Trava de "ao vivo" — desabilita a troca de posto. */
-  liveLock: boolean
-  /** Módulo rede-wide (compara postos) — esconde o seletor e mostra uma nota. */
-  redeWide?: boolean
-}
-
 /**
- * Pílula de contexto do Header — mostra o posto/rede atual e, ao clicar, abre um
- * painel com Rede, Posto e "Como funciona?". Antes era um ☰ genérico no canto
- * (escondido); virou uma pílula visível com o contexto atual. Reaproveita os
- * componentes existentes (cada um com seu dropdown/modal); o painel só os empilha.
+ * Pílula de contexto (posto/rede) — mostra o posto atual e, ao clicar, abre um
+ * painel com Rede, Posto e "Como funciona?". AUTO-SUFICIENTE: computa o rótulo e as
+ * flags internamente (via hooks), então pode viver em qualquer barra — hoje na
+ * barra de ações do módulo (antes ficava no topo). Reaproveita os componentes
+ * existentes (cada um com seu dropdown/modal); o painel só os empilha.
  */
-const HeaderContextMenu = ({ label, showCompanySelect, allowTodos, liveLock, redeWide = false }: HeaderContextMenuProps) => {
+const HeaderContextMenu = () => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Contexto do posto/rede — computado aqui (não vem mais por props do Header).
+  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
+  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const liveLock = useTopbarUi((s) => s.liveLock)
+  const pathname = useLocation().pathname
+  const redeWide = moduloRedeWide(pathname)
+  const showCompanySelect = empresasPermitidas.length !== 1 && !redeWide
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const tenantNome = useTenantStore((s) => s.rede?.nome)
+  const fantasiasSel = empresaCodigos
+    .map((c) => empresasPermitidas.find((e) => e.codigo === c)?.fantasia)
+    .filter((n): n is string => !!n)
+  const postoNome =
+    empresaCodigos.length === 0 || fantasiasSel.length === 0
+      ? null
+      : fantasiasSel.length <= 2
+        ? fantasiasSel.join(' · ')
+        : `${fantasiasSel.length} postos`
+  const contextoLabel = postoNome ?? (tenantNome ?? 'Todos')
+  const allowTodos = moduloPermiteTodos(pathname)
+  const label = redeWide
+    ? (tenantNome ?? 'Todos')
+    : (!allowTodos && empresaCodigos.length !== 1 ? 'Selecione um posto' : contextoLabel)
 
   // Fecha ao clicar fora — mas ignora cliques nos dropdowns portalizados
   // (rede/posto) e no modal do "Como funciona?", que vivem fora do painel.

@@ -17,7 +17,7 @@ import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
 import useDataUpdating from '@/hooks/useDataUpdating'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
-import PotencialButton from '@/components/layout/PotencialButton'
+import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
 import ModuleHeaderChrome from '@/components/layout/ModuleHeaderChrome'
 import { useAuthStore } from '@/store/auth'
 import WelcomeModal from '@/components/onboarding/WelcomeModal'
@@ -256,7 +256,7 @@ const AppLayout = () => {
                   <GlobalFilterControls
                     dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
                   />
-                  <PotencialButton />
+                  <HeaderContextMenu />
                 </>
               }
             />

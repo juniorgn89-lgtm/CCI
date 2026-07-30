@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { LayoutGrid, RefreshCw } from 'lucide-react'
-import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
-import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
-import { useTopbarUi } from '@/store/topbarUi'
-import { useFilterStore } from '@/store/filters'
-import { useTenantStore } from '@/store/tenant'
-import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
+import PotencialButton from '@/components/layout/PotencialButton'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
@@ -38,49 +32,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
 
-  // Seletor de posto ao lado da rede (todas as telas, incl. Central — a Central
-  // consolida qualquer subconjunto). Some só quando o usuário tem 1 posto.
-  // Query cacheada (queryKey ['empresas']) — deduplica com outras instâncias.
-  const { data: empresasData } = useQuery({
-    queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas(),
-    staleTime: 10 * 60 * 1000,
-  })
-  const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const liveLock = useTopbarUi((s) => s.liveLock)
-  const pathname = useLocation().pathname
-  // Módulos REDE-WIDE (Comercial) comparam postos entre si → escondem o seletor
-  // de posto e ignoram o filtro (sem tocar na seleção global). Ver moduloRedeWide.
-  const redeWide = moduloRedeWide(pathname)
-  const showCompanySelect = empresasPermitidas.length !== 1 && !redeWide
-
-  // Rótulo central (apagado) — qual POSTO o usuário está vendo. Regra de nome:
-  // "Todos" quando rede-wide ([]); o nome de CADA posto selecionado quando há
-  // seleção (truncado por CSS se a lista for longa).
-  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const tenantNome = useTenantStore((s) => s.rede?.nome)
-  const fantasiasSel = empresaCodigos
-    .map((c) => empresasPermitidas.find((e) => e.codigo === c)?.fantasia)
-    .filter((n): n is string => !!n)
-  // 1–2 postos: nomes com "·"; 3+: colapsa pra contagem (evita fila truncada).
-  const postoNome =
-    empresaCodigos.length === 0 || fantasiasSel.length === 0
-      ? null
-      : fantasiasSel.length <= 2
-        ? fantasiasSel.join(' · ')
-        : `${fantasiasSel.length} postos`
-  // "Todos" ([]) mostra o NOME DA REDE em todas as telas (incl. Central) — fica
-  // claro que é a rede consolidada. Fallback "Todos" só se não houver nome de rede.
-  const contextoLabel = postoNome ?? (tenantNome ?? 'Todos')
-  // Filtro de empresa (pílula) em TODAS as telas. Módulos gateados (operacionais
-  // por-posto) não permitem "Todos" — a pílula esconde a opção e, quando ainda
-  // não há posto escolhido, o rótulo pede a seleção.
-  const allowTodos = moduloPermiteTodos(pathname)
-  // Rede-wide ignora o filtro de posto → a pílula mostra a REDE (não o posto
-  // selecionado, que está sendo ignorado), pra não enganar.
-  const pillLabel = redeWide
-    ? (tenantNome ?? 'Todos')
-    : (!allowTodos && empresaCodigos.length !== 1 ? 'Selecione um posto' : contextoLabel)
+  // A pílula de posto/rede (HeaderContextMenu) migrou pra barra de AÇÕES do módulo
+  // (AppLayout) — e o "Potencial desta tela" subiu pra cá. O HeaderContextMenu agora
+  // é auto-suficiente (computa o próprio rótulo/flags).
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
   const focusActive = useFocusMode((s) => s.active)
@@ -171,8 +125,9 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Pílula de contexto (posto/rede visível) ANTES do Atualizar, em todas as telas. */}
-          <HeaderContextMenu label={pillLabel} showCompanySelect={showCompanySelect} allowTodos={allowTodos} liveLock={liveLock} redeWide={redeWide} />
+          {/* "Potencial desta tela" subiu pro topo (trocou de lugar com a pílula de
+              posto, que foi pra barra de ações do módulo). */}
+          <PotencialButton />
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL. */}
           <UltimaAtualizacaoInfo />
           <button
