@@ -31,7 +31,8 @@ const rangeLabel = (ini: string, fim: string): string => {
 /* Cada posto carrega seus dados pela MESMA fonte da Visão Geral e reporta pra cima
    (fan-out — não dá pra chamar o hook num loop). */
 const PostoLoader = ({ posto, onData }: { posto: Empresa; onData: (cod: number, d: FrentistaProdData) => void }) => {
-  const data = useFrentistaProdutividade(posto.codigo)
+  // lean: o Resumo só usa os KPIs/rows — pula custo, evolução 12m e mês anterior.
+  const data = useFrentistaProdutividade(posto.codigo, { lean: true })
   useEffect(() => { onData(posto.codigo, data) }, [posto.codigo, data, onData])
   return null
 }

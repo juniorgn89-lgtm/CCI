@@ -185,12 +185,16 @@ export interface ProjectionMeta {
 
 const useAbastecimentosAnalytics = (
   empresaCodigoOverride?: number | null,
-  opts?: { physicalEnabled?: boolean; periodo?: { dataInicial: string; dataFinal: string } },
+  opts?: { physicalEnabled?: boolean; periodo?: { dataInicial: string; dataFinal: string }; lean?: boolean },
 ) => {
   const { empresaCodigos, dataInicial: storeIni, dataFinal: storeFim, comparisonMode, abastDateMode } = useFilterStore()
   // Override de período (Radar trava no mês corrente). Default = filtro global.
   const dataInicial = opts?.periodo?.dataInicial ?? storeIni
   const dataFinal = opts?.periodo?.dataFinal ?? storeFim
+  // Modo enxuto (Produtividade/Resumo da rede): só as `rows` de abast do período.
+  // Pula custo (VENDA_ITEM/LMC), evolução 12m, mês anterior e quebra por produto —
+  // nada disso a Produtividade mostra. Corta ~4 fetches por posto no fan-out.
+  const lean = opts?.lean ?? false
   // Físico live (/ABASTECIMENTO + LMC + mês anterior) SOB DEMANDA: a aba
   // Combustível abre 100% do cache e só liga o físico quando o modal de detalhe
   // (top frentistas/bombas/hora) abre. Outros consumidores (Operação·Bombas)
@@ -255,7 +259,7 @@ const useAbastecimentosAnalytics = (
     dataFinal: prevMonthFinal,
     empresaCodigo: empresaCodigoSingle,
     empresasPermitidasCount,
-    enabled: rawSingle,
+    enabled: rawSingle && !lean,
   })
 
   // Current period — live só quando cache MISS (ou fora do modo FISCAL).
@@ -274,7 +278,7 @@ const useAbastecimentosAnalytics = (
   const { data: prevMonthLive = [] } = useQuery({
     queryKey: ['abastecimentos', prevMonthInicial, prevMonthFinal, abastDateMode],
     queryFn: () => fetchAbastecimentosChunked({ dataInicial: prevMonthInicial, dataFinal: prevMonthFinal, tipoData: abastTipoData }),
-    enabled: rawSingle && wantFisico && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
+    enabled: rawSingle && wantFisico && !lean && (!cacheActive || (!abastCachePrev.isCacheHit && !abastCachePrev.isChecking)),
     retry: false,
   })
 
@@ -295,7 +299,7 @@ const useAbastecimentosAnalytics = (
         dataInicial: evolution12mInicialFirst,
         dataFinal,
       }),
-    enabled: evolutionEmpresaCodigos.length > 0,
+    enabled: !lean && evolutionEmpresaCodigos.length > 0,
     staleTime: 10 * 60 * 1000,
   })
 
@@ -310,7 +314,7 @@ const useAbastecimentosAnalytics = (
         dataInicial: evolution12mInicialFirst,
         dataFinal,
       }),
-    enabled: evolutionEmpresaCodigos.length > 0,
+    enabled: !lean && evolutionEmpresaCodigos.length > 0,
     staleTime: 10 * 60 * 1000,
   })
 
@@ -353,7 +357,7 @@ const useAbastecimentosAnalytics = (
     // Só dispara LMC DEPOIS que a checagem do cache terminou — evita
     // fetch redundante enquanto isChecking=true e abastecimentos=[].
     // Cancela quando descobrimos que o cache tem custo embutido.
-    enabled: rawSingle && wantFisico && (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
+    enabled: rawSingle && wantFisico && !lean && (!cacheActive || !abastCacheCurrent.isChecking) && !cacheHasCostEmbedded,
     placeholderData: keepPreviousData,
   })
 
@@ -361,7 +365,7 @@ const useAbastecimentosAnalytics = (
   // Substitui o custo do LMC; quando o produto não casa, cai no LMC (fallback).
   // Custo do raw só importa com 1 posto (raw ligado); sob "Todos"/subconjunto
   // passamos [] pra não disparar VENDA_ITEM à toa (raw está desligado).
-  const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(rawSingle ? scopedCodes : [], dataInicial, dataFinal)
+  const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(rawSingle && !lean ? scopedCodes : [], dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
   const { data: produtosData } = useQuery({

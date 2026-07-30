@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useFilterStore } from '@/store/filters'
-import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useVendedoresConveniencia from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
 import { buildScoreInputs, type ScoreAbastRow } from '@/lib/frentistaScore'
@@ -79,11 +78,15 @@ export interface FrentistaProdData {
   hasEmpresa: boolean
 }
 
-const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdData => {
+const useFrentistaProdutividade = (postoCodigo?: number | null, opts?: { lean?: boolean }): FrentistaProdData => {
   const { dataInicial, dataFinal } = useFilterStore()
-  const { abastecimentoRows, isLoading: lOper, hasEmpresa } = useOperacaoData(postoCodigo)
-  const { rows: abastComCusto } = useAbastecimentosAnalytics(postoCodigo)
+  // Combustível vem SÓ do analytics (rows com custo). Antes puxava também o
+  // useOperacaoData (hook pesado — caixas, formas, DRE, mês anterior…) apenas
+  // pra um fallback redundante; removido pra aliviar o fan-out do Resumo da rede.
+  // `lean` (usado pelo Resumo) pula custo/evolução/mês-anterior no analytics.
+  const { rows: abastComCusto, isLoading: lFuel } = useAbastecimentosAnalytics(postoCodigo, { lean: opts?.lean })
   const store = useVendedoresConveniencia('automotivos', postoCodigo)
+  const hasEmpresa = postoCodigo != null
 
   return useMemo(() => {
     // Fator de projeção de fim de mês — SÓ vale em janela mês-a-data (começa no
@@ -98,30 +101,19 @@ const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdDa
     const mesADataAtual = iy === ty && im === tm && id === 1 && fy === ty && fm === tm && fd > 0
     const projFactor = mesADataAtual ? diasNoMes / fd : 1
 
-    // Fonte de combustível: linhas com custo (analytics) senão as cruas (fallback).
-    const usaCusto = abastComCusto.length > 0
-    const fuelRows: ScoreAbastRow[] = usaCusto
-      ? abastComCusto.map((r) => ({
-          frentistaCodigo: r.frentistaCodigo,
-          combustivelNome: r.combustivelNome,
-          litros: r.litros,
-          valorTotal: r.valorTotal,
-          lucroBruto: r.lucroBruto,
-          precoCusto: r.precoCusto,
-        }))
-      : abastecimentoRows.map((a) => ({
-          frentistaCodigo: a.frentistaCodigo,
-          combustivelNome: a.produtoNome,
-          litros: a.litros,
-          valorTotal: a.valorTotal,
-          lucroBruto: 0,
-          precoCusto: 0,
-        }))
+    // Combustível por funcionário (aditivada/gasolina/abast) — do analytics.
+    const fuelRows: ScoreAbastRow[] = abastComCusto.map((r) => ({
+      frentistaCodigo: r.frentistaCodigo,
+      combustivelNome: r.combustivelNome,
+      litros: r.litros,
+      valorTotal: r.valorTotal,
+      lucroBruto: r.lucroBruto,
+      precoCusto: r.precoCusto,
+    }))
 
     // Nome por código (do combustível) — o store cobre o resto.
     const nomeByCod = new Map<number, string>()
     for (const r of abastComCusto) if (!nomeByCod.has(r.frentistaCodigo)) nomeByCod.set(r.frentistaCodigo, r.frentistaNome)
-    for (const a of abastecimentoRows) if (!nomeByCod.has(a.frentistaCodigo)) nomeByCod.set(a.frentistaCodigo, a.frentistaNome)
 
     // Métricas de combustível por funcionário (aditivada/gasolina/abast).
     const fuelInputs = buildScoreInputs(fuelRows)
@@ -137,11 +129,7 @@ const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdDa
       c.faturamento += valorTotal
       m.set(produtoCodigo, c)
     }
-    if (usaCusto) {
-      for (const r of abastComCusto) pushComb(r.frentistaCodigo, r.produtoCodigo, r.combustivelNome, r.litros, r.valorTotal)
-    } else {
-      for (const a of abastecimentoRows) pushComb(a.frentistaCodigo, a.produtoCodigo, a.produtoNome, a.litros, a.valorTotal)
-    }
+    for (const r of abastComCusto) pushComb(r.frentistaCodigo, r.produtoCodigo, r.combustivelNome, r.litros, r.valorTotal)
 
     // Store de automotivos (loja) por funcionário.
     const storeByCod = new Map(store.rows.map((r) => [r.funcionarioCodigo, r]))
@@ -207,10 +195,10 @@ const useFrentistaProdutividade = (postoCodigo?: number | null): FrentistaProdDa
         atendimentos: podio((r) => r.abastecimentos),
       },
       projFactor,
-      isLoading: lOper || store.isLoading,
+      isLoading: lFuel || store.isLoading,
       hasEmpresa,
     }
-  }, [abastComCusto, abastecimentoRows, store.rows, store.isLoading, lOper, hasEmpresa, dataInicial, dataFinal])
+  }, [abastComCusto, store.rows, store.isLoading, lFuel, hasEmpresa, dataInicial, dataFinal])
 }
 
 export default useFrentistaProdutividade
