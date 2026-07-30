@@ -11,6 +11,7 @@ import {
   type RedeRow,
 } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
+import { PLANOS, type PlanoId } from '@/lib/planos'
 import { cn } from '@/lib/utils'
 
 const DEFAULT_API_BASE = 'https://web.qualityautomacao.com.br/INTEGRACAO'
@@ -321,6 +322,7 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
   const [nome, setNome] = useState(rede?.nome ?? '')
   const [chave, setChave] = useState(rede?.chave ?? '')
   const [apiBaseUrl, setApiBaseUrl] = useState(rede?.api_base_url ?? DEFAULT_API_BASE)
+  const [plano, setPlano] = useState<PlanoId>(rede?.plano ?? 'pro')
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const tenantRede = useTenantStore((s) => s.rede)
@@ -338,12 +340,13 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
     setSubmitting(true)
     try {
       if (mode === 'create') {
-        await createRede({ nome: nome.trim(), chave: chave.trim(), api_base_url: apiBaseUrl.trim() })
+        await createRede({ nome: nome.trim(), chave: chave.trim(), api_base_url: apiBaseUrl.trim(), plano })
       } else if (rede) {
         const novosCampos = {
           nome: nome.trim(),
           chave: chave.trim(),
           api_base_url: apiBaseUrl.trim(),
+          plano,
         }
         await updateRede(rede.id, novosCampos)
         // Se a rede editada é a tenant ativa, atualiza a store em memória
@@ -414,6 +417,28 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
             />
             <p className="mt-1 text-[11px] text-gray-400">Raramente muda — use o padrão se não tiver certeza</p>
           </label>
+
+          <div>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Plano</span>
+            <div className="mt-1 grid grid-cols-3 gap-2">
+              {PLANOS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPlano(p.id)}
+                  className={cn(
+                    'rounded-md border px-2 py-2 text-xs font-semibold transition-colors',
+                    plano === p.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800',
+                  )}
+                >
+                  {p.nome}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-gray-400">Plano exibido na vitrine e em Configurações. Ainda não trava módulo (o acesso segue por usuário).</p>
+          </div>
 
           {err && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">

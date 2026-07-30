@@ -183,7 +183,7 @@ const Apuracao = () => {
   const handleConectar = (r: RedeRow) => {
     queryClient.clear()
     setEmpresas([])
-    setRede({ id: r.id, nome: r.nome, chave: r.chave, api_base_url: r.api_base_url })
+    setRede({ id: r.id, nome: r.nome, chave: r.chave, api_base_url: r.api_base_url, plano: r.plano })
   }
 
   // Status do ano selecionado — mapa mês → metadata (count + last apuração).

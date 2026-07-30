@@ -41,6 +41,7 @@ const SelecionarRede = () => {
       nome: rede.nome,
       chave: rede.chave,
       api_base_url: rede.api_base_url,
+      plano: rede.plano,
     })
   }
 

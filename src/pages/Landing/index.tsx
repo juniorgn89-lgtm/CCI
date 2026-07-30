@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
+import { PLANOS } from '@/lib/planos'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -64,6 +65,7 @@ const LANDING_CSS = `
 }
 @media(max-width:640px){
   .v360-landing .v360-modulos{grid-template-columns:1fr!important}
+  .v360-landing .v360-planos{grid-template-columns:1fr!important}
   .v360-landing .v360-numeros{grid-template-columns:repeat(2,1fr)!important}
   .v360-landing .v360-navmenu{display:none!important}
   .v360-landing .v360-nav{justify-content:center!important}
@@ -119,6 +121,7 @@ const Landing = () => {
           </div>
           <div className="v360-navmenu" style={{ display: 'flex', alignItems: 'center', gap: 28, color: '#475569', fontSize: 14.5, fontWeight: 500, flexWrap: 'wrap' }}>
             <a href="#modulos" style={{ color: '#475569' }}>Módulos</a>
+            <a href="#planos" style={{ color: '#475569' }}>Planos</a>
             <a href="#ia" style={{ color: '#475569' }}>Analista de IA</a>
             <a href="#representantes" style={{ color: '#475569' }}>Para representantes</a>
             <a href="#contato" style={{ color: '#475569' }}>Contato</a>
@@ -255,6 +258,66 @@ const Landing = () => {
           </div>
         </div>
 
+        {/* ===================== PLANOS ===================== */}
+        <div id="planos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
+          <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Planos</div>
+            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: '#16293f', letterSpacing: '-.02em', marginTop: 10 }}>Um plano para cada tamanho de rede</h2>
+            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: '#64748b' }}>Comece pelo essencial e amplie quando precisar. Preços sob consulta — a proposta é montada com a realidade da sua rede.</p>
+          </div>
+
+          <div className="v360-planos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48, alignItems: 'stretch' }}>
+            {PLANOS.map((p) => {
+              const premium = !!p.destaque
+              const cardStyle: CSSProperties = premium
+                ? { position: 'relative', background: 'linear-gradient(160deg,#1c3a5c 0%,#16293f 100%)', border: '1px solid #24476e', borderRadius: 18, padding: '32px 26px 28px', boxShadow: '0 44px 80px -34px rgba(15,41,63,.6)', color: '#fff', display: 'flex', flexDirection: 'column' }
+                : { ...card, display: 'flex', flexDirection: 'column' }
+              const nameColor = premium ? '#fff' : '#16293f'
+              const taglineColor = premium ? '#cbd5e1' : '#64748b'
+              const priceColor = premium ? '#fff' : '#16293f'
+              const priceSub = premium ? '#93a7c4' : '#94a3b8'
+              const baseColor = premium ? '#fcd77f' : '#0F766E'
+              const checkColor = premium ? '#5eead4' : '#0F766E'
+              const recursoColor = premium ? '#dbe4ef' : '#475569'
+              const ctaStyle: CSSProperties = premium
+                ? { background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }
+                : p.id === 'pro'
+                  ? { background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center' }
+                  : { background: '#fff', border: '1.5px solid #e2e8f0', color: '#16293f', fontWeight: 600, fontSize: 15, padding: '13px 20px', borderRadius: 12, textAlign: 'center' }
+              return (
+                <div key={p.id} style={cardStyle}>
+                  {premium && (
+                    <div style={{ position: 'absolute', top: 18, right: 18, background: 'rgba(252,182,25,.16)', border: '1px solid rgba(252,182,25,.5)', color: '#fcd77f', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 }}>Recomendado</div>
+                  )}
+                  <h3 style={{ fontSize: 24, fontWeight: 800, color: nameColor, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{p.nome}</h3>
+                  <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.5, color: taglineColor, minHeight: 44 }}>{p.tagline}</p>
+
+                  <div style={{ margin: '20px 0 4px', paddingBottom: 20, borderBottom: premium ? '1px solid rgba(255,255,255,.12)' : '1px solid #eef2f7' }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 26, color: priceColor, letterSpacing: '-.01em' }}>Sob consulta</div>
+                    <div style={{ fontSize: 12.5, color: priceSub, marginTop: 2 }}>proposta sob medida pra sua rede</div>
+                  </div>
+
+                  {p.baseLabel && (
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: baseColor, marginTop: 16 }}>{p.baseLabel}</div>
+                  )}
+                  <ul style={{ listStyle: 'none', padding: 0, margin: p.baseLabel ? '10px 0 0' : '16px 0 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                    {p.recursos.map((r) => (
+                      <li key={r} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, lineHeight: 1.45, color: recursoColor }}>
+                        <span style={{ color: checkColor, fontSize: 14, lineHeight: 1.35, flexShrink: 0 }}>✓</span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <a href={MAIL.demo} style={{ ...ctaStyle, display: 'block', marginTop: 24 }}>Agendar demonstração</a>
+                </div>
+              )
+            })}
+          </div>
+
+          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: '#94a3b8' }}>Todos os planos conectam ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
+        </div>
+
         {/* ===================== DOIS PÚBLICOS ===================== */}
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div className="v360-publicos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
@@ -302,7 +365,7 @@ const Landing = () => {
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: '#16293f', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: '#64748b' }}>
-                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="#representantes" style={{ color: 'inherit' }}>Para representantes</a>
+                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="#representantes" style={{ color: 'inherit' }}>Para representantes</a>
                 </div>
               </div>
               <div>

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { supabase } from '@/lib/supabase'
+import type { PlanoId } from '@/lib/planos'
 
 export type AssistenteTier = 'light' | 'medium' | 'heavy' | 'custom'
 
@@ -9,6 +10,8 @@ export interface RedeRow {
   chave: string
   api_base_url: string
   ativo: boolean
+  /** Plano comercial da rede (migration: supabase-redes-plano.sql). Default 'pro'. */
+  plano?: PlanoId | null
   /** Apuração automática (cron diário) ligada pra esta rede. Default true. */
   apuracao_auto?: boolean
   created_at: string
@@ -64,6 +67,7 @@ interface CreateRedeInput {
   nome: string
   chave: string
   api_base_url?: string
+  plano?: PlanoId
 }
 
 export const createRede = async (input: CreateRedeInput): Promise<RedeRow> => {
@@ -74,6 +78,7 @@ export const createRede = async (input: CreateRedeInput): Promise<RedeRow> => {
       nome: input.nome,
       chave: input.chave,
       api_base_url: input.api_base_url || 'https://web.qualityautomacao.com.br/INTEGRACAO',
+      plano: input.plano ?? 'pro',
     })
     .select()
     .single()
@@ -86,6 +91,7 @@ interface UpdateRedeInput {
   chave?: string
   api_base_url?: string
   ativo?: boolean
+  plano?: PlanoId
   apuracao_auto?: boolean
   assistente_habilitado?: boolean
   assistente_tier?: AssistenteTier
@@ -131,6 +137,10 @@ export const toggleRedeAtivo = (id: string, ativo: boolean) =>
 /** Liga/desliga a apuração automática (cron diário) de uma rede. */
 export const toggleRedeApuracaoAuto = (id: string, apuracao_auto: boolean) =>
   updateRede(id, { apuracao_auto })
+
+/** Define o plano comercial (Basic/Premium/Pro) de uma rede. */
+export const updateRedePlano = (id: string, plano: PlanoId) =>
+  updateRede(id, { plano })
 
 /** Lê só a flag de apuração automática da rede (default true se a coluna for null). */
 export const fetchRedeApuracaoAuto = async (id: string): Promise<boolean> => {

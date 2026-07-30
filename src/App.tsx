@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
 import { todayLocal } from '@/lib/period'
+import type { PlanoId } from '@/lib/planos'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,6 +127,17 @@ const loadTenantForUser = async () => {
       // ele tem várias e quer só usar /admin.
       if (!isMaster) {
         useTenantStore.getState().setRede(typed.redes ?? null)
+        // Plano da rede — query SEPARADA e resiliente (a coluna redes.plano pode
+        // não existir ainda; docs/supabase-redes-plano.sql). Erro aqui NÃO quebra
+        // o login: a rede só fica sem plano (card "Meu plano" cai no neutro).
+        if (typed.redes) {
+          const { data: pl, error: plErr } = await supabase
+            .from('redes').select('plano').eq('id', typed.redes.id).maybeSingle()
+          if (!plErr && pl) {
+            const plano = (pl as { plano: PlanoId | null }).plano
+            useTenantStore.getState().setRede({ ...typed.redes, plano })
+          }
+        }
       }
       useAuthStore.getState().setEmpresaCodigos(typed.empresa_codigos)
       useAuthStore.getState().setModulosPermitidos(typed.modulos_permitidos)

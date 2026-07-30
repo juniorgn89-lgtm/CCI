@@ -41,7 +41,7 @@ const SelecionarRede = () => {
   const handleConectar = (rede: RedeRow) => {
     queryClient.clear()
     setEmpresas([])
-    setRede({ id: rede.id, nome: rede.nome, chave: rede.chave, api_base_url: rede.api_base_url })
+    setRede({ id: rede.id, nome: rede.nome, chave: rede.chave, api_base_url: rede.api_base_url, plano: rede.plano })
   }
 
   return (

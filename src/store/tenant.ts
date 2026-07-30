@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import type { PlanoId } from '@/lib/planos'
 
 /**
  * Tenant atual — rede de postos cuja CHAVE Quality e base URL o app está
@@ -18,6 +19,12 @@ export interface Rede {
   nome: string
   chave: string
   api_base_url: string
+  /**
+   * Plano comercial da rede (Basic/Premium/Pro). Opcional: redes lidas antes da
+   * migration `supabase-redes-plano.sql` (ou sem plano definido) vêm sem ele —
+   * a UI cai num estado neutro ("Não definido"). Ver src/lib/planos.ts.
+   */
+  plano?: PlanoId | null
 }
 
 interface TenantState {
