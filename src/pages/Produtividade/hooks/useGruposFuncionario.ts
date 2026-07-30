@@ -8,18 +8,19 @@ import { classifySetor } from '@/lib/setorClassification'
 import useVendaCodigosAutorizados from '@/hooks/useVendaCodigosAutorizados'
 
 /**
- * Grupos de produto AUTOMOTIVO (loja/pista) vendidos POR funcionário, no período do
- * filtro. Vem AO VIVO do /VENDA_ITEM porque o cache `apuracao_vendas_funcionario`
- * guarda só o total do setor por funcionário — sem quebra por grupo de produto.
+ * Derivações AO VIVO por funcionário a partir do `/VENDA_ITEM` do período (que o
+ * cache `apuracao_vendas_funcionario` não guarda — ele só tem total por setor):
  *
- * Conta só itens de vendas AUTORIZADAS: o /VENDA_ITEM não traz o flag `cancelada`,
- * então cruzamos `vendaCodigo` com o set de `/VENDA` situacao='A' (mesmo filtro da
- * apuração — ver project_venda_item_sem_cancelada). Assim o total do painel bate
- * com o card "Automotivos". Escopo = setor 'automotivos' (tipoGrupo 'Pista');
- * combustível e conveniência ficam de fora de propósito (reconciliação com o KPI).
+ *  1. **Grupos de produto automotivo** (setor 'automotivos'/tipoGrupo 'Pista')
+ *     vendidos por funcionário, quebrados por grupo de produto.
+ *  2. **Evolução diária** no período — litros de combustível e faturamento de
+ *     automotivos por dia. Só os dias COM movimento (o frentista tem folga; um dia
+ *     em 0 é "não trabalhou", não "vendeu pouco") → a série é dos turnos dele.
  *
- * Buscado sob demanda (só na aba Funcionários), com seu próprio estado de loading
- * pra não travar o resto do detalhe.
+ * Conta só itens de vendas AUTORIZADAS (cruza `vendaCodigo` com `/VENDA`
+ * situacao='A' — o /VENDA_ITEM não traz `cancelada`; ver
+ * project_venda_item_sem_cancelada), então o total dos grupos bate com o card
+ * "Automotivos". Uma única busca de itens alimenta as duas derivações.
  */
 export interface GrupoVenda {
   grupo: string
@@ -27,9 +28,26 @@ export interface GrupoVenda {
   itens: number
 }
 
+/** Ponto diário no formato que o AnaliseSemanalLineCard consome (`litros` = a
+ *  quantidade plotada/tooltip; `faturamento` = R$ do dia). */
+export interface DiaEvol {
+  data: string // yyyy-MM-dd
+  litros: number
+  faturamento: number
+}
+
+export interface EvolucaoFunc {
+  /** Combustível (todos): litros = litros/dia, faturamento = R$/dia. */
+  litros: DiaEvol[]
+  /** Gasolina aditivada: litros = litros/dia, faturamento = R$/dia. */
+  aditivada: DiaEvol[]
+  /** Automotivos: litros = nº de itens/dia, faturamento = R$/dia. */
+  automotivos: DiaEvol[]
+}
+
 const useGruposFuncionario = (
   postoCodigo?: number | null,
-): { byFunc: Map<number, GrupoVenda[]>; isLoading: boolean } => {
+): { byFunc: Map<number, GrupoVenda[]>; evolucaoByFunc: Map<number, EvolucaoFunc>; isLoading: boolean } => {
   const { dataInicial, dataFinal } = useFilterStore()
   const empresaCodigos = postoCodigo != null ? [postoCodigo] : []
   const hasEmpresa = empresaCodigos.length > 0
@@ -72,28 +90,50 @@ const useGruposFuncionario = (
     staleTime: 30 * 60 * 1000,
   })
 
-  const byFunc = useMemo(() => {
-    const out = new Map<number, GrupoVenda[]>()
-    if (!produtosData || !gruposData) return out
+  const { byFunc, evolucaoByFunc } = useMemo(() => {
+    const byFunc = new Map<number, GrupoVenda[]>()
+    const evolucaoByFunc = new Map<number, EvolucaoFunc>()
+    if (!produtosData || !gruposData) return { byFunc, evolucaoByFunc }
 
     // produtoCodigo → { setor, grupo (nome) }.
     const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
     const grupoNome = new Map(gruposData.map((g) => [g.grupoCodigo, g.nome]))
-    const info = new Map<number, { setor: string; grupo: string }>()
+    const info = new Map<number, { setor: string; grupo: string; aditivada: boolean }>()
     for (const p of produtosData) {
+      const setor = classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo))
       info.set(p.produtoCodigo, {
-        setor: classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo)),
+        setor,
         grupo: grupoNome.get(p.grupoCodigo) ?? 'Sem grupo',
+        // Aditivada = combustível cujo nome contém "ADITIVADA" (mesmo critério do
+        // frentistaScore, pra a série bater com o KPI "Litros aditivada").
+        aditivada: setor === 'combustivel' && (p.nome ?? '').toUpperCase().includes('ADITIVADA'),
       })
     }
 
-    // funcionário → (grupo → agregado), só automotivos de vendas autorizadas.
-    const acc = new Map<number, Map<string, GrupoVenda>>()
+    const acc = new Map<number, Map<string, GrupoVenda>>() // grupos (automotivos)
+    // dia → { litros qty/R$ de combustível, aditivada qty/R$, itens/R$ de automotivos }
+    const evo = new Map<number, Map<string, { lq: number; lf: number; adq: number; adf: number; ai: number; af: number }>>()
     for (const it of itens) {
       if (!autorizados.has(it.vendaCodigo)) continue
       if (!it.funcionarioCodigo) continue
       const pi = info.get(it.produtoCodigo)
-      if (!pi || pi.setor !== 'automotivos') continue
+      if (!pi) continue
+
+      // Evolução diária: litros de combustível (+aditivada) e itens/faturamento de automotivos.
+      const dia = (it.dataMovimento ?? '').slice(0, 10)
+      if (dia && (pi.setor === 'combustivel' || pi.setor === 'automotivos')) {
+        let em = evo.get(it.funcionarioCodigo)
+        if (!em) { em = new Map(); evo.set(it.funcionarioCodigo, em) }
+        const d = em.get(dia) ?? { lq: 0, lf: 0, adq: 0, adf: 0, ai: 0, af: 0 }
+        if (pi.setor === 'combustivel') {
+          d.lq += it.quantidade ?? 0; d.lf += it.totalVenda ?? 0
+          if (pi.aditivada) { d.adq += it.quantidade ?? 0; d.adf += it.totalVenda ?? 0 }
+        } else { d.ai += it.quantidade ?? 0; d.af += it.totalVenda ?? 0 }
+        em.set(dia, d)
+      }
+
+      // Grupos: só automotivos.
+      if (pi.setor !== 'automotivos') continue
       let m = acc.get(it.funcionarioCodigo)
       if (!m) { m = new Map(); acc.set(it.funcionarioCodigo, m) }
       const g = m.get(pi.grupo) ?? { grupo: pi.grupo, faturamento: 0, itens: 0 }
@@ -101,13 +141,30 @@ const useGruposFuncionario = (
       g.itens += it.quantidade ?? 0
       m.set(pi.grupo, g)
     }
+
     for (const [cod, m] of acc) {
-      out.set(cod, [...m.values()].sort((a, b) => b.faturamento - a.faturamento))
+      byFunc.set(cod, [...m.values()].sort((a, b) => b.faturamento - a.faturamento))
     }
-    return out
+
+    // Séries diárias — só dias COM movimento (turnos), ordenadas por data.
+    for (const [cod, em] of evo) {
+      const dias = [...em.keys()].sort()
+      const litros: DiaEvol[] = []
+      const aditivada: DiaEvol[] = []
+      const automotivos: DiaEvol[] = []
+      for (const dia of dias) {
+        const v = em.get(dia)!
+        if (v.lq > 0) litros.push({ data: dia, litros: v.lq, faturamento: v.lf })
+        if (v.adq > 0) aditivada.push({ data: dia, litros: v.adq, faturamento: v.adf })
+        if (v.af > 0) automotivos.push({ data: dia, litros: v.ai, faturamento: v.af })
+      }
+      evolucaoByFunc.set(cod, { litros, aditivada, automotivos })
+    }
+
+    return { byFunc, evolucaoByFunc }
   }, [itens, autorizados, produtosData, gruposData])
 
-  return { byFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
+  return { byFunc, evolucaoByFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
 }
 
 export default useGruposFuncionario

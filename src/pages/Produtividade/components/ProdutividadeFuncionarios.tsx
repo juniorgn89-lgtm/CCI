@@ -6,7 +6,8 @@ import BarCell from '@/components/tables/BarCell'
 import InfoHint from '@/components/ui/InfoHint'
 import type { FrentistaProdData, FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 import useAutomotivos12m, { type MesValor } from '@/pages/Produtividade/hooks/useAutomotivos12m'
-import useGruposFuncionario, { type GrupoVenda } from '@/pages/Produtividade/hooks/useGruposFuncionario'
+import useGruposFuncionario, { type GrupoVenda, type EvolucaoFunc, type DiaEvol } from '@/pages/Produtividade/hooks/useGruposFuncionario'
+import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 
 interface Props {
   data: FrentistaProdData
@@ -17,32 +18,90 @@ interface Props {
   onSelect: (codigo: number) => void
 }
 
-/* Mini gráfico de 12 meses (barras CSS, último mês destacado). */
-const Chart12m = ({ title, data, format, barClass, lastClass, loading }: {
-  title: string; data?: MesValor[]; format: (v: number) => string; barClass: string; lastClass: string; loading?: boolean
+/* ── Gráfico de barras de série (evolução) com destaque de melhor/pior ── */
+interface SeriePonto { label: string; valor: number }
+interface BarPalette { base: string; best: string; bestText: string }
+const WORST_BAR = 'bg-amber-400 dark:bg-amber-500'
+const WORST_TEXT = 'text-amber-600 dark:text-amber-400'
+
+const MiniBars = ({ title, Icon, hint, data, format, palette, xMode, emptyText, loading }: {
+  title: string
+  Icon: typeof Wrench
+  hint?: string
+  data?: SeriePonto[]
+  format: (v: number) => string
+  palette: BarPalette
+  /** 'each' = rótulo sob cada barra (meses); 'ends' = só os extremos (dias). */
+  xMode: 'each' | 'ends'
+  emptyText: string
+  loading?: boolean
 }) => {
-  const max = Math.max(1, ...(data ?? []).map((d) => d.valor))
-  const vazio = !data || data.every((d) => d.valor === 0)
+  const pts = data ?? []
+  const max = Math.max(1, ...pts.map((p) => p.valor))
+  const total = pts.reduce((s, p) => s + p.valor, 0)
+  const vazio = pts.length === 0 || pts.every((p) => p.valor === 0)
+
+  // Melhor = maior valor; pior = menor valor > 0 (dias/meses sem venda não contam).
+  let bestI = -1, worstI = -1, bestV = -Infinity, worstV = Infinity
+  pts.forEach((p, i) => {
+    if (p.valor > bestV) { bestV = p.valor; bestI = i }
+    if (p.valor > 0 && p.valor < worstV) { worstV = p.valor; worstI = i }
+  })
+  const showWorst = worstI !== -1 && worstI !== bestI
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
       <div className="mb-3 flex items-center gap-1.5">
-        <TrendingUp className="h-4 w-4 text-gray-400" />
+        <Icon className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
-        {!loading && !vazio && <span className="ml-auto text-[10px] tabular-nums text-gray-400">máx {format(max)}</span>}
+        {hint && <InfoHint text={hint} />}
+        {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-gray-400">{format(total)}</span>}
       </div>
       {loading ? (
-        <div className="h-28 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+        <div className="min-h-[7rem] flex-1 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
       ) : vazio ? (
-        <p className="py-8 text-center text-[12px] text-gray-400">Sem histórico apurado.</p>
-      ) : (
-        <div className="flex h-28 items-end gap-1">
-          {data!.map((d, i) => (
-            <div key={d.ym} className="flex flex-1 flex-col items-center gap-1" title={`${d.label}: ${format(d.valor)}`}>
-              <div className={cn('w-full rounded-t transition-all', i === data!.length - 1 ? lastClass : barClass)} style={{ height: `${Math.max(2, (d.valor / max) * 100)}%` }} />
-              <span className="text-[9px] text-gray-400">{d.label}</span>
-            </div>
-          ))}
+        <div className="flex flex-1 items-center justify-center py-10">
+          <p className="text-center text-[12px] text-gray-400">{emptyText}</p>
         </div>
+      ) : (
+        <>
+          {/* Área das barras — flex-1 (preenche a altura do card) com uma camada
+              absoluta interna pra o % das barras resolver contra altura definida. */}
+          <div className="relative min-h-[7rem] flex-1">
+            <div className="absolute inset-0 flex items-end gap-1 pt-3">
+              {pts.map((p, i) => {
+                const h = (p.valor / max) * 82
+                const isBest = i === bestI && p.valor > 0
+                const isWorst = showWorst && i === worstI
+                return (
+                  <div key={i} className="relative flex h-full min-w-0 flex-1 items-end" title={`${p.label}: ${format(p.valor)}`}>
+                    {(isBest || isWorst) && (
+                      <span
+                        className={cn('pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[8.5px] font-bold leading-none tabular-nums', isBest ? palette.bestText : WORST_TEXT)}
+                        style={{ bottom: `calc(${h}% + 3px)` }}
+                      >
+                        {format(p.valor)}
+                      </span>
+                    )}
+                    <div className={cn('w-full rounded-t transition-all', isBest ? palette.best : isWorst ? WORST_BAR : palette.base)} style={{ height: `${Math.max(2, h)}%` }} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          {xMode === 'each' ? (
+            <div className="mt-1 flex gap-1">
+              {pts.map((p, i) => (
+                <span key={i} className={cn('flex-1 truncate text-center text-[9px]', i === bestI ? 'font-semibold text-gray-500 dark:text-gray-300' : 'text-gray-400')}>{p.label}</span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-1.5 flex justify-between text-[9px] tabular-nums text-gray-400">
+              <span>{pts[0]?.label}</span>
+              <span>{pts[pts.length - 1]?.label}</span>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -52,6 +111,8 @@ const fmtR = (v: number) => formatCurrency(v)
 const fmtRi = (v: number) => formatCurrencyInt(v)
 const fmtL = (v: number) => formatLiters(v)
 const fmtN = (v: number) => formatNumber(v)
+
+const PAL_AUTO: BarPalette = { base: 'bg-emerald-200 dark:bg-emerald-500/30', best: 'bg-emerald-500', bestText: 'text-emerald-600 dark:text-emerald-300' }
 
 /* Grupos de produto automotivo vendidos (barras horizontais, ao vivo). */
 const GruposPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?: boolean }) => {
@@ -68,22 +129,29 @@ const GruposPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?: boo
         {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-gray-400">{fmtRi(total)}</span>}
       </div>
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-7 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />)}
+        <div className="space-y-2.5">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-7 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />)}
         </div>
       ) : vazio ? (
         <p className="py-8 text-center text-[12px] text-gray-400">Sem produtos automotivos no período.</p>
       ) : (
-        <div className="space-y-1.5">
-          {top.map((g) => (
-            <div key={g.grupo} className="flex items-center gap-2">
-              <span className="w-28 shrink-0 truncate text-[11.5px] text-gray-600 dark:text-gray-300" title={g.grupo}>{g.grupo}</span>
-              <div className="relative h-5 flex-1 overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
-                <div className="h-full rounded bg-emerald-400 dark:bg-emerald-500/70" style={{ width: `${Math.max(3, (g.faturamento / max) * 100)}%` }} />
+        <div className="space-y-2">
+          {top.map((g, i) => {
+            const best = i === 0
+            const nome = g.grupo.replace(/^PS\s*-\s*/i, '')
+            return (
+              <div key={g.grupo} className="flex items-center gap-3">
+                <span className={cn('w-48 shrink-0 truncate text-[12px]', best ? 'font-bold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-600 dark:text-gray-300')} title={nome}>{nome}</span>
+                <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-gray-100/80 dark:bg-gray-800/60">
+                  <div
+                    className={cn('h-full rounded-md bg-gradient-to-r transition-all', best ? 'from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-400' : 'from-emerald-300 to-emerald-400 dark:from-emerald-700/60 dark:to-emerald-500/50')}
+                    style={{ width: `${Math.max(3, (g.faturamento / max) * 100)}%` }}
+                  />
+                </div>
+                <span className={cn('w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums', best ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300')}>{fmtRi(g.faturamento)}</span>
               </div>
-              <span className="w-20 shrink-0 text-right text-[11.5px] font-semibold tabular-nums text-gray-700 dark:text-gray-300">{fmtRi(g.faturamento)}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -106,8 +174,38 @@ const Stat = ({ label, value, tend, Icon, tint }: { label: string; value: string
   </div>
 )
 
-const DetailPanel = ({ row, serie12m, loading12m, grupos, loadingGrupos }: {
-  row: FuncProdRow; serie12m?: MesValor[]; loading12m?: boolean; grupos?: GrupoVenda[]; loadingGrupos?: boolean
+/* Evolução diária premium — reaproveita o card da rede (AnaliseSemanalLineCard),
+ * com guarda pra séries curtas (o funcionário pode ter só 1 dia com movimento). */
+const EvolucaoCard = ({ title, serie, plotFaturamento, unit, noun, accent, chartType, loading }: {
+  title: string; serie?: DiaEvol[]; plotFaturamento?: boolean; unit: string; noun: string; accent?: string; chartType?: 'line' | 'bar'; loading?: boolean
+}) => {
+  if (loading) return <div className="h-[318px] animate-pulse rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/[0.02]" />
+  if (!serie || serie.length < 2) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
+        <p className="py-12 text-center text-[12px] text-gray-400">Poucos dias com movimento pra traçar a evolução.</p>
+      </div>
+    )
+  }
+  return (
+    <AnaliseSemanalLineCard
+      data={serie}
+      title={title}
+      noun={noun}
+      unit={unit}
+      plotFaturamento={plotFaturamento}
+      accent={accent}
+      chartType={chartType}
+      scope=""
+      height={250}
+      cardBg="bg-white dark:bg-white/[0.02]"
+    />
+  )
+}
+
+const DetailPanel = ({ row, serie12m, loading12m, grupos, evolucao, loadingGrupos }: {
+  row: FuncProdRow; serie12m?: MesValor[]; loading12m?: boolean; grupos?: GrupoVenda[]; evolucao?: EvolucaoFunc; loadingGrupos?: boolean
 }) => {
   const maxComb = Math.max(1, ...row.combustiveis.map((c) => c.litros))
   return (
@@ -157,11 +255,19 @@ const DetailPanel = ({ row, serie12m, loading12m, grupos, loadingGrupos }: {
         )}
       </div>
 
-      {/* Grupos de produto (ao vivo) + histórico de 12 meses (cache por posto). */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GruposPanel grupos={grupos} loading={loadingGrupos} />
-        <Chart12m title="Automotivos · 12 meses" data={serie12m} format={fmtRi} barClass="bg-emerald-200 dark:bg-emerald-900/40" lastClass="bg-emerald-500" loading={loading12m} />
+      {/* Grupos de produto (ao vivo, 2/3) + histórico de 12 meses (cache, 1/3). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <GruposPanel grupos={grupos} loading={loadingGrupos} />
+        </div>
+        <MiniBars title="Automotivos · 12 meses" Icon={TrendingUp} data={serie12m} format={fmtRi} palette={PAL_AUTO} xMode="each" emptyText="Sem histórico apurado." loading={loading12m} />
       </div>
+
+      {/* Evolução diária no período (ao vivo, do /VENDA_ITEM) — card premium.
+          Só dias COM movimento: a linha é dos turnos do funcionário, não do mês. */}
+      <EvolucaoCard title="Litros por dia" serie={evolucao?.litros} unit="litros" noun="volume" accent="#2563eb" loading={loadingGrupos} />
+      <EvolucaoCard title="Aditivada por dia" serie={evolucao?.aditivada} unit="litros" noun="volume" accent="#7c3aed" chartType="bar" loading={loadingGrupos} />
+      <EvolucaoCard title="Automotivos por dia" serie={evolucao?.automotivos} unit="itens" noun="faturamento" plotFaturamento accent="#059669" chartType="bar" loading={loadingGrupos} />
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500">
         Mix de aditivada (histórico de 12 meses) chega numa próxima etapa.
@@ -173,7 +279,7 @@ const DetailPanel = ({ row, serie12m, loading12m, grupos, loadingGrupos }: {
 const ProdutividadeFuncionarios = ({ data, postoCodigo, selId, onSelect }: Props) => {
   const { rows } = data
   const { byFunc: auto12m, isLoading: loading12m } = useAutomotivos12m(postoCodigo)
-  const { byFunc: gruposByFunc, isLoading: loadingGrupos } = useGruposFuncionario(postoCodigo)
+  const { byFunc: gruposByFunc, evolucaoByFunc, isLoading: loadingGrupos } = useGruposFuncionario(postoCodigo)
   const [busca, setBusca] = useState('')
 
   const filtered = useMemo(() => {
@@ -232,6 +338,7 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, selId, onSelect }: Props
           serie12m={auto12m.get(sel.funcionarioCodigo)}
           loading12m={loading12m}
           grupos={gruposByFunc.get(sel.funcionarioCodigo)}
+          evolucao={evolucaoByFunc.get(sel.funcionarioCodigo)}
           loadingGrupos={loadingGrupos}
         />
       ) : (
