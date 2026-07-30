@@ -61,11 +61,14 @@ const Produtividade = () => {
   // Dash abre esse funcionário na aba Funcionários.
   const [selFunc, setSelFunc] = useState<number | null>(null)
 
-  // Produtividade do frentista usa SEMPRE a data de abastecimento como base.
+  // Produtividade usa base FISCAL — assim os hooks de combustível leem o CACHE
+  // (dias fechados do cache + só hoje ao vivo, via splitPeriodAtToday) em vez de
+  // sempre bater no /ABASTECIMENTO ao vivo. Trade-off aceito pelo usuário: o
+  // abastecimento de madrugada conta no dia do caixa (fiscal), não no do bico.
   const abastDateMode = useFilterStore((s) => s.abastDateMode)
   const setAbastDateMode = useFilterStore((s) => s.setAbastDateMode)
   useEffect(() => {
-    if (abastDateMode !== 'ABAST') setAbastDateMode('ABAST')
+    if (abastDateMode !== 'FISCAL') setAbastDateMode('FISCAL')
   }, [abastDateMode, setAbastDateMode])
 
   const data = useFrentistaProdutividade(selectedCodigo)
