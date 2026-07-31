@@ -12,6 +12,9 @@ import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/
 import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
 import { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/reposicao'
 import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
+import useAfericoesCache from '@/pages/Operacao/hooks/useAfericoesCache'
+import AfericoesCard from '@/pages/QualidadeDados/components/AfericoesCard'
+import AfericoesRedeResumo from '@/pages/Operacao/components/AfericoesRedeResumo'
 
 type StatusKind = 'critico' | 'atencao' | 'ok' | 'sem-dado'
 type SortKey = 'nome' | 'litros' | 'faturamento' | 'reposicao' | 'status'
@@ -135,6 +138,16 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
   // segue inline DENTRO da ReposicaoTabela.
   const [modalPosto, setModalPosto] = useState<number | null>(null)
 
+  // Aferições (afericao=true) — teste de bomba, lidas do CACHE (rede-wide) em vez
+  // do /ABASTECIMENTO live. Uma leitura só alimenta o resumo da rede E o modal do
+  // posto (filtrado no cliente). Vazio quando o período não foi re-apurado; os
+  // cards se escondem sozinhos (resumo.count === 0 → null).
+  const { afericoes: afericoesRede, isLoading: afLoading } = useAfericoesCache(postos.map((p) => p.codigo))
+  const afericoesModal = useMemo(
+    () => (modalPosto == null ? [] : afericoesRede.filter((a) => a.empresaCodigo === modalPosto)),
+    [afericoesRede, modalPosto],
+  )
+
   const loading = (fuelLoading || tankLoading) && rows.every((r) => r.litros === 0 && r.tanques === 0)
   if (loading) {
     return (
@@ -172,6 +185,10 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
           Combustível sem apuração no período — litros e faturamento aparecem como "—". Tanques e reposição são ao vivo.
         </p>
       )}
+
+      {/* Aferições da rede (só aparece quando há teste de bomba no período) —
+          clique num posto abre o modal daquele posto. */}
+      <AfericoesRedeResumo afericoes={afericoesRede} onOpenPosto={setModalPosto} />
 
       {/* Tabela por posto — estilo Central (grupos + heatmap + drill) */}
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
@@ -317,6 +334,9 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                   ) : (
                     <ReposicaoTabela linhas={linhas} maxes={sharedMaxes} expandirTanques plain />
                   )}
+                  {/* Aferições do posto (teste de bomba INMETRO) — do cache, filtradas
+                      pro posto aberto; só aparece quando há aferição no período. */}
+                  <AfericoesCard rows={afericoesModal} isLoading={afLoading} />
                 </div>
               </>
             )

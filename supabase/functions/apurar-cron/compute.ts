@@ -136,6 +136,16 @@ export interface AbastecimentoCacheUpsert {
   tabela_preco_a: number | null; tabela_preco_b: number | null; tabela_preco_c: number | null
 }
 
+/** Row do cache de AFERIÇÕES (teste de bomba) — enxuto: só o que a Operação
+ *  precisa pra mostrar "quando e quanto". R$ da aferição é notional (o
+ *  combustível volta pro tanque), então guarda só o valor_unitario. */
+export interface AfericaoCacheUpsert {
+  rede_id: string; empresa_codigo: number; abastecimento_codigo: number
+  data_fiscal: string | null; data_hora_abastecimento: string | null
+  codigo_produto: number | null; codigo_frentista: number | null; codigo_bico: number | null
+  quantidade: number; valor_unitario: number
+}
+
 export interface CaixaCacheUpsert {
   rede_id: string; empresa_codigo: number; caixa_codigo: number; turno_codigo: number
   data_movimento: string; turno: string | null; pdv_codigo: number | null
@@ -504,6 +514,24 @@ export const abastecimentoToCacheRow = (
   tabela_preco_a: a.tabelaPrecoA ?? null,
   tabela_preco_b: a.tabelaPrecoB ?? null,
   tabela_preco_c: a.tabelaPrecoC ?? null,
+})
+
+/** Aferição (afericao=true) → row do cache de aferições. Mesma origem do abast,
+ *  subconjunto que o webPosto/venda descarta. Produto pode vir null (a API não
+ *  carimba na aferição) — o front resolve pelo bico. */
+export const afericaoToCacheRow = (
+  a: Abastecimento, redeId: string,
+): AfericaoCacheUpsert => ({
+  rede_id: redeId,
+  empresa_codigo: a.empresaCodigo,
+  abastecimento_codigo: a.abastecimentoCodigo || a.codigo,
+  data_fiscal: a.dataFiscal || null,
+  data_hora_abastecimento: a.dataHoraAbastecimento || null,
+  codigo_produto: a.codigoProduto || null,
+  codigo_frentista: a.codigoFrentista || null,
+  codigo_bico: a.codigoBico || null,
+  quantidade: a.quantidade,
+  valor_unitario: a.valorUnitario,
 })
 
 export const caixaToCacheRow = (c: Caixa, redeId: string): CaixaCacheUpsert => ({

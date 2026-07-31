@@ -21,7 +21,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   buildCostMapFromLmc, buildProdutoInfo, computeApuracaoRows, computeFuelProdutoRows,
-  aggregateVendaCache, abastecimentoToCacheRow, caixaToCacheRow, formaPagamentoToCacheRow,
+  aggregateVendaCache, abastecimentoToCacheRow, afericaoToCacheRow, caixaToCacheRow, formaPagamentoToCacheRow,
   type Caixa, type VendaFormaPagamento, type VendaItem,
 } from './compute.ts'
 import {
@@ -119,6 +119,7 @@ const PK: Record<string, string[]> = {
   apuracao_diaria: ['rede_id', 'empresa_codigo', 'data'],
   apuracao_fuel_diaria: ['rede_id', 'empresa_codigo', 'data', 'produto_codigo'],
   apuracao_abastecimentos: ['rede_id', 'empresa_codigo', 'abastecimento_codigo'],
+  apuracao_afericoes: ['rede_id', 'empresa_codigo', 'abastecimento_codigo'],
   apuracao_caixas: ['rede_id', 'empresa_codigo', 'caixa_codigo', 'turno_codigo', 'data_movimento'],
   apuracao_formas_pagamento: ['rede_id', 'empresa_codigo', 'venda_codigo', 'venda_prazo_codigo'],
   apuracao_vendas: ['rede_id', 'empresa_codigo', 'data', 'produto_codigo'],
@@ -190,6 +191,10 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
   const costMap = buildCostMapFromLmc(lmc, produtos)
   // Exclui aferição (teste de bomba) — não é venda; alinha com o webPosto.
   const abastRows = abast.filter((a) => !a.afericao).map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
+  // Aferições (afericao=true) — o subconjunto que o cache de venda descarta acima.
+  // Vai pra tabela própria (apuracao_afericoes); não conta como venda em lugar
+  // nenhum. Zero fetch extra: sai do mesmo `abast` já carregado.
+  const afericaoRows = abast.filter((a) => a.afericao).map((a) => afericaoToCacheRow(a, rede.id))
   const caixaRows = caixas.map((c) => caixaToCacheRow(c, rede.id)).filter((r) => !!r.data_movimento)
   const formaRows = formasPgto.map((f) => formaPagamentoToCacheRow(f, rede.id))
   const produtoInfo = buildProdutoInfo(produtos, grupos)
@@ -200,6 +205,7 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
     deletePeriodo(supa, 'apuracao_diaria', 'data', rede.id, t.start, t.end),
     deletePeriodo(supa, 'apuracao_fuel_diaria', 'data', rede.id, t.start, t.end),
     deletePeriodo(supa, 'apuracao_abastecimentos', 'data_fiscal', rede.id, t.start, t.end),
+    deletePeriodo(supa, 'apuracao_afericoes', 'data_fiscal', rede.id, t.start, t.end),
     deletePeriodo(supa, 'apuracao_caixas', 'data_movimento', rede.id, t.start, t.end),
     deletePeriodo(supa, 'apuracao_formas_pagamento', 'data_movimento', rede.id, t.start, t.end),
     deletePeriodo(supa, 'apuracao_vendas', 'data', rede.id, t.start, t.end),
@@ -209,6 +215,7 @@ const apurarMes = async (supa: Supa, rede: Rede, empresaCodes: number[], t: Targ
     upsertChunked(supa, 'apuracao_diaria', rows),
     upsertChunked(supa, 'apuracao_fuel_diaria', fuelRows),
     upsertChunked(supa, 'apuracao_abastecimentos', abastRows),
+    upsertChunked(supa, 'apuracao_afericoes', afericaoRows),
     upsertChunked(supa, 'apuracao_caixas', caixaRows),
     upsertChunked(supa, 'apuracao_formas_pagamento', formaRows),
     upsertChunked(supa, 'apuracao_vendas', vendaRows),

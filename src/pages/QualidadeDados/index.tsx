@@ -12,7 +12,6 @@ import { formatCurrency, formatDate, formatLiters, formatNumber } from '@/lib/fo
 import IssueSection, { type Issue } from '@/pages/QualidadeDados/components/IssueSection'
 import QualidadeKpis from '@/pages/QualidadeDados/components/QualidadeKpis'
 import SherlockHero from '@/pages/QualidadeDados/components/SherlockHero'
-import AfericoesCard from '@/pages/QualidadeDados/components/AfericoesCard'
 import LancamentoDetalheModal, { type LancamentoDetalheData } from '@/pages/QualidadeDados/components/LancamentoDetalheModal'
 import ArquivadosView from '@/pages/QualidadeDados/components/ArquivadosView'
 import useQualidadeDados, {
@@ -1368,9 +1367,6 @@ const QualidadeDados = () => {
 
               {/* Sherlock — herói anti-fraude isolado (só cupom-multi-abast) */}
               <SherlockHero issue={cupomIssue} padrao={sherlockPadrao} />
-
-              {/* Aferições — combustível de teste (INMETRO): quando e quanto sai */}
-              <AfericoesCard rows={data.afericoes} isLoading={data.isLoading} />
 
               {/* Inconsistências por categoria — checks rotineiros */}
               <div className="grid grid-cols-1 gap-4">

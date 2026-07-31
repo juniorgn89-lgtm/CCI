@@ -477,7 +477,7 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
         {
           id: 'cupom-multi-abast',
           label: 'Cupom com múltiplos abastecimentos',
-          description: 'Vendas com 2+ itens de combustível — sinal de "montagem de cupom" usada em fraudes de cartão.',
+          description: 'Vendas com 2+ itens de combustível e ao menos uma perna em dinheiro — sinal de "montagem de cupom" pra ocultar dinheiro desviado.',
           severity: 'high',
           count: 0,
           items: [],
@@ -603,6 +603,15 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
         nome: fp.nomeFormaPagamento || fp.tipoFormaPagamento || 'Outros',
         valor: fp.valorPagamento,
       }))
+      // Sem dinheiro no cupom = sem vetor de fraude do frentista: se pagou tudo
+      // por cartão/PIX, o valor passou pela maquininha e caiu na conta do posto
+      // (rastreável, não desviável). A "montagem" só serve pra esconder DINHEIRO
+      // desviado. Descarta o cupom quando HÁ formas de pagamento e nenhuma é
+      // dinheiro. Sem formas de pagamento (dado ausente) mantém — não dá pra
+      // descartar cash sem informação, e não escondemos fraude por falta de dado.
+      const temDinheiro = formasPagamento.some((f) => fpgCategoria(f.tipo, f.nome) === 'Dinheiro')
+      if (formasPagamento.length > 0 && !temDinheiro) continue
+
       const tiposFpgUnicos = new Set(formasPagamento.map((f) => f.tipo))
       const mixPagamentos = tiposFpgUnicos.size >= 2
 
@@ -653,7 +662,7 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
       {
         id: 'cupom-multi-abast',
         label: 'Cupom com múltiplos abastecimentos',
-        description: 'Vendas com 2+ itens de combustível no mesmo cupom. Padrão associado a fraude — frentista "monta" cupons combinando abastecimentos pra ocultar mix de cartão/dinheiro.',
+        description: 'Vendas com 2+ itens de combustível e ao menos uma perna em dinheiro. O frentista "monta" cupons combinando abastecimentos pra ocultar dinheiro desviado. Cupons 100% cartão/PIX ficam de fora — passaram pela maquininha e caíram na conta do posto, sem o que desviar.',
         severity: 'high',
         count: cupomMultiAbast.length,
         items: cupomMultiAbast,

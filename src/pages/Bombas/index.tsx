@@ -14,11 +14,9 @@ import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
-import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
 import useIsMobile from '@/hooks/useIsMobile'
 import BombaMobile from '@/pages/Bombas/BombaMobile'
-import AfericoesCard from '@/pages/QualidadeDados/components/AfericoesCard'
 
 const ControleBombas = lazy(() => import('@/pages/Operacao/components/ControleBombas'))
 
@@ -45,8 +43,6 @@ const Bombas = ({ embedded = false, empresaCodigo }: { embedded?: boolean; empre
     : (activeCodigo != null && postoCodes.includes(activeCodigo) ? activeCodigo : (postos[0]?.codigo ?? null))
 
   const { kpis, bombaRows, bombaRowsPrev, isLoading, hasEmpresa } = useOperacaoData(selectedCodigo)
-  // Aferições do posto (afericao=true) — saída física de teste de bomba.
-  const { afericoes, isLoading: afLoading } = useAbastecimentosAnalytics(selectedCodigo)
   const showSkeleton = useShowSkeleton(isLoading, !!kpis)
   const isMobile = useIsMobile()
 
@@ -162,10 +158,6 @@ const Bombas = ({ embedded = false, empresaCodigo }: { embedded?: boolean; empre
               <ControleBombas bombaRows={bombaRows} bombaRowsPrev={bombaRowsPrev} empresaCodigo={selectedCodigo} />
             </Suspense>
           )}
-
-          {/* Aferições — combustível de teste (INMETRO) saindo da bomba: quando e
-              quanto, por frentista/dia, com detalhe em modal. */}
-          <AfericoesCard rows={afericoes} isLoading={afLoading} />
         </>
       )}
     </div>

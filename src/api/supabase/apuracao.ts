@@ -393,6 +393,106 @@ export const fetchAbastecimentosCache = async (
   return perfDone('fetchAbastecimentosCache', 'apuracao_abastecimentos', all, __t0)
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Cache RAW de AFERIÇÕES (apuracao_afericoes) — teste de bomba, NÃO é venda.
+// Tabela pequena → leitura rede-wide é barata (todos os postos de uma vez).
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Row do cache de aferições (snake_case do Supabase). Enxuto — nomes de
+ *  posto/bomba/frentista/combustível são resolvidos no front pelos catálogos. */
+export interface AfericaoCacheRow {
+  empresa_codigo: number
+  abastecimento_codigo: number
+  data_fiscal: string | null  // yyyy-MM-dd
+  data_hora_abastecimento: string | null  // ISO
+  codigo_produto: number | null
+  codigo_frentista: number | null
+  codigo_bico: number | null
+  quantidade: number
+  valor_unitario: number
+}
+
+/** Lê aferições do cache pra um período (mesma paginação por data_fiscal do
+ *  fetchAbastecimentosCache — bate no índice idx_apuracao_afer_rede_data). */
+export const fetchApuracaoAfericoes = async (
+  params: FetchAbastCacheParams
+): Promise<AfericaoCacheRow[]> => {
+  if (!supabase) return []
+  const __t0 = perfNow()
+  const all: AfericaoCacheRow[] = []
+  const pageSize = 1000
+  let from = 0
+  for (;;) {
+    let query = supabase
+      .from('apuracao_afericoes')
+      .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario')
+      .gte('data_fiscal', params.dataInicial)
+      .lte('data_fiscal', params.dataFinal)
+      .order('data_fiscal', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('abastecimento_codigo', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.empresaCodigos && params.empresaCodigos.length > 0) {
+      query = query.in('empresa_codigo', params.empresaCodigos)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_afer] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as AfericaoCacheRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return perfDone('fetchApuracaoAfericoes', 'apuracao_afericoes', all, __t0)
+}
+
+/** Shape do upsert de aferição (inclui rede_id — o Row lido o omite via RLS). */
+export interface AfericaoCacheUpsert {
+  rede_id: string
+  empresa_codigo: number
+  abastecimento_codigo: number
+  data_fiscal: string | null
+  data_hora_abastecimento: string | null
+  codigo_produto: number | null
+  codigo_frentista: number | null
+  codigo_bico: number | null
+  quantidade: number
+  valor_unitario: number
+}
+
+/** Aferição (afericao=true) → row do cache de aferições. Mesma origem do abast,
+ *  enxuto (R$ é notional). Espelha afericaoToCacheRow do cron (compute.ts). */
+export const afericaoToCacheRow = (a: Abastecimento, redeId: string): AfericaoCacheUpsert => ({
+  rede_id: redeId,
+  empresa_codigo: a.empresaCodigo,
+  abastecimento_codigo: a.abastecimentoCodigo || a.codigo,
+  data_fiscal: a.dataFiscal || null,
+  data_hora_abastecimento: a.dataHoraAbastecimento || null,
+  codigo_produto: a.codigoProduto || null,
+  codigo_frentista: a.codigoFrentista || null,
+  codigo_bico: a.codigoBico || null,
+  quantidade: a.quantidade,
+  valor_unitario: a.valorUnitario,
+})
+
+/** Upsert em lote das aferições. Idempotente via PK (rede, empresa, abast_codigo). */
+export const upsertApuracaoAfericoes = async (rows: AfericaoCacheUpsert[]): Promise<void> => {
+  if (!supabase || rows.length === 0) return
+  const chunkSize = 500
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize)
+    const { error } = await supabase
+      .from('apuracao_afericoes')
+      .upsert(chunk, { onConflict: 'rede_id,empresa_codigo,abastecimento_codigo' })
+    if (error) {
+      console.warn('[apuracao_afer] upsert error:', error.message)
+      return
+    }
+  }
+}
+
 /** Upsert em lote. Idempotente via PK (rede, empresa, abastecimento_codigo). */
 export const upsertAbastecimentosCache = async (
   rows: AbastecimentoCacheUpsert[]

@@ -16,6 +16,8 @@ import {
   upsertApuracaoFuelDiaria,
   upsertAbastecimentosCache,
   abastecimentoToCacheRow,
+  upsertApuracaoAfericoes,
+  afericaoToCacheRow,
   buildCostMapFromLmc,
   upsertCaixasCache,
   caixaToCacheRow,
@@ -427,6 +429,9 @@ const Apuracao = () => {
       const costMap = buildCostMapFromLmc(lmc, produtos)
       // Exclui aferição (teste de bomba) — não é venda; alinha com o webPosto.
       const abastRows = abast.filter((a) => !a.afericao).map((a) => abastecimentoToCacheRow(a, rede.id, costMap))
+      // Aferições (afericao=true) — o subconjunto descartado acima vai pra tabela
+      // própria (apuracao_afericoes). Espelha o cron.
+      const afericaoRows = abast.filter((a) => a.afericao).map((a) => afericaoToCacheRow(a, rede.id))
       const caixaRows = caixas
         .map((c) => caixaToCacheRow(c, rede.id))
         .filter((r) => !!r.data_movimento)  // safety: skip rows sem data
@@ -484,6 +489,7 @@ const Apuracao = () => {
         deleteCachePeriodo('apuracao_diaria', 'data', rede.id, start, end),
         deleteCachePeriodo('apuracao_fuel_diaria', 'data', rede.id, start, end),
         deleteCachePeriodo('apuracao_abastecimentos', 'data_fiscal', rede.id, start, end),
+        deleteCachePeriodo('apuracao_afericoes', 'data_fiscal', rede.id, start, end),
         deleteCachePeriodo('apuracao_caixas', 'data_movimento', rede.id, start, end),
         deleteCachePeriodo('apuracao_formas_pagamento', 'data_movimento', rede.id, start, end),
         deleteCachePeriodo('apuracao_vendas_funcionario', 'data', rede.id, start, end),
@@ -492,6 +498,7 @@ const Apuracao = () => {
         upsertApuracaoDiaria(rows, currentUser?.id),
         upsertApuracaoFuelDiaria(fuelRows, currentUser?.id),
         upsertAbastecimentosCache(abastRows),
+        upsertApuracaoAfericoes(afericaoRows),
         upsertCaixasCache(caixaRows),
         upsertFormasPagamentoCache(formaRows),
         upsertVendasCache([...vendaRows, ...tombstones], currentUser?.id),
