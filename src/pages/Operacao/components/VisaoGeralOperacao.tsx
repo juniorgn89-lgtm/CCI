@@ -166,7 +166,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
           value={`${totais.postosCriticos}`} sub={`de ${postos.length} ${postos.length === 1 ? 'posto' : 'postos'}`} Icon={AlertTriangle}
           tint={totais.postosCriticos > 0 ? 'from-red-50/60 to-white dark:from-red-950/20 dark:to-gray-900' : 'from-gray-50/60 to-white dark:from-gray-900 dark:to-gray-900'}
           iconCls={totais.postosCriticos > 0 ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'} />
-        <RedeCard label="Reposição necessária" hint="Litros que a rede precisa comprar até o fim do mês pra não zerar tanque, no ritmo de venda atual."
+        <RedeCard label="Reposição necessária" hint="Litros a comprar pra não zerar tanque, no ritmo de venda atual — até o fim do mês (ou os próximos 7 dias, o que for maior; assim não zera no último dia do mês)."
           value={formatLiters(totais.reposicao)} Icon={Fuel}
           tint="from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900" iconCls="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
       </div>

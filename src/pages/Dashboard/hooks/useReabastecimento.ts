@@ -37,7 +37,8 @@ export interface ReabastTanque {
   ultimaCompra: UltimaCompra | null
   /** Consumo médio diário do mês corrente (litros/dia). 0 se sem dados. */
   consumoDiarioMedio: number
-  /** Quantos litros faltam comprar pra cobrir o consumo até o fim do mês corrente. */
+  /** Litros a comprar pra cobrir o consumo até o fim do mês corrente — com PISO de
+   *  7 dias de horizonte (no fim do mês projeta os próximos ~7 dias, não zera). */
   necessidadeFimDoMes: number
   /** Estimativa de quantos dias o estoque atual aguenta no ritmo atual. null = não calculável. */
   diasRestantes: number | null
@@ -273,7 +274,11 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     return last
   }, [today])
   const diasDecorridos = today.getDate()
-  const diasRestantesMes = Math.max(0, diasDoMes - diasDecorridos)
+  // Horizonte da reposição = dias que faltam do mês, mas com PISO de 7 dias. Sem o
+  // piso, no último dia do mês (0 dias restantes) TODA sugestão zerava — até tanque
+  // vazio sugeria comprar 0 L. Com o piso, no fim do mês projeta os próximos ~7 dias.
+  const HORIZONTE_MIN_DIAS = 7
+  const diasRestantesMes = Math.max(HORIZONTE_MIN_DIAS, diasDoMes - diasDecorridos)
 
   const tanques: ReabastTanque[] = useMemo(() => {
     return tanquesAll
