@@ -1,10 +1,11 @@
-import { Fragment, useMemo, useState } from 'react'
-import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, ChevronRight, CircleDollarSign, LineChart, Trophy, Warehouse, Gauge } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, CircleDollarSign, LineChart, Trophy, Warehouse, Gauge, MousePointerClick } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import BarCell from '@/components/tables/BarCell'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
@@ -130,13 +131,9 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
     return arr
   }, [rows, sortKey, sortDir])
 
-  const [aberto, setAberto] = useState<Set<number>>(new Set())
-  const toggleAberto = (cod: number) => setAberto((prev) => {
-    const next = new Set(prev)
-    if (next.has(cod)) next.delete(cod)
-    else next.add(cod)
-    return next
-  })
+  // Detalhe do posto (Reposição por combustível) num MODAL; o drill por tanque
+  // segue inline DENTRO da ReposicaoTabela.
+  const [modalPosto, setModalPosto] = useState<number | null>(null)
 
   const loading = (fuelLoading || tankLoading) && rows.every((r) => r.litros === 0 && r.tanques === 0)
   if (loading) {
@@ -149,8 +146,6 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
       </div>
     )
   }
-
-  const COLS = 7
 
   return (
     <div className="space-y-4">
@@ -183,6 +178,9 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
         <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Resumo por posto</h3>
           <InfoHint text="Cada linha = um posto. Clique na linha pra abrir a reposição por combustível; use Analisar pra ir ao detalhe (Bombas). Litros/faturamento vêm da apuração; tanques e reposição, ao vivo." />
+          <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-gray-400 dark:text-gray-500">
+            <MousePointerClick className="h-3.5 w-3.5" />Clique num posto para ver o detalhe
+          </span>
         </div>
         <table className="w-full text-[13px]">
           <thead>
@@ -207,16 +205,12 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
           <tbody>
             {rowsSorted.map((r) => {
               const sm = STATUS_META[r.status]
-              const isOpen = aberto.has(r.codigo)
-              const linhas = linhasByPosto.get(r.codigo) ?? []
               return (
-                <Fragment key={r.codigo}>
-                  <tr onClick={() => toggleAberto(r.codigo)}
+                  <tr key={r.codigo} onClick={() => setModalPosto(r.codigo)}
                     className="group cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40 dark:border-gray-800 dark:hover:bg-blue-950/20">
                     <td className="py-2.5 pl-4 pr-3">
                       <div className="flex items-center gap-2">
-                        <ChevronRight className={cn('h-4 w-4 shrink-0 text-gray-300 transition-transform dark:text-gray-600', isOpen && 'rotate-90 text-[#2563eb] dark:text-blue-400')} />
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{r.nome}</span>
+                        <span className="font-medium text-gray-900 transition-colors group-hover:text-[#2563eb] group-hover:underline dark:text-gray-100 dark:group-hover:text-blue-300">{r.nome}</span>
                         {hasCache && r.litros === topLitros && r.litros > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
                             <Trophy className="h-3 w-3" />Destaque
@@ -271,35 +265,6 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                       )}
                     </td>
                   </tr>
-                  {isOpen && (
-                    <tr className="bg-gray-50/50 dark:bg-gray-800/20">
-                      <td colSpan={COLS} className="px-4 py-3">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            <Warehouse className="h-3.5 w-3.5" />Reposição por combustível · {r.nome}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            {canReabastecimento && (
-                              <button type="button" onClick={() => onOpenPosto(r.codigo, 'reabastecimento')}
-                                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                                <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
-                              </button>
-                            )}
-                            <button type="button" onClick={() => onOpenPosto(r.codigo, 'bombas')}
-                              className="inline-flex items-center gap-1 rounded-lg border border-[#2563eb] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#2563eb] transition-colors hover:bg-blue-50 dark:border-blue-500 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-950/30">
-                              <LineChart className="h-3.5 w-3.5" />Analisar em Bombas
-                            </button>
-                          </div>
-                        </div>
-                        {linhas.length === 0 ? (
-                          <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-[12px] text-gray-400 dark:border-gray-700">Sem tanques cadastrados neste posto.</p>
-                        ) : (
-                          <ReposicaoTabela linhas={linhas} maxes={sharedMaxes} />
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
               )
             })}
           </tbody>
@@ -317,6 +282,47 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
           )}
         </table>
       </div>
+
+      {/* Detalhe do posto num MODAL — Reposição por combustível (o drill por tanque
+          continua inline DENTRO da ReposicaoTabela). */}
+      <Dialog open={modalPosto != null} onOpenChange={(o) => { if (!o) setModalPosto(null) }}>
+        <DialogContent className="max-h-[88vh] w-[95vw] max-w-4xl overflow-y-auto bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+          {(() => {
+            const r = rowsSorted.find((x) => x.codigo === modalPosto)
+            if (!r) return null
+            const linhas = linhasByPosto.get(r.codigo) ?? []
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f] text-white"><Warehouse className="h-4 w-4" /></span>
+                    Reposição por combustível · {r.nome}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {canReabastecimento && (
+                      <button type="button" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'reabastecimento') }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                        <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
+                      </button>
+                    )}
+                    <button type="button" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'bombas') }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                      <LineChart className="h-3.5 w-3.5" />Analisar em Bombas
+                    </button>
+                  </div>
+                  {linhas.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-[12px] text-gray-400 dark:border-gray-700">Sem tanques cadastrados neste posto.</p>
+                  ) : (
+                    <ReposicaoTabela linhas={linhas} maxes={sharedMaxes} expandirTanques plain />
+                  )}
+                </div>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
