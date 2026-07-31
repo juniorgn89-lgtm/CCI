@@ -8,6 +8,8 @@ export interface ReposicaoLinha {
   ritmoDia: number
   sugestao: number
   tanques: number
+  /** Tanques individuais desse combustível — pro drill-down por tanque. */
+  detalhes: ReabastTanque[]
 }
 
 /** Consolida tanques por combustível (produto), ordenado por maior sugestão. */
@@ -16,7 +18,7 @@ export const aggregarPorProduto = (tanques: ReabastTanque[]): ReposicaoLinha[] =
   for (const t of tanques) {
     let l = map.get(t.produtoCodigo)
     if (!l) {
-      l = { produtoCodigo: t.produtoCodigo, produto: t.produtoNome, estoque: 0, capacidade: 0, ritmoDia: 0, sugestao: 0, tanques: 0 }
+      l = { produtoCodigo: t.produtoCodigo, produto: t.produtoNome, estoque: 0, capacidade: 0, ritmoDia: 0, sugestao: 0, tanques: 0, detalhes: [] }
       map.set(t.produtoCodigo, l)
     }
     l.estoque += t.estoqueAtual
@@ -24,6 +26,7 @@ export const aggregarPorProduto = (tanques: ReabastTanque[]): ReposicaoLinha[] =
     l.ritmoDia += t.consumoDiarioMedio
     l.sugestao += t.necessidadeFimDoMes
     l.tanques += 1
+    l.detalhes.push(t)
   }
   return Array.from(map.values()).sort((a, b) => b.sugestao - a.sugestao)
 }
