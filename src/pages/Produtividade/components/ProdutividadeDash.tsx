@@ -3,6 +3,7 @@ import { Search, Trophy, Wrench, Droplet, Fuel, Gauge, Receipt, AlertTriangle } 
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import ProjTend from '@/pages/Produtividade/components/ProjTend'
 import { classifyFuncaoRole, roleToSetor, type FuncaoRole } from '@/lib/funcaoSetor'
 import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 
@@ -111,13 +112,6 @@ const STATUS_CLS: Record<StatusTone, string> = {
 }
 const StatusPill = ({ s }: { s: StatusInfo }) => (
   <span className={cn('inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold', STATUS_CLS[s.tone])}>{s.label}</span>
-)
-
-/* Tendência (projeção do fim do mês) como seta + %; absoluto no tooltip. */
-/* Projeção de fim de mês como VALOR ABSOLUTO neutro (não um "▲%" verde, que
-   lia como crescimento do frentista e ficava absurdo no começo do mês). */
-const Tend = ({ value }: { value: string }) => (
-  <span title="Projeção de fim de mês no ritmo atual" className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">proj. {value}</span>
 )
 
 /* Medalha 1º/2º/3º DENTRO do setor (ouro/prata/bronze) — ranking do grupo. */
@@ -305,20 +299,20 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
                         <td className="px-3 py-[11px]">
                           <div className="flex flex-col items-end">
                             <span className="text-[12.5px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{fmtR(r.automotivo)}</span>
-                            {showProj && <Tend value={fmtR(r.automotivoTend)} />}
+                            {showProj && <ProjTend value={fmtR(r.automotivoTend)} />}
                           </div>
                         </td>
                         <td className="px-3 py-[11px]">
                           <div className="flex flex-col items-end">
                             <span className="text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtL(r.aditivadaLitros)}</span>
-                            {showProj && <Tend value={fmtL(r.aditivadaTend)} />}
+                            {showProj && <ProjTend value={fmtL(r.aditivadaTend)} />}
                           </div>
                         </td>
                         <td className={cn('px-3 py-[11px] text-right text-[12.5px] tabular-nums', s.causa === 'mix' ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300')}>{fmtMix(r.mixPct)}</td>
                         <td className="px-3 py-[11px]">
                           <div className="flex flex-col items-end">
                             <span className="text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(r.abastecimentos)}</span>
-                            {showProj && <Tend value={fmtN(r.abastTend)} />}
+                            {showProj && <ProjTend value={fmtN(r.abastTend)} />}
                           </div>
                         </td>
                         <td className={cn('px-3 py-[11px] text-right text-[12.5px] tabular-nums', s.causa === 'ticket' ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300')}>{fmtR(r.ticket)}</td>

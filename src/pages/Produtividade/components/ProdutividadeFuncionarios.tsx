@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
+import ProjTend from '@/pages/Produtividade/components/ProjTend'
 import type { FrentistaProdData, FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 import useAutomotivos12m, { type MesValor } from '@/pages/Produtividade/hooks/useAutomotivos12m'
 import useGruposFuncionario, { type GrupoVenda, type EvolucaoFunc } from '@/pages/Produtividade/hooks/useGruposFuncionario'
@@ -43,8 +44,8 @@ const KPI_ICON: Record<'green' | 'purple', { chip: string; icon: string }> = {
   green: { chip: 'bg-emerald-100 dark:bg-emerald-900/30', icon: 'text-emerald-600 dark:text-emerald-400' },
   purple: { chip: 'bg-violet-100 dark:bg-violet-900/30', icon: 'text-violet-600 dark:text-violet-400' },
 }
-const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
-  label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple'; val: number; avg: number; max: number; mode: 'pct' | 'pp'; hint?: string
+const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint, proj }: {
+  label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple'; val: number; avg: number; max: number; mode: 'pct' | 'pp'; hint?: string; proj?: string
 }) => {
   const t = KPI_ICON[tone]
   const temMedia = avg > 0
@@ -64,6 +65,7 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
         </div>
       </div>
       <p className="mt-1.5 text-[22px] font-bold leading-none tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+      {proj && <div className="mt-1"><ProjTend value={proj} /></div>}
       {temMedia && (
         <div className="mt-2.5 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -309,6 +311,10 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
   const go = (d: number) => { if (rows.length && idx >= 0) onSelect(rows[(idx + d + rows.length) % rows.length].funcionarioCodigo) }
   const rank = idx + 1
   const mixBaixo = sel ? sel.mixPct < kpis.mixPct : false
+  // Projeção de fim de mês só na janela mês-a-data e depois de ~1/3 do mês
+  // (mesma regra da tabela de Equipe) — e só nos acumuláveis (R$/L), nunca em
+  // taxa/média (Mix, Ticket), onde extrapolar linearmente enganaria.
+  const showProj = data.projFactor > 1 && data.projFactor <= 3
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -383,8 +389,8 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
 
           {/* KPIs vs média do posto */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCompar label="Automotivos" value={fmtR(sel.automotivo)} Icon={Wrench} tone="green" val={sel.automotivo} avg={avg.auto} max={avg.maxAuto} mode="pct" hint="Comparado com a média do posto no período." />
-            <KpiCompar label="Litros aditivada" value={fmtL(sel.aditivadaLitros)} Icon={Droplet} tone="purple" val={sel.aditivadaLitros} avg={avg.adit} max={avg.maxAdit} mode="pct" hint="Comparado com a média do posto no período." />
+            <KpiCompar label="Automotivos" value={fmtR(sel.automotivo)} Icon={Wrench} tone="green" val={sel.automotivo} avg={avg.auto} max={avg.maxAuto} mode="pct" hint="Comparado com a média do posto no período." proj={showProj ? fmtR(sel.automotivoTend) : undefined} />
+            <KpiCompar label="Litros aditivada" value={fmtL(sel.aditivadaLitros)} Icon={Droplet} tone="purple" val={sel.aditivadaLitros} avg={avg.adit} max={avg.maxAdit} mode="pct" hint="Comparado com a média do posto no período." proj={showProj ? fmtL(sel.aditivadaTend) : undefined} />
             <KpiCompar label="Mix aditivada" value={fmtMix(sel.mixPct)} Icon={Gauge} tone="purple" val={sel.mixPct} avg={avg.mix} max={avg.maxMix} mode="pp" hint="Comparado com a média do posto no período." />
             <KpiCompar label="Ticket automotivos" value={fmtR(sel.ticket)} Icon={Receipt} tone="green" val={sel.ticket} avg={avg.ticket} max={avg.maxTicket} mode="pct" hint="Comparado com a média do posto no período." />
           </div>
