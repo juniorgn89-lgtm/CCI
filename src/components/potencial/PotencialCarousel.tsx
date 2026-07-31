@@ -34,7 +34,7 @@ const PotencialCarousel = ({ title, description, slides, onDone }: Props) => {
   return (
     <div className="flex w-full min-w-0 flex-col">
       {/* Header: voltar + selo + título do módulo (âncora de a11y do Dialog) */}
-      <div className="flex items-center gap-3 pb-3 pl-5 pr-12 pt-5">
+      <div className="flex items-start gap-3 pb-3 pl-5 pr-12 pt-5">
         <button
           type="button"
           onClick={() => go(i - 1)}
@@ -48,8 +48,8 @@ const PotencialCarousel = ({ title, description, slides, onDone }: Props) => {
           <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <DialogTitle className="truncate text-[15px] font-bold leading-tight">{title}</DialogTitle>
-          <DialogDescription className="truncate text-[11.5px] text-gray-400">{description}</DialogDescription>
+          <DialogTitle className="text-[15px] font-bold leading-tight [text-wrap:balance]">{title.replace(/\s*—\s*o potencial desta tela$/i, '')}</DialogTitle>
+          <DialogDescription className="mt-0.5 text-[11.5px] leading-snug text-gray-400 line-clamp-3">{description}</DialogDescription>
         </div>
       </div>
 

@@ -6,7 +6,13 @@ import {
   Users, SearchCheck, Brain,
   type LucideIcon,
 } from 'lucide-react'
-import { IlRede, IlProjecao, IlConfianca, IlFiscal } from '@/components/potencial/ilustracoes'
+import {
+  IlRede, IlProjecao, IlConfianca, IlFiscal,
+  IlDinheiro, IlLista, IlRanking, IlCalendario, IlCombustivel, IlAutomotivo,
+  IlConveniencia, IlPreco, IlCartao, IlTitulos, IlEstoque, IlGiro, IlBarras,
+  IlPessoas, IlIA, IlCompliance, IlRadar, IlConcorrencia, IlBomba, IlCaminhao,
+  IlAoVivo, IlDetetive,
+} from '@/components/potencial/ilustracoes'
 
 /**
  * Registro ÚNICO por rota do "chrome" de módulo: identidade (ícone + nome +
@@ -81,6 +87,12 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Resultado — o potencial desta tela',
         description: 'Em segundos, se todo o dinheiro de cartão do período caiu — sem cruzar planilha.',
+        slides: [
+          { Ilustracao: IlCartao, tag: 'O que ela faz', titulo: 'Todo cartão do período, conferido sozinho', texto: (<>Cruza, por <strong>posto × bandeira × dia</strong>, o recebível do sistema com o repasse real do adquirente (EDI). Cada lote vira <strong>Conciliado</strong>, <strong>A creditar</strong>, <strong>Sem repasse</strong> ou <strong>Aguardando</strong>.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Horas de conferência viram segundos', texto: (<>O card mostra <strong>% conciliável</strong> e a <strong>cobertura do EDI</strong>. O que não bateu já sai como lista de ação no Detalhamento — sem planilha.</>) },
+          { Ilustracao: IlConfianca, tag: 'Vinculado × Conciliado', titulo: 'Casou não é o mesmo que caiu', texto: (<><strong>Vinculado</strong> = o repasse casou; <strong>conciliado</strong> = casou <em>e</em> o dia do crédito já passou. Enquanto o crédito é futuro, fica “a creditar”.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'De onde vêm os números', titulo: 'Conciliação por valor, não transação', texto: (<>É Σ sistema × Σ repasse por bandeira/dia. Centavo de diferença aparece como <strong>“valor divergente”</strong> — ela não inventa divergência onde o dinheiro fecha.</>) },
+        ],
         body: (
           <>
             <Secao icon={Eye} titulo="O que ela faz">
@@ -101,6 +113,12 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       detalhamento: {
         title: 'Detalhamento — o potencial desta tela',
         description: 'A lista acionável: o que precisa de lançamento e o que divergiu, com responsável.',
+        slides: [
+          { Ilustracao: IlLista, tag: 'O que ela faz', titulo: 'O vermelho vira tarefa', texto: (<>Abre cada venda <strong>sem repasse</strong> (quem, quanto, qual venda, qual vendedor) e cada <strong>divergência de lote</strong> (bandeira/dia com valor diferente).</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: '“Faltou dinheiro” vira ação', texto: (<>Dá pra lançar o recebível certo ou cobrar o adquirente <strong>com o número na mão</strong>, sem caçar em planilha.</>) },
+          { Ilustracao: IlConfianca, tag: 'Marcar como tratado', titulo: 'Resolveu, some da lista', texto: (<>Registra quem resolveu e quando, <strong>sem alterar valor</strong>. Se o repasse chegar depois, o automático prevalece e marca “repasse chegou depois”.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Controle interno', titulo: 'Nada é escrito na Quality', texto: (<>O “tratado” fica só no Visor360, como controle da sua equipe — <strong>não toca</strong> no WebPosto.</>) },
+        ],
         body: (
           <>
             <Secao icon={ListChecks} titulo="O que ela faz">
@@ -121,6 +139,12 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       taxas: {
         title: 'Detector de taxa — o potencial desta tela',
         description: 'Por que esta tela existe, o que ela encontra e como transformar isso em dinheiro de volta no caixa.',
+        slides: [
+          { Ilustracao: IlPreco, tag: 'O que ela faz', titulo: 'A taxa que passou do contrato', texto: (<>Compara, por bandeira, a taxa que o adquirente <strong>realmente descontou</strong> (EDI) com a do seu <strong>contrato</strong>. Onde a efetiva passa, mostra em <span className="font-semibold text-red-600 dark:text-red-400">R$</span> quanto você pagou a mais.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Centavo em cima de milhões vira milhares', texto: (<>Num único posto, num mês, este cruzamento já apontou <strong>~R$ 900 a mais só no crédito</strong>. Numa rede, no ano, é uma renegociação embasada em número.</>) },
+          { Ilustracao: IlLista, tag: 'Como usar', titulo: 'Do que mais sangra pro que menos', texto: (<>Filtre por <strong>Débito</strong> (Δ definitivo) ou ligue <strong>“Só acima do contrato”</strong>. Ordena da maior sobrecobrança pra menor — o topo é onde está o dinheiro.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Antes de acionar', titulo: 'No crédito, confirme o motivo', texto: (<>Um Δ positivo no crédito pode ser antecipação/parcelamento (taxa naturalmente maior). No <strong>débito</strong>, o Δ é praticamente à prova de dúvida.</>) },
+        ],
         body: (
           <>
             <Secao icon={Eye} titulo="O que ela faz">
@@ -146,6 +170,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       parametros: {
         title: 'Parâmetros — o potencial desta tela',
         description: 'A cobertura do EDI por posto — pra você confiar no que é pendência de verdade.',
+        slides: [
+          { Ilustracao: IlCalendario, tag: 'O que ela faz', titulo: 'O relógio da conciliação', texto: (<>Mostra, por posto, <strong>até que dia</strong> o repasse do adquirente (EDI) já foi carregado.</>) },
+          { Ilustracao: IlConfianca, tag: 'Por que importa', titulo: 'Não cobre lançamento à toa', texto: (<>Um dia sem EDI ainda é <em>aguardando</em>, não pendência. Você vê qual posto está atrasado no carregamento <strong>antes</strong> de sair cobrando.</>) },
+          { Ilustracao: IlLista, tag: 'Como usar', titulo: 'Do panorama ao posto num clique', texto: (<>Clique num posto pra abrir o <strong>Resultado dele</strong> já filtrado.</>) },
+        ],
         body: (
           <>
             <Secao icon={CalendarClock} titulo="O que ela faz">
@@ -234,6 +263,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       combustivel: {
         title: 'Combustível — o potencial desta tela',
         description: 'A venda de combustível da rede em base fiscal, com projeção e L.B. por litro.',
+        slides: [
+          { Ilustracao: IlCombustivel, tag: 'O que ela faz', titulo: 'Litro, faturamento e L.B. por litro', texto: (<>Litros, faturamento, lucro bruto e <strong>L.B. por litro</strong> em base fiscal (bate com o “litros vendidos”), com análise por dia e por combustível.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Volume alto, margem fina', texto: (<>É onde se <strong>defende (ou se perde)</strong> o mês: enxergar o L.B./litro e a tendência semanal antes que a margem escorra.</>) },
+          { Ilustracao: IlProjecao, tag: 'Como usar', titulo: 'Onde fecha e o ritmo pra manter', texto: (<>Use a <strong>projeção executiva</strong> pra saber onde o mês fecha e o ritmo necessário — e as abas pra ver o padrão dia útil × fim de semana.</>) },
+        ],
         body: (
           <>
             <Secao icon={Droplets} titulo="O que ela faz">
@@ -251,6 +285,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       pista: {
         title: 'Automotivos — o potencial desta tela',
         description: 'Os produtos de pista/automotivos da rede — margem melhor que a do combustível.',
+        slides: [
+          { Ilustracao: IlAutomotivo, tag: 'O que ela faz', titulo: 'Óleo, aditivo e filtro por posto', texto: (<>Venda, lucro e margem dos produtos automotivos por posto, com <strong>projeção de fechamento</strong>.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Onde cada real vale mais', texto: (<>É o setor de <strong>margem alta</strong>: um real vendido aqui vale muito mais em lucro que no combustível. Ver quem vende bem revela onde treinar a pista.</>) },
+        ],
         body: (
           <>
             <Secao icon={Wrench} titulo="O que ela faz">
@@ -265,6 +303,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       conveniencia: {
         title: 'Conveniência — o potencial desta tela',
         description: 'A loja de conveniência da rede: ticket, mix e margem.',
+        slides: [
+          { Ilustracao: IlConveniencia, tag: 'O que ela faz', titulo: 'A loja em ticket, mix e margem', texto: (<>Faturamento, margem e <strong>ticket médio</strong> da conveniência por posto, com projeção e o mix de produtos que puxa o resultado.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'O cliente da pista virando lucro', texto: (<>A conveniência é onde o fluxo do combustível vira <strong>lucro adicional</strong>. Ticket e mix mostram se a loja está aproveitando esse fluxo.</>) },
+        ],
         body: (
           <>
             <Secao icon={Store} titulo="O que ela faz">
@@ -279,6 +321,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       precos: {
         title: 'Gestão de Preços — o potencial desta tela',
         description: 'Quanto de margem foi cedida na bomba e em acréscimos/descontos — o vazamento invisível.',
+        slides: [
+          { Ilustracao: IlPreco, tag: 'O que ela faz', titulo: 'A margem cedida na bomba', texto: (<>Cruza o <strong>preço de tabela</strong> com o <strong>praticado na bomba</strong> (o ajuste abaixo = margem cedida) e soma os acréscimos e descontos das vendas.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'O desconto que some da margem', texto: (<>Desconto na bomba não aparece no faturamento — <strong>some silenciosamente</strong>. Aqui fica visível em R$, por produto e posto: dá pra recuperar ajustando a política.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Cobertura', titulo: 'Número parcial até o cron carimbar', texto: (<>A cobertura mostra quantos abastecimentos têm preço de tabela; os <strong>sem cadastro</strong> ficam de fora. O valor é parcial até o preço ser carimbado no cache.</>) },
+        ],
         body: (
           <>
             <Secao icon={Tag} titulo="O que ela faz">
@@ -304,6 +351,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Ao Vivo Rede — o potencial desta tela',
         description: 'O agora da rede: turnos abertos e faturamento de hoje, sem esperar o fechamento.',
+        slides: [
+          { Ilustracao: IlAoVivo, tag: 'O que ela faz', titulo: 'A operação acontecendo agora', texto: (<>Mostra os <strong>turnos abertos</strong> e o faturamento fiscal de hoje, posto a posto — em tempo real.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Agir no calor, não no dia seguinte', texto: (<>Pega um turno parado, um posto fora da curva ou um <strong>pico de venda</strong> enquanto ainda dá pra reagir.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como funciona', titulo: 'É sempre o agora, sem filtro', texto: (<>A tela é <strong>hoje, rede inteira</strong>, e se atualiza sozinha a cada 60s.</>) },
+        ],
         body: (
           <>
             <Secao icon={Radio} titulo="O que ela faz">
@@ -329,6 +381,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Oportunidades — o potencial desta tela',
         description: 'A lista curta do que fazer pra ganhar margem, priorizada por impacto.',
+        slides: [
+          { Ilustracao: IlIA, tag: 'O que ela faz', titulo: 'O que atacar primeiro, já priorizado', texto: (<>Varre a rede e lista <strong>oportunidades de lucro</strong> — produtos e postos onde ajustar preço ou mix rende mais, ordenadas pelo impacto.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Foco no que move o resultado', texto: (<>Em vez de encarar mil números, você recebe <strong>o que atacar primeiro</strong>.</>) },
+          { Ilustracao: IlLista, tag: 'Como usar', titulo: 'Comece pelo topo e desça', texto: (<>Cada item explica o porquê e <strong>quanto vale</strong>. Ataque o de maior impacto primeiro.</>) },
+        ],
         body: (
           <>
             <Secao icon={Sparkles} titulo="O que ela faz">
@@ -346,6 +403,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       margem: {
         title: 'Margem por posto — o potencial desta tela',
         description: 'O ranking de lucratividade: quem puxa e quem segura a rede.',
+        slides: [
+          { Ilustracao: IlRanking, tag: 'O que ela faz', titulo: 'Líder e lanterna num relance', texto: (<>Ordena os postos por <strong>lucratividade</strong> (margem e lucro bruto).</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Margem deixada na mesa', texto: (<>Revela onde <strong>replicar</strong> o que dá certo e onde agir: um posto abaixo da rede é margem parada.</>) },
+        ],
         body: (
           <>
             <Secao icon={Trophy} titulo="O que ela faz">
@@ -360,6 +421,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       concorrencia: {
         title: 'Concorrência — o potencial desta tela',
         description: 'O preço da praça: onde você está caro ou barato demais.',
+        slides: [
+          { Ilustracao: IlConcorrencia, tag: 'O que ela faz', titulo: 'Seu preço × o da praça', texto: (<>Reúne a <strong>inteligência de preço da praça</strong> — como seus preços se comparam aos concorrentes, por produto e região.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Fora da praça custa caro', texto: (<>Alto demais custa <strong>volume</strong>; baixo demais custa <strong>margem</strong>. Aqui você calibra com dado, não achismo.</>) },
+        ],
         body: (
           <>
             <Secao icon={Building2} titulo="O que ela faz">
@@ -374,6 +439,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       radar: {
         title: 'Radar de Preços — o potencial desta tela',
         description: 'Guerra de preço com margem, elasticidade e simulação até o fechamento.',
+        slides: [
+          { Ilustracao: IlRadar, tag: 'O que ela faz', titulo: 'Simula o preço antes de aplicar', texto: (<>Simula movimentos de preço e mostra o efeito em <strong>margem, volume (elasticidade) e resultado</strong> projetado até o fim do mês.</>) },
+          { Ilustracao: IlLista, tag: 'Como usar', titulo: 'Veja o trade-off e decida', texto: (<>Teste um corte ou aumento e veja o efeito <strong>antes</strong> de aplicar — decide a guerra de preço com número na mão.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como ler', titulo: 'Elasticidade é bússola, não garantia', texto: (<>A elasticidade é <strong>estimada pelo histórico</strong> — orienta a decisão, não garante o volume.</>) },
+        ],
         body: (
           <>
             <Secao icon={Radar} titulo="O que ela faz">
@@ -399,6 +469,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Bombas — o potencial desta tela',
         description: 'O desempenho das bombas por posto — volume e a manutenção que se paga sozinha.',
+        slides: [
+          { Ilustracao: IlBomba, tag: 'O que ela faz', titulo: 'Volume por bico e manutenção na hora', texto: (<>Acompanha o <strong>volume por bomba/bico</strong> e sinaliza <strong>manutenção</strong> automaticamente — sem marcação manual.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Litro perdido é margem perdida', texto: (<>Bomba fora de calibração é <strong>perda invisível de litro</strong>. Ver o desempenho por bico revela o desgaste antes de virar prejuízo.</>) },
+        ],
         body: (
           <>
             <Secao icon={Gauge} titulo="O que ela faz">
@@ -413,6 +487,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       reabastecimento: {
         title: 'Reabastecimento — o potencial desta tela',
         description: 'Quando e quanto repor por setor, pelo giro e pela cobertura.',
+        slides: [
+          { Ilustracao: IlCaminhao, tag: 'O que ela faz', titulo: 'O que acaba e o que sobra', texto: (<>Mostra <strong>giro e cobertura</strong> por setor (combustível, automotivos, conveniência) pra orientar a reposição.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Sem ruptura nem capital parado', texto: (<>Evita a <strong>venda perdida</strong> (faltou) e o <strong>estoque encalhado</strong> (sobrou) — o equilíbrio que protege caixa e faturamento.</>) },
+        ],
         body: (
           <>
             <Secao icon={Droplets} titulo="O que ela faz">
@@ -435,6 +513,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Visão Geral — o potencial desta tela',
         description: 'O dinheiro que já era pra ter entrado ou saído: os títulos em atraso.',
+        slides: [
+          { Ilustracao: IlTitulos, tag: 'O que ela faz', titulo: 'O que venceu, dos dois lados', texto: (<>Reúne os <strong>títulos a receber e a pagar em atraso</strong> — o que venceu e ainda não foi liquidado.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Caixa imediato', texto: (<>Cobrar um recebível vencido e quitar um pagável <strong>antes do juro</strong> são as ações de maior retorno no financeiro.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'De onde vêm os números', titulo: 'O foco aqui é o atraso', texto: (<>A integração expõe títulos e movimento de conta por GET; <strong>cartão a vencer, PREMMIA e cheque</strong> não vêm pela API.</>) },
+        ],
         body: (
           <>
             <Secao icon={Eye} titulo="O que ela faz">
@@ -452,6 +535,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       receber: {
         title: 'A Receber — o potencial desta tela',
         description: 'O que os clientes/adquirentes ainda devem, com o vencido em destaque.',
+        slides: [
+          { Ilustracao: IlTitulos, tag: 'O que ela faz', titulo: 'Quem deve, quanto e desde quando', texto: (<>Lista os títulos a receber, com os <strong>vencidos</strong> destacados.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Dinheiro seu fora do caixa', texto: (<>Prioriza a cobrança pelo <strong>mais antigo e maior</strong> — é o primeiro a perseguir.</>) },
+        ],
         body: (
           <>
             <Secao icon={ListChecks} titulo="O que ela faz">
@@ -466,6 +553,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       pagar: {
         title: 'A Pagar — o potencial desta tela',
         description: 'Os compromissos e o que está vencido — pra não pagar juro à toa.',
+        slides: [
+          { Ilustracao: IlLista, tag: 'O que ela faz', titulo: 'Fornecedor, tributo e compromisso', texto: (<>Lista os títulos a pagar, com os <strong>vencidos</strong> em destaque.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Pagar na ordem certa, não no susto', texto: (<>Evita <strong>multa e juro</strong> por atraso e ajuda a planejar o caixa.</>) },
+        ],
         body: (
           <>
             <Secao icon={ListChecks} titulo="O que ela faz">
@@ -480,6 +571,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       cartoes: {
         title: 'Cartões — o potencial desta tela',
         description: 'Os recebíveis de cartão pelo lado financeiro: a vencer e liquidados.',
+        slides: [
+          { Ilustracao: IlCartao, tag: 'O que ela faz', titulo: 'O que ainda vai cair de cartão', texto: (<>Acompanha os <strong>recebíveis de cartão</strong> — a vencer, em atraso e já liquidado pelo adquirente.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'A previsão do cartão', texto: (<>É o que ainda entra de cartão. Para a conciliação <strong>transação a transação</strong>, use o módulo Cartões.</>) },
+        ],
         body: (
           <>
             <Secao icon={CreditCard} titulo="O que ela faz">
@@ -494,6 +589,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       agenda: {
         title: 'Agenda — o potencial desta tela',
         description: 'O calendário de vencimentos: o fluxo de caixa dos próximos dias num relance.',
+        slides: [
+          { Ilustracao: IlCalendario, tag: 'O que ela faz', titulo: 'O mapa do que entra e sai', texto: (<>Distribui receber e pagar no <strong>calendário</strong>, por dia de vencimento.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'O dia que aperta, antes de chegar', texto: (<>Antecipa apertos de caixa: você vê o aperto vindo e <strong>negocia/adianta a tempo</strong>.</>) },
+        ],
         body: (
           <>
             <Secao icon={CalendarClock} titulo="O que ela faz">
@@ -516,6 +615,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Visão Geral — o potencial desta tela',
         description: 'O panorama do capital parado em estoque e o que está crítico.',
+        slides: [
+          { Ilustracao: IlEstoque, tag: 'O que ela faz', titulo: 'O capital parado na prateleira', texto: (<>Panorama do estoque da rede — <strong>valor parado</strong>, itens críticos e cobertura, num só lugar.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Nem ruptura, nem encalhe', texto: (<>Ver o todo evita ao mesmo tempo a <strong>venda perdida</strong> (faltou) e o <strong>dinheiro preso</strong> (sobrou).</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'De onde vêm os números', titulo: 'Saldo é sempre o atual', texto: (<>A API não dá histórico por data. O flag “controle de estoque” ainda não vem por GET, então itens de uso e consumo podem aparecer.</>) },
+        ],
         body: (
           <>
             <Secao icon={Eye} titulo="O que ela faz">
@@ -533,6 +637,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       geral: {
         title: 'Estoque geral — o potencial desta tela',
         description: 'O saldo por produto e posto: onde está o capital parado.',
+        slides: [
+          { Ilustracao: IlEstoque, tag: 'O que ela faz', titulo: 'Saldo por produto e por posto', texto: (<>Detalha <strong>quantidade e valor</strong> em estoque, produto a produto.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Onde o dinheiro está imobilizado', texto: (<>Mostra exatamente onde <strong>atacar o excesso</strong> e liberar caixa.</>) },
+        ],
         body: (
           <>
             <Secao icon={Layers} titulo="O que ela faz">
@@ -547,6 +655,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       giro: {
         title: 'Giro — o potencial desta tela',
         description: 'A velocidade com que cada item vende — o pulso do estoque.',
+        slides: [
+          { Ilustracao: IlGiro, tag: 'O que ela faz', titulo: 'Quantas vezes o estoque roda', texto: (<>Calcula o <strong>giro</strong> por produto no período.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Encalhe × ruptura', texto: (<>Giro baixo = <strong>dinheiro parado</strong> (promoção/corte); giro alto = risco de faltar (aumentar o mínimo).</>) },
+        ],
         body: (
           <>
             <Secao icon={Calculator} titulo="O que ela faz">
@@ -561,6 +673,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       mediaVendas: {
         title: 'Média de venda — o potencial desta tela',
         description: 'A média histórica (6 meses) por produto — a base pra dimensionar a compra.',
+        slides: [
+          { Ilustracao: IlBarras, tag: 'O que ela faz', titulo: 'O consumo real, sem mês atípico', texto: (<>Mostra a <strong>média de venda dos últimos 6 meses</strong> por produto.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'A base da reposição certa', texto: (<>Comprar pela média certa <strong>evita faltar e evita sobrar</strong>.</>) },
+        ],
         body: (
           <>
             <Secao icon={BarChart3} titulo="O que ela faz">
@@ -575,6 +691,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       necessidade: {
         title: 'Necessidade — o potencial desta tela',
         description: 'A lista de compra pronta: o que repor, pelo mínimo e pela cobertura.',
+        slides: [
+          { Ilustracao: IlLista, tag: 'O que ela faz', titulo: 'A lista de compra já priorizada', texto: (<>Aponta o que está <strong>abaixo do mínimo/cobertura</strong> e precisa de reposição.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Compra na hora certa, na medida certa', texto: (<>Em vez de descobrir a falta na venda, você repõe antes — <strong>na quantidade certa</strong>.</>) },
+        ],
         body: (
           <>
             <Secao icon={ListChecks} titulo="O que ela faz">
@@ -597,6 +717,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Visão Geral — o potencial desta tela',
         description: 'A equipe da pista num painel: quem puxa automotivo e aditivada.',
+        slides: [
+          { Ilustracao: IlPessoas, tag: 'O que ela faz', titulo: 'A equipe da pista num painel', texto: (<>Por funcionário: <strong>faturamento de automotivos</strong>, litros de aditivada, mix, abastecimentos e ticket — com a <strong>projeção de fim de mês</strong> e os pódios de quem mais vende.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'O maior custo variável', texto: (<>Ver quem empurra aditivada e automotivo (e quem não) mostra onde <strong>treinar</strong>, quem reconhecer e quanto a equipe deixa na mesa.</>) },
+        ],
         body: (
           <>
             <Secao icon={Users} titulo="O que ela faz">
@@ -611,6 +735,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       funcionarios: {
         title: 'Funcionários — o potencial desta tela',
         description: 'O raio-x de cada um: o que vendeu, quanto e em quê.',
+        slides: [
+          { Ilustracao: IlPessoas, tag: 'O que ela faz', titulo: 'O raio-x de cada funcionário', texto: (<>Clica no funcionário: automotivos e combustíveis vendidos, os <strong>grupos de produto</strong> que ele gira e o <strong>histórico de 12 meses</strong>.</>) },
+          { Ilustracao: IlRanking, tag: 'Por que importa', titulo: 'Feedback com número na mão', texto: (<>O que cobrar de cada um, onde está o <strong>topo pra replicar</strong> e quem precisa de apoio.</>) },
+        ],
         body: (
           <>
             <Secao icon={Wrench} titulo="O que ela faz">
@@ -625,6 +753,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       rede: {
         title: 'Resumo da rede — o potencial desta tela',
         description: 'Todos os postos num quadro só: quem lidera e quem puxa a média.',
+        slides: [
+          { Ilustracao: IlRede, tag: 'O que ela faz', titulo: 'Todos os postos num quadro', texto: (<>Consolida os postos num ranking — automotivos, aditivada, mix e ticket — com quem está <strong>acima e abaixo</strong> da média ponderada, e os funcionários que precisam de atenção.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'O dinheiro na mesa', texto: (<>Mostra o posto que puxa o mix pra baixo, <strong>quanto renderia</strong> se chegasse à média, e quem replicar. Comparar postos vira decisão.</>) },
+        ],
         body: (
           <>
             <Secao icon={Building2} titulo="O que ela faz">
@@ -647,6 +779,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Qualidade de Dados — o potencial desta tela',
         description: 'O detetive da rede: acha erro de cadastro e sinal de desvio antes de virar prejuízo.',
+        slides: [
+          { Ilustracao: IlDetetive, tag: 'O que ela faz', titulo: 'O detetive dos lançamentos', texto: (<>Varre os lançamentos atrás de <strong>inconsistências</strong> — abastecimento sem frentista, litros/valores suspeitos e <strong>cupons “montados”</strong> (vários abastecimentos num cupom).</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Pega cedo, protege o caixa', texto: (<>Erro de cadastro contamina todo relatório; e o cupom montado é a <strong>assinatura clássica</strong> de desvio no cartão.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como ler', titulo: 'Aponta pra investigar, não acusa', texto: (<>Cada item traz o detalhe (posto, frentista, bomba, valores) pra você <strong>confirmar antes de agir</strong>.</>) },
+        ],
         body: (
           <>
             <Secao icon={SearchCheck} titulo="O que ela faz">
@@ -672,6 +809,10 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Pessoas — o potencial desta tela',
         description: 'Quem é quem na rede, por cargo e por posto.',
+        slides: [
+          { Ilustracao: IlPessoas, tag: 'O que ela faz', titulo: 'O quadro da rede, por cargo e posto', texto: (<>Organiza os colaboradores por <strong>cargo</strong> (frentista, gerente, supervisor) e posto, com ativos e inativos.</>) },
+          { Ilustracao: IlLista, tag: 'Por que importa', titulo: 'A base pra cruzar gente com resultado', texto: (<>Sustenta a <strong>Produtividade</strong> e mostra quem está ativo em cada unidade — sem planilha paralela.</>) },
+        ],
         body: (
           <>
             <Secao icon={Users} titulo="O que ela faz">
@@ -694,6 +835,11 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Inteligência — o potencial desta tela',
         description: 'O analista de IA que lê a rede e diz, em português claro, onde está a perda e quanto ela vale.',
+        slides: [
+          { Ilustracao: IlIA, tag: 'O que ela faz', titulo: 'Um analista que lê a rede', texto: (<>Lê os dados já apurados e responde em <strong>linguagem de dono</strong>: onde o resultado escapa, qual posto está fora da curva e quanto vale corrigir.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Número vira decisão', texto: (<>Em vez de abrir dez telas atrás do problema, você <strong>pergunta</strong> e ele aponta o que atacar primeiro, com o valor em reais do lado.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como funciona', titulo: 'É só leitura — quem decide é você', texto: (<>A IA analisa e sugere a partir do que já foi apurado — <strong>não altera</strong> preço, nota nem qualquer valor.</>) },
+        ],
         body: (
           <>
             <Secao icon={Sparkles} titulo="O que ela faz">
@@ -719,6 +865,12 @@ export const REGISTRY: Record<string, ModuleMeta> = {
       '': {
         title: 'Compliance ANP — o potencial desta tela',
         description: 'A margem regulatória por posto e combustível — placa menos custo — pra enxergar o que a fiscalização enxergaria.',
+        slides: [
+          { Ilustracao: IlCompliance, tag: 'O que ela faz', titulo: 'A margem que a ANP olharia', texto: (<>Reconstrói, por <strong>posto × combustível</strong>, a margem regulatória = preço de placa − <strong>CMP</strong> (custo médio das compras), com panorama por faixa e histórico de 365 dias.</>) },
+          { Ilustracao: IlConfianca, tag: 'Como é calculado', titulo: 'Placa menos custo médio', texto: (<><strong>CMP</strong> = Σ(qtd × custo) ÷ Σ(qtd) das compras — não o último preço. <strong>Margem</strong> = placa vigente − CMP. Tudo de dados GET, read-only.</>) },
+          { Ilustracao: IlDinheiro, tag: 'Por que importa', titulo: 'Ver antes de virar questionamento', texto: (<>Enxergar a margem <strong>sem promoção nem desconto</strong>, e ter a trilha pra reconciliar placa e custo contra o ERP.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como ler', titulo: 'Validação, não veredito da ANP', texto: (<>A margem <strong>regulatória</strong> (placa − CMP) não é a <strong>operacional</strong> do dia a dia, e uma cor aqui não é veredito oficial. A placa é por posto — selecione um.</>) },
+        ],
         body: (
           <>
             <Secao icon={Eye} titulo="O que ela faz">
