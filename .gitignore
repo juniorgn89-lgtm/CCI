@@ -36,3 +36,7 @@ supabase/.branches
 *.sln
 *.sw?
 *.local
+
+# Claude Code - estado local/volatil (nao versionar)
+.claude/settings.local.json
+.claude/agent-memory/
