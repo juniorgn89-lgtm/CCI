@@ -26,6 +26,8 @@ export interface FuncProdRow {
   funcionarioCodigo: number
   nome: string
   ativo: boolean
+  /** Cargo (`/FUNCOES.nome`, ex.: "FRENTISTA", "CAIXA."); "Sem cargo" se ausente. */
+  funcao: string
   /** Faturamento de automotivos de LOJA (R$). */
   automotivo: number
   automotivoTend: number

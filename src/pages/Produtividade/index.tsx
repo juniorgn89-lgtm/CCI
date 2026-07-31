@@ -110,7 +110,10 @@ const Produtividade = () => {
 
       <Suspense fallback={<TabFallback />}>
         {prodTab === 'rede' ? (
-          <ProdutividadeRede postos={postos} />
+          <ProdutividadeRede
+            postos={postos}
+            onOpenFuncionario={(cod, postoCod) => { setDetailPosto(postoCod); setSelFunc(cod); setProdTab('funcionarios') }}
+          />
         ) : showSkeleton ? (
           <TabFallback />
         ) : prodTab === 'dash' ? (

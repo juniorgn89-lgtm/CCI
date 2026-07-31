@@ -43,8 +43,8 @@ const KPI_ICON: Record<'green' | 'purple', { chip: string; icon: string }> = {
   green: { chip: 'bg-emerald-100 dark:bg-emerald-900/30', icon: 'text-emerald-600 dark:text-emerald-400' },
   purple: { chip: 'bg-violet-100 dark:bg-violet-900/30', icon: 'text-violet-600 dark:text-violet-400' },
 }
-const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode }: {
-  label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple'; val: number; avg: number; max: number; mode: 'pct' | 'pp'
+const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
+  label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple'; val: number; avg: number; max: number; mode: 'pct' | 'pp'; hint?: string
 }) => {
   const t = KPI_ICON[tone]
   const temMedia = avg > 0
@@ -58,7 +58,7 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode }: {
   return (
     <div className="flex flex-col rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+        <p className="flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}{hint && <InfoHint text={hint} />}</p>
         <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', t.chip)}>
           <Icon className={cn('h-3.5 w-3.5', t.icon)} />
         </div>
@@ -106,7 +106,7 @@ const DesempenhoDiario = ({ evolucao, loading }: { evolucao?: EvolucaoFunc; load
     return (
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho diário</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho diário <InfoHint text="Evolução dia a dia do funcionário no período. Troque a métrica no seletor." /></h3>
           {seg}
         </div>
         <p className="py-14 text-center text-[12px] text-gray-400">Poucos dias com movimento pra traçar a evolução.</p>
@@ -124,7 +124,7 @@ const DesempenhoDiario = ({ evolucao, loading }: { evolucao?: EvolucaoFunc; load
       scope=""
       height={280}
       cardBg="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
-      headerExtra={seg}
+      headerExtra={<>{seg}<InfoHint text="Evolução dia a dia do funcionário no período. Troque a métrica no seletor." /></>}
     />
   )
 }
@@ -228,6 +228,7 @@ const Chart12m = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) =
       <div className="mb-3 flex items-center gap-1.5">
         <TrendingUp className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Automotivos · 12 meses</h3>
+        <InfoHint text="Faturamento de automotivos do funcionário mês a mês. O mês atual é parcial (acumulado até hoje)." />
         {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{fmtRi(total)} acumulado</span>}
       </div>
       {loading ? (
@@ -382,10 +383,10 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
 
           {/* KPIs vs média do posto */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCompar label="Automotivos" value={fmtR(sel.automotivo)} Icon={Wrench} tone="green" val={sel.automotivo} avg={avg.auto} max={avg.maxAuto} mode="pct" />
-            <KpiCompar label="Litros aditivada" value={fmtL(sel.aditivadaLitros)} Icon={Droplet} tone="purple" val={sel.aditivadaLitros} avg={avg.adit} max={avg.maxAdit} mode="pct" />
-            <KpiCompar label="Mix aditivada" value={fmtMix(sel.mixPct)} Icon={Gauge} tone="purple" val={sel.mixPct} avg={avg.mix} max={avg.maxMix} mode="pp" />
-            <KpiCompar label="Ticket automotivos" value={fmtR(sel.ticket)} Icon={Receipt} tone="green" val={sel.ticket} avg={avg.ticket} max={avg.maxTicket} mode="pct" />
+            <KpiCompar label="Automotivos" value={fmtR(sel.automotivo)} Icon={Wrench} tone="green" val={sel.automotivo} avg={avg.auto} max={avg.maxAuto} mode="pct" hint="Comparado com a média do posto no período." />
+            <KpiCompar label="Litros aditivada" value={fmtL(sel.aditivadaLitros)} Icon={Droplet} tone="purple" val={sel.aditivadaLitros} avg={avg.adit} max={avg.maxAdit} mode="pct" hint="Comparado com a média do posto no período." />
+            <KpiCompar label="Mix aditivada" value={fmtMix(sel.mixPct)} Icon={Gauge} tone="purple" val={sel.mixPct} avg={avg.mix} max={avg.maxMix} mode="pp" hint="Comparado com a média do posto no período." />
+            <KpiCompar label="Ticket automotivos" value={fmtR(sel.ticket)} Icon={Receipt} tone="green" val={sel.ticket} avg={avg.ticket} max={avg.maxTicket} mode="pct" hint="Comparado com a média do posto no período." />
           </div>
 
           {/* Desempenho diário (gráfico unificado com seletor) */}

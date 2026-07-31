@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Wrench, Droplet, Gauge, Receipt, Fuel, Trophy, AlertTriangle, Lightbulb, Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
+import InfoHint from '@/components/ui/InfoHint'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useFrentistaProdutividade, { type FrentistaProdData, type FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
@@ -72,10 +73,10 @@ const KPI_CHIP: Record<'green' | 'purple' | 'blue', string> = {
   purple: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
   blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
 }
-const KpiCard = ({ label, value, Icon, tone, sub, hero }: { label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple' | 'blue'; sub?: ReactNode; hero?: boolean }) => (
+const KpiCard = ({ label, value, Icon, tone, sub, hero, hint }: { label: string; value: string; Icon: typeof Wrench; tone: 'green' | 'purple' | 'blue'; sub?: ReactNode; hero?: boolean; hint?: string }) => (
   <div className={cn('flex flex-col rounded-2xl border border-gray-200 bg-gradient-to-br p-5 shadow-sm dark:border-gray-800', KPI_TINT[tone])}>
     <div className="flex items-start justify-between gap-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}{hint && <InfoHint text={hint} />}</p>
       <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', KPI_CHIP[tone])}><Icon className="h-4 w-4" /></div>
     </div>
     <p className={cn('mt-2 font-bold leading-none tabular-nums text-gray-900 dark:text-gray-100', hero ? 'text-[36px]' : 'text-[26px]')}>{value}</p>
@@ -87,7 +88,7 @@ const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
   <th className={cn('whitespace-nowrap px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500', right ? 'text-right' : 'text-left')}>{children}</th>
 )
 
-const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number, FrentistaProdData> }) => {
+const RedeView = ({ postos, byPosto, onOpenFuncionario }: { postos: Empresa[]; byPosto: Map<number, FrentistaProdData>; onOpenFuncionario?: (cod: number, postoCod: number) => void }) => {
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = rangeLabel(dataInicial, dataFinal)
 
@@ -147,11 +148,11 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
 
   // Top 5 da rede (por automotivos) + funcionários que precisam de atenção.
   const top5 = useMemo(() => postoRows
-    .flatMap((pr) => pr.rows.filter((r) => r.automotivo > 0 && !semCadastro(r.nome)).map((r) => ({ r, posto: pr.nome })))
+    .flatMap((pr) => pr.rows.filter((r) => r.automotivo > 0 && !semCadastro(r.nome)).map((r) => ({ r, posto: pr.nome, postoCod: pr.codigo })))
     .sort((a, b) => b.r.automotivo - a.r.automotivo).slice(0, 5), [postoRows])
 
   const atencao = useMemo(() => {
-    const out: { r: FuncProdRow; posto: string; causa: 'mix' | 'ticket' }[] = []
+    const out: { r: FuncProdRow; posto: string; postoCod: number; causa: 'mix' | 'ticket' }[] = []
     for (const pr of postoRows) {
       for (const r of pr.rows) {
         if (semCadastro(r.nome)) continue
@@ -161,7 +162,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
         const mg = pr.mix > 0 ? (r.mixPct - pr.mix) / pr.mix : 0
         const tg = pr.ticket > 0 ? (r.ticket - pr.ticket) / pr.ticket : 0
         const causa: 'mix' | 'ticket' = mixB && tktB ? (tg < mg ? 'ticket' : 'mix') : tktB ? 'ticket' : 'mix'
-        out.push({ r, posto: pr.nome, causa })
+        out.push({ r, posto: pr.nome, postoCod: pr.codigo, causa })
       }
     }
     return out.sort((a, b) => (a.causa === 'mix' ? a.r.mixPct : a.r.ticket) - (b.causa === 'mix' ? b.r.mixPct : b.r.ticket))
@@ -206,11 +207,11 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
-        <KpiCard hero label="Faturamento automotivos · rede" value={fmtR(rede.automotivos)} Icon={Wrench} tone="green" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} funcionários`} />
-        <KpiCard label="Litros de aditivada" value={fmtL(rede.aditivada)} Icon={Droplet} tone="purple" />
-        <KpiCard label="Mix de aditivada · rede" value={fmtMix(rede.mix)} Icon={Gauge} tone="purple" />
-        <KpiCard label="Abastecimentos · rede" value={fmtN(rede.abast)} Icon={Fuel} tone="blue" />
-        <KpiCard label="Ticket médio · rede" value={fmtR(rede.ticket)} Icon={Receipt} tone="green" />
+        <KpiCard hero label="Faturamento automotivos · rede" value={fmtR(rede.automotivos)} Icon={Wrench} tone="green" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} funcionários`} hint="Faturamento de produtos automotivos de loja (óleo, aditivo, filtro) vendidos na rede toda no período." />
+        <KpiCard label="Litros de aditivada" value={fmtL(rede.aditivada)} Icon={Droplet} tone="purple" hint="Litros de gasolina aditivada vendidos — a gasolina de maior margem." />
+        <KpiCard label="Mix de aditivada · rede" value={fmtMix(rede.mix)} Icon={Gauge} tone="purple" hint="Fatia da gasolina vendida que foi aditivada (aditivada ÷ total de gasolina). Mais alto = a equipe empurra mais o produto de maior margem." />
+        <KpiCard label="Abastecimentos · rede" value={fmtN(rede.abast)} Icon={Fuel} tone="blue" hint="Número de abastecimentos (atendimentos) na rede toda no período." />
+        <KpiCard label="Ticket médio · rede" value={fmtR(rede.ticket)} Icon={Receipt} tone="green" hint="Valor médio por cupom de automotivos (faturamento ÷ nº de cupons)." />
       </div>
 
       {/* Leitura do analista */}
@@ -234,7 +235,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px]">
             <thead className="border-b border-gray-100 dark:border-gray-800">
-              <tr><Th>Posto</Th><Th right>Automotivos</Th><Th right>Aditivada</Th><Th right>Mix</Th><Th right>Abast.</Th><Th right>Ticket</Th><Th right>Equipe</Th><Th right>Status</Th></tr>
+              <tr><Th>Posto <InfoHint text="Cada linha é um posto da rede. Litros de combustível abaixo do nome." /></Th><Th right>Automotivos <InfoHint text="Faturamento de produtos automotivos de loja (óleo, aditivo, filtro) vendidos pela equipe no período." /></Th><Th right>Aditivada <InfoHint text="Litros de gasolina aditivada vendidos — a gasolina de maior margem." /></Th><Th right>Mix <InfoHint text="Fatia da gasolina vendida que foi aditivada (aditivada ÷ total de gasolina). Mais alto = a equipe empurra mais o produto de maior margem." /></Th><Th right>Abast. <InfoHint text="Número de abastecimentos (atendimentos) no período." /></Th><Th right>Ticket <InfoHint text="Valor médio por cupom de automotivos (faturamento ÷ nº de cupons)." /></Th><Th right>Equipe <InfoHint text="Número de funcionários com venda no período naquele posto." /></Th><Th right>Status <InfoHint text="Compara o posto com a média da rede: Destaque, Acima da média, Mix baixo, Ticket baixo, Atenção ou Na média." /></Th></tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
               {postoRows.map((r) => {
@@ -282,14 +283,15 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
           <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
             <Trophy className="h-4 w-4 text-amber-500" />
             <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Top 5 da rede</h3>
+            <InfoHint text="Os 5 funcionários com maior faturamento de automotivos na rede toda no período." />
             <span className="text-[11px] text-gray-400">por faturamento de automotivos</span>
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
-            {top5.length === 0 ? <p className="px-4 py-6 text-center text-[12px] text-gray-400">Sem dados no período.</p> : top5.map(({ r, posto }, i) => (
+            {top5.length === 0 ? <p className="px-4 py-6 text-center text-[12px] text-gray-400">Sem dados no período.</p> : top5.map(({ r, posto, postoCod }, i) => (
               <div key={r.funcionarioCodigo} className="flex items-center gap-3 px-4 py-2.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ backgroundColor: i === 0 ? '#FCB619' : '#152238', color: i === 0 ? '#7a4f00' : '#fff' }}>{iniciais(r.nome)}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-semibold text-gray-800 dark:text-gray-200">{r.nome}</p>
+                  <button type="button" onClick={() => onOpenFuncionario?.(r.funcionarioCodigo, postoCod)} disabled={!onOpenFuncionario} title="Ver detalhe do funcionário" className="block max-w-full truncate text-left text-[12.5px] font-semibold text-gray-800 enabled:hover:underline disabled:cursor-default dark:text-gray-200">{r.nome}</button>
                   <p className="truncate text-[10.5px] text-gray-400">{posto} · mix {fmtMix(r.mixPct)} · ticket {fmtR(r.ticket)}</p>
                 </div>
                 <span className={cn('shrink-0 text-[13px] font-bold tabular-nums', i === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200')}>{fmtRi(r.automotivo)}</span>
@@ -302,14 +304,15 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
           <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Precisam de atenção</h3>
+            <InfoHint text="Funcionários abaixo da média do PRÓPRIO posto em mix ou ticket — onde treinar ou apoiar." />
             {atencao.length > 0 && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{atencao.length} na rede</span>}
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
-            {atencao.length === 0 ? <p className="px-4 py-6 text-center text-[12px] text-gray-400">Ninguém abaixo da média do posto. 👏</p> : atencao.slice(0, 5).map(({ r, posto, causa }) => (
+            {atencao.length === 0 ? <p className="px-4 py-6 text-center text-[12px] text-gray-400">Ninguém abaixo da média do posto. 👏</p> : atencao.slice(0, 5).map(({ r, posto, postoCod, causa }) => (
               <div key={`${posto}-${r.funcionarioCodigo}`} className="flex items-center gap-3 px-4 py-2.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#152238] text-[10px] font-bold text-white">{iniciais(r.nome)}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-semibold text-gray-800 dark:text-gray-200">{r.nome}</p>
+                  <button type="button" onClick={() => onOpenFuncionario?.(r.funcionarioCodigo, postoCod)} disabled={!onOpenFuncionario} title="Ver detalhe do funcionário" className="block max-w-full truncate text-left text-[12.5px] font-semibold text-gray-800 enabled:hover:underline disabled:cursor-default dark:text-gray-200">{r.nome}</button>
                   <p className="truncate text-[10.5px] text-gray-400">{posto} · {fmtN(r.abastecimentos)} abastecimentos</p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -411,7 +414,7 @@ const RedeCacheLoading = () => (
   </div>
 )
 
-const ProdutividadeRede = ({ postos }: { postos: Empresa[] }) => {
+const ProdutividadeRede = ({ postos, onOpenFuncionario }: { postos: Empresa[]; onOpenFuncionario?: (cod: number, postoCod: number) => void }) => {
   const codes = useMemo(() => postos.map((p) => p.codigo), [postos])
   // Fonte primária: cache rede-wide (uma leitura, dias apurados). Sem fan-out.
   const cache = useRedeProdutividadeCache(codes)
@@ -423,14 +426,14 @@ const ProdutividadeRede = ({ postos }: { postos: Empresa[] }) => {
   }, [])
 
   if (cache.isLoading) return <RedeCacheLoading />
-  if (cache.hasCache) return <RedeView postos={postos} byPosto={cache.byPosto} />
+  if (cache.hasCache) return <RedeView postos={postos} byPosto={cache.byPosto} onOpenFuncionario={onOpenFuncionario} />
 
   // Cache vazio (período não apurado) → cai no fan-out ao vivo.
   const ready = postos.length > 0 && postos.every((p) => { const d = fanout.get(p.codigo); return d && !d.isLoading })
   return (
     <>
       {postos.map((p) => <PostoLoader key={p.codigo} posto={p} onData={onData} />)}
-      {ready ? <RedeView postos={postos} byPosto={fanout} /> : <RedeLoading postos={postos} byPosto={fanout} />}
+      {ready ? <RedeView postos={postos} byPosto={fanout} onOpenFuncionario={onOpenFuncionario} /> : <RedeLoading postos={postos} byPosto={fanout} />}
     </>
   )
 }
