@@ -94,7 +94,7 @@ const AoVivoRede = () => {
         </div>
       ) : totalAoVivo === 0 && !isLoading ? (
         // Nenhum caixa aberto na rede
-        <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center dark:border-gray-700 dark:bg-gray-900/50">
+        <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
             <Building2 className="h-5 w-5 text-gray-400" />
           </div>
@@ -140,7 +140,7 @@ const AoVivoRede = () => {
             .map((emp) => (
               <div
                 key={emp.empresaCodigo}
-                className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm dark:border-gray-700 dark:bg-gray-900"
+                className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
               >
                 {/* Header: nome do posto + badge "Ao vivo" */}
                 <div className="mb-3 flex items-start justify-between gap-2">

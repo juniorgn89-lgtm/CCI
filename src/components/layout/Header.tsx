@@ -79,7 +79,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   }
 
   return (
-    <header className="shrink-0 bg-white dark:bg-gray-900">
+    <header className="shrink-0 bg-white dark:bg-gray-950">
       <div className="relative flex h-12 items-center justify-between pl-3 pr-4 md:pr-6">
         <div className="flex items-center gap-3">
           <button

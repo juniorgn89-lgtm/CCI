@@ -217,7 +217,7 @@ const IssueRow = ({ issue }: { issue: Issue }) => {
         )}
       </button>
       {expanded && issue.detail && (
-        <div className="border-t border-gray-100 bg-gray-50/40 dark:border-gray-800 dark:bg-gray-900/40">
+        <div className="border-t border-gray-100 bg-gray-50/40 dark:border-gray-800 dark:bg-transparent">
           {issue.detail}
         </div>
       )}

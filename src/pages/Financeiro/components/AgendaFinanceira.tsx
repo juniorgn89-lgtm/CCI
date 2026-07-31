@@ -215,7 +215,7 @@ const AgendaFinanceira = ({ receivables, payables, cartoes }: Props) => {
           {selectedDay != null && (
             <button
               onClick={() => setSelectedDay(null)}
-              className="h-8 rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-blue-600 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
+              className="h-8 rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-blue-600 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f]"
             >
               Ver mês inteiro
             </button>
@@ -235,7 +235,7 @@ const AgendaFinanceira = ({ receivables, payables, cartoes }: Props) => {
         className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]"
       >
         {/* Calendário */}
-        <section className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <section className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="grid shrink-0 grid-cols-7 border-b border-gray-200 dark:border-gray-700" style={{ height: WEEKDAY_H }}>
             {DIAS_SEMANA.map((d) => (
               <div key={d} className="flex items-center justify-center text-xs font-semibold text-blue-700 dark:text-blue-400">
@@ -301,7 +301,7 @@ const AgendaFinanceira = ({ receivables, payables, cartoes }: Props) => {
         {/* Coluna: resumo fixo + 3 tabelas dividindo a altura restante. */}
         <div className="flex min-h-0 flex-col gap-3">
           {/* Resumo financeiro — sempre visível. */}
-          <section className="shrink-0 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <section className="shrink-0 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
               <Stat label="Total a pagar" value={formatCurrency(resumo.totalPagar)} tone="red" />
               <Stat label="Total a receber" value={formatCurrency(resumo.totalReceber)} tone="green" />
@@ -342,7 +342,7 @@ const SideTable = ({
   }[color]
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 py-2.5 dark:border-gray-700">
         <h3 className="flex items-baseline gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">
           {title}

@@ -1286,7 +1286,7 @@ const QualidadeDados = () => {
       )}
 
       {postos.length === 0 && (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           Nenhum posto disponível.
         </p>
       )}
@@ -1393,7 +1393,7 @@ const QualidadeDados = () => {
 
       {/* Action bar flutuante — aparece quando há seleção */}
       {selectedCount > 0 && view === 'ativos' && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
             {selectedCount} {selectedCount === 1 ? 'lançamento selecionado' : 'lançamentos selecionados'}
           </span>

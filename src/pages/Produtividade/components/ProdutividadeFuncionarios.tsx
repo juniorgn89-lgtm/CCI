@@ -56,7 +56,7 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode }: {
       : `${above ? '+' : '−'}${Math.abs(Math.round(((val - avg) / avg) * 100))}% vs média`
     : null
   return (
-    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10.5px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
         <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', t.chip)}>
@@ -101,10 +101,10 @@ const DesempenhoDiario = ({ evolucao, loading }: { evolucao?: EvolucaoFunc; load
       ))}
     </div>
   )
-  if (loading) return <div className="h-[360px] animate-pulse rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/[0.02]" />
+  if (loading) return <div className="h-[360px] animate-pulse rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" />
   if (!serie || serie.length < 2) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho diário</h3>
           {seg}
@@ -123,7 +123,7 @@ const DesempenhoDiario = ({ evolucao, loading }: { evolucao?: EvolucaoFunc; load
       accent={cfg.accent}
       scope=""
       height={280}
-      cardBg="bg-white dark:bg-white/[0.02]"
+      cardBg="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
       headerExtra={seg}
     />
   )
@@ -133,7 +133,7 @@ const DesempenhoDiario = ({ evolucao, loading }: { evolucao?: EvolucaoFunc; load
 const CombustivelTable = ({ combustiveis }: { combustiveis: FuncProdRow['combustiveis'] }) => {
   const max = Math.max(1, ...combustiveis.map((c) => c.litros))
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
         <Fuel className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Combustíveis vendidos</h3>
@@ -174,7 +174,7 @@ const GruposPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?: boo
   const total = (grupos ?? []).reduce((s, g) => s + g.faturamento, 0)
   const vazio = top.length === 0
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
         <Package className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Grupos de produto</h3>
@@ -224,7 +224,7 @@ const Chart12m = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) =
   pts.forEach((p, i) => { if (i !== curI && p.valor > 0 && p.valor < worstV) { worstV = p.valor; worstI = i } })
   const curParcial = (pts[curI]?.valor ?? 0) > 0
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="mb-3 flex items-center gap-1.5">
         <TrendingUp className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Automotivos · 12 meses</h3>
@@ -313,7 +313,7 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       {/* Lateral — lista de funcionários (busca fixa, lista rola, rail sticky) */}
       <div className="w-full shrink-0 lg:sticky lg:top-4 lg:w-64">
-        <div className="flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]">
+        <div className="flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="border-b border-gray-100 p-2 dark:border-gray-800">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -356,7 +356,7 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
       {sel ? (
         <div className="min-w-0 flex-1 space-y-4">
           {/* Header do funcionário */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl text-[16px] font-bold text-white" style={{ backgroundColor: '#1d4ed8' }}>{iniciais(sel.nome)}</span>
               <div className="min-w-0">

@@ -139,7 +139,7 @@ const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaCha
   return (
     <div className="space-y-4">
       {/* ── Controles: Saldo (esq.) + Janela (dir.) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
             Saldo
@@ -243,7 +243,7 @@ const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaCha
       {showSecoes && abc.count > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Curva ABC */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4 text-[#1e3a5f] dark:text-gray-300" />
               <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Curva ABC</h3>
@@ -275,7 +275,7 @@ const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaCha
           </div>
 
           {/* Capital em estoque */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex items-center gap-1.5">
               <RefreshCw className="h-4 w-4 text-[#16a34a]" />
               <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Capital em estoque</h3>
@@ -314,7 +314,7 @@ const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaCha
       {showSecoes && (stats.proximosZerar.length > 0 || categoria.rows.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Vão zerar em breve */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex items-center gap-1.5">
               <Hourglass className="h-4 w-4 text-red-500" />
               <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Vão zerar em breve</h3>
@@ -357,7 +357,7 @@ const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaCha
           </div>
 
           {/* Valor por categoria */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4 text-[#2563eb]" />
               <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Valor por categoria</h3>
@@ -399,7 +399,7 @@ const KpiCard = ({ label, sub, value, footer, Icon, chipBg, chipColor, hint }: {
   label: string; sub: string; value: string; footer: string
   Icon: typeof Package; chipBg: string; chipColor: string; hint?: string
 }) => (
-  <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <p className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-gray-100">
@@ -435,7 +435,7 @@ const AlarmCard = ({ label, value, sub, Icon, tone, hint, onClick }: {
       type="button"
       onClick={onClick}
       disabled={!interactive}
-      className={cn('flex items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all dark:bg-gray-900', toneCls.border, interactive ? 'hover:border-gray-300 hover:shadow-md dark:hover:border-gray-600' : 'cursor-default')}
+      className={cn('flex items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', toneCls.border, interactive ? 'hover:border-gray-300 hover:shadow-md dark:hover:border-gray-600' : 'cursor-default')}
     >
       <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', toneCls.chip)}>
         <Icon className={cn('h-5 w-5', toneCls.icon)} />

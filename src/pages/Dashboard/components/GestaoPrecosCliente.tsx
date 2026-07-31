@@ -27,7 +27,7 @@ const GestaoPrecosCliente = () => {
 
   if (linhas.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <Users className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
         <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhum preço especial por cliente</p>
         <p className="mt-1 text-[12px] text-gray-400">Cadastre a tabela de preço por cliente no WebPosto para vê-la aqui.</p>

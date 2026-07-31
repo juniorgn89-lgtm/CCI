@@ -177,7 +177,7 @@ const Pessoas = () => {
                 'flex items-center justify-between gap-3 rounded-xl border p-4 text-left transition-all hover:shadow-sm',
                 cargoFiltro === cargo
                   ? 'border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-900/20'
-                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
+                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
               )}
             >
               <div className="min-w-0">

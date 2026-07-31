@@ -108,7 +108,7 @@ const GestaoPrecosTabelas = () => {
 
   if (tabelas.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-10 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <Layers className="mx-auto mb-2 h-5 w-5 text-gray-300 dark:text-gray-600" />
         <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhuma tabela de preço de prazo</p>
         <p className="mt-1 text-[12px] text-gray-400">O WebPosto não retornou nenhuma "Tabela de Preço de Prazos" para esta rede.</p>
@@ -132,7 +132,7 @@ const GestaoPrecosTabelas = () => {
           const active = sel?.id === t.id
           return (
             <button key={t.id} type="button" onClick={() => setSelId(t.id)}
-              className={cn('w-full rounded-xl border bg-white px-3 py-2.5 text-left transition-colors dark:bg-gray-900',
+              className={cn('w-full rounded-xl border bg-white px-3 py-2.5 text-left transition-colors dark:bg-[#0f0f0f]',
                 active ? 'border-l-4 border-l-[#2563eb] border-gray-200 dark:border-gray-700' : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/40')}>
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-[11px] font-semibold text-gray-400">{t.ref}</span>
@@ -163,7 +163,7 @@ const GestaoPrecosTabelas = () => {
 
           <div className="max-h-[60vh] overflow-auto">
             <table className="w-full text-[12.5px]">
-              <thead className="sticky top-0 bg-white dark:bg-gray-900">
+              <thead className="sticky top-0 bg-white dark:bg-transparent">
                 <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
                   <HeaderHint label="Filial" align="left" className="px-3 font-semibold" help="Posto (unidade) da rede a que esta linha da tabela de preço se aplica. 'Todas' = vale para a rede inteira." />
                   <HeaderHint label="Produto" align="left" className="px-2 font-semibold" help="Descrição do produto conforme o cadastro do ERP. Linhas em nível de grupo mostram o nome do grupo." />

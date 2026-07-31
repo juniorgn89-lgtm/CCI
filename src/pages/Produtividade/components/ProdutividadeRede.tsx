@@ -226,7 +226,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
       )}
 
       {/* Desempenho por posto */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Desempenho por posto</h3>
           <span className="text-[11px] text-gray-400">ordenado por faturamento de automotivos</span>
@@ -278,7 +278,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
 
       {/* Top 5 + Precisam de atenção */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
             <Trophy className="h-4 w-4 text-amber-500" />
             <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Top 5 da rede</h3>
@@ -298,7 +298,7 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Precisam de atenção</h3>
@@ -325,15 +325,15 @@ const RedeView = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<number,
       {/* Faturamento diário + Mix por posto */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
         {diario.length >= 2 ? (
-          <AnaliseSemanalLineCard data={diario} title="Faturamento diário · rede" noun="faturamento" unit="itens" plotFaturamento accent="#059669" scope="da rede" height={240} cardBg="bg-white dark:bg-white/[0.02]" />
+          <AnaliseSemanalLineCard data={diario} title="Faturamento diário · rede" noun="faturamento" unit="itens" plotFaturamento accent="#059669" scope="da rede" height={240} cardBg="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" />
         ) : (
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Faturamento diário · rede</h3>
             <p className="py-12 text-center text-[12px] text-gray-400">Sem histórico diário apurado no período.</p>
           </div>
         )}
 
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <h3 className="mb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200">Mix de aditivada por posto</h3>
           <div className="space-y-2.5">
             {mixBars.map((r) => {
@@ -372,7 +372,7 @@ const RedeLoading = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<numb
   const done = postos.filter((p) => isDone(p.codigo)).length
   const pct = postos.length ? Math.round((done / postos.length) * 100) : 0
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white px-6 py-12 dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white px-6 py-12 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-2 text-gray-800 dark:text-gray-100">
         <Loader2 className="h-5 w-5 animate-spin text-[#2563eb]" />
         <span className="text-sm font-semibold">Carregando resumo da rede…</span>
@@ -406,7 +406,7 @@ const RedeLoading = ({ postos, byPosto }: { postos: Empresa[]; byPosto: Map<numb
 }
 
 const RedeCacheLoading = () => (
-  <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-16 text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.02] dark:text-gray-300">
+  <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-16 text-sm text-gray-500 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black dark:text-gray-300">
     <Loader2 className="h-5 w-5 animate-spin text-[#2563eb]" /> Carregando resumo da rede…
   </div>
 )

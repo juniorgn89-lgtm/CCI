@@ -153,7 +153,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
         </div>
 
         {/* Sem conciliar (topo vermelho) */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="h-1 w-full rounded-full bg-red-500" />
           <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
             <CircleAlert className="h-3.5 w-3.5" /> Sem conciliar
@@ -170,7 +170,7 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
         </div>
 
         {/* Aguardando repasse (topo âmbar) */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="h-1 w-full rounded-full bg-amber-500" />
           <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-500">
             <Clock className="h-3.5 w-3.5" /> Aguardando / a creditar

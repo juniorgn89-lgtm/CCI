@@ -60,7 +60,7 @@ const TIER_META: Record<EvidenciaTier, { label: string; text: string; bg: string
 const Kpi = ({ label, secondary, value, sub, tone, Icon }: { label: string; secondary: string; value: string; sub?: string; tone: 'neutral' | ExcecaoClasse; Icon: LucideIcon }) => {
   const meta = tone === 'neutral' ? null : CLASSE_META[tone]
   return (
-    <div className={cn('rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900', meta ? meta.border : 'border-gray-200 dark:border-gray-700')}>
+    <div className={cn('rounded-2xl border bg-white p-4 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', meta ? meta.border : 'border-gray-200 dark:border-gray-700')}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-semibold text-gray-900 dark:text-gray-100">{label}</p>
@@ -170,7 +170,7 @@ const FechamentoExcecao = ({ empresaCodigo }: { empresaCodigo?: number | null } 
       {vista === 'panorama' ? (
         <Panorama />
       ) : totalFila === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <ShieldCheck className="mx-auto h-8 w-8 text-emerald-400" />
           <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Nenhum caixa precisa de atenção</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Todos dentro da banda adaptativa no período. Lembre: os OK entram em amostragem de auditoria.</p>
@@ -186,7 +186,7 @@ const FechamentoExcecao = ({ empresaCodigo }: { empresaCodigo?: number | null } 
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
           {/* Fila */}
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Fila de exceção</h3>
               <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
@@ -264,7 +264,7 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
           <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase', m.bg, m.text)}>{m.label}</span>
         </div>
 
-        <div className="space-y-4 bg-white p-5 dark:bg-gray-900">
+        <div className="space-y-4 bg-white p-5 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           {/* 3 números */}
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -401,7 +401,7 @@ const CopilotoPanel = ({ sel, baseCaveat, feedback, setFeedback, acao, setAcao }
 /* ── Modal "detalhe do caixa" — apresentado × apurado × diferença por forma ── */
 const CaixaDetalheModal = ({ sel, onClose }: { sel: ExcecaoCaixa; onClose: () => void }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-    <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+    <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Detalhe do caixa · {sel.operador}</p>
@@ -536,7 +536,7 @@ const Panorama = () => {
 }
 
 const Card = ({ titulo, sub, full, children }: { titulo: string; sub: string; full?: boolean; children: React.ReactNode }) => (
-  <div className={cn('rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900', full && 'lg:col-span-2')}>
+  <div className={cn('rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', full && 'lg:col-span-2')}>
     <h3 className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">{titulo}</h3>
     <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{sub}</p>
     <div className="mt-3">{children}</div>
@@ -564,7 +564,7 @@ const FormaModal = ({ modal, caixaCodigos, pdvByCaixa, formaPorPosto, onClose }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <div>
             <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{ehCartao ? <CreditCard className="h-4 w-4 text-[#4338ca]" /> : <Building2 className="h-4 w-4 text-gray-400" />}{modal.forma}</p>

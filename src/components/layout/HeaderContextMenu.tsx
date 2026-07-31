@@ -123,7 +123,7 @@ const HeaderContextMenu = () => {
           'flex h-8 max-w-[240px] items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-medium transition-colors',
           open
             ? 'border-[#2563eb] bg-blue-50 text-[#1e3a5f] dark:border-blue-500/50 dark:bg-blue-950/30 dark:text-blue-100'
-            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800',
+            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800',
         )}
       >
         <Building2 className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />

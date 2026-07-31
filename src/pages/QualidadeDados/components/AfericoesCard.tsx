@@ -39,7 +39,7 @@ const Tabela = ({ Icon, titulo, primeiraCol, grupos, isData, onSelect }: {
     </div>
     <div className="max-h-64 overflow-y-auto">
       <table className="w-full text-[12.5px]">
-        <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-gray-400 dark:bg-gray-900 dark:text-gray-500">
+        <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-gray-400 dark:bg-transparent dark:text-gray-500">
           <tr>
             <th className="px-3 py-1.5 text-left font-semibold">{primeiraCol}</th>
             <th className="px-2 py-1.5 text-right font-semibold">Aferições</th>

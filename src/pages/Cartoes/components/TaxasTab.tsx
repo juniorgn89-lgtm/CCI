@@ -44,7 +44,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
 
   if (!temRemessa || taxas.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         Sem repasse do adquirente (EDI) no período — sem base pra calcular a taxa efetiva.
       </div>
     )
@@ -125,7 +125,7 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
         </div>
 
         {/* Bandeiras */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Bandeiras{tipoFiltro !== 'Todos' ? ` · ${tipoFiltro}` : ''}
           </p>

@@ -123,7 +123,7 @@ const GiroProdutos = ({ data, categorias, janelaDias }: Props) => {
               <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-gray-700 dark:bg-gray-900 dark:text-gray-300">Giro = Quantidade vendida ÷ Estoque médio</span>
             </p>
             <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">Como interpretar (em {janelaDias} dias)</p>
-            <div className="overflow-x-auto rounded-lg border border-blue-100 bg-white text-xs dark:border-blue-800/40 dark:bg-gray-900">
+            <div className="overflow-x-auto rounded-lg border border-blue-100 bg-white text-xs dark:border-blue-800/40 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <table className="w-full">
                 <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                   <tr><th className="px-3 py-2 text-left">Faixa</th><th className="px-3 py-2 text-left">Significado</th><th className="px-3 py-2 text-left">Ação sugerida</th></tr>

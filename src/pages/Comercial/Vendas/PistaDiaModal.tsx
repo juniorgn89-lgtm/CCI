@@ -93,7 +93,7 @@ const PistaDiaModal = ({
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50 text-[10px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                <tr className="border-b border-gray-100 bg-gray-50/50 text-[10px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                   <th className="px-4 py-1.5 text-left font-medium">Grupo</th>
                   <th className="px-4 py-1.5 text-right font-medium">Qtde</th>
                   <th className="px-4 py-1.5 text-right font-medium">Faturamento</th>

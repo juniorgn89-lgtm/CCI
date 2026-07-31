@@ -69,7 +69,7 @@ const ItemCard = ({ it, posto, canWrite, onMarcar }: { it: DetalheItem; posto: s
   const copy = () => navigator.clipboard?.writeText(linhaTexto(it, posto)).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600) })
   const marcar = async () => { setBusy(true); try { await onMarcar(it) } finally { setBusy(false) } }
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 border-l-[3px] border-l-red-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-red-500 dark:bg-gray-900">
+    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 border-l-[3px] border-l-red-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-red-500 dark:bg-transparent">
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold text-gray-900 dark:text-gray-100">Venda #{it.vendaCodigo}</span>
@@ -95,7 +95,7 @@ const ItemCard = ({ it, posto, canWrite, onMarcar }: { it: DetalheItem; posto: s
         <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">No portal do adquirente, busque por <span className="font-medium tabular-nums text-gray-500 dark:text-gray-400">NSU {it.nsu}</span> / <span className="font-medium tabular-nums text-gray-500 dark:text-gray-400">Aut {it.aut}</span> na liquidação {formatDate(it.diaLiq)}.</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={copy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+        <button type="button" onClick={copy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800">
           {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}{copied ? 'Copiado' : 'Copiar detalhe'}
         </button>
         {canWrite && (
@@ -110,7 +110,7 @@ const ItemCard = ({ it, posto, canWrite, onMarcar }: { it: DetalheItem; posto: s
 
 /** Card de divergência de LOTE (bandeira×dia×posto) — não é por venda. */
 const DivergenciaCard = ({ d, posto }: { d: DivergenciaLote; posto: string }) => (
-  <div className="rounded-xl border border-gray-200 border-l-[3px] border-l-amber-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-amber-500 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 border-l-[3px] border-l-amber-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-amber-500 dark:bg-transparent">
     <p className="flex flex-wrap items-center gap-2 text-sm">
       <Scale className="h-4 w-4 text-amber-500" />
       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-300">{d.bandeira}</span>
@@ -134,7 +134,7 @@ const DivergenciaCard = ({ d, posto }: { d: DivergenciaLote; posto: string }) =>
 
 /** Card de repasse SEM venda no sistema — espelho do "sem repasse". */
 const RepasseSemVendaCard = ({ r, posto }: { r: RepasseSemVenda; posto: string }) => (
-  <div className="rounded-xl border border-gray-200 border-l-[3px] border-l-orange-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-orange-500 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 border-l-[3px] border-l-orange-500 bg-white p-3.5 dark:border-gray-700 dark:border-l-orange-500 dark:bg-transparent">
     <p className="flex flex-wrap items-center gap-2 text-sm">
       <Coins className="h-4 w-4 text-orange-500" />
       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-300">{r.bandeira}</span>
@@ -159,7 +159,7 @@ const TratadaCard = ({ t, posto, resolvido, onDesfazer }: { t: TratadaRow; posto
   const [busy, setBusy] = useState(false)
   const desfazer = async () => { setBusy(true); try { await onDesfazer(t.id) } finally { setBusy(false) } }
   return (
-    <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-3 dark:bg-gray-900', resolvido ? 'border-emerald-200 dark:border-emerald-800/50' : 'border-gray-200 dark:border-gray-700')}>
+    <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-3 dark:bg-transparent', resolvido ? 'border-emerald-200 dark:border-emerald-800/50' : 'border-gray-200 dark:border-gray-700')}>
       <div className="min-w-0 text-[12px]">
         <p className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-gray-900 dark:text-gray-100">Venda #{t.venda_codigo}</span>
@@ -176,7 +176,7 @@ const TratadaCard = ({ t, posto, resolvido, onDesfazer }: { t: TratadaRow; posto
           )}
         </p>
       </div>
-      <button type="button" onClick={desfazer} disabled={busy} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+      <button type="button" onClick={desfazer} disabled={busy} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800">
         <Undo2 className="h-3.5 w-3.5" />{busy ? '...' : 'Desfazer'}
       </button>
     </div>
@@ -249,7 +249,7 @@ const DetalhamentoTab = ({ semRepasse, divergencias, repasseSemVenda, filtro, on
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Detalhe para lançamento</h3>
             <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">Copie e confira; o lançamento é feito no ERP.</p>
           </div>
-          <button type="button" onClick={() => exportCsv(pendentes, empresaNome)} disabled={pendentes.length === 0} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+          <button type="button" onClick={() => exportCsv(pendentes, empresaNome)} disabled={pendentes.length === 0} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800">
             <Download className="h-3.5 w-3.5" /> Exportar
           </button>
         </div>
@@ -269,7 +269,7 @@ const DetalhamentoTab = ({ semRepasse, divergencias, repasseSemVenda, filtro, on
                 type="button"
                 onClick={() => setCategoria(c.id)}
                 className={cn('rounded-xl border p-3 text-left transition-colors',
-                  ativo ? 'border-[#2563eb] bg-blue-50/60 dark:border-blue-600 dark:bg-blue-950/20' : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-gray-600')}
+                  ativo ? 'border-[#2563eb] bg-blue-50/60 dark:border-blue-600 dark:bg-blue-950/20' : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-[#0f0f0f] dark:hover:border-gray-600')}
               >
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{c.label}</p>
                 <p className="mt-1 text-[17px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(d.total)}</p>
@@ -305,7 +305,7 @@ const DetalhamentoTab = ({ semRepasse, divergencias, repasseSemVenda, filtro, on
             </select>
           </div>
           {temFiltro && (
-            <button type="button" onClick={() => { setBusca(''); setBandeira('todas') }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+            <button type="button" onClick={() => { setBusca(''); setBandeira('todas') }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800">
               <X className="h-3 w-3" /> Limpar
             </button>
           )}
@@ -318,7 +318,7 @@ const DetalhamentoTab = ({ semRepasse, divergencias, repasseSemVenda, filtro, on
             <span className="rounded bg-white/70 px-1.5 py-0.5 font-semibold text-[#1e3a5f] dark:bg-gray-800/70 dark:text-blue-200">{nomePosto(filtro.empresaCodigo)}</span>
             <span className="rounded bg-white/70 px-1.5 py-0.5 font-semibold uppercase text-gray-600 dark:bg-gray-800/70 dark:text-gray-300">{filtro.bandeira}</span>
             <span className="tabular-nums text-gray-500 dark:text-gray-400">liquidação {formatDate(filtro.dia)}</span>
-            <button type="button" onClick={onClearFiltro} className="ml-auto inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+            <button type="button" onClick={onClearFiltro} className="ml-auto inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800">
               <X className="h-3 w-3" /> limpar
             </button>
           </div>

@@ -54,7 +54,7 @@ const SherlockHero = ({ issue, padrao }: { issue: Issue | null; padrao: string |
             {issue?.detail && (open ? <ChevronUp className="h-4 w-4 shrink-0 text-white/60" /> : <ChevronDown className="h-4 w-4 shrink-0 text-white/60" />)}
           </button>
           {open && issue?.detail && (
-            <div className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+            <div className="bg-white text-gray-900 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black dark:text-gray-100">
               {issue.detail}
               {padrao && (
                 <div className="mx-3 mb-3 mt-1 flex items-start gap-2 rounded-lg border border-[#1e3a5f]/15 bg-[#1e3a5f]/[0.04] px-3 py-2 text-[12px] text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300">

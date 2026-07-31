@@ -19,7 +19,7 @@ import FechamentosMobile from '@/pages/FechamentoCaixa/FechamentosMobile'
 const VisaoGeral = lazy(() => import('@/pages/FechamentoCaixa/components/VisaoGeral'))
 
 const TabSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="space-y-3">
       <Skeleton className="h-8 w-full" />
       {Array.from({ length: 8 }).map((_, i) => (
@@ -67,7 +67,7 @@ const FechamentoCaixa = () => {
       )}
 
       {postos.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           Nenhum posto disponível.
         </p>
       ) : (

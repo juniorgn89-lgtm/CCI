@@ -53,7 +53,7 @@ const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberL
           color="violet"
         />
         {/* Ciclo financeiro — substitui o antigo "Cheques devolvidos". */}
-        <section className="flex flex-col rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <section className="flex flex-col rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -87,7 +87,7 @@ const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberL
       {/* Carteira + Modo recebimento */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Carteira de cartões e Apps — A vencer */}
-        <section className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <section className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Carteira de cartões e Apps — A vencer</h3>
@@ -135,7 +135,7 @@ const CartoesEModo = ({ cartoesAppsAVencer, cartoesReceberBruto, cartoesReceberL
         </section>
 
         {/* Modo recebimento */}
-        <section className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <section className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Modo recebimento</h3>
@@ -193,7 +193,7 @@ const KpiCard = ({
     : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
 
   return (
-    <section className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="min-w-0">
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">

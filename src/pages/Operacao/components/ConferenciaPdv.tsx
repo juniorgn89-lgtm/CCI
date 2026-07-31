@@ -207,7 +207,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
 
   if (turnoRows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-20 text-center dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-20 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <ClipboardCheck className="mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Sem caixas no período</p>
         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Ajuste o período pra conferir os caixas por PDV.</p>
@@ -293,7 +293,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
 
       {/* ── Painéis por PDV ── */}
       {visiveis.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <ClipboardCheck className="mb-3 h-9 w-9 text-gray-300 dark:text-gray-600" />
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {filterPdv === 'todos' ? 'Nenhum caixa registrado neste turno' : `Nenhum PDV de ${filterPdv === 'pista' ? 'Pista' : 'Conveniência'} neste turno`}
@@ -303,7 +303,7 @@ const ConferenciaPdv = ({ empresaCodigo }: { empresaCodigo?: number | null } = {
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
           {visiveis.map((p) => (
-            <section key={p.caixaCodigo} className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <section key={p.caixaCodigo} className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               {/* Header: tipo + id/data · status */}
               <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
                 <div className="flex min-w-0 items-center gap-2">

@@ -82,7 +82,7 @@ const ParametrosTab = ({ postos, dia, onOpenPosto }: ParametrosTabProps) => {
       </div>
 
       {postos.length === 0 && (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           Nenhum posto disponível para configurar.
         </p>
       )}
@@ -91,7 +91,7 @@ const ParametrosTab = ({ postos, dia, onOpenPosto }: ParametrosTabProps) => {
         const cfg = draft[p.codigo] ?? getPostoConfig(byPosto, p.codigo)
         const url = `https://visor360.com.br/c/${slug(p.nome)}/${dia}`
         return (
-          <div key={p.codigo} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div key={p.codigo} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="flex items-center gap-2.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2563eb] dark:bg-blue-950/40">
@@ -158,7 +158,7 @@ const ParametrosTab = ({ postos, dia, onOpenPosto }: ParametrosTabProps) => {
                 <button
                   type="button"
                   onClick={() => copyLink(p.codigo, url)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   {copiedCodigo === p.codigo ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                   {copiedCodigo === p.codigo ? 'Copiado' : 'Copiar'}

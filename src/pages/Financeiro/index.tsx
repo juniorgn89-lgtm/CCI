@@ -40,7 +40,7 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
 }
 
 const TableSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="space-y-3">
       <Skeleton className="h-8 w-full" />
       {Array.from({ length: 8 }).map((_, i) => (
@@ -142,7 +142,7 @@ const Financeiro = () => {
       {(
         <>
           {visibleTabs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma aba visível. Use o botão ⚙️ para personalizar.</p>
             </div>

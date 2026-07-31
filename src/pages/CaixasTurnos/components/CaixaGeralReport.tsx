@@ -47,7 +47,7 @@ interface SectionProps {
 const Section = ({ title, children, defaultOpen = false, summary }: SectionProps) => {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -127,7 +127,7 @@ const CaixaGeralReport = () => {
   return (
     <div className="space-y-4 text-sm">
       {/* ── BLOCO 1 — Cabeçalho ── */}
-      <header className="rounded-lg border border-gray-300 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <header className="rounded-lg border border-gray-300 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Caixa Geral</h1>

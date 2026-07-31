@@ -67,7 +67,7 @@ const StatusChip = ({ status, desvioPct }: { status: StatusFaixa; desvioPct: num
 /* ─── Skeletons ─── */
 
 const TableSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="space-y-3">
       <Skeleton className="h-8 w-full" />
       {Array.from({ length: 6 }).map((_, i) => (
@@ -80,7 +80,7 @@ const TableSkeleton = () => (
 /* ─── Estados vazios ─── */
 
 const EmptyState = ({ icon: Icon, message }: { icon: typeof Fuel; message: string }) => (
-  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-900/40">
+  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <Icon className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
     <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>
   </div>
@@ -96,7 +96,7 @@ const NullableCell = ({ value, render }: { value: number | null; render: (v: num
 const MutedDash = () => <span className="text-gray-300 dark:text-gray-600">—</span>
 
 const CmpTable = ({ rows, umPosto }: { rows: CmpRow[]; umPosto: boolean }) => (
-  <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <table className="w-full min-w-[720px] text-sm">
       <thead>
         <tr className="border-b border-gray-200 bg-gray-100 text-xs uppercase text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">
@@ -242,7 +242,7 @@ const MargemChartSection = ({ rows }: { rows: CmpRow[] }) => {
           message="Poucas trocas de preço no período — o gráfico precisa de pelo menos 2 pontos por combustível."
         />
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           {/* Seletor de combustível (chips) */}
           <div className="mb-4 flex flex-wrap gap-2">
             {chartRows.map((r) => (
@@ -254,7 +254,7 @@ const MargemChartSection = ({ rows }: { rows: CmpRow[] }) => {
                   'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   r.produtoCodigo === active
                     ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-500 dark:bg-blue-600'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800/60',
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800/60',
                 )}
               >
                 <Fuel className="h-3.5 w-3.5 shrink-0" />
@@ -347,7 +347,7 @@ const HistIndicadoresSection = ({ hist, isLoading }: { hist: HistIndicadores[]; 
           message="A integração ainda não tem histórico de compras e trocas de preço para os últimos 365 dias deste posto. Os indicadores se preenchem conforme o dado acumula — nada a 'apurar' (isto vem direto da API, não do cache de apuração)."
         />
       ) : (
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           {/* Seletor de combustível */}
           <div className="flex flex-wrap gap-2">
             {hist.map((h) => (
@@ -359,7 +359,7 @@ const HistIndicadoresSection = ({ hist, isLoading }: { hist: HistIndicadores[]; 
                   'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   h.produtoCodigo === active
                     ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-500 dark:bg-blue-600'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800/60',
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-300 dark:hover:bg-gray-800/60',
                 )}
               >
                 <Fuel className="h-3.5 w-3.5 shrink-0" />
@@ -514,7 +514,7 @@ const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) =
   return (
     <div className="space-y-4">
       {/* Resumo — contagem por faixa, do pior pro melhor. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <span className="mr-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Panorama ({resumo.total} {resumo.total === 1 ? 'célula' : 'células'})
         </span>
@@ -541,7 +541,7 @@ const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) =
       </p>
 
       {/* Matriz posto × combustível. */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-100 text-xs uppercase text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">
@@ -727,7 +727,7 @@ const Compliance = () => {
             ) : trocaLog.length === 0 ? (
               <EmptyState icon={History} message="Nenhuma troca de preço de combustível registrada no período/escopo selecionado." />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-100 text-xs uppercase text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">

@@ -95,7 +95,7 @@ export const KpiCard = ({ title, sub, Icon, iconClass, value, valueClass, border
   value: string; valueClass?: string; borderClass?: string; hint?: string
   footer?: string; children?: React.ReactNode
 }) => (
-  <section className={cn('flex flex-col rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900', borderClass ?? 'border-gray-200 dark:border-gray-700')}>
+  <section className={cn('flex flex-col rounded-2xl border bg-white p-5 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', borderClass ?? 'border-gray-200 dark:border-gray-700')}>
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <p className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-gray-100">{title}{hint && <InfoHint text={hint} />}</p>
@@ -113,7 +113,7 @@ export const KpiCard = ({ title, sub, Icon, iconClass, value, valueClass, border
 export const ChartCard = ({ title, Icon, hint, children }: {
   title: string; Icon: LucideIcon; hint?: string; children: React.ReactNode
 }) => (
-  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="mb-3 flex items-center gap-2">
       <Icon className="h-4 w-4 text-gray-400" />
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
@@ -203,7 +203,7 @@ export interface RankItem { key: string; nome: string; sub: string; valor: strin
 export const RankingCard = ({ title, Icon, hint, items, accentClass }: {
   title: string; Icon: LucideIcon; hint?: string; items: RankItem[]; accentClass: string
 }) => (
-  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="mb-2 flex items-center gap-2">
       <Icon className="h-4 w-4 text-gray-400" />
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
@@ -233,7 +233,7 @@ export const JanelaBars = ({ title, Icon, hint, sub, rows, color }: {
 }) => {
   const max = Math.max(...rows.map((r) => r.valor), 1)
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="mb-1 flex items-center gap-2">
         <Icon className="h-4 w-4 text-gray-400" />
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>

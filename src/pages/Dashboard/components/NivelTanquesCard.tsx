@@ -63,7 +63,7 @@ const NivelTanquesCard = ({ empresaCodigo }: NivelTanquesCardProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
       </div>
     )

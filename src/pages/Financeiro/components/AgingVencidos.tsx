@@ -60,7 +60,7 @@ const AgingVencidos = ({ receivables, payables, duplicatas }: Props) => {
   const totalPagar = pagar.reduce((s, v) => s + v, 0)
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="flex items-center gap-1.5">

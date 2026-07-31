@@ -49,7 +49,7 @@ const TopBarTabs = ({ tabs, active, onChange, className }: TopBarTabsProps) => (
             t.disabled
               ? 'cursor-not-allowed text-gray-300 dark:text-gray-600'
               : isActive
-                ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-[#14b8a6]'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
           )}
         >

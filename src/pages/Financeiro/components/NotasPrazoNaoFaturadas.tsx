@@ -112,7 +112,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
   })
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">
           <FileText className="h-4 w-4 text-gray-400" />
@@ -123,7 +123,7 @@ const NotasPrazoNaoFaturadas = ({ data }: Props) => {
           <select
             value={ano}
             onChange={(e) => setAno(e.target.value === 'todos' ? 'todos' : Number(e.target.value))}
-            className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            className="h-7 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200"
           >
             <option value="todos">Todos os anos</option>
             {anos.map((y) => <option key={y} value={y}>{y}</option>)}

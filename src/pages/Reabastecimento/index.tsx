@@ -37,7 +37,7 @@ const Reabastecimento = ({ embedded = false, empresaCodigo }: { embedded?: boole
     return (
       <div className="space-y-6">
         {empresaCodigo == null ? (
-          <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             Nenhum posto disponível.
           </p>
         ) : (
@@ -59,7 +59,7 @@ const Reabastecimento = ({ embedded = false, empresaCodigo }: { embedded?: boole
       )}
 
       {postos.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p className="rounded-xl border border-gray-200 bg-white px-5 py-12 text-center text-sm text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           Nenhum posto disponível.
         </p>
       ) : (

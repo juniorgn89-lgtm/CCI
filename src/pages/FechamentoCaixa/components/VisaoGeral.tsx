@@ -256,7 +256,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
       {showSkeleton ? (
         <ContentSkeleton />
       ) : noneSelected ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-20 text-center dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-20 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Receipt className="mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Selecione um ou mais caixas pra ver o relatório
@@ -360,7 +360,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-blue-500" />
@@ -422,7 +422,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
             </section>
 
             {agregados.frentistas.length > 0 && (
-            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-amber-500" />
@@ -465,7 +465,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
           </div>
 
           {(agregados.vendedores.length > 0 || agregados.temConveniencia) && (
-            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-violet-500" />
@@ -518,7 +518,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
           )}
 
           {caixasComDiferenca.length > 0 && (
-            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -584,7 +584,7 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
                             <tr className="bg-gray-50/60 dark:bg-gray-800/30">
                               <td />
                               <td colSpan={6} className="px-4 py-2">
-                                <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                                <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
                                   <table className="w-full text-[11px]">
                                     <thead className="text-[9px] uppercase tracking-wider text-gray-400">
                                       <tr>

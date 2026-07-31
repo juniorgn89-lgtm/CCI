@@ -93,7 +93,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev, empresaCodigo: empresaCodigo
 
   if (bombaRows.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <Gauge className="mx-auto h-8 w-8 text-gray-300" />
         <p className="mt-2 text-sm text-gray-400">Nenhuma bomba encontrada.</p>
       </div>
@@ -182,7 +182,7 @@ const ControleBombas = ({ bombaRows, bombaRowsPrev, empresaCodigo: empresaCodigo
             <div
               key={s.bomba.bombaCodigo}
               className={cn(
-                'flex h-full flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-900',
+                'flex h-full flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
                 meta.border,
               )}
             >

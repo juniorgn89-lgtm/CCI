@@ -26,7 +26,7 @@ const PostoDropdown = ({ postos, value, onChange, badges }: { postos: PostoOptio
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800"
         >
           <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
           <span className="max-w-[220px] truncate">{sel?.fantasia ?? 'Selecione o posto'}</span>
@@ -138,7 +138,7 @@ const PostoLocalSelect = ({ postos, value, onChange, variant = 'chip', badges }:
             'rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors',
             e.codigo === value
               ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700'
-              : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+              : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
           )}
         >
           {e.fantasia}

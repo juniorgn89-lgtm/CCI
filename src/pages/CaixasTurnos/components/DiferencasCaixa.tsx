@@ -39,7 +39,7 @@ const KpiBase = ({ navy, border, children }: { navy?: boolean; border?: string; 
     'flex flex-col rounded-2xl border p-5 shadow-sm',
     navy
       ? 'border-[#1e3a5f]/30 bg-gradient-to-br from-[#1e3a5f] to-[#27496f]'
-      : cn('bg-white dark:bg-gray-900', border ?? 'border-gray-200 dark:border-gray-700'),
+      : cn('bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', border ?? 'border-gray-200 dark:border-gray-700'),
   )}>
     {children}
   </div>
@@ -199,7 +199,7 @@ const DiferencasCaixa = () => {
       </div>
 
       {/* ── Diferença por dia ── */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Diferença por dia</h3>
@@ -240,7 +240,7 @@ const DiferencasCaixa = () => {
       {/* ── Por responsável + Onde está a diferença ── */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
         {/* Por responsável */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
             <div>
               <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Diferença por responsável</h3>
@@ -305,7 +305,7 @@ const DiferencasCaixa = () => {
         </div>
 
         {/* Onde está a diferença (por forma) */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Onde está a diferença</h3>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Diferença líquida por forma de pagamento</p>
           {porForma.length === 0 ? (
@@ -358,7 +358,7 @@ const DiferencasCaixa = () => {
       </div>
 
       {/* ── Caixas com maior diferença ── */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Caixas com maior diferença</h3>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Maiores divergências do período · por valor absoluto</p>

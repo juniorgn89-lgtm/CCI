@@ -150,7 +150,7 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
       </div>
 
       {/* Tabela por posto — estilo Central (heatmap + drill) */}
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Estoque por posto</h3>
           <InfoHint text="Cada linha = um posto, ranqueado pelo valor parado em estoque. Clique na linha pra ver os produtos críticos; use Analisar pra ir ao detalhe do posto." />

@@ -30,7 +30,7 @@ const IAAnalisando = ({
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm dark:bg-black/50">
-      <div className="mx-4 w-full max-w-sm rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900/95">
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-gray-200 bg-white/95 p-6 shadow-xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-col items-center text-center">
           <div className="relative flex h-14 w-14 items-center justify-center">
             <span className="absolute inset-0 animate-ping rounded-2xl bg-violet-400/40" />

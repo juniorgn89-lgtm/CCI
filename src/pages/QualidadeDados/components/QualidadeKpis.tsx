@@ -43,7 +43,7 @@ const SEV = {
 const SeverityCard = ({ kind, value, total }: { kind: keyof typeof SEV; value: number | null; total: number }) => {
   const s = SEV[kind]
   return (
-    <div className={cn('relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900', s.border)}>
+    <div className={cn('relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', s.border)}>
       <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: s.accent }} />
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{s.label}</p>

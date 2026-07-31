@@ -124,7 +124,7 @@ const ShareReportButton = ({ filename, build, label = 'Compartilhar', className 
           aria-label="Pré-visualização do PDF"
         >
           <div
-            className="flex h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+            className="flex h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">

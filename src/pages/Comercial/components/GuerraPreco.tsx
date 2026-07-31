@@ -531,7 +531,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
 
           {/* ── Preço vs praça (concorrência manual) ── */}
           {vsPraca && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Seu preço vs praça</h4>
@@ -692,7 +692,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
                 { l: 'Volume', a: sim.baseline.litros, d: sim.semReacao.litros, fmt: (v: number) => formatLiters(v), muda: false },
               ]
               return (
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-transparent">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
                     <h5 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Projeção do mês {horizonte.labelShort}</h5>
@@ -798,7 +798,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
           {MOSTRAR_ELASTICIDADE && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {/* Curva de elasticidade */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Volume extra por corte</h4>
@@ -851,7 +851,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
             </div>
 
             {/* Alertas inteligentes */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-amber-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Alertas inteligentes</h4>
@@ -884,7 +884,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
 
           {/* ── Cortes de preço ── */}
           {cortes.length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
                 <TrendingDown className="h-4 w-4 text-red-500" />
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cortes de preço no período</h4>
@@ -932,7 +932,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
 
           {/* ── Evolução diária (colapsável — detalhe técnico) ── (oculta a pedido) */}
           {MOSTRAR_EVOLUCAO_DIARIA && (
-          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <button
               type="button"
               onClick={() => setShowTabela((v) => !v)}
@@ -1015,7 +1015,7 @@ const RecomendacaoPreco = ({ rec, fuel, numeros }: { rec: RecVM; fuel: string; n
   const t = TONE[rec.tone]
   return (
     <div className={cn(
-      'relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-lg dark:border-gray-700 dark:bg-gray-900',
+      'relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-lg dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
       t.glow,
     )}>
       <div className={cn('pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br blur-3xl', t.grad)} />
@@ -1061,7 +1061,7 @@ const RecomendacaoPreco = ({ rec, fuel, numeros }: { rec: RecVM; fuel: string; n
 }
 
 const SimStat = ({ label, value, from, foot, tone, help }: { label: string; value: string; from?: string; foot?: string; tone?: Tone; help: string }) => (
-  <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-gray-900">
+  <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-transparent">
     <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
       {label}
       <InfoHint text={help} />
@@ -1104,7 +1104,7 @@ const CenarioCard = ({ c }: { c: CenarioVM }) => {
   const t = TONE[c.tone]
   const r = TONE[c.risco]
   return (
-    <div className={cn('relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900')}>
+    <div className={cn('relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black')}>
       <div className={cn('absolute inset-x-0 top-0 h-1', t.bar)} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">

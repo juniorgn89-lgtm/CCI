@@ -185,7 +185,7 @@ const ConvenienciaVisaoGeral = ({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                 <tr>
                   <HeaderHint align="left" label="Categoria" help="Grupo do produto (cadastrado no Quality)." />
                   <HeaderHint label="Unidades" help="Total de unidades vendidas na categoria." />
@@ -363,7 +363,7 @@ const ConvenienciaVisaoGeral = ({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+              <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                 <tr>
                   <HeaderHint align="left" label="Ref." help="Código de referência (SKU) do produto." />
                   <HeaderHint align="left" label="Produto" help="Nome do produto vendido." />

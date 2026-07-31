@@ -52,7 +52,7 @@ const SelectCompanyState = () => {
                 key={e.codigo}
                 type="button"
                 onClick={() => setEmpresas([e.codigo])}
-                className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left transition-all hover:border-[#2563eb] hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-blue-600"
+                className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left transition-all hover:border-[#2563eb] hover:shadow-md dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black dark:hover:border-blue-600"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2563eb] transition-colors group-hover:bg-[#2563eb] group-hover:text-white dark:bg-blue-950/40">
                   <Store className="h-4 w-4" />

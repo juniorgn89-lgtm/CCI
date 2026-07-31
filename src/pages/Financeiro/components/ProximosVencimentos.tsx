@@ -53,7 +53,7 @@ const ProximosVencimentos = ({ receivables, payables, duplicatas }: Props) => {
   const alerta = j7 && j7.pagar - j7.receber > 0.005 ? j7.pagar - j7.receber : 0
 
   return (
-    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-1.5">
         <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Próximos vencimentos</h3>
         <InfoHint text="Saldo a vencer somado por janela (próximos 7/15/30 dias), comparando o que entra (receber) com o que sai (pagar)." align="start" />

@@ -101,7 +101,7 @@ const BucketCard = ({
 }) => {
   const st = TONE[tone]
   return (
-    <section className={cn('flex flex-col rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900', st.ring)}>
+    <section className={cn('flex flex-col rounded-2xl border bg-white p-5 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', st.ring)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{title}</p>
@@ -183,7 +183,7 @@ const CompDonut = ({ title, total, items }: { title: string; total: number; item
   const ct = useChartTheme()
   const data = items.filter((i) => i.total > 0)
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{title}</p>
       {data.length === 0 || total <= 0 ? (
         <div className="flex h-[120px] items-center justify-center text-xs text-gray-400">Nada em aberto.</div>
@@ -273,7 +273,7 @@ const AgingBar = ({ label, buckets }: { label: string; buckets: AgingBuckets }) 
 
 /** Card "Tempo de atraso": barras de aging pra receber (clientes) e a pagar. */
 const AgingCard = ({ receber, pagar }: { receber: AgingBuckets; pagar: AgingBuckets }) => (
-  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Tempo de atraso</p>
     <p className="mt-0.5 text-[11px] text-gray-400">Onde está o vencido — e há quanto tempo.</p>
     <div className="mt-3 space-y-3">

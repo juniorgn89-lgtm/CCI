@@ -85,7 +85,7 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
 
             <div className="-mx-6 flex-1 overflow-auto px-6">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white dark:bg-gray-900">
+                <thead className="sticky top-0 bg-white dark:bg-transparent">
                   <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                     <th className="px-4 py-2 text-left">Produto</th>
                     <th className="px-4 py-2 text-right">Qtd</th>

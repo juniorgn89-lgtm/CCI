@@ -54,7 +54,7 @@ const PodiumCard = ({ title, Icon, items, fmt, contexto }: {
   const [first, second, third] = items
   const rest = [second, third].filter(Boolean) as Podio[]
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
       <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
         <Icon className="h-4 w-4 text-gray-400" />
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
@@ -178,7 +178,7 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
       </div>
 
       {/* Tabela da equipe */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.02]">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Equipe · {postoNome ?? 'posto'}</h3>
