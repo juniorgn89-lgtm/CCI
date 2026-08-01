@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, AlertOctagon } from 'lucide-react'
 import DataTable, { type Column } from '@/components/tables/DataTable'
 import InfoHint from '@/components/ui/InfoHint'
+import CaduHint from '@/components/cadu/CaduHint'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
@@ -201,6 +202,11 @@ const NecessidadeEstoque = ({ data, categorias, coberturaDias, janelaDias, onCob
           <p className="text-[10px] text-gray-500">{totals.aComprar} produtos · {fmtUnidades(totals.totalUnidades)} unidades</p>
         </div>
       </div>
+
+      <CaduHint
+        exemplos={['Quero 5 produtos parados há mais de 90 dias no meu estoque pra montar uma promoção.']}
+        storageKey="cadu-hint:estoques-necessidade"
+      />
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
