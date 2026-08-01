@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound } from 'lucide-react'
+import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
@@ -452,7 +453,7 @@ const Usuarios = () => {
                       <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
                       <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
                       <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
-                      <th className="w-24 px-3 py-2.5 text-right font-medium">Ações</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1062,9 +1063,11 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
       {/* Ações — inativar/ativar + excluir (desabilitadas pra você mesmo e master) */}
       <td className="px-4 py-3 text-right">
         <div className="inline-flex items-center gap-1.5">
-          <button
-            onClick={onToggleAtivo}
+          <RowActionButton
+            icon={inativo ? UserCheck : UserX}
+            label={inativo ? 'Reativar' : 'Inativar'}
             disabled={busy || isSelf || p.is_master}
+            onClick={onToggleAtivo}
             title={
               isSelf
                 ? 'Você não pode inativar a própria conta'
@@ -1073,34 +1076,21 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                   : inativo ? 'Reativar usuário' : 'Inativar usuário (bloqueia acesso, preserva o registro)'
             }
             aria-label={`${inativo ? 'Reativar' : 'Inativar'} ${p.full_name || p.email}`}
-            className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
-              (busy || isSelf || p.is_master)
-                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
-                : inativo
-                  ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-400 dark:hover:bg-emerald-900/20'
-                  : 'border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-400 dark:hover:bg-amber-900/20',
-            )}
-          >
-            {inativo ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={onResetSenha}
+          />
+          <RowActionButton
+            icon={KeyRound}
+            label="Resetar senha"
             disabled={busy}
+            onClick={onResetSenha}
             title={`Enviar link de redefinição de senha para ${p.email}`}
             aria-label={`Enviar redefinição de senha para ${p.full_name || p.email}`}
-            className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
-              busy
-                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
-                : 'border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-400 dark:hover:bg-blue-900/20',
-            )}
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={onDelete}
+          />
+          <RowActionButton
+            icon={Trash2}
+            label="Excluir"
+            tone="danger"
             disabled={busy || isSelf || p.is_master}
+            onClick={onDelete}
             title={
               isSelf
                 ? 'Você não pode excluir a própria conta'
@@ -1109,15 +1099,7 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                   : 'Excluir usuário'
             }
             aria-label={`Excluir ${p.full_name || p.email}`}
-            className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
-              (busy || isSelf || p.is_master)
-                ? 'cursor-not-allowed border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'
-                : 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20',
-            )}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
       </td>
     </tr>

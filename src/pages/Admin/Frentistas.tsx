@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Users, Plus, ArrowLeft, X, Loader2, Trash2, Search, Network, KeyRound, Info } from 'lucide-react'
+import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
   fetchFrentistas,
@@ -498,7 +499,7 @@ const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete, onResetPin }: 
         <th className="px-4 py-2.5 text-left font-medium">Nome</th>
         <th className="px-4 py-2.5 text-left font-medium">Posto</th>
         <th className="px-4 py-2.5 text-center font-medium">Status</th>
-        <th className="w-24 px-4 py-2.5 text-right font-medium">Ações</th>
+        <th className="px-4 py-2.5 text-right font-medium">Ação</th>
       </tr>
     </thead>
     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -545,30 +546,10 @@ const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete, onResetPin }: 
             </td>
             <td className="px-4 py-3">
               <div className="flex items-center justify-end gap-1">
-                <button
-                  onClick={() => onResetPin(f)}
-                  disabled={busy}
-                  title={`Resetar PIN para "${pinFromNome(f.nome) || '—'}" (3 primeiras letras do nome)`}
-                  aria-label={`Resetar PIN de ${f.nome}`}
-                  className={cn(
-                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400',
-                    busy && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(f)}
-                  disabled={busy}
-                  title="Excluir frentista"
-                  aria-label={`Excluir ${f.nome}`}
-                  className={cn(
-                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400',
-                    busy && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <RowActionButton icon={KeyRound} label="Resetar PIN" disabled={busy} onClick={() => onResetPin(f)}
+                  title={`Resetar PIN para "${pinFromNome(f.nome) || '—'}" (3 primeiras letras do nome)`} aria-label={`Resetar PIN de ${f.nome}`} />
+                <RowActionButton icon={Trash2} label="Excluir" tone="danger" disabled={busy} onClick={() => onDelete(f)}
+                  title="Excluir frentista" aria-label={`Excluir ${f.nome}`} />
               </div>
             </td>
           </tr>

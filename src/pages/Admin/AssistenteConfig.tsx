@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import RowActionButton from '@/components/tables/RowAction'
 import {
   Sparkles,
   ArrowLeft,
@@ -238,7 +239,7 @@ const AssistenteConfig = () => {
                   <th className="px-3 py-2 text-left font-medium">Tier</th>
                   <th className="px-3 py-2 text-right font-medium">Limite mensal</th>
                   <th className="px-3 py-2 text-left font-medium">Contato</th>
-                  <th className="px-3 py-2 text-right font-medium">Ações</th>
+                  <th className="px-3 py-2 text-right font-medium">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -300,13 +301,7 @@ const AssistenteConfig = () => {
                         {rede.assistente_contato_email || <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => setEditingRede(rede)}
-                          className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          Configurar
-                        </button>
+                        <RowActionButton icon={Edit3} label="Configurar" onClick={() => setEditingRede(rede)} />
                       </td>
                     </tr>
                   )

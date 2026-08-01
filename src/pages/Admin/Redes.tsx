@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search } from 'lucide-react'
+import RowActionButton from '@/components/tables/RowAction'
 import {
   fetchRedes,
   createRede,
@@ -162,7 +163,7 @@ const Redes = () => {
                 <th className="px-4 py-2.5 text-left font-medium">Nome</th>
                 <th className="px-4 py-2.5 text-left font-medium">CHAVE</th>
                 <th className="px-4 py-2.5 text-center font-medium">Status</th>
-                <th className="px-4 py-2.5 text-right font-medium">Ações</th>
+                <th className="px-4 py-2.5 text-right font-medium">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -288,21 +289,8 @@ const RedeRowComp = ({
       </td>
       <td className="px-4 py-3 text-right">
         <div className="inline-flex items-center gap-1.5">
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            <Edit2 className="h-3 w-3" />
-            Editar
-          </button>
-          <button
-            onClick={onDelete}
-            title="Excluir rede"
-            className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"
-          >
-            <Trash2 className="h-3 w-3" />
-            Excluir
-          </button>
+          <RowActionButton icon={Edit2} label="Editar" onClick={onEdit} />
+          <RowActionButton icon={Trash2} label="Excluir" tone="danger" onClick={onDelete} title="Excluir rede" />
         </div>
       </td>
     </tr>

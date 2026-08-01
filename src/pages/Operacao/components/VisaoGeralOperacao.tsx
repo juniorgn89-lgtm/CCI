@@ -342,15 +342,9 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {canReabastecimento && (
-                      <button type="button" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'reabastecimento') }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                        <Fuel className="h-3.5 w-3.5" />Ver tanques no Reabastecimento
-                      </button>
+                      <RowActionButton icon={Fuel} label="Ver tanques no Reabastecimento" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'reabastecimento') }} />
                     )}
-                    <button type="button" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'bombas') }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                      <LineChart className="h-3.5 w-3.5" />Analisar em Bombas
-                    </button>
+                    <RowActionButton icon={LineChart} label="Analisar em Bombas" onClick={() => { setModalPosto(null); onOpenPosto(r.codigo, 'bombas') }} />
                   </div>
                   {linhas.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-[12px] text-gray-400 dark:border-gray-700">Sem tanques cadastrados neste posto.</p>
