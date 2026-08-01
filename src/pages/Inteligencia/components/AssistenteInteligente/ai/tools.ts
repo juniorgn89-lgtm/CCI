@@ -2,6 +2,9 @@ import { fetchVendaResumo, fetchVendaItens, fetchVendaCodigosAutorizados } from 
 import { fetchTitulosPagar, fetchTitulosReceber, fetchMovimentosConta } from '@/api/endpoints/financeiro'
 import { fetchAbastecimentos, fetchLmc } from '@/api/endpoints/combustiveis'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
+import { fetchProdutoEstoque, fetchProdutoEstoqueExtrato } from '@/api/endpoints/estoques'
+import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
+import { todayLocal } from '@/lib/period'
 import type { Produto } from '@/api/types/produto'
 import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
@@ -1036,6 +1039,105 @@ const getFluxoCaixa = async (
   }
 }
 
+/* ─── Tool: estoque parado / encalhado (com saldo e SEM venda há N dias) ─── */
+
+const getEstoqueParado = async (
+  ctx: ToolContext,
+  input: { dias_sem_venda?: number; limite?: number; categoria?: 'automotivos' | 'conveniencia'; empresaCodigo?: number[] },
+) => {
+  const empresas = resolveEmpresas(ctx, input.empresaCodigo)
+  if (empresas.length === 0) {
+    return { ok: false, error: 'Estoque é consultado POR POSTO. Me diga qual posto (ou selecione um no filtro) — ex.: "produtos parados no Posto Itapoa".' }
+  }
+  const diasSemVenda = Math.min(Math.max(input.dias_sem_venda ?? 90, 7), 365)
+  const limite = Math.min(input.limite ?? 10, 25)
+
+  // Janela [hoje − diasSemVenda, hoje]. "Parado" = tem saldo E zero venda nela.
+  const hoje = todayLocal()
+  const ini = new Date(`${hoje}T00:00:00`)
+  ini.setDate(ini.getDate() - diasSemVenda)
+  const janelaInicial = `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, '0')}-${String(ini.getDate()).padStart(2, '0')}`
+
+  // Estoque é por posto e pesado (/PRODUTO_ESTOQUE pagina muito) — limita quantos
+  // postos consulta de uma vez pra não estourar. Resultado sempre pequeno.
+  const MAX_POSTOS = 6
+  const postos = empresas.slice(0, MAX_POSTOS)
+  const truncado = empresas.length > MAX_POSTOS
+
+  const produtoMap = await getProdutoMap()
+  const grupoTipo = await getGrupoTipoMap()
+
+  const saldoByProduto = new Map<number, number>()
+  const custoByProduto = new Map<number, number>()
+  const vendidosNaJanela = new Set<number>()
+
+  for (const emp of postos) {
+    const estoqueRaw = await fetchAllPages(
+      (p) => fetchProdutoEstoque({ empresaCodigo: emp, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    )
+    const saldo = saldoAtualPorProduto(estoqueRaw)
+    for (const [cod, s] of saldo) saldoByProduto.set(cod, (saldoByProduto.get(cod) ?? 0) + s)
+
+    const extrato = await fetchAllPages(
+      (p) => fetchProdutoEstoqueExtrato({ empresaCodigo: emp, exibeHistoricoCompra: false, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 20,
+    )
+    for (const e of extrato) {
+      if (!custoByProduto.has(e.produtoCodigo) && (e.precoCusto ?? 0) > 0) custoByProduto.set(e.produtoCodigo, e.precoCusto)
+    }
+
+    const itens = await fetchAllPages(
+      (p) => fetchVendaItens({ empresaCodigo: emp, dataInicial: janelaInicial, dataFinal: hoje, ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
+      1000, 30,
+    )
+    for (const i of itens) {
+      if (isVendaCancelada(i)) continue
+      vendidosNaJanela.add(i.produtoCodigo)
+    }
+  }
+
+  interface Parado { produtoCodigo: number; nome: string; categoria: string; saldo: number; valor: number }
+  const parados: Parado[] = []
+  for (const [cod, saldo] of saldoByProduto) {
+    if (saldo <= 0) continue                       // sem estoque = nada pra promover
+    if (vendidosNaJanela.has(cod)) continue        // vendeu na janela = não está parado
+    const p = produtoMap.get(cod)
+    if (!p) continue
+    if (p.combustivel || p.produtoLmcCodigo > 0) continue        // combustível não é estoque de loja
+    if (p.registraInventario === 'N') continue                  // sem controle de estoque (uso e consumo)
+    const setor = classifySetor(p.tipoProduto, grupoTipo.get(p.grupoCodigo))
+    if (input.categoria === 'automotivos' && setor !== 'automotivos') continue
+    if (input.categoria === 'conveniencia' && setor !== 'conveniencia') continue
+    const custo = custoByProduto.get(cod) ?? 0
+    parados.push({ produtoCodigo: cod, nome: produtoLabel(p, cod), categoria: setor, saldo, valor: saldo * custo })
+  }
+
+  parados.sort((a, b) => b.valor - a.valor)
+  const valorTotal = parados.reduce((s, x) => s + x.valor, 0)
+
+  return {
+    janela_dias: diasSemVenda,
+    criterio: `Produtos COM saldo em estoque e ZERO vendas nos últimos ${diasSemVenda} dias — candidatos a promoção/liquidação. Ordenados pelo capital parado (saldo × custo de cadastro).`,
+    empresas_consultadas: postos,
+    ...(truncado ? { aviso: `O usuário tem acesso a ${empresas.length} postos; consultei os ${MAX_POSTOS} primeiros (estoque é por posto e pesado). Sugira pedir um posto específico pra precisão.` } : {}),
+    total_produtos_parados: parados.length,
+    valor_parado_total: Number(valorTotal.toFixed(2)),
+    valor_parado_total_brl: `R$ ${fmt(valorTotal)}`,
+    produtos: parados.slice(0, limite).map((x) => ({
+      produto: x.nome,
+      produto_codigo: x.produtoCodigo,
+      categoria: x.categoria,
+      saldo_estoque: Number(x.saldo.toFixed(3)),
+      valor_parado: Number(x.valor.toFixed(2)),
+      valor_parado_brl: `R$ ${fmt(x.valor)}`,
+    })),
+    nota: parados.length === 0
+      ? `Nenhum produto com saldo ficou ${diasSemVenda} dias sem vender no(s) posto(s) consultado(s). Sugira reduzir o "dias_sem_venda" ou conferir outro posto.`
+      : 'Capital parado = saldo × custo de cadastro (0 quando não há custo cadastrado). Prioriza os que travam mais dinheiro — bons pra uma promoção.',
+  }
+}
+
 export const TOOL_DEFINITIONS: ClaudeToolDefinition[] = [
   {
     name: 'get_faturamento_periodo',
@@ -1094,6 +1196,28 @@ export const TOOL_DEFINITIONS: ClaudeToolDefinition[] = [
           type: 'array',
           items: { type: 'number' },
           description: 'Lista de códigos de empresa pra filtrar. Opcional — default usa o filtro global.',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_estoque_parado',
+    description:
+      'Retorna produtos ENCALHADOS/PARADOS no estoque: itens COM saldo que tiveram ZERO vendas nos últimos N dias (default 90), ordenados pelo capital parado (saldo × custo de cadastro). Use pra "produtos parados pra montar promoção", "o que está encalhado", "estoque parado há mais de 90 dias", "capital travado na loja/automotivos". Estoque é POR POSTO — se o usuário não especificar, use o posto do escopo; se houver vários, peça um. Filtra por categoria: automotivos (lubrificantes/óleos/filtros/aditivos/palhetas/peças) ou conveniencia (loja). Combustível não entra.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        dias_sem_venda: { type: 'number', description: 'Dias sem NENHUMA venda pra considerar o produto parado. Default 90. Min 7, max 365.' },
+        limite: { type: 'number', description: 'Quantos produtos retornar (max 25). Default 10.' },
+        categoria: {
+          type: 'string',
+          enum: ['automotivos', 'conveniencia'],
+          description: 'Filtra por setor: "automotivos" (loja/pista) ou "conveniencia" (loja de consumo). Omita pra ver os dois.',
+        },
+        empresaCodigo: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Código(s) do posto. Estoque é por posto — informe um. Use get_empresas pra descobrir os códigos.',
         },
       },
     },
@@ -1240,6 +1364,8 @@ export const executeTool = async (
       return getVolumeCombustivel(ctx, input as Parameters<typeof getVolumeCombustivel>[1])
     case 'get_top_produtos':
       return getTopProdutos(ctx, input as Parameters<typeof getTopProdutos>[1])
+    case 'get_estoque_parado':
+      return getEstoqueParado(ctx, input as Parameters<typeof getEstoqueParado>[1])
     case 'get_top_frentistas':
       return getTopFrentistas(ctx, input as Parameters<typeof getTopFrentistas>[1])
     case 'get_ultima_compra_combustivel':
