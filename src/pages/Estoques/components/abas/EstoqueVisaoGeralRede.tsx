@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  Warehouse, Boxes, AlertTriangle, PackageX, ChevronDown, ChevronUp, ChevronRight,
+  Warehouse, Boxes, AlertTriangle, PackageX, ChevronDown, ChevronUp,
   LineChart, Package, RefreshCw, ShoppingCart, TrendingDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
-import useEstoqueRede, { type CriticoRow } from '@/pages/Estoques/hooks/useEstoqueRede'
+import useEstoqueRede from '@/pages/Estoques/hooks/useEstoqueRede'
 
 type SortKey = 'nome' | 'valor' | 'skus' | 'abaixoMinimo' | 'emFalta' | 'negativos'
 type DetailTab = 'geral' | 'giro' | 'necessidade'
@@ -42,13 +42,12 @@ const classify = (r: { hasData: boolean; emFalta: number; negativos: number; aba
 
 /**
  * Visão Geral do Estoque — rede inteira no estilo Central: cards de rede +
- * tabela por posto RANQUEADA por valor em estoque (heatmap), linha expansível
- * com os produtos críticos do posto (drill) e menu Analisar que leva ao detalhe
- * (Estoque geral / Giro / Necessidade). Só leitura; estoque é ao vivo por posto
- * (sem cache) — posto sem retorno = "—".
+ * tabela por posto RANQUEADA por valor em estoque (heatmap) e menu Analisar que
+ * leva ao detalhe (Estoque geral / Giro / Necessidade). Só leitura; estoque é ao
+ * vivo por posto (sem cache) — posto sem retorno = "—".
  */
 const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
-  const { byPosto, criticosByPosto, isLoading, hasData } = useEstoqueRede(postos)
+  const { byPosto, isLoading, hasData } = useEstoqueRede(postos)
 
   const rows: VgRow[] = useMemo(() => postos.map((p) => {
     const d = byPosto.get(p.codigo)
@@ -97,14 +96,6 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
     return arr
   }, [rows, sortKey, sortDir])
 
-  const [aberto, setAberto] = useState<Set<number>>(new Set())
-  const toggleAberto = (cod: number) => setAberto((prev) => {
-    const next = new Set(prev)
-    if (next.has(cod)) next.delete(cod)
-    else next.add(cod)
-    return next
-  })
-
   if (isLoading && !hasData) {
     return (
       <div className="space-y-4">
@@ -126,8 +117,6 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
       </div>
     )
   }
-
-  const COLS = 8
 
   return (
     <div className="space-y-4">
@@ -153,7 +142,7 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Estoque por posto</h3>
-          <InfoHint text="Cada linha = um posto, ranqueado pelo valor parado em estoque. Clique na linha pra ver os produtos críticos; use Analisar pra ir ao detalhe do posto." />
+          <InfoHint text="Cada linha = um posto, ranqueado pelo valor parado em estoque. Use Analisar pra ir ao detalhe do posto (estoque geral, giro ou necessidade)." />
         </div>
         <table className="w-full text-[13px]">
           <thead>
@@ -176,72 +165,44 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
           </thead>
           <tbody>
             {rowsSorted.map((r) => {
-              const isOpen = aberto.has(r.codigo)
-              const criticos = criticosByPosto.get(r.codigo) ?? []
               const semDado = !r.hasData
               return (
-                <Fragment key={r.codigo}>
-                  <tr onClick={() => toggleAberto(r.codigo)}
-                    className="group cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40 dark:border-gray-800 dark:hover:bg-blue-950/20">
-                    <td className="py-2.5 pl-4 pr-3">
-                      <div className="flex items-center gap-2">
-                        <ChevronRight className={cn('h-4 w-4 shrink-0 text-gray-300 transition-transform dark:text-gray-600', isOpen && 'rotate-90 text-[#2563eb] dark:text-blue-400')} />
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{r.nome}</span>
-                      </div>
-                    </td>
-                    <td className="border-l border-gray-100 px-2 py-1.5 dark:border-gray-800">
-                      {semDado
-                        ? <span className="block px-1.5 text-right text-gray-400">—</span>
-                        : <BarCell value={r.valor} max={maxValor} formatted={formatCurrencyInt(r.valor)} color="blue" align="near" maxWidthPct={70} />}
-                    </td>
-                    <td className="border-l border-gray-100 px-3 py-2.5 text-right tabular-nums text-gray-700 dark:border-gray-800 dark:text-gray-200">{semDado ? '—' : formatNumber(r.skus)}</td>
-                    <td className={cn('px-3 py-2.5 text-right tabular-nums', r.abaixoMinimo > 0 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.abaixoMinimo)}</td>
-                    <td className={cn('px-3 py-2.5 text-right tabular-nums', r.emFalta > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.emFalta)}</td>
-                    <td className={cn('px-3 py-2.5 text-right tabular-nums', r.negativos > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.negativos)}</td>
-                    <td className="border-l border-gray-100 px-3 py-2.5 text-center dark:border-gray-800"><StatusPill status={r.status} /></td>
-                    <td className="py-2.5 pl-3 pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button type="button"
-                            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                            <LineChart className="h-3.5 w-3.5" />Analisar<ChevronDown className="h-3 w-3 opacity-70" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'geral')}>
-                            <Package className="h-3.5 w-3.5 text-gray-500" />Estoque geral
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'giro')}>
-                            <RefreshCw className="h-3.5 w-3.5 text-gray-500" />Giro
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'necessidade')}>
-                            <ShoppingCart className="h-3.5 w-3.5 text-gray-500" />Necessidade
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                  {isOpen && (
-                    <tr className="bg-gray-50/50 dark:bg-gray-800/20">
-                      <td colSpan={COLS} className="px-4 py-3">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            <AlertTriangle className="h-3.5 w-3.5" />Produtos críticos · {r.nome}
-                          </p>
-                          <button type="button" onClick={() => onOpenPosto(r.codigo, 'necessidade')}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#2563eb] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#2563eb] transition-colors hover:bg-blue-50 dark:border-blue-500 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-950/30">
-                            <ShoppingCart className="h-3.5 w-3.5" />Analisar em Necessidade
-                          </button>
-                        </div>
-                        {criticos.length === 0 ? (
-                          <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-[12px] text-gray-400 dark:border-gray-700">Sem produtos críticos neste posto.</p>
-                        ) : (
-                          <CriticosTable rows={criticos} />
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr key={r.codigo} className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="py-2.5 pl-4 pr-3">
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{r.nome}</span>
+                  </td>
+                  <td className="border-l border-gray-100 px-2 py-1.5 dark:border-gray-800">
+                    {semDado
+                      ? <span className="block px-1.5 text-right text-gray-400">—</span>
+                      : <BarCell value={r.valor} max={maxValor} formatted={formatCurrencyInt(r.valor)} color="blue" align="near" maxWidthPct={70} />}
+                  </td>
+                  <td className="border-l border-gray-100 px-3 py-2.5 text-right tabular-nums text-gray-700 dark:border-gray-800 dark:text-gray-200">{semDado ? '—' : formatNumber(r.skus)}</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', r.abaixoMinimo > 0 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.abaixoMinimo)}</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', r.emFalta > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.emFalta)}</td>
+                  <td className={cn('px-3 py-2.5 text-right tabular-nums', r.negativos > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200')}>{semDado ? '—' : formatNumber(r.negativos)}</td>
+                  <td className="border-l border-gray-100 px-3 py-2.5 text-center dark:border-gray-800"><StatusPill status={r.status} /></td>
+                  <td className="py-2.5 pl-3 pr-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button"
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
+                          <LineChart className="h-3.5 w-3.5" />Analisar<ChevronDown className="h-3 w-3 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'geral')}>
+                          <Package className="h-3.5 w-3.5 text-gray-500" />Estoque geral
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'giro')}>
+                          <RefreshCw className="h-3.5 w-3.5 text-gray-500" />Giro
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'necessidade')}>
+                          <ShoppingCart className="h-3.5 w-3.5 text-gray-500" />Necessidade
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
               )
             })}
           </tbody>
@@ -263,43 +224,6 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
       </div>
     </div>
   )
-}
-
-/** Produtos críticos de um posto (drill) — saldo, mínimo e situação. */
-const CriticosTable = ({ rows }: { rows: CriticoRow[] }) => (
-  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-    <table className="w-full text-xs">
-      <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
-        <tr>
-          <th className="px-3 py-2 text-left font-medium">Produto</th>
-          <th className="px-3 py-2 text-left font-medium">Categoria</th>
-          <th className="px-3 py-2 text-right font-medium">Saldo</th>
-          <th className="px-3 py-2 text-right font-medium">Mínimo</th>
-          <th className="px-3 py-2 text-right font-medium">Situação</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-        {rows.map((r) => (
-          <tr key={r.produtoCodigo} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-            <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">{r.nome}</td>
-            <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{r.categoria}</td>
-            <td className={cn('px-3 py-2 text-right tabular-nums', r.saldo < 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300')}>{formatNumber(r.saldo)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{r.minimo > 0 ? formatNumber(r.minimo) : '—'}</td>
-            <td className="px-3 py-2 text-right"><SituacaoBadge situacao={r.situacao} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)
-
-const SituacaoBadge = ({ situacao }: { situacao: CriticoRow['situacao'] }) => {
-  const cfg = {
-    negativo: { label: 'Negativo', cls: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
-    emFalta: { label: 'Em falta', cls: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
-    abaixoMinimo: { label: 'Abaixo do mín.', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
-  }[situacao]
-  return <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold', cfg.cls)}>{cfg.label}</span>
 }
 
 const StatusPill = ({ status }: { status: PostoStatus }) => {
