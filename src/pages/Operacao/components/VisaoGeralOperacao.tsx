@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, CircleDollarSign, LineChart, Trophy, Warehouse, Gauge, MousePointerClick } from 'lucide-react'
+import { Droplets, AlertTriangle, Fuel, ChevronDown, ChevronUp, CircleDollarSign, LineChart, Trophy, Warehouse, Gauge, MousePointerClick, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -15,6 +15,7 @@ import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
 import useAfericoesCache from '@/pages/Operacao/hooks/useAfericoesCache'
 import AfericoesCard from '@/pages/QualidadeDados/components/AfericoesCard'
 import AfericoesRedeResumo from '@/pages/Operacao/components/AfericoesRedeResumo'
+import { buildAfericoesResumo, type AfericoesGrupo } from '@/lib/afericoes'
 
 type StatusKind = 'critico' | 'atencao' | 'ok' | 'sem-dado'
 type SortKey = 'nome' | 'litros' | 'faturamento' | 'reposicao' | 'status'
@@ -147,6 +148,14 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
     () => (modalPosto == null ? [] : afericoesRede.filter((a) => a.empresaCodigo === modalPosto)),
     [afericoesRede, modalPosto],
   )
+  // Aferições por posto (contagem/litros/atípico) pra coluna da tabela. Mesma
+  // fonte do resumo do topo — buildAfericoesResumo().porPosto.
+  const aferResumo = useMemo(() => buildAfericoesResumo(afericoesRede), [afericoesRede])
+  const afericoesByPosto = useMemo(() => {
+    const m = new Map<number, AfericoesGrupo>()
+    for (const p of aferResumo.porPosto) m.set(Number(p.chave), p)
+    return m
+  }, [aferResumo])
 
   const loading = (fuelLoading || tankLoading) && rows.every((r) => r.litros === 0 && r.tanques === 0)
   if (loading) {
@@ -206,6 +215,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
               <th className="py-1.5" />
               <GroupTh first label="Combustível" colSpan={2} />
               <GroupTh label="Tanques" colSpan={2} />
+              <GroupTh label="Aferições" colSpan={1} />
               <GroupTh label="Situação" colSpan={2} />
             </tr>
             {/* Linha de colunas */}
@@ -215,6 +225,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
               <SortTh label="Faturamento" k="faturamento" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
               <th className="border-l border-gray-200 py-2 px-3 dark:border-gray-700">Por status</th>
               <SortTh label="Reposição" k="reposicao" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" className="py-2 px-3" />
+              <th className="border-l border-gray-200 py-2 px-3 dark:border-gray-700">Aferições</th>
               <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="border-l border-gray-200 py-2 px-3 dark:border-gray-700" />
               <th className="py-2 pl-3 pr-4 text-right">Ação</th>
             </tr>
@@ -253,6 +264,22 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-200">{r.reposicao > 0 ? formatLiters(r.reposicao) : '—'}</td>
+                    <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800">
+                      {(() => {
+                        const afer = afericoesByPosto.get(r.codigo)
+                        if (!afer || afer.count === 0) return <span className="text-[11px] text-gray-400">—</span>
+                        return (
+                          <span
+                            className={cn('inline-flex items-center gap-1 text-[12px] tabular-nums', afer.atipico ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-300')}
+                            title={afer.atipico ? 'Volume fora do padrão ou concentração alta — vale revisar' : 'Aferições (teste de bomba) no período'}
+                          >
+                            {afer.atipico ? <AlertTriangle className="h-3 w-3 shrink-0" /> : <FlaskConical className="h-3 w-3 shrink-0 text-gray-400" />}
+                            {afer.count}
+                            <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500">· {formatLiters(afer.litros)}</span>
+                          </span>
+                        )
+                      })()}
+                    </td>
                     <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800">
                       <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold', sm.cls)}>{sm.label}</span>
                     </td>
@@ -293,6 +320,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                 <td className="px-3 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{hasCache ? formatCurrencyInt(totais.faturamento) : '—'}</td>
                 <td className="border-l border-gray-100 px-3 py-2.5 text-[11px] text-gray-400 dark:border-gray-800">{formatNumber(totais.tanques)} tanques</td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatLiters(totais.reposicao)}</td>
+                <td className="border-l border-gray-100 px-3 py-2.5 text-[12px] tabular-nums text-gray-700 dark:border-gray-800 dark:text-gray-200">{aferResumo.count > 0 ? formatNumber(aferResumo.count) : '—'}</td>
                 <td className="border-l border-gray-100 px-3 py-2.5 dark:border-gray-800" colSpan={2} />
               </tr>
             </tfoot>
@@ -303,7 +331,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
       {/* Detalhe do posto num MODAL — Reposição por combustível (o drill por tanque
           continua inline DENTRO da ReposicaoTabela). */}
       <Dialog open={modalPosto != null} onOpenChange={(o) => { if (!o) setModalPosto(null) }}>
-        <DialogContent className="max-h-[88vh] w-[95vw] max-w-4xl overflow-y-auto bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+        <DialogContent className="max-h-[88vh] w-[95vw] max-w-6xl overflow-y-auto bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           {(() => {
             const r = rowsSorted.find((x) => x.codigo === modalPosto)
             if (!r) return null

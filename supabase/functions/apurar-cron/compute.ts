@@ -525,7 +525,9 @@ export const afericaoToCacheRow = (
   rede_id: redeId,
   empresa_codigo: a.empresaCodigo,
   abastecimento_codigo: a.abastecimentoCodigo || a.codigo,
-  data_fiscal: a.dataFiscal || null,
+  // Aferição NÃO tem data fiscal — cai pra data do abastecimento físico, senão
+  // data_fiscal fica null e o leitor (que filtra por data_fiscal) não acha.
+  data_fiscal: (a.dataFiscal || a.dataHoraAbastecimento || '').slice(0, 10) || null,
   data_hora_abastecimento: a.dataHoraAbastecimento || null,
   codigo_produto: a.codigoProduto || null,
   codigo_frentista: a.codigoFrentista || null,

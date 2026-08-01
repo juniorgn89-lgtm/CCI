@@ -140,7 +140,7 @@ const AfericoesCard = ({ rows, isLoading }: Props) => {
 
       {/* Modal de detalhe — aferições individuais do grupo clicado */}
       <Dialog open={sel !== null} onOpenChange={(o) => { if (!o) setSel(null) }}>
-        <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"><FlaskConical className="h-4 w-4" /></span>
