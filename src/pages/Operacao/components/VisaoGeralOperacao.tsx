@@ -13,7 +13,7 @@ import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
 import { aggregarPorProduto, calcularMaxes, type ReposicaoLinha } from '@/pages/Dashboard/components/reposicao'
 import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
 import useAfericoesCache from '@/pages/Operacao/hooks/useAfericoesCache'
-import AfericoesCard from '@/pages/QualidadeDados/components/AfericoesCard'
+import AfericoesCard from '@/pages/Operacao/components/AfericoesCard'
 import AfericoesRedeResumo from '@/pages/Operacao/components/AfericoesRedeResumo'
 import { buildAfericoesResumo, type AfericoesGrupo } from '@/lib/afericoes'
 

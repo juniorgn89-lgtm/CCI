@@ -9,7 +9,7 @@ import { fetchCaixas, fetchTitulosReceber, fetchTitulosPagar, fetchCartao } from
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchClientes } from '@/api/endpoints/clientes'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
-import useAbastecimentosAnalytics, { type AbastecimentoRow, type AfericaoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import useAbastecimentosAnalytics, { type AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
 import type { Caixa, TituloReceber, TituloPagar } from '@/api/types/financeiro'
 import type { VendaItem } from '@/api/types/venda'
@@ -114,7 +114,6 @@ export interface QualidadeData {
   caixa: QualidadeIssue[]
   estoque: QualidadeIssue[]
   financeiro: QualidadeIssue[]
-  afericoes: AfericaoRow[]
   totalIssues: number
   totalCriticos: number
   totalAtencao: number
@@ -146,7 +145,7 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
   const hasEmpresa = empresaCodigo !== null
 
   // Reaproveita cache do módulo Vendas/Operação
-  const { rows: abastRows, afericoes, inconsistenciasFuturas, isLoading: isLoadingAbast } = useAbastecimentosAnalytics()
+  const { rows: abastRows, inconsistenciasFuturas, isLoading: isLoadingAbast } = useAbastecimentosAnalytics()
 
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
@@ -776,8 +775,6 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
     caixa,
     estoque,
     financeiro,
-    // Linhas cruas de aferição — o card computa o resumo (via lib compartilhado).
-    afericoes,
     totalIssues,
     totalCriticos,
     totalAtencao,
