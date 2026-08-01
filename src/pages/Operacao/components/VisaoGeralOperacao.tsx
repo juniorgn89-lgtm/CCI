@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import BarCell from '@/components/tables/BarCell'
+import RowActionButton from '@/components/tables/RowAction'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
 import ReposicaoTabela from '@/pages/Dashboard/components/ReposicaoTabela'
@@ -287,10 +288,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                       {canReabastecimento ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button type="button"
-                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                              <LineChart className="h-3.5 w-3.5" />Analisar<ChevronDown className="h-3 w-3 opacity-70" />
-                            </button>
+                            <RowActionButton icon={LineChart} label="Analisar" trailingIcon={ChevronDown} />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'bombas')}>
@@ -302,10 +300,7 @@ const VisaoGeralOperacao = ({ postos, onOpenPosto, canReabastecimento }: Props) 
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : (
-                        <button type="button" onClick={() => onOpenPosto(r.codigo, 'bombas')}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                          <LineChart className="h-3.5 w-3.5" />Analisar
-                        </button>
+                        <RowActionButton icon={LineChart} label="Analisar" onClick={() => onOpenPosto(r.codigo, 'bombas')} />
                       )}
                     </td>
                   </tr>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Inbox, RotateCcw, Search } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import RowActionButton from '@/components/tables/RowAction'
 import type { ArquivadoRow } from '@/api/supabase/qualidadeArquivados'
 
 interface ArquivadosViewProps {
@@ -163,15 +164,13 @@ const ArquivadosView = ({ arquivados, isLoading, onReabrir }: ArquivadosViewProp
                       </td>
                       <td className="px-3 py-2 text-right">
                         {isAtivo && (
-                          <button
-                            type="button"
-                            onClick={() => handleReabrir(a.id)}
+                          <RowActionButton
+                            icon={RotateCcw}
+                            iconClassName={cn(reabrindo === a.id && 'animate-spin')}
+                            label={reabrindo === a.id ? 'Reabrindo...' : 'Reabrir'}
                             disabled={reabrindo === a.id}
-                            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-300"
-                          >
-                            <RotateCcw className={cn('h-3 w-3', reabrindo === a.id && 'animate-spin')} />
-                            {reabrindo === a.id ? 'Reabrindo...' : 'Reabrir'}
-                          </button>
+                            onClick={() => handleReabrir(a.id)}
+                          />
                         )}
                       </td>
                     </tr>

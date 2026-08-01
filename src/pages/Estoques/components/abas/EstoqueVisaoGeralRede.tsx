@@ -8,6 +8,7 @@ import { formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
+import RowActionButton from '@/components/tables/RowAction'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { PostoOption } from '@/components/filters/PostoLocalSelect'
 import useEstoqueRede from '@/pages/Estoques/hooks/useEstoqueRede'
@@ -184,10 +185,7 @@ const EstoqueVisaoGeralRede = ({ postos, onOpenPosto }: Props) => {
                   <td className="py-2.5 pl-3 pr-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300">
-                          <LineChart className="h-3.5 w-3.5" />Analisar<ChevronDown className="h-3 w-3 opacity-70" />
-                        </button>
+                        <RowActionButton icon={LineChart} label="Analisar" trailingIcon={ChevronDown} />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem className="gap-2 text-[13px]" onSelect={() => onOpenPosto(r.codigo, 'geral')}>

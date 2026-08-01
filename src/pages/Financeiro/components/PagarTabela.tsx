@@ -7,6 +7,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import RowActionButton from '@/components/tables/RowAction'
 import ShareReportButton from '@/components/feedback/ShareReportButton'
 import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -490,7 +491,7 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
               <th className="py-2 px-3 text-right">A pagar</th>
               <th className="py-2 px-3">Vencimento</th>
               <th className="py-2 px-3">Status</th>
-              <th className="py-2 pl-3 text-right">Ações</th>
+              <th className="py-2 pl-3 text-right">Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -544,11 +545,7 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
                       </span>
                     </td>
                     <td className="py-2.5 pl-3 text-right">
-                      <button type="button" onClick={() => setDetalhe(aberto ? null : r.key)} title="Ver detalhe" aria-label="Ver detalhe"
-                        className={cn('inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors',
-                          aberto ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200')}>
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <RowActionButton icon={Eye} label={aberto ? 'Ocultar' : 'Ver detalhe'} onClick={() => setDetalhe(aberto ? null : r.key)} />
                     </td>
                   </tr>
                   {aberto && (
