@@ -155,20 +155,32 @@ const NOMES = [
   'Gustavo Dias', 'Rodrigo Castro', 'Vitor Barbosa', 'Paulo Freitas', 'Sérgio Pinto', 'Marcelo Cardoso',
   'Fábio Teixeira', 'Ricardo Moraes', 'Eduardo Vieira', 'Henrique Lopes', 'Leandro Cunha', 'Wesley Santos',
 ]
-const mkFunc = (funcionarioCodigo: number, nome: string, empresaCodigo: number) => ({
+const mkFunc = (funcionarioCodigo: number, nome: string, empresaCodigo: number, funcaoCodigo: number) => ({
   codigo: funcionarioCodigo,
   funcionarioCodigo,
   nome,
   empresaCodigo,
-  funcaoCodigo: 1,
+  funcaoCodigo,
   codigoExterno: '',
   dataAdmissao: '2023-01-10',
   dataDemissao: '',
   ativo: true,
 })
+// Cargo por índice (6 por posto): 3 frentistas + trocador + caixa + gerente de
+// pista — dá variedade pro agrupador por função da Produtividade. Casa com FUNCOES.
+const FUNCAO_BY_INDEX = [1, 1, 1, 4, 2, 3]
 export const FRENTISTAS = POSTOS.flatMap((p, pi) =>
-  Array.from({ length: 6 }, (_, i) => mkFunc(p.empresaCodigo * 100 + (i + 1), NOMES[pi * 6 + i], p.empresaCodigo)),
+  Array.from({ length: 6 }, (_, i) => mkFunc(p.empresaCodigo * 100 + (i + 1), NOMES[pi * 6 + i], p.empresaCodigo, FUNCAO_BY_INDEX[i])),
 )
+
+/* ─── Cargos (/FUNCOES) — o `nome` casa com classifyFuncaoRole no front ─── */
+export const FUNCOES = [
+  { codigo: 1, funcaoCodigo: 1, nome: 'FRENTISTA' },
+  { codigo: 2, funcaoCodigo: 2, nome: 'CAIXA' },
+  { codigo: 3, funcaoCodigo: 3, nome: 'GERENTE DE PISTA' },
+  { codigo: 4, funcaoCodigo: 4, nome: 'TROCADOR DE OLEO' },
+  { codigo: 5, funcaoCodigo: 5, nome: 'GERENTE CONVENIENCIA' },
+]
 
 /* ─── Administradoras de cartão ─── */
 const mkAdm = (administradoraCodigo: number, descricao: string, tipo: string, percentualComissao: number, taxaTransacao = 0) => ({
@@ -276,4 +288,21 @@ export const FORMAS_MIX = [
 export const ADM_BY_CODE: Record<number, typeof ADMINISTRADORAS[number]> = Object.fromEntries(
   ADMINISTRADORAS.map((a) => [a.administradoraCodigo, a]),
 )
+
+/* ─── Contas bancárias (/CONTA) — base do "impacto no caixa" do Financeiro ─── */
+export const CONTAS = POSTOS.flatMap((p) => [
+  { codigo: p.empresaCodigo * 10 + 1, empresaCodigo: p.empresaCodigo, contaCodigo: p.empresaCodigo * 10 + 1, descricao: 'Caixa Geral', saldoAtual: 40000 + (p.empresaCodigo % 100) * 850, ativo: true, usaOfx: false },
+  { codigo: p.empresaCodigo * 10 + 2, empresaCodigo: p.empresaCodigo, contaCodigo: p.empresaCodigo * 10 + 2, descricao: 'Banco do Brasil C/C', saldoAtual: 120000 + (p.empresaCodigo % 100) * 1730, ativo: true, usaOfx: true },
+])
+
+/* ─── Plano de contas gerencial (/PLANO_CONTA_GERENCIAL) — código 1 casa com o
+ *  planoContaGerencialCodigo dos títulos a pagar (fin.ts). ─── */
+export const PLANO_CONTA = [
+  { codigo: 1, planoContaCodigo: 1, descricao: 'Compra de Combustível', hierarquia: '2.1', natureza: 'DESPESA', tipo: 'A', apuraDre: true },
+  { codigo: 2, planoContaCodigo: 2, descricao: 'Receita de Combustível', hierarquia: '1.1', natureza: 'RECEITA', tipo: 'A', apuraDre: true },
+  { codigo: 3, planoContaCodigo: 3, descricao: 'Receita de Loja/Conveniência', hierarquia: '1.2', natureza: 'RECEITA', tipo: 'A', apuraDre: true },
+  { codigo: 4, planoContaCodigo: 4, descricao: 'Despesas Operacionais', hierarquia: '2.2', natureza: 'DESPESA', tipo: 'A', apuraDre: true },
+  { codigo: 5, planoContaCodigo: 5, descricao: 'Folha de Pagamento', hierarquia: '2.3', natureza: 'DESPESA', tipo: 'A', apuraDre: true },
+  { codigo: 6, planoContaCodigo: 6, descricao: 'Impostos e Taxas', hierarquia: '2.4', natureza: 'DESPESA', tipo: 'A', apuraDre: true },
+]
 

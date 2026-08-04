@@ -13,6 +13,7 @@
 // ============================================================================
 import {
   POSTOS, PRODUTOS, FRENTISTAS, ADMINISTRADORAS, CLIENTES, BICOS, BOMBAS, GRUPOS, POSTO_CODES,
+  FUNCOES, CONTAS, PLANO_CONTA,
 } from './catalogs.ts'
 import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
@@ -99,6 +100,8 @@ Deno.serve((req: Request): Response => {
       const list = empresaCodigo ? FRENTISTAS.filter((f) => f.empresaCodigo === empresaCodigo) : FRENTISTAS
       return json(paginate(list, (f) => f.funcionarioCodigo, ultimo, limite))
     }
+    case 'FUNCOES':
+      return json(paginate(FUNCOES, (f) => f.funcaoCodigo, ultimo, limite))
     case 'ADMINISTRADORA':
       return json(paginate(ADMINISTRADORAS, (a) => a.administradoraCodigo, ultimo, limite))
     case 'CLIENTE':
@@ -163,6 +166,11 @@ Deno.serve((req: Request): Response => {
         .filter((t) => t.dataMovimento >= di && t.dataMovimento <= df)
       return json(paginate(rows, (t) => t.tituloPagarCodigo, ultimo, limite))
     }
+
+    case 'CONTA':
+      return json(paginate(empresaCodigo ? CONTAS.filter((c) => c.empresaCodigo === empresaCodigo) : CONTAS, (c) => c.contaCodigo, ultimo, limite))
+    case 'PLANO_CONTA_GERENCIAL':
+      return json(paginate(PLANO_CONTA, (p) => p.planoContaCodigo, ultimo, limite))
 
     /* ── Estoque (Fase 4) ── */
     case 'PRODUTO_ESTOQUE': {
