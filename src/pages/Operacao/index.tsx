@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Fuel, LayoutGrid, Building2 } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
+import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
 import { useAuthStore } from '@/store/auth'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -71,16 +72,21 @@ const Operacao = () => {
     : (postos[0]?.codigo ?? null)
 
   // ?tab=reabastecimento sem permissão → cai em Bombas.
-  const activeTab: OperacaoTab = tab === 'reabastecimento' && !canVerReab ? 'bombas' : tab
-
-  if (isMobile) return <OperacaoMobile />
-  if (postos.length === 0) return <SelectCompanyState />
+  const permTab: OperacaoTab = tab === 'reabastecimento' && !canVerReab ? 'bombas' : tab
 
   const tabs: TopBarTab[] = [
     { id: 'geral', label: 'Visão Geral', Icon: LayoutGrid },
     { id: 'bombas', label: 'Bombas', Icon: Gauge },
     ...(canVerReab ? [{ id: 'reabastecimento', label: 'Reabastecimento', Icon: Fuel }] : []),
   ]
+  // Personalização (mostrar/ocultar/reordenar abas) — cai na 1ª visível se a ativa sumiu.
+  const visibleTabs = usePersonalizedTabs('/operacao', tabs)
+  const activeTab: OperacaoTab = visibleTabs.some((t) => t.id === permTab)
+    ? permTab
+    : ((visibleTabs[0]?.id as OperacaoTab) ?? permTab)
+
+  if (isMobile) return <OperacaoMobile />
+  if (postos.length === 0) return <SelectCompanyState />
 
   const abrirPosto = (codigo: number, destino: 'bombas' | 'reabastecimento' = 'bombas') => {
     setDetailPosto(codigo)
@@ -91,7 +97,7 @@ const Operacao = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
-          <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={tabs} />
+          <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={visibleTabs} />
           <InfoHint side="bottom" text="Visão Geral: a rede inteira num quadro — litros, tanques e reposição de cada posto. Bombas: abre um posto e mostra litros por bomba, desgaste e aferições. Reabastecimento: abre um posto e mostra o nível dos tanques e quanto comprar até o fim do mês." />
         </div>
       </PageHeaderTitle>

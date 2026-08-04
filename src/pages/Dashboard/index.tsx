@@ -12,7 +12,7 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import { useDashboardLayout } from '@/store/moduleLayout'
+import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
 
 const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/BenchmarkSetor'))
 // Abas de Vendas (por-posto) movidas pra Central — renderizadas `embedded`
@@ -49,8 +49,9 @@ const TabSkeleton = () => (
 const Dashboard = () => {
   const isMobile = useIsMobile()
 
-  // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar).
-  const { tabs: knownTabs, toggleVisibility, moveUp, moveDown, reset } = useDashboardLayout()
+  // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar) —
+  // fonte única compartilhada com a tela de Personalização (Configurações).
+  const { tabs: knownTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/dashboard')
   const visibleTabs = knownTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) — permite deep-link das sub-opções da sidebar.
   // 'setor' é o default (sem ?tab=).

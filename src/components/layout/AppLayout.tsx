@@ -24,6 +24,7 @@ import WelcomeModal from '@/components/onboarding/WelcomeModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
+import { usePersonalizationStore } from '@/store/personalization'
 import { showsGlobalFilters } from '@/lib/globalFilters'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import TopBar from '@/components/layout/TopBar'
@@ -147,19 +148,27 @@ const AppLayout = () => {
     }
   }, [pathname, modulosPermitidos, isMaster, navigate])
 
+  // Personalização (mostrar/ocultar/reordenar) — igual ao desktop, vale pra todos.
+  const hiddenModules = usePersonalizationStore((s) => s.hidden)
+  const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
+
   // Itens visíveis no menu mobile: master vê tudo (inclusive masterOnly);
-  // não-master perde masterOnly e módulos fora da lista permitida.
+  // não-master perde masterOnly e módulos fora da lista permitida. Depois a
+  // personalização oculta/reordena (itens fora do registro ficam no fim).
   const visibleNavItems = (() => {
-    if (isMaster) return navItems
-    let items = navItems.filter((item) => !item.masterOnly)
-    if (modulosPermitidos && modulosPermitidos.length > 0) {
+    let items = isMaster ? navItems : navItems.filter((item) => !item.masterOnly)
+    if (!isMaster && modulosPermitidos && modulosPermitidos.length > 0) {
       items = items.filter((item) => {
         const id = moduloIdByPath.get(item.path)
         if (!id) return true
         return modulosPermitidos.includes(id)
       })
     }
+    const orderIdx = new Map(moduleOrder.map((p, i) => [p, i]))
     return items
+      .filter((item) => !hiddenModules.includes(item.path))
+      .slice()
+      .sort((a, b) => (orderIdx.get(a.path) ?? 999) - (orderIdx.get(b.path) ?? 999))
   })()
 
   // Scroll to top on route change (e reseta a sombra da TopBar).

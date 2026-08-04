@@ -18,6 +18,7 @@ import {
 } from '@/store/manutencao'
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
+import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
 
 const APP_VERSION = 'v1.1.0'
 const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'contato@cci.app.br'
@@ -597,6 +598,10 @@ const Configuracoes = () => {
 
       {/* Meu plano — plano comercial da rede + solicitar troca */}
       <MeuPlanoSection />
+
+      {/* Personalização do menu — mostrar/ocultar/reordenar módulos e abas +
+          preset reversível pelo plano da rede */}
+      <PersonalizacaoSection />
 
       {/* Segurança — Alterar senha */}
       <AlterarSenhaCard />

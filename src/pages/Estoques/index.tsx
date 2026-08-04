@@ -13,7 +13,7 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import { useEstoquesLayout } from '@/store/moduleLayout'
+import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
 import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
 import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
 import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
@@ -90,7 +90,7 @@ const JanelaSelect = ({
  * (useEstoqueAnalytics) só roda nas abas de detalhe.
  */
 const Estoques = () => {
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useEstoquesLayout()
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/estoques')
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Flag, Sparkles, Trophy, Building2, Radar } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
+import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useComercialFlags } from '@/store/comercialFlags'
@@ -61,6 +62,14 @@ const FlagBand = () => {
 
 const Comercial = () => {
   const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
+  const visibleTabs = usePersonalizedTabs('/comercial', TABS)
+
+  // Aba ativa foi ocultada na personalização → cai na 1ª visível.
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab, setActiveTab])
 
   return (
     <div className="space-y-4">
@@ -68,7 +77,7 @@ const Comercial = () => {
         <TopBarTabs
           active={activeTab}
           onChange={(id) => setActiveTab(id as TabId)}
-          tabs={TABS.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))}
+          tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))}
         />
       </PageHeaderTitle>
 

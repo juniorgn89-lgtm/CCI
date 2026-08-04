@@ -6,7 +6,7 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import { useFinanceiroLayout } from '@/store/moduleLayout'
+import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
 import PosicaoAberto from '@/pages/Financeiro/components/PosicaoAberto'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
@@ -51,7 +51,7 @@ const TableSkeleton = () => (
 )
 
 const Financeiro = () => {
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useFinanceiroLayout()
+  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/financeiro')
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível.

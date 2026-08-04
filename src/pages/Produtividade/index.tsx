@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LayoutDashboard, Users, Building2 } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
+import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { formatLitersShort } from '@/lib/formatters'
@@ -85,13 +86,21 @@ const Produtividade = () => {
     return m
   }, [postos, byPosto])
 
+  // Personalização (mostrar/ocultar/reordenar abas) — cai na 1ª visível se sumiu.
+  const visibleTabs = usePersonalizedTabs('/produtividade', TABS)
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === prodTab)) {
+      setProdTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, prodTab, setProdTab])
+
   if (isMobile) return <ProdutividadeMobile />
   if (postos.length === 0) return <SelectCompanyState />
 
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <TopBarTabs active={prodTab} onChange={(id) => setProdTab(id as ProdTab)} tabs={TABS} />
+        <TopBarTabs active={prodTab} onChange={(id) => setProdTab(id as ProdTab)} tabs={visibleTabs} />
       </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />

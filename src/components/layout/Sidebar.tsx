@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Settings,
@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
 import { MODULOS } from '@/lib/modulos'
 import { navGroups } from '@/components/layout/navConfig'
+import { usePersonalizationStore } from '@/store/personalization'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -314,8 +315,17 @@ const Sidebar = () => {
   }, [supabaseUser])
   const isSupervisor = role === 'supervisor'
 
+  // Personalização (mostrar/ocultar/reordenar módulos) — vale pra todos,
+  // inclusive master (personaliza o próprio menu). É o teto de PERMISSÃO que
+  // limita o que pode existir; a personalização só esconde/reordena por cima.
+  const hiddenModules = usePersonalizationStore((s) => s.hidden)
+  const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
+  const orderIdx = useMemo(() => new Map(moduleOrder.map((p, i) => [p, i])), [moduleOrder])
+
   // Filtra (a) itens masterOnly pra não-master, (b) itens cujo módulo está
-  // fora da lista permitida. Master sempre vê tudo (ignora todas as flags).
+  // fora da lista permitida, (c) itens ocultos na personalização; e reordena
+  // dentro do grupo pela ordem personalizada. Itens fora do registro
+  // (ex.: Selecionar Rede) ficam intactos (index 999 → no fim, sem ocultar).
   const visibleNavGroups = navGroups
     .map((group) => {
       let items = group.items
@@ -331,6 +341,10 @@ const Sidebar = () => {
           })
         }
       }
+      items = items
+        .filter((item) => !hiddenModules.includes(item.path))
+        .slice()
+        .sort((a, b) => (orderIdx.get(a.path) ?? 999) - (orderIdx.get(b.path) ?? 999))
       return { ...group, items }
     })
     .filter((g) => g.items.length > 0)
