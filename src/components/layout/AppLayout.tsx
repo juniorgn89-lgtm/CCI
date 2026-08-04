@@ -24,6 +24,7 @@ import WelcomeModal from '@/components/onboarding/WelcomeModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
+import { normalizePlano, moduloAllowedByPlano } from '@/lib/access'
 import { usePersonalizationStore } from '@/store/personalization'
 import { showsGlobalFilters } from '@/lib/globalFilters'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
@@ -118,13 +119,15 @@ const AppLayout = () => {
     <WelcomeModal key={authUser.id} userName={authFullName} />
   ) : null
   const tenantRede = useTenantStore((s) => s.rede)
+  // Teto do plano da rede (fail-open se null/desconhecido). Master ignora.
+  const plano = normalizePlano(tenantRede?.plano)
 
   // Redireciona pra primeira rota permitida no mount inicial. Antes era sempre
   // /dashboard, mas usuário restrito pode não ter acesso a dashboard.
   // Para master sem rede, o guard reativo abaixo cuida de levar pra /selecionar-rede.
   useEffect(() => {
     if (isMaster && !tenantRede) return
-    const target = firstAllowedPath(modulosPermitidos, isMaster)
+    const target = firstAllowedPath(modulosPermitidos, isMaster, plano)
     if (pathname !== target) {
       navigate(target, { replace: true })
     }
@@ -143,10 +146,10 @@ const AppLayout = () => {
   // Route guard: bloqueia URL direta a módulo não liberado. Rotas fora do
   // catálogo (Configurações, /admin/*) passam livre.
   useEffect(() => {
-    if (!isPathAllowed(pathname, modulosPermitidos, isMaster)) {
-      navigate(firstAllowedPath(modulosPermitidos, isMaster), { replace: true })
+    if (!isPathAllowed(pathname, modulosPermitidos, isMaster, plano)) {
+      navigate(firstAllowedPath(modulosPermitidos, isMaster, plano), { replace: true })
     }
-  }, [pathname, modulosPermitidos, isMaster, navigate])
+  }, [pathname, modulosPermitidos, isMaster, plano, navigate])
 
   // Personalização (mostrar/ocultar/reordenar) — igual ao desktop, vale pra todos.
   const hiddenModules = usePersonalizationStore((s) => s.hidden)
@@ -164,6 +167,8 @@ const AppLayout = () => {
         return modulosPermitidos.includes(id)
       })
     }
+    // Teto do plano (não-master).
+    if (!isMaster) items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
     const orderIdx = new Map(moduleOrder.map((p, i) => [p, i]))
     return items
       .filter((item) => !hiddenModules.includes(item.path))

@@ -5,19 +5,23 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
-import { APP_STRUCTURE, NAV_GROUPS, tabKey, type AppModule } from '@/lib/appStructure'
-import { getPlano } from '@/lib/planos'
+import { APP_STRUCTURE, NAV_GROUPS, tabKey } from '@/lib/appStructure'
+import { getPlano, type PlanoId } from '@/lib/planos'
+import { normalizePlano, moduloAllowedByPlano, tabAllowedByPlano } from '@/lib/access'
 import { usePersonalizationStore } from '@/store/personalization'
 
-/** Módulo acessível pelo usuário (permissão é o teto; a personalização só
- * esconde/reordena dentro do que a permissão libera). */
-const useAccessibleModules = (): AppModule[] => {
+/** Módulos acessíveis (permissão ∩ plano são o teto; a personalização só
+ * esconde/reordena dentro do que o teto libera). Master ignora ambos. */
+const useAccessibleModules = (effPlano: PlanoId | null) => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
   return useMemo(() => {
-    if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) return APP_STRUCTURE
-    return APP_STRUCTURE.filter((m) => !m.permId || modulosPermitidos.includes(m.permId))
-  }, [isMaster, modulosPermitidos])
+    return APP_STRUCTURE.filter((m) => {
+      if (isMaster) return true
+      const permOk = !modulosPermitidos || modulosPermitidos.length === 0 || !m.permId || modulosPermitidos.includes(m.permId)
+      return permOk && moduloAllowedByPlano(m.path, effPlano)
+    })
+  }, [isMaster, modulosPermitidos, effPlano])
 }
 
 const RowButton = ({
@@ -37,7 +41,10 @@ const RowButton = ({
 
 const PersonalizacaoSection = () => {
   const rede = useTenantStore((s) => s.rede)
-  const modules = useAccessibleModules()
+  const isMaster = useAuthStore((s) => s.isMaster)
+  // Teto do plano pra esta tela (master ignora → vê tudo).
+  const effPlano = isMaster ? null : normalizePlano(rede?.plano)
+  const modules = useAccessibleModules(effPlano)
 
   const hidden = usePersonalizationStore((s) => s.hidden)
   const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
@@ -125,11 +132,13 @@ const PersonalizacaoSection = () => {
           <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
             {g.modules.map((m, index) => {
               const isHidden = hidden.includes(m.path)
-              const hasTabs = m.tabs.length > 0
+              // Só as abas dentro do plano são personalizáveis.
+              const planoTabs = m.tabs.filter((t) => tabAllowedByPlano(m.path, t.id, effPlano))
+              const hasTabs = planoTabs.length > 0
               const isOpen = expanded === m.path
               // Abas ordenadas pela personalização.
-              const tabIdx = new Map((tabOrder[m.path] ?? m.tabs.map((t) => t.id)).map((id, i) => [id, i]))
-              const orderedTabs = [...m.tabs].sort((a, b) => (tabIdx.get(a.id) ?? 999) - (tabIdx.get(b.id) ?? 999))
+              const tabIdx = new Map((tabOrder[m.path] ?? planoTabs.map((t) => t.id)).map((id, i) => [id, i]))
+              const orderedTabs = [...planoTabs].sort((a, b) => (tabIdx.get(a.id) ?? 999) - (tabIdx.get(b.id) ?? 999))
               return (
                 <div key={m.path}>
                   <div className="flex items-center gap-2 px-4 py-2.5">
@@ -156,7 +165,7 @@ const PersonalizacaoSection = () => {
                 </span>
                 {hasTabs && !isOpen && (
                   <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                    {m.tabs.length} {m.tabs.length === 1 ? 'aba' : 'abas'}
+                    {planoTabs.length} {planoTabs.length === 1 ? 'aba' : 'abas'}
                   </span>
                 )}
                 <div className="flex items-center gap-1">

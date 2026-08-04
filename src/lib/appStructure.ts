@@ -160,8 +160,7 @@ export const APP_STRUCTURE: AppModule[] = [
     label: 'Compliance ANP',
     group: 'gestao',
     plano: 'pro',
-    // Sem permId: hoje fica FORA do gate de permissão (gap conhecido —
-    // ver project_nav_audit_pendencias). Personalização já cobre cosmeticamente.
+    permId: 'compliance',
     tabs: [],
   },
   {

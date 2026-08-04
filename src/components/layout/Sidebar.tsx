@@ -33,8 +33,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
 import { MODULOS } from '@/lib/modulos'
+import { normalizePlano, moduloAllowedByPlano } from '@/lib/access'
 import { navGroups } from '@/components/layout/navConfig'
 import { usePersonalizationStore } from '@/store/personalization'
+import { useTenantStore } from '@/store/tenant'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -321,6 +323,8 @@ const Sidebar = () => {
   const hiddenModules = usePersonalizationStore((s) => s.hidden)
   const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
   const orderIdx = useMemo(() => new Map(moduleOrder.map((p, i) => [p, i])), [moduleOrder])
+  // Teto do plano da rede (fail-open se null). Master ignora.
+  const plano = normalizePlano(useTenantStore((s) => s.rede)?.plano)
 
   // Filtra (a) itens masterOnly pra não-master, (b) itens cujo módulo está
   // fora da lista permitida, (c) itens ocultos na personalização; e reordena
@@ -340,6 +344,8 @@ const Sidebar = () => {
             return modulosPermitidos.includes(id)
           })
         }
+        // Teto do plano (independente da permissão).
+        items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
       }
       items = items
         .filter((item) => !hiddenModules.includes(item.path))

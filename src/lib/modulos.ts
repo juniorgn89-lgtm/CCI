@@ -10,6 +10,9 @@
  * Rotas fora desse catálogo (Configurações, /admin/*) são sempre acessíveis —
  * o gate é apenas pra módulos analíticos.
  */
+import type { PlanoId } from '@/lib/planos'
+import { pathAllowedByPlano, moduloAllowedByPlano } from '@/lib/access'
+
 export interface ModuloInfo {
   id: string
   label: string
@@ -28,6 +31,8 @@ export const MODULOS: ModuloInfo[] = [
   { id: 'pessoas', label: 'Pessoas', path: '/pessoas' },
   { id: 'comercial', label: 'Comercial · Lucro', path: '/comercial' },
   { id: 'inteligencia', label: 'Inteligência', path: '/inteligencia' },
+  // Compliance ANP entra no gate de permissão (antes furava — sempre visível).
+  { id: 'compliance', label: 'Compliance ANP', path: '/compliance' },
 ]
 
 /** Encontra qual módulo do catálogo corresponde a um pathname. */
@@ -36,14 +41,20 @@ const findModuloForPath = (pathname: string): ModuloInfo | undefined =>
 
 /**
  * Verifica se um pathname é acessível pelo usuário.
- * Rotas não mapeadas (ex: /configuracoes, /admin/*) sempre passam.
+ *
+ * Acesso efetivo = permissão por usuário (`modulosPermitidos`) ∩ teto do PLANO
+ * da rede (`plano`, fail-open se null). Rotas não mapeadas (ex: /configuracoes,
+ * /admin/*) sempre passam. Master ignora tudo.
  */
 export const isPathAllowed = (
   pathname: string,
   modulosPermitidos: string[] | null,
   isMaster: boolean,
+  plano: PlanoId | null = null,
 ): boolean => {
   if (isMaster) return true
+  // Teto do plano (independente da permissão).
+  if (!pathAllowedByPlano(pathname, plano)) return false
   if (!modulosPermitidos || modulosPermitidos.length === 0) return true
   const mod = findModuloForPath(pathname)
   if (!mod) return true
@@ -52,17 +63,21 @@ export const isPathAllowed = (
 
 /**
  * Primeira rota permitida para o usuário. Usada como destino de redirect
- * quando ele tenta acessar um módulo bloqueado ou ao carregar a raiz.
- * Fallback: /configuracoes (sempre acessível).
+ * quando ele tenta acessar um módulo bloqueado ou ao carregar a raiz. Respeita
+ * permissão E plano. Fallback: /configuracoes (sempre acessível).
  */
 export const firstAllowedPath = (
   modulosPermitidos: string[] | null,
   isMaster: boolean,
+  plano: PlanoId | null = null,
 ): string => {
-  if (isMaster || !modulosPermitidos || modulosPermitidos.length === 0) {
-    // Central da Rede é a tela inicial pra master / usuários sem restrição.
-    return '/dashboard'
-  }
-  const first = MODULOS.find((m) => modulosPermitidos.includes(m.id))
+  if (isMaster) return '/dashboard'
+  const semRestricaoPermissao = !modulosPermitidos || modulosPermitidos.length === 0
+  const candidatos = semRestricaoPermissao
+    ? MODULOS
+    : MODULOS.filter((m) => modulosPermitidos!.includes(m.id))
+  // Central da Rede (basic) sempre passa no plano → é o destino natural quando
+  // não há restrição de permissão.
+  const first = candidatos.find((m) => moduloAllowedByPlano(m.path, plano))
   return first?.path ?? '/configuracoes'
 }
