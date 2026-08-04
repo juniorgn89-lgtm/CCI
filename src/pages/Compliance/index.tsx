@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
-import { AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight } from 'lucide-react'
+import { AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight, ShieldCheck, X } from 'lucide-react'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import HeaderHint from '@/components/tables/HeaderHint'
@@ -502,21 +502,79 @@ const ResumoChip = ({ status, count }: { status: StatusFaixa; count: number }) =
 
 const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) => {
   const { postos, fuels, resumo, isLoading, error } = useComplianceVisaoGeral()
+  const [introHidden, setIntroHidden] = useState(() => {
+    try { return localStorage.getItem('compliance-intro') === '1' } catch { return false }
+  })
+  const hideIntro = () => {
+    try { localStorage.setItem('compliance-intro', '1') } catch { /* ignore */ }
+    setIntroHidden(true)
+  }
 
-  if (error) {
-    return <EmptyState icon={AlertTriangle} message="Erro ao carregar os dados de compra e troca de preço. Tente atualizar." />
-  }
-  if (isLoading) return <TableSkeleton />
-  if (postos.length === 0 || fuels.length === 0) {
-    return <EmptyState icon={LayoutGrid} message="Sem compras de combustível nem trocas de preço no período/escopo selecionado." />
-  }
+  const Intro = introHidden ? null : (
+    <div className="relative overflow-hidden rounded-2xl border border-[#1e3a5f]/15 bg-gradient-to-br from-[#1e3a5f]/[0.05] to-transparent p-5 dark:border-blue-500/20 dark:from-blue-950/30 dark:to-transparent">
+      <button
+        type="button"
+        onClick={hideIntro}
+        title="Ocultar apresentação"
+        aria-label="Ocultar apresentação"
+        className="absolute right-3 top-3 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="flex items-start gap-3 pr-6">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1e3a5f] text-white dark:bg-blue-700">
+          <ShieldCheck className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Compliance ANP — sua margem de combustível defensável</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-gray-600 dark:text-gray-300">
+            A ANP fiscaliza o preço do combustível: reajuste sem lastro ou margem fora do padrão vira risco de autuação e multa. Este módulo acompanha, por posto e por combustível, a <strong>margem regulatória</strong> — o preço de placa menos o custo médio de compra (CMP), <em>sem</em> promoções nem descontos — e guarda a trilha de cada troca de preço. É o número "limpo" que sustenta uma fiscalização, diferente da margem operacional do dia a dia.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <LayoutGrid className="h-3.5 w-3.5" />O que você encontra aqui
+          </p>
+          <ul className="space-y-1 text-[12.5px] leading-relaxed text-gray-600 dark:text-gray-300">
+            <li>• Panorama posto × combustível com a margem <strong>semaforizada</strong> (verde → vermelho pelo desvio)</li>
+            <li>• CMP (custo médio ponderado das compras) e a placa vigente de cada combustível</li>
+            <li>• Evolução placa × margem e indicadores de <strong>365 dias</strong> (médias, percentis, alertas)</li>
+            <li>• Log de auditoria: cada troca de preço — quando, de quanto pra quanto, por quem</li>
+          </ul>
+        </div>
+        <div>
+          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <AlertTriangle className="h-3.5 w-3.5" />Por que importa pro posto
+          </p>
+          <ul className="space-y-1 text-[12.5px] leading-relaxed text-gray-600 dark:text-gray-300">
+            <li>• <strong>Blindagem contra multa:</strong> preço/margem fora do padrão sem justificativa é o que a ANP autua</li>
+            <li>• <strong>Justificativa na mão:</strong> comprova que o reajuste seguiu o custo (comprou mais caro → repassou)</li>
+            <li>• <strong>Folga real de preço:</strong> a margem limpa mostra quanto dá pra mexer sem se expor</li>
+            <li>• <strong>Rastreabilidade:</strong> trilha das trocas pronta pra apresentar numa fiscalização</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-4">
+      {Intro}
+      {error ? (
+        <EmptyState icon={AlertTriangle} message="Erro ao carregar os dados de compra e troca de preço. Tente atualizar." />
+      ) : isLoading ? (
+        <TableSkeleton />
+      ) : postos.length === 0 || fuels.length === 0 ? (
+        <EmptyState icon={LayoutGrid} message="Sem compras de combustível nem trocas de preço no período/escopo selecionado." />
+      ) : (
+        <>
       {/* Resumo — contagem por faixa, do pior pro melhor. */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <span className="mr-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <span className="mr-1 inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Panorama ({resumo.total} {resumo.total === 1 ? 'célula' : 'células'})
+          <InfoHint text="Cada célula é um posto × combustível. A cor vem da faixa de risco da margem regulatória — desvio da margem atual vs. a média das trocas do período: Verde < 20% · Amarelo 20–40% · Laranja 40–70% · Vermelho > 70%. Não é veredito oficial da ANP." />
         </span>
         {resumo.total === 0 ? (
           <span className="text-sm text-gray-400 dark:text-gray-500">Sem margem computável (falta placa ou custo no período).</span>
@@ -545,7 +603,12 @@ const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) =
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-100 text-xs uppercase text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">
-              <th className="px-3 py-2.5 text-left font-medium">Posto</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Posto
+                  <InfoHint text="Clique no nome pra abrir o Detalhe do posto (placa, margem e histórico de 365 dias). Cada célula à direita é a margem regulatória % do combustível, com a cor da faixa de risco; o '?' de dentro da célula abre placa, CMP e margem em R$/L." />
+                </span>
+              </th>
               {fuels.map((f) => (
                 <th key={f.produtoCodigo} className="px-3 py-2.5 text-center font-medium">{f.nome}</th>
               ))}
@@ -580,6 +643,8 @@ const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) =
         <ArrowRight className="h-3 w-3 shrink-0" />
         Clique no nome do posto para abrir o Detalhe (placa, margem e alerta histórico de 365 dias).
       </p>
+        </>
+      )}
     </div>
   )
 }
