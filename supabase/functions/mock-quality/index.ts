@@ -17,7 +17,7 @@ import {
 } from './catalogs.ts'
 import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
-import { gerarCartoes, titulosReceber, titulosPagar } from './fin.ts'
+import { gerarCartoes, titulosReceber, titulosPagar, movimentosConta, cartaoPagar } from './fin.ts'
 import { produtoEstoque, produtoEstoqueExtrato, tanquesDoPosto } from './estoque.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
@@ -171,6 +171,18 @@ Deno.serve((req: Request): Response => {
       return json(paginate(empresaCodigo ? CONTAS.filter((c) => c.empresaCodigo === empresaCodigo) : CONTAS, (c) => c.contaCodigo, ultimo, limite))
     case 'PLANO_CONTA_GERENCIAL':
       return json(paginate(PLANO_CONTA, (p) => p.planoContaCodigo, ultimo, limite))
+    case 'MOVIMENTO_CONTA': {
+      const rows = scopePostos(empresaCodigo).flatMap((p) => movimentosConta(p, di, df))
+      rows.sort((a, b) => a.movimentoContaCodigo - b.movimentoContaCodigo)
+      return json(paginate(rows, (m) => m.movimentoContaCodigo, ultimo, limite))
+    }
+    case 'CARTAO_PAGAR': {
+      const hoje = tzToday()
+      const rows = scopePostos(empresaCodigo)
+        .flatMap((p) => cartaoPagar(p, hoje))
+        .filter((t) => t.dataMovimento >= di && t.dataMovimento <= df)
+      return json(paginate(rows, (t) => t.cartaoPagarCodigo, ultimo, limite))
+    }
 
     /* ── Estoque (Fase 4) ── */
     case 'PRODUTO_ESTOQUE': {

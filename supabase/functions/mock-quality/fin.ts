@@ -14,6 +14,12 @@ const addDays = (dateISO: string, n: number): string => {
   const [y, m, d] = dateISO.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
 }
+const eachDate = (di: string, df: string): string[] => {
+  const out: string[] = []
+  let cur = di
+  for (let g = 0; cur <= df && g < 400; g++) { out.push(cur); cur = addDays(cur, 1) }
+  return out
+}
 
 /* ─── /CARTAO (recebíveis) ─── */
 export const gerarCartoes = (empresaCodigo: number, dateISO: string, hoje: string): any[] => {
@@ -159,6 +165,82 @@ export const titulosPagar = (empresaCodigo: number, hoje: string): any[] => {
       numeroRemessa: 0,
       planoContaGerencialNivel: '',
       planoContaGerencialDescricao: utilidade ? 'Despesas' : 'Compra de Combustível',
+    })
+  }
+  return out
+}
+
+/* ─── /MOVIMENTO_CONTA (fluxo de caixa realizado) ─── */
+// Convenção de ledger do app (getFluxoCaixa / Financeiro): valor > 0 = ENTRADA
+// (crédito), < 0 = SAÍDA (débito). `tipo`/`evento` alimentam os breakdowns.
+// Vinculado à conta "Caixa Geral" (empresaCodigo*10+1, ver CONTAS).
+export const movimentosConta = (empresaCodigo: number, di: string, df: string): any[] => {
+  const out: any[] = []
+  const contaCodigo = empresaCodigo * 10 + 1
+  let seq = 0
+  const mk = (rng: () => number, d: string, valor: number, tipo: string, evento: string, descricao: string) => {
+    seq++
+    const codigo = empresaCodigo * 1000000 + seq
+    out.push({
+      codigo,
+      empresaCodigo,
+      movimentoContaCodigo: codigo,
+      valor: r2(valor),
+      dataMovimento: d,
+      descricao,
+      tipoDocumentoOrigem: valor >= 0 ? 'RECEBIMENTO' : 'PAGAMENTO',
+      codigoTipoDocumentoOrigem: valor >= 0 ? 1 : 2,
+      documentoOrigemCodigo: 0,
+      tipo,
+      conciliado: rng() < 0.7,
+      evento,
+      saldo: r2(80000 + between(rng, -20000, 60000)),
+      contaCodigo,
+    })
+  }
+  for (const d of eachDate(di, df)) {
+    const rng = rngFor(empresaCodigo, `mov|${d}`)
+    // Entradas
+    mk(rng, d, between(rng, 28000, 52000), 'Recebimento', 'Vendas à vista (dinheiro/PIX/débito)', 'Recebimento de vendas do dia')
+    mk(rng, d, between(rng, 12000, 26000), 'Recebimento', 'Liquidação de cartão', 'Repasse de administradora de cartão')
+    if (rng() < 0.5) mk(rng, d, between(rng, 2000, 9000), 'Recebimento', 'Recebimento de frota', 'Título de cliente frota')
+    // Saídas
+    if (rng() < 0.6) mk(rng, d, -between(rng, 20000, 90000), 'Pagamento', 'Compra de combustível', 'Pagamento a distribuidora')
+    if (rng() < 0.5) mk(rng, d, -between(rng, 1500, 12000), 'Pagamento', 'Despesa operacional', 'Energia / água / manutenção')
+    if (rng() < 0.3) mk(rng, d, -between(rng, 8000, 30000), 'Pagamento', 'Folha de pagamento', 'Pagamento de salários')
+  }
+  return out
+}
+
+/* ─── /CARTAO_PAGAR (contas no cartão da empresa — a vencer/pago) ─── */
+const CARTAO_PAGAR_DESCR = [
+  'Material de limpeza', 'Manutenção de equipamentos', 'Uniformes da equipe', 'Papelaria e insumos de PDV',
+  'Peças e acessórios da loja', 'Marketing local', 'Combustível da frota interna', 'TI / assinaturas de software',
+]
+export const cartaoPagar = (empresaCodigo: number, hoje: string): any[] => {
+  const rng = rngFor(empresaCodigo, 'cartao-pagar')
+  const out: any[] = []
+  const N = 8
+  for (let i = 0; i < N; i++) {
+    const venc = addDays(hoje, intBetween(rng, -10, 35))
+    const mov = addDays(venc, -intBetween(rng, 20, 40))
+    const pago = venc < hoje ? rng() < 0.6 : false
+    const codigo = empresaCodigo * 100000 + 60000 + i
+    const valor = r2(between(rng, 500, 6000))
+    out.push({
+      empresaCodigo,
+      cartaoCompraCodigo: codigo,
+      cartaoPagarCodigo: codigo,
+      codigo,
+      dataMovimento: mov,
+      dataVencimento: venc,
+      dataPagamento: pago ? venc : '',
+      valor,
+      centroCustoCodigo: 1,
+      planoContaGerencialCodigo: 4,
+      situacao: pago ? 'P' : 'A',
+      descricao: CARTAO_PAGAR_DESCR[i % CARTAO_PAGAR_DESCR.length],
+      autorizacao: String(codigo).slice(-6),
     })
   }
   return out
