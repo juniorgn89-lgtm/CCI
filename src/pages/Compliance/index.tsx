@@ -2,7 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
-import { AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Fuel, History, Info, LineChart as LineChartIcon, BarChart3, LayoutGrid, ListTree, ArrowRight, ShieldCheck, X, PenLine, Check } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTenantStore } from '@/store/tenant'
+import { useAuthStore } from '@/store/auth'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import RowActionButton from '@/components/tables/RowAction'
+import {
+  fetchComplianceJustificativas, addComplianceJustificativa, justificativaKey,
+  type ComplianceJustificativa,
+} from '@/api/supabase/complianceJustificativas'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import HeaderHint from '@/components/tables/HeaderHint'
@@ -17,6 +26,7 @@ import useComplianceMargens, {
   type StatusFaixa,
   type HistIndicadores,
   type FuelDailyPoint,
+  type TrocaLogRow,
 } from '@/pages/Compliance/hooks/useComplianceMargens'
 import useComplianceVisaoGeral, {
   type VisaoGeralCell,
@@ -649,6 +659,92 @@ const VisaoGeral = ({ onDrill }: { onDrill: (empresaCodigo: number) => void }) =
   )
 }
 
+/* ─── Modal — justificar um reajuste (Fase 2 · defesa documentada) ─── */
+
+const JustificarModal = ({ row, empresaCodigo, onClose, onSaved }: {
+  row: TrocaLogRow
+  empresaCodigo: number
+  onClose: () => void
+  onSaved: () => void
+}) => {
+  const rede = useTenantStore((s) => s.rede)
+  const user = useAuthStore((s) => s.user)
+  const [texto, setTexto] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  const salvar = async () => {
+    const t = texto.trim()
+    if (!t || !rede?.id || !user) return
+    setSaving(true)
+    setErro(null)
+    try {
+      await addComplianceJustificativa(
+        {
+          empresaCodigo,
+          produtoCodigo: row.produtoCodigo,
+          trocaData: row.data,
+          trocaPrecoNovo: row.novoPrecoA,
+          precoAntigo: row.precoA,
+          custoReferencia: row.custo || null,
+          justificativa: t,
+        },
+        { redeId: rede.id, userId: user.id, userNome: user.email ?? 'desconhecido' },
+      )
+      onSaved()
+    } catch {
+      setErro('Não foi possível gravar. Tente de novo.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3 dark:border-gray-700 dark:bg-gray-800/40">
+        <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-800 dark:text-gray-200">
+          <Fuel className="h-4 w-4 text-gray-400" />{row.nome} · {formatDate(row.data)}
+        </p>
+        <p className="mt-1 text-[12.5px] text-gray-600 dark:text-gray-300">
+          Placa <span className="text-gray-400 line-through dark:text-gray-500">{formatPrecoLitro(row.precoA)}</span>
+          {' → '}<strong>{formatPrecoLitro(row.novoPrecoA)}</strong>
+          {row.custo > 0 && <> · custo no momento {formatPrecoLitro(row.custo)}</>}
+        </p>
+      </div>
+      <div>
+        <label className="text-[12px] font-medium text-gray-600 dark:text-gray-300">
+          Justificativa <span className="text-gray-400">— entra na trilha de auditoria (não editável depois)</span>
+        </label>
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          rows={4}
+          autoFocus
+          placeholder="Ex.: Custo subiu R$ 0,18/L na compra de 10/07 (NF 4523). Repasse dentro da variação do fornecedor."
+          className="mt-1 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-600 dark:bg-[#0f0f0f] dark:text-gray-200 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+        />
+      </div>
+      {erro && <p className="text-[12px] text-red-600 dark:text-red-400">{erro}</p>}
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700/60"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={saving || !texto.trim()}
+          className="inline-flex items-center gap-1 rounded-lg bg-[#1e3a5f] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#28496f] disabled:opacity-50 dark:bg-blue-700 dark:hover:bg-blue-600"
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />{saving ? 'Gravando...' : 'Gravar justificativa'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Página ─── */
 
 type ComplianceTab = 'geral' | 'detalhe'
@@ -668,6 +764,26 @@ const Compliance = () => {
   // Sub-aba local (não colide com deep-links de outros módulos). Panorama = default.
   const [tab, setTab] = useState<ComplianceTab>('geral')
   const { empresaCodigos, setEmpresas } = useFilters()
+  // Justificativas (defesa documentada) da rede escopadas por posto — pro lookup
+  // no Log de troca de preço. Só faz sentido linkar com 1 posto (placa é por posto).
+  const rede = useTenantStore((s) => s.rede)
+  const queryClient = useQueryClient()
+  const scopedEmpresa = umPosto ? (empresaCodigos[0] ?? null) : null
+  const { data: justificativas = [] } = useQuery({
+    queryKey: ['compliance-justificativas', rede?.id, empresaCodigos],
+    queryFn: () => fetchComplianceJustificativas(rede!.id, empresaCodigos),
+    enabled: !!rede?.id && empresaCodigos.length > 0,
+    staleTime: 60_000,
+  })
+  const justByKey = useMemo(() => {
+    const m = new Map<string, ComplianceJustificativa>()
+    for (const j of justificativas) {
+      const k = justificativaKey(j.empresa_codigo, j.produto_codigo, j.troca_data)
+      if (!m.has(k)) m.set(k, j) // query vem desc por criado_em → 1ª = mais recente
+    }
+    return m
+  }, [justificativas])
+  const [justificar, setJustificar] = useState<TrocaLogRow | null>(null)
   // Guarda o filtro do topo de ANTES do drill, pra RESTAURAR ao voltar pra Visão
   // Geral — assim o panorama não fica preso no posto que você abriu.
   const filtroAntesDrill = useRef<number[] | null>(null)
@@ -802,6 +918,7 @@ const Compliance = () => {
                       <HeaderHint label="Custo no momento" help="Custo do produto registrado na troca de preço." sub="R$/L" groupStart />
                       <HeaderHint label="Markup %" help="Markup da coluna A registrado no momento da troca." />
                       <HeaderHint label="Turno" help="Turno em que a troca foi lançada." align="center" groupStart />
+                      {umPosto && <HeaderHint label="Defesa" help="Justificativa documentada deste reajuste — trilha de auditoria pra apresentar à ANP. Clique em Justificar pra registrar; depois fica imutável." align="left" groupStart />}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -827,6 +944,21 @@ const Compliance = () => {
                         <td className="border-l border-gray-200 px-3 py-2.5 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
                           {r.turno || '—'}
                         </td>
+                        {umPosto && scopedEmpresa !== null && (
+                          <td className="border-l border-gray-200 px-3 py-2.5 dark:border-gray-700">
+                            {(() => {
+                              const j = justByKey.get(justificativaKey(scopedEmpresa, r.produtoCodigo, r.data))
+                              return j ? (
+                                <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                                  <Check className="h-3.5 w-3.5 shrink-0" />Justificado
+                                  <InfoHint text={`"${j.justificativa}" — ${j.criado_por_nome ?? '—'} · ${formatDate(j.criado_em.slice(0, 10))}`} />
+                                </span>
+                              ) : (
+                                <RowActionButton icon={PenLine} label="Justificar" onClick={() => setJustificar(r)} />
+                              )
+                            })()}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -844,6 +976,29 @@ const Compliance = () => {
       )}
       </>
       )}
+
+      {/* Modal — justificar reajuste (Fase 2 · defesa documentada) */}
+      <Dialog open={justificar !== null} onOpenChange={(o) => { if (!o) setJustificar(null) }}>
+        <DialogContent className="w-[95vw] max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f] text-white dark:bg-blue-700"><ShieldCheck className="h-4 w-4" /></span>
+              Justificar reajuste
+            </DialogTitle>
+          </DialogHeader>
+          {justificar !== null && scopedEmpresa !== null && (
+            <JustificarModal
+              row={justificar}
+              empresaCodigo={scopedEmpresa}
+              onClose={() => setJustificar(null)}
+              onSaved={() => {
+                setJustificar(null)
+                queryClient.invalidateQueries({ queryKey: ['compliance-justificativas', rede?.id, empresaCodigos] })
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
