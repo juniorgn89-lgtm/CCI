@@ -68,4 +68,33 @@ export const produtoEstoqueExtrato = (empresaCodigo: number): any[] =>
     }
   })
 
+/* ─── /ESTOQUE_PERIODO (histórico de saldo p/ giro + estoque médio) ─── */
+// ~27 snapshots semanais nos últimos 6 meses, por produto de loja. O último
+// (semana 0) casa com o saldo ATUAL do produtoEstoque; os anteriores variam em
+// torno dele → estoque médio ≠ saldo atual e o giro (vendas6m ÷ estoque médio)
+// deixa de ser degenerado. `quatidadeEstoque` mantém o typo REAL da API.
+export const estoquePeriodo = (empresaCodigo: number, dataFinal: string): any[] => {
+  const out: any[] = []
+  const end = new Date(`${dataFinal}T00:00:00`)
+  for (const produtoCodigo of STORE_CODES) {
+    let saldoAtual = intBetween(rngFor(empresaCodigo, 'estoque', produtoCodigo), 8, 240)
+    if (empresaCodigo === 9001 && produtoCodigo === 9207) saldoAtual = -8
+    const rng = rngFor(empresaCodigo, 'estoque-periodo', produtoCodigo)
+    for (let w = 26; w >= 0; w--) {
+      const d = new Date(end)
+      d.setDate(d.getDate() - w * 7)
+      const dateISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const qtd = w === 0 ? saldoAtual : Math.max(0, Math.round(Math.max(1, saldoAtual) * between(rng, 0.4, 1.6)))
+      out.push({
+        codigo: empresaCodigo * 100000 + (produtoCodigo - 9200) * 1000 + w,
+        codigoProduto: produtoCodigo,
+        codigoUnidadeNegocio: empresaCodigo,
+        quatidadeEstoque: qtd,
+        dataMovimento: dateISO,
+      })
+    }
+  }
+  return out
+}
+
 export const ESTOQUE_POSTOS = POSTO_CODES
