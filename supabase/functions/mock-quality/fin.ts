@@ -6,7 +6,7 @@
 //    Financeiro "em atraso".
 
 import { gerarDia } from './dia.ts'
-import { CLIENTES, ADM_BY_CODE } from './catalogs.ts'
+import { CLIENTES, ADM_BY_CODE, FRENTISTAS } from './catalogs.ts'
 import { rngFor, between, intBetween, pick } from './generator.ts'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -241,6 +241,73 @@ export const cartaoPagar = (empresaCodigo: number, hoje: string): any[] => {
       situacao: pago ? 'P' : 'A',
       descricao: CARTAO_PAGAR_DESCR[i % CARTAO_PAGAR_DESCR.length],
       autorizacao: String(codigo).slice(-6),
+    })
+  }
+  return out
+}
+
+/* ─── /CARTAO_REMESSA (repasse do adquirente — EDI) ─── */
+// Lado "adquirente" da conciliação de cartão: agrupa os /CARTAO por
+// (administradora, dia de liquidação=vencimento). valorRemessa = Σ dos cartões
+// do lote; taxasDespesas = Σ (valor × taxa%). Reconcilia com o lado "sistema".
+export const cartaoRemessas = (empresaCodigo: number, di: string, df: string, hoje: string): any[] => {
+  const byGroup = new Map<string, { adm: string; admCod: number; venc: string; bruto: number; taxa: number }>()
+  for (const d of eachDate(di, df)) {
+    for (const c of gerarCartoes(empresaCodigo, d, hoje)) {
+      const key = `${c.administradoraCodigo}|${c.vencimento}`
+      const g = byGroup.get(key) ?? { adm: c.adiministradoraDescricao, admCod: c.administradoraCodigo, venc: c.vencimento, bruto: 0, taxa: 0 }
+      g.bruto += c.valor
+      g.taxa += c.valor * ((c.taxaPercentual ?? 0) / 100)
+      byGroup.set(key, g)
+    }
+  }
+  const out: any[] = []
+  for (const g of byGroup.values()) {
+    const bruto = r2(g.bruto)
+    const taxas = r2(g.taxa)
+    const codigo = empresaCodigo * 1000000 + (g.admCod - 9300) * 10000 + Number(g.venc.slice(5).replace('-', ''))
+    out.push({
+      cartaoRemessaCodigo: codigo,
+      cartaoRemessaReferenciaCodigo: String(codigo),
+      empresaCodigo,
+      valorRemessa: bruto,
+      dataRemessa: g.venc,
+      dataPagamento: g.venc,
+      dataRecebimento: g.venc,
+      administradora: g.adm,
+      taxasDespesas: taxas,
+      valorLiquido: r2(bruto - taxas),
+    })
+  }
+  return out
+}
+
+/* ─── /VALE_FUNCIONARIO (vales / faltas / sobras de caixa) ─── */
+// origem: V = Vale/adiantamento · D = Falta de caixa · C = Sobra de caixa.
+export const valesFuncionario = (empresaCodigo: number, hoje: string): any[] => {
+  const rng = rngFor(empresaCodigo, 'vales')
+  const funcs = FRENTISTAS.filter((f) => f.empresaCodigo === empresaCodigo)
+  const out: any[] = []
+  const N = 12
+  for (let i = 0; i < N; i++) {
+    const f = funcs[i % funcs.length]
+    const origem = pick(rng, ['V', 'D', 'C'])
+    const data = addDays(hoje, -intBetween(rng, 0, 45))
+    const codigo = empresaCodigo * 100000 + 70000 + i
+    const valor = r2(origem === 'V' ? between(rng, 50, 500) : between(rng, 5, 120))
+    out.push({
+      funcionarioCreditoCodigo: codigo,
+      empresaCodigo,
+      funcionarioCodigo: f.funcionarioCodigo,
+      funcionarioReferencia: null,
+      origem,
+      descricao: origem === 'V' ? 'Vale / adiantamento' : origem === 'D' ? 'Falta de caixa' : 'Sobra de caixa',
+      data,
+      valor,
+      turno: intBetween(rng, 1, 3),
+      quitado: rng() < 0.5,
+      caixaCodigo: 0,
+      codigo,
     })
   }
   return out

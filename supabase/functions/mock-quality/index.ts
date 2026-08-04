@@ -17,7 +17,7 @@ import {
 } from './catalogs.ts'
 import { gerarDia, lmcDoPosto } from './dia.ts'
 import { gerarCaixas } from './caixa.ts'
-import { gerarCartoes, titulosReceber, titulosPagar, movimentosConta, cartaoPagar } from './fin.ts'
+import { gerarCartoes, titulosReceber, titulosPagar, movimentosConta, cartaoPagar, cartaoRemessas, valesFuncionario } from './fin.ts'
 import { produtoEstoque, produtoEstoqueExtrato, tanquesDoPosto } from './estoque.ts'
 import { cors, json, num, paginate } from './shape.ts'
 
@@ -182,6 +182,19 @@ Deno.serve((req: Request): Response => {
         .flatMap((p) => cartaoPagar(p, hoje))
         .filter((t) => t.dataMovimento >= di && t.dataMovimento <= df)
       return json(paginate(rows, (t) => t.cartaoPagarCodigo, ultimo, limite))
+    }
+    case 'CARTAO_REMESSA': {
+      const hoje = tzToday()
+      const rows = scopePostos(empresaCodigo).flatMap((p) => cartaoRemessas(p, di, df, hoje))
+      rows.sort((a, b) => a.cartaoRemessaCodigo - b.cartaoRemessaCodigo)
+      return json(paginate(rows, (r) => r.cartaoRemessaCodigo, ultimo, limite))
+    }
+    case 'VALE_FUNCIONARIO': {
+      const hoje = tzToday()
+      const rows = scopePostos(empresaCodigo)
+        .flatMap((p) => valesFuncionario(p, hoje))
+        .filter((v) => v.data >= di && v.data <= df)
+      return json(paginate(rows, (v) => v.codigo, ultimo, limite))
     }
 
     /* ── Estoque (Fase 4) ── */
