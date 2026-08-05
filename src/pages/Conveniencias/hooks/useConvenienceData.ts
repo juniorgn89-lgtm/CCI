@@ -9,7 +9,7 @@ import { saldoAtualPorProduto } from '@/api/helpers/produtoEstoqueSaldo'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { splitPeriodAtToday, type ApuracaoVendaRow } from '@/api/supabase/apuracao'
 import { useRedeVendasCache } from '@/pages/Operacao/hooks/useRedeVendasCache'
-import { smoothedProjection, projecaoSazonal, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
+import { smoothedProjection, projecaoSazonal, reprojectByFactor, fimDoMesIso, movingAverageDailyRate } from '@/lib/projection'
 import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
 import { type VendaAgg } from '@/pages/Conveniencias/hooks/useVendasCache'
 import { offsetPeriod, todayLocal } from '@/lib/period'
@@ -833,28 +833,30 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
     const monthEnd = fimDoMesIso(dataInicial || todayISO)
     // Sazonal: índice por dia-da-semana do setor conveniência (ramo linear quando
     // < 90d de operação → índices vazio = 1 pra todo dia = monthEndFactor).
-    const projFat = projecaoSazonal({
+    // Reprojeta pelo fator REDE-WIDE (esperado = realizado × fator) → a projeção
+    // por posto soma exato com a rede (igual Combustível/Automotivos).
+    const projFat = reprojectByFactor(projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: sz.linear ? {} : sz.indices.faturamento,
-    })
-    const projLucro = projecaoSazonal({
+    }), sz.fatores.faturamento)
+    const projLucro = reprojectByFactor(projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.margemRs })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: sz.linear ? {} : sz.indices.lucro,
-    })
+    }), sz.fatores.lucro)
     // Ticket = faturamento ÷ CUPONS. Projeta os cupons/dia pra derivar o ticket
     // projetado (cai pra linhas quando não há cupons — apuração antiga).
     const temCupons = Array.from(byDay.values()).some((v) => v.cupons > 0)
-    const projCount = projecaoSazonal({
+    const projCount = reprojectByFactor(projecaoSazonal({
       dailySeries: Array.from(byDay.entries()).map(([data, v]) => ({ data, value: temCupons ? v.cupons : v.count })),
       today: todayISO,
       dataFinal: monthEnd,
-      // Cupons/dia acompanham o faturamento/dia — reusa o índice de faturamento.
+      // Cupons/dia acompanham o faturamento/dia — reusa o índice E o fator dele.
       indices: sz.linear ? {} : sz.indices.faturamento,
-    })
+    }), sz.fatores.faturamento)
     const projetadoFat = projFat.esperado
     const projetadoLucro = projLucro.esperado
     const projecao: ProjecaoVendas = {
