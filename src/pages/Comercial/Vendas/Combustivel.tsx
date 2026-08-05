@@ -35,7 +35,7 @@ import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
-import { projecaoSazonal, expectedDailySeries } from '@/lib/projection'
+import { projecaoSazonal, expectedDailySeries, reprojectByFactor } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
@@ -628,24 +628,27 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     const monthEnd = `${yy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     const lin = pilotoSazonal.linear
     const idx = pilotoSazonal.indices
-    const fat = projecaoSazonal({
+    // Reprojeta pelo fator REDE-WIDE (esperado = realizado × fator) → a projeção
+    // por posto soma exato com a rede, sem a cobertura de dias distorcer.
+    const fatores = pilotoSazonal.fatores
+    const fat = reprojectByFactor(projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.faturamento })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: lin ? {} : idx.faturamento,
-    })
-    const lucro = projecaoSazonal({
+    }), fatores.faturamento)
+    const lucro = reprojectByFactor(projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: lin ? {} : idx.lucro,
-    })
-    const litros = projecaoSazonal({
+    }), fatores.lucro)
+    const litros = reprojectByFactor(projecaoSazonal({
       dailySeries: dailyData.map((d) => ({ data: d.data, value: d.litros })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: lin ? {} : idx.litros,
-    })
+    }), fatores.litros)
     return {
       fat,
       litros,
@@ -698,19 +701,21 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     }
     const lin = pilotoSazonal.linear
     const idx = pilotoSazonal.indices
-    const proj = (s: Map<string, number> | undefined, indices: Record<number, number>) =>
-      projecaoSazonal({
+    const fatores = pilotoSazonal.fatores
+    // Mesmo fator rede-wide por métrica → cada combustível soma no novo headline.
+    const proj = (s: Map<string, number> | undefined, indices: Record<number, number>, fator: number) =>
+      reprojectByFactor(projecaoSazonal({
         dailySeries: Array.from((s ?? new Map<string, number>()).entries()).map(([data, value]) => ({ data, value })),
         today: todayISO,
         dataFinal: monthEnd,
         indices,
-      }).esperado
+      }), fator).esperado
 
     const out = new Map<string, ProjFuelDetalhe>()
     for (const f of fuelTypeData) {
-      const litros = proj(litrosByFuel.get(f.nome), lin ? {} : idx.litros)
-      const fat = proj(fatByFuel.get(f.nome), lin ? {} : idx.faturamento)
-      const lucro = proj(lucroByFuel.get(f.nome), lin ? {} : idx.lucro)
+      const litros = proj(litrosByFuel.get(f.nome), lin ? {} : idx.litros, fatores.litros)
+      const fat = proj(fatByFuel.get(f.nome), lin ? {} : idx.faturamento, fatores.faturamento)
+      const lucro = proj(lucroByFuel.get(f.nome), lin ? {} : idx.lucro, fatores.lucro)
       out.set(f.nome, {
         litros,
         lucro,

@@ -35,7 +35,7 @@ import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoExecutiva from './ProjecaoExecutiva'
 import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from './useProjecaoSazonalPiloto'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
-import { smoothedProjection, projecaoSazonal, fimDoMesIso, expectedDailySeries, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
+import { smoothedProjection, projecaoSazonal, reprojectByFactor, fimDoMesIso, expectedDailySeries, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -680,18 +680,20 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     }
     // Sazonal: índice por dia-da-semana do setor automotivos (ramo linear quando
     // < 90d de operação → índices vazio = 1 pra todo dia = monthEndFactor).
-    const pf = projecaoSazonal({
+    // Reprojeta pelo fator REDE-WIDE (esperado = realizado × fator) → a projeção
+    // por posto soma exato com a rede (mesma lógica do Combustível).
+    const pf = reprojectByFactor(projecaoSazonal({
       dailySeries: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: sz.linear ? {} : sz.indices.faturamento,
-    })
-    const pl = projecaoSazonal({
+    }), sz.fatores.faturamento)
+    const pl = reprojectByFactor(projecaoSazonal({
       dailySeries: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
       today: todayISO,
       dataFinal: monthEnd,
       indices: sz.linear ? {} : sz.indices.lucro,
-    })
+    }), sz.fatores.lucro)
     // Ritmo (pace) do faturamento pra extrapolar métricas de volume (unidades,
     // SKUs distintos) que não têm série diária dedicada. Aproximação "no ritmo
     // atual" — coerente com a projeção de faturamento.

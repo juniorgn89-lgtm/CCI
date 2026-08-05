@@ -5,7 +5,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useRedeSetorDiaria } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { todayLocal } from '@/lib/period'
-import { fimDoMesIso, weekdayIndices, diasOperacaoProxy, projecaoSazonal, type ProjecaoAvancadaResult } from '@/lib/projection'
+import { fimDoMesIso, weekdayIndices, diasOperacaoProxy, projecaoSazonal, reprojectByFactor, type ProjecaoAvancadaResult } from '@/lib/projection'
 
 /**
  * Projeção SAZONAL rede-wide. Busca 6 meses de histórico diário do cache
@@ -41,6 +41,9 @@ export interface ProjecaoSazonalPiloto {
   linear: boolean
   histDias: number
   indices: { faturamento: Record<number, number>; litros: Record<number, number>; lucro: Record<number, number> }
+  /** Fator de fechamento REDE-WIDE por métrica (`esperado = realizado × fator`).
+   * Mesmo fator em todo escopo → a projeção por posto soma exato com a rede. */
+  fatores: { faturamento: number; litros: number; lucro: number }
   sazonal: { faturamento: ProjecaoAvancadaResult; litros: ProjecaoAvancadaResult; lucro: ProjecaoAvancadaResult }
   /** Total FECHADO do período de comparação COMPLETO (mês/ano anterior) — base
    * correta do badge "vs mês ant." (projeção do mês cheio × mês anterior cheio). */
@@ -72,12 +75,20 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
   const cmpEnd = prevDay(monthsBackFirst(monthStart, cmpOffset - 1))
   const { data: cmpRows = [] } = useRedeSetorDiaria(cmpStart, cmpEnd, { enabled })
 
+  // Mês CORRENTE rede-wide (agregado por setor/dia) — base do FATOR de fechamento
+  // rede-wide, aplicado em TODO escopo pra a projeção por posto somar com a rede.
+  const monthEndIso = fimDoMesIso(dataInicial || todayLocal())
+  const { data: curRows = [] } = useRedeSetorDiaria(monthStart, monthEndIso, { enabled })
+
   return useMemo(() => {
     const matchEmpresa = (code: number) => (empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code))
+    // Índices SAZONAIS são REDE-WIDE (todos os postos permitidos), independentes do
+    // filtro de posto → todo escopo usa o mesmo peso de dia-da-semana. Antes eram
+    // por posto (filtravam por empresaCodigos), o que já quebrava a soma.
     const byDay = new Map<string, { fat: number; lit: number; luc: number }>()
     let firstData = ''
     for (const r of histRows) {
-      if (r.setor !== setor || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
+      if (r.setor !== setor || !permittedCodes.has(r.empresa_codigo) || r.quantidade <= 0) continue
       const e = byDay.get(r.data) ?? { fat: 0, lit: 0, luc: 0 }
       e.fat += r.total_venda; e.lit += r.quantidade; e.luc += r.total_venda - r.total_custo
       byDay.set(r.data, e)
@@ -89,7 +100,8 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
     const idxLit = weekdayIndices(serie('lit'))
     const idxLuc = weekdayIndices(serie('luc'))
 
-    // Total do período de comparação COMPLETO (combustível no escopo).
+    // Total do período de comparação COMPLETO (combustível no ESCOPO atual —
+    // este é do posto/rede selecionado, é o "vs mês ant." do realizado da tela).
     const cmpAnterior = { litros: 0, faturamento: 0, lucro: 0 }
     for (const r of cmpRows) {
       if (r.setor !== setor || !matchEmpresa(r.empresa_codigo) || r.quantidade <= 0) continue
@@ -110,21 +122,47 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
         indices: linear ? ONE : idx,
       })
 
+    // FATOR de fechamento REDE-WIDE por métrica = esperado_rede ÷ realizado_rede,
+    // do mês corrente da REDE inteira. Aplicado em todo escopo (`esperado =
+    // realizado × fator`), faz a projeção por posto somar exato com a rede — sem
+    // deixar a cobertura de dias de cada posto distorcer.
+    const redeByDay = new Map<string, { fat: number; lit: number; luc: number }>()
+    for (const r of curRows) {
+      if (r.setor !== setor || !permittedCodes.has(r.empresa_codigo) || r.quantidade <= 0) continue
+      const e = redeByDay.get(r.data) ?? { fat: 0, lit: 0, luc: 0 }
+      e.fat += r.total_venda; e.lit += r.quantidade; e.luc += r.total_venda - r.total_custo
+      redeByDay.set(r.data, e)
+    }
+    const redeSerie = (k: 'fat' | 'lit' | 'luc') =>
+      [...redeByDay.entries()].map(([data, v]) => ({ data, value: v[k] })).sort((a, b) => a.data.localeCompare(b.data))
+    const fatorDe = (k: 'fat' | 'lit' | 'luc', idx: Record<number, number>) => {
+      const res = projecaoSazonal({ dailySeries: redeSerie(k), today, dataFinal: monthEnd, indices: linear ? ONE : idx })
+      return res.realizado > 0 ? res.esperado / res.realizado : 1
+    }
+    const fatores = {
+      faturamento: fatorDe('fat', idxFat),
+      litros: fatorDe('lit', idxLit),
+      lucro: fatorDe('luc', idxLuc),
+    }
+
     return {
       isLoading,
       diasOperacao,
       linear,
       histDias: byDay.size,
       indices: { faturamento: idxFat, litros: idxLit, lucro: idxLuc },
+      fatores,
+      // `sazonal` também reprojEtado pelo fator rede-wide → o card grande
+      // (ProjecaoExecutiva) bate com os KPIs pequenos e soma com a rede.
       sazonal: {
-        faturamento: proj('faturamento', idxFat),
-        litros: proj('litros', idxLit),
-        lucro: proj('lucroBruto', idxLuc),
+        faturamento: reprojectByFactor(proj('faturamento', idxFat), fatores.faturamento),
+        litros: reprojectByFactor(proj('litros', idxLit), fatores.litros),
+        lucro: reprojectByFactor(proj('lucroBruto', idxLuc), fatores.lucro),
       },
       cmpAnterior,
       cmpLabel: comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.',
     }
-  }, [histRows, cmpRows, isLoading, empresaCodigos, permittedCodes, dailyData, dataInicial, comparisonMode, setor])
+  }, [histRows, cmpRows, curRows, isLoading, empresaCodigos, permittedCodes, dailyData, dataInicial, comparisonMode, setor])
 }
 
 export default useProjecaoSazonalPiloto

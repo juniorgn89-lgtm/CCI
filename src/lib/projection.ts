@@ -489,6 +489,41 @@ export const projecaoSazonal = ({
 }
 
 /**
+ * Reprojeta um resultado de projeção por um FATOR externo (rede-wide), pra a
+ * projeção por posto BATER com a soma da rede.
+ *
+ * Problema: a projeção sazonal por escopo deriva o fator de fechamento da
+ * COBERTURA de dias de cada posto (Σíndice dos dias apurados). Postos com
+ * apuração incompleta (menos dias) ganham um fator maior e superprojETAM → a
+ * soma dos postos não fecha com a rede. Aqui forçamos `esperado = realizado ×
+ * fator`, com o MESMO `fator` (da rede) em todos os escopos: como o realizado
+ * já soma exato entre os postos, a projeção também passa a somar.
+ *
+ * A parte JÁ realizada não muda; só a cauda projetada (esperado/conservador/
+ * otimista/sparkline) é reescalada proporcionalmente. Confiabilidade, médias e
+ * tendência ficam como estão (são do escopo, não da projeção).
+ */
+export const reprojectByFactor = (
+  base: ProjecaoAvancadaResult,
+  factor: number,
+): ProjecaoAvancadaResult => {
+  const esperado = base.realizado * factor
+  const restBase = base.esperado - base.realizado
+  const restNew = esperado - base.realizado
+  // Razão da CAUDA projetada (novo ÷ antigo) — reescala banda e sparkline.
+  const k = restBase !== 0 ? restNew / restBase : 1
+  return {
+    ...base,
+    esperado,
+    conservador: base.realizado + (base.conservador - base.realizado) * k,
+    otimista: base.realizado + (base.otimista - base.realizado) * k,
+    sparkline: base.sparkline.map((p) =>
+      p.projetado == null ? p : { ...p, projetado: p.projetado * k },
+    ),
+  }
+}
+
+/**
  * Texto padrão de tooltip pra qualquer label/coluna "Projeção" no app. Usar
  * sempre essa string pra manter a explicação consistente (em vez de variantes
  * diferentes em cada tela). Quando em períodos fechados (sem dias futuros),
