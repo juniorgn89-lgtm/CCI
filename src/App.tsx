@@ -40,6 +40,8 @@ const useAuthBootstrap = () => {
   useEffect(() => {
     if (!supabase) {
       useAuthStore.getState().setLoaded()
+      // Sem Supabase não há perfil pra carregar — libera os guards que esperam.
+      useAuthStore.getState().setProfileLoaded(true)
       return
     }
 
@@ -59,6 +61,8 @@ const useAuthBootstrap = () => {
         useAuthStore.getState().setCanApurar(false)
         useAuthStore.getState().setCanVerReabastecimento(false)
         useAuthStore.getState().setFullName(null)
+        // Deslogado → não há perfil pendente (o ProtectedRoute já manda pro login).
+        useAuthStore.getState().setProfileLoaded(true)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
         // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
         useFilterStore.getState().setEmpresas([])
@@ -66,6 +70,9 @@ const useAuthBootstrap = () => {
       }
       if (session.user.id === loadedUserId) return // mesma sessão — só sincroniza o token
       loadedUserId = session.user.id
+      // Novo usuário → perfil ainda não carregado: guards que dependem dos flags
+      // (PainelLayout) devem esperar em vez de avaliar os defaults restritivos.
+      useAuthStore.getState().setProfileLoaded(false)
       await loadTenantForUser()
     }
 
@@ -205,6 +212,10 @@ const loadTenantForUser = async () => {
     useAuthStore.getState().setIsMaster(false)
     useAuthStore.getState().setCanApurar(false)
     useAuthStore.getState().setCanVerReabastecimento(false)
+  } finally {
+    // Perfil resolvido (com sucesso, sem-perfil ou erro) — libera os guards que
+    // esperam por isso (ex.: PainelLayout). Sempre roda, em qualquer caminho.
+    useAuthStore.getState().setProfileLoaded(true)
   }
 }
 

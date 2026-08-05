@@ -122,14 +122,15 @@ const AppLayout = () => {
   // Teto do plano da rede (fail-open se null/desconhecido). Master ignora.
   const plano = normalizePlano(tenantRede?.plano)
 
-  // Redireciona pra primeira rota permitida no mount inicial. Antes era sempre
-  // /dashboard, mas usuário restrito pode não ter acesso a dashboard.
-  // Para master sem rede, o guard reativo abaixo cuida de levar pra /selecionar-rede.
+  // No mount inicial, garante que a rota atual é acessível (permissão ∩ plano).
+  // Só redireciona quando NÃO é — antes forçava sempre a "primeira permitida",
+  // então F5/link-direto/nova-aba em qualquer módulo que não fosse o primeiro
+  // caía silenciosamente no /dashboard. O guard reativo abaixo cobre mudanças
+  // posteriores. Master sem rede → o guard de rede abaixo leva pro picker.
   useEffect(() => {
     if (isMaster && !tenantRede) return
-    const target = firstAllowedPath(modulosPermitidos, isMaster, plano)
-    if (pathname !== target) {
-      navigate(target, { replace: true })
+    if (!isPathAllowed(pathname, modulosPermitidos, isMaster, plano)) {
+      navigate(firstAllowedPath(modulosPermitidos, isMaster, plano), { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -14,6 +14,14 @@ interface AuthState {
   /** True enquanto o getSession() inicial não retornou. Evita flash do /login. */
   isLoading: boolean
   /**
+   * True depois que o PERFIL (isMaster/acessoRedes/modulosPermitidos) terminou
+   * de carregar — que acontece DEPOIS de `isLoading` virar false (é um 2º passo
+   * async). Guards que dependem desses flags (ex.: PainelLayout) devem ESPERAR
+   * por isso, senão avaliam os defaults (restritivos) e redirecionam por engano
+   * em F5/link-direto. Fica false durante a recarga de um novo usuário.
+   */
+  profileLoaded: boolean
+  /**
    * Lista de codigos de empresa permitidos pro user logado (vem de
    * `profiles.empresa_codigos`). `null` = sem restrição (vê todas da rede).
    * Componentes que mostram listas de postos consultam isso pra filtrar.
@@ -73,12 +81,14 @@ interface AuthState {
   setOnboardingSeen: (v: boolean) => void
   setBriefingSeenToday: (v: boolean) => void
   setLoaded: () => void
+  setProfileLoaded: (v: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   user: null,
   isLoading: true,
+  profileLoaded: false,
   empresaCodigos: null,
   modulosPermitidos: null,
   isMaster: false,
@@ -101,4 +111,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),
   setLoaded: () => set({ isLoading: false }),
+  setProfileLoaded: (profileLoaded) => set({ profileLoaded }),
 }))
