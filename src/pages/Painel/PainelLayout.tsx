@@ -32,7 +32,14 @@ const PainelLayout = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
+  const profileLoaded = useAuthStore((s) => s.profileLoaded)
   const rede = useTenantStore((s) => s.rede)
+
+  // ESPERA o perfil carregar antes de avaliar a trava. Sem isso, em F5/link-direto
+  // o guard rodava com os defaults (isMaster=false, acessoTodas=false) porque o
+  // perfil chega num 2º passo async → chutava todo mundo pro /dashboard, inclusive
+  // Configurações (que é universal). Ver [[auth.profileLoaded]].
+  if (!profileLoaded) return null
 
   // Não-master com acesso a várias redes (ou todas) pode TROCAR de rede — entra
   // no painel só pra "Selecionar rede". Os módulos admin seguem master-only.
@@ -41,7 +48,7 @@ const PainelLayout = () => {
   const modulos = isMaster ? MODULOS : MODULOS.filter((m) => m.to === '/painel/selecionar-rede')
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       {/* Marca + rede conectada (conforme handoff) */}
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
