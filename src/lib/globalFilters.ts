@@ -3,14 +3,20 @@
  * devem aparecer numa rota.
  *
  * Escondidos onde não fazem sentido: Inteligência (tem seus próprios
- * controles) e telas de nível de rede (Admin, Configurações, Selecionar rede).
+ * controles) e telas de nível de rede (o Painel de gestão inteiro — Usuários,
+ * Redes, Configurações, Apuração, Selecionar rede, IA — e o legado /admin/*).
  * Usado pelo AppLayout (sub-bar) e pelo Header (controles) — fonte única pra
  * os dois não dessincronizarem.
  */
 const ROTAS_SEM_FILTROS = ['/inteligencia', '/configuracoes', '/selecionar-rede']
 
 export const showsGlobalFilters = (pathname: string): boolean =>
-  !ROTAS_SEM_FILTROS.includes(pathname) && !pathname.startsWith('/admin/')
+  !ROTAS_SEM_FILTROS.includes(pathname)
+  && !pathname.startsWith('/admin/')
+  // O Painel de gestão (rotas /painel/*) é nível de rede/conta — sem filtro de
+  // posto/período. As rotas migraram pra cá, mas a checagem ainda olhava os
+  // caminhos antigos (/configuracoes etc.), então a barra vazava no Painel.
+  && !pathname.startsWith('/painel')
 
 /**
  * Rotas onde o comparativo "vs mês ant. / vs ano ant." realmente altera os

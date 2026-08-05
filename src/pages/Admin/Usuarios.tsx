@@ -732,7 +732,7 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
 }) => {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null)
   const label = todas
     ? 'Todas as redes'
     : redes.length === 0
@@ -746,7 +746,14 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
   }
   const abrir = () => {
     const r = btnRef.current?.getBoundingClientRect()
-    if (r) setPos({ top: r.bottom + 4, left: r.left })
+    if (r) {
+      // Abre pra CIMA quando não cabe embaixo (linhas do fim da tabela) — senão
+      // o dropdown estoura o rodapé da janela e corta as opções.
+      const estimH = 260
+      const espacoAbaixo = window.innerHeight - r.bottom
+      const up = espacoAbaixo < estimH && r.top > espacoAbaixo
+      setPos({ top: up ? r.top - 4 : r.bottom + 4, left: r.left, up })
+    }
     setOpen(true)
   }
   return (
@@ -766,7 +773,10 @@ const RedesSelect = ({ todas, redes, all, onChange, disabled }: {
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[61] w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+            className={cn(
+              'fixed z-[61] w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900',
+              pos.up && '-translate-y-full',
+            )}
             style={{ top: pos.top, left: pos.left }}
           >
             <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800">
