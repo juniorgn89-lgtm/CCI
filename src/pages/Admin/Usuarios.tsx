@@ -17,8 +17,10 @@ import {
   updateProfilePodeVerReabastecimento,
   createUser,
   deleteUser,
+  generateRecoveryLink,
   type ProfileRow,
 } from '@/api/supabase/profiles'
+import RecoveryLinkModal from '@/components/admin/RecoveryLinkModal'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useTenantStore } from '@/store/tenant'
@@ -71,6 +73,7 @@ const Usuarios = () => {
   const [editingEmpresasFor, setEditingEmpresasFor] = useState<ProfileRow | null>(null)
   const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
   const [deletingUser, setDeletingUser] = useState<ProfileRow | null>(null)
+  const [recoveryLink, setRecoveryLink] = useState<{ link: string; label: string } | null>(null)
 
   const handleToggleRole = async (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
@@ -131,22 +134,17 @@ const Usuarios = () => {
     }
   }
 
-  // Envia o email de redefinição de senha pro usuário (fluxo self-service do
-  // Supabase Auth → /redefinir-senha). O admin não define a senha; dispara o link.
+  // Gera um LINK de redefinição de senha (sem e-mail) pro master mandar pro
+  // usuário (WhatsApp/copiar). O usuário abre e define a própria senha — a senha
+  // nunca passa pelo admin. Ver generateRecoveryLink + RecoveryLinkModal.
   const handleResetSenha = async (row: ProfileRow) => {
     if (!row.email) { alert('Usuário sem email cadastrado.'); return }
-    if (!confirm(`Enviar link de redefinição de senha para ${row.email}?\nEle recebe um email e define a nova senha.`)) return
     setBusyUserId(row.user_id)
     try {
-      const { supabase } = await import('@/lib/supabase')
-      if (!supabase) throw new Error('Supabase não configurado')
-      const { error } = await supabase.auth.resetPasswordForEmail(row.email, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
-      })
-      if (error) throw error
-      alert(`Link de redefinição enviado para ${row.email}.`)
+      const link = await generateRecoveryLink(row.email, `${window.location.origin}/redefinir-senha`)
+      setRecoveryLink({ link, label: row.full_name || row.email })
     } catch (e) {
-      alert(`Erro ao enviar reset: ${(e as Error).message}`)
+      alert(`Erro ao gerar link: ${(e as Error).message}`)
     } finally {
       setBusyUserId(null)
     }
@@ -524,6 +522,13 @@ const Usuarios = () => {
           onConfirm={() => handleConfirmDelete(deletingUser)}
         />
       )}
+
+      <RecoveryLinkModal
+        open={!!recoveryLink}
+        onClose={() => setRecoveryLink(null)}
+        userLabel={recoveryLink?.label ?? ''}
+        link={recoveryLink?.link ?? ''}
+      />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound, Search, Loader2 } from 'lucide-react'
-import { fetchProfiles } from '@/api/supabase/profiles'
+import { fetchProfiles, generateRecoveryLink } from '@/api/supabase/profiles'
 import { useAuthStore } from '@/store/auth'
+import RecoveryLinkModal from '@/components/admin/RecoveryLinkModal'
 import { cn } from '@/lib/utils'
 
 /**
@@ -18,6 +19,7 @@ const RedefinirSenhaUsuariosCard = () => {
   const myUserId = useAuthStore((s) => s.user?.id)
   const [busca, setBusca] = useState('')
   const [busyEmail, setBusyEmail] = useState<string | null>(null)
+  const [recoveryLink, setRecoveryLink] = useState<{ link: string; label: string } | null>(null)
 
   const { data: perfis = [], isLoading } = useQuery({
     queryKey: ['profiles'],
@@ -35,20 +37,14 @@ const RedefinirSenhaUsuariosCard = () => {
 
   if (!isMaster) return null
 
-  const enviarReset = async (email: string) => {
+  const gerarLink = async (email: string, nome: string | null) => {
     if (!email) { alert('Usuário sem email cadastrado.'); return }
-    if (!confirm(`Enviar link de redefinição de senha para ${email}?\nEle recebe um email e define a nova senha.`)) return
     setBusyEmail(email)
     try {
-      const { supabase } = await import('@/lib/supabase')
-      if (!supabase) throw new Error('Supabase não configurado')
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
-      })
-      if (error) throw error
-      alert(`Link de redefinição enviado para ${email}.`)
+      const link = await generateRecoveryLink(email, `${window.location.origin}/redefinir-senha`)
+      setRecoveryLink({ link, label: nome || email })
     } catch (e) {
-      alert(`Erro ao enviar reset: ${(e as Error).message}`)
+      alert(`Erro ao gerar link: ${(e as Error).message}`)
     } finally {
       setBusyEmail(null)
     }
@@ -60,7 +56,7 @@ const RedefinirSenhaUsuariosCard = () => {
         Redefinir senha de usuários
       </h2>
       <p className="-mt-1 text-xs text-gray-500 dark:text-gray-400">
-        Envia um email de redefinição pro usuário escolhido — ele mesmo define a nova senha pelo link. A sua própria senha fica no card <span className="font-medium">Segurança</span> acima.
+        Gera um link de redefinição pra você mandar pro usuário (copiar ou WhatsApp) — ele mesmo define a nova senha pelo link, sem passar por você. A sua própria senha fica no card <span className="font-medium">Segurança</span> acima.
       </p>
 
       <div className="relative max-w-xs">
@@ -92,7 +88,7 @@ const RedefinirSenhaUsuariosCard = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => enviarReset(p.email)}
+                  onClick={() => gerarLink(p.email, p.full_name)}
                   disabled={busy || !p.email}
                   className={cn(
                     'inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
@@ -102,13 +98,20 @@ const RedefinirSenhaUsuariosCard = () => {
                   )}
                 >
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-                  Enviar link
+                  Gerar link
                 </button>
               </div>
             )
           })
         )}
       </div>
+
+      <RecoveryLinkModal
+        open={!!recoveryLink}
+        onClose={() => setRecoveryLink(null)}
+        userLabel={recoveryLink?.label ?? ''}
+        link={recoveryLink?.link ?? ''}
+      />
     </section>
   )
 }

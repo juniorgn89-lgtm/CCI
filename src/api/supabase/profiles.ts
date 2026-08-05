@@ -202,6 +202,27 @@ export const createUser = async (input: CreateUserInput): Promise<void> => {
 }
 
 /**
+ * Gera um LINK de redefinição de senha (recovery) pro usuário, via Edge Function
+ * `generate-recovery-link` (service_role, só master). NÃO envia e-mail — o master
+ * copia/manda o link pro usuário (ex.: WhatsApp), que abre e define a própria
+ * senha em /redefinir-senha. Retorna a URL do link.
+ */
+export const generateRecoveryLink = async (email: string, redirectTo?: string): Promise<string> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const { data, error } = await supabase.functions.invoke('generate-recovery-link', {
+    body: { email, redirect_to: redirectTo },
+  })
+  if (error) throw new Error(error.message ?? 'Falha ao gerar link')
+  if (data?.error) throw new Error(data.error)
+  if (!data?.link) throw new Error('Link não retornado')
+  return data.link as string
+}
+
+/**
  * Deleta um gerente/supervisor via Edge Function (service_role). Remove de
  * auth.users; cascade remove a row em profiles. Caller precisa ser master,
  * não pode deletar a si mesmo nem outros masters.
