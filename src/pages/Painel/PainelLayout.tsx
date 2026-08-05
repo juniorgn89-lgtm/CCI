@@ -1,4 +1,4 @@
-import { Outlet, NavLink, Navigate } from 'react-router-dom'
+import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { Network, Users, User, BarChart3, Settings, CalendarDays, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -29,6 +29,7 @@ const pillActive = 'border-[#1e3a5f] bg-[#1e3a5f] text-white shadow-[0_4px_12px_
 const pillInactive = 'border-[#e2e8f0] bg-white text-[#334155] shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
 
 const PainelLayout = () => {
+  const { pathname } = useLocation()
   const isMaster = useAuthStore((s) => s.isMaster)
   const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
@@ -41,11 +42,19 @@ const PainelLayout = () => {
   // Configurações (que é universal). Ver [[auth.profileLoaded]].
   if (!profileLoaded) return null
 
-  // Não-master com acesso a várias redes (ou todas) pode TROCAR de rede — entra
-  // no painel só pra "Selecionar rede". Os módulos admin seguem master-only.
+  // Configurações (/painel/config) é UNIVERSAL — preferências, plano e
+  // personalização não fazem sentido gatear por rede/master. O resto do Painel
+  // (admin) segue pra master ou quem pode TROCAR de rede (multi-rede / todas).
   const podeTrocar = acessoTodas || redesPermitidas.length > 1
-  if (!isMaster && !podeTrocar) return <Navigate to="/dashboard" replace />
-  const modulos = isMaster ? MODULOS : MODULOS.filter((m) => m.to === '/painel/selecionar-rede')
+  const acessoAmplo = isMaster || podeTrocar
+  const isConfig = pathname.startsWith('/painel/config')
+  if (!acessoAmplo && !isConfig) return <Navigate to="/dashboard" replace />
+
+  // Pills: master vê tudo; os demais veem Configurações (universal) + Selecionar
+  // rede quando podem trocar.
+  const modulos = isMaster
+    ? MODULOS
+    : MODULOS.filter((m) => m.to === '/painel/config' || (m.to === '/painel/selecionar-rede' && podeTrocar))
 
   return (
     <div className="mx-auto max-w-none space-y-5">
