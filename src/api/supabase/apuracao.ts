@@ -187,6 +187,29 @@ export const fetchUltimaApuracao = async (redeId: string): Promise<string | null
 }
 
 /**
+ * Último DIA de dado apurado desta rede (max `data` em `apuracao_diaria`, yyyy-MM-dd).
+ * Diferente de `fetchUltimaApuracao` (que é o `computed_at`, quando RODOU): aqui é a
+ * data do próprio dado. Usado pra abrir a Rede Demonstração no último mês que tem
+ * apuração (a demo não apura o mês corrente → cairia em tela vazia). Null se nunca
+ * apurado.
+ */
+export const fetchUltimaDataApurada = async (redeId: string): Promise<string | null> => {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('apuracao_diaria')
+    .select('data')
+    .eq('rede_id', redeId)
+    .order('data', { ascending: false })
+    .limit(1)
+  if (error) {
+    console.warn('[apuracao] fetchUltimaDataApurada error:', error.message)
+    return null
+  }
+  const row = (data ?? [])[0] as { data: string } | undefined
+  return row?.data ?? null
+}
+
+/**
  * Resolve user_ids → nomes/emails via profiles. Respeita RLS — usuários que
  * o caller não pode ler simplesmente não aparecem no mapa retornado, e a UI
  * mostra '—' como fallback.
