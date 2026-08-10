@@ -34,9 +34,6 @@ interface FilterState {
   diasFechados: boolean
   setEmpresas: (codigos: number[]) => void
   setPeriodo: (dataInicial: string, dataFinal: string) => void
-  /** Volta o período pro padrão "apurado" (mês corrente até ontem/hoje). Usado
-   * ao SAIR da Rede Demonstração (que fixa um mês passado). */
-  resetPeriodoToDefault: () => void
   setComparisonMode: (mode: ComparisonMode) => void
   setAbastDateMode: (mode: AbastDateMode) => void
   setDiasFechados: (v: boolean) => void
@@ -82,10 +79,6 @@ export const useFilterStore = create<FilterState>()(
 
       setPeriodo: (dataInicial, dataFinal) => {
         set({ dataInicial, dataFinal })
-      },
-
-      resetPeriodoToDefault: () => {
-        set((s) => defaultPeriodo(s.diasFechados))
       },
 
       setComparisonMode: (comparisonMode) => {

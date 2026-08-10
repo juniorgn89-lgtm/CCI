@@ -13,7 +13,6 @@ import ApuracaoAlertaBanner from '@/components/feedback/ApuracaoAlertaBanner'
 import useModulePrefetch from '@/hooks/useModulePrefetch'
 import useAlertGenerator from '@/hooks/useAlertGenerator'
 import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
-import useDemoDefaultPeriod from '@/hooks/useDemoDefaultPeriod'
 import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
 import useDataUpdating from '@/hooks/useDataUpdating'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
@@ -52,7 +51,6 @@ const AppLayout = () => {
   useModulePrefetch()
   useAlertGenerator()
   useAutoSelectSinglePosto()
-  useDemoDefaultPeriod()
   useFiltersUrlSync()
   const [mobileOpen, setMobileOpen] = useState(false)
   // Sombra reforçada na TopBar quando o conteúdo já rolou (feedback de "fixo").
