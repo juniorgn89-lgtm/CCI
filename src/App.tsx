@@ -128,21 +128,44 @@ const loadTenantForUser = async () => {
         redes: { id: string; nome: string; chave: string; api_base_url: string } | null
       }
       const isMaster = !!typed.is_master
-      // Master NUNCA tem rede auto-carregada do profile — a escolha é feita
-      // em /selecionar-rede e persistida no localStorage (zustand persist).
-      // Isso evita disparar queries pra uma rede "default" indesejada quando
-      // ele tem várias e quer só usar /admin.
+
+      // Acesso multi-rede (query SEPARADA e resiliente — as colunas podem não
+      // existir ainda; docs/supabase-usuario-redes.sql; erro NÃO quebra o login).
+      // Carregada ANTES de decidir a rede, pra respeitar a escolha PERSISTIDA de
+      // quem pode trocar de rede.
+      let acessoTodas = false
+      let redesPermitidas: string[] = []
+      const { data: ar, error: arErr } = await supabase
+        .from('profiles').select('redes_permitidas, acesso_todas_redes').eq('user_id', user.id).maybeSingle()
+      if (!arErr && ar) {
+        const a = ar as { redes_permitidas: string[] | null; acesso_todas_redes: boolean | null }
+        acessoTodas = !!a.acesso_todas_redes
+        redesPermitidas = a.redes_permitidas ?? []
+      }
+      useAuthStore.getState().setAcessoRedes(acessoTodas, redesPermitidas)
+      const podeTrocar = acessoTodas || redesPermitidas.length > 1
+
+      // Master NUNCA tem rede auto-carregada do profile — a escolha é feita em
+      // /selecionar-rede e persistida (zustand). Não-master que PODE TROCAR e já
+      // tem uma rede persistida VÁLIDA: respeita a escolha dele — NÃO reverte pra
+      // rede "home" a cada reload (era o que fazia o supervisor voltar sozinho pra
+      // rede padrão). Rede única / sem persistência válida → usa a rede do profile.
       if (!isMaster) {
-        useTenantStore.getState().setRede(typed.redes ?? null)
+        const persisted = useTenantStore.getState().rede
+        const persistedPermitida = !!persisted && (
+          acessoTodas || persisted.id === typed.redes?.id || redesPermitidas.includes(persisted.id)
+        )
+        const alvo = podeTrocar && persistedPermitida ? persisted : (typed.redes ?? null)
+        useTenantStore.getState().setRede(alvo)
         // Plano da rede — query SEPARADA e resiliente (a coluna redes.plano pode
         // não existir ainda; docs/supabase-redes-plano.sql). Erro aqui NÃO quebra
         // o login: a rede só fica sem plano (card "Meu plano" cai no neutro).
-        if (typed.redes) {
+        if (alvo) {
           const { data: pl, error: plErr } = await supabase
-            .from('redes').select('plano').eq('id', typed.redes.id).maybeSingle()
+            .from('redes').select('plano').eq('id', alvo.id).maybeSingle()
           if (!plErr && pl) {
             const plano = (pl as { plano: PlanoId | null }).plano
-            useTenantStore.getState().setRede({ ...typed.redes, plano })
+            useTenantStore.getState().setRede({ ...alvo, plano })
           }
         }
       }
@@ -164,15 +187,6 @@ const loadTenantForUser = async () => {
       if (!brErr && br) {
         const lastBriefing = (br as { last_briefing_date: string | null }).last_briefing_date
         useAuthStore.getState().setBriefingSeenToday(lastBriefing === todayLocal())
-      }
-      // Acesso multi-rede — query SEPARADA e resiliente (as colunas podem não
-      // existir ainda; docs/supabase-usuario-redes.sql). Erro aqui NÃO quebra o
-      // login: cai no default (sem switch, comportamento legado de 1 rede).
-      const { data: ar, error: arErr } = await supabase
-        .from('profiles').select('redes_permitidas, acesso_todas_redes').eq('user_id', user.id).maybeSingle()
-      if (!arErr && ar) {
-        const a = ar as { redes_permitidas: string[] | null; acesso_todas_redes: boolean | null }
-        useAuthStore.getState().setAcessoRedes(!!a.acesso_todas_redes, a.redes_permitidas ?? [])
       }
       return
     }
