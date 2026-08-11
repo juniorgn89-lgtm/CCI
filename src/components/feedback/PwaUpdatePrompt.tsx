@@ -1,5 +1,6 @@
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { RefreshCw, X } from 'lucide-react'
+import { useAuthStore } from '@/store/auth'
 
 // Checa por nova versão de tempos em tempos (além do check no load). Importante
 // pro PWA instalado no celular, que pode ficar aberto por horas sem recarregar.
@@ -30,7 +31,11 @@ const PwaUpdatePrompt = () => {
     },
   })
 
-  if (!needRefresh) return null
+  // O registro/checagem do SW roda sempre (acima), mas o BANNER só aparece
+  // depois do login — não deve poluir a landing/tela de login.
+  const session = useAuthStore((s) => s.session)
+
+  if (!needRefresh || !session) return null
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[100] flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
