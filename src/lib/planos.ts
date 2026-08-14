@@ -66,7 +66,7 @@ export const PLANOS: PlanoDef[] = [
     baseLabel: 'Tudo do Premium, mais:',
     recursos: [
       'Radar de Preços — guerra de preço, elasticidade e simulação',
-      'Financeiro — títulos, cartões e conciliação',
+      'Financeiro — títulos a receber e a pagar',
       'Estoques — saldo, mínimo e cobertura',
       'Compliance ANP — margem regulatória',
       'Qualidade de Dados — auditoria e detecção de fraude',

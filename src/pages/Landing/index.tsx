@@ -27,7 +27,7 @@ const MODULOS: { icon: string; bg: string; titulo: string; texto: string }[] = [
   { icon: '⛽', bg: '#fef4e2', titulo: 'Combustível', texto: 'Volume, margem por produto e gestão de preços por tabela — com o impacto real do desconto no lucro bruto.' },
   { icon: '🛒', bg: '#eafaf1', titulo: 'Conveniência', texto: 'Desempenho da loja, ticket médio e giro — separando o que vem da pista do que vem do balcão.' },
   { icon: '🔧', bg: '#f0edff', titulo: 'Automotivos', texto: 'Troca de óleo e serviços agregados acompanhados junto do resto da operação do posto.' },
-  { icon: '💳', bg: '#e7f6f4', titulo: 'Cartões · Conciliação', texto: 'Cruza o que a maquininha registrou com o que caiu na conta e aponta divergência e taxa cobrada a mais.' },
+  { icon: '⚙️', bg: '#e7f6f4', titulo: 'Operação', texto: 'Bombas, desgaste e reabastecimento — do nível dos tanques ao quanto comprar até o fim do mês.' },
   { icon: '📊', bg: '#fdeef0', titulo: 'Apuração & Financeiro', texto: 'Fechamento diário automático e qualidade dos dados, sinalizando onde a informação está faltando.' },
 ]
 
@@ -140,7 +140,7 @@ const Landing = () => {
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#14b8a6', display: 'inline-block' }} /> Analista de IA integrado
               </div>
               <h1 className="v360-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.0, color: '#16293f', letterSpacing: '-.025em' }}>Menos planilha.<br />Mais lucro.</h1>
-              <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: '#475569', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, cartões e financeiro num só lugar.</p>
+              <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: '#475569', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
               <div style={{ display: 'flex', gap: 14, marginTop: 34, flexWrap: 'wrap' }}>
                 <a href={MAIL.demo} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Agendar demonstração</a>
                 <a href="#modulos" style={{ background: '#fff', border: '1.5px solid #e2e8f0', color: '#16293f', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
