@@ -126,16 +126,6 @@ export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-
   { id: 'cartoes', label: 'Cartões', visible: false },
 ])
 
-// v16: Visão Geral saiu do Vendas (Combustível é o novo landing). O bump de
-// versão acima força o migrate a derrubar a aba dos layouts já persistidos.
-// -v2: consolidação do módulo — Visão Geral e Diferenças saíram (Diferenças virou
-// o Panorama da Exceção). Storekey nova = defaults limpos pros usuários existentes,
-// com Fechamento por exceção como 1ª aba (landing).
-export const useCaixasLayout = createModuleLayoutStore('visor360-caixas-layout-v2', [
-  { id: 'excecao', label: 'Fechamento por exceção', visible: true },
-  { id: 'conferencia', label: 'Conferência por PDV', visible: true },
-])
-
 // Produtividade não usa mais moduleLayout: virou 2 abas fixas (Dash + Funcionários)
 // controladas por useTabParam no próprio módulo. Store removida com o rebuild.
 
