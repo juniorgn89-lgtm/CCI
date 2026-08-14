@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import { fetchFuncionarios, fetchFuncoes } from '@/api/endpoints/funcionarios'
+import { classifyFuncaoRole, roleToSetor } from '@/lib/funcaoSetor'
 import { todayLocal } from '@/lib/period'
 import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 
@@ -120,7 +121,12 @@ const useRedeProdutividadeCache = (
           faturamentoCombustivel: 0,
           combustiveis: [], // quebra por produto não vem do cache (só o detalhe live usa)
         }
-      }).sort((a, b) => b.automotivo - a.automotivo || b.aditivadaLitros - a.aditivadaLitros)
+      })
+      // Produtividade é da PISTA (frentista/posto): exclui os cargos de LOJA
+      // (caixa, gerente de conveniência) — eles não têm métrica de pista e só
+      // poluíam a tela. Ver [[project_produtividade_setor]].
+      .filter((r) => roleToSetor(classifyFuncaoRole(r.funcao)) !== 'conveniencia')
+      .sort((a, b) => b.automotivo - a.automotivo || b.aditivadaLitros - a.aditivadaLitros)
 
       const totAdit = rows.reduce((s, r) => s + r.aditivadaLitros, 0)
       const totGas = rows.reduce((s, r) => s + r.gasolinaLitros, 0)
