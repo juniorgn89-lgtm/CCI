@@ -44,6 +44,7 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
         aria-current={active ? 'page' : undefined}
         className={cn(
           'relative flex h-full flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-95',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563eb] dark:focus-visible:ring-[#60a5fa]',
           active ? 'text-[#2563eb] dark:text-[#60a5fa]' : 'text-gray-500 dark:text-gray-400',
         )}
       >
@@ -70,7 +71,7 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
           onContextMenu={(e) => { e.preventDefault(); openMais(true) }}
           aria-label="Mais módulos"
           aria-haspopup="dialog"
-          className="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-gray-500 transition-transform active:scale-95 dark:text-gray-400"
+          className="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-gray-500 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563eb] dark:text-gray-400 dark:focus-visible:ring-[#60a5fa]"
         >
           <MoreHorizontal className="h-5 w-5" />
           <span className="text-[10px] font-medium leading-none">Mais</span>

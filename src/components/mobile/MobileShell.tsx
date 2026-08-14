@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
@@ -84,7 +83,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             type="button"
             onClick={() => setProfileOpen(true)}
             aria-label="Perfil e configurações"
-            className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity active:opacity-70"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left transition-opacity active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
           >
             <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-9 w-9 shrink-0 object-contain" />
             <span className="min-w-0 flex-1">
@@ -95,7 +94,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
           {/* Pill "Tempo real" */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4ade80] opacity-75" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4ade80] opacity-75 motion-reduce:animate-none" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[#4ade80]" />
             </span>
             Tempo real
@@ -104,7 +103,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             type="button"
             onClick={toggleTheme}
             aria-label="Alternar tema"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           >
             {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
           </button>
@@ -125,8 +124,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
         </button>
       )}
 
-      {/* Conteúdo rolável */}
-      <main className={cn('flex-1 overflow-y-auto px-3.5 pt-3.5', 'pb-24')}>
+      {/* Conteúdo rolável — o padding-bottom limpa o bottom-nav (h-16) + a
+          safe-area do aparelho, pra o último item nunca ficar sob a barra. */}
+      <main className="flex-1 overflow-y-auto px-3.5 pt-3.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
 
