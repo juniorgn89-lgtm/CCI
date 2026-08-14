@@ -20,6 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilters } from '@/hooks/useFilters'
+import useIsMobile from '@/hooks/useIsMobile'
+import ComplianceMobile from '@/pages/Compliance/ComplianceMobile'
 import { useChartTheme } from '@/lib/chartTheme'
 import useComplianceMargens, {
   type CmpRow,
@@ -754,7 +756,7 @@ const TAB_META: { id: ComplianceTab; label: string; Icon: typeof LayoutGrid }[] 
   { id: 'detalhe', label: 'Detalhe', Icon: ListTree },
 ]
 
-const Compliance = () => {
+const ComplianceDesktop = () => {
   const { cmpRows, trocaLog, histIndicadores, scopedCount, isLoading, isLoadingHist, error } = useComplianceMargens()
   // Placa (e portanto a margem) é POR POSTO — só faz sentido com 1 posto no
   // escopo. Em vários, a placa "mais recente" seria de um posto qualquer, então
@@ -1001,6 +1003,13 @@ const Compliance = () => {
       </Dialog>
     </div>
   )
+}
+
+/** Wrapper fino: no mobile renderiza a versão overview; o desktop (hooks pesados)
+ * nem monta abaixo de 768px. */
+const Compliance = () => {
+  const isMobile = useIsMobile()
+  return isMobile ? <ComplianceMobile /> : <ComplianceDesktop />
 }
 
 export default Compliance
