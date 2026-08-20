@@ -52,7 +52,7 @@ const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
  * deixou de ser um botão: passa a ser implícito, acontecendo quando o usuário
  * move a data final para HOJE ou adiante no seletor de período.
  */
-const defaultPeriodo = (diasFechados: boolean): { dataInicial: string; dataFinal: string } => {
+export const defaultPeriodo = (diasFechados: boolean): { dataInicial: string; dataFinal: string } => {
   const now = new Date()
   const y = now.getFullYear()
   const m = now.getMonth()

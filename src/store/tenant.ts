@@ -52,3 +52,16 @@ export const useTenantStore = create<TenantState>()(
     }
   )
 )
+
+/**
+ * Rede de DEMONSTRAÇÃO = aquela cujo `api_base_url` aponta pra Edge Function
+ * `mock-quality` (dados fictícios determinísticos, postos Aurora). Detecção por
+ * URL evita hardcode de id e cobre qualquer rede-demo futura. Usada pra fixar o
+ * período no mês atual (o cron mantém apurado) — a demo "só traz os dados",
+ * sem depender do mês escolhido.
+ */
+export const isDemoRede = (rede: Rede | null | undefined): boolean =>
+  !!rede?.api_base_url && rede.api_base_url.includes('mock-quality')
+
+/** Hook de conveniência: a rede atual é a de demonstração? */
+export const useIsDemo = (): boolean => useTenantStore((s) => isDemoRede(s.rede))
