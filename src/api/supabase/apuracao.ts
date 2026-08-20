@@ -1,9 +1,20 @@
 import { supabase } from '@/lib/supabase'
+import { useTenantStore } from '@/store/tenant'
 import { perfNow, perfDone } from '@/lib/perf/perfStore'
 import type { Abastecimento, LMC } from '@/api/types/combustivel'
 import type { Produto } from '@/api/types/produto'
 import type { VendaResumo, VendaFormaPagamento, VendaItem } from '@/api/types/venda'
 import type { Caixa } from '@/api/types/financeiro'
+
+/**
+ * `rede_id` do tenant atual. Escopa as leituras rede-wide do cache pela rede
+ * selecionada: o RLS já restringe, mas usuário MULTI-rede (acesso_todas_redes /
+ * master) enxerga TODAS as redes, então sem este filtro a query varre a tabela
+ * inteira em `apuracao_vendas`/`apuracao_fuel_diaria` → `statement timeout` e a
+ * tela cai em "sem dados". O filtro explícito bate no índice (rede_id, data, …)
+ * e evita o scan cross-rede. Lido via getState (igual ao client.ts).
+ */
+const currentRedeId = (): string | undefined => useTenantStore.getState().rede?.id
 
 /**
  * Row do cache de apuração diária. 1 row por (rede, empresa, dia).
@@ -48,6 +59,7 @@ export const fetchApuracaoDiaria = async (params: FetchParams): Promise<Apuracao
   // demais readers paginados. Não muda os dados — só deixa de truncar.
   const pageSize = 1000
   let from = 0
+  const redeId = currentRedeId()
   const all: ApuracaoDiariaRow[] = []
   for (;;) {
     let query = supabase
@@ -58,6 +70,8 @@ export const fetchApuracaoDiaria = async (params: FetchParams): Promise<Apuracao
       .order('data', { ascending: true })
       .order('empresa_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -362,6 +376,7 @@ export const fetchAbastecimentosCache = async (
 ): Promise<AbastecimentoCacheRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
+  const redeId = currentRedeId()
   const all: AbastecimentoCacheRow[] = []
   const pageSize = 1000
   let from = 0
@@ -377,6 +392,8 @@ export const fetchAbastecimentosCache = async (
       .order('empresa_codigo', { ascending: true })
       .order('abastecimento_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -419,6 +436,7 @@ export const fetchApuracaoAfericoes = async (
 ): Promise<AfericaoCacheRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
+  const redeId = currentRedeId()
   const all: AfericaoCacheRow[] = []
   const pageSize = 1000
   let from = 0
@@ -432,6 +450,8 @@ export const fetchApuracaoAfericoes = async (
       .order('empresa_codigo', { ascending: true })
       .order('abastecimento_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -648,6 +668,7 @@ export type ApuracaoFuelProdutoUpsert = Omit<ApuracaoFuelProdutoRow, 'computed_a
 export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<ApuracaoFuelProdutoRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
+  const redeId = currentRedeId()
   let query = supabase
     .from('apuracao_fuel_diaria')
     .select('*')
@@ -657,6 +678,8 @@ export const fetchApuracaoFuelDiaria = async (params: FetchParams): Promise<Apur
     .order('data', { ascending: true })
     .order('empresa_codigo', { ascending: true })
     .order('produto_codigo', { ascending: true })
+  // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+  if (redeId) query = query.eq('rede_id', redeId)
   if (params.empresaCodigos.length > 0) {
     query = query.in('empresa_codigo', params.empresaCodigos)
   }
@@ -827,6 +850,7 @@ interface FetchCaixasCacheParams {
 
 export const fetchCaixasCache = async (params: FetchCaixasCacheParams): Promise<CaixaCacheRow[]> => {
   if (!supabase) return []
+  const redeId = currentRedeId()
   const all: CaixaCacheRow[] = []
   const pageSize = 1000
   let from = 0
@@ -842,6 +866,8 @@ export const fetchCaixasCache = async (params: FetchCaixasCacheParams): Promise<
       .order('caixa_codigo', { ascending: true })
       .order('turno_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -941,6 +967,7 @@ export const fetchFormasPagamentoCache = async (
   params: FetchCaixasCacheParams,
 ): Promise<FormaPagamentoCacheRow[]> => {
   if (!supabase) return []
+  const redeId = currentRedeId()
   const all: FormaPagamentoCacheRow[] = []
   const pageSize = 1000
   let from = 0
@@ -956,6 +983,8 @@ export const fetchFormasPagamentoCache = async (
       .order('venda_codigo', { ascending: true })
       .order('venda_prazo_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -1080,6 +1109,7 @@ export const fetchVendasCache = async (
 ): Promise<ApuracaoVendaRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
+  const redeId = currentRedeId()
   const all: ApuracaoVendaRow[] = []
   const pageSize = 1000
   let from = 0
@@ -1096,6 +1126,8 @@ export const fetchVendasCache = async (
       .order('empresa_codigo', { ascending: true })
       .order('produto_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -1143,6 +1175,7 @@ export const fetchVendasSetorDiaria = async (
 ): Promise<ApuracaoVendaSetorDiariaRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
+  const redeId = currentRedeId()
   const all: ApuracaoVendaSetorDiariaRow[] = []
   const pageSize = 1000
   let from = 0
@@ -1158,6 +1191,8 @@ export const fetchVendasSetorDiaria = async (
       .order('empresa_codigo', { ascending: true })
       .order('setor', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
@@ -1413,6 +1448,7 @@ export const fetchVendasFuncionarioCache = async (
   params: FetchCaixasCacheParams,
 ): Promise<ApuracaoVendaFuncionarioRow[]> => {
   if (!supabase) return []
+  const redeId = currentRedeId()
   const all: ApuracaoVendaFuncionarioRow[] = []
   const pageSize = 1000
   let from = 0
@@ -1428,6 +1464,8 @@ export const fetchVendasFuncionarioCache = async (
       .order('funcionario_codigo', { ascending: true })
       .order('setor', { ascending: true })
       .range(from, from + pageSize - 1)
+    // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
+    if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }
