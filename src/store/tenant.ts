@@ -65,3 +65,23 @@ export const isDemoRede = (rede: Rede | null | undefined): boolean =>
 
 /** Hook de conveniência: a rede atual é a de demonstração? */
 export const useIsDemo = (): boolean => useTenantStore((s) => isDemoRede(s.rede))
+
+/**
+ * Escape hatch de GRAVAÇÃO: por padrão a demo fixa o período no mês atual e
+ * esconde o calendário (chip "Mês atual"). Pra gravar o vídeo de treino (cena do
+ * período), quem grava liga o calendário de volta sem afetar os usuários — via
+ * `?cal=1` na URL ou `localStorage['visor360.demoperiodo']='on'`. Recarregue a
+ * página depois de setar. Não-reativo de propósito (lido no render).
+ */
+export const demoPeriodUnlocked = (): boolean => {
+  try {
+    if (new URLSearchParams(window.location.search).get('cal') === '1') return true
+    return localStorage.getItem('visor360.demoperiodo') === 'on'
+  } catch {
+    return false
+  }
+}
+
+/** Demo COM o período travado (chip + pin) — falso quando o escape hatch está on. */
+export const useIsDemoPeriodLocked = (): boolean =>
+  useTenantStore((s) => isDemoRede(s.rede)) && !demoPeriodUnlocked()

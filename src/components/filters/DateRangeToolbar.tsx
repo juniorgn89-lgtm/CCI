@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import PeriodPresetSelect from '@/components/filters/PeriodPresetSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
-import { useIsDemo } from '@/store/tenant'
+import { useIsDemoPeriodLocked } from '@/store/tenant'
 import { useTopbarUi } from '@/store/topbarUi'
 import useApuracaoAtrasada from '@/hooks/useApuracaoAtrasada'
 import { cn } from '@/lib/utils'
@@ -56,8 +56,9 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   const periodFim = useFilterStore((s) => s.dataFinal)
   const { setPeriodo } = useFilters()
   // Rede Demonstração: período fixo no mês atual (o cron mantém apurado) — sem
-  // seletor de mês, a demo "só traz os dados". Ver useDemoPeriodLock.
-  const isDemo = useIsDemo()
+  // seletor de mês, a demo "só traz os dados". Ver useDemoPeriodLock. O escape
+  // hatch de gravação (?cal=1) reexibe o calendário na demo.
+  const isDemo = useIsDemoPeriodLocked()
   const iniRef = useRef<HTMLInputElement>(null)
   const fimRef = useRef<HTMLInputElement>(null)
 

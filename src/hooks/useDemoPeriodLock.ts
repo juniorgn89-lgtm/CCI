@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useIsDemo } from '@/store/tenant'
+import { useIsDemoPeriodLocked } from '@/store/tenant'
 import { useFilterStore, defaultPeriodo } from '@/store/filters'
 
 /**
@@ -13,7 +13,7 @@ import { useFilterStore, defaultPeriodo } from '@/store/filters'
  * demo o toolbar está oculto, então o período não deriva depois disso.
  */
 export const useDemoPeriodLock = (): void => {
-  const isDemo = useIsDemo()
+  const isDemo = useIsDemoPeriodLocked()
   const setPeriodo = useFilterStore((s) => s.setPeriodo)
   const diasFechados = useFilterStore((s) => s.diasFechados)
   useEffect(() => {
