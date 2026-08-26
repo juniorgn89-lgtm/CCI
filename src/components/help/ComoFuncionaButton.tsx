@@ -365,7 +365,7 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
         intro: 'Auditoria automática que varre os dados e sinaliza erros, inconsistências e cupons suspeitos. Números fictícios.',
         sections: [
           { n: 1, title: 'KPIs por severidade', exemplo: 'Total 124 · Críticos 9 · Atenção 31 · Info 84', comoLer: 'Críticos quebram cálculos (corrigir já), Atenção são suspeitos, Info é heads-up. Exclui o que já foi arquivado.' },
-          { n: 2, title: 'Sherlock Holmes (anti-fraude)', exemplo: 'Cupom #50231 · 6 abastecimentos · gasolina + diesel · 2h10 ⚠', comoLer: 'Detecta cupons "montados" (vários abastecimentos num lançamento, mix de combustível/pagamento). Score Alto/Médio/Baixo.' },
+          { n: 2, title: 'Sistema CCI (anti-fraude)', exemplo: 'Cupom #50231 · 6 abastecimentos · gasolina + diesel · 2h10 ⚠', comoLer: 'Detecta cupons "montados" (vários abastecimentos num lançamento, mix de combustível/pagamento). Score Alto/Médio/Baixo.' },
           { n: 3, title: 'Categorias de checagem', exemplo: 'Abastecimentos · Caixa · Estoque · Financeiro', comoLer: 'Cada bloco agrupa detectores (preço fora da média, caixa aberto há dias, estoque negativo…) com o contador de itens.' },
           { n: 4, title: 'Arquivar', exemplo: '3 lançamentos selecionados · Arquivar', comoLer: 'Clique numa linha pra ver o código no Quality. Marque e arquive o que já tratou; a aba Arquivados permite reabrir.' },
         ],

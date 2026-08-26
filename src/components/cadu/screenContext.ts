@@ -67,7 +67,7 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/qualidade-dados',
     label: 'Qualidade de Dados',
-    glossario: `Inconsistências nos dados: preço unitário anormal (Z-score = desvios-padrão vs média do combustível), abastecimento sem frentista, cupons com múltiplos abastecimentos (montagem de cupom / "Sherlock Holmes"). Forma pgto na tabela = como a venda foi paga.`,
+    glossario: `Inconsistências nos dados: preço unitário anormal (Z-score = desvios-padrão vs média do combustível), abastecimento sem frentista, cupons com múltiplos abastecimentos (montagem de cupom / "Sistema CCI"). Forma pgto na tabela = como a venda foi paga.`,
   },
   {
     path: '/dashboard',

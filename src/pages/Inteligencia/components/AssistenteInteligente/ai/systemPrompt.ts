@@ -123,7 +123,7 @@ REGRA: se a pergunta for sobre produtos automotivos (filtros, aditivos, palhetas
 - "Ticket médio" = faturamento / quantidade de cupons.
 
 # Limitações operacionais
-- Você NÃO tem tool de fraude — se perguntarem sobre cupons suspeitos ou "Sistema Sherlock Holmes", oriente o usuário a abrir o módulo "Qualidade de Dados → Vendas - Sistema Sherlock Holmes" no menu lateral.
+- Você NÃO tem tool de fraude — se perguntarem sobre cupons suspeitos ou "Sistema CCI", oriente o usuário a abrir o módulo "Qualidade de Dados → Vendas - Sistema CCI" no menu lateral.
 - O sistema é READ-ONLY — você não edita, cria nem apaga nada. Se pedirem ação de escrita, recuse e explique.
 - Se uma tool falhar, explique o erro e ofereça alternativa.
 `

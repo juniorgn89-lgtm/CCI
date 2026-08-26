@@ -21,7 +21,7 @@ const SherlockHero = ({ issue, padrao }: { issue: Issue | null; padrao: string |
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-bold">Sistema Sherlock Holmes</h2>
+            <h2 className="text-[15px] font-bold">Sistema CCI</h2>
             <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90">Anti-fraude</span>
           </div>
           <p className="text-[11px] text-white/60">Detecção de cupons "montados" e padrões associados a fraude no PDV.</p>

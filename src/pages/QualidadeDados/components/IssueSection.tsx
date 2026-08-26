@@ -34,7 +34,7 @@ interface IssueSectionProps {
   /**
    * Quando true, omite o card-wrapper (border/shadow/bg) — usado quando a
    * IssueSection está dentro de um container que já forneceu o cartão (ex:
-   * a seção destacada do Sherlock Holmes).
+   * a seção destacada do Sistema CCI).
    */
   embedded?: boolean
 }
