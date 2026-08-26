@@ -5,7 +5,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 
 /**
  * Nome de exibição do posto atualmente em foco, pra usar nos headers das telas
- * por-posto (ex.: "Conveniência · POSTO ITAPOA").
+ * por-posto (ex.: "Conveniência · POSTO AURORA CENTRO").
  *
  * Retorna o nome quando há exatamente UM posto em foco: o selecionado no filtro
  * global, ou — pra usuário de posto único — o único permitido (auto-select).

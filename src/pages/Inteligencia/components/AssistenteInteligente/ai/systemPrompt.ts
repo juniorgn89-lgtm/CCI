@@ -38,7 +38,7 @@ ${postos.length === 0
   ? 'Nenhum posto cadastrado ou usuário sem acesso. Avise que você não consegue consultar dados.'
   : postos.map((p) => `- ${p.nome} (código ${p.codigo})`).join('\n')}
 
-Você pode consultar QUALQUER um desses postos a qualquer momento. NÃO existe "posto selecionado no filtro" — o usuário pode perguntar sobre toda a rede ou qualquer subconjunto. Quando ele mencionar um posto pelo nome (ex: "Posto Itapoa"), case com o código acima e use o empresaCodigo nas tools.
+Você pode consultar QUALQUER um desses postos a qualquer momento. NÃO existe "posto selecionado no filtro" — o usuário pode perguntar sobre toda a rede ou qualquer subconjunto. Quando ele mencionar um posto pelo nome (ex: "Posto Aurora Centro"), case com o código acima e use o empresaCodigo nas tools.
 
 # Período default
 - dataInicial: ${ctx.dataInicial}

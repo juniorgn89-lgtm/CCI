@@ -175,7 +175,7 @@ const Landing = () => {
                     </div>
                     <div style={{ background: '#fff', color: '#0f172a', borderRadius: 12, padding: 10, marginTop: 9, borderLeft: '3px solid #FCB619' }}>
                       <div style={{ fontSize: 8.5, fontWeight: 700, color: '#b45309' }}>✨ IA</div>
-                      <div style={{ fontSize: 9.5, color: '#334155', lineHeight: 1.35, marginTop: 3 }}>Itapoá R$0,21 abaixo da rede</div>
+                      <div style={{ fontSize: 9.5, color: '#334155', lineHeight: 1.35, marginTop: 3 }}>Aurora Centro R$0,21 abaixo da rede</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 34, marginTop: 12 }}>
                       <div style={{ flex: 1, height: '60%', background: '#0F766E', borderRadius: '3px 3px 0 0' }} />
@@ -236,10 +236,10 @@ const Landing = () => {
             <div style={{ background: '#fff', borderRadius: 18, padding: 26, boxShadow: '0 50px 90px -40px rgba(0,0,0,.6)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingBottom: 16, borderBottom: '1px solid #eef2f7' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#FCB619,#f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✨</div>
-                <div><div style={{ fontWeight: 800, fontSize: 14, color: '#16293f', fontFamily: "'Bricolage Grotesque',sans-serif" }}>Analista Visor360</div><div style={{ fontSize: 11.5, color: '#94a3b8' }}>Rede AutoBem · 5 postos</div></div>
+                <div><div style={{ fontWeight: 800, fontSize: 14, color: '#16293f', fontFamily: "'Bricolage Grotesque',sans-serif" }}>Analista Visor360</div><div style={{ fontSize: 11.5, color: '#94a3b8' }}>Rede Aurora · 5 postos</div></div>
               </div>
               <div style={{ marginTop: 16, background: '#f8fafc', borderRadius: 12, padding: '15px 16px', fontSize: 14, color: '#334155', lineHeight: 1.55 }}>
-                O <strong>diesel S-10 do posto Itapoá</strong> está R$ 0,21/L abaixo da média da rede. Alinhando ao preço dos outros 4 postos, o ganho estimado é de <strong style={{ color: '#15803d' }}>+R$ 14,2 mil/mês</strong> sem perder competitividade local.
+                O <strong>diesel S-10 do posto Aurora Centro</strong> está R$ 0,21/L abaixo da média da rede. Alinhando ao preço dos outros 4 postos, o ganho estimado é de <strong style={{ color: '#15803d' }}>+R$ 14,2 mil/mês</strong> sem perder competitividade local.
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
                 <div style={{ flex: 1, background: '#ecfdf5', borderRadius: 11, padding: '12px 14px' }}><div style={{ fontSize: 11, color: '#059669' }}>Ganho estimado</div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 18, color: '#047857' }} className="tnum">+R$ 14,2k</div></div>

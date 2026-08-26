@@ -64,7 +64,7 @@ const useAuthBootstrap = () => {
         // Deslogado → não há perfil pendente (o ProtectedRoute já manda pro login).
         useAuthStore.getState().setProfileLoaded(true)
         // Limpa filtro global de empresa pra não vazar contexto entre sessões
-        // (ex: Keidma sai → Junior entra → não herda o POSTO ITAPOA dela).
+        // (ex: um usuário sai → outro entra → o novo NÃO herda os postos/empresa_codigos do anterior).
         useFilterStore.getState().setEmpresas([])
         return
       }

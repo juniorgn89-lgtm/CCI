@@ -1047,7 +1047,7 @@ const getEstoqueParado = async (
 ) => {
   const empresas = resolveEmpresas(ctx, input.empresaCodigo)
   if (empresas.length === 0) {
-    return { ok: false, error: 'Estoque é consultado POR POSTO. Me diga qual posto (ou selecione um no filtro) — ex.: "produtos parados no Posto Itapoa".' }
+    return { ok: false, error: 'Estoque é consultado POR POSTO. Me diga qual posto (ou selecione um no filtro) — ex.: "produtos parados no Posto Aurora Centro".' }
   }
   const diasSemVenda = Math.min(Math.max(input.dias_sem_venda ?? 90, 7), 365)
   const limite = Math.min(input.limite ?? 10, 25)

@@ -375,7 +375,7 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
               type="text"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Rede Itapoa"
+              placeholder="Ex: Rede Aurora"
               className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               required
             />
