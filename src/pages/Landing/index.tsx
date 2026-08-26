@@ -127,8 +127,8 @@ const Landing = () => {
             <a href="#contato" style={{ color: '#475569' }}>Contato</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Link to="/login" style={{ color: '#16293f', fontSize: 14.5, fontWeight: 600 }}>Entrar</Link>
-            <a href={MAIL.demo} style={{ background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 14.5, padding: '11px 20px', borderRadius: 11 }}>Agendar demonstração</a>
+            <a href={MAIL.demo} style={{ color: '#16293f', fontSize: 14.5, fontWeight: 600 }}>Agendar demonstração</a>
+            <Link to="/login" style={{ background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 14.5, padding: '11px 20px', borderRadius: 11 }}>Acessar</Link>
           </div>
         </div>
 
