@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
-import useVendedoresConveniencia, { type VendedorRow } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
+import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
+import useVendedoresConveniencia, { type VendedorRow, type VendedorDiaPonto } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
 import type { LojaVendedorRow } from '@/pages/Produtividade/hooks/useLojaRedeWide'
 
 interface Props {
@@ -77,6 +78,65 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
   )
 }
 
+/* ─── Desempenho diário: 1 card, seletor de métrica (reusa o card da rede,
+       mesma pegada da Pista — Faturamento plota o R$; Cupons plota a contagem) ─── */
+type MetricaLoja = 'faturamento' | 'cupons'
+const METRICAS_LOJA: { id: MetricaLoja; label: string; accent: string; unit: string; noun: string; plot: boolean }[] = [
+  { id: 'faturamento', label: 'Faturamento', accent: '#0d9488', unit: 'cupons', noun: 'faturamento', plot: true },
+  { id: 'cupons', label: 'Cupons', accent: '#2563eb', unit: 'cupons', noun: 'cupons', plot: false },
+]
+const DesempenhoDiarioLoja = ({ serie, loading }: { serie?: VendedorDiaPonto[]; loading?: boolean }) => {
+  const [sel, setSel] = useState<MetricaLoja>('faturamento')
+  const cfg = METRICAS_LOJA.find((m) => m.id === sel)!
+  // O card espera { data, litros, faturamento? }; aqui `litros` carrega a contagem
+  // de cupons (métrica Cupons plota isso; Faturamento plota o R$ e mostra os cupons
+  // como linha secundária no tooltip).
+  const chartData = useMemo(
+    () => (serie ?? []).map((p) => ({ data: p.data, litros: p.cupons, faturamento: p.faturamento })),
+    [serie],
+  )
+  const seg = (
+    <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+      {METRICAS_LOJA.map((m) => (
+        <button
+          key={m.id}
+          type="button"
+          onClick={() => setSel(m.id)}
+          className={cn('rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors', sel === m.id ? 'bg-white text-gray-900 shadow-sm dark:bg-[#2563eb] dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400')}
+        >
+          {m.label}
+        </button>
+      ))}
+    </div>
+  )
+  if (loading) return <div className="h-[360px] animate-pulse rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" />
+  if (chartData.length < 2) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho diário <InfoHint text="Evolução dia a dia do vendedor no período. Troque a métrica no seletor." /></h3>
+          {seg}
+        </div>
+        <p className="py-14 text-center text-[12px] text-gray-400">Poucos dias com movimento pra traçar a evolução.</p>
+      </div>
+    )
+  }
+  return (
+    <AnaliseSemanalLineCard
+      data={chartData}
+      title="Desempenho diário"
+      noun={cfg.noun}
+      unit={cfg.unit}
+      plotFaturamento={cfg.plot}
+      accent={cfg.accent}
+      scope=""
+      height={280}
+      cardBg="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
+      headerExtra={<>{seg}<InfoHint text="Evolução dia a dia do vendedor no período. Troque a métrica no seletor." /></>}
+    />
+  )
+}
+
 /**
  * Produtividade dos VENDEDORES da LOJA (setor conveniência) — lista lateral +
  * detalhe por vendedor. Enxuta: faturamento, margem, ticket médio e cupons (loja
@@ -86,7 +146,7 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
  * automotivos. Ranqueada por faturamento. Ver [[project_vendedores_conveniencia]].
  */
 const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }: Props) => {
-  const { rows, isLoading } = useVendedoresConveniencia('conveniencia', postoCodigo)
+  const { rows, dailyByFunc, isLoading } = useVendedoresConveniencia('conveniencia', postoCodigo)
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = rangeLabel(dataInicial, dataFinal)
   const [busca, setBusca] = useState('')
@@ -245,6 +305,9 @@ const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }
             <KpiCompar label="Ticket médio" value={fmtR(sel.ticketMedio)} Icon={Receipt} tone="green" val={sel.ticketMedio} avg={avg.ticket} max={avg.maxTicket} mode="pct" hint="Faturamento ÷ cupons. Comparado com a média do posto." />
             <KpiCompar label="Cupons" value={fmtN(sel.cupons)} Icon={ShoppingCart} tone="amber" val={sel.cupons} avg={avg.cupons} max={avg.maxCupons} mode="pct" hint="Nº de cupons de conveniência do vendedor no período. Comparado com a média do posto." />
           </div>
+
+          {/* Desempenho diário (gráfico unificado com seletor Faturamento/Cupons) */}
+          <DesempenhoDiarioLoja serie={dailyByFunc.get(sel.funcionarioCodigo)} loading={isLoading} />
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-gray-300 py-16 text-center text-[13px] text-gray-400 dark:border-gray-800">

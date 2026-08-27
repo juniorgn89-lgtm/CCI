@@ -21,10 +21,20 @@ export interface VendedorRow {
   ticketMedio: number
 }
 
+/** Ponto da série diária de um vendedor (derivado das rows cruas do cache). */
+export interface VendedorDiaPonto {
+  data: string
+  faturamento: number
+  cupons: number
+}
+
 export interface VendedoresData {
   rows: VendedorRow[]
   /** Mesmas linhas, mas do período de comparação (mês/ano anterior). */
   rowsPrev: VendedorRow[]
+  /** Série diária por vendedor (chave = funcionarioCodigo), do `setor` pedido —
+   *  derivada das mesmas `cacheRows`, sem fetch novo. Ordenada por data asc. */
+  dailyByFunc: Map<number, VendedorDiaPonto[]>
   totalFaturamento: number
   totalLucro: number
   totalCupons: number
@@ -65,6 +75,29 @@ const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): Ven
       ticketMedio: v.cupons > 0 ? v.faturamento / v.cupons : 0,
     }))
     .sort((a, b) => b.faturamento - a.faturamento)
+}
+
+/**
+ * Deriva a série DIÁRIA por vendedor das linhas cruas do cache (do `setor`
+ * pedido) — agrupa por (funcionário, data), soma faturamento e cupons e ordena
+ * por data asc. Sem fetch novo: a quebra por dia já vem nas `cacheRows`.
+ */
+const buildDaily = (cacheRows: CacheRow[], setor: VendedorSetor): Map<number, VendedorDiaPonto[]> => {
+  const byFunc = new Map<number, Map<string, VendedorDiaPonto>>()
+  for (const r of cacheRows) {
+    if (r.setor !== setor) continue
+    let byDate = byFunc.get(r.funcionario_codigo)
+    if (!byDate) { byDate = new Map(); byFunc.set(r.funcionario_codigo, byDate) }
+    const cur = byDate.get(r.data) ?? { data: r.data, faturamento: 0, cupons: 0 }
+    cur.faturamento += r.faturamento
+    cur.cupons += r.cupons
+    byDate.set(r.data, cur)
+  }
+  const out = new Map<number, VendedorDiaPonto[]>()
+  for (const [fc, byDate] of byFunc) {
+    out.set(fc, [...byDate.values()].sort((a, b) => a.data.localeCompare(b.data)))
+  }
+  return out
 }
 
 /**
@@ -120,10 +153,12 @@ const useVendedoresConveniencia = (
     const meta: Meta = new Map(funcionarios.map((f) => [f.funcionarioCodigo, f]))
     const rows = aggregate(cacheRows, meta, setor)
     const rowsPrev = aggregate(cacheRowsPrev, meta, setor)
+    const dailyByFunc = buildDaily(cacheRows, setor)
 
     return {
       rows,
       rowsPrev,
+      dailyByFunc,
       totalFaturamento: rows.reduce((s, r) => s + r.faturamento, 0),
       totalLucro: rows.reduce((s, r) => s + r.lucroBruto, 0),
       totalCupons: rows.reduce((s, r) => s + r.cupons, 0),
