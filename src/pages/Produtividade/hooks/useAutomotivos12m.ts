@@ -4,10 +4,12 @@ import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import { todayLocal } from '@/lib/period'
 
 /**
- * Série de 12 meses de AUTOMOTIVOS (loja) por funcionário — faturamento mensal do
- * setor 'automotivos', do cache `apuracao_vendas_funcionario`. Só depende de o
- * cache estar apurado nos meses; onde não estiver, o mês vem 0 (honesto).
- * Buscado sob demanda (na aba Funcionários), separado do hook do período.
+ * Série de 12 meses por funcionário — faturamento mensal de um `setor` (default
+ * 'automotivos', a Pista; 'conveniencia' pra Loja), do cache
+ * `apuracao_vendas_funcionario`. Só depende de o cache estar apurado nos meses;
+ * onde não estiver, o mês vem 0 (honesto). Buscado sob demanda, separado do hook
+ * do período. A query é a MESMA pros dois setores (a busca traz todos os setores
+ * do posto) — só o filtro no memo muda, então Pista e Loja compartilham o cache.
  */
 
 export interface MesValor {
@@ -20,7 +22,10 @@ export interface MesValor {
 
 const MES_LABEL = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-const useAutomotivos12m = (postoCodigo?: number | null): { byFunc: Map<number, MesValor[]>; isLoading: boolean } => {
+const useAutomotivos12m = (
+  postoCodigo?: number | null,
+  setor: 'automotivos' | 'conveniencia' = 'automotivos',
+): { byFunc: Map<number, MesValor[]>; isLoading: boolean } => {
   // Últimos 12 meses (mês corrente + 11 anteriores).
   const { ini, fim, meses } = useMemo(() => {
     const today = todayLocal()
@@ -42,10 +47,10 @@ const useAutomotivos12m = (postoCodigo?: number | null): { byFunc: Map<number, M
   })
 
   const byFunc = useMemo(() => {
-    // funcionário → (yyyy-MM → faturamento) só do setor automotivos.
+    // funcionário → (yyyy-MM → faturamento) só do setor pedido.
     const acc = new Map<number, Map<string, number>>()
     for (const r of rows) {
-      if (r.setor !== 'automotivos') continue
+      if (r.setor !== setor) continue
       const ym = (r.data ?? '').slice(0, 7)
       let m = acc.get(r.funcionario_codigo)
       if (!m) { m = new Map(); acc.set(r.funcionario_codigo, m) }
@@ -56,7 +61,7 @@ const useAutomotivos12m = (postoCodigo?: number | null): { byFunc: Map<number, M
       out.set(cod, meses.map((mm) => ({ ym: mm.ym, label: mm.label, valor: m.get(mm.ym) ?? 0 })))
     }
     return out
-  }, [rows, meses])
+  }, [rows, meses, setor])
 
   return { byFunc, isLoading }
 }

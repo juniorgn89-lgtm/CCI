@@ -17,6 +17,9 @@ import type { CombustivelBreak } from '@/pages/Produtividade/hooks/useFrentistaP
  *  2. **Evolução diária** no período — litros de combustível e faturamento de
  *     automotivos por dia. Só os dias COM movimento (o frentista tem folga; um dia
  *     em 0 é "não trabalhou", não "vendeu pouco") → a série é dos turnos dele.
+ *  3. **Grupos de conveniência** (`convByFunc`, setor 'conveniencia') vendidos por
+ *     funcionário — o "Mix por produto" da Loja, derivado dos MESMOS itens (sem
+ *     nova query). Aditivo: não altera as derivações da Pista acima.
  *
  * Conta só itens de vendas AUTORIZADAS (cruza `vendaCodigo` com `/VENDA`
  * situacao='A' — o /VENDA_ITEM não traz `cancelada`; ver
@@ -48,7 +51,7 @@ export interface EvolucaoFunc {
 
 const useGruposFuncionario = (
   postoCodigo?: number | null,
-): { byFunc: Map<number, GrupoVenda[]>; evolucaoByFunc: Map<number, EvolucaoFunc>; combByFunc: Map<number, CombustivelBreak[]>; isLoading: boolean } => {
+): { byFunc: Map<number, GrupoVenda[]>; convByFunc: Map<number, GrupoVenda[]>; evolucaoByFunc: Map<number, EvolucaoFunc>; combByFunc: Map<number, CombustivelBreak[]>; isLoading: boolean } => {
   const { dataInicial, dataFinal } = useFilterStore()
   const empresaCodigos = postoCodigo != null ? [postoCodigo] : []
   const hasEmpresa = empresaCodigos.length > 0
@@ -91,11 +94,12 @@ const useGruposFuncionario = (
     staleTime: 30 * 60 * 1000,
   })
 
-  const { byFunc, evolucaoByFunc, combByFunc } = useMemo(() => {
+  const { byFunc, convByFunc, evolucaoByFunc, combByFunc } = useMemo(() => {
     const byFunc = new Map<number, GrupoVenda[]>()
+    const convByFunc = new Map<number, GrupoVenda[]>()
     const evolucaoByFunc = new Map<number, EvolucaoFunc>()
     const combByFunc = new Map<number, CombustivelBreak[]>()
-    if (!produtosData || !gruposData) return { byFunc, evolucaoByFunc, combByFunc }
+    if (!produtosData || !gruposData) return { byFunc, convByFunc, evolucaoByFunc, combByFunc }
 
     // produtoCodigo → { setor, grupo (nome), nome do produto }.
     const grupoTipo = new Map(gruposData.map((g) => [g.grupoCodigo, g.tipoGrupo]))
@@ -114,6 +118,7 @@ const useGruposFuncionario = (
     }
 
     const acc = new Map<number, Map<string, GrupoVenda>>() // grupos (automotivos)
+    const convAcc = new Map<number, Map<string, GrupoVenda>>() // grupos (conveniência) — mix da loja
     const combAcc = new Map<number, Map<number, CombustivelBreak>>() // combustível por produto (detalhe)
     // dia → { litros qty/R$ de combustível, aditivada qty/R$, itens/R$ de automotivos }
     const evo = new Map<number, Map<string, { lq: number; lf: number; adq: number; adf: number; ai: number; af: number }>>()
@@ -147,6 +152,17 @@ const useGruposFuncionario = (
         cm.set(it.produtoCodigo, c)
       }
 
+      // Grupos de conveniência (mix por produto do vendedor de loja) — dos MESMOS
+      // itens já buscados, sem nova query. Aditivo: não toca automotivos/evolução.
+      if (pi.setor === 'conveniencia') {
+        let cvm = convAcc.get(it.funcionarioCodigo)
+        if (!cvm) { cvm = new Map(); convAcc.set(it.funcionarioCodigo, cvm) }
+        const cg = cvm.get(pi.grupo) ?? { grupo: pi.grupo, faturamento: 0, itens: 0 }
+        cg.faturamento += it.totalVenda ?? 0
+        cg.itens += it.quantidade ?? 0
+        cvm.set(pi.grupo, cg)
+      }
+
       // Grupos: só automotivos.
       if (pi.setor !== 'automotivos') continue
       let m = acc.get(it.funcionarioCodigo)
@@ -159,6 +175,9 @@ const useGruposFuncionario = (
 
     for (const [cod, m] of acc) {
       byFunc.set(cod, [...m.values()].sort((a, b) => b.faturamento - a.faturamento))
+    }
+    for (const [cod, cvm] of convAcc) {
+      convByFunc.set(cod, [...cvm.values()].sort((a, b) => b.faturamento - a.faturamento))
     }
 
     // Séries diárias — só dias COM movimento (turnos), ordenadas por data.
@@ -181,10 +200,10 @@ const useGruposFuncionario = (
       combByFunc.set(cod, [...cm.values()].sort((a, b) => b.litros - a.litros))
     }
 
-    return { byFunc, evolucaoByFunc, combByFunc }
+    return { byFunc, convByFunc, evolucaoByFunc, combByFunc }
   }, [itens, autorizados, produtosData, gruposData])
 
-  return { byFunc, evolucaoByFunc, combByFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
+  return { byFunc, convByFunc, evolucaoByFunc, combByFunc, isLoading: hasEmpresa && (lItens || lAut || lProd || lGrp) }
 }
 
 export default useGruposFuncionario

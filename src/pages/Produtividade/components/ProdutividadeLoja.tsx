@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Search, Wallet, Percent, Receipt, ShoppingCart, ChevronLeft, ChevronRight, Trophy } from 'lucide-react'
+import { Search, Wallet, Percent, Receipt, ShoppingCart, ChevronLeft, ChevronRight, Trophy, TrendingUp, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import useVendedoresConveniencia, { type VendedorRow, type VendedorDiaPonto } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
+import useAutomotivos12m, { type MesValor } from '@/pages/Produtividade/hooks/useAutomotivos12m'
+import useGruposFuncionario, { type GrupoVenda } from '@/pages/Produtividade/hooks/useGruposFuncionario'
 import type { LojaVendedorRow } from '@/pages/Produtividade/hooks/useLojaRedeWide'
 
 interface Props {
@@ -23,6 +25,7 @@ interface Props {
 }
 
 const fmtR = (v: number) => formatCurrency(v)
+const fmtRi = (v: number) => formatCurrencyInt(v)
 const fmtN = (v: number) => formatNumber(v)
 const fmtPct = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
 const iniciais = (nome: string) => nome.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]).join('').toUpperCase() || '?'
@@ -137,6 +140,117 @@ const DesempenhoDiarioLoja = ({ serie, loading }: { serie?: VendedorDiaPonto[]; 
   )
 }
 
+/* ─── Últimos 12 meses (barras: valor sobre cada mês, vazio = stub cinza,
+       mês corrente destacado, pior mês em âmbar — mesma pegada da Pista) ─── */
+const Chart12mLoja = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) => {
+  const pts = data ?? []
+  const max = Math.max(1, ...pts.map((p) => p.valor))
+  const total = pts.reduce((s, p) => s + p.valor, 0)
+  const vazio = pts.length === 0 || pts.every((p) => p.valor === 0)
+  const curI = pts.length - 1 // mês corrente (parcial) = último do range
+  // "Pior mês" IGNORA o mês corrente: um acumulado parcial baixo não é
+  // "vendeu pouco", é "o mês ainda não fechou".
+  let worstI = -1, worstV = Infinity
+  pts.forEach((p, i) => { if (i !== curI && p.valor > 0 && p.valor < worstV) { worstV = p.valor; worstI = i } })
+  const curParcial = (pts[curI]?.valor ?? 0) > 0
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+      <div className="mb-3 flex items-center gap-1.5">
+        <TrendingUp className="h-4 w-4 text-gray-400" />
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Últimos 12 meses</h3>
+        <InfoHint text="Faturamento de conveniência do vendedor mês a mês, da apuração fechada. O mês atual é parcial (acumulado até hoje); meses sem apuração vêm zerados." />
+        {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{fmtRi(total)} acumulado</span>}
+      </div>
+      {loading ? (
+        <div className="h-36 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+      ) : vazio ? (
+        <p className="py-12 text-center text-[12px] text-gray-400">Sem histórico apurado.</p>
+      ) : (
+        <>
+          <div className="flex h-36 items-end gap-1.5 pt-6">
+            {pts.map((p, i) => {
+              const h = (p.valor / max) * 82
+              const zero = p.valor <= 0
+              const isWorst = i === worstI
+              const isCur = i === curI && p.valor > 0
+              const barCls = zero
+                ? 'bg-gray-200 dark:bg-gray-700'
+                : isCur ? 'bg-emerald-500'
+                  : isWorst ? 'bg-amber-400 dark:bg-amber-500'
+                    : 'bg-emerald-300 dark:bg-emerald-500/40'
+              return (
+                <div key={p.ym} className="relative flex h-full min-w-0 flex-1 items-end" title={`${p.label}: ${fmtRi(p.valor)}`}>
+                  {!zero && (
+                    <span
+                      className={cn('pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-bold leading-none tabular-nums', isWorst ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-300')}
+                      style={{ bottom: `calc(${h}% + 3px)` }}
+                    >
+                      {fmtRi(p.valor)}
+                    </span>
+                  )}
+                  <div className={cn('w-full rounded-t transition-all', barCls)} style={{ height: zero ? '2px' : `${Math.max(3, h)}%` }} />
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-1 flex gap-1.5">
+            {pts.map((p, i) => (
+              <span key={p.ym} className={cn('flex-1 truncate text-center text-[9.5px]', i === curI ? 'font-semibold text-gray-500 dark:text-gray-300' : 'text-gray-400')}>{p.label}{i === curI && curParcial ? '*' : ''}</span>
+            ))}
+          </div>
+          {curParcial && <p className="mt-1.5 text-[9.5px] text-gray-400 dark:text-gray-500">* {pts[curI].label} é o mês corrente — parcial, acumulado até hoje.</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ─── Mix por produto (grupos de conveniência: nome + faturamento/itens + barra
+       de participação — mesma pegada da lista de grupos da Pista) ─── */
+const MixProdutoPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?: boolean }) => {
+  const top = (grupos ?? []).slice(0, 8)
+  const max = Math.max(1, ...top.map((g) => g.faturamento))
+  const total = (grupos ?? []).reduce((s, g) => s + g.faturamento, 0)
+  const vazio = top.length === 0
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+      <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <Package className="h-4 w-4 text-gray-400" />
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Mix por produto</h3>
+        <InfoHint text="Faturamento de conveniência do vendedor no período, por grupo de produto. Ao vivo do /VENDA_ITEM, só vendas autorizadas — pode divergir do card no movimento de hoje, que ainda não fechou." />
+        {!loading && !vazio && <span className="ml-auto text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{fmtRi(total)}</span>}
+      </div>
+      {loading ? (
+        <div className="space-y-2.5 p-4">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-7 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />)}
+        </div>
+      ) : vazio ? (
+        <p className="px-4 py-8 text-center text-[12px] text-gray-400">Sem vendas de conveniência no período.</p>
+      ) : (
+        <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
+          {top.map((g, i) => {
+            const best = i === 0
+            return (
+              <div key={g.grupo} className="px-4 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={cn('min-w-0 truncate text-[12.5px]', best ? 'font-bold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-600 dark:text-gray-300')} title={g.grupo}>{g.grupo}</span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="text-[11px] tabular-nums text-gray-400">{fmtN(g.itens)} {g.itens === 1 ? 'item' : 'itens'}</span>
+                    <span className={cn('w-20 text-right text-[12px] font-semibold tabular-nums', best ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300')}>{fmtRi(g.faturamento)}</span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div className={cn('h-full rounded-full', best ? 'bg-emerald-500' : 'bg-emerald-300 dark:bg-emerald-500/50')} style={{ width: `${Math.max(3, (g.faturamento / max) * 100)}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Produtividade dos VENDEDORES da LOJA (setor conveniência) — lista lateral +
  * detalhe por vendedor. Enxuta: faturamento, margem, ticket médio e cupons (loja
@@ -147,6 +261,10 @@ const DesempenhoDiarioLoja = ({ serie, loading }: { serie?: VendedorDiaPonto[]; 
  */
 const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }: Props) => {
   const { rows, dailyByFunc, isLoading } = useVendedoresConveniencia('conveniencia', postoCodigo)
+  // 12 meses do CACHE (setor conveniência) + Mix AO VIVO do /VENDA_ITEM (grupos de
+  // conveniência), ambos por funcionário — espelham os blocos da Pista.
+  const { byFunc: conv12m, isLoading: loading12m } = useAutomotivos12m(postoCodigo, 'conveniencia')
+  const { convByFunc, isLoading: loadingMix } = useGruposFuncionario(postoCodigo)
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = rangeLabel(dataInicial, dataFinal)
   const [busca, setBusca] = useState('')
@@ -308,6 +426,10 @@ const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }
 
           {/* Desempenho diário (gráfico unificado com seletor Faturamento/Cupons) */}
           <DesempenhoDiarioLoja serie={dailyByFunc.get(sel.funcionarioCodigo)} loading={isLoading} />
+
+          {/* Últimos 12 meses (cache) + Mix por produto (ao vivo /VENDA_ITEM) */}
+          <Chart12mLoja data={conv12m.get(sel.funcionarioCodigo)} loading={loading12m} />
+          <MixProdutoPanel grupos={convByFunc.get(sel.funcionarioCodigo)} loading={loadingMix} />
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-gray-300 py-16 text-center text-[13px] text-gray-400 dark:border-gray-800">
