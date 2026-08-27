@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import { useFilterStore } from '@/store/filters'
 import { cn } from '@/lib/utils'
 import useOperacaoData from '@/pages/Operacao/hooks/useOperacaoData'
@@ -510,9 +511,9 @@ const VisaoGeral = ({ empresaCodigo }: { empresaCodigo?: number | null } = {}) =
               </ul>
               )}
               {agregados.vendedores.length > 0 && (
-                <p className="border-t border-gray-100 px-4 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
+                <NotaLeitura variant="footer" icon={null}>
                   Vendedores de loja são atribuídos pelo dia — a apuração de vendas por funcionário não separa por caixa/PDV.
-                </p>
+                </NotaLeitura>
               )}
             </section>
           )}

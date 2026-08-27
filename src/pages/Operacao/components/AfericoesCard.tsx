@@ -3,6 +3,7 @@ import { FlaskConical, TriangleAlert, User, CalendarDays, ChevronRight } from 'l
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { buildAfericoesResumo, grupoDaLinha, type AfericoesGrupo } from '@/lib/afericoes'
 import type { AfericaoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
@@ -131,12 +132,9 @@ const AfericoesCard = ({ rows, isLoading }: Props) => {
           onSelect={(g) => setSel({ eixo: 'dia', chave: g.chave, nome: formatDate(g.nome) })} />
       </div>
 
-      <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-gray-400 dark:text-gray-500">
-        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-        <span>
-          Aferição é exigência do INMETRO — normal. O realce <strong className="text-amber-600 dark:text-amber-400">âmbar</strong> aponta o que merece um olhar: volume fora do padrão (≠ ~20/40L) ou concentração alta por frentista/dia. O R$ é <strong>notional</strong> (o combustível volta pro tanque) — o número que importa é o de litros.
-        </span>
-      </p>
+      <NotaLeitura variant="box" className="mt-3">
+        Aferição é exigência do INMETRO — normal. O realce <strong className="!text-amber-600 dark:!text-amber-400">âmbar</strong> aponta o que merece um olhar: volume fora do padrão (≠ ~20/40L) ou concentração alta por frentista/dia. O R$ é <strong>notional</strong> (o combustível volta pro tanque) — o número que importa é o de litros.
+      </NotaLeitura>
 
       {/* Modal de detalhe — aferições individuais do grupo clicado */}
       <Dialog open={sel !== null} onOpenChange={(o) => { if (!o) setSel(null) }}>

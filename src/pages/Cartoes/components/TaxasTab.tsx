@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Percent, TrendingUp, ShieldCheck, AlertTriangle, Filter } from 'lucide-react'
+import { Percent, TrendingUp, ShieldCheck, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import type { TaxaBandeira } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
 
 /** Tolerância de "confere": abaixo disso (R$) tratamos como arredondamento. */
@@ -192,13 +193,10 @@ const TaxasTab = ({ taxas, temRemessa, isLoading }: Props) => {
       </div>
 
       {/* Nota honesta */}
-      <p className="flex items-start gap-2 px-1 text-[11.5px] leading-relaxed text-gray-400 dark:text-gray-500">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-        <span>
-          A taxa efetiva vem do repasse real do adquirente (EDI). O contrato é o cadastro do posto. Um Δ positivo no <strong>crédito</strong>
-          {' '}pode ser antecipação ou parcelamento (que têm taxa maior que a base à vista) — vale conferir o extrato da bandeira antes de cobrar o adquirente. No <strong>débito</strong> o Δ é praticamente definitivo.
-        </span>
-      </p>
+      <NotaLeitura variant="box">
+        A taxa efetiva vem do repasse real do adquirente (EDI). O contrato é o cadastro do posto. Um Δ positivo no <strong>crédito</strong>
+        {' '}pode ser antecipação ou parcelamento (que têm taxa maior que a base à vista) — vale conferir o extrato da bandeira antes de cobrar o adquirente. No <strong>débito</strong> o Δ é praticamente definitivo.
+      </NotaLeitura>
     </div>
   )
 }

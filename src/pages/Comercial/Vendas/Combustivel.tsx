@@ -1509,7 +1509,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                               Média de venda em litros · por dia da semana
                             </h3>
-                            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                            <p className="mt-0.5 text-xs text-blue-800/80 dark:text-blue-200/70">
                               Intensidade da cor = volume relativo dentro do combustível
                             </p>
                           </div>

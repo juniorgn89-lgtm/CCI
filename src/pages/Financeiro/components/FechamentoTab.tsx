@@ -6,6 +6,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import IAAnalisando from '@/components/feedback/IAAnalisando'
 import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 
 const FechamentoExcecao = lazy(() => import('@/pages/CaixasTurnos/components/FechamentoExcecao'))
 
@@ -49,9 +50,9 @@ const FechamentoTab = () => {
           </span>
           <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
         </div>
-        <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">
-          O fechamento de caixa se concilia <span className="font-medium text-gray-500 dark:text-gray-400">por loja</span> (cada posto tem seus próprios caixas e turnos) — por isso você escolhe o posto aqui. A seleção vale <span className="font-medium text-gray-500 dark:text-gray-400">só nesta aba</span>: não altera o filtro do topo nem as outras abas do Financeiro.
-        </p>
+        <NotaLeitura variant="box">
+          O fechamento de caixa se concilia <strong>por loja</strong> (cada posto tem seus próprios caixas e turnos) — por isso você escolhe o posto aqui. A seleção vale <strong>só nesta aba</strong>: não altera o filtro do topo nem as outras abas do Financeiro.
+        </NotaLeitura>
         </div>
       )}
       <Suspense fallback={<div className="relative min-h-[520px]"><IAAnalisando /></div>}>

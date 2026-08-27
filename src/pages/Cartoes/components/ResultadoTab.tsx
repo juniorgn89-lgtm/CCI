@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import HeaderHint from '@/components/tables/HeaderHint'
 import BarCell from '@/components/tables/BarCell'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import type { CartoesResult, CartoesView, StatusKind, AdminDiaRow } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
 
 const fmtPct = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
@@ -326,9 +327,9 @@ const ResultadoTab = ({ coverage, view, empresaNome, isLoading, tratadosCount, o
             </tbody>
           </table>
         </div>
-        <p className="border-t border-gray-100 px-5 py-2.5 text-[11px] text-gray-400 dark:border-gray-800 dark:text-gray-500">
+        <NotaLeitura variant="footer" icon={null}>
           Fonte: /CARTAO (sistema) × /CARTAO_REMESSA (adquirente/EDI) via GET. Taxa exibida é a APLICADA (fato do EDI); divergência de taxa contratada fica fora desta fase. Read-only — o lançamento é feito no ERP pelo gestor.
-        </p>
+        </NotaLeitura>
       </div>
     </div>
   )

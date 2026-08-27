@@ -13,6 +13,7 @@ import { useChartTheme } from '@/lib/chartTheme'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import useProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/useProjecaoSazonalPiloto'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import type { AbastecimentoRow, FuelTypeRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import type { FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
 import { classifyFuelSlug } from '@/api/supabase/concorrencia'
@@ -748,22 +749,19 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
                   </div>
 
                   {temCorte ? (
-                    <p className="mt-2.5 text-[10.5px] leading-snug text-gray-400">
-                      Considera o <span className="font-medium text-gray-500 dark:text-gray-400">mesmo volume</span>; se o corte trouxer mais litros, melhora — mas isso depende da reação do mercado. Pra empatar o lucro de hoje, o volume teria que crescer {sim.belowBreakeven ? 'o impossível (preço no custo)' : `~${pct1(sim.breakEvenGrowth)}`}.
-                    </p>
+                    <NotaLeitura variant="box" className="mt-2.5">
+                      Considera o <strong>mesmo volume</strong>; se o corte trouxer mais litros, melhora — mas isso depende da reação do mercado. Pra empatar o lucro de hoje, o volume teria que crescer {sim.belowBreakeven ? 'o impossível (preço no custo)' : `~${pct1(sim.breakEvenGrowth)}`}.
+                    </NotaLeitura>
                   ) : (
-                    <p className="mt-2.5 text-[10.5px] leading-snug text-gray-400">Arraste o slider pra ver como um corte de preço muda o fechamento do mês.</p>
+                    <NotaLeitura variant="box" className="mt-2.5">Arraste o slider pra ver como um corte de preço muda o fechamento do mês.</NotaLeitura>
                   )}
 
                   {/* Honestidade de base: a projeção do drill é FÍSICA (bomba), não o
                       fiscal da Central. Serve pra decidir a DIREÇÃO do corte, não como
                       valor contábil exato — não deixar o dono crer num R$ que não bate. */}
-                  <p className="mt-2 flex items-start gap-1.5 border-t border-gray-100 pt-2 text-[10px] leading-snug text-gray-400 dark:border-gray-800">
-                    <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span>
-                      Base: <span className="font-medium">venda física da bomba</span> (a mesma do dia a dia desta tela). O fechamento <span className="font-medium">fiscal</span> do mês na Central da Rede pode diferir um pouco — use este número pra decidir a <span className="font-medium">direção e o tamanho do corte</span>, não como valor contábil exato.
-                    </span>
-                  </p>
+                  <NotaLeitura variant="box" className="mt-2">
+                    Base: <strong>venda física da bomba</strong> (a mesma do dia a dia desta tela). O fechamento <strong>fiscal</strong> do mês na Central da Rede pode diferir um pouco — use este número pra decidir a <strong>direção e o tamanho do corte</strong>, não como valor contábil exato.
+                  </NotaLeitura>
                 </div>
               )
             })()}
@@ -875,9 +873,9 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
                   ))
                 )}
               </div>
-              <p className="mt-3 border-t border-gray-100 pt-2 text-[10px] leading-snug text-gray-400 dark:border-gray-800">
+              <NotaLeitura variant="box" className="mt-3">
                 Combina os dados da própria rede com o preço de praça cadastrado na aba Concorrência (dado manual — vale o frescor da última observação).
-              </p>
+              </NotaLeitura>
             </div>
           </div>
           )}

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber, formatLiters, formatDate } from '@/lib/formatters'
 import { formatDateTimeBR } from '@/lib/datetime'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import type { TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 
@@ -207,9 +208,9 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
                 </ul>
               )}
               {turno.vendedores.length > 0 && (
-                <p className="border-t border-gray-100 px-3 py-1.5 text-[9.5px] leading-snug text-gray-400 dark:border-gray-800 dark:text-gray-500">
+                <NotaLeitura variant="footer" icon={null}>
                   Vendedores de loja são atribuídos pelo dia (a apuração de vendas por funcionário não separa por caixa/PDV).
-                </p>
+                </NotaLeitura>
               )}
             </section>
 

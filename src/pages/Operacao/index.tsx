@@ -10,6 +10,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useIsMobile from '@/hooks/useIsMobile'
 import { formatLitersShort } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -114,9 +115,9 @@ const Operacao = () => {
             </span>
             <PostoLocalSelect variant="pill" badges={badges} postos={postos} value={selectedCodigo} onChange={setDetailPosto} />
           </div>
-          <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">
-            Bombas e Reabastecimento são <span className="font-medium text-gray-500 dark:text-gray-400">por posto</span> — escolha um aqui. O número na pílula é o volume de combustível do posto no período. A visão da rede inteira fica na aba <span className="font-medium text-gray-500 dark:text-gray-400">Visão Geral</span>.
-          </p>
+          <NotaLeitura variant="box">
+            Bombas e Reabastecimento são <strong>por posto</strong> — escolha um aqui. O número na pílula é o volume de combustível do posto no período. A visão da rede inteira fica na aba <strong>Visão Geral</strong>.
+          </NotaLeitura>
         </div>
       )}
 

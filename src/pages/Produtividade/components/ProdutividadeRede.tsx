@@ -4,6 +4,7 @@ import { Wrench, Droplet, Gauge, Receipt, Fuel, Trophy, AlertTriangle, Lightbulb
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useFrentistaProdutividade, { type FrentistaProdData, type FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
@@ -361,9 +362,9 @@ const RedeView = ({ postos, byPosto, onOpenFuncionario }: { postos: Empresa[]; b
       </div>
 
       {/* Rodapé */}
-      <p className="px-1 text-[10.5px] leading-relaxed text-gray-400 dark:text-gray-500">
+      <NotaLeitura variant="box">
         Os deltas comparam cada posto com a média ponderada da rede no período. "Precisam de atenção" = funcionários abaixo da média do próprio posto em mix ou ticket.{periodo && ` Período: ${periodo}.`}
-      </p>
+      </NotaLeitura>
     </div>
   )
 }

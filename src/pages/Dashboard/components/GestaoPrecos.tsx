@@ -8,6 +8,7 @@ import GestaoPrecosCliente from '@/pages/Dashboard/components/GestaoPrecosClient
 import { BASE_DESVIO_LABEL, severidadeCedido, type SeveridadeCedido } from '@/lib/gestaoPrecos'
 import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -286,9 +287,9 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade, baratao, barataoCruz }: {
                   </tbody>
                 </table>
               </div>
-              <p className="border-t border-gray-100 px-5 py-2.5 text-[10.5px] text-gray-400 dark:border-gray-800">
+              <NotaLeitura variant="footer" icon={null}>
                 {BASE_DESVIO_LABEL} · só abastecimentos com preço de tabela.
-              </p>
+              </NotaLeitura>
             </>
             )
           })()}

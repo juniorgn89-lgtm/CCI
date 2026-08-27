@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
-  Sparkles, TrendingUp, Percent, Zap, Fuel, ShoppingBag, ArrowRight,
+  Sparkles, TrendingUp, Zap, Fuel, ShoppingBag, ArrowRight,
   Check, AlertTriangle, SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import useOportunidades, { milShort, type Alavanca, type Oportunidade } from '@/pages/Comercial/hooks/useOportunidades'
 
 const lbL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
@@ -282,10 +283,9 @@ const Oportunidades = () => {
         )}
       </div>
 
-      <p className="flex items-start gap-1.5 px-1 text-[11px] leading-snug text-gray-400">
-        <Percent className="mt-0.5 h-3 w-3 shrink-0" />
-        <span>Estimativa de quanto dá pra ganhar a mais, mantendo o mesmo volume (não pressupõe vender mais litros). <strong>Praça</strong> = subir até o preço da vizinhança; <strong>Margem</strong> = subir 70% do caminho até a média dos seus postos. O ganho real depende de quanto o volume reage ao novo preço.</span>
-      </p>
+      <NotaLeitura variant="box">
+        Estimativa de quanto dá pra ganhar a mais, mantendo o mesmo volume (não pressupõe vender mais litros). <strong>Praça</strong> = subir até o preço da vizinhança; <strong>Margem</strong> = subir 70% do caminho até a média dos seus postos. O ganho real depende de quanto o volume reage ao novo preço.
+      </NotaLeitura>
     </div>
   )
 }
