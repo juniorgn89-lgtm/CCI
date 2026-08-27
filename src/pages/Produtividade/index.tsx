@@ -133,6 +133,7 @@ const Produtividade = () => {
           <ProdutividadeRede
             postos={postos}
             onOpenFuncionario={(cod, postoCod) => { setDetailPosto(postoCod); setSelFunc(cod); setPistaSub('funcionarios'); setProdTab('pista') }}
+            onOpenVendedor={(cod, empresaCod) => { if (empresaCod != null) setDetailPosto(empresaCod); setSelLoja(cod); setLojaSub('funcionarios'); setProdTab('loja') }}
           />
         ) : prodTab === 'loja' ? (
           <div className="space-y-4">

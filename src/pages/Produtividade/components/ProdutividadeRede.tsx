@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Wrench, Droplet, Gauge, Receipt, Fuel, Trophy, AlertTriangle, Lightbulb, Loader2, CheckCircle2 } from 'lucide-react'
+import { Wrench, Droplet, Gauge, Receipt, Fuel, Store, Wallet, Percent, ShoppingCart, Trophy, AlertTriangle, Lightbulb, Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -9,6 +9,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import useFrentistaProdutividade, { type FrentistaProdData, type FuncProdRow } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
 import useRedeProdutividadeCache from '@/pages/Produtividade/hooks/useRedeProdutividadeCache'
+import useLojaRedeWide from '@/pages/Produtividade/hooks/useLojaRedeWide'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import type { Empresa } from '@/api/types/empresa'
 
@@ -415,7 +416,8 @@ const RedeCacheLoading = () => (
   </div>
 )
 
-const ProdutividadeRede = ({ postos, onOpenFuncionario }: { postos: Empresa[]; onOpenFuncionario?: (cod: number, postoCod: number) => void }) => {
+/* ─── Visão PISTA (frentistas) — conteúdo original, inalterado ─── */
+const RedePista = ({ postos, onOpenFuncionario }: { postos: Empresa[]; onOpenFuncionario?: (cod: number, postoCod: number) => void }) => {
   const codes = useMemo(() => postos.map((p) => p.codigo), [postos])
   // Fonte primária: cache rede-wide (uma leitura, dias apurados). Sem fan-out.
   const cache = useRedeProdutividadeCache(codes)
@@ -436,6 +438,244 @@ const ProdutividadeRede = ({ postos, onOpenFuncionario }: { postos: Empresa[]; o
       {postos.map((p) => <PostoLoader key={p.codigo} posto={p} onData={onData} />)}
       {ready ? <RedeView postos={postos} byPosto={fanout} onOpenFuncionario={onOpenFuncionario} /> : <RedeLoading postos={postos} byPosto={fanout} />}
     </>
+  )
+}
+
+/* ─── Visão LOJA (conveniência) — espelha a PISTA com métricas de loja ─── */
+interface LojaPostoAgg {
+  codigo: number; nome: string
+  faturamento: number; custo: number; cupons: number; equipe: number
+  margem: number; ticket: number
+}
+const MARGEM_TOL = 0.5 // p.p.
+
+const RedeViewLoja = ({ postos, onOpenVendedor }: { postos: Empresa[]; onOpenVendedor?: (cod: number, empresaCodigo?: number) => void }) => {
+  const { dataInicial, dataFinal } = useFilterStore()
+  const periodo = rangeLabel(dataInicial, dataFinal)
+  const data = useLojaRedeWide(postos)
+  const { rows, kpis } = data
+
+  // Agregação por posto (identidade = empresaCodigo).
+  const postoRows = useMemo<LojaPostoAgg[]>(() => {
+    const m = new Map<number, LojaPostoAgg>()
+    for (const r of rows) {
+      const cur = m.get(r.empresaCodigo) ?? {
+        codigo: r.empresaCodigo, nome: r.postoNome ?? `Posto ${r.empresaCodigo}`,
+        faturamento: 0, custo: 0, cupons: 0, equipe: 0, margem: 0, ticket: 0,
+      }
+      cur.faturamento += r.faturamento
+      cur.custo += r.custo
+      cur.cupons += r.cupons
+      if (r.faturamento > 0) cur.equipe += 1
+      m.set(r.empresaCodigo, cur)
+    }
+    return [...m.values()]
+      .map((p) => ({
+        ...p,
+        margem: p.faturamento > 0 ? ((p.faturamento - p.custo) / p.faturamento) * 100 : 0,
+        ticket: p.cupons > 0 ? p.faturamento / p.cupons : 0,
+      }))
+      .sort((a, b) => b.faturamento - a.faturamento)
+  }, [rows])
+
+  const rede = useMemo(() => ({
+    faturamento: kpis.faturamento,
+    margem: kpis.margemPct,
+    ticket: kpis.ticketMedio,
+    cupons: kpis.cupons,
+    equipe: sum(postoRows.map((p) => p.equipe)),
+    nPostos: postoRows.length,
+  }), [kpis, postoRows])
+
+  const topFat = postoRows[0]?.codigo ?? -1
+  const statusPosto = (p: LojaPostoAgg) => {
+    const belowMargem = p.margem < rede.margem - MARGEM_TOL
+    const aboveMargem = p.margem > rede.margem + MARGEM_TOL
+    const belowTkt = p.ticket < rede.ticket * (1 - TKT_TOL)
+    const aboveTkt = p.ticket > rede.ticket * (1 + TKT_TOL)
+    const nBelow = (belowMargem ? 1 : 0) + (belowTkt ? 1 : 0)
+    const margemTone: Tone = aboveMargem ? 'green' : belowMargem ? 'amber' : 'none'
+    const tktTone: Tone = aboveTkt ? 'green' : belowTkt ? 'amber' : 'none'
+    let label: string, tone: Exclude<Tone, 'none'>
+    if (p.codigo === topFat && !belowMargem && !belowTkt) { label = 'Destaque'; tone = 'green' }
+    else if (nBelow >= 2) { label = 'Atenção'; tone = 'red' }
+    else if (belowMargem) { label = 'Margem baixa'; tone = 'amber' }
+    else if (belowTkt) { label = 'Ticket baixo'; tone = 'amber' }
+    else if (aboveMargem && aboveTkt) { label = 'Acima da média'; tone = 'green' }
+    else { label = 'Na média'; tone = 'gray' }
+    return { label, tone, margemTone, tktTone }
+  }
+
+  // Top 5 vendedores da rede por faturamento (identidade composta posto×pessoa).
+  const top5 = useMemo(() => rows.filter((r) => r.faturamento > 0 && !semCadastro(r.nome)).slice(0, 5), [rows])
+
+  // Faturamento diário da rede (conveniência) — do cache, rede-wide. Mesma
+  // queryKey do useLojaRedeWide → dedupe (uma leitura só).
+  const codes = useMemo(() => postos.map((p) => p.codigo), [postos])
+  const { data: cacheRows = [] } = useQuery({
+    queryKey: ['vendas-funcionario', codes.join(','), dataInicial, dataFinal],
+    queryFn: () => fetchVendasFuncionarioCache({ empresaCodigos: codes, dataInicial, dataFinal }),
+    enabled: codes.length > 0 && !!dataInicial && !!dataFinal,
+    staleTime: 5 * 60 * 1000,
+  })
+  const diario = useMemo(() => {
+    const m = new Map<string, { fat: number; itens: number }>()
+    for (const r of cacheRows) {
+      if (r.setor !== 'conveniencia') continue
+      const dia = (r.data ?? '').slice(0, 10)
+      if (!dia) continue
+      const c = m.get(dia) ?? { fat: 0, itens: 0 }
+      c.fat += r.faturamento; c.itens += r.quantidade
+      m.set(dia, c)
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([data, v]) => ({ data, litros: v.itens, faturamento: v.fat }))
+  }, [cacheRows])
+
+  if (data.isLoading && rows.length === 0) return <RedeCacheLoading />
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+        <Store className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
+        <p className="mt-2 text-[13px] font-semibold text-gray-700 dark:text-gray-200">Sem dados de conveniência no período</p>
+        <p className="mt-1 text-[12px] text-gray-400">Nenhuma venda de loja apurada por vendedor para os postos do filtro.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <KpiCard hero label="Faturamento loja · rede" value={fmtR(rede.faturamento)} Icon={Wallet} tone="green" sub={`${rede.nPostos} ${rede.nPostos === 1 ? 'posto' : 'postos'} · ${fmtN(rede.equipe)} vendedores`} hint="Faturamento de conveniência (loja) somado de todos os postos do filtro no período." />
+        <KpiCard label="Margem · rede" value={fmtMix(rede.margem)} Icon={Percent} tone="blue" hint="Margem bruta consolidada = (faturamento − custo) ÷ faturamento. Razão dos totais, não média de razões." />
+        <KpiCard label="Ticket médio · rede" value={fmtR(rede.ticket)} Icon={Receipt} tone="green" hint="Valor médio por cupom de conveniência (faturamento ÷ nº de cupons)." />
+        <KpiCard label="Cupons · rede" value={fmtN(rede.cupons)} Icon={ShoppingCart} tone="purple" hint="Número de cupons de conveniência na rede toda no período." />
+      </div>
+
+      {/* Desempenho por posto */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+          <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Desempenho por posto</h3>
+          <span className="text-[11px] text-gray-400">ordenado por faturamento de loja</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px]">
+            <thead className="border-b border-gray-100 dark:border-gray-800">
+              <tr><Th>Posto <InfoHint text="Cada linha é um posto da rede — vendas de conveniência somadas dos vendedores dele." /></Th><Th right>Faturamento <InfoHint text="Faturamento de conveniência (loja) no período." /></Th><Th right>Margem <InfoHint text="Margem bruta = (faturamento − custo) ÷ faturamento." /></Th><Th right>Ticket <InfoHint text="Valor médio por cupom de conveniência (faturamento ÷ nº de cupons)." /></Th><Th right>Cupons <InfoHint text="Número de cupons de conveniência no período." /></Th><Th right>Equipe <InfoHint text="Número de vendedores com venda de loja no período naquele posto." /></Th><Th right>Status <InfoHint text="Compara o posto com a média da rede: Destaque, Acima da média, Margem baixa, Ticket baixo, Atenção ou Na média." /></Th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
+              {postoRows.map((p) => {
+                const s = statusPosto(p)
+                return (
+                  <tr key={p.codigo} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30">
+                    <td className="px-3 py-2.5 text-[12.5px] font-semibold text-gray-800 dark:text-gray-200">{p.nome}</td>
+                    <td className="px-3 py-2.5 text-right text-[12.5px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{fmtRi(p.faturamento)}</td>
+                    <td className={cn('px-3 py-2.5 text-right text-[12.5px] tabular-nums', numTone(s.margemTone))}>{fmtMix(p.margem)}</td>
+                    <td className={cn('px-3 py-2.5 text-right text-[12.5px] tabular-nums', numTone(s.tktTone))}>{fmtR(p.ticket)}</td>
+                    <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-600 dark:text-gray-300">{fmtN(p.cupons)}</td>
+                    <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-600 dark:text-gray-300">{p.equipe}</td>
+                    <td className="px-3 py-2.5 text-right"><span className={cn('inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold', PILL[s.tone])}>{s.label}</span></td>
+                  </tr>
+                )
+              })}
+              {/* Linha REDE */}
+              <tr className="border-t border-gray-200 bg-gray-50/70 font-semibold dark:border-gray-700 dark:bg-white/[0.03]">
+                <td className="px-3 py-2.5 text-[12.5px] text-gray-800 dark:text-gray-200">REDE</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-800 dark:text-gray-200">{fmtRi(rede.faturamento)}</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtMix(rede.margem)}</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtR(rede.ticket)}</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(rede.cupons)}</td>
+                <td className="px-3 py-2.5 text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(rede.equipe)}</td>
+                <td className="px-3 py-2.5" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Faturamento diário + Top 5 vendedores */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
+        {diario.length >= 2 ? (
+          <AnaliseSemanalLineCard data={diario} title="Faturamento diário · rede (loja)" noun="faturamento" unit="itens" plotFaturamento accent="#2563eb" scope="da rede" height={240} cardBg="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-black" />
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Faturamento diário · rede (loja)</h3>
+            <p className="py-12 text-center text-[12px] text-gray-400">Sem histórico diário apurado no período.</p>
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+          <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Top 5 da rede</h3>
+            <InfoHint text="Os 5 vendedores com maior faturamento de conveniência na rede toda no período. O posto aparece abaixo do nome." />
+            <span className="text-[11px] text-gray-400">por faturamento de loja</span>
+          </div>
+          <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
+            {top5.length === 0 ? <p className="px-4 py-6 text-center text-[12px] text-gray-400">Sem dados no período.</p> : top5.map((r, i) => (
+              <div key={`${r.empresaCodigo}:${r.funcionarioCodigo}`} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ backgroundColor: i === 0 ? '#FCB619' : '#152238', color: i === 0 ? '#7a4f00' : '#fff' }}>{iniciais(r.nome)}</span>
+                <div className="min-w-0 flex-1">
+                  <button type="button" onClick={() => onOpenVendedor?.(r.funcionarioCodigo, r.empresaCodigo)} disabled={!onOpenVendedor} title="Ver detalhe do vendedor" className="block max-w-full truncate text-left text-[12.5px] font-semibold text-gray-800 enabled:hover:underline disabled:cursor-default dark:text-gray-200">{r.nome}</button>
+                  <p className="truncate text-[10.5px] text-gray-400">{r.postoNome ?? '—'} · margem {fmtMix(r.margemPct)} · ticket {fmtR(r.ticketMedio)}</p>
+                </div>
+                <span className={cn('shrink-0 text-[13px] font-bold tabular-nums', i === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200')}>{fmtRi(r.faturamento)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Rodapé */}
+      <NotaLeitura variant="box">
+        Os status comparam cada posto com a média ponderada da rede (margem e ticket) no período.{periodo && ` Período: ${periodo}.`}
+      </NotaLeitura>
+    </div>
+  )
+}
+
+/* ─── Toggle Pista | Loja (segmented, mesma pegada do TopBarTabs) ─── */
+type RedeMode = 'pista' | 'loja'
+const RedeToggle = ({ mode, onChange }: { mode: RedeMode; onChange: (m: RedeMode) => void }) => (
+  <div className="inline-flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+    {([['pista', 'Pista', Fuel], ['loja', 'Loja', Store]] as const).map(([id, label, Icon]) => {
+      const active = mode === id
+      return (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          className={cn(
+            'flex h-7 items-center gap-1.5 whitespace-nowrap rounded px-3 text-xs font-medium transition-all',
+            active
+              ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-[#14b8a6]'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
+          )}
+        >
+          <Icon className="h-3.5 w-3.5 shrink-0" />{label}
+        </button>
+      )
+    })}
+  </div>
+)
+
+const ProdutividadeRede = ({ postos, onOpenFuncionario, onOpenVendedor }: { postos: Empresa[]; onOpenFuncionario?: (cod: number, postoCod: number) => void; onOpenVendedor?: (cod: number, empresaCodigo?: number) => void }) => {
+  const [mode, setMode] = useState<RedeMode>('pista')
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <RedeToggle mode={mode} onChange={setMode} />
+        <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-gray-500 dark:text-gray-400">
+          {mode === 'pista' ? 'Combustível + automotivos' : 'Conveniência'}
+          <InfoHint text={mode === 'pista'
+            ? 'Resumo da rede na pista: faturamento de automotivos, mix de aditivada, abastecimentos e ticket dos frentistas.'
+            : 'Resumo da rede na loja: faturamento, margem, ticket médio e cupons das vendas de conveniência.'} />
+        </span>
+      </div>
+      {mode === 'pista'
+        ? <RedePista postos={postos} onOpenFuncionario={onOpenFuncionario} />
+        : <RedeViewLoja postos={postos} onOpenVendedor={onOpenVendedor} />}
+    </div>
   )
 }
 
