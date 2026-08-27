@@ -6,7 +6,10 @@
  * a tela mostra o gate `SelectCompanyState`. Os demais (Central, Comercial,
  * Financeiro, Qualidade, Pessoas, Inteligência, …) permitem a rede consolidada.
  */
-const GATED_PREFIXES = ['/operacao', '/estoques', '/produtividade', '/caixas-turnos']
+// /produtividade saiu do gate: virou rede-wide (Resumos somam o filtro; pódios
+// cross-posto). Precisa oferecer "Todos os postos" no seletor — senão, depois de
+// filtrar 1 posto, não havia como voltar pra rede consolidada de dentro do módulo.
+const GATED_PREFIXES = ['/operacao', '/estoques', '/caixas-turnos']
 
 /** True se a rota permite "Todos os postos" ([]). False = exige posto específico. */
 export const moduloPermiteTodos = (pathname: string): boolean =>

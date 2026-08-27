@@ -3,6 +3,7 @@ import { Search, Trophy, Wrench, Droplet, Fuel, Gauge, Receipt, AlertTriangle } 
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
 import ProjTend from '@/pages/Produtividade/components/ProjTend'
 import { classifyFuncaoRole, roleToSetor, type FuncaoRole } from '@/lib/funcaoSetor'
 import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
@@ -15,11 +16,18 @@ const ROLE_ORDER: Record<FuncaoRole, number> = {
 
 interface Props {
   data: FrentistaProdData
-  /** Nome do posto selecionado — só rótulo do cabeçalho da tabela. */
+  /** Rótulo de escopo da tabela ("Todos os postos" / "N postos" / nome do posto
+   *  quando só 1 no filtro) — a Visão Geral é REDE-WIDE. */
   postoNome?: string
-  /** Clique numa linha → abre esse funcionário na aba Funcionários. */
-  onOpenFuncionario?: (codigo: number) => void
+  /** Clique numa linha/pódio → abre esse funcionário na Pista DO POSTO DELE.
+   *  Passa (funcionarioCodigo, empresaCodigo) porque o código sozinho colide
+   *  entre postos (cada posto numera do 1). */
+  onOpenFuncionario?: (codigo: number, empresaCodigo?: number) => void
 }
+
+/** Identidade composta rede-wide: (empresaCodigo, funcionarioCodigo). O
+ *  `funcionarioCodigo` sozinho colide entre postos. */
+const ck = (empresaCodigo: number | undefined, funcionarioCodigo: number) => `${empresaCodigo ?? 0}:${funcionarioCodigo}`
 
 const fmtR = (v: number) => formatCurrency(v)
 const fmtRi = (v: number) => formatCurrencyInt(v)
@@ -58,7 +66,7 @@ const KpiCard = ({ label, value, Icon, tone, sub, hint }: { label: string; value
 
 /* ─── Pódio (Top 3: 1º destacado + 2º/3º em linha) ─── */
 const PodiumCard = ({ title, Icon, items, fmt, contexto, onOpen }: {
-  title: string; Icon: typeof Wrench; items: Podio[]; fmt: (v: number) => string; contexto: (cod: number) => string; onOpen?: (cod: number) => void
+  title: string; Icon: typeof Wrench; items: Podio[]; fmt: (v: number) => string; contexto: (p: Podio) => string; onOpen?: (p: Podio) => void
 }) => {
   const [first, second, third] = items
   const rest = [second, third].filter(Boolean) as Podio[]
@@ -79,8 +87,9 @@ const PodiumCard = ({ title, Icon, items, fmt, contexto, onOpen }: {
               {iniciais(first.nome)}
             </div>
             <div className="min-w-0 flex-1">
-              <button type="button" onClick={() => onOpen?.(first.funcionarioCodigo)} disabled={!onOpen} title="Ver detalhe do funcionário" className="block max-w-full truncate text-left text-[13px] font-bold text-gray-900 enabled:hover:underline disabled:cursor-default dark:text-gray-100">{first.nome}</button>
-              <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{contexto(first.funcionarioCodigo)}</p>
+              <button type="button" onClick={() => onOpen?.(first)} disabled={!onOpen} title="Ver detalhe do funcionário" className="block max-w-full truncate text-left text-[13px] font-bold text-gray-900 enabled:hover:underline disabled:cursor-default dark:text-gray-100">{first.nome}</button>
+              {first.postoNome && <p className="truncate text-[10.5px] font-medium text-[#2563eb] dark:text-blue-300">{first.postoNome}</p>}
+              <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{contexto(first)}</p>
             </div>
             <span className="shrink-0 text-[17px] font-bold tabular-nums text-amber-600 dark:text-amber-400">{fmt(first.valor)}</span>
           </div>
@@ -88,9 +97,12 @@ const PodiumCard = ({ title, Icon, items, fmt, contexto, onOpen }: {
           {rest.length > 0 && (
             <div className="mt-1.5 divide-y divide-gray-50 dark:divide-gray-800/60">
               {rest.map((p, i) => (
-                <div key={p.funcionarioCodigo} className="flex items-center gap-2 px-1.5 py-2">
+                <div key={ck(p.empresaCodigo, p.funcionarioCodigo)} className="flex items-center gap-2 px-1.5 py-2">
                   <span className="w-5 shrink-0 text-[11px] font-semibold tabular-nums text-gray-400">{i + 2}º</span>
-                  <button type="button" onClick={() => onOpen?.(p.funcionarioCodigo)} disabled={!onOpen} title="Ver detalhe do funcionário" className="min-w-0 flex-1 truncate text-left text-[12.5px] text-gray-600 enabled:hover:underline disabled:cursor-default dark:text-gray-300">{p.nome}</button>
+                  <div className="min-w-0 flex-1">
+                    <button type="button" onClick={() => onOpen?.(p)} disabled={!onOpen} title="Ver detalhe do funcionário" className="block max-w-full truncate text-left text-[12.5px] text-gray-600 enabled:hover:underline disabled:cursor-default dark:text-gray-300">{p.nome}</button>
+                    {p.postoNome && <p className="truncate text-[10px] text-gray-400 dark:text-gray-500">{p.postoNome}</p>}
+                  </div>
                   <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-gray-700 dark:text-gray-300">{fmt(p.valor)}</span>
                 </div>
               ))}
@@ -128,24 +140,27 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
   const [busca, setBusca] = useState('')
   const { kpis, podios, rows, projFactor } = data
 
-  const rowByCod = useMemo(() => new Map(rows.map((r) => [r.funcionarioCodigo, r])), [rows])
+  // Lookup por identidade COMPOSTA (empresaCodigo, funcionarioCodigo) — rede-wide.
+  const rowByCod = useMemo(() => new Map(rows.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rows])
   // Projeção de fim de mês (projFactor, vindo do hook). Só mostra quando a janela
   // é mês-a-data E já passou ~1/3 do mês (projFactor ≤ 3) — cedo demais a
   // extrapolação linear é ruído (dia 3 de 31 projetaria ×10).
   const showProj = projFactor > 1 && projFactor <= 3
 
-  // Média do posto pra o status = mesma base dos KPIs (agregado do posto).
+  // Média da REDE pra o status = mesma base dos KPIs agregados (rede-wide).
   const avgMix = kpis.mixPct
   const avgTicket = kpis.ticketMedio
-  const leaderCod = rows.find((r) => r.automotivo > 0)?.funcionarioCodigo ?? -1
   // Campeões de cada pódio (1º lugar) — ganham troféu na tabela, por categoria.
-  const champAutomotivo = podios.automotivo[0]?.funcionarioCodigo ?? -1
-  const champAditivada = podios.aditivada[0]?.funcionarioCodigo ?? -1
-  const champAtendimentos = podios.atendimentos[0]?.funcionarioCodigo ?? -1
+  // Chave COMPOSTA porque o funcionarioCodigo colide entre postos.
+  const champAutomotivo = podios.automotivo[0] ? ck(podios.automotivo[0].empresaCodigo, podios.automotivo[0].funcionarioCodigo) : ''
+  const champAditivada = podios.aditivada[0] ? ck(podios.aditivada[0].empresaCodigo, podios.aditivada[0].funcionarioCodigo) : ''
+  const champAtendimentos = podios.atendimentos[0] ? ck(podios.atendimentos[0].empresaCodigo, podios.atendimentos[0].funcionarioCodigo) : ''
+  // Líder de automotivos da rede = "Destaque" (mesmo 1º do pódio de automotivos).
+  const leaderCod = champAutomotivo
 
   const statusOf = (r: FuncProdRow): StatusInfo => {
     if (semCadastro(r.nome)) return { label: 'Sem cadastro', tone: 'gray' }
-    if (r.funcionarioCodigo === leaderCod) return { label: 'Destaque', tone: 'green' }
+    if (ck(r.empresaCodigo, r.funcionarioCodigo) === leaderCod) return { label: 'Destaque', tone: 'green' }
     const mixBaixo = avgMix > 0 && r.mixPct < avgMix
     const ticketBaixo = avgTicket > 0 && r.ticket < avgTicket
     if (mixBaixo || ticketBaixo) {
@@ -196,10 +211,10 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
 
   const nAbaixo = rows.filter((r) => statusOf(r).tone === 'amber').length
 
-  // Contexto do líder de cada pódio (2 métricas secundárias).
-  const ctxAutomotivo = (cod: number) => { const r = rowByCod.get(cod); return r ? `ticket ${fmtR(r.ticket)} · ${fmtN(r.abastecimentos)} abast.` : '' }
-  const ctxAditivada = (cod: number) => { const r = rowByCod.get(cod); return r ? `mix ${fmtMix(r.mixPct)} · ${fmtN(r.abastecimentos)} abast.` : '' }
-  const ctxAtendimentos = (cod: number) => { const r = rowByCod.get(cod); return r ? `ticket ${fmtR(r.ticket)} · mix ${fmtMix(r.mixPct)}` : '' }
+  // Contexto do líder de cada pódio (2 métricas secundárias). Lookup composto.
+  const ctxAutomotivo = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · ${fmtN(r.abastecimentos)} abast.` : '' }
+  const ctxAditivada = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `mix ${fmtMix(r.mixPct)} · ${fmtN(r.abastecimentos)} abast.` : '' }
+  const ctxAtendimentos = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · mix ${fmtMix(r.mixPct)}` : '' }
 
   return (
     <div className="space-y-4">
@@ -215,17 +230,17 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
 
       {/* Pódios (Top 3) */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <PodiumCard title="Vendas de automotivos" Icon={Wrench} items={podios.automotivo} fmt={fmtRi} contexto={ctxAutomotivo} onOpen={onOpenFuncionario} />
-        <PodiumCard title="Venda de aditivada" Icon={Droplet} items={podios.aditivada} fmt={fmtL} contexto={ctxAditivada} onOpen={onOpenFuncionario} />
-        <PodiumCard title="Atendimentos" Icon={Fuel} items={podios.atendimentos} fmt={fmtN} contexto={ctxAtendimentos} onOpen={onOpenFuncionario} />
+        <PodiumCard title="Vendas de automotivos" Icon={Wrench} items={podios.automotivo} fmt={fmtRi} contexto={ctxAutomotivo} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Venda de aditivada" Icon={Droplet} items={podios.aditivada} fmt={fmtL} contexto={ctxAditivada} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Atendimentos" Icon={Fuel} items={podios.atendimentos} fmt={fmtN} contexto={ctxAtendimentos} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
       </div>
 
       {/* Tabela da equipe */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Equipe · {postoNome ?? 'posto'}</h3>
-            <InfoHint text="Equipe agrupada por cargo, com subtotais. Medalha 1º/2º/3º = ranking dentro do setor. Troféu ao lado do nome = 1º lugar do posto: dourado em automotivos, roxo em aditivada, azul em atendimentos." />
+            <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Equipe · {postoNome ?? 'rede'}</h3>
+            <InfoHint text="Equipe da rede toda (filtro), agrupada por cargo com subtotais. O posto de cada pessoa aparece abaixo do nome. Medalha 1º/2º/3º = ranking dentro do setor. Troféu ao lado do nome = 1º lugar da rede: dourado em automotivos, roxo em aditivada, azul em atendimentos." />
             <span className="text-[11px] text-gray-400 dark:text-gray-500">{rows.length} funcionários</span>
           </div>
           <div className="flex items-center gap-2">
@@ -257,7 +272,7 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
                 <Th right>Mix <InfoHint text="Fatia da gasolina vendida que foi aditivada (aditivada ÷ total de gasolina). Mais alto = a equipe empurra mais o produto de maior margem." /></Th>
                 <Th right>Abast. <InfoHint text="Número de abastecimentos (atendimentos) no período." /></Th>
                 <Th right>Ticket <InfoHint text="Valor médio por cupom de automotivos (faturamento ÷ nº de cupons)." /></Th>
-                <Th right>Status <InfoHint text="Compara o funcionário com a média do próprio posto: Destaque (líder), Mix baixo, Ticket baixo, Na média ou Sem cadastro." /></Th>
+                <Th right>Status <InfoHint text="Compara o funcionário com a média da REDE (todos os postos do filtro): Destaque (líder), Mix baixo, Ticket baixo, Na média ou Sem cadastro." /></Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
@@ -280,21 +295,23 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
                   </tr>
                   {g.rows.map((r, idx) => {
                     const s = statusOf(r)
+                    const key = ck(r.empresaCodigo, r.funcionarioCodigo)
                     return (
                       <tr
-                        key={r.funcionarioCodigo}
-                        onClick={() => onOpenFuncionario?.(r.funcionarioCodigo)}
+                        key={key}
+                        onClick={() => onOpenFuncionario?.(r.funcionarioCodigo, r.empresaCodigo)}
                         title="Ver detalhe do funcionário"
                         className={cn('hover:bg-gray-50/60 dark:hover:bg-gray-800/30', onOpenFuncionario && 'cursor-pointer')}
                       >
-                        <td className="whitespace-nowrap px-3 py-[11px] pl-6">
-                          <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 dark:text-gray-200">
+                        <td className="px-3 py-[11px] pl-6">
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-medium text-gray-800 dark:text-gray-200">
                             {idx < 3 && g.metric(r) > 0 && <Medal rank={idx + 1} />}
                             {r.nome}
-                            {r.funcionarioCodigo === champAutomotivo && <span title="1º em vendas de automotivos"><Trophy className="h-3.5 w-3.5 text-amber-500" /></span>}
-                            {r.funcionarioCodigo === champAditivada && <span title="1º em venda de aditivada"><Trophy className="h-3.5 w-3.5 text-violet-500" /></span>}
-                            {r.funcionarioCodigo === champAtendimentos && <span title="1º em atendimentos"><Trophy className="h-3.5 w-3.5 text-blue-500" /></span>}
+                            {key === champAutomotivo && <span title="1º em vendas de automotivos"><Trophy className="h-3.5 w-3.5 text-amber-500" /></span>}
+                            {key === champAditivada && <span title="1º em venda de aditivada"><Trophy className="h-3.5 w-3.5 text-violet-500" /></span>}
+                            {key === champAtendimentos && <span title="1º em atendimentos"><Trophy className="h-3.5 w-3.5 text-blue-500" /></span>}
                           </span>
+                          {r.postoNome && <span className="mt-0.5 block truncate text-[10.5px] text-gray-400 dark:text-gray-500">{r.postoNome}</span>}
                         </td>
                         <td className="px-3 py-[11px]">
                           <div className="flex flex-col items-end">
@@ -326,9 +343,9 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
           </table>
         </div>
 
-        <div className="border-t border-gray-100 px-4 py-2.5 text-[10.5px] leading-relaxed text-gray-400 dark:border-gray-800 dark:text-gray-500">
-"proj." = projeção linear de fim de mês, no ritmo atual (só aparece em janela mês-a-data, depois de ~1/3 do mês). "Abaixo da média" compara com a média do próprio posto no período.
-        </div>
+        <NotaLeitura variant="footer" icon={null}>
+"proj." = projeção linear de fim de mês, no ritmo atual (só aparece em janela mês-a-data, depois de ~1/3 do mês). "Abaixo da média" compara com a média da REDE (todos os postos do filtro) no período.
+        </NotaLeitura>
       </div>
     </div>
   )

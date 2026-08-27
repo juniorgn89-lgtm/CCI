@@ -83,6 +83,11 @@ const useRedeProdutividadeCache = (
     // empresa → funcionario → agregado
     const acc = new Map<number, Map<number, { auto: number; cupAuto: number; itens: number; adit: number; gas: number; abast: number; litros: number }>>()
     for (const r of cacheRows) {
+      // Quem entra na PISTA é definido pelo que a pessoa VENDEU (setor real da
+      // venda), não pelo cargo: só quem tem venda de combustível ou automotivos.
+      // Vendas de conveniência/outros não criam linha aqui (a pessoa aparece na
+      // aba Loja). Ver [[project_produtividade_setor]].
+      if (r.setor !== 'automotivos' && r.setor !== 'combustivel') continue
       let m = acc.get(r.empresa_codigo)
       if (!m) { m = new Map(); acc.set(r.empresa_codigo, m) }
       const f = m.get(r.funcionario_codigo) ?? { auto: 0, cupAuto: 0, itens: 0, adit: 0, gas: 0, abast: 0, litros: 0 }
@@ -122,11 +127,11 @@ const useRedeProdutividadeCache = (
           combustiveis: [], // quebra por produto não vem do cache (só o detalhe live usa)
         }
       })
-      // Produtividade é da PISTA (frentista/posto): exclui os cargos de LOJA
-      // (caixa, gerente de conveniência) — eles não têm métrica de pista e só
-      // poluíam a tela. Ver [[project_produtividade_setor]].
-      .filter((r) => roleToSetor(classifyFuncaoRole(r.funcao)) !== 'conveniencia')
-      .sort((a, b) => b.automotivo - a.automotivo || b.aditivadaLitros - a.aditivadaLitros)
+        // A aba PISTA exclui os cargos de LOJA (caixa, gerente de conveniência):
+        // mesmo que tenham venda de automotivos/aditivada carimbada no caixa, são
+        // pessoal de loja e aparecem na aba Loja, não aqui. Ver [[project_produtividade_setor]].
+        .filter((r) => roleToSetor(classifyFuncaoRole(r.funcao)) !== 'conveniencia')
+        .sort((a, b) => b.automotivo - a.automotivo || b.aditivadaLitros - a.aditivadaLitros)
 
       const totAdit = rows.reduce((s, r) => s + r.aditivadaLitros, 0)
       const totGas = rows.reduce((s, r) => s + r.gasolinaLitros, 0)

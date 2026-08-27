@@ -114,8 +114,8 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'premium',
     permId: 'produtividade',
     tabs: [
-      { id: 'dash', label: 'Visão Geral', plano: 'premium' },
-      { id: 'funcionarios', label: 'Funcionários', plano: 'premium' },
+      { id: 'pista', label: 'Pista', plano: 'premium' },
+      { id: 'loja', label: 'Loja', plano: 'premium' },
       { id: 'rede', label: 'Resumo da rede', plano: 'premium' },
     ],
   },
@@ -153,14 +153,6 @@ export const APP_STRUCTURE: AppModule[] = [
     group: 'gestao',
     plano: 'pro',
     permId: 'qualidade-dados',
-    tabs: [],
-  },
-  {
-    path: '/compliance',
-    label: 'Compliance ANP',
-    group: 'gestao',
-    plano: 'pro',
-    permId: 'compliance',
     tabs: [],
   },
   {

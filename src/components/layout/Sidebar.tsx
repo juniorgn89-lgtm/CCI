@@ -96,8 +96,8 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Reabastecimento', to: '/operacao?tab=reabastecimento', Icon: Fuel },
   ],
   '/produtividade': [
-    { label: 'Visão Geral', to: '/produtividade', Icon: LayoutDashboard },
-    { label: 'Funcionários', to: '/produtividade?tab=funcionarios', Icon: Users },
+    { label: 'Pista', to: '/produtividade?tab=pista', Icon: Fuel },
+    { label: 'Loja', to: '/produtividade?tab=loja', Icon: Store },
     { label: 'Resumo da rede', to: '/produtividade?tab=rede', Icon: Building2 },
   ],
   '/estoques': [

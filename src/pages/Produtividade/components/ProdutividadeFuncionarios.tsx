@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, Wrench, Droplet, Fuel, Gauge, Receipt, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Wrench, Droplet, Fuel, Gauge, Receipt, Package, TrendingUp, ChevronLeft, ChevronRight, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
@@ -11,13 +11,19 @@ import useGruposFuncionario, { type GrupoVenda, type EvolucaoFunc } from '@/page
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 
 interface Props {
+  /** DETALHE per-posto do funcionário selecionado (posto = `postoCodigo`). */
   data: FrentistaProdData
+  /** LISTA rede-wide: frentistas de TODOS os postos do filtro, cada row com
+   *  `empresaCodigo`+`postoNome` — a lista lateral agrupa por posto. */
+  listRows: FuncProdRow[]
+  /** Posto do detalhe/pessoa selecionada. */
   postoCodigo?: number | null
   /** Nome do posto — subtítulo do header do funcionário. */
   postoNome?: string
-  /** Funcionário selecionado (controlado pelo index). */
+  /** Funcionário selecionado (funcionarioCodigo dentro de `postoCodigo`). */
   selId: number | null
-  onSelect: (codigo: number) => void
+  /** Seleciona pessoa+posto: identidade composta (empresaCodigo, funcionarioCodigo). */
+  onSelect: (empresaCodigo: number, funcionarioCodigo: number) => void
 }
 
 const fmtR = (v: number) => formatCurrency(v)
@@ -277,7 +283,7 @@ const Chart12m = ({ data, loading }: { data?: MesValor[]; loading?: boolean }) =
   )
 }
 
-const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSelect }: Props) => {
+const ProdutividadeFuncionarios = ({ data, listRows, postoCodigo, postoNome, selId, onSelect }: Props) => {
   const { rows, kpis } = data
   const { dataInicial, dataFinal } = useFilterStore()
   const periodo = rangeLabel(dataInicial, dataFinal)
@@ -285,14 +291,38 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
   const { byFunc: auto12m, isLoading: loading12m } = useAutomotivos12m(postoCodigo)
   const [busca, setBusca] = useState('')
 
-  const filtered = useMemo(() => {
+  // Lista lateral REDE-WIDE agrupada por posto. A busca filtra todos os grupos.
+  // A ordem dos grupos segue a ordem em que os postos aparecem no filtro (as rows
+  // já vêm posto-a-posto de useProdutividadeRedeWide); dentro do grupo, por métrica.
+  const groups = useMemo(() => {
     const q = busca.trim().toLowerCase()
-    return q ? rows.filter((r) => r.nome.toLowerCase().includes(q)) : rows
-  }, [rows, busca])
+    const src = q ? listRows.filter((r) => r.nome.toLowerCase().includes(q)) : listRows
+    const m = new Map<number, { empresaCodigo: number; postoNome?: string; rows: FuncProdRow[] }>()
+    for (const r of src) {
+      const ec = r.empresaCodigo ?? -1
+      let g = m.get(ec)
+      if (!g) { g = { empresaCodigo: ec, postoNome: r.postoNome, rows: [] }; m.set(ec, g) }
+      g.rows.push(r)
+    }
+    return [...m.values()]
+  }, [listRows, busca])
+  const listaVazia = groups.length === 0
 
+  // Campeões da REDE (1º de cada categoria) — troféu na lista, igual à Equipe do
+  // Resumo. Identidade composta (posto, funcionário) porque o código colide.
+  const champ = useMemo(() => {
+    const ck = (r: FuncProdRow) => `${r.empresaCodigo ?? -1}:${r.funcionarioCodigo}`
+    const top = (sel: (r: FuncProdRow) => number) =>
+      listRows.reduce<FuncProdRow | null>((best, r) => (sel(r) > 0 && (!best || sel(r) > sel(best)) ? r : best), null)
+    const a = top((r) => r.automotivo), d = top((r) => r.aditivadaLitros), t = top((r) => r.abastecimentos)
+    return { auto: a ? ck(a) : '', adit: d ? ck(d) : '', atend: t ? ck(t) : '' }
+  }, [listRows])
+
+  // Detalhe: o funcionário selecionado vem SEMPRE do detalhe per-posto (`rows` do
+  // posto `postoCodigo`). O realce/identidade na lista é composto (posto+código).
   const sel = useMemo(
-    () => rows.find((r) => r.funcionarioCodigo === selId) ?? filtered[0] ?? rows[0] ?? null,
-    [rows, filtered, selId],
+    () => rows.find((r) => r.funcionarioCodigo === selId) ?? rows[0] ?? null,
+    [rows, selId],
   )
 
   // Médias do posto (derivadas das linhas — só apresentação, nada de fetch novo).
@@ -308,7 +338,8 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
   }), [rows, kpis.mixPct])
 
   const idx = sel ? rows.findIndex((r) => r.funcionarioCodigo === sel.funcionarioCodigo) : -1
-  const go = (d: number) => { if (rows.length && idx >= 0) onSelect(rows[(idx + d + rows.length) % rows.length].funcionarioCodigo) }
+  // Anterior/próximo navega DENTRO do posto atual (o detalhe é per-posto).
+  const go = (d: number) => { if (rows.length && idx >= 0 && postoCodigo != null) onSelect(postoCodigo, rows[(idx + d + rows.length) % rows.length].funcionarioCodigo) }
   const rank = idx + 1
   const mixBaixo = sel ? sel.mixPct < kpis.mixPct : false
   // Projeção de fim de mês só na janela mês-a-data e depois de ~1/3 do mês
@@ -322,6 +353,10 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
       <div className="w-full shrink-0 lg:sticky lg:top-4 lg:w-64">
         <div className="flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="border-b border-gray-100 p-2 dark:border-gray-800">
+            <div className="mb-1.5 flex items-center gap-1 px-0.5">
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Quem vendeu no período</span>
+              <InfoHint text="A lista traz só os funcionários que registraram venda no período (dias apurados). Quem não vendeu — folga, férias, admissão nova ou função administrativa — não aparece aqui." />
+            </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -333,34 +368,57 @@ const ProdutividadeFuncionarios = ({ data, postoCodigo, postoNome, selId, onSele
               />
             </div>
           </div>
-          <div className="flex-1 space-y-0.5 overflow-y-auto p-1.5">
-            {filtered.length === 0 ? (
+          <div className="flex-1 space-y-1.5 overflow-y-auto p-1.5">
+            {listaVazia ? (
               <p className="px-3 py-6 text-center text-[12px] text-gray-400">Nenhum funcionário.</p>
-            ) : filtered.map((r) => {
-              const active = sel?.funcionarioCodigo === r.funcionarioCodigo
-              return (
-                <button
-                  key={r.funcionarioCodigo}
-                  type="button"
-                  onClick={() => onSelect(r.funcionarioCodigo)}
-                  className={cn('flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors', active ? 'bg-[#132033]' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: active ? '#1d4ed8' : '#152238' }}>
-                    {iniciais(r.nome)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-[11.5px] font-semibold', active ? 'text-white' : 'text-gray-800 dark:text-gray-200')}>{r.nome}</span>
-                    <span className={cn('block truncate text-[10px] tabular-nums', active ? 'text-blue-200/80' : 'text-gray-400 dark:text-gray-500')}>{fmtR(r.automotivo)} · {fmtN(r.abastecimentos)} abast.</span>
-                  </span>
-                </button>
-              )
-            })}
+            ) : groups.map((g) => (
+              <div key={g.empresaCodigo} className="space-y-0.5">
+                {/* Cabeçalho de grupo = nome do posto (fantasia) + contagem. */}
+                <div className="flex items-center gap-1.5 px-2 pt-0.5">
+                  <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{g.postoNome ?? 'Posto'}</span>
+                  <span className="text-[9.5px] tabular-nums text-gray-300 dark:text-gray-600">{g.rows.length}</span>
+                </div>
+                {g.rows.map((r) => {
+                  const active = g.empresaCodigo === postoCodigo && r.funcionarioCodigo === sel?.funcionarioCodigo
+                  const ckey = `${g.empresaCodigo}:${r.funcionarioCodigo}`
+                  return (
+                    <button
+                      key={`${g.empresaCodigo}:${r.funcionarioCodigo}`}
+                      type="button"
+                      onClick={() => onSelect(g.empresaCodigo, r.funcionarioCodigo)}
+                      className={cn('flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors', active ? 'bg-[#132033]' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40')}
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: active ? '#1d4ed8' : '#152238' }}>
+                        {iniciais(r.nome)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1">
+                          <span className={cn('min-w-0 truncate text-[11.5px] font-semibold', active ? 'text-white' : 'text-gray-800 dark:text-gray-200')}>{r.nome}</span>
+                          {ckey === champ.auto && <span title="1º em automotivos (rede)" className="shrink-0"><Trophy className="h-3 w-3 text-amber-500" /></span>}
+                          {ckey === champ.adit && <span title="1º em aditivada (rede)" className="shrink-0"><Trophy className="h-3 w-3 text-violet-500" /></span>}
+                          {ckey === champ.atend && <span title="1º em atendimentos (rede)" className="shrink-0"><Trophy className="h-3 w-3 text-blue-500" /></span>}
+                        </span>
+                        <span className={cn('block truncate text-[10px] tabular-nums', active ? 'text-blue-200/80' : 'text-gray-400 dark:text-gray-500')}>{fmtR(r.automotivo)} · {fmtN(r.abastecimentos)} abast.</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Detalhe */}
-      {sel ? (
+      {/* Detalhe (per-posto da pessoa selecionada) */}
+      {data.isLoading && !sel ? (
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="h-20 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />)}
+          </div>
+          <div className="h-[280px] animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+        </div>
+      ) : sel ? (
         <div className="min-w-0 flex-1 space-y-4">
           {/* Header do funcionário */}
           <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black sm:flex-row sm:items-center sm:justify-between">

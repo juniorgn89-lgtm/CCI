@@ -47,12 +47,20 @@ export interface FuncProdRow {
   litros: number
   faturamentoCombustivel: number
   combustiveis: CombustivelBreak[]
+  /** Rede-wide: posto de origem. `funcionarioCodigo` NÃO é único entre postos
+   *  (cada posto numera do 1) — a identidade única é (empresaCodigo, funcionarioCodigo).
+   *  Opcional: no modo por-posto (Pista/Loja) fica ausente. */
+  empresaCodigo?: number
+  postoNome?: string
 }
 
 export interface Podio {
   funcionarioCodigo: number
   nome: string
   valor: number
+  /** Rede-wide: posto do campeão — ver nota em [[FuncProdRow]]. */
+  empresaCodigo?: number
+  postoNome?: string
 }
 
 export interface FrentistaProdKpis {
