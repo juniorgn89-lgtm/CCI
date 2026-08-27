@@ -1,7 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import ComparisonSelect from '@/components/filters/ComparisonSelect'
 import { showsComparison } from '@/lib/globalFilters'
-import { useIsDemo } from '@/store/tenant'
 import { useTopbarUi } from '@/store/topbarUi'
 import { cn } from '@/lib/utils'
 
@@ -24,9 +23,7 @@ interface GlobalFilterControlsProps {
 const GlobalFilterControls = ({ dateSlot, className }: GlobalFilterControlsProps) => {
   // Comparativo só nas telas que de fato o consomem (senão vira controle morto).
   const { pathname } = useLocation()
-  // Na demo não há meses anteriores apurados → o comparativo seria controle morto.
-  const isDemo = useIsDemo()
-  const showComparison = showsComparison(pathname) && !isDemo
+  const showComparison = showsComparison(pathname)
   // Modo "ao vivo" desabilita o comparativo. O período (dateSlot) se
   // desabilita sozinho via liveLock.
   const liveLock = useTopbarUi((s) => s.liveLock)

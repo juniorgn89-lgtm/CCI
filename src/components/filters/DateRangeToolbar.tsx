@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Calendar, Lock } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import PeriodPresetSelect from '@/components/filters/PeriodPresetSelect'
 import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
-import { useIsDemoPeriodLocked } from '@/store/tenant'
 import { useTopbarUi } from '@/store/topbarUi'
 import useApuracaoAtrasada from '@/hooks/useApuracaoAtrasada'
 import { cn } from '@/lib/utils'
@@ -55,10 +54,6 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
   const periodIni = useFilterStore((s) => s.dataInicial)
   const periodFim = useFilterStore((s) => s.dataFinal)
   const { setPeriodo } = useFilters()
-  // Rede Demonstração: período fixo no mês atual (o cron mantém apurado) — sem
-  // seletor de mês, a demo "só traz os dados". Ver useDemoPeriodLock. O escape
-  // hatch de gravação (?cal=1) reexibe o calendário na demo.
-  const isDemo = useIsDemoPeriodLocked()
   const iniRef = useRef<HTMLInputElement>(null)
   const fimRef = useRef<HTMLInputElement>(null)
 
@@ -116,24 +111,6 @@ const DateRangeToolbar = ({ stacked = false }: { stacked?: boolean }) => {
         ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
         : 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40',
   )
-
-  // Demonstração: em vez do seletor de mês, um chip estático "mês atual" — o
-  // período já está fixo (useDemoPeriodLock) e sempre tem dados.
-  if (isDemo) {
-    return (
-      <span
-        title="Rede Demonstração — período fixo no mês atual (os dados estão sempre disponíveis)"
-        className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-2.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
-          stacked && 'w-full justify-center',
-        )}
-      >
-        <Lock className="h-3.5 w-3.5 shrink-0" />
-        Mês atual
-        <span className="text-blue-400 dark:text-blue-500">· demonstração</span>
-      </span>
-    )
-  }
 
   return (
     <div
