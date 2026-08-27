@@ -126,8 +126,8 @@ const Landing = () => {
             <a href="#representantes" style={{ color: '#475569' }}>Para representantes</a>
             <a href="#contato" style={{ color: '#475569' }}>Contato</a>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <a href={MAIL.demo} style={{ color: '#16293f', fontSize: 14.5, fontWeight: 600 }}>Agendar demonstração</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" title="Ir para o site da CCI" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#0F766E', fontSize: 14.5, fontWeight: 700 }}>Site da CCI ↗</a>
             <Link to="/login" style={{ background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 14.5, padding: '11px 20px', borderRadius: 11 }}>Acessar</Link>
           </div>
         </div>
@@ -360,6 +360,7 @@ const Landing = () => {
                 <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 20, color: '#16293f' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
               </div>
               <p style={{ margin: '14px 0 0', fontSize: 13.5, lineHeight: 1.6, color: '#94a3b8' }}>Gestão inteligente para redes de postos. Uma solução CCI.</p>
+              <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 14, background: 'rgba(15,118,110,.1)', border: '1px solid rgba(15,118,110,.3)', color: '#0F766E', fontWeight: 700, fontSize: 13.5, padding: '9px 15px', borderRadius: 10 }}>Conheça a CCI · www.cci.app.br ↗</a>
             </div>
             <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
               <div>
