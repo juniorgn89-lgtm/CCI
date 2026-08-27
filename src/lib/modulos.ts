@@ -31,8 +31,7 @@ export const MODULOS: ModuloInfo[] = [
   { id: 'pessoas', label: 'Pessoas', path: '/pessoas' },
   { id: 'comercial', label: 'Comercial · Lucro', path: '/comercial' },
   { id: 'inteligencia', label: 'Inteligência', path: '/inteligencia' },
-  // Compliance ANP entra no gate de permissão (antes furava — sempre visível).
-  { id: 'compliance', label: 'Compliance ANP', path: '/compliance' },
+  // Compliance ANP ocultado (fora do menu/rota). Reativar: repor este item + rota + navConfig/appStructure.
 ]
 
 /** Encontra qual módulo do catálogo corresponde a um pathname. */

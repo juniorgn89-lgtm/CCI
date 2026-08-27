@@ -1,6 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Fuel,
-  Network, ShieldAlert, UsersRound, TrendingUp, Radio, ShieldCheck,
+  Network, ShieldAlert, UsersRound, TrendingUp, Radio,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -50,7 +50,6 @@ export const navGroups: NavGroup[] = [
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
-      { label: 'Compliance ANP', path: '/compliance', icon: ShieldCheck },
       { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
     ],
   },

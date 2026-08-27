@@ -68,7 +68,6 @@ export const PLANOS: PlanoDef[] = [
       'Radar de Preços — guerra de preço, elasticidade e simulação',
       'Financeiro — títulos a receber e a pagar',
       'Estoques — saldo, mínimo e cobertura',
-      'Compliance ANP — margem regulatória',
       'Qualidade de Dados — auditoria e detecção de fraude',
       'Analista de IA — a Inteligência que explica o número',
     ],
