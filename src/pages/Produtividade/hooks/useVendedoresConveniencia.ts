@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
-import { offsetPeriod, todayLocal } from '@/lib/period'
+import { monthToDateProjFactor, offsetPeriod, todayLocal } from '@/lib/period'
 
 export interface VendedorRow {
   funcionarioCodigo: number
@@ -19,6 +19,10 @@ export interface VendedorRow {
   cupons: number
   /** Ticket médio = faturamento ÷ cupons. */
   ticketMedio: number
+  /** Faturamento projetado pro fim do mês (mês-a-data); = faturamento fora da janela. */
+  faturamentoTend: number
+  /** Cupons projetados pro fim do mês (arredondado); = cupons fora da janela. */
+  cuponsTend: number
 }
 
 /** Ponto da série diária de um vendedor (derivado das rows cruas do cache). */
@@ -39,6 +43,9 @@ export interface VendedoresData {
   totalLucro: number
   totalCupons: number
   totalItens: number
+  /** Fator de projeção de fim de mês (mês-a-data); 1 = sem projeção. Só faturamento
+   *  e cupons projetam — margem e ticket são razões e não recebem projeção. */
+  projFactor: number
   isLoading: boolean
   hasEmpresa: boolean
 }
@@ -49,8 +56,9 @@ type Meta = Map<number, { nome?: string; ativo?: boolean }>
 /** Setor de loja exibível por vendedor (o combustível não vai por vendedor). */
 export type VendedorSetor = 'conveniencia' | 'automotivos'
 
-/** Agrega o cache de venda por funcionário (do `setor` pedido) em VendedorRow[]. */
-const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): VendedorRow[] => {
+/** Agrega o cache de venda por funcionário (do `setor` pedido) em VendedorRow[].
+ *  `projFactor` projeta faturamento e cupons pro fim do mês (=1 sem projeção). */
+const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor, projFactor = 1): VendedorRow[] => {
   const m = new Map<number, VendedorRow>()
   for (const r of cacheRows) {
     if (r.setor !== setor) continue
@@ -60,6 +68,7 @@ const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): Ven
       nome: f?.nome ?? `Funcionário ${r.funcionario_codigo}`,
       ativo: f?.ativo ?? true,
       faturamento: 0, custo: 0, lucroBruto: 0, margemPct: 0, itens: 0, cupons: 0, ticketMedio: 0,
+      faturamentoTend: 0, cuponsTend: 0,
     }
     cur.faturamento += r.faturamento
     cur.custo += r.custo
@@ -73,6 +82,8 @@ const aggregate = (cacheRows: CacheRow[], meta: Meta, setor: VendedorSetor): Ven
       lucroBruto: v.faturamento - v.custo,
       margemPct: v.faturamento > 0 ? ((v.faturamento - v.custo) / v.faturamento) * 100 : 0,
       ticketMedio: v.cupons > 0 ? v.faturamento / v.cupons : 0,
+      faturamentoTend: v.faturamento * projFactor,
+      cuponsTend: Math.round(v.cupons * projFactor),
     }))
     .sort((a, b) => b.faturamento - a.faturamento)
 }
@@ -151,7 +162,12 @@ const useVendedoresConveniencia = (
 
   return useMemo(() => {
     const meta: Meta = new Map(funcionarios.map((f) => [f.funcionarioCodigo, f]))
-    const rows = aggregate(cacheRows, meta, setor)
+    // Projeção de fim de mês (mês-a-data) pelo ritmo dos DIAS que o cache tem no
+    // setor exibido — mesma regra da Pista. Só o período atual projeta; o de
+    // comparação fica sem projeção (projFactor=1).
+    const diasApurados = new Set(cacheRows.filter((r) => r.setor === setor).map((r) => r.data)).size
+    const projFactor = monthToDateProjFactor(dataInicial, dataFinal, diasApurados)
+    const rows = aggregate(cacheRows, meta, setor, projFactor)
     const rowsPrev = aggregate(cacheRowsPrev, meta, setor)
     const dailyByFunc = buildDaily(cacheRows, setor)
 
@@ -163,10 +179,11 @@ const useVendedoresConveniencia = (
       totalLucro: rows.reduce((s, r) => s + r.lucroBruto, 0),
       totalCupons: rows.reduce((s, r) => s + r.cupons, 0),
       totalItens: rows.reduce((s, r) => s + r.itens, 0),
+      projFactor,
       isLoading,
       hasEmpresa,
     }
-  }, [cacheRows, cacheRowsPrev, funcionarios, isLoading, hasEmpresa, setor])
+  }, [cacheRows, cacheRowsPrev, funcionarios, isLoading, hasEmpresa, setor, dataInicial, dataFinal])
 }
 
 export default useVendedoresConveniencia

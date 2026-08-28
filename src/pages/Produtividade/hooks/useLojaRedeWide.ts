@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
+import { monthToDateProjFactor } from '@/lib/period'
 import type { Empresa } from '@/api/types/empresa'
 
 /** Vendedor de LOJA (conveniência) agregado rede-wide, carimbado com o posto. */
@@ -20,6 +21,10 @@ export interface LojaVendedorRow {
   cupons: number
   /** Ticket médio = faturamento ÷ cupons. */
   ticketMedio: number
+  /** Faturamento projetado pro fim do mês (mês-a-data); = faturamento fora da janela. */
+  faturamentoTend: number
+  /** Cupons projetados pro fim do mês (arredondado); = cupons fora da janela. */
+  cuponsTend: number
 }
 
 /** Item de pódio cross-posto — leva o posto do colocado. */
@@ -35,6 +40,9 @@ export interface LojaRedeWideData {
   rows: LojaVendedorRow[]
   kpis: { faturamento: number; custo: number; margemPct: number; ticketMedio: number; cupons: number; itens: number }
   podios: { faturamento: LojaPodio[]; cupons: LojaPodio[]; ticket: LojaPodio[] }
+  /** Fator de projeção de fim de mês (mês-a-data); 1 = sem projeção. Só faturamento
+   *  e cupons projetam — margem e ticket são razões e não recebem projeção. */
+  projFactor: number
   isLoading: boolean
   hasEmpresa: boolean
 }
@@ -93,6 +101,11 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
     const fantasiaByCod = new Map(postos.map((p) => [p.codigo, p.fantasia]))
     const nomes = nomeByCod ?? new Map<string, string>()
 
+    // Projeção de fim de mês (mês-a-data) pelo ritmo dos DIAS que o cache tem em
+    // conveniência — mesma regra da Pista. Só o período atual projeta.
+    const diasApurados = new Set(cacheRows.filter((r) => r.setor === 'conveniencia').map((r) => r.data)).size
+    const projFactor = monthToDateProjFactor(dataInicial, dataFinal, diasApurados)
+
     const agg = new Map<string, LojaVendedorRow>()
     for (const r of cacheRows) {
       if (r.setor !== 'conveniencia') continue
@@ -103,6 +116,7 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
         postoNome: fantasiaByCod.get(r.empresa_codigo),
         nome: nomes.get(key) ?? `Funcionário ${r.funcionario_codigo}`,
         faturamento: 0, custo: 0, margemPct: 0, itens: 0, cupons: 0, ticketMedio: 0,
+        faturamentoTend: 0, cuponsTend: 0,
       }
       cur.faturamento += r.faturamento
       cur.custo += r.custo
@@ -116,6 +130,8 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
         ...v,
         margemPct: v.faturamento > 0 ? ((v.faturamento - v.custo) / v.faturamento) * 100 : 0,
         ticketMedio: v.cupons > 0 ? v.faturamento / v.cupons : 0,
+        faturamentoTend: v.faturamento * projFactor,
+        cuponsTend: Math.round(v.cupons * projFactor),
       }))
       .sort((a, b) => b.faturamento - a.faturamento)
 
@@ -147,10 +163,11 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
         cupons: podio((r) => r.cupons),
         ticket: podio((r) => r.ticketMedio),
       },
+      projFactor,
       isLoading: hasEmpresa && (lCache || lFunc),
       hasEmpresa,
     }
-  }, [cacheRows, nomeByCod, postos, hasEmpresa, lCache, lFunc])
+  }, [cacheRows, nomeByCod, postos, hasEmpresa, lCache, lFunc, dataInicial, dataFinal])
 }
 
 export default useLojaRedeWide

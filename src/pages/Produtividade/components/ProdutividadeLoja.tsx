@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
+import ProjTend from '@/pages/Produtividade/components/ProjTend'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
 import useVendedoresConveniencia, { type VendedorRow, type VendedorDiaPonto } from '@/pages/Produtividade/hooks/useVendedoresConveniencia'
 import useAutomotivos12m, { type MesValor } from '@/pages/Produtividade/hooks/useAutomotivos12m'
@@ -48,8 +49,8 @@ const KPI_ICON: Record<'green' | 'blue' | 'amber', { chip: string; icon: string 
   blue: { chip: 'bg-blue-100 dark:bg-blue-900/30', icon: 'text-blue-600 dark:text-blue-400' },
   amber: { chip: 'bg-amber-100 dark:bg-amber-900/30', icon: 'text-amber-600 dark:text-amber-400' },
 }
-const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
-  label: string; value: string; Icon: typeof Wallet; tone: 'green' | 'blue' | 'amber'; val: number; avg: number; max: number; mode: 'pct' | 'pp'; hint?: string
+const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint, proj }: {
+  label: string; value: string; Icon: typeof Wallet; tone: 'green' | 'blue' | 'amber'; val: number; avg: number; max: number; mode: 'pct' | 'pp'; hint?: string; proj?: string
 }) => {
   const t = KPI_ICON[tone]
   const temMedia = avg > 0
@@ -69,6 +70,7 @@ const KpiCompar = ({ label, value, Icon, tone, val, avg, max, mode, hint }: {
         </div>
       </div>
       <p className="mt-1.5 text-[22px] font-bold leading-none tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+      {proj && <div className="mt-1"><ProjTend value={proj} /></div>}
       {temMedia && (
         <div className="mt-2.5 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -260,7 +262,7 @@ const MixProdutoPanel = ({ grupos, loading }: { grupos?: GrupoVenda[]; loading?:
  * automotivos. Ranqueada por faturamento. Ver [[project_vendedores_conveniencia]].
  */
 const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }: Props) => {
-  const { rows, dailyByFunc, isLoading } = useVendedoresConveniencia('conveniencia', postoCodigo)
+  const { rows, dailyByFunc, projFactor, isLoading } = useVendedoresConveniencia('conveniencia', postoCodigo)
   // 12 meses do CACHE (setor conveniência) + Mix AO VIVO do /VENDA_ITEM (grupos de
   // conveniência), ambos por funcionário — espelham os blocos da Pista.
   const { byFunc: conv12m, isLoading: loading12m } = useAutomotivos12m(postoCodigo, 'conveniencia')
@@ -318,6 +320,10 @@ const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }
   const go = (d: number) => { if (rows.length && idx >= 0 && postoCodigo != null) onSelect(postoCodigo, rows[(idx + d + rows.length) % rows.length].funcionarioCodigo) }
   const rank = idx + 1
   const margemBaixa = sel ? sel.margemPct < avg.margem && avg.margem > 0 : false
+  // Projeção de fim de mês só na janela mês-a-data e depois de ~1/3 do mês (mesma
+  // regra da Pista) — e só nos acumuláveis (faturamento, cupons), nunca em
+  // razão (Margem, Ticket), onde extrapolar linearmente enganaria.
+  const showProj = projFactor > 1 && projFactor <= 3
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -418,10 +424,10 @@ const ProdutividadeLoja = ({ listRows, postoCodigo, postoNome, selId, onSelect }
 
           {/* KPIs vs média do posto */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCompar label="Faturamento" value={fmtR(sel.faturamento)} Icon={Wallet} tone="green" val={sel.faturamento} avg={avg.fat} max={avg.maxFat} mode="pct" hint="Faturamento de conveniência do vendedor no período. Comparado com a média do posto." />
+            <KpiCompar label="Faturamento" value={fmtR(sel.faturamento)} Icon={Wallet} tone="green" val={sel.faturamento} avg={avg.fat} max={avg.maxFat} mode="pct" hint="Faturamento de conveniência do vendedor no período. Comparado com a média do posto." proj={showProj ? fmtR(sel.faturamentoTend) : undefined} />
             <KpiCompar label="Margem" value={fmtPct(sel.margemPct)} Icon={Percent} tone="blue" val={sel.margemPct} avg={avg.margem} max={avg.maxMargem} mode="pp" hint="Margem bruta = (faturamento − custo) ÷ faturamento. Comparada com a média do posto." />
             <KpiCompar label="Ticket médio" value={fmtR(sel.ticketMedio)} Icon={Receipt} tone="green" val={sel.ticketMedio} avg={avg.ticket} max={avg.maxTicket} mode="pct" hint="Faturamento ÷ cupons. Comparado com a média do posto." />
-            <KpiCompar label="Cupons" value={fmtN(sel.cupons)} Icon={ShoppingCart} tone="amber" val={sel.cupons} avg={avg.cupons} max={avg.maxCupons} mode="pct" hint="Nº de cupons de conveniência do vendedor no período. Comparado com a média do posto." />
+            <KpiCompar label="Cupons" value={fmtN(sel.cupons)} Icon={ShoppingCart} tone="amber" val={sel.cupons} avg={avg.cupons} max={avg.maxCupons} mode="pct" hint="Nº de cupons de conveniência do vendedor no período. Comparado com a média do posto." proj={showProj ? fmtN(sel.cuponsTend) : undefined} />
           </div>
 
           {/* Desempenho diário (gráfico unificado com seletor Faturamento/Cupons) */}

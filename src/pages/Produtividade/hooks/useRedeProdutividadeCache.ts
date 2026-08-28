@@ -4,30 +4,8 @@ import { useFilterStore } from '@/store/filters'
 import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
 import { fetchFuncionarios, fetchFuncoes } from '@/api/endpoints/funcionarios'
 import { classifyFuncaoRole, roleToSetor } from '@/lib/funcaoSetor'
-import { todayLocal } from '@/lib/period'
+import { monthToDateProjFactor } from '@/lib/period'
 import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
-
-/**
- * Fator de projeção de fim de mês, LINEAR pelo ritmo dos DIAS APURADOS (não do
- * calendário — honra o lag da apuração). Só projeta janela mês-a-data do mês
- * CORRENTE (começa no dia 1, mesmo mês de hoje); qualquer outra janela (mês
- * passado, range custom, multi-mês) devolve 1 = sem projeção. O gate visual
- * (`projFactor <= 3`) fica no componente — cedo demais a extrapolação é ruído.
- */
-const monthToDateProjFactor = (
-  dataInicial: string | null,
-  dataFinal: string | null,
-  diasApurados: number,
-): number => {
-  if (!dataInicial || !dataFinal || diasApurados < 1) return 1
-  const [iy, im, id] = dataInicial.split('-').map(Number)
-  const [fy, fm] = dataFinal.split('-').map(Number)
-  const [ty, tm] = todayLocal().split('-').map(Number)
-  if (id !== 1 || iy !== fy || im !== fm || fy !== ty || fm !== tm) return 1
-  const daysInMonth = new Date(fy, fm, 0).getDate() // fm 1-based → último dia do mês
-  const f = daysInMonth / diasApurados
-  return f > 1 ? f : 1
-}
 
 /**
  * Produtividade da REDE direto do cache `apuracao_vendas_funcionario` — UMA leitura

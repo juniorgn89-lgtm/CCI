@@ -3,6 +3,8 @@ import { Search, Wallet, Percent, Receipt, ShoppingCart, Trophy } from 'lucide-r
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import NotaLeitura from '@/components/ui/NotaLeitura'
+import ProjTend from '@/pages/Produtividade/components/ProjTend'
 import type { LojaPodio, LojaRedeWideData } from '@/pages/Produtividade/hooks/useLojaRedeWide'
 
 interface Props {
@@ -111,7 +113,11 @@ const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
  */
 const ProdutividadeLojaDash = ({ data, escopo, onOpenVendedor }: Props) => {
   const [busca, setBusca] = useState('')
-  const { kpis, podios, rows } = data
+  const { kpis, podios, rows, projFactor } = data
+  // Projeção de fim de mês (projFactor, vindo do hook). Só mostra quando a janela
+  // é mês-a-data E já passou ~1/3 do mês (projFactor ≤ 3) — e só nos acumuláveis
+  // (faturamento, cupons), nunca em razão (margem, ticket).
+  const showProj = projFactor > 1 && projFactor <= 3
 
   const rowByCod = useMemo(() => new Map(rows.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rows])
   // Campeão de cada pódio (1º lugar) — ganha troféu na tabela. Chave COMPOSTA.
@@ -198,16 +204,30 @@ const ProdutividadeLojaDash = ({ data, escopo, onOpenVendedor }: Props) => {
                       </span>
                       {r.postoNome && <span className="mt-0.5 block truncate text-[10.5px] text-gray-400 dark:text-gray-500">{r.postoNome}</span>}
                     </td>
-                    <td className="px-3 py-[11px] text-right text-[12.5px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{fmtR(r.faturamento)}</td>
+                    <td className="px-3 py-[11px]">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[12.5px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{fmtR(r.faturamento)}</span>
+                        {showProj && <ProjTend value={fmtR(r.faturamentoTend)} />}
+                      </div>
+                    </td>
                     <td className="px-3 py-[11px] text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtPct(r.margemPct)}</td>
                     <td className="px-3 py-[11px] text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtR(r.ticketMedio)}</td>
-                    <td className="px-3 py-[11px] text-right text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(r.cupons)}</td>
+                    <td className="px-3 py-[11px]">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[12.5px] tabular-nums text-gray-700 dark:text-gray-300">{fmtN(r.cupons)}</span>
+                        {showProj && <ProjTend value={fmtN(r.cuponsTend)} />}
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
+
+        <NotaLeitura variant="footer" icon={null}>
+"proj." = projeção linear de fim de mês de faturamento e cupons, no ritmo atual (só aparece em janela mês-a-data, depois de ~1/3 do mês). Margem e ticket médio são razões e não projetam.
+        </NotaLeitura>
       </div>
     </div>
   )
