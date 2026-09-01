@@ -22,8 +22,15 @@ import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividad
  */
 const useRedeProdutividadeCache = (
   empresaCodigos: number[],
+  opts?: { period?: { dataInicial: string; dataFinal: string } },
 ): { byPosto: Map<number, FrentistaProdData>; isLoading: boolean; hasCache: boolean } => {
-  const { dataInicial, dataFinal } = useFilterStore()
+  // Período: usa o override (ex.: "mês anterior" dos pódios) ou o filtro global.
+  // A queryKey inclui as datas, então cada janela ganha sua própria entrada de
+  // cache — chamar o hook 2× (atual + anterior) faz só 1 fetch extra do cache.
+  const storeInicial = useFilterStore((s) => s.dataInicial)
+  const storeFinal = useFilterStore((s) => s.dataFinal)
+  const dataInicial = opts?.period?.dataInicial ?? storeInicial
+  const dataFinal = opts?.period?.dataFinal ?? storeFinal
   const hasEmpresa = empresaCodigos.length > 0
 
   const { data: cacheRows = [], isLoading: lCache } = useQuery({

@@ -47,6 +47,35 @@ export const monthToDateProjFactor = (
   return f > 1 ? f : 1
 }
 
+/** Abreviações pt-BR dos meses (índice 0 = janeiro). */
+const MESES_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/**
+ * Mês-CALENDÁRIO anterior ao mês de `dateStr` (mês inteiro, dia 1 → último dia),
+ * com rótulo curto (ex.: "jul/2026"). Usado pelos pódios do "Mês anterior".
+ *
+ * Ex.: `dateStr` em ago/2026 → { dataInicial: '2026-07-01', dataFinal:
+ * '2026-07-31', label: 'jul/2026' }. Ignora o dia de `dateStr` — sempre o mês
+ * cheio anterior. `null`/vazio cai no mês atual local como base.
+ */
+export const previousCalendarMonth = (
+  dateStr: string | null,
+): { dataInicial: string; dataFinal: string; label: string } => {
+  const base = dateStr && dateStr.length >= 7 ? dateStr : todayLocal()
+  const [y, m] = base.split('-').map(Number)
+  // m é 1-based; `m - 2` (0-based) = mês anterior; o Date normaliza a virada de ano.
+  const first = new Date(y, m - 2, 1)
+  const py = first.getFullYear()
+  const pm = first.getMonth() + 1 // 1-based
+  const lastDay = new Date(py, pm, 0).getDate()
+  const p2 = String(pm).padStart(2, '0')
+  return {
+    dataInicial: `${py}-${p2}-01`,
+    dataFinal: `${py}-${p2}-${String(lastDay).padStart(2, '0')}`,
+    label: `${MESES_ABBR[pm - 1]}/${py}`,
+  }
+}
+
 export const offsetPeriod = (dateStr: string, monthsBack: number): string => {
   if (!dateStr) return ''
   const [y, m, day] = dateStr.split('-').map(Number)

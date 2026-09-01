@@ -5,6 +5,7 @@ import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatter
 import InfoHint from '@/components/ui/InfoHint'
 import NotaLeitura from '@/components/ui/NotaLeitura'
 import ProjTend from '@/pages/Produtividade/components/ProjTend'
+import PodioPeriodoSwitch, { type PodioPeriodo } from '@/pages/Produtividade/components/PodioPeriodoSwitch'
 import type { LojaPodio, LojaRedeWideData } from '@/pages/Produtividade/hooks/useLojaRedeWide'
 
 interface Props {
@@ -113,13 +114,22 @@ const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
  */
 const ProdutividadeLojaDash = ({ data, escopo, onOpenVendedor }: Props) => {
   const [busca, setBusca] = useState('')
-  const { kpis, podios, rows, projFactor } = data
+  // Chave dos PÓDIOS: mês atual (filtro) x mês-calendário anterior. Estado local,
+  // default "atual" (idêntico ao comportamento de sempre). Só os pódios mudam.
+  const [podioPeriodo, setPodioPeriodo] = useState<PodioPeriodo>('atual')
+  const { kpis, podios, podiosPrev, rows, rowsPrev, mesAnteriorLabel, projFactor } = data
+  const isPrev = podioPeriodo === 'anterior'
+  const activePodios = isPrev ? podiosPrev : podios
   // Projeção de fim de mês (projFactor, vindo do hook). Só mostra quando a janela
   // é mês-a-data E já passou ~1/3 do mês (projFactor ≤ 3) — e só nos acumuláveis
   // (faturamento, cupons), nunca em razão (margem, ticket).
   const showProj = projFactor > 1 && projFactor <= 3
 
   const rowByCod = useMemo(() => new Map(rows.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rows])
+  // Lookup do mês anterior — só pra o contexto dos pódios do mês anterior; a
+  // tabela e os KPIs seguem no período do filtro.
+  const rowByCodPrev = useMemo(() => new Map(rowsPrev.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rowsPrev])
+  const activeRowByCod = isPrev ? rowByCodPrev : rowByCod
   // Campeão de cada pódio (1º lugar) — ganha troféu na tabela. Chave COMPOSTA.
   const champFat = podios.faturamento[0] ? ck(podios.faturamento[0].empresaCodigo, podios.faturamento[0].funcionarioCodigo) : ''
   const champCupons = podios.cupons[0] ? ck(podios.cupons[0].empresaCodigo, podios.cupons[0].funcionarioCodigo) : ''
@@ -130,10 +140,11 @@ const ProdutividadeLojaDash = ({ data, escopo, onOpenVendedor }: Props) => {
     return q ? rows.filter((r) => r.nome.toLowerCase().includes(q)) : rows
   }, [rows, busca])
 
-  // Contexto do líder de cada pódio (métricas secundárias). Lookup composto.
-  const ctxFat = (p: LojaPodio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticketMedio)} · ${fmtN(r.cupons)} cupons` : '' }
-  const ctxCupons = (p: LojaPodio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `${fmtRi(r.faturamento)} · ticket ${fmtR(r.ticketMedio)}` : '' }
-  const ctxTicket = (p: LojaPodio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `${fmtRi(r.faturamento)} · ${fmtN(r.cupons)} cupons` : '' }
+  // Contexto do líder de cada pódio (métricas secundárias). Lookup composto, no
+  // mesmo período do pódio ativo (atual x anterior).
+  const ctxFat = (p: LojaPodio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticketMedio)} · ${fmtN(r.cupons)} cupons` : '' }
+  const ctxCupons = (p: LojaPodio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `${fmtRi(r.faturamento)} · ticket ${fmtR(r.ticketMedio)}` : '' }
+  const ctxTicket = (p: LojaPodio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `${fmtRi(r.faturamento)} · ${fmtN(r.cupons)} cupons` : '' }
 
   return (
     <div className="space-y-4">
@@ -145,11 +156,12 @@ const ProdutividadeLojaDash = ({ data, escopo, onOpenVendedor }: Props) => {
         <KpiCard label="Cupons" value={fmtN(kpis.cupons)} Icon={ShoppingCart} tone="amber" hint="Nº de cupons de conveniência somado no período." />
       </div>
 
-      {/* Pódios (Top 3) */}
+      {/* Pódios (Top 3) — chave mês atual x mês anterior (só os pódios mudam) */}
+      <PodioPeriodoSwitch value={podioPeriodo} onChange={setPodioPeriodo} mesAnteriorLabel={mesAnteriorLabel} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <PodiumCard title="Faturamento" Icon={Wallet} items={podios.faturamento} fmt={fmtRi} contexto={ctxFat} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
-        <PodiumCard title="Cupons" Icon={ShoppingCart} items={podios.cupons} fmt={fmtN} contexto={ctxCupons} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
-        <PodiumCard title="Ticket médio" Icon={Receipt} items={podios.ticket} fmt={fmtR} contexto={ctxTicket} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Faturamento" Icon={Wallet} items={activePodios.faturamento} fmt={fmtRi} contexto={ctxFat} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Cupons" Icon={ShoppingCart} items={activePodios.cupons} fmt={fmtN} contexto={ctxCupons} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Ticket médio" Icon={Receipt} items={activePodios.ticket} fmt={fmtR} contexto={ctxTicket} onOpen={(p) => onOpenVendedor?.(p.funcionarioCodigo, p.empresaCodigo)} />
       </div>
 
       {/* Tabela de vendedores */}

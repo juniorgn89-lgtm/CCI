@@ -5,8 +5,10 @@ import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@
 import InfoHint from '@/components/ui/InfoHint'
 import NotaLeitura from '@/components/ui/NotaLeitura'
 import ProjTend from '@/pages/Produtividade/components/ProjTend'
+import PodioPeriodoSwitch, { type PodioPeriodo } from '@/pages/Produtividade/components/PodioPeriodoSwitch'
 import { classifyFuncaoRole, roleToSetor, type FuncaoRole } from '@/lib/funcaoSetor'
-import type { FrentistaProdData, FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
+import type { FuncProdRow, Podio } from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
+import type { FrentistaRedeWideData } from '@/pages/Produtividade/hooks/useProdutividadeRedeWide'
 
 /** Ordem de exibição dos grupos de cargo (pedido do usuário: gerência de pista →
  *  trocador → frentista → caixa; demais depois; sem cargo por último). */
@@ -15,7 +17,7 @@ const ROLE_ORDER: Record<FuncaoRole, number> = {
 }
 
 interface Props {
-  data: FrentistaProdData
+  data: FrentistaRedeWideData
   /** Rótulo de escopo da tabela ("Todos os postos" / "N postos" / nome do posto
    *  quando só 1 no filtro) — a Visão Geral é REDE-WIDE. */
   postoNome?: string
@@ -138,10 +140,19 @@ const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
 
 const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
   const [busca, setBusca] = useState('')
-  const { kpis, podios, rows, projFactor } = data
+  // Chave dos PÓDIOS: mês atual (filtro) x mês-calendário anterior. Estado local,
+  // default "atual" (idêntico ao comportamento de sempre). Só os pódios mudam.
+  const [podioPeriodo, setPodioPeriodo] = useState<PodioPeriodo>('atual')
+  const { kpis, podios, podiosPrev, rows, rowsPrev, mesAnteriorLabel, projFactor } = data
+  const isPrev = podioPeriodo === 'anterior'
+  const activePodios = isPrev ? podiosPrev : podios
 
   // Lookup por identidade COMPOSTA (empresaCodigo, funcionarioCodigo) — rede-wide.
   const rowByCod = useMemo(() => new Map(rows.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rows])
+  // Lookup do mês anterior — só pra o contexto (métricas secundárias) dos pódios
+  // do mês anterior; a tabela e os KPIs seguem no período do filtro.
+  const rowByCodPrev = useMemo(() => new Map(rowsPrev.map((r) => [ck(r.empresaCodigo, r.funcionarioCodigo), r])), [rowsPrev])
+  const activeRowByCod = isPrev ? rowByCodPrev : rowByCod
   // Projeção de fim de mês (projFactor, vindo do hook). Só mostra quando a janela
   // é mês-a-data E já passou ~1/3 do mês (projFactor ≤ 3) — cedo demais a
   // extrapolação linear é ruído (dia 3 de 31 projetaria ×10).
@@ -211,10 +222,11 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
 
   const nAbaixo = rows.filter((r) => statusOf(r).tone === 'amber').length
 
-  // Contexto do líder de cada pódio (2 métricas secundárias). Lookup composto.
-  const ctxAutomotivo = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · ${fmtN(r.abastecimentos)} abast.` : '' }
-  const ctxAditivada = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `mix ${fmtMix(r.mixPct)} · ${fmtN(r.abastecimentos)} abast.` : '' }
-  const ctxAtendimentos = (p: Podio) => { const r = rowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · mix ${fmtMix(r.mixPct)}` : '' }
+  // Contexto do líder de cada pódio (2 métricas secundárias). Lookup composto, no
+  // mesmo período do pódio ativo (atual x anterior).
+  const ctxAutomotivo = (p: Podio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · ${fmtN(r.abastecimentos)} abast.` : '' }
+  const ctxAditivada = (p: Podio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `mix ${fmtMix(r.mixPct)} · ${fmtN(r.abastecimentos)} abast.` : '' }
+  const ctxAtendimentos = (p: Podio) => { const r = activeRowByCod.get(ck(p.empresaCodigo, p.funcionarioCodigo)); return r ? `ticket ${fmtR(r.ticket)} · mix ${fmtMix(r.mixPct)}` : '' }
 
   return (
     <div className="space-y-4">
@@ -228,11 +240,12 @@ const ProdutividadeDash = ({ data, postoNome, onOpenFuncionario }: Props) => {
         <KpiCard label="Ticket médio automotivos" value={fmtR(kpis.ticketMedio)} Icon={Receipt} tone="green" hint="Valor médio por cupom de automotivos (faturamento ÷ nº de cupons)." />
       </div>
 
-      {/* Pódios (Top 3) */}
+      {/* Pódios (Top 3) — chave mês atual x mês anterior (só os pódios mudam) */}
+      <PodioPeriodoSwitch value={podioPeriodo} onChange={setPodioPeriodo} mesAnteriorLabel={mesAnteriorLabel} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <PodiumCard title="Vendas de automotivos" Icon={Wrench} items={podios.automotivo} fmt={fmtRi} contexto={ctxAutomotivo} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
-        <PodiumCard title="Venda de aditivada" Icon={Droplet} items={podios.aditivada} fmt={fmtL} contexto={ctxAditivada} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
-        <PodiumCard title="Atendimentos" Icon={Fuel} items={podios.atendimentos} fmt={fmtN} contexto={ctxAtendimentos} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Vendas de automotivos" Icon={Wrench} items={activePodios.automotivo} fmt={fmtRi} contexto={ctxAutomotivo} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Venda de aditivada" Icon={Droplet} items={activePodios.aditivada} fmt={fmtL} contexto={ctxAditivada} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
+        <PodiumCard title="Atendimentos" Icon={Fuel} items={activePodios.atendimentos} fmt={fmtN} contexto={ctxAtendimentos} onOpen={(p) => onOpenFuncionario?.(p.funcionarioCodigo, p.empresaCodigo)} />
       </div>
 
       {/* Tabela da equipe */}

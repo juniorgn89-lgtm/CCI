@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
-import { fetchVendasFuncionarioCache } from '@/api/supabase/apuracao'
+import { fetchVendasFuncionarioCache, type ApuracaoVendaFuncionarioRow } from '@/api/supabase/apuracao'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
-import { monthToDateProjFactor } from '@/lib/period'
+import { monthToDateProjFactor, previousCalendarMonth } from '@/lib/period'
 import type { Empresa } from '@/api/types/empresa'
 
 /** Vendedor de LOJA (conveniência) agregado rede-wide, carimbado com o posto. */
@@ -36,10 +36,19 @@ export interface LojaPodio {
   valor: number
 }
 
+type LojaPodios = { faturamento: LojaPodio[]; cupons: LojaPodio[]; ticket: LojaPodio[] }
+
 export interface LojaRedeWideData {
   rows: LojaVendedorRow[]
   kpis: { faturamento: number; custo: number; margemPct: number; ticketMedio: number; cupons: number; itens: number }
-  podios: { faturamento: LojaPodio[]; cupons: LojaPodio[]; ticket: LojaPodio[] }
+  podios: LojaPodios
+  /** Pódios do MÊS-CALENDÁRIO ANTERIOR (mesma estrutura cross-posto). Só os
+   *  pódios têm versão "mês anterior" — KPIs e tabela seguem no filtro. */
+  podiosPrev: LojaPodios
+  /** Rows cross-posto do mês anterior — só pra o contexto dos pódios anteriores. */
+  rowsPrev: LojaVendedorRow[]
+  /** Rótulo curto do mês anterior, ex.: "jul/2026". */
+  mesAnteriorLabel: string
   /** Fator de projeção de fim de mês (mês-a-data); 1 = sem projeção. Só faturamento
    *  e cupons projetam — margem e ticket são razões e não recebem projeção. */
   projFactor: number
@@ -52,6 +61,82 @@ const EMPTY_KPIS = { faturamento: 0, custo: 0, margemPct: 0, ticketMedio: 0, cup
 /** Identidade composta rede-wide: (empresaCodigo, funcionarioCodigo). O
  *  `funcionarioCodigo` sozinho COLIDE entre postos (cada posto numera do 1). */
 const ck = (empresaCodigo: number, funcionarioCodigo: number) => `${empresaCodigo}:${funcionarioCodigo}`
+
+/** Regra ÚNICA de agregação + pódios cross-posto da LOJA — usada pro mês atual E
+ *  pro mês anterior (não duplicar). Recebe as rows do cache (já filtradas por
+ *  posto/data no fetch) + o mapa de nomes composto + as fantasias dos postos. */
+const buildLojaData = (
+  cacheRows: ApuracaoVendaFuncionarioRow[],
+  nomes: Map<string, string>,
+  fantasiaByCod: Map<number, string | undefined>,
+  dataInicial: string | null,
+  dataFinal: string | null,
+): { rows: LojaVendedorRow[]; kpis: LojaRedeWideData['kpis']; podios: LojaPodios; projFactor: number } => {
+  const conv = cacheRows.filter((r) => r.setor === 'conveniencia')
+  // Projeção de fim de mês (mês-a-data) pelo ritmo dos DIAS apurados em
+  // conveniência — mesma regra da Pista. Só o mês corrente projeta (senão = 1).
+  const diasApurados = new Set(conv.map((r) => r.data)).size
+  const projFactor = monthToDateProjFactor(dataInicial, dataFinal, diasApurados)
+
+  const agg = new Map<string, LojaVendedorRow>()
+  for (const r of conv) {
+    const key = ck(r.empresa_codigo, r.funcionario_codigo)
+    const cur = agg.get(key) ?? {
+      funcionarioCodigo: r.funcionario_codigo,
+      empresaCodigo: r.empresa_codigo,
+      postoNome: fantasiaByCod.get(r.empresa_codigo),
+      nome: nomes.get(key) ?? `Funcionário ${r.funcionario_codigo}`,
+      faturamento: 0, custo: 0, margemPct: 0, itens: 0, cupons: 0, ticketMedio: 0,
+      faturamentoTend: 0, cuponsTend: 0,
+    }
+    cur.faturamento += r.faturamento
+    cur.custo += r.custo
+    cur.itens += r.quantidade
+    cur.cupons += r.cupons
+    agg.set(key, cur)
+  }
+
+  const rows = [...agg.values()]
+    .map((v) => ({
+      ...v,
+      margemPct: v.faturamento > 0 ? ((v.faturamento - v.custo) / v.faturamento) * 100 : 0,
+      ticketMedio: v.cupons > 0 ? v.faturamento / v.cupons : 0,
+      faturamentoTend: v.faturamento * projFactor,
+      cuponsTend: Math.round(v.cupons * projFactor),
+    }))
+    .sort((a, b) => b.faturamento - a.faturamento)
+
+  const totFat = rows.reduce((s, r) => s + r.faturamento, 0)
+  const totCusto = rows.reduce((s, r) => s + r.custo, 0)
+  const totCupons = rows.reduce((s, r) => s + r.cupons, 0)
+  const totItens = rows.reduce((s, r) => s + r.itens, 0)
+
+  // Pódio cross-posto: cada item leva o posto de origem (identidade composta).
+  const podio = (sel: (r: LojaVendedorRow) => number): LojaPodio[] =>
+    rows
+      .filter((r) => sel(r) > 0)
+      .map((r) => ({ funcionarioCodigo: r.funcionarioCodigo, empresaCodigo: r.empresaCodigo, postoNome: r.postoNome, nome: r.nome, valor: sel(r) }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 3)
+
+  return {
+    rows,
+    kpis: rows.length === 0 ? EMPTY_KPIS : {
+      faturamento: totFat,
+      custo: totCusto,
+      margemPct: totFat > 0 ? ((totFat - totCusto) / totFat) * 100 : 0,
+      ticketMedio: totCupons > 0 ? totFat / totCupons : 0,
+      cupons: totCupons,
+      itens: totItens,
+    },
+    podios: {
+      faturamento: podio((r) => r.faturamento),
+      cupons: podio((r) => r.cupons),
+      ticket: podio((r) => r.ticketMedio),
+    },
+    projFactor,
+  }
+}
 
 /**
  * Produtividade dos VENDEDORES da LOJA (setor conveniência) agregada sobre TODOS
@@ -72,11 +157,22 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
   const { dataInicial, dataFinal } = useFilterStore()
   const codes = useMemo(() => postos.map((p) => p.codigo), [postos])
   const hasEmpresa = codes.length > 0
+  // Mês-calendário anterior ao mês do filtro (do dataFinal, ou do dataInicial).
+  const prev = useMemo(() => previousCalendarMonth(dataFinal || dataInicial), [dataFinal, dataInicial])
 
   const { data: cacheRows = [], isLoading: lCache } = useQuery({
     queryKey: ['vendas-funcionario', codes.join(','), dataInicial, dataFinal],
     queryFn: () => fetchVendasFuncionarioCache({ empresaCodigos: codes, dataInicial, dataFinal }),
     enabled: hasEmpresa && !!dataInicial && !!dataFinal,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Mês anterior — mesma fonte, janela recuada 1 mês. queryKey própria → 1 fetch
+  // extra. Só os pódios usam; carrega junto.
+  const { data: cacheRowsPrev = [] } = useQuery({
+    queryKey: ['vendas-funcionario', codes.join(','), prev.dataInicial, prev.dataFinal],
+    queryFn: () => fetchVendasFuncionarioCache({ empresaCodigos: codes, dataInicial: prev.dataInicial, dataFinal: prev.dataFinal }),
+    enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -101,73 +197,22 @@ const useLojaRedeWide = (postos: Empresa[]): LojaRedeWideData => {
     const fantasiaByCod = new Map(postos.map((p) => [p.codigo, p.fantasia]))
     const nomes = nomeByCod ?? new Map<string, string>()
 
-    // Projeção de fim de mês (mês-a-data) pelo ritmo dos DIAS que o cache tem em
-    // conveniência — mesma regra da Pista. Só o período atual projeta.
-    const diasApurados = new Set(cacheRows.filter((r) => r.setor === 'conveniencia').map((r) => r.data)).size
-    const projFactor = monthToDateProjFactor(dataInicial, dataFinal, diasApurados)
-
-    const agg = new Map<string, LojaVendedorRow>()
-    for (const r of cacheRows) {
-      if (r.setor !== 'conveniencia') continue
-      const key = ck(r.empresa_codigo, r.funcionario_codigo)
-      const cur = agg.get(key) ?? {
-        funcionarioCodigo: r.funcionario_codigo,
-        empresaCodigo: r.empresa_codigo,
-        postoNome: fantasiaByCod.get(r.empresa_codigo),
-        nome: nomes.get(key) ?? `Funcionário ${r.funcionario_codigo}`,
-        faturamento: 0, custo: 0, margemPct: 0, itens: 0, cupons: 0, ticketMedio: 0,
-        faturamentoTend: 0, cuponsTend: 0,
-      }
-      cur.faturamento += r.faturamento
-      cur.custo += r.custo
-      cur.itens += r.quantidade
-      cur.cupons += r.cupons
-      agg.set(key, cur)
-    }
-
-    const rows = [...agg.values()]
-      .map((v) => ({
-        ...v,
-        margemPct: v.faturamento > 0 ? ((v.faturamento - v.custo) / v.faturamento) * 100 : 0,
-        ticketMedio: v.cupons > 0 ? v.faturamento / v.cupons : 0,
-        faturamentoTend: v.faturamento * projFactor,
-        cuponsTend: Math.round(v.cupons * projFactor),
-      }))
-      .sort((a, b) => b.faturamento - a.faturamento)
-
-    const totFat = rows.reduce((s, r) => s + r.faturamento, 0)
-    const totCusto = rows.reduce((s, r) => s + r.custo, 0)
-    const totCupons = rows.reduce((s, r) => s + r.cupons, 0)
-    const totItens = rows.reduce((s, r) => s + r.itens, 0)
-
-    // Pódio cross-posto: cada item leva o posto de origem (identidade composta).
-    const podio = (sel: (r: LojaVendedorRow) => number): LojaPodio[] =>
-      rows
-        .filter((r) => sel(r) > 0)
-        .map((r) => ({ funcionarioCodigo: r.funcionarioCodigo, empresaCodigo: r.empresaCodigo, postoNome: r.postoNome, nome: r.nome, valor: sel(r) }))
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 3)
+    const cur = buildLojaData(cacheRows, nomes, fantasiaByCod, dataInicial, dataFinal)
+    // Mês anterior é sempre janela cheia fora do mês corrente → projFactor = 1.
+    const ant = buildLojaData(cacheRowsPrev, nomes, fantasiaByCod, prev.dataInicial, prev.dataFinal)
 
     return {
-      rows,
-      kpis: rows.length === 0 ? EMPTY_KPIS : {
-        faturamento: totFat,
-        custo: totCusto,
-        margemPct: totFat > 0 ? ((totFat - totCusto) / totFat) * 100 : 0,
-        ticketMedio: totCupons > 0 ? totFat / totCupons : 0,
-        cupons: totCupons,
-        itens: totItens,
-      },
-      podios: {
-        faturamento: podio((r) => r.faturamento),
-        cupons: podio((r) => r.cupons),
-        ticket: podio((r) => r.ticketMedio),
-      },
-      projFactor,
+      rows: cur.rows,
+      kpis: cur.kpis,
+      podios: cur.podios,
+      podiosPrev: ant.podios,
+      rowsPrev: ant.rows,
+      mesAnteriorLabel: prev.label,
+      projFactor: cur.projFactor,
       isLoading: hasEmpresa && (lCache || lFunc),
       hasEmpresa,
     }
-  }, [cacheRows, nomeByCod, postos, hasEmpresa, lCache, lFunc, dataInicial, dataFinal])
+  }, [cacheRows, cacheRowsPrev, nomeByCod, postos, hasEmpresa, lCache, lFunc, dataInicial, dataFinal, prev])
 }
 
 export default useLojaRedeWide
