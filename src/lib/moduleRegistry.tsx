@@ -376,27 +376,24 @@ export const REGISTRY: Record<string, ModuleMeta> = {
   '/rede': {
     Icon: Building2,
     nome: 'Rede',
-    subtitle: 'todos os postos e quem trouxe cada cliente',
+    subtitle: 'todos os postos da rede: dados, endereço e mapa',
     potencial: {
       '': {
         title: 'Rede — o potencial desta tela',
-        description: 'O cadastro de todos os postos da rede num lugar só, e o vendedor que conquistou cada cliente.',
+        description: 'O cadastro de todos os postos da rede num lugar só — dados empresariais, endereço e localização no mapa.',
         slides: [
-          { Ilustracao: IlRede, tag: 'O que ela faz', titulo: 'Todos os postos, dados na mão', texto: (<>Reúne <strong>dados empresariais e endereço</strong> de cada posto da rede numa lista única, buscável.</>) },
-          { Ilustracao: IlRanking, tag: 'Por que importa', titulo: 'Quem trouxe cada cliente', texto: (<>Cruza com a prospecção e mostra o <strong>vendedor que fechou</strong> cada posto — dá pra reconhecer quem trouxe a rede.</>) },
-          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como funciona', titulo: 'Uma ponte só-leitura', texto: (<>O vínculo vem do Prospecção360 por CNPJ. Só o <strong>nome do vendedor</strong> atravessa — nada de telefone ou contato.</>) },
+          { Ilustracao: IlRede, tag: 'O que ela faz', titulo: 'Todos os postos num lugar', texto: (<>Reúne <strong>dados empresariais e endereço</strong> de cada posto da rede numa lista única.</>) },
+          { Ilustracao: IlLista, tag: 'No dia a dia', titulo: 'Encontra na hora', texto: (<>Busca e ordena por <strong>nome, cidade ou CNPJ</strong> — e abre a ficha completa de qualquer posto.</>) },
+          { Ilustracao: IlRadar, tag: 'No mapa', titulo: 'Onde a rede está', texto: (<>Vê os postos no mapa, com o <strong>estado</strong> e a <strong>cidade com mais postos</strong> em destaque.</>) },
         ],
         body: (
           <>
             <Secao icon={Building2} titulo="O que ela faz">
               Reúne <strong>todos os postos da rede</strong> — dados empresariais e endereço — numa lista única e buscável.
             </Secao>
-            <Secao icon={Trophy} titulo="Por que importa">
-              Cruza com o Prospecção360 e mostra <strong>qual vendedor conquistou</strong> cada cliente, posto a posto.
+            <Secao icon={Radar} titulo="No mapa">
+              Mostra onde a rede está, com o <strong>estado</strong> e a <strong>cidade que concentra mais postos</strong> em destaque.
             </Secao>
-            <NotaHonesta>
-              O vínculo é por CNPJ e só-leitura: apenas o nome do vendedor e a etapa atravessam a ponte — nenhum dado de contato.
-            </NotaHonesta>
           </>
         ),
       },

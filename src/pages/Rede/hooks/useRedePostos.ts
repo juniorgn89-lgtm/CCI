@@ -3,36 +3,22 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import type { Empresa } from '@/api/types/empresa'
-import { useRedeProspeccao, type ProspeccaoInfo } from './useRedeProspeccao'
 
-/** Um posto da rede + (se houver) quem o trouxe pela prospecção. */
-export interface RedePosto extends Empresa {
-  prospeccao?: ProspeccaoInfo
-}
-
-const onlyDigits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
+/** Um posto da rede (dados empresariais + endereço da Quality). */
+export type RedePosto = Empresa
 
 /**
- * Todos os postos da rede (Quality) casados com a ponte de prospecção por CNPJ.
- * Rede-wide: ignora o filtro de empresa (sempre toda a rede permitida).
+ * Todos os postos da rede (Quality). Rede-wide: ignora o filtro de empresa
+ * (sempre toda a rede permitida). É um diretório do cliente — sem nada de
+ * prospecção (isso é interno da CCI, vive no Prospecção360).
  */
 export const useRedePostos = () => {
-  const { data: empresasData, isLoading: loadingEmpresas, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => fetchEmpresas({ limite: 500 }),
     staleTime: 10 * 60 * 1000,
   })
-  const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const { data: prosMap, isLoading: loadingPros } = useRedeProspeccao()
-
-  const postos = useMemo<RedePosto[]>(
-    () =>
-      permitidas.map((e) => ({
-        ...e,
-        prospeccao: prosMap?.get(onlyDigits(e.cnpj)),
-      })),
-    [permitidas, prosMap]
-  )
-
-  return { postos, isLoading: loadingEmpresas, loadingProspeccao: loadingPros, error }
+  const permitidas = useEmpresasPermitidas(data?.resultados ?? [])
+  const postos = useMemo<RedePosto[]>(() => permitidas, [permitidas])
+  return { postos, isLoading, error }
 }
