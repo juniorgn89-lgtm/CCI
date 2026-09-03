@@ -1,4 +1,9 @@
 import { supabase } from '@/lib/supabase'
+import { useTenantStore } from '@/store/tenant'
+
+/** Rede atualmente selecionada — escopo de todas as leituras (evita vazar dados
+ *  de outra rede pro gerente multi-rede, cuja RLS enxerga várias). */
+const currentRedeId = (): string | undefined => useTenantStore.getState().rede?.id
 
 /**
  * Preço especial POR CLIENTE (espelho da aba "Tabela de Preço" do Cadastro de
@@ -26,10 +31,15 @@ export interface GestaoPrecoCliente {
 
 export const fetchGestaoPrecosCliente = async (): Promise<GestaoPrecoCliente[]> => {
   if (!supabase) return []
-  const { data, error } = await supabase
+  const redeId = currentRedeId()
+  let query = supabase
     .from('gestao_precos_cliente')
     .select('*')
     .order('cliente_nome', { ascending: true })
+  // Escopo por rede: o gerente multi-rede enxerga várias pela RLS, então sem
+  // este filtro a aba "Por cliente" vaza clientes de outra rede.
+  if (redeId) query = query.eq('rede_id', redeId)
+  const { data, error } = await query
   if (error) {
     console.warn('[gp_cliente] fetch error:', error.message)
     return []

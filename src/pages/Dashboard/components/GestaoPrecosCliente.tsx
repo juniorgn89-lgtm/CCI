@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Users, Info } from 'lucide-react'
 import { fetchGestaoPrecosCliente } from '@/api/supabase/gestaoPrecosCliente'
+import { useTenantStore } from '@/store/tenant'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import HeaderHint from '@/components/tables/HeaderHint'
@@ -14,7 +15,10 @@ const REGRA: Record<string, string> = {
 }
 
 const GestaoPrecosCliente = () => {
-  const { data: linhas = [], isLoading } = useQuery({ queryKey: ['gp-cliente'], queryFn: fetchGestaoPrecosCliente, staleTime: 5 * 60 * 1000 })
+  // A rede entra na chave: trocar de rede invalida o cache e refaz a busca
+  // (senão o react-query serviria os clientes da rede anterior).
+  const redeId = useTenantStore((s) => s.rede?.id)
+  const { data: linhas = [], isLoading } = useQuery({ queryKey: ['gp-cliente', redeId], queryFn: fetchGestaoPrecosCliente, staleTime: 5 * 60 * 1000 })
   const [busca, setBusca] = useState('')
 
   const filtradas = useMemo(() => {
