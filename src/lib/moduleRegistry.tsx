@@ -373,6 +373,36 @@ export const REGISTRY: Record<string, ModuleMeta> = {
     },
   },
 
+  '/rede': {
+    Icon: Building2,
+    nome: 'Rede',
+    subtitle: 'todos os postos e quem trouxe cada cliente',
+    potencial: {
+      '': {
+        title: 'Rede — o potencial desta tela',
+        description: 'O cadastro de todos os postos da rede num lugar só, e o vendedor que conquistou cada cliente.',
+        slides: [
+          { Ilustracao: IlRede, tag: 'O que ela faz', titulo: 'Todos os postos, dados na mão', texto: (<>Reúne <strong>dados empresariais e endereço</strong> de cada posto da rede numa lista única, buscável.</>) },
+          { Ilustracao: IlRanking, tag: 'Por que importa', titulo: 'Quem trouxe cada cliente', texto: (<>Cruza com a prospecção e mostra o <strong>vendedor que fechou</strong> cada posto — dá pra reconhecer quem trouxe a rede.</>) },
+          { Ilustracao: IlFiscal, tom: 'nota', tag: 'Como funciona', titulo: 'Uma ponte só-leitura', texto: (<>O vínculo vem do Prospecção360 por CNPJ. Só o <strong>nome do vendedor</strong> atravessa — nada de telefone ou contato.</>) },
+        ],
+        body: (
+          <>
+            <Secao icon={Building2} titulo="O que ela faz">
+              Reúne <strong>todos os postos da rede</strong> — dados empresariais e endereço — numa lista única e buscável.
+            </Secao>
+            <Secao icon={Trophy} titulo="Por que importa">
+              Cruza com o Prospecção360 e mostra <strong>qual vendedor conquistou</strong> cada cliente, posto a posto.
+            </Secao>
+            <NotaHonesta>
+              O vínculo é por CNPJ e só-leitura: apenas o nome do vendedor e a etapa atravessam a ponte — nenhum dado de contato.
+            </NotaHonesta>
+          </>
+        ),
+      },
+    },
+  },
+
   '/comercial': {
     Icon: TrendingUp,
     nome: 'Comercial',

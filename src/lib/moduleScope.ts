@@ -23,7 +23,7 @@ export const moduloPermiteTodos = (pathname: string): boolean =>
  * preservada pros outros módulos). Abas que precisam de 1 posto (Concorrência,
  * Radar) têm seletor PRÓPRIO dentro da aba.
  */
-const REDE_WIDE_PREFIXES = ['/comercial']
+const REDE_WIDE_PREFIXES = ['/comercial', '/rede']
 
 /** True se a rota é rede-wide por natureza (ignora o filtro de empresa). */
 export const moduloRedeWide = (pathname: string): boolean =>

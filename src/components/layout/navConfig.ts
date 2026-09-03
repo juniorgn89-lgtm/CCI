@@ -1,6 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Fuel,
-  Network, ShieldAlert, UsersRound, TrendingUp, Radio,
+  Network, ShieldAlert, UsersRound, TrendingUp, Radio, Building2,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -28,6 +28,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
       { label: 'Ao Vivo', path: '/ao-vivo', icon: Radio },
+      { label: 'Rede', path: '/rede', icon: Building2 },
     ],
   },
   {

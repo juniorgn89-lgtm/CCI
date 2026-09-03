@@ -75,6 +75,16 @@ export const APP_STRUCTURE: AppModule[] = [
     tabs: [],
   },
   {
+    path: '/rede',
+    label: 'Rede',
+    group: 'geral',
+    plano: 'basic',
+    tabs: [
+      { id: 'tabela', label: 'Tabela', plano: 'basic' },
+      { id: 'mapa', label: 'Mapa', plano: 'basic' },
+    ],
+  },
+  {
     path: '/comercial',
     label: 'Comercial',
     group: 'analise',
