@@ -5,6 +5,7 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import InfoHint from '@/components/ui/InfoHint'
 import useTabParam from '@/hooks/useTabParam'
 import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
+import useIsMobile from '@/hooks/useIsMobile'
 import { useRedePostos, type RedePosto } from '@/pages/Rede/hooks/useRedePostos'
 import { formatCnpj, enderecoLinha } from '@/pages/Rede/lib'
 import PostoDrawer from '@/pages/Rede/components/PostoDrawer'
@@ -30,6 +31,7 @@ const Rede = () => {
   const [ordem, setOrdem] = useState<Ordenacao>('posto')
   const [sel, setSel] = useState<RedePosto | null>(null)
 
+  const isMobile = useIsMobile()
   const [tab, setTab] = useTabParam<RedeTab>('tabela', isRedeTab)
   const visibleTabs = usePersonalizedTabs('/rede', TABS)
   useEffect(() => {
@@ -74,9 +76,15 @@ const Rede = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeaderTitle>
+      {/* Abas: no desktop portam pra sub-bar do topo; no celular (sem esse slot)
+          renderizam inline, senão o usuário perderia o alternador Tabela/Mapa. */}
+      {isMobile ? (
         <TopBarTabs active={tab} onChange={(id) => setTab(id as RedeTab)} tabs={visibleTabs} />
-      </PageHeaderTitle>
+      ) : (
+        <PageHeaderTitle>
+          <TopBarTabs active={tab} onChange={(id) => setTab(id as RedeTab)} tabs={visibleTabs} />
+        </PageHeaderTitle>
+      )}
 
       {tab === 'mapa' ? (
         <Suspense fallback={<div className="h-[24rem] animate-pulse rounded-xl bg-gray-100 dark:bg-white/5" />}>
