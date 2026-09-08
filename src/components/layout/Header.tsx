@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
 import PotencialButton from '@/components/layout/PotencialButton'
 import ThemeToggle from '@/components/layout/ThemeToggle'
+import HeaderInstallButton from '@/components/pwa/HeaderInstallButton'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 import { HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
@@ -142,6 +143,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           >
             <RefreshCw className={`h-4 w-4${isFetching > 0 ? ' animate-spin' : ''}`} />
           </button>
+          {/* Instalar o app no PC (Chrome/Edge) — some se já instalado ou sem suporte. */}
+          <HeaderInstallButton />
           {/* Alternar tema (Claro/Sistema/Escuro) — mesmas opções das Configurações. */}
           <ThemeToggle />
           {/* Engrenagem do módulo (ModuleSettings via slot). */}
