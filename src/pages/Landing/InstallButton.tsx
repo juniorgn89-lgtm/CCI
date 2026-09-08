@@ -57,17 +57,27 @@ const LandingInstallButton = () => {
 
 const InstructionsModal = ({ onClose }: { onClose: () => void }) => {
   const ios = isIOS()
+  const desktop = !/android|iphone|ipad|ipod/i.test(navigator.userAgent)
+  const subtitle = desktop
+    ? 'Instale o Visor360 como um app no seu computador — sem passar por loja.'
+    : 'Adicione o app à tela de início do seu celular — sem passar por loja.'
   const passos = ios
     ? [
         <>Toque no ícone <strong>Compartilhar</strong> (o quadrado com a seta ↑) na barra do navegador.</>,
         <>Escolha <strong>Adicionar à Tela de Início</strong>.</>,
         <>Confirme em <strong>Adicionar</strong> — pronto, o Visor360 vira um app.</>,
       ]
-    : [
-        <>Abra o menu do navegador (<strong>⋮</strong>).</>,
-        <>Toque em <strong>Instalar app</strong> (ou <strong>Adicionar à tela inicial</strong>).</>,
-        <>Confirme — pronto, o Visor360 vira um app.</>,
-      ]
+    : desktop
+      ? [
+          <>Na barra de endereço, clique no ícone de <strong>instalar</strong> (um monitor com seta ↓) — ou abra o menu do navegador (<strong>⋮</strong> no Chrome, <strong>⋯</strong> no Edge).</>,
+          <>Escolha <strong>Instalar Visor360</strong>.</>,
+          <>Confirme em <strong>Instalar</strong> — pronto, o Visor360 abre como app.</>,
+        ]
+      : [
+          <>Abra o menu do navegador (<strong>⋮</strong>).</>,
+          <>Toque em <strong>Instalar app</strong> (ou <strong>Adicionar à tela inicial</strong>).</>,
+          <>Confirme — pronto, o Visor360 vira um app.</>,
+        ]
 
   return (
     <div
@@ -82,7 +92,7 @@ const InstructionsModal = ({ onClose }: { onClose: () => void }) => {
           Instalar o Visor<span style={{ color: '#0F766E' }}>360</span>
         </div>
         <p style={{ margin: '8px 0 18px', fontSize: 14.5, color: '#64748b', lineHeight: 1.55 }}>
-          Adicione o app à tela de início do seu celular — sem passar por loja.
+          {subtitle}
         </p>
         <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {passos.map((p, i) => (
