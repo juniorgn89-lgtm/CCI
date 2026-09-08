@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
+import LandingInstallButton from '@/pages/Landing/InstallButton'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -140,6 +141,7 @@ const Landing = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" title="Ir para o site da CCI" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#0F766E', fontSize: 14.5, fontWeight: 700 }}>Site da CCI ↗</a>
+            <LandingInstallButton />
             <Link to="/login" style={{ background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 14.5, padding: '11px 20px', borderRadius: 11 }}>Acessar</Link>
           </div>
         </div>
