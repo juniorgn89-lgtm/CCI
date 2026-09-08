@@ -52,12 +52,13 @@ const TRUST = ['Conecta ao seu ERP de posto', 'Apuração automática diária', 
 const LANDING_CSS = `
 .v360-landing{font-family:'Instrument Sans',system-ui,sans-serif;color:#0f172a;background:#fff;-webkit-font-smoothing:antialiased;min-height:100vh}
 .v360-landing h1,.v360-landing h2,.v360-landing h3{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0}
+.v360-landing h1,.v360-landing h2,.v360-landing h3,.v360-landing p{overflow-wrap:break-word}
 .v360-landing a{text-decoration:none}
 .v360-landing .tnum{font-variant-numeric:tabular-nums}
 @keyframes v360-floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:980px){
   .v360-landing .v360-hero{grid-template-columns:1fr!important}
-  .v360-landing .v360-heromock{min-height:480px}
+  .v360-landing .v360-heromock{min-height:420px}
   .v360-landing .v360-ia{grid-template-columns:1fr!important;gap:36px!important}
   .v360-landing .v360-publicos{grid-template-columns:1fr!important}
   .v360-landing .v360-modulos{grid-template-columns:repeat(2,1fr)!important}
@@ -70,8 +71,19 @@ const LANDING_CSS = `
   .v360-landing .v360-navmenu{display:none!important}
   .v360-landing .v360-nav{justify-content:center!important}
   .v360-landing .v360-h1{font-size:34px!important}
+  .v360-landing h2{font-size:30px!important;line-height:1.15!important}
+  .v360-landing .v360-num{font-size:32px!important}
   .v360-landing .v360-wrap{padding-left:20px!important;padding-right:20px!important}
   .v360-landing .v360-heropad{padding:40px 24px 44px!important}
+  .v360-landing .v360-heromock{min-height:0!important}
+  .v360-landing .v360-mockpad{padding:32px 22px 40px!important}
+}
+@media(max-width:400px){
+  .v360-landing .v360-h1{font-size:30px!important}
+  .v360-landing h2{font-size:26px!important}
+  .v360-landing .v360-num{font-size:28px!important}
+  .v360-landing .v360-numeros{gap:12px!important}
+  .v360-landing .v360-heropad{padding:32px 18px 36px!important}
 }
 `
 
@@ -156,7 +168,7 @@ const Landing = () => {
 
             <div className="v360-heromock" style={{ position: 'relative', background: 'radial-gradient(900px 560px at 60% 20%,#22456b 0%,#16293f 60%,#101f31 100%)', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: -80, right: -60, width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle,rgba(252,182,25,.25) 0%,rgba(252,182,25,0) 70%)' }} />
-              <div style={{ position: 'relative', padding: '52px 44px 60px' }}>
+              <div className="v360-mockpad" style={{ position: 'relative', padding: '52px 44px 60px' }}>
                 <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 40px 80px -30px rgba(0,0,0,.6)', border: '1px solid rgba(255,255,255,.12)', background: '#fff' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 13px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f87171' }} />
@@ -253,7 +265,7 @@ const Landing = () => {
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 40px 0' }}>
           <div className="v360-numeros" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, textAlign: 'center' }}>
             {NUMEROS.map((n) => (
-              <div key={n.label} style={{ padding: '8px 0' }}><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 44, color: n.cor, letterSpacing: '-.02em' }}>{n.valor}</div><div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{n.label}</div></div>
+              <div key={n.label} style={{ padding: '8px 0' }}><div className="v360-num" style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 44, color: n.cor, letterSpacing: '-.02em' }}>{n.valor}</div><div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{n.label}</div></div>
             ))}
           </div>
         </div>
