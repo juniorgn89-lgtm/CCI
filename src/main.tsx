@@ -7,6 +7,8 @@ import { initUiScale } from '@/lib/uiScale'
 // TODA tela — inclusive Login/Landing, que não montam o ThemeToggle. Sem isso,
 // o tema escolhido só valia dentro do app e parecia "não ter sido salvo".
 import '@/store/theme'
+// Captura o evento de instalação do PWA cedo (pode disparar antes do banner montar).
+import '@/lib/pwaInstall'
 
 // Auto-escala pra desktops antigos (1024–1440px) caberem sem apertar.
 initUiScale()

@@ -10,6 +10,7 @@ import useEmpresaNome from '@/hooks/useEmpresaNome'
 import type { NavItem } from '@/components/layout/navConfig'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import MobileFilterSheet from '@/components/mobile/MobileFilterSheet'
+import InstallAppBanner from '@/components/pwa/InstallAppBanner'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 interface MobileShellProps {
@@ -127,6 +128,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
       {/* Conteúdo rolável — o padding-bottom limpa o bottom-nav (h-16) + a
           safe-area do aparelho, pra o último item nunca ficar sob a barra. */}
       <main className="flex-1 overflow-y-auto px-3.5 pt-3.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+        <InstallAppBanner />
         {children}
       </main>
 
