@@ -36,8 +36,8 @@ const StatusBadge = ({ status }: { status: ReturnType<typeof useRedeAssistente>[
 const CaduMobile = () => {
   const { status, redeNome } = useRedeAssistente()
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-3 dark:border-[#3a3a3a] dark:bg-[#242424]">
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex shrink-0 items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-3 dark:border-[#3a3a3a] dark:bg-[#242424]">
         <CaduAvatar className="h-9 w-9 rounded-lg" iconClassName="h-[18px] w-[18px]" />
         <div className="min-w-0 flex-1">
           <h2 className="flex flex-wrap items-center gap-1.5 text-[14px] font-bold text-gray-900 dark:text-gray-100">
@@ -51,7 +51,7 @@ const CaduMobile = () => {
         </div>
       </div>
 
-      <ChatPanel heightClass="h-[calc(100dvh-220px)] min-h-[420px]" />
+      <ChatPanel heightClass="min-h-0 flex-1" />
     </div>
   )
 }
