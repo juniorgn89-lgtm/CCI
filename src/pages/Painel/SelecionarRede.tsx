@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Loader2, CheckCircle2, Power, ArrowRight } from 'lucide-react'
+import { Network, Loader2, CheckCircle2, Power, ArrowRight, Search } from 'lucide-react'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
@@ -37,6 +37,16 @@ const SelecionarRede = () => {
     if (tenantRede?.id) allow.add(tenantRede.id)
     return redesAll.filter((r) => allow.has(r.id))
   }, [redesAll, isMaster, acessoTodas, redesPermitidas, tenantRede])
+
+  // Busca por nome (aparece quando a lista cresce). Sem acento/caixa.
+  const [busca, setBusca] = useState('')
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const redesFiltradas = useMemo(() => {
+    const q = norm(busca.trim())
+    if (!q) return redes
+    return redes.filter((r) => norm(r.nome).includes(q) || norm(r.api_base_url).includes(q))
+  }, [redes, busca])
+  const mostrarBusca = redes.length > 3
 
   const handleConectar = (rede: RedeRow) => {
     queryClient.clear()
@@ -82,7 +92,23 @@ const SelecionarRede = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {redes.map((rede) => {
+          {mostrarBusca && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder={`Buscar entre ${redes.length} redes…`}
+                className="h-10 w-full rounded-[10px] border border-[#e7ecf3] bg-white pl-9 pr-3 text-sm outline-none transition-colors focus:border-[#c3d0e0] focus:ring-2 focus:ring-[#2563eb]/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              />
+            </div>
+          )}
+          {redesFiltradas.length === 0 ? (
+            <p className="rounded-[15px] border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+              Nenhuma rede encontrada para “{busca}”.
+            </p>
+          ) : (
+            redesFiltradas.map((rede) => {
             const conectada = tenantRede?.id === rede.id
             return (
               <div
@@ -144,7 +170,8 @@ const SelecionarRede = () => {
                 )}
               </div>
             )
-          })}
+          })
+          )}
         </div>
       )}
     </div>
