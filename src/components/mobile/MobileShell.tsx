@@ -63,7 +63,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
 
   const subtitle = isCentral
     ? (rede?.nome ? `Rede · ${rede.nome}` : 'Visão consolidada da rede')
-    : (rede?.nome ?? 'Visor360')
+    : (rede?.nome ?? 'Gestão de postos')
 
   const empresaNome = useEmpresaNome()
   const postoResumo = empresaCodigos.length === 1

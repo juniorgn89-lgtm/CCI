@@ -58,8 +58,9 @@ const PainelLayout = () => {
 
   return (
     <div className="mx-auto max-w-none space-y-5">
-      {/* Marca + rede conectada (conforme handoff) */}
-      <header className="flex items-center justify-between gap-3">
+      {/* Marca + rede conectada (conforme handoff). No CELULAR fica oculto: o
+          MobileShell já mostra a marca Visor360 no topo — senão duplica feio. */}
+      <header className="hidden items-center justify-between gap-3 sm:flex">
         <div className="flex items-center gap-2">
           <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-[34px] w-[34px] shrink-0 object-contain" />
           <span className="text-[19px] font-extrabold tracking-[-0.02em] text-[#1e3a5f] dark:text-white">
