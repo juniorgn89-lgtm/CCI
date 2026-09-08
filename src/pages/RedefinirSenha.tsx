@@ -20,6 +20,7 @@ const RedefinirSenha = () => {
   const [showSenha, setShowSenha] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [invalidMsg, setInvalidMsg] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
@@ -28,26 +29,52 @@ const RedefinirSenha = () => {
       return
     }
     let cancelled = false
+    const fail = (msg?: string) => {
+      if (cancelled) return
+      if (msg) setInvalidMsg(msg)
+      setState('invalid')
+    }
+    const ok = () => {
+      if (cancelled) return
+      setState('ready')
+      // Limpa o token da URL pra não reprocessar (e virar "expirado") num refresh.
+      window.history.replaceState({}, '', window.location.pathname)
+    }
 
-    // Quando o link de recovery é processado, vem o evento PASSWORD_RECOVERY
-    // e a sessão fica disponível. Em alguns casos a sessão já existe quando
-    // a página monta (depende do timing do hash parsing).
+    const url = new URL(window.location.href)
+    const qp = url.searchParams
+    const hp = new URLSearchParams(url.hash.replace(/^#/, ''))
+
+    // Erro explícito devolvido pelo Supabase (link expirado/já usado etc.).
+    const errDesc = qp.get('error_description') || hp.get('error_description')
+    if (errDesc) return fail(decodeURIComponent(errDesc.replace(/\+/g, ' ')))
+
+    // Padrão novo (recomendado): token_hash → verifyOtp. Funciona em qualquer
+    // navegador/dispositivo e só consome o token quando ESTE JS roda (scanner de
+    // e-mail que só faz GET não queima o link).
+    const tokenHash = qp.get('token_hash')
+    if (tokenHash) {
+      const type = (qp.get('type') as 'recovery' | null) ?? 'recovery'
+      supabase.auth.verifyOtp({ type, token_hash: tokenHash }).then(({ error }) => {
+        if (error) fail(error.message)
+        else ok()
+      })
+      return () => { cancelled = true }
+    }
+
+    // Compatibilidade com links antigos (PKCE ?code / implícito #access_token):
+    // o client processa a URL sozinho (detectSessionInUrl) e emite o evento.
+    const temParamRecovery = !!(qp.get('code') || hp.get('access_token'))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        setState('ready')
-      }
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) ok()
     })
-
-    // Fallback: checa sessão atual depois de um pequeno delay pra dar tempo
-    // do client processar o hash.
     const timer = setTimeout(async () => {
       if (cancelled) return
       const { data: { session } } = await supabase!.auth.getSession()
-      if (cancelled) return
-      if (session) setState('ready')
-      else setState('invalid')
-    }, 1500)
+      if (session) ok()
+      else fail()
+    }, temParamRecovery ? 4000 : 300)
 
     return () => {
       cancelled = true
@@ -118,7 +145,9 @@ const RedefinirSenha = () => {
               Link inválido ou expirado
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              O link de redefinição de senha não é mais válido. Solicite um novo no login.
+              {invalidMsg
+                ? `${invalidMsg}. Solicite um novo link no login.`
+                : 'O link de redefinição de senha não é mais válido. Solicite um novo no login.'}
             </p>
             <button
               onClick={() => navigate('/login')}
