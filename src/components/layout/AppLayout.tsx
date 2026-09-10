@@ -201,7 +201,7 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-100 dark:bg-gray-950">
+    <div className="flex h-[calc(100dvh/var(--ui-zoom,1))] flex-col bg-gray-100 dark:bg-gray-950">
       {welcomeModal}
       {/* Briefing matinal — só no shell web (decisão de produto); abre 1×/dia. */}
       {authUser && <BriefingModal />}

@@ -70,6 +70,10 @@ const apply = (): void => {
   const style = document.documentElement.style
   if (next === 1) style.removeProperty('zoom')
   else style.setProperty('zoom', String(next))
+  // Expõe o zoom pro layout: containers de altura cheia usam
+  // `calc(100dvh / var(--ui-zoom))` pra, DEPOIS do zoom, voltarem a preencher a
+  // tela toda (senão zoom<1 encolhe a altura e sobra branco embaixo no tablet).
+  style.setProperty('--ui-zoom', String(next))
 }
 
 const schedule = (): void => {
