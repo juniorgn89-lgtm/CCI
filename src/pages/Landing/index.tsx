@@ -24,7 +24,7 @@ const MAIL = {
 }
 
 const MODULOS: { icon: string; bg: string; titulo: string; texto: string }[] = [
-  { icon: '🗺️', bg: '#eef4ff', titulo: 'Visão Geral da Rede', texto: 'Faturamento, lucro e margem de todos os postos num só lugar, com projeção do período por setor.' },
+  { icon: '🗺️', bg: '#eef4ff', titulo: 'Visão Geral da Rede', texto: 'Faturamento, lucro, margem e projeção de todos os postos num só lugar — com mapa da rede e o cadastro de cada posto.' },
   { icon: '⛽', bg: '#fef4e2', titulo: 'Combustível', texto: 'Volume, margem por produto e gestão de preços por tabela — com o impacto real do desconto no lucro bruto.' },
   { icon: '🛒', bg: '#eafaf1', titulo: 'Conveniência', texto: 'Desempenho da loja, ticket médio e giro — separando o que vem da pista do que vem do balcão.' },
   { icon: '🔧', bg: '#f0edff', titulo: 'Automotivos', texto: 'Troca de óleo e serviços agregados acompanhados junto do resto da operação do posto.' },
@@ -45,7 +45,7 @@ const IA_BULLETS = [
   'Só leitura: a IA analisa, quem decide é você',
 ]
 
-const TRUST = ['Conecta ao seu ERP de posto', 'Apuração automática diária', 'Dados só de leitura', 'Acesso web e celular']
+const TRUST = ['Conecta ao seu ERP de posto', 'Apuração automática diária', 'Dados só de leitura', 'App no celular e no PC — sem loja']
 
 // CSS scoped em `.v360-landing` — não vaza pro app. Inclui as fontes da marca,
 // o floaty do mockup e a responsividade mínima (empilha os grids no celular sem
