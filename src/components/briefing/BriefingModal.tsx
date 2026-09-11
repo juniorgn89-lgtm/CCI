@@ -40,6 +40,8 @@ const ddmm = (iso: string) => iso.split('-').slice(1).reverse().join('/')
 const rl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
 /** Renderiza texto com **trechos** em negrito. */
 const rich = (s: string) => s.split('**').map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>))
+/** Fonte de display da marca (mesma da landing); cai no Inter se não carregar. */
+const BRICOLAGE = "'Bricolage Grotesque', Inter, system-ui, sans-serif"
 
 const BriefingModal = () => {
   const navigate = useNavigate()
@@ -77,6 +79,18 @@ const BriefingModal = () => {
   const abas = useMemo(() => abasFor(modSel), [modSel])
   const [abaSel, setAbaSel] = useState('')
   useEffect(() => { setAbaSel('') }, [modSel])
+
+  // Fonte da marca (Bricolage) só enquanto o briefing está aberto — pra ter a
+  // "cara da landing". A CSP já libera fonts.googleapis/gstatic; cai no Inter se
+  // não carregar. Removida ao fechar pra não pesar no resto do app.
+  useEffect(() => {
+    if (!open) return
+    const l = document.createElement('link')
+    l.rel = 'stylesheet'
+    l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap'
+    document.head.appendChild(l)
+    return () => { l.remove() }
+  }, [open])
 
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
@@ -163,68 +177,93 @@ const BriefingModal = () => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss() }}>
-      <DialogContent className="max-w-xl gap-0 overflow-hidden rounded-[22px] p-0 [&>button]:hidden">
-        {/* Header navy */}
-        <div className="relative bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-6 pb-5 pt-5">
-          <div className="flex items-start gap-3">
+      <DialogContent className="max-w-2xl gap-0 overflow-hidden rounded-[24px] border-0 p-0 shadow-2xl [&>button]:hidden">
+        {/* Header navy com glow âmbar — linguagem da landing */}
+        <div
+          className="relative overflow-hidden px-7 pb-6 pt-6"
+          style={{ background: 'radial-gradient(720px 340px at 82% -12%, #22456b 0%, #16293f 58%, #101f31 100%)' }}
+        >
+          <div
+            className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(252,182,25,.22) 0%, rgba(252,182,25,0) 70%)' }}
+          />
+          <div className="relative flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55">{dataExtenso(resumo.ontem)}</p>
-              <DialogTitle className="text-[21px] font-bold leading-tight text-white">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#14b8a6]/40 bg-[#0f766e]/25 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#5eead4]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#14b8a6]" /> {dataExtenso(resumo.ontem)}
+              </span>
+              <DialogTitle
+                className="mt-2.5 text-[28px] font-extrabold leading-[1.05] tracking-[-0.02em] text-white"
+                style={{ fontFamily: BRICOLAGE }}
+              >
                 {saudacao()}{fullName ? `, ${fullName.split(' ')[0]}` : ''}
               </DialogTitle>
+              <DialogDescription className="mt-2 max-w-md text-[13.5px] leading-snug text-white/70">
+                Aqui está o resumo de ontem — e um atalho pra começar sua análise do dia.
+              </DialogDescription>
             </div>
             <button type="button" onClick={dismiss} aria-label="Fechar"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white">
+              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <DialogDescription className="mt-1.5 text-[13px] text-white/70">
-            Aqui está o resumo de ontem — e um atalho pra começar sua análise do dia.
-          </DialogDescription>
         </div>
 
         {/* Body */}
-        <div className="space-y-3 px-6 py-4">
+        <div className="space-y-4 px-7 py-5">
           {/* Leitura do dia (frase determinística). KPIs removidos — a frase
               carrega o período comparado + a variação. */}
           {resumo.isLoading ? (
-            <div className="h-12 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-14 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
           ) : !resumo.hasData ? (
-            <div className="rounded-xl border border-gray-200 p-4 text-center text-[12px] text-gray-400 dark:border-gray-700">
+            <div className="rounded-2xl border border-dashed border-gray-200 p-4 text-center text-[12px] text-gray-400 dark:border-gray-700">
               Ontem ainda não fechou no cache de apuração — confira mais tarde.
             </div>
           ) : leitura ? (
-            <div className="rounded-xl border border-[#dbeafe] bg-[#f0f6ff] px-3.5 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
-              <p className="text-[12.5px] leading-snug text-[#1e3a5f] dark:text-blue-100">{rich(leitura)}</p>
+            <div className="relative overflow-hidden rounded-2xl border border-[#e9eef4] bg-white px-4 py-3.5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <span className="absolute inset-y-0 left-0 w-1 bg-[#0F766E]" />
+              <p className="pl-2.5 text-[14px] leading-relaxed text-[#16293f] dark:text-gray-100">{rich(leitura)}</p>
             </div>
           ) : null}
 
           {/* Projeção de fim do mês do combustível (heads-up) + análise da IA. */}
           {projComb.hasData && (
-            <div className="rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] px-3.5 py-3 text-white shadow-sm">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Projeção do combustível · fim do mês</p>
-                <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/70">{CONFIA_LABEL[projComb.confiabilidade]}</span>
+            <div
+              className="relative overflow-hidden rounded-2xl px-4 py-4 text-white shadow-[0_20px_44px_-26px_rgba(15,41,63,.75)]"
+              style={{ background: 'linear-gradient(150deg,#1c3a5c 0%,#16293f 100%)' }}
+            >
+              <div
+                className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full"
+                style={{ background: 'radial-gradient(circle, rgba(252,182,25,.20) 0%, rgba(252,182,25,0) 70%)' }}
+              />
+              <div className="relative">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-white/60">Projeção do combustível · fim do mês</p>
+                  <span className="shrink-0 rounded-full border border-[#FCB619]/40 bg-[#FCB619]/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#fcd77f]">{CONFIA_LABEL[projComb.confiabilidade]}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                  <span className="text-[27px] font-extrabold tabular-nums tracking-[-0.01em]" style={{ fontFamily: BRICOLAGE }}>{formatNumber(Math.round(projComb.litrosProj))} L</span>
+                  {projComb.deltaVsMesAnt != null && (
+                    <span className={cn('text-[11.5px] font-semibold tabular-nums', projComb.deltaVsMesAnt >= 0 ? 'text-emerald-300' : 'text-red-300')}>
+                      {projComb.deltaVsMesAnt >= 0 ? '▲ +' : '▼ '}{Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% vs mês ant.
+                    </span>
+                  )}
+                  <span className="ml-auto text-[11.5px] text-white/60">LB estimado <strong className="font-bold text-[#fcd77f]">{formatCurrencyInt(projComb.lucroProj)}</strong></span>
+                </div>
+                <p className="mt-2 text-[12px] leading-snug text-white/85">{rich(analiseComb)}</p>
               </div>
-              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-[19px] font-bold tabular-nums">{formatNumber(Math.round(projComb.litrosProj))} L</span>
-                {projComb.deltaVsMesAnt != null && (
-                  <span className={cn('text-[11px] font-semibold tabular-nums', projComb.deltaVsMesAnt >= 0 ? 'text-emerald-300' : 'text-red-300')}>
-                    {projComb.deltaVsMesAnt >= 0 ? '▲ +' : '▼ '}{Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% vs mês ant.
-                  </span>
-                )}
-                <span className="ml-auto text-[11px] text-white/60">LB estimado <strong className="font-semibold text-white/90">{formatCurrencyInt(projComb.lucroProj)}</strong></span>
-              </div>
-              <p className="mt-1.5 text-[11.5px] leading-snug text-white/85">{rich(analiseComb)}</p>
             </div>
           )}
 
           {/* Ajustar análise */}
           <div>
-            <p className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide text-gray-400">
+            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#0F766E] dark:text-[#14b8a6]">
               <SlidersHorizontal className="h-3.5 w-3.5" /> Ajustar análise
             </p>
-            <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50/60 p-3 dark:border-gray-700 dark:bg-gray-800/30">
+            <p className="mb-2 text-[12px] leading-snug text-gray-500 dark:text-gray-400">
+              Defina período, escopo, módulo e posto — ao tocar em <strong className="font-semibold text-gray-700 dark:text-gray-200">Analisar</strong>, o Visor já <strong className="font-semibold text-gray-700 dark:text-gray-200">abre a tela escolhida com tudo aplicado</strong>.
+            </p>
+            <div className="space-y-2.5 rounded-2xl border border-[#e9eef4] bg-[#f6f8fb] p-3.5 dark:border-gray-700 dark:bg-gray-800/40">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Período</span>
                 <div className="flex gap-1"><Pill active={periodo === 'atual'} onClick={() => setPeriodoSel('atual')}>Mês atual</Pill><Pill active={periodo === 'passado'} onClick={() => setPeriodoSel('passado')}>Mês passado</Pill></div>
@@ -264,15 +303,15 @@ const BriefingModal = () => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-6 py-3 dark:border-gray-800">
+        <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-7 py-3.5 dark:border-gray-800">
           <label className="flex cursor-pointer items-center gap-2 text-[12px] text-gray-500 dark:text-gray-400">
             <input type="checkbox" checked={naoMostrar} onChange={(e) => setNaoMostrar(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb]" />
             Não mostrar de novo hoje
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button type="button" onClick={dismiss} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Fechar</button>
             <button type="button" onClick={analisar}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,.3)] hover:from-[#1d4ed8] hover:to-[#1d4ed8]">
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#FCB619] px-5 py-2.5 text-[13.5px] font-bold text-[#16293f] shadow-[0_14px_30px_-12px_rgba(252,182,25,.85)] transition-transform hover:-translate-y-px">
               Analisar <ArrowRight className="h-4 w-4" />
             </button>
           </div>
