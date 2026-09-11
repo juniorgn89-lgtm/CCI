@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Radio, Users, Activity, MonitorSmartphone, ShieldCheck, Building2, X, Check } from 'lucide-react'
+import {
+  ResponsiveContainer, AreaChart as RAreaChart, Area, BarChart as RBarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts'
+import { Radio, Users, Activity, Clock, ShieldCheck, Building2, X, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { fetchProfiles } from '@/api/supabase/profiles'
 import { fetchRedes } from '@/api/supabase/redes'
+import { useChartTheme } from '@/lib/chartTheme'
 import { cn } from '@/lib/utils'
 
 interface AcessoRow {
@@ -18,6 +23,7 @@ interface AcessoRow {
 const DIA = 864e5
 const pad = (n: number) => String(n).padStart(2, '0')
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const nInt = (n: number) => n.toLocaleString('pt-BR')
 const quando = (iso: string) => {
   const d = new Date(iso)
   const now = new Date()
@@ -31,13 +37,11 @@ const quando = (iso: string) => {
 /**
  * Controle de acesso — página do Painel (só gerente). Analytics de uso de TODAS
  * as redes (últimos 30 dias): quem acessa, quando (dia/hora) e as telas mais
- * usadas. Um card separa por rede e serve de filtro (clica pra focar numa).
- * Só tem dado a partir de quando o logger entrou no ar; PainelLayout barra quem
- * não é master.
+ * usadas. O card "Acessos por rede" é multi-seleção e filtra o resto.
  */
 const ControleAcesso = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
-  // Multi-seleção de redes (vazio = todas).
+  const ct = useChartTheme()
   const [sel, setSel] = useState<Set<string>>(() => new Set())
   const toggle = (id: string) =>
     setSel((prev) => {
@@ -79,7 +83,6 @@ const ControleAcesso = () => {
   }, [redes])
   const nomeRede = (id: string | null) => (id ? redeNome.get(id) ?? 'Rede' : 'Sem rede')
 
-  // Split por rede (de TODAS as linhas) — o card e o filtro saem daqui.
   const porRede = useMemo(() => {
     const m = new Map<string, { acessos: number; usuarios: Set<string> }>()
     for (const r of rows) {
@@ -120,23 +123,24 @@ const ControleAcesso = () => {
       const d = new Date(now - i * DIA)
       dias.push({ label: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`, count: byDay.get(dayKey(d)) ?? 0 })
     }
+    const horas = byHour.map((count, h) => ({ h, count }))
     const topTelas = [...byTela.entries()].map(([tela, count]) => ({ tela, count })).sort((a, b) => b.count - a.count).slice(0, 8)
-    return { online: online.size, ativos: ativos.size, total: rowsFiltradas.length, dias, horas: byHour, topTelas }
+    let pico = -1
+    let picoV = 0
+    byHour.forEach((c, h) => { if (c > picoV) { picoV = c; pico = h } })
+    return { online: online.size, ativos: ativos.size, total: rowsFiltradas.length, dias, horas, topTelas, pico }
   }, [rowsFiltradas])
 
   if (!isMaster || !supabase) return null
 
-  const maxDia = Math.max(1, ...stat.dias.map((d) => d.count))
-  const maxHora = Math.max(1, ...stat.horas)
-  const maxTela = stat.topTelas[0]?.count ?? 1
   const maxRede = porRede[0]?.acessos ?? 1
-  const picoHora = stat.horas.indexOf(maxHora)
+  const picoLabel = stat.total > 0 && stat.pico >= 0 ? `${pad(stat.pico)}h` : '—'
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1e3a5f]">
           <ShieldCheck className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -146,37 +150,58 @@ const ControleAcesso = () => {
       </div>
 
       {isLoading ? (
-        <div className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+        <div className="h-52 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
       ) : rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           Ainda sem registros de acesso — eles começam a aparecer conforme a equipe usar o app.
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Acessos por rede — clique numa rede pra focar nela */}
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi Icon={Radio} label="Online agora" value={nInt(stat.online)} tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
+            <Kpi Icon={Users} label="Usuários (30d)" value={nInt(stat.ativos)} tint="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
+            <Kpi Icon={Activity} label="Acessos (30d)" value={nInt(stat.total)} tint="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400" />
+            <Kpi Icon={Clock} label="Pico do dia" value={picoLabel} tint="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" />
+          </div>
+
+          {/* Acessos por rede — multi-seleção + caixa de selecionadas */}
           {porRede.length > 1 && (
-            <Card titulo="Acessos por rede">
-              <ul className="space-y-1">
+            <Card
+              titulo="Acessos por rede"
+              acao={sel.size > 0 ? <button onClick={() => setSel(new Set())} className="text-[11px] font-semibold text-[#2563eb] hover:underline">Ver todas</button> : undefined}
+            >
+              {sel.size > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-[#f4f8ff] p-2 dark:bg-blue-950/20">
+                  <span className="text-[10.5px] font-semibold uppercase tracking-wide text-gray-400">Selecionadas</span>
+                  {[...sel].map((id) => (
+                    <span key={id} className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[12px] font-semibold text-[#1d4ed8] shadow-sm dark:bg-blue-900/40 dark:text-blue-300">
+                      {nomeRede(id)}
+                      <button onClick={() => toggle(id)} aria-label={`Remover ${nomeRede(id)}`} className="rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/60">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <ul className="space-y-0.5">
                 {porRede.map((r) => {
                   const on = sel.has(r.id)
                   return (
                     <li key={r.id}>
                       <button
                         onClick={() => toggle(r.id)}
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                          on ? 'bg-[#eff4ff] dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-white/5',
-                        )}
+                        className={cn('flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors', on ? 'bg-[#f4f8ff] dark:bg-blue-950/25' : 'hover:bg-gray-50 dark:hover:bg-white/5')}
                       >
-                        <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', on ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
-                          {on && <Check className="h-3 w-3" />}
+                        <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors', on ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                          {on && <Check className="h-3 w-3" strokeWidth={3} />}
                         </span>
-                        <Building2 className={cn('h-3.5 w-3.5 shrink-0', on ? 'text-[#2563eb]' : 'text-gray-400')} />
-                        <span className={cn('w-36 shrink-0 truncate text-[12px]', on ? 'font-semibold text-[#1d4ed8] dark:text-blue-300' : 'font-medium text-gray-700 dark:text-gray-300')}>{nomeRede(r.id)}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                        <Building2 className={cn('h-4 w-4 shrink-0', on ? 'text-[#2563eb]' : 'text-gray-400')} />
+                        <span className={cn('w-40 shrink-0 truncate text-[13px]', on ? 'font-semibold text-[#1d4ed8] dark:text-blue-300' : 'font-medium text-gray-700 dark:text-gray-300')}>{nomeRede(r.id)}</span>
+                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                           <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(r.acessos / maxRede) * 100}%` }} />
                         </div>
-                        <span className="w-12 shrink-0 text-right text-[12px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{r.acessos.toLocaleString('pt-BR')}</span>
+                        <span className="w-14 shrink-0 text-right text-[13px] font-bold tabular-nums text-gray-800 dark:text-gray-200">{nInt(r.acessos)}</span>
                         <span className="hidden w-16 shrink-0 text-right text-[11px] tabular-nums text-gray-400 sm:inline">{r.usuarios} usr</span>
                       </button>
                     </li>
@@ -186,119 +211,103 @@ const ControleAcesso = () => {
             </Card>
           )}
 
-          {/* Caixa: redes selecionadas */}
-          <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Redes selecionadas{sel.size > 0 ? ` (${sel.size})` : ''}
-              </p>
-              {sel.size > 0 && (
-                <button onClick={() => setSel(new Set())} className="text-[11px] font-semibold text-[#2563eb] hover:underline">
-                  Ver todas
-                </button>
-              )}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {sel.size === 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                  Todas as redes
-                </span>
+          {/* Gráficos por tempo */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card titulo="Acessos por dia (14 dias)">
+              <ResponsiveContainer width="100%" height={200}>
+                <RAreaChart data={stat.dias} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="ca-area" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ct.accent} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={ct.accent} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                  <XAxis dataKey="label" interval={1} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                  <YAxis width={30} allowDecimals={false} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} formatter={((v: number) => [nInt(v), 'acessos']) as never} />
+                  <Area type="monotone" dataKey="count" name="Acessos" stroke={ct.accent} strokeWidth={2} fill="url(#ca-area)" dot={false} activeDot={{ r: 4 }} />
+                </RAreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card titulo="Horário (por hora do dia)">
+              <ResponsiveContainer width="100%" height={200}>
+                <RBarChart data={stat.horas} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                  <XAxis dataKey="h" interval={2} tickFormatter={(h: number) => `${h}h`} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                  <YAxis width={30} allowDecimals={false} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} formatter={((v: number) => [nInt(v), 'acessos']) as never} labelFormatter={(h) => `${pad(Number(h))}h`} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {stat.horas.map((d) => <Cell key={d.h} fill={d.h === stat.pico ? '#FCB619' : ct.accent} />)}
+                  </Bar>
+                </RBarChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
+
+          {/* Telas + últimos acessos */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card titulo="Telas mais acessadas">
+              {stat.topTelas.length === 0 ? (
+                <p className="py-6 text-center text-[12px] text-gray-400">Sem acessos nessa seleção.</p>
               ) : (
-                [...sel].map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1.5 rounded-full bg-[#eff4ff] px-2.5 py-1 text-[12px] font-semibold text-[#1d4ed8] dark:bg-blue-950/30 dark:text-blue-300">
-                    {nomeRede(id)}
-                    <button onClick={() => toggle(id)} aria-label={`Remover ${nomeRede(id)}`} className="rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))
+                <ResponsiveContainer width="100%" height={Math.max(160, stat.topTelas.length * 34)}>
+                  <RBarChart data={stat.topTelas} layout="vertical" margin={{ top: 0, right: 28, left: 6, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="tela" width={128} tick={{ fontSize: 11, fill: ct.axis }} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} formatter={((v: number) => [nInt(v), 'acessos']) as never} cursor={{ fill: ct.grid, opacity: 0.4 }} />
+                    <Bar dataKey="count" fill={ct.accent} radius={[0, 4, 4, 0]} />
+                  </RBarChart>
+                </ResponsiveContainer>
               )}
-            </div>
+            </Card>
+
+            <Card titulo="Últimos acessos">
+              {rowsFiltradas.length === 0 ? (
+                <p className="py-6 text-center text-[12px] text-gray-400">Nenhum acesso nessa seleção.</p>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rowsFiltradas.slice(0, 12).map((r, i) => (
+                    <li key={i} className="flex items-center gap-2 py-2 text-[12.5px]">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                        {(nomeDe.get(r.user_id) ?? '?').slice(0, 2)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
+                      {sel.size !== 1 && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 md:inline">{nomeRede(r.rede_id)}</span>}
+                      <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
+                      <span className="w-20 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
           </div>
-
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Kpi Icon={Radio} label="Online agora" value={String(stat.online)} tone="text-emerald-600 dark:text-emerald-400" />
-            <Kpi Icon={Users} label="Usuários (30d)" value={String(stat.ativos)} />
-            <Kpi Icon={Activity} label="Acessos (30d)" value={stat.total.toLocaleString('pt-BR')} />
-            <Kpi Icon={MonitorSmartphone} label="Pico do dia" value={`${pad(picoHora)}h`} />
-          </div>
-
-          {/* Acessos por dia (14d) */}
-          <Card titulo="Acessos por dia (14 dias)">
-            <div className="flex h-28 items-end gap-1">
-              {stat.dias.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1" title={`${d.label}: ${d.count}`}>
-                  <div className="flex w-full flex-1 items-end">
-                    <div className="w-full rounded-t bg-[#2563eb]/80 transition-all" style={{ height: `${(d.count / maxDia) * 100}%`, minHeight: d.count > 0 ? 2 : 0 }} />
-                  </div>
-                  <span className="text-[8.5px] tabular-nums text-gray-400">{d.label.slice(0, 2)}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Horário de pico (0-23h) */}
-          <Card titulo="Horário (por hora do dia)">
-            <div className="flex h-20 items-end gap-[3px]">
-              {stat.horas.map((c, h) => (
-                <div key={h} className="flex flex-1 flex-col items-center" title={`${pad(h)}h: ${c}`}>
-                  <div className="flex w-full flex-1 items-end">
-                    <div className={`w-full rounded-t ${h === picoHora ? 'bg-[#FCB619]' : 'bg-[#0F766E]/60'}`} style={{ height: `${(c / maxHora) * 100}%`, minHeight: c > 0 ? 2 : 0 }} />
-                  </div>
-                  {h % 6 === 0 && <span className="mt-0.5 text-[8px] tabular-nums text-gray-400">{h}h</span>}
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Telas mais acessadas */}
-          <Card titulo="Telas mais acessadas">
-            <ul className="space-y-1.5">
-              {stat.topTelas.map((t) => (
-                <li key={t.tela} className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 truncate text-[12px] text-gray-700 dark:text-gray-300">{t.tela}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
-                    <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(t.count / maxTela) * 100}%` }} />
-                  </div>
-                  <span className="w-10 shrink-0 text-right text-[12px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{t.count.toLocaleString('pt-BR')}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-
-          {/* Últimos acessos */}
-          <Card titulo="Últimos acessos">
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {rowsFiltradas.slice(0, 12).map((r, i) => (
-                <li key={i} className="flex items-center gap-2 py-1.5 text-[12px]">
-                  <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
-                  {sel.size !== 1 && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 sm:inline">{nomeRede(r.rede_id)}</span>}
-                  <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
-                  <span className="w-24 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
+        </>
       )}
     </div>
   )
 }
 
-const Kpi = ({ Icon, label, value, tone }: { Icon: typeof Users; label: string; value: string; tone?: string }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-      <Icon className="h-3.5 w-3.5" />
-      <span className="text-[10.5px] font-medium">{label}</span>
+const Kpi = ({ Icon, label, value, tint }: { Icon: typeof Users; label: string; value: string; tint: string }) => (
+  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <div className="flex items-center gap-2">
+      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', tint)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}</span>
     </div>
-    <p className={`mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100 ${tone ?? ''}`}>{value}</p>
+    <p className="mt-2.5 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
   </div>
 )
 
-const Card = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{titulo}</p>
+const Card = ({ titulo, acao, children }: { titulo: string; acao?: React.ReactNode; children: React.ReactNode }) => (
+  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{titulo}</p>
+      {acao}
+    </div>
     {children}
   </div>
 )
