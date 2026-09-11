@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ResponsiveContainer, AreaChart as RAreaChart, Area, BarChart as RBarChart, Bar, Cell,
@@ -43,6 +43,7 @@ const ControleAcesso = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const ct = useChartTheme()
   const [sel, setSel] = useState<Set<string>>(() => new Set())
+  const [selUser, setSelUser] = useState<{ id: string; nome: string; email: string } | null>(null)
   const toggle = (id: string) =>
     setSel((prev) => {
       const n = new Set(prev)
@@ -74,6 +75,11 @@ const ControleAcesso = () => {
   const nomeDe = useMemo(() => {
     const m = new Map<string, string>()
     for (const p of profiles) m.set(p.user_id, p.full_name || p.email || 'Usuário')
+    return m
+  }, [profiles])
+  const emailDe = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of profiles) m.set(p.user_id, p.email)
     return m
   }, [profiles])
   const redeNome = useMemo(() => {
@@ -270,14 +276,20 @@ const ControleAcesso = () => {
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                   {rowsFiltradas.slice(0, 12).map((r, i) => (
-                    <li key={i} className="flex items-center gap-2 py-2 text-[12.5px]">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                        {(nomeDe.get(r.user_id) ?? '?').slice(0, 2)}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
-                      {sel.size !== 1 && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 md:inline">{nomeRede(r.rede_id)}</span>}
-                      <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
-                      <span className="w-20 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
+                    <li key={i}>
+                      <button
+                        onClick={() => setSelUser({ id: r.user_id, nome: nomeDe.get(r.user_id) ?? 'Usuário', email: emailDe.get(r.user_id) ?? '' })}
+                        className="flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[12.5px] transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
+                        title="Ver acessos deste usuário (90 dias)"
+                      >
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                          {(nomeDe.get(r.user_id) ?? '?').slice(0, 2)}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
+                        {sel.size !== 1 && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 md:inline">{nomeRede(r.rede_id)}</span>}
+                        <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
+                        <span className="w-20 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -286,9 +298,163 @@ const ControleAcesso = () => {
           </div>
         </>
       )}
+
+      {selUser && <AcessoUsuarioModal user={selUser} redeNome={redeNome} onClose={() => setSelUser(null)} />}
     </div>
   )
 }
+
+/* ─── Modal: histórico de acesso de um usuário (90 dias) ─── */
+
+interface UserRef { id: string; nome: string; email: string }
+interface UserRow { rede_id: string | null; path: string; modulo: string | null; created_at: string }
+
+const AcessoUsuarioModal = ({ user, redeNome, onClose }: { user: UserRef; redeNome: Map<string, string>; onClose: () => void }) => {
+  const ct = useChartTheme()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['acesso-user', user.id],
+    enabled: !!supabase,
+    staleTime: 60_000,
+    queryFn: async (): Promise<UserRow[]> => {
+      if (!supabase) return []
+      const desde = new Date(Date.now() - 90 * DIA).toISOString()
+      const { data, error } = await supabase
+        .from('acesso_log')
+        .select('rede_id,path,modulo,created_at')
+        .eq('user_id', user.id)
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false })
+        .limit(10000)
+      if (error) throw error
+      return (data ?? []) as UserRow[]
+    },
+  })
+  const nomeRede = (id: string | null) => (id ? redeNome.get(id) ?? 'Rede' : 'Sem rede')
+
+  const stat = useMemo(() => {
+    const byDay = new Map<string, number>()
+    const byTela = new Map<string, number>()
+    const byRede = new Map<string, number>()
+    for (const r of rows) {
+      const t = new Date(r.created_at)
+      byDay.set(dayKey(t), (byDay.get(dayKey(t)) ?? 0) + 1)
+      byTela.set(r.modulo || r.path, (byTela.get(r.modulo || r.path) ?? 0) + 1)
+      const rid = r.rede_id ?? '—'
+      byRede.set(rid, (byRede.get(rid) ?? 0) + 1)
+    }
+    const now = Date.now()
+    const dias: { label: string; count: number }[] = []
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date(now - i * DIA)
+      dias.push({ label: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`, count: byDay.get(dayKey(d)) ?? 0 })
+    }
+    const topTelas = [...byTela.entries()].map(([tela, count]) => ({ tela, count })).sort((a, b) => b.count - a.count).slice(0, 6)
+    const redesUsadas = [...byRede.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count)
+    return { total: rows.length, diasAtivos: byDay.size, dias, topTelas, redesUsadas, ultimo: rows[0]?.created_at }
+  }, [rows])
+
+  const maxTela = stat.topTelas[0]?.count ?? 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Acessos de ${user.nome}`}>
+      <button className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" aria-label="Fechar" onClick={onClose} />
+      <div className="relative flex max-h-[86vh] w-full max-w-2xl animate-fade-in flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0f0f0f]">
+        <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 p-4 dark:border-white/10">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1e3a5f] text-[13px] font-bold uppercase text-white">{user.nome.slice(0, 2)}</span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-semibold text-gray-900 dark:text-gray-100">{user.nome}</h2>
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{user.email || 'histórico de acesso'} · últimos 90 dias</p>
+          </div>
+          <button onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="space-y-4 overflow-y-auto p-4">
+          {isLoading ? (
+            <div className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+          ) : stat.total === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">Sem acessos nos últimos 90 dias.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <MiniKpi label="Acessos (90d)" value={nInt(stat.total)} />
+                <MiniKpi label="Dias ativos" value={nInt(stat.diasAtivos)} />
+                <MiniKpi label="Último acesso" value={stat.ultimo ? quando(stat.ultimo) : '—'} />
+              </div>
+
+              <Card titulo="Acessos por dia (90 dias)">
+                <ResponsiveContainer width="100%" height={170}>
+                  <RAreaChart data={stat.dias} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="cau-area" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={ct.accent} stopOpacity={0.28} />
+                        <stop offset="100%" stopColor={ct.accent} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                    <XAxis dataKey="label" interval={14} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                    <YAxis width={30} allowDecimals={false} tick={{ fontSize: 10, fill: ct.axis }} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }} formatter={((v: number) => [nInt(v), 'acessos']) as never} />
+                    <Area type="monotone" dataKey="count" stroke={ct.accent} strokeWidth={2} fill="url(#cau-area)" dot={false} activeDot={{ r: 4 }} />
+                  </RAreaChart>
+                </ResponsiveContainer>
+              </Card>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Card titulo="Telas mais acessadas">
+                  <ul className="space-y-1.5">
+                    {stat.topTelas.map((t) => (
+                      <li key={t.tela} className="flex items-center gap-2">
+                        <span className="w-28 shrink-0 truncate text-[12px] text-gray-700 dark:text-gray-300">{t.tela}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5"><div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(t.count / maxTela) * 100}%` }} /></div>
+                        <span className="w-10 shrink-0 text-right text-[12px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{nInt(t.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+                <Card titulo="Redes acessadas">
+                  <ul className="space-y-1.5">
+                    {stat.redesUsadas.map((r) => (
+                      <li key={r.id} className="flex items-center gap-2 text-[12px]">
+                        <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">{nomeRede(r.id)}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-gray-600 dark:text-gray-300">{nInt(r.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </div>
+
+              <Card titulo="Últimos acessos">
+                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rows.slice(0, 15).map((r, i) => (
+                    <li key={i} className="flex items-center gap-2 py-1.5 text-[12px]">
+                      <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">{r.modulo || r.path}</span>
+                      <span className="hidden shrink-0 truncate text-[11px] text-gray-400 sm:inline">{nomeRede(r.rede_id)}</span>
+                      <span className="w-20 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const MiniKpi = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-xl border border-gray-200 bg-white p-3 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    <p className="text-[10.5px] text-gray-500 dark:text-gray-400">{label}</p>
+  </div>
+)
 
 const Kpi = ({ Icon, label, value, tint }: { Icon: typeof Users; label: string; value: string; tint: string }) => (
   <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
