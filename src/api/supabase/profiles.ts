@@ -63,6 +63,19 @@ export const updateProfileRole = async (userId: string, role: 'user' | 'supervis
   if (error) throw error
 }
 
+/**
+ * Concede/revoga o poder de Diretor = a flag `is_master` (acesso total, igual ao
+ * dono). Revogar volta o papel pra 'user' — senão o ex-diretor ficaria sem tipo
+ * definido na tabela.
+ */
+export const updateProfileMaster = async (userId: string, isMaster: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const patch: Record<string, unknown> = { is_master: isMaster }
+  if (!isMaster) patch.role = 'user'
+  const { error } = await supabase.from('profiles').update(patch).eq('user_id', userId)
+  if (error) throw error
+}
+
 export const updateProfileApproved = async (userId: string, approved: boolean) => {
   if (!supabase) throw new Error('Supabase não configurado')
   const { error } = await supabase

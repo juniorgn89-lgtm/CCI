@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth'
 import {
   fetchProfiles,
   updateProfileRole,
+  updateProfileMaster,
   updateProfileApproved,
   updateProfileAtivo,
   updateProfileRedes,
@@ -20,6 +21,10 @@ import {
   generateRecoveryLink,
   type ProfileRow,
 } from '@/api/supabase/profiles'
+
+/** Dono da conta: fica como "Gerente Geral" e nunca pode ser alterado aqui. Os
+ *  demais com acesso total (is_master) aparecem como "Diretor". */
+const DONO_EMAIL = 'contato@cci.app.br'
 import RecoveryLinkModal from '@/components/admin/RecoveryLinkModal'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -92,6 +97,22 @@ const Usuarios = () => {
     setBusyUserId(row.user_id)
     try {
       await updateProfileRole(row.user_id, next)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  // Diretor = acesso total (is_master), igual ao dono. Concede (from a tabela)
+  // ou rebaixa (do card de Diretores). O dono nunca é alterado aqui.
+  const handleMakeDiretor = async (row: ProfileRow, on: boolean) => {
+    if (row.user_id === myUser?.id) { alert('Você não pode mudar o próprio tipo.'); return }
+    if (row.email === DONO_EMAIL) { alert('O Gerente Geral (dono) não pode ser alterado.'); return }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfileMaster(row.user_id, on)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -261,7 +282,8 @@ const Usuarios = () => {
   const redesAtivas = redes.filter((r) => r.ativo)
 
   // Gerente (is_master) aparece em card à parte; a tabela lista os demais.
-  const gerentes = profiles.filter((p) => p.is_master)
+  const gerentes = profiles.filter((p) => p.is_master && p.email === DONO_EMAIL)
+  const diretores = profiles.filter((p) => p.is_master && p.email !== DONO_EMAIL)
   const naoMasterTodos = profiles.filter((p) => !p.is_master)
 
   // Busca por nome ou email
@@ -398,6 +420,55 @@ const Usuarios = () => {
         </div>
       )}
 
+      {/* Diretores — mesmo acesso total do dono (is_master), com selo próprio. */}
+      {diretores.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {diretores.length > 1 ? 'Diretores' : 'Diretor'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {diretores.map((d) => {
+              const isSelf = d.user_id === myUser?.id
+              return (
+                <div
+                  key={d.user_id}
+                  className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-2.5 dark:border-blue-900/40 dark:bg-blue-900/20"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
+                    <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {d.full_name || d.email}
+                      </p>
+                      {isSelf && (
+                        <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium uppercase text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                          você
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-gray-600 dark:text-gray-400">
+                      {d.email} · acesso total (igual ao dono)
+                    </p>
+                  </div>
+                  {!isSelf && (
+                    <button
+                      onClick={() => handleMakeDiretor(d, false)}
+                      disabled={busyUserId === d.user_id}
+                      className="ml-1 shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-white disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                      title="Remover o acesso de Diretor (volta a ser Usuário)"
+                    >
+                      Rebaixar
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Busca por nome ou email — aparece quando há mais de 3 usuários */}
       {naoMasterTodos.length > 3 && (
         <div className="relative w-full max-w-xs">
@@ -464,6 +535,7 @@ const Usuarios = () => {
                         busy={busyUserId === p.user_id}
                         onToggleApproved={() => handleToggleApproved(p)}
                         onToggleRole={() => handleToggleRole(p)}
+                        onMakeDiretor={() => handleMakeDiretor(p, true)}
                         onChangeRedes={(v) => handleChangeRedes(p, v)}
                         onEditEmpresas={() => setEditingEmpresasFor(p)}
                         onEditModulos={() => setEditingModulosFor(p)}
@@ -831,6 +903,7 @@ interface UserRowProps {
   busy: boolean
   onToggleApproved: () => void
   onToggleRole: () => void
+  onMakeDiretor: () => void
   onChangeRedes: (value: { todas: boolean; redes: string[] }) => void
   onEditEmpresas: () => void
   onEditModulos: () => void
@@ -841,7 +914,7 @@ interface UserRowProps {
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1069,6 +1142,14 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                 label="Supervisor"
                 disabled={busy || isSelf}
                 onClick={() => p.role !== 'supervisor' && onToggleRole()}
+              />
+              <RoleOption
+                active={false}
+                color="amber"
+                icon={<Crown className="h-3 w-3" />}
+                label="Diretor"
+                disabled={busy || isSelf}
+                onClick={onMakeDiretor}
               />
             </div>
           </div>
@@ -1398,7 +1479,7 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
 
 interface RoleOptionProps {
   active: boolean
-  color: 'gray' | 'blue'
+  color: 'gray' | 'blue' | 'amber'
   icon: React.ReactNode
   label: string
   disabled: boolean
@@ -1406,7 +1487,12 @@ interface RoleOptionProps {
 }
 
 const RoleOption = ({ active, color, icon, label, disabled, onClick }: RoleOptionProps) => {
-  const activeBg = color === 'blue' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
+  const activeBg =
+    color === 'blue'
+      ? 'bg-blue-500 text-white'
+      : color === 'amber'
+        ? 'bg-amber-500 text-white'
+        : 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
   return (
     <button
       onClick={onClick}
