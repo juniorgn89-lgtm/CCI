@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Radio, Users, Activity, MonitorSmartphone, ShieldCheck, Building2, X } from 'lucide-react'
+import { Radio, Users, Activity, MonitorSmartphone, ShieldCheck, Building2, X, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { fetchProfiles } from '@/api/supabase/profiles'
@@ -37,7 +37,15 @@ const quando = (iso: string) => {
  */
 const ControleAcesso = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
-  const [redeSel, setRedeSel] = useState<string>('todas')
+  // Multi-seleção de redes (vazio = todas).
+  const [sel, setSel] = useState<Set<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setSel((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['acesso-log-todas'],
@@ -87,8 +95,8 @@ const ControleAcesso = () => {
   }, [rows])
 
   const rowsFiltradas = useMemo(
-    () => (redeSel === 'todas' ? rows : rows.filter((r) => r.rede_id === redeSel)),
-    [rows, redeSel],
+    () => (sel.size === 0 ? rows : rows.filter((r) => r.rede_id != null && sel.has(r.rede_id))),
+    [rows, sel],
   )
 
   const stat = useMemo(() => {
@@ -123,7 +131,6 @@ const ControleAcesso = () => {
   const maxTela = stat.topTelas[0]?.count ?? 1
   const maxRede = porRede[0]?.acessos ?? 1
   const picoHora = stat.horas.indexOf(maxHora)
-  const filtrando = redeSel !== 'todas'
 
   return (
     <div className="space-y-4">
@@ -151,18 +158,21 @@ const ControleAcesso = () => {
             <Card titulo="Acessos por rede">
               <ul className="space-y-1">
                 {porRede.map((r) => {
-                  const sel = redeSel === r.id
+                  const on = sel.has(r.id)
                   return (
                     <li key={r.id}>
                       <button
-                        onClick={() => setRedeSel(sel ? 'todas' : r.id)}
+                        onClick={() => toggle(r.id)}
                         className={cn(
                           'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                          sel ? 'bg-[#eff4ff] dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-white/5',
+                          on ? 'bg-[#eff4ff] dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-white/5',
                         )}
                       >
-                        <Building2 className={cn('h-3.5 w-3.5 shrink-0', sel ? 'text-[#2563eb]' : 'text-gray-400')} />
-                        <span className={cn('w-36 shrink-0 truncate text-[12px]', sel ? 'font-semibold text-[#1d4ed8] dark:text-blue-300' : 'font-medium text-gray-700 dark:text-gray-300')}>{nomeRede(r.id)}</span>
+                        <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', on ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-gray-300 dark:border-gray-600')}>
+                          {on && <Check className="h-3 w-3" />}
+                        </span>
+                        <Building2 className={cn('h-3.5 w-3.5 shrink-0', on ? 'text-[#2563eb]' : 'text-gray-400')} />
+                        <span className={cn('w-36 shrink-0 truncate text-[12px]', on ? 'font-semibold text-[#1d4ed8] dark:text-blue-300' : 'font-medium text-gray-700 dark:text-gray-300')}>{nomeRede(r.id)}</span>
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                           <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(r.acessos / maxRede) * 100}%` }} />
                         </div>
@@ -176,18 +186,35 @@ const ControleAcesso = () => {
             </Card>
           )}
 
-          {/* Chip do filtro ativo */}
-          {filtrando && (
-            <div className="flex items-center gap-2 text-[12px]">
-              <span className="text-gray-500 dark:text-gray-400">Mostrando:</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eff4ff] px-2.5 py-1 font-semibold text-[#1d4ed8] dark:bg-blue-950/30 dark:text-blue-300">
-                {nomeRede(redeSel)}
-                <button onClick={() => setRedeSel('todas')} aria-label="Ver todas as redes" className="rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                  <X className="h-3 w-3" />
+          {/* Caixa: redes selecionadas */}
+          <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                Redes selecionadas{sel.size > 0 ? ` (${sel.size})` : ''}
+              </p>
+              {sel.size > 0 && (
+                <button onClick={() => setSel(new Set())} className="text-[11px] font-semibold text-[#2563eb] hover:underline">
+                  Ver todas
                 </button>
-              </span>
+              )}
             </div>
-          )}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {sel.size === 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                  Todas as redes
+                </span>
+              ) : (
+                [...sel].map((id) => (
+                  <span key={id} className="inline-flex items-center gap-1.5 rounded-full bg-[#eff4ff] px-2.5 py-1 text-[12px] font-semibold text-[#1d4ed8] dark:bg-blue-950/30 dark:text-blue-300">
+                    {nomeRede(id)}
+                    <button onClick={() => toggle(id)} aria-label={`Remover ${nomeRede(id)}`} className="rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
 
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -246,7 +273,7 @@ const ControleAcesso = () => {
               {rowsFiltradas.slice(0, 12).map((r, i) => (
                 <li key={i} className="flex items-center gap-2 py-1.5 text-[12px]">
                   <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
-                  {redeSel === 'todas' && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 sm:inline">{nomeRede(r.rede_id)}</span>}
+                  {sel.size !== 1 && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 sm:inline">{nomeRede(r.rede_id)}</span>}
                   <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
                   <span className="w-24 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
                 </li>
