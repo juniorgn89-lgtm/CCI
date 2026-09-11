@@ -18,6 +18,7 @@ import {
 } from '@/store/manutencao'
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
+import ControleAcessoSection from '@/pages/Configuracoes/components/ControleAcessoSection'
 import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
 
 const APP_VERSION = 'v1.1.0'
@@ -608,6 +609,9 @@ const Configuracoes = () => {
 
       {/* Redefinir senha de outros usuários (só admin/master) */}
       <RedefinirSenhaUsuariosCard />
+
+      {/* Controle de acesso — analytics de uso (só gerente/master, auto-gated) */}
+      <ControleAcessoSection />
 
       {/* Manutenção de Bombas */}
       <ManutencaoBombasSection />

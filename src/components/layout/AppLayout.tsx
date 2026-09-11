@@ -31,6 +31,7 @@ import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
 import TopBar from '@/components/layout/TopBar'
 import SuporteCaduWidget from '@/components/cadu/SuporteCaduWidget'
 import useIsMobile from '@/hooks/useIsMobile'
+import { useLogAcesso } from '@/hooks/useLogAcesso'
 import MobileShell from '@/components/mobile/MobileShell'
 import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
@@ -63,6 +64,7 @@ const AppLayout = () => {
 
   const showFilters = showsGlobalFilters(pathname)
   const isMobile = useIsMobile()
+  useLogAcesso() // registra a visita de tela (aba Controle de acesso)
   // Período alterado e não aplicado → embaça o conteúdo (a TopBar com o botão
   // Visualizar fica nítida, virando o foco da tela).
   const filterDirty = useTopbarUi((s) => s.filterDirty)
