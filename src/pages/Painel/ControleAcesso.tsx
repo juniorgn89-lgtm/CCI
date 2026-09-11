@@ -1,12 +1,14 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Radio, Users, Activity, MonitorSmartphone } from 'lucide-react'
+import { Radio, Users, Activity, MonitorSmartphone, ShieldCheck, Building2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
 import { fetchProfiles } from '@/api/supabase/profiles'
+import { fetchRedes } from '@/api/supabase/redes'
+import { cn } from '@/lib/utils'
 
 interface AcessoRow {
+  rede_id: string | null
   user_id: string
   path: string
   modulo: string | null
@@ -27,38 +29,67 @@ const quando = (iso: string) => {
 }
 
 /**
- * Controle de acesso — analytics de uso (só gerente). Lê `acesso_log` da rede
- * conectada (últimos 30 dias): quem acessa, quando (dia/hora) e as telas mais
- * usadas. Só passa a ter dado a partir do momento que o logger entrou no ar.
+ * Controle de acesso — página do Painel (só gerente). Analytics de uso de TODAS
+ * as redes (últimos 30 dias): quem acessa, quando (dia/hora) e as telas mais
+ * usadas. Um card separa por rede e serve de filtro (clica pra focar numa).
+ * Só tem dado a partir de quando o logger entrou no ar; PainelLayout barra quem
+ * não é master.
  */
-const ControleAcessoSection = () => {
+const ControleAcesso = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
-  const redeId = useTenantStore((s) => s.rede?.id)
+  const [redeSel, setRedeSel] = useState<string>('todas')
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['acesso-log', redeId],
-    enabled: !!supabase && !!redeId && isMaster,
+    queryKey: ['acesso-log-todas'],
+    enabled: !!supabase && isMaster,
     staleTime: 60_000,
     queryFn: async (): Promise<AcessoRow[]> => {
-      if (!supabase || !redeId) return []
+      if (!supabase) return []
       const desde = new Date(Date.now() - 30 * DIA).toISOString()
       const { data, error } = await supabase
         .from('acesso_log')
-        .select('user_id,path,modulo,created_at')
-        .eq('rede_id', redeId)
+        .select('rede_id,user_id,path,modulo,created_at')
         .gte('created_at', desde)
         .order('created_at', { ascending: false })
-        .limit(8000)
+        .limit(20000)
       if (error) throw error
       return (data ?? []) as AcessoRow[]
     },
   })
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles, enabled: isMaster, staleTime: 5 * 60_000 })
+  const { data: redes = [] } = useQuery({ queryKey: ['redes'], queryFn: fetchRedes, enabled: isMaster, staleTime: 5 * 60_000 })
+
   const nomeDe = useMemo(() => {
     const m = new Map<string, string>()
     for (const p of profiles) m.set(p.user_id, p.full_name || p.email || 'Usuário')
     return m
   }, [profiles])
+  const redeNome = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const r of redes) m.set(r.id, r.nome)
+    return m
+  }, [redes])
+  const nomeRede = (id: string | null) => (id ? redeNome.get(id) ?? 'Rede' : 'Sem rede')
+
+  // Split por rede (de TODAS as linhas) — o card e o filtro saem daqui.
+  const porRede = useMemo(() => {
+    const m = new Map<string, { acessos: number; usuarios: Set<string> }>()
+    for (const r of rows) {
+      const id = r.rede_id ?? '—'
+      const e = m.get(id) ?? { acessos: 0, usuarios: new Set<string>() }
+      e.acessos++
+      e.usuarios.add(r.user_id)
+      m.set(id, e)
+    }
+    return [...m.entries()]
+      .map(([id, v]) => ({ id, acessos: v.acessos, usuarios: v.usuarios.size }))
+      .sort((a, b) => b.acessos - a.acessos)
+  }, [rows])
+
+  const rowsFiltradas = useMemo(
+    () => (redeSel === 'todas' ? rows : rows.filter((r) => r.rede_id === redeSel)),
+    [rows, redeSel],
+  )
 
   const stat = useMemo(() => {
     const now = Date.now()
@@ -67,7 +98,7 @@ const ControleAcessoSection = () => {
     const byDay = new Map<string, number>()
     const byHour = new Array<number>(24).fill(0)
     const byTela = new Map<string, number>()
-    for (const r of rows) {
+    for (const r of rowsFiltradas) {
       const t = new Date(r.created_at)
       ativos.add(r.user_id)
       if (now - t.getTime() < 5 * 60_000) online.add(r.user_id)
@@ -82,21 +113,29 @@ const ControleAcessoSection = () => {
       dias.push({ label: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`, count: byDay.get(dayKey(d)) ?? 0 })
     }
     const topTelas = [...byTela.entries()].map(([tela, count]) => ({ tela, count })).sort((a, b) => b.count - a.count).slice(0, 8)
-    return { online: online.size, ativos: ativos.size, total: rows.length, dias, horas: byHour, topTelas }
-  }, [rows])
+    return { online: online.size, ativos: ativos.size, total: rowsFiltradas.length, dias, horas: byHour, topTelas }
+  }, [rowsFiltradas])
 
   if (!isMaster || !supabase) return null
 
   const maxDia = Math.max(1, ...stat.dias.map((d) => d.count))
   const maxHora = Math.max(1, ...stat.horas)
   const maxTela = stat.topTelas[0]?.count ?? 1
+  const maxRede = porRede[0]?.acessos ?? 1
   const picoHora = stat.horas.indexOf(maxHora)
+  const filtrando = redeSel !== 'todas'
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Controle de acesso</h2>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Quem acessa, quando e as telas mais usadas — últimos 30 dias.</p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
+          <ShieldCheck className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Controle de acesso</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Quem acessa, quando e as telas mais usadas — últimos 30 dias.</p>
+        </div>
       </div>
 
       {isLoading ? (
@@ -107,6 +146,49 @@ const ControleAcessoSection = () => {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Acessos por rede — clique numa rede pra focar nela */}
+          {porRede.length > 1 && (
+            <Card titulo="Acessos por rede">
+              <ul className="space-y-1">
+                {porRede.map((r) => {
+                  const sel = redeSel === r.id
+                  return (
+                    <li key={r.id}>
+                      <button
+                        onClick={() => setRedeSel(sel ? 'todas' : r.id)}
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
+                          sel ? 'bg-[#eff4ff] dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-white/5',
+                        )}
+                      >
+                        <Building2 className={cn('h-3.5 w-3.5 shrink-0', sel ? 'text-[#2563eb]' : 'text-gray-400')} />
+                        <span className={cn('w-36 shrink-0 truncate text-[12px]', sel ? 'font-semibold text-[#1d4ed8] dark:text-blue-300' : 'font-medium text-gray-700 dark:text-gray-300')}>{nomeRede(r.id)}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                          <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(r.acessos / maxRede) * 100}%` }} />
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-[12px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{r.acessos.toLocaleString('pt-BR')}</span>
+                        <span className="hidden w-16 shrink-0 text-right text-[11px] tabular-nums text-gray-400 sm:inline">{r.usuarios} usr</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </Card>
+          )}
+
+          {/* Chip do filtro ativo */}
+          {filtrando && (
+            <div className="flex items-center gap-2 text-[12px]">
+              <span className="text-gray-500 dark:text-gray-400">Mostrando:</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eff4ff] px-2.5 py-1 font-semibold text-[#1d4ed8] dark:bg-blue-950/30 dark:text-blue-300">
+                {nomeRede(redeSel)}
+                <button onClick={() => setRedeSel('todas')} aria-label="Ver todas as redes" className="rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Kpi Icon={Radio} label="Online agora" value={String(stat.online)} tone="text-emerald-600 dark:text-emerald-400" />
@@ -161,9 +243,10 @@ const ControleAcessoSection = () => {
           {/* Últimos acessos */}
           <Card titulo="Últimos acessos">
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {rows.slice(0, 12).map((r, i) => (
+              {rowsFiltradas.slice(0, 12).map((r, i) => (
                 <li key={i} className="flex items-center gap-2 py-1.5 text-[12px]">
                   <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-200">{nomeDe.get(r.user_id) ?? 'Usuário'}</span>
+                  {redeSel === 'todas' && <span className="hidden shrink-0 truncate text-[11px] text-gray-400 sm:inline">{nomeRede(r.rede_id)}</span>}
                   <span className="shrink-0 truncate text-gray-500 dark:text-gray-400">{r.modulo || r.path}</span>
                   <span className="w-24 shrink-0 text-right tabular-nums text-gray-400">{quando(r.created_at)}</span>
                 </li>
@@ -172,7 +255,7 @@ const ControleAcessoSection = () => {
           </Card>
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -193,4 +276,4 @@ const Card = ({ titulo, children }: { titulo: string; children: React.ReactNode 
   </div>
 )
 
-export default ControleAcessoSection
+export default ControleAcesso
