@@ -73,7 +73,7 @@ const AssistenteInteligente = () => {
               <ConversasSidebar className="h-full" />
             </div>
             <div className="min-w-0 flex-1">
-              <ChatPanel heightClass="h-full" />
+              <ChatPanel heightClass="h-full" withSkills />
             </div>
           </div>
         )}

@@ -51,7 +51,7 @@ const CaduMobile = () => {
         </div>
       </div>
 
-      <ChatPanel heightClass="min-h-0 flex-1" />
+      <ChatPanel heightClass="min-h-0 flex-1" withSkills />
     </div>
   )
 }

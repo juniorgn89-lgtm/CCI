@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, User, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound } from 'lucide-react'
+import { Send, User, Loader2, RefreshCw, AlertTriangle, ShieldOff, KeyRound, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CaduAvatar from './CaduAvatar'
 import { useRedeAssistente } from './hooks/useRedeAssistente'
 import { useClaudeChat } from './hooks/useClaudeChat'
 import { useUsageTracker } from './ai/usageTracker'
 import { SUGGESTED_PROMPTS } from './mockData'
+import SkillsGallery from './SkillsGallery'
 
 const renderInline = (text: string) => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
@@ -93,12 +94,15 @@ interface ChatPanelProps {
   restrictToEmpresaCodigos?: number[]
   /** Chips de sugestão do estado vazio (default = SUGGESTED_PROMPTS da rede). */
   suggestions?: string[]
+  /** Mostra a galeria de "Análises prontas" (skills) — só no módulo Inteligência. */
+  withSkills?: boolean
 }
 
-const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiContext, restrictToEmpresaCodigos, suggestions = SUGGESTED_PROMPTS }: ChatPanelProps) => {
+const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiContext, restrictToEmpresaCodigos, suggestions = SUGGESTED_PROMPTS, withSkills = false }: ChatPanelProps) => {
   const { apiKey, status, errorMessage, isUsable, redeNome, redeId, limiteUsd, markInvalid } = useRedeAssistente()
   const { messages, loading, error, ask, reset } = useClaudeChat(apiKey, markInvalid, uiContext, restrictToEmpresaCodigos)
   const [input, setInput] = useState('')
+  const [skillsOpen, setSkillsOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Subscreve no usage tracker pra mostrar banner quando passar de 80% do limite
@@ -116,13 +120,14 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiCont
   const send = (text: string) => {
     if (!text.trim() || loading || !isUsable) return
     setInput('')
+    setSkillsOpen(false)
     void ask(text.trim())
   }
 
   const isEmpty = messages.length === 0
 
   return (
-    <div className={cn('flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]', heightClass)}>
+    <div className={cn('relative flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-[#0a0a0a]', heightClass)}>
       {/* Status bar — somente leitura, não há config aqui */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 dark:border-gray-700">
         <div
@@ -146,14 +151,31 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiCont
           {status === 'erro' && <><AlertTriangle className="h-3 w-3" /> Erro de configuração</>}
         </div>
         {messages.length > 0 && (
-          <button
-            onClick={reset}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-            title="Nova conversa"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Nova conversa
-          </button>
+          <div className="flex items-center gap-1">
+            {withSkills && isUsable && (
+              <button
+                onClick={() => setSkillsOpen((v) => !v)}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors',
+                  skillsOpen
+                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300',
+                )}
+                title="Análises prontas"
+              >
+                <Sparkles className="h-3 w-3" />
+                Análises prontas
+              </button>
+            )}
+            <button
+              onClick={reset}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+              title="Nova conversa"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Nova conversa
+            </button>
+          </div>
         )}
       </div>
 
@@ -183,10 +205,42 @@ const ChatPanel = ({ heightClass = 'h-[calc(100vh-400px)] min-h-[400px]', uiCont
         </div>
       )}
 
+      {/* Popover de skills durante a conversa */}
+      {withSkills && skillsOpen && messages.length > 0 && (
+        <div className="absolute right-3 top-12 z-20 w-[min(340px,calc(100%-1.5rem))] rounded-xl border border-gray-200 bg-white p-3 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-200">Análises prontas</span>
+            <button
+              onClick={() => setSkillsOpen(false)}
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Fechar análises prontas"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="max-h-[360px] overflow-y-auto pr-1">
+            <SkillsGallery onPick={send} disabled={loading || !isUsable} compact />
+          </div>
+        </div>
+      )}
+
       {/* Mensagens */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
         {!isUsable ? (
           <UnavailableState status={status} errorMessage={errorMessage} redeNome={redeNome} />
+        ) : isEmpty && withSkills ? (
+          <div className="flex flex-col">
+            <div className="mb-4 flex flex-col items-center text-center">
+              <CaduAvatar className="mb-3 h-14 w-14 rounded-2xl" iconClassName="h-7 w-7" />
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Como posso te ajudar?</h3>
+              <p className="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
+                Escolha uma <strong>análise pronta</strong> ou digite sua pergunta. Consulto os dados da sua rede em tempo real.
+              </p>
+            </div>
+            <div className="mx-auto w-full max-w-4xl">
+              <SkillsGallery onPick={send} disabled={loading || !isUsable} />
+            </div>
+          </div>
         ) : isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <CaduAvatar className="mb-4 h-16 w-16 rounded-2xl" iconClassName="h-8 w-8" />
