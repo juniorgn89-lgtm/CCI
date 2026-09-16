@@ -1,5 +1,6 @@
-import { type CSSProperties, useEffect } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import { Sun, Moon } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
@@ -8,11 +9,19 @@ import LandingInstallButton from '@/pages/Landing/InstallButton'
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
  *
- * Reproduz fielmente a peça aprovada da CCI (marca teal #0F766E + âmbar #FCB619,
- * fontes Bricolage Grotesque + Instrument Sans). NÃO redesenhar: textos, cores e
- * layout são a peça oficial. As fontes do Google carregam só aqui (injetadas no
- * mount e removidas no unmount), pra não pesar no resto do app. Um usuário já
- * logado que abre a raiz é mandado direto pro painel — a landing é pra visitante.
+ * Reproduz a peça aprovada da CCI (marca teal #0F766E + âmbar #FCB619, fontes
+ * Bricolage Grotesque + Instrument Sans). As cores estruturais (fundo, texto,
+ * cards, bordas) vêm de variáveis CSS que trocam no modo escuro. A landing ABRE
+ * SEMPRE NO ESCURO (é a cara da marca) e volta pro escuro a cada refresh — o
+ * visitante pode clarear pelo botão sol/lua na nav, mas só durante a sessão. O
+ * tema é controlado localmente (classe `dark` no <html>, restaurada ao sair) pra
+ * NÃO gravar preferência nem mexer no tema do app quando ele logar. As seções
+ * que já nascem escuras (hero mock, destaque IA, CTA teal) e os acentos
+ * (teal/âmbar) ficam iguais nos dois temas — o contraste é proposital.
+ *
+ * As fontes do Google carregam só aqui (injetadas no mount e removidas no
+ * unmount), pra não pesar no resto do app. Um usuário já logado que abre a raiz
+ * é mandado direto pro painel — a landing é pra visitante.
  */
 
 const MAIL = {
@@ -33,9 +42,9 @@ const MODULOS: { icon: string; bg: string; titulo: string; texto: string }[] = [
 ]
 
 const NUMEROS: { valor: string; cor: string; label: string }[] = [
-  { valor: '6', cor: '#16293f', label: 'módulos num só login' },
+  { valor: '6', cor: 'var(--v-ink)', label: 'módulos num só login' },
   { valor: '1×/dia', cor: '#0F766E', label: 'apuração automática' },
-  { valor: '100%', cor: '#16293f', label: 'dados só de leitura' },
+  { valor: '100%', cor: 'var(--v-ink)', label: 'dados só de leitura' },
   { valor: 'web+app', cor: '#2563eb', label: 'rede no bolso' },
 ]
 
@@ -48,14 +57,28 @@ const IA_BULLETS = [
 const TRUST = ['Conecta ao seu ERP de posto', 'Apuração automática diária', 'Dados só de leitura', 'App no celular e no PC — sem loja']
 
 // CSS scoped em `.v360-landing` — não vaza pro app. Inclui as fontes da marca,
-// o floaty do mockup e a responsividade mínima (empilha os grids no celular sem
-// mudar o layout desktop da peça).
+// o floaty do mockup, a responsividade mínima (empilha os grids no celular sem
+// mudar o layout desktop da peça) e os tokens de cor claro/escuro. As cores
+// estruturais usam var(--v-*); o modo escuro (`.dark` no <html>) só redefine os
+// tokens — nenhuma regra de layout muda.
 const LANDING_CSS = `
-.v360-landing{font-family:'Instrument Sans',system-ui,sans-serif;color:#0f172a;background:#fff;-webkit-font-smoothing:antialiased;min-height:100vh}
+.v360-landing{
+  --v-bg:#fff; --v-ink:#16293f; --v-ink2:#0f172a; --v-muted:#475569;
+  --v-muted2:#64748b; --v-faint:#94a3b8; --v-card:#fff; --v-border:#e9eef4;
+  --v-border2:#e2e8f0; --v-hair:#eef2f7; --v-soft:#f6f8fb;
+  font-family:'Instrument Sans',system-ui,sans-serif;color:var(--v-ink2);background:var(--v-bg);-webkit-font-smoothing:antialiased;min-height:100vh
+}
+.dark .v360-landing{
+  --v-bg:#0b0e13; --v-ink:#f1f5f9; --v-ink2:#e5e7eb; --v-muted:#b4c0d0;
+  --v-muted2:#93a1b3; --v-faint:#6b7686; --v-card:#141821; --v-border:#262c36;
+  --v-border2:#2a313c; --v-hair:#222831; --v-soft:#10141a;
+}
 .v360-landing h1,.v360-landing h2,.v360-landing h3{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0}
 .v360-landing h1,.v360-landing h2,.v360-landing h3,.v360-landing p{overflow-wrap:break-word}
 .v360-landing a{text-decoration:none}
 .v360-landing .tnum{font-variant-numeric:tabular-nums}
+.v360-landing .v360-themebtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;border:1px solid var(--v-border2);background:var(--v-card);color:var(--v-muted);cursor:pointer;transition:color .15s,border-color .15s}
+.v360-landing .v360-themebtn:hover{color:var(--v-ink);border-color:var(--v-faint)}
 @keyframes v360-floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:980px){
   .v360-landing .v360-hero{grid-template-columns:1fr!important}
@@ -88,10 +111,25 @@ const LANDING_CSS = `
 }
 `
 
-const card: CSSProperties = { background: '#fff', border: '1px solid #e9eef4', borderRadius: 18, padding: '26px 24px', boxShadow: '0 20px 40px -34px rgba(15,41,63,.4)' }
+const card: CSSProperties = { background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 18, padding: '26px 24px', boxShadow: '0 20px 40px -34px rgba(15,41,63,.4)' }
 
 const Landing = () => {
   const session = useAuthStore((s) => s.session)
+  // A landing abre sempre no escuro; refresh volta pro escuro. Tema local (não
+  // persiste) — o clarear vale só pra sessão atual.
+  const [dark, setDark] = useState(true)
+  const toggleTheme = () => setDark((v) => !v)
+
+  // Enquanto a landing está montada, ela manda no tema (classe `dark` no <html>);
+  // ao sair (ex.: ir pro /login), restaura o tema original do app.
+  useEffect(() => {
+    const html = document.documentElement
+    const original = html.classList.contains('dark')
+    return () => { html.classList.toggle('dark', original) }
+  }, [])
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+  }, [dark])
 
   // Fontes da marca (Google) só nesta página — injeta no mount, limpa no unmount.
   useEffect(() => {
@@ -130,17 +168,26 @@ const Landing = () => {
         <div className="v360-wrap v360-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap', maxWidth: 1200, margin: '0 auto', padding: '26px 40px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             <img src="/landing/SIMBOLO.png" style={{ width: 34, height: 34, objectFit: 'contain' }} alt="" />
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 23, color: '#16293f', letterSpacing: '-.01em' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 23, color: 'var(--v-ink)', letterSpacing: '-.01em' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
           </div>
-          <div className="v360-navmenu" style={{ display: 'flex', alignItems: 'center', gap: 28, color: '#475569', fontSize: 14.5, fontWeight: 500, flexWrap: 'wrap' }}>
-            <a href="#modulos" style={{ color: '#475569' }}>Módulos</a>
-            <a href="#planos" style={{ color: '#475569' }}>Planos</a>
-            <a href="#ia" style={{ color: '#475569' }}>Analista de IA</a>
-            <a href="#representantes" style={{ color: '#475569' }}>Para representantes</a>
-            <a href="#contato" style={{ color: '#475569' }}>Contato</a>
+          <div className="v360-navmenu" style={{ display: 'flex', alignItems: 'center', gap: 28, color: 'var(--v-muted)', fontSize: 14.5, fontWeight: 500, flexWrap: 'wrap' }}>
+            <a href="#modulos" style={{ color: 'var(--v-muted)' }}>Módulos</a>
+            <a href="#planos" style={{ color: 'var(--v-muted)' }}>Planos</a>
+            <a href="#ia" style={{ color: 'var(--v-muted)' }}>Analista de IA</a>
+            <a href="#representantes" style={{ color: 'var(--v-muted)' }}>Para representantes</a>
+            <a href="#contato" style={{ color: 'var(--v-muted)' }}>Contato</a>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" title="Ir para o site da CCI" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#0F766E', fontSize: 14.5, fontWeight: 700 }}>Site da CCI ↗</a>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="v360-themebtn"
+              aria-label={dark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+              title={dark ? 'Modo claro' : 'Modo escuro'}
+            >
+              {dark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <LandingInstallButton />
             <Link to="/login" style={{ background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 14.5, padding: '11px 20px', borderRadius: 11 }}>Acessar</Link>
           </div>
@@ -149,22 +196,22 @@ const Landing = () => {
         {/* ===================== HERO ===================== */}
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 40px' }}>
           <div className="v360-hero" style={{ display: 'grid', gridTemplateColumns: '1fr 1.05fr', gap: 0, alignItems: 'stretch', marginTop: 20, borderRadius: 26, overflow: 'hidden', boxShadow: '0 40px 90px -46px rgba(15,41,63,.4)' }}>
-            <div className="v360-heropad" style={{ padding: '56px 46px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#fff' }}>
+            <div className="v360-heropad" style={{ padding: '56px 46px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--v-card)' }}>
               <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: 8, background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#0f766e', fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 999, marginBottom: 22 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#14b8a6', display: 'inline-block' }} /> Analista de IA integrado
               </div>
-              <h1 className="v360-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.0, color: '#16293f', letterSpacing: '-.025em' }}>Menos planilha.<br />Mais lucro.</h1>
-              <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: '#475569', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
+              <h1 className="v360-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.0, color: 'var(--v-ink)', letterSpacing: '-.025em' }}>Menos planilha.<br />Mais lucro.</h1>
+              <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
               <div style={{ display: 'flex', gap: 14, marginTop: 34, flexWrap: 'wrap' }}>
                 <a href={MAIL.demo} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Agendar demonstração</a>
-                <a href="#modulos" style={{ background: '#fff', border: '1.5px solid #e2e8f0', color: '#16293f', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
+                <a href="#modulos" style={{ background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
               </div>
               <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
-                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: '#16293f' }}>6</div><div style={{ fontSize: 13, color: '#64748b' }}>módulos integrados</div></div>
-                <div style={{ width: 1, background: '#e2e8f0' }} />
-                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: '#16293f' }}>tempo real</div><div style={{ fontSize: 13, color: '#64748b' }}>por posto</div></div>
-                <div style={{ width: 1, background: '#e2e8f0' }} />
-                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: '#0F766E' }}>read-only</div><div style={{ fontSize: 13, color: '#64748b' }}>a IA não altera valor</div></div>
+                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: 'var(--v-ink)' }}>6</div><div style={{ fontSize: 13, color: 'var(--v-muted2)' }}>módulos integrados</div></div>
+                <div style={{ width: 1, background: 'var(--v-border2)' }} />
+                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: 'var(--v-ink)' }}>tempo real</div><div style={{ fontSize: 13, color: 'var(--v-muted2)' }}>por posto</div></div>
+                <div style={{ width: 1, background: 'var(--v-border2)' }} />
+                <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: '#0F766E' }}>read-only</div><div style={{ fontSize: 13, color: 'var(--v-muted2)' }}>a IA não altera valor</div></div>
               </div>
             </div>
 
@@ -206,10 +253,10 @@ const Landing = () => {
 
         {/* ===================== TRUST STRIP ===================== */}
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '44px auto 0', padding: '0 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 36, flexWrap: 'wrap', color: '#94a3b8', fontSize: 13.5, fontWeight: 600, letterSpacing: '.02em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 36, flexWrap: 'wrap', color: 'var(--v-faint)', fontSize: 13.5, fontWeight: 600, letterSpacing: '.02em' }}>
             {TRUST.map((t, i) => (
               <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 36 }}>
-                {i > 0 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#cbd5e1' }} />}
+                {i > 0 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--v-border2)' }} />}
                 <span>{t}</span>
               </span>
             ))}
@@ -220,15 +267,15 @@ const Landing = () => {
         <div id="modulos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Módulos</div>
-            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: '#16293f', letterSpacing: '-.02em', marginTop: 10 }}>Um painel para cada frente do posto</h2>
-            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: '#64748b' }}>Ative só o que sua rede usa. Tudo conversa entre si e alimenta o mesmo analista de IA.</p>
+            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um painel para cada frente do posto</h2>
+            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Ative só o que sua rede usa. Tudo conversa entre si e alimenta o mesmo analista de IA.</p>
           </div>
           <div className="v360-modulos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48 }}>
             {MODULOS.map((m) => (
               <div key={m.titulo} style={card}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{m.icon}</div>
-                <h3 style={{ fontSize: 19, fontWeight: 800, color: '#16293f', marginTop: 16 }}>{m.titulo}</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.55, color: '#64748b' }}>{m.texto}</p>
+                <h3 style={{ fontSize: 19, fontWeight: 800, color: 'var(--v-ink)', marginTop: 16 }}>{m.titulo}</h3>
+                <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.55, color: 'var(--v-muted2)' }}>{m.texto}</p>
               </div>
             ))}
           </div>
@@ -267,7 +314,7 @@ const Landing = () => {
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 40px 0' }}>
           <div className="v360-numeros" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, textAlign: 'center' }}>
             {NUMEROS.map((n) => (
-              <div key={n.label} style={{ padding: '8px 0' }}><div className="v360-num" style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 44, color: n.cor, letterSpacing: '-.02em' }}>{n.valor}</div><div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{n.label}</div></div>
+              <div key={n.label} style={{ padding: '8px 0' }}><div className="v360-num" style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 44, color: n.cor, letterSpacing: '-.02em' }}>{n.valor}</div><div style={{ fontSize: 14, color: 'var(--v-muted2)', marginTop: 4 }}>{n.label}</div></div>
             ))}
           </div>
         </div>
@@ -276,8 +323,8 @@ const Landing = () => {
         <div id="planos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Planos</div>
-            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: '#16293f', letterSpacing: '-.02em', marginTop: 10 }}>Um plano para cada tamanho de rede</h2>
-            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: '#64748b' }}>Comece pelo essencial e amplie quando precisar. Preços sob consulta — a proposta é montada com a realidade da sua rede.</p>
+            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um plano para cada tamanho de rede</h2>
+            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Comece pelo essencial e amplie quando precisar. Preços sob consulta — a proposta é montada com a realidade da sua rede.</p>
           </div>
 
           <div className="v360-planos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48, alignItems: 'stretch' }}>
@@ -286,18 +333,18 @@ const Landing = () => {
               const cardStyle: CSSProperties = premium
                 ? { position: 'relative', background: 'linear-gradient(160deg,#1c3a5c 0%,#16293f 100%)', border: '1px solid #24476e', borderRadius: 18, padding: '32px 26px 28px', boxShadow: '0 44px 80px -34px rgba(15,41,63,.6)', color: '#fff', display: 'flex', flexDirection: 'column' }
                 : { ...card, display: 'flex', flexDirection: 'column' }
-              const nameColor = premium ? '#fff' : '#16293f'
-              const taglineColor = premium ? '#cbd5e1' : '#64748b'
-              const priceColor = premium ? '#fff' : '#16293f'
-              const priceSub = premium ? '#93a7c4' : '#94a3b8'
+              const nameColor = premium ? '#fff' : 'var(--v-ink)'
+              const taglineColor = premium ? '#cbd5e1' : 'var(--v-muted2)'
+              const priceColor = premium ? '#fff' : 'var(--v-ink)'
+              const priceSub = premium ? '#93a7c4' : 'var(--v-faint)'
               const baseColor = premium ? '#fcd77f' : '#0F766E'
               const checkColor = premium ? '#5eead4' : '#0F766E'
-              const recursoColor = premium ? '#dbe4ef' : '#475569'
+              const recursoColor = premium ? '#dbe4ef' : 'var(--v-muted)'
               const ctaStyle: CSSProperties = premium
                 ? { background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }
                 : p.id === 'pro'
                   ? { background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center' }
-                  : { background: '#fff', border: '1.5px solid #e2e8f0', color: '#16293f', fontWeight: 600, fontSize: 15, padding: '13px 20px', borderRadius: 12, textAlign: 'center' }
+                  : { background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 20px', borderRadius: 12, textAlign: 'center' }
               return (
                 <div key={p.id} style={cardStyle}>
                   {premium && (
@@ -306,7 +353,7 @@ const Landing = () => {
                   <h3 style={{ fontSize: 24, fontWeight: 800, color: nameColor, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{p.nome}</h3>
                   <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.5, color: taglineColor, minHeight: 44 }}>{p.tagline}</p>
 
-                  <div style={{ margin: '20px 0 4px', paddingBottom: 20, borderBottom: premium ? '1px solid rgba(255,255,255,.12)' : '1px solid #eef2f7' }}>
+                  <div style={{ margin: '20px 0 4px', paddingBottom: 20, borderBottom: premium ? '1px solid rgba(255,255,255,.12)' : '1px solid var(--v-hair)' }}>
                     <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 26, color: priceColor, letterSpacing: '-.01em' }}>Sob consulta</div>
                     <div style={{ fontSize: 12.5, color: priceSub, marginTop: 2 }}>proposta sob medida pra sua rede</div>
                   </div>
@@ -329,16 +376,16 @@ const Landing = () => {
             })}
           </div>
 
-          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: '#94a3b8' }}>Todos os planos conectam ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
+          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: 'var(--v-faint)' }}>Todos os planos conectam ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
         </div>
 
         {/* ===================== DOIS PÚBLICOS ===================== */}
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div className="v360-publicos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div style={{ background: '#f6f8fb', border: '1px solid #e9eef4', borderRadius: 22, padding: '38px 34px' }}>
+            <div style={{ background: 'var(--v-soft)', border: '1px solid var(--v-border)', borderRadius: 22, padding: '38px 34px' }}>
               <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 12.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#0F766E' }}>Para donos de rede</div>
-              <h3 style={{ fontSize: 26, fontWeight: 800, color: '#16293f', marginTop: 12, lineHeight: 1.15 }}>Pare de fechar o mês no escuro</h3>
-              <p style={{ margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.6, color: '#64748b' }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês.</p>
+              <h3 style={{ fontSize: 26, fontWeight: 800, color: 'var(--v-ink)', marginTop: 12, lineHeight: 1.15 }}>Pare de fechar o mês no escuro</h3>
+              <p style={{ margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês.</p>
               <a href={MAIL.demo} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 22, background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração →</a>
             </div>
             <div id="representantes" style={{ background: '#16293f', borderRadius: 22, padding: '38px 34px', color: '#fff' }}>
@@ -366,32 +413,32 @@ const Landing = () => {
         </div>
 
         {/* ===================== RODAPÉ CCI ===================== */}
-        <div id="contato" style={{ marginTop: 80, borderTop: '1px solid #eef2f7' }}>
+        <div id="contato" style={{ marginTop: 80, borderTop: '1px solid var(--v-hair)' }}>
           <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 40px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 40, flexWrap: 'wrap' }}>
             <div style={{ maxWidth: 320 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img src="/landing/SIMBOLO.png" style={{ width: 30, height: 30, objectFit: 'contain' }} alt="" />
-                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 20, color: '#16293f' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 20, color: 'var(--v-ink)' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
               </div>
-              <p style={{ margin: '14px 0 0', fontSize: 13.5, lineHeight: 1.6, color: '#94a3b8' }}>Gestão inteligente para redes de postos. Uma solução CCI.</p>
+              <p style={{ margin: '14px 0 0', fontSize: 13.5, lineHeight: 1.6, color: 'var(--v-faint)' }}>Gestão inteligente para redes de postos. Uma solução CCI.</p>
               <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 14, background: 'rgba(15,118,110,.1)', border: '1px solid rgba(15,118,110,.3)', color: '#0F766E', fontWeight: 700, fontSize: 13.5, padding: '9px 15px', borderRadius: 10 }}>Conheça a CCI · www.cci.app.br ↗</a>
             </div>
             <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#16293f', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: '#64748b' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
                   <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="#representantes" style={{ color: 'inherit' }}>Para representantes</a>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#16293f', textTransform: 'uppercase', letterSpacing: '.08em' }}>Contato</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: '#64748b' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Contato</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
                   <a href={MAIL.demo} style={{ color: 'inherit' }}>Agendar demonstração</a><a href={MAIL.suporte} style={{ color: 'inherit' }}>Suporte</a><a href={MAIL.email} style={{ color: 'inherit' }}>comercial@cci.app.br</a>
                 </div>
               </div>
             </div>
           </div>
-          <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 40px 40px', fontSize: 12.5, color: '#b0bac7' }}>© 2026 CCI · Visor360. Todos os direitos reservados.</div>
+          <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 40px 40px', fontSize: 12.5, color: 'var(--v-faint)' }}>© 2026 CCI · Visor360. Todos os direitos reservados.</div>
         </div>
 
       </div>
