@@ -21,6 +21,7 @@ import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
 import ModuleHeaderChrome from '@/components/layout/ModuleHeaderChrome'
 import { useAuthStore } from '@/store/auth'
 import WelcomeModal from '@/components/onboarding/WelcomeModal'
+import ChaveApiOnboarding from '@/components/onboarding/ChaveApiOnboarding'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import { useTenantStore } from '@/store/tenant'
 import { MODULOS, isPathAllowed, firstAllowedPath } from '@/lib/modulos'
@@ -192,6 +193,7 @@ const AppLayout = () => {
     return (
       <MobileShell items={visibleNavItems} showFilters={showFilters}>
         {welcomeModal}
+        <ChaveApiOnboarding />
         <LoadingOverlay />
         <ErrorBoundary key={pathname}>
           <div className={cn(dataUpdating && 'animate-pulse')}>
@@ -205,6 +207,7 @@ const AppLayout = () => {
   return (
     <div className="flex h-[calc(100dvh/var(--ui-zoom,1))] flex-col bg-gray-100 dark:bg-gray-950">
       {welcomeModal}
+      <ChaveApiOnboarding />
       {/* Briefing matinal — só no shell web (decisão de produto); abre 1×/dia. */}
       {authUser && <BriefingModal />}
       {/* Barra de topo de largura total — logo+nome na ponta esquerda (fixos,

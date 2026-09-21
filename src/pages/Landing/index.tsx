@@ -1,10 +1,11 @@
 import { type CSSProperties, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
 import LandingInstallButton from '@/pages/Landing/InstallButton'
+import AssinarModal from '@/pages/Landing/AssinarModal'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -31,6 +32,15 @@ const MAIL = {
   suporte: 'mailto:comercial@cci.app.br?subject=Suporte%20Visor360',
   email: 'mailto:comercial@cci.app.br',
 }
+
+/**
+ * A landing vende UM plano base (tudo, MENOS a IA) + o Analista de IA como
+ * add-on opcional. As funções vêm achatadas do catálogo de planos (fonte da
+ * verdade em src/lib/planos.ts) — reusar PLANOS mantém a lista em sincronia sem
+ * tocar no gating por plano do app.
+ */
+const IA_FEATURE = 'Analista de IA — a Inteligência que explica o número'
+const FUNCOES_BASE = PLANOS.flatMap((p) => p.recursos).filter((r) => r !== IA_FEATURE)
 
 const MODULOS: { icon: string; bg: string; titulo: string; texto: string }[] = [
   { icon: '🗺️', bg: '#eef4ff', titulo: 'Visão Geral da Rede', texto: 'Faturamento, lucro, margem e projeção de todos os postos num só lugar — com mapa da rede e o cadastro de cada posto.' },
@@ -119,6 +129,7 @@ const Landing = () => {
   // persiste) — o clarear vale só pra sessão atual.
   const [dark, setDark] = useState(true)
   const toggleTheme = () => setDark((v) => !v)
+  const [assinarOpen, setAssinarOpen] = useState(false)
 
   // Enquanto a landing está montada, ela manda no tema (classe `dark` no <html>);
   // ao sair (ex.: ir pro /login), restaura o tema original do app.
@@ -322,61 +333,59 @@ const Landing = () => {
         {/* ===================== PLANOS ===================== */}
         <div id="planos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Planos</div>
-            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um plano para cada tamanho de rede</h2>
-            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Comece pelo essencial e amplie quando precisar. Preços sob consulta — a proposta é montada com a realidade da sua rede.</p>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Plano</div>
+            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um plano. Tudo liberado.</h2>
+            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Todos os módulos e o app no celular num plano só. O Analista de IA entra como opcional, quando você quiser.</p>
+            <Link to="/como-comecar" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 14.5, fontWeight: 700, color: '#0F766E' }}>Como começar — veja o passo a passo →</Link>
           </div>
 
-          <div className="v360-planos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48, alignItems: 'stretch' }}>
-            {PLANOS.map((p) => {
-              const premium = !!p.destaque
-              const cardStyle: CSSProperties = premium
-                ? { position: 'relative', background: 'linear-gradient(160deg,#1c3a5c 0%,#16293f 100%)', border: '1px solid #24476e', borderRadius: 18, padding: '32px 26px 28px', boxShadow: '0 44px 80px -34px rgba(15,41,63,.6)', color: '#fff', display: 'flex', flexDirection: 'column' }
-                : { ...card, display: 'flex', flexDirection: 'column' }
-              const nameColor = premium ? '#fff' : 'var(--v-ink)'
-              const taglineColor = premium ? '#cbd5e1' : 'var(--v-muted2)'
-              const priceColor = premium ? '#fff' : 'var(--v-ink)'
-              const priceSub = premium ? '#93a7c4' : 'var(--v-faint)'
-              const baseColor = premium ? '#fcd77f' : '#0F766E'
-              const checkColor = premium ? '#5eead4' : '#0F766E'
-              const recursoColor = premium ? '#dbe4ef' : 'var(--v-muted)'
-              const ctaStyle: CSSProperties = premium
-                ? { background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }
-                : p.id === 'pro'
-                  ? { background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 15, padding: '14px 20px', borderRadius: 12, textAlign: 'center' }
-                  : { background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 20px', borderRadius: 12, textAlign: 'center' }
-              return (
-                <div key={p.id} style={cardStyle}>
-                  {premium && (
-                    <div style={{ position: 'absolute', top: 18, right: 18, background: 'rgba(252,182,25,.16)', border: '1px solid rgba(252,182,25,.5)', color: '#fcd77f', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 }}>Recomendado</div>
-                  )}
-                  <h3 style={{ fontSize: 24, fontWeight: 800, color: nameColor, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{p.nome}</h3>
-                  <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.5, color: taglineColor, minHeight: 44 }}>{p.tagline}</p>
+          <div style={{ maxWidth: 470, margin: '48px auto 0' }}>
+            <div style={{ position: 'relative', background: 'linear-gradient(160deg,#1c3a5c 0%,#16293f 100%)', border: '1px solid #24476e', borderRadius: 22, padding: '36px 32px 30px', boxShadow: '0 44px 80px -34px rgba(15,41,63,.6)', color: '#fff', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ position: 'absolute', top: 18, right: 18, background: 'rgba(252,182,25,.16)', border: '1px solid rgba(252,182,25,.5)', color: '#fcd77f', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 }}>Tudo incluído</div>
+              <h3 style={{ fontSize: 26, fontWeight: 800, color: '#fff', fontFamily: "'Bricolage Grotesque',sans-serif" }}>Visor360 Completo</h3>
+              <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.5, color: '#cbd5e1' }}>Tudo da plataforma: combustível, loja, operação e financeiro.</p>
 
-                  <div style={{ margin: '20px 0 4px', paddingBottom: 20, borderBottom: premium ? '1px solid rgba(255,255,255,.12)' : '1px solid var(--v-hair)' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 26, color: priceColor, letterSpacing: '-.01em' }}>Sob consulta</div>
-                    <div style={{ fontSize: 12.5, color: priceSub, marginTop: 2 }}>proposta sob medida pra sua rede</div>
-                  </div>
-
-                  {p.baseLabel && (
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: baseColor, marginTop: 16 }}>{p.baseLabel}</div>
-                  )}
-                  <ul style={{ listStyle: 'none', padding: 0, margin: p.baseLabel ? '10px 0 0' : '16px 0 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-                    {p.recursos.map((r) => (
-                      <li key={r} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, lineHeight: 1.45, color: recursoColor }}>
-                        <span style={{ color: checkColor, fontSize: 14, lineHeight: 1.35, flexShrink: 0 }}>✓</span>
-                        <span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <a href={MAIL.demo} style={{ ...ctaStyle, display: 'block', marginTop: 24 }}>Agendar demonstração</a>
+              <div style={{ margin: '22px 0 4px', paddingBottom: 22, borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                  <span className="tnum" style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 46, color: '#fff', letterSpacing: '-.02em' }}>R$ 199,99</span>
+                  <span style={{ fontSize: 15, color: '#93a7c4', fontWeight: 600 }}>/mês</span>
                 </div>
-              )
-            })}
+                <div style={{ fontSize: 12.5, color: '#93a7c4', marginTop: 4 }}>todas as funções liberadas, sem pacote extra</div>
+              </div>
+
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fcd77f', marginTop: 18 }}>Tudo o que está incluído:</div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                {FUNCOES_BASE.map((r) => (
+                  <li key={r} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, lineHeight: 1.45, color: '#dbe4ef' }}>
+                    <span style={{ color: '#5eead4', fontSize: 14, lineHeight: 1.35, flexShrink: 0 }}>✓</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button type="button" onClick={() => setAssinarOpen(true)} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15.5, padding: '15px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)', display: 'block', width: '100%', marginTop: 26, border: 'none', cursor: 'pointer' }}>Quero assinar</button>
+            </div>
+
+            {/* Add-on: Analista de IA — vendido à parte */}
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14, background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 16, padding: '16px 18px', boxShadow: '0 20px 40px -34px rgba(15,41,63,.4)' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#FCB619,#f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Sparkles size={20} color="#16293f" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--v-ink)', fontFamily: "'Bricolage Grotesque',sans-serif" }}>Analista de IA</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--v-muted)', background: 'var(--v-soft)', border: '1px solid var(--v-border2)', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '.04em' }}>Opcional</span>
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: 12.5, lineHeight: 1.4, color: 'var(--v-muted2)' }}>A Inteligência que explica o número e aponta onde está a perda.</p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 18, color: 'var(--v-ink)' }}>+R$ 70</div>
+                <div style={{ fontSize: 11, color: 'var(--v-faint)' }}>/mês</div>
+              </div>
+            </div>
           </div>
 
-          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: 'var(--v-faint)' }}>Todos os planos conectam ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
+          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: 'var(--v-faint)' }}>O plano conecta ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
         </div>
 
         {/* ===================== DOIS PÚBLICOS ===================== */}
@@ -442,6 +451,8 @@ const Landing = () => {
         </div>
 
       </div>
+
+      <AssinarModal open={assinarOpen} onClose={() => setAssinarOpen(false)} />
     </div>
   )
 }

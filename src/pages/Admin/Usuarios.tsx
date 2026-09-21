@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -1395,6 +1395,11 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
   }
 
   const userName = profile.full_name || profile.email
+  // Nova proposta: o plano base inclui TODOS os módulos; a Inteligência (IA) é o
+  // único adicional ("Plus"). Separamos ela visualmente no seletor.
+  const IA_ID = 'inteligencia'
+  const modulosBase = MODULOS.filter((m) => m.id !== IA_ID)
+  const iaModulo = MODULOS.find((m) => m.id === IA_ID)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -1428,8 +1433,11 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
             </span>
           </label>
 
+          <div className="mb-1 mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            Módulos do plano
+          </div>
           <div className="space-y-1">
-            {MODULOS.map((m) => (
+            {modulosBase.map((m) => (
               <label
                 key={m.id}
                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -1450,9 +1458,32 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
             ))}
           </div>
 
+          {iaModulo && (
+            <>
+              <div className="mb-1 mt-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                <Sparkles className="h-3 w-3" /> Plus · opcional
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2 py-1.5 dark:border-amber-700/40 dark:bg-amber-900/10">
+                <input
+                  type="checkbox"
+                  checked={selected.has(iaModulo.id)}
+                  onChange={() => toggle(iaModulo.id)}
+                  className="h-3.5 w-3.5 rounded border-gray-300"
+                />
+                <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
+                  {iaModulo.label}
+                </span>
+                <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  +R$ 70/mês
+                </span>
+              </label>
+            </>
+          )}
+
           <p className="mt-3 text-[11px] text-gray-400">
-            Configurações fica sempre acessível, independente da seleção. Marcar
-            todos ou nenhum equivale a "sem restrição".
+            Configurações fica sempre acessível, independente da seleção. O plano
+            base inclui todos os módulos; o <strong>Analista de IA</strong> é um
+            adicional opcional. Marcar todos ou nenhum equivale a "sem restrição".
           </p>
         </div>
 

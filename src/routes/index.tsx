@@ -8,6 +8,7 @@ import Login from '@/pages/Login'
 import Landing from '@/pages/Landing'
 
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
+const ComoComecar = lazy(() => import('@/pages/ComoComecar'))
 
 const Dashboard = lazy(importDashboard)
 const AoVivo = lazy(() => import('@/pages/AoVivo'))
@@ -53,6 +54,7 @@ const AppRoutes = () => {
           landing; usuário logado é redirecionado pro painel dentro da própria
           Landing (gate por sessão). Fica FORA do ProtectedRoute de propósito. */}
       <Route path="/" element={<Landing />} />
+      <Route path="/como-comecar" element={<Suspense fallback={<RouteFallback />}><ComoComecar /></Suspense>} />
       <Route path="/login" element={<Login />} />
       <Route path="/redefinir-senha" element={<Suspense fallback={<RouteFallback />}><RedefinirSenha /></Suspense>} />
       <Route path="/frentista/auto" element={<Suspense fallback={<RouteFallback />}><FrentistaAutoLogin /></Suspense>} />
