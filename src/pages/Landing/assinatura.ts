@@ -19,8 +19,8 @@ export const BRL = (v: number) =>
 
 /** Stripe Payment Links (checkout do Stripe). Deixe vazio até ter o link real. */
 export const STRIPE = {
-  base: '', // ex.: 'https://buy.stripe.com/xxxxxxxx' — plano base (R$ 199,99/mês)
-  comIA: '', // ex.: 'https://buy.stripe.com/yyyyyyyy' — plano + IA (R$ 269,99/mês)
+  base: 'https://buy.stripe.com/test_6oU6oJ2SAdPugMw9cO3Ru01', // plano base (R$ 199,99/mês) — Payment Link de TESTE
+  comIA: 'https://buy.stripe.com/test_7sY4gB1OwfXCbsc60C3Ru00', // plano + IA (R$ 269,99/mês) — Payment Link de TESTE
 }
 
 export const WEBPOSTO = {
