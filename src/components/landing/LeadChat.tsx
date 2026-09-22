@@ -1,181 +1,142 @@
-import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, X, Send, Sparkles, Loader2, ChevronRight, Mail } from 'lucide-react'
-import { insertLandingLead, type NovoLead } from '@/api/supabase/leads'
+import { useState } from 'react'
+import { MessageCircle, X, Mail, Loader2, CheckCircle2 } from 'lucide-react'
+import { insertLandingLead } from '@/api/supabase/leads'
 import { useAppConfig } from '@/hooks/useAppConfig'
 
 /**
- * Chat de captação de leads da landing (scriptado). Balão flutuante que abre uma
- * conversa e coleta os dados um passo por vez; ao final grava em `landing_leads`
- * (Supabase, insert público) e oferece um botão de WhatsApp pro comercial. Sem
- * IA e sem backend — fluxo fixo. Renderiza dentro de `.v360-landing` (herda tokens).
+ * Captação de leads da landing — formulário único (estilo popup de atendimento).
+ * Coleta nome, e-mail, telefone e motivo, salva em `landing_leads` (Supabase,
+ * insert público) e encaminha o resumo pro WhatsApp/e-mail da CCI. Sem IA e sem
+ * backend. Renderiza dentro de `.v360-landing` (herda os tokens de tema).
  *
- * O "aviso automático" pro comercial (mensagem disparada sozinha) exige uma Edge
- * Function + API de WhatsApp — fica pra uma fase 2.
+ * Destinos: WhatsApp = comercial da config (padrão +55 27 99925-0088);
+ * e-mail = contato@cci.app.br.
  */
 
-type Campo = keyof NovoLead
+const EMAIL_DEST = 'contato@cci.app.br'
+const MOTIVOS = ['Quero assinar', 'Agendar demonstração', 'Trocar de sistema (ERP)', 'Tirar dúvidas']
+const SISTEMAS = ['WebPosto (Quality)', 'Linx AutoSystem', 'Outro sistema', 'Não sei']
 
-interface Passo {
-  key: Campo
-  bot: string[]
-  tipo: 'text' | 'tel' | 'email' | 'choices'
-  placeholder?: string
-  choices?: string[]
-  opcional?: boolean
-}
-
-const PASSOS: Passo[] = [
-  { key: 'nome', bot: ['Olá! 👋 Bora ver o Visor360 na sua rede?', 'Pra começar, como é o seu nome?'], tipo: 'text', placeholder: 'Seu nome' },
-  { key: 'rede', bot: ['Prazer, {nome}! Qual o nome do posto ou rede?'], tipo: 'text', placeholder: 'Nome do posto / rede' },
-  { key: 'cidade', bot: ['Em qual cidade fica?'], tipo: 'text', placeholder: 'Cidade' },
-  { key: 'sistema', bot: ['Qual sistema (ERP) vocês usam hoje?'], tipo: 'choices', choices: ['WebPosto', 'AutoSystem', 'Outro', 'Não sei'] },
-  { key: 'whatsapp', bot: ['Qual o seu WhatsApp? (com DDD)'], tipo: 'tel', placeholder: '(27) 99999-9999' },
-  { key: 'email', bot: ['Por último, um e-mail pra contato (opcional).'], tipo: 'email', placeholder: 'seu@email.com', opcional: true },
-]
-
-interface Msg { from: 'bot' | 'user'; text: string }
-
-const Avatar = () => (
-  <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#0F766E,#14b8a6)', color: '#fff' }}>
-    <img src="/landing/SIMBOLO.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+const Avatar = ({ size = 30 }: { size?: number }) => (
+  <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#0F766E,#14b8a6)', color: '#fff' }}>
+    <img src="/landing/SIMBOLO.png" alt="" style={{ width: size * 0.55, height: size * 0.55, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
   </span>
 )
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--v-border2)',
+  background: 'var(--v-bg)', color: 'var(--v-ink)', fontSize: 13.5, padding: '11px 12px', outline: 'none',
+}
 
 const LeadChat = () => {
   const cfg = useAppConfig()
   const [open, setOpen] = useState(false)
-  const [msgs, setMsgs] = useState<Msg[]>([])
-  const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<NovoLead>({ nome: '', rede: '', cidade: '', sistema: '', whatsapp: '', email: '' })
-  const [input, setInput] = useState('')
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [motivo, setMotivo] = useState('')
+  const [sistema, setSistema] = useState('')
+  const [aceite, setAceite] = useState(false)
   const [sending, setSending] = useState(false)
-  const [done, setDone] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const [sent, setSent] = useState(false)
 
-  const pushBot = (nome: string, texts: string[]) =>
-    setMsgs((m) => [...m, ...texts.map((t) => ({ from: 'bot' as const, text: t.replace('{nome}', nome) }))])
+  const telDigits = telefone.replace(/\D/g, '')
+  const valido = nome.trim().length > 1 && /.+@.+\..+/.test(email) && telDigits.length >= 10 && aceite
 
-  // Semeia as 1as mensagens ao abrir pela 1a vez.
-  useEffect(() => {
-    if (open && msgs.length === 0 && !done) pushBot('', PASSOS[0].bot)
-  }, [open, msgs.length, done])
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [msgs, sending])
-
-  const finalizar = async (final: NovoLead) => {
-    setSending(true)
-    try {
-      await insertLandingLead(final)
-    } catch {
-      // Mesmo se falhar (tabela ausente/RLS), seguimos — o lead ainda fala via WhatsApp.
-    }
-    setSending(false)
-    setDone(true)
-    pushBot(final.nome, [
-      `Perfeito, ${final.nome || 'tudo certo'}! ✅ Recebi seus dados — nosso time da CCI vai falar com você.`,
-      'Se quiser adiantar, é só chamar no WhatsApp aqui embaixo. 👇',
-    ])
-  }
-
-  const responder = (valor: string) => {
-    const passo = PASSOS[step]
-    const v = valor.trim()
-    if (!v && !passo.opcional) return
-    setMsgs((m) => [...m, { from: 'user', text: v || '—' }])
-    const next: NovoLead = { ...answers, [passo.key]: v }
-    setAnswers(next)
-    setInput('')
-    const ni = step + 1
-    if (ni < PASSOS.length) {
-      setStep(ni)
-      pushBot(next.nome, PASSOS[ni].bot)
-    } else {
-      void finalizar(next)
-    }
-  }
-
-  const passoAtual = PASSOS[step]
   const resumo = [
     'Olá! Tenho interesse no Visor360.',
-    `Nome: ${answers.nome}`,
-    answers.rede && `Posto/Rede: ${answers.rede}`,
-    answers.cidade && `Cidade: ${answers.cidade}`,
-    answers.sistema && `Sistema atual: ${answers.sistema}`,
-    answers.whatsapp && `WhatsApp: ${answers.whatsapp}`,
-    answers.email && `E-mail: ${answers.email}`,
+    `Nome: ${nome}`,
+    `E-mail: ${email}`,
+    `Telefone: ${telefone}`,
+    motivo && `Motivo: ${motivo}`,
+    sistema && `Sistema atual: ${sistema}`,
   ].filter(Boolean).join('\n')
+
   const waLink = cfg.comercialWhatsapp ? `https://wa.me/${cfg.comercialWhatsapp}?text=${encodeURIComponent(resumo)}` : null
-  const mailLink = `mailto:contato@cci.app.br?subject=${encodeURIComponent(`Novo lead Visor360 — ${answers.nome || 'interesse'}`)}&body=${encodeURIComponent(resumo)}`
+  const mailLink = `mailto:${EMAIL_DEST}?subject=${encodeURIComponent(`Novo lead Visor360 — ${nome || 'interesse'}`)}&body=${encodeURIComponent(resumo)}`
+
+  const enviar = async (canal: 'wa' | 'email') => {
+    if (!valido || sending) return
+    setSending(true)
+    try {
+      await insertLandingLead({ nome: nome.trim(), rede: '', cidade: '', sistema, motivo, whatsapp: telefone.trim(), email: email.trim() })
+    } catch { /* segue mesmo se falhar (tabela ausente/RLS) — o contato ainda é aberto */ }
+    setSending(false)
+    setSent(true)
+    if (canal === 'wa' && waLink) window.open(waLink, '_blank', 'noopener,noreferrer')
+    else window.location.href = mailLink
+  }
 
   return (
     <>
-      {/* Painel */}
       {open && (
-        <div style={{ position: 'fixed', bottom: 88, right: 20, zIndex: 1200, width: 'min(370px,calc(100vw - 32px))', height: 'min(560px,calc(100dvh - 130px))', display: 'flex', flexDirection: 'column', background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 40px 90px -30px rgba(0,0,0,.55)' }}>
+        <div style={{ position: 'fixed', bottom: 88, right: 20, zIndex: 1200, width: 'min(380px,calc(100vw - 32px))', maxHeight: 'calc(100dvh - 130px)', display: 'flex', flexDirection: 'column', background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 40px 90px -30px rgba(0,0,0,.55)' }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 15px', background: 'radial-gradient(600px 200px at 20% 0%,#22456b,#16293f)', color: '#fff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <Avatar />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '14px 16px', background: 'radial-gradient(600px 200px at 20% 0%,#22456b,#16293f)', color: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Avatar size={34} />
               <div style={{ lineHeight: 1.2 }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 14 }}>Visor<span style={{ color: '#FCB619' }}>360</span> · Atendimento</div>
-                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.7)' }}>Responde em minutos</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 15 }}>Visor<span style={{ color: '#FCB619' }}>360</span> · Atendimento</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'rgba(255,255,255,.75)' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} /> online</div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Fechar" style={{ display: 'inline-flex', padding: 5, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }}><X size={16} /></button>
+            <button onClick={() => setOpen(false)} aria-label="Fechar" style={{ display: 'inline-flex', padding: 6, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer' }}><X size={16} /></button>
           </div>
 
-          {/* Mensagens */}
-          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {msgs.map((m, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, flexDirection: m.from === 'user' ? 'row-reverse' : 'row' }}>
-                {m.from === 'bot' && <Avatar />}
-                <div style={{ maxWidth: '80%', fontSize: 13.5, lineHeight: 1.45, padding: '9px 12px', borderRadius: 14, background: m.from === 'user' ? '#0F766E' : 'var(--v-bg)', color: m.from === 'user' ? '#fff' : 'var(--v-ink)', border: m.from === 'user' ? 'none' : '1px solid var(--v-border2)' }}>{m.text}</div>
-              </div>
-            ))}
-            {sending && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--v-faint)', fontSize: 12.5 }}><Avatar /> <Loader2 size={14} className="animate-spin" /> enviando…</div>
-            )}
-          </div>
-
-          {/* Entrada / ações */}
-          <div style={{ borderTop: '1px solid var(--v-hair)', padding: 12 }}>
-            {done ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ overflowY: 'auto', padding: 16 }}>
+            {sent ? (
+              <div style={{ textAlign: 'center', padding: '20px 8px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,.14)', color: '#34d399' }}><CheckCircle2 size={30} /></div>
+                <h3 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 17, color: 'var(--v-ink)', marginTop: 14 }}>Recebemos seus dados! 🎉</h3>
+                <p style={{ margin: '8px auto 0', fontSize: 13.5, lineHeight: 1.5, color: 'var(--v-muted2)', maxWidth: 260 }}>Nosso time da CCI vai falar com você. Se o WhatsApp não abriu, é só tocar abaixo.</p>
                 {waLink && (
-                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: '#128c3e', color: '#fff', fontWeight: 700, fontSize: 14, padding: '12px', borderRadius: 11 }}>
-                    <MessageCircle size={16} /> Falar agora no WhatsApp
-                  </a>
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, background: '#128c3e', color: '#fff', fontWeight: 700, fontSize: 14, padding: '12px', borderRadius: 11 }}><MessageCircle size={16} /> Abrir o WhatsApp</a>
                 )}
-                <a href={mailLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: 'var(--v-bg)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 13.5, padding: '11px', borderRadius: 11 }}>
-                  <Mail size={15} /> Enviar por e-mail
-                </a>
-              </div>
-            ) : passoAtual?.tipo === 'choices' ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {passoAtual.choices!.map((c) => (
-                  <button key={c} onClick={() => responder(c)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 13px', borderRadius: 999, border: '1px solid var(--v-border2)', background: 'var(--v-bg)', color: 'var(--v-ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    {c} <ChevronRight size={13} style={{ color: 'var(--v-faint)' }} />
-                  </button>
-                ))}
               </div>
             ) : (
-              <form onSubmit={(e) => { e.preventDefault(); responder(input) }} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  autoFocus
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  type={passoAtual?.tipo === 'email' ? 'email' : passoAtual?.tipo === 'tel' ? 'tel' : 'text'}
-                  placeholder={passoAtual?.placeholder}
-                  style={{ flex: 1, minWidth: 0, borderRadius: 11, border: '1px solid var(--v-border2)', background: 'var(--v-bg)', color: 'var(--v-ink)', fontSize: 13.5, padding: '11px 13px', outline: 'none' }}
-                />
-                {passoAtual?.opcional && !input.trim() ? (
-                  <button type="button" onClick={() => responder('')} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--v-muted)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>Pular</button>
-                ) : (
-                  <button type="submit" disabled={!input.trim()} aria-label="Enviar" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 11, border: 'none', background: input.trim() ? '#0F766E' : 'var(--v-border2)', color: '#fff', cursor: input.trim() ? 'pointer' : 'default' }}><Send size={16} /></button>
-                )}
-              </form>
+              <>
+                {/* Saudação */}
+                <div style={{ display: 'flex', gap: 9, marginBottom: 14 }}>
+                  <Avatar />
+                  <div style={{ fontSize: 13.5, lineHeight: 1.5, color: 'var(--v-ink)', background: 'var(--v-bg)', border: '1px solid var(--v-border2)', borderRadius: 14, padding: '10px 12px' }}>
+                    👋 Olá! Como podemos te ajudar? Deixe seus dados que o time da CCI fala com você.
+                  </div>
+                </div>
+
+                {/* Formulário */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" style={inputStyle} />
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="E-mail *" style={inputStyle} />
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, border: '1px solid var(--v-border2)', borderRadius: 10, overflow: 'hidden', background: 'var(--v-bg)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRight: '1px solid var(--v-border2)', fontSize: 13, color: 'var(--v-muted)', whiteSpace: 'nowrap' }}>🇧🇷 +55</span>
+                    <input value={telefone} onChange={(e) => setTelefone(e.target.value)} type="tel" placeholder="Telefone / WhatsApp *" style={{ ...inputStyle, border: 'none', borderRadius: 0, flex: 1 }} />
+                  </div>
+                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
+                    <option value="">Selecione o motivo…</option>
+                    {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select value={sistema} onChange={(e) => setSistema(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
+                    <option value="">Qual sistema (ERP) você usa?</option>
+                    {SISTEMAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--v-muted2)', cursor: 'pointer', marginTop: 2 }}>
+                    <input type="checkbox" checked={aceite} onChange={(e) => setAceite(e.target.checked)} style={{ width: 15, height: 15, marginTop: 1, accentColor: '#0F766E', flexShrink: 0 }} />
+                    <span>Concordo em receber comunicações da CCI. <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" style={{ color: '#0F766E', fontWeight: 600 }}>Política de Privacidade</a></span>
+                  </label>
+
+                  <button
+                    onClick={() => enviar('wa')}
+                    disabled={!valido || sending}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 4, background: valido ? '#128c3e' : 'var(--v-border2)', color: valido ? '#fff' : 'var(--v-faint)', fontWeight: 700, fontSize: 14.5, padding: '13px', borderRadius: 11, border: 'none', cursor: valido && !sending ? 'pointer' : 'not-allowed' }}
+                  >
+                    {sending ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={17} />} Ir para o WhatsApp
+                  </button>
+                  <button onClick={() => enviar('email')} disabled={!valido || sending} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'none', border: 'none', color: valido ? 'var(--v-muted)' : 'var(--v-faint)', fontSize: 12.5, fontWeight: 600, cursor: valido && !sending ? 'pointer' : 'not-allowed' }}>
+                    <Mail size={13} /> ou enviar por e-mail
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -187,7 +148,7 @@ const LeadChat = () => {
         aria-label={open ? 'Fechar atendimento' : 'Falar com a CCI'}
         style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1200, display: 'inline-flex', alignItems: 'center', gap: 9, height: 54, padding: open ? 0 : '0 20px', width: open ? 54 : 'auto', justifyContent: 'center', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg,#0F766E,#14b8a6)', color: '#fff', fontWeight: 700, fontSize: 15, boxShadow: '0 18px 40px -12px rgba(15,118,110,.7)', cursor: 'pointer' }}
       >
-        {open ? <X size={22} /> : <><MessageCircle size={20} /> Fale com a gente <Sparkles size={15} style={{ color: '#FCB619' }} /></>}
+        {open ? <X size={22} /> : <><MessageCircle size={20} /> Fale com a gente</>}
       </button>
     </>
   )

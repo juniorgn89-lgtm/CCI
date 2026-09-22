@@ -10,6 +10,7 @@ export interface LandingLeadRow {
   rede: string
   cidade: string
   sistema: string
+  motivo: string
   whatsapp: string
   email: string
   origem: string
@@ -17,7 +18,7 @@ export interface LandingLeadRow {
   created_at: string
 }
 
-export type NovoLead = Pick<LandingLeadRow, 'nome' | 'rede' | 'cidade' | 'sistema' | 'whatsapp' | 'email'>
+export type NovoLead = Pick<LandingLeadRow, 'nome' | 'rede' | 'cidade' | 'sistema' | 'motivo' | 'whatsapp' | 'email'>
 
 /** Insere um lead (público). Lança em erro pra o chat sinalizar falha. */
 export const insertLandingLead = async (lead: NovoLead): Promise<void> => {

@@ -6,6 +6,7 @@ import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
 import LandingInstallButton from '@/pages/Landing/InstallButton'
 import LeadChat from '@/components/landing/LeadChat'
+import PartnerMarquee from '@/components/landing/PartnerMarquee'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -273,6 +274,9 @@ const Landing = () => {
             ))}
           </div>
         </div>
+
+        {/* ===================== LETREIRO DE PARCEIROS/BANDEIRAS ===================== */}
+        <PartnerMarquee />
 
         {/* ===================== MÓDULOS ===================== */}
         <div id="modulos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>

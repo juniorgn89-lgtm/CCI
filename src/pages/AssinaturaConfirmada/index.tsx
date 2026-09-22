@@ -30,6 +30,7 @@ const AssinaturaConfirmada = () => {
   const telLink = buildTelLink(cfg.telefone)
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     const prevTitle = document.title
     document.title = 'Assinatura confirmada — Visor360'
     setUiScaleSuspended(true)

@@ -84,6 +84,7 @@ const Leads = () => {
                     {l.rede && <span className="truncate">{l.rede}</span>}
                     {l.cidade && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{l.cidade}</span>}
                     {l.sistema && <span className="inline-flex items-center gap-1"><Server className="h-3 w-3" />{l.sistema}</span>}
+                    {l.motivo && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">{l.motivo}</span>}
                     <span>{new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>

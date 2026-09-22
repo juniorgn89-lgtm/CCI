@@ -143,6 +143,7 @@ const ComoComecar = () => {
   }
 
   useEffect(() => {
+    window.scrollTo(0, 0) // abre no topo (a navegação SPA não reseta o scroll)
     const prevTitle = document.title
     document.title = 'Como começar — Visor360'
     setUiScaleSuspended(true)

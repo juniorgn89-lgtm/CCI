@@ -13,7 +13,8 @@ create table if not exists public.landing_leads (
   nome text not null,
   rede text not null default '',
   cidade text not null default '',
-  sistema text not null default '',        -- WebPosto / AutoSystem / Outro / Não sei
+  sistema text not null default '',        -- ERP atual: WebPosto / AutoSystem / Outro / Não sei
+  motivo text not null default '',         -- motivo do contato (Quero assinar, Dúvida, ...)
   whatsapp text not null default '',
   email text not null default '',
   origem text not null default 'landing-chat',
@@ -42,6 +43,9 @@ create policy landing_leads_update_master
   on public.landing_leads for update
   using (exists (select 1 from public.profiles pr where pr.user_id = auth.uid() and pr.is_master))
   with check (exists (select 1 from public.profiles pr where pr.user_id = auth.uid() and pr.is_master));
+
+-- Coluna motivo (idempotente, pra bases criadas antes deste campo).
+alter table public.landing_leads add column if not exists motivo text not null default '';
 
 -- WhatsApp do comercial (aviso/contato do lead) — vive no app_config global.
 alter table public.app_config add column if not exists comercial_whatsapp text not null default '';
