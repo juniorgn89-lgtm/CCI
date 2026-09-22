@@ -106,11 +106,11 @@ const ComoComecar = () => {
 
   /** Par de botões (mesmo tamanho, com efeito flutuante): base (amber) + IA (teal). */
   const PlanButtons = ({ big = false }: { big?: boolean }) => {
-    const pad = big ? '15px 20px' : '13px 18px'
-    const fs = big ? 15 : 14
-    const baseBtn = { flex: 1, minWidth: 200, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700, fontSize: fs, padding: pad, borderRadius: 12, border: 'none' } as const
+    const pad = big ? '14px 16px' : '12px 14px'
+    const fs = big ? 14 : 13
+    const baseBtn = { flex: 1, minWidth: 190, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, fontSize: fs, padding: pad, borderRadius: 12, border: 'none', whiteSpace: 'nowrap' } as const
     return (
-      <div style={{ display: 'flex', gap: 12, marginTop: big ? 24 : 20, flexWrap: 'wrap', maxWidth: 470, ...(big ? { marginLeft: 'auto', marginRight: 'auto' } : {}) }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: big ? 24 : 20, flexWrap: 'wrap', maxWidth: 500, ...(big ? { marginLeft: 'auto', marginRight: 'auto' } : {}) }}>
         <button className="v360-planbtn" onClick={() => openLink(linkBase)} disabled={!linkBase} style={{ ...baseBtn, background: AMBER, color: '#16293f', cursor: linkBase ? 'pointer' : 'not-allowed', opacity: linkBase ? 1 : 0.6, boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }}>
           Completo · {BRL(PRECO_BASE)} <ArrowRight size={16} />
         </button>
