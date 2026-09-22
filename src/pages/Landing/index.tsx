@@ -103,7 +103,9 @@ const LANDING_CSS = `
   .v360-landing .v360-planos{grid-template-columns:1fr!important}
   .v360-landing .v360-numeros{grid-template-columns:repeat(2,1fr)!important}
   .v360-landing .v360-navmenu{display:none!important}
-  .v360-landing .v360-nav{justify-content:center!important}
+  .v360-landing .v360-nav{flex-direction:column!important;align-items:center!important;gap:14px!important}
+  .v360-landing .v360-sitecci{display:none!important}
+  .v360-landing .v360-herophone{display:none!important}
   .v360-landing .v360-h1{font-size:34px!important}
   .v360-landing h2{font-size:30px!important;line-height:1.15!important}
   .v360-landing .v360-num{font-size:32px!important}
@@ -189,7 +191,7 @@ const Landing = () => {
             <a href="#contato" style={{ color: 'var(--v-muted)' }}>Contato</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" title="Ir para o site da CCI" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#0F766E', fontSize: 14.5, fontWeight: 700 }}>Site da CCI ↗</a>
+            <a href="https://www.cci.app.br" target="_blank" rel="noopener noreferrer" title="Ir para o site da CCI" className="v360-sitecci" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#0F766E', fontSize: 14.5, fontWeight: 700 }}>Site da CCI ↗</a>
             <button
               type="button"
               onClick={toggleTheme}
@@ -237,7 +239,7 @@ const Landing = () => {
                   </div>
                   <img src="/landing/analise-semanal-full.png" style={{ display: 'block', width: '100%' }} alt="Análise semanal Visor360" />
                 </div>
-                <div style={{ position: 'absolute', bottom: 22, left: 26, width: 168, height: 344, background: '#0f172a', borderRadius: 28, padding: 7, boxShadow: '0 40px 70px -24px rgba(0,0,0,.6)', animation: 'v360-floaty 7s ease-in-out infinite' }}>
+                <div className="v360-herophone" style={{ position: 'absolute', bottom: 22, left: 26, width: 168, height: 344, background: '#0f172a', borderRadius: 28, padding: 7, boxShadow: '0 40px 70px -24px rgba(0,0,0,.6)', animation: 'v360-floaty 7s ease-in-out infinite' }}>
                   <div style={{ width: '100%', height: '100%', background: '#16293f', borderRadius: 22, overflow: 'hidden', padding: '14px 12px', color: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><img src="/landing/SIMBOLO.png" style={{ width: 16, height: 16, objectFit: 'contain' }} alt="" /><span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 12 }}>Visor<span style={{ color: '#FCB619' }}>360</span></span></div>
                     <div style={{ background: 'rgba(255,255,255,.06)', borderRadius: 12, padding: 11, marginTop: 14 }}>

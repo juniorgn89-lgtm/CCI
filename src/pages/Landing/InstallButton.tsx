@@ -43,6 +43,7 @@ const LandingInstallButton = () => {
     padding: '9px 16px',
     borderRadius: 11,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   }
 
   return (
