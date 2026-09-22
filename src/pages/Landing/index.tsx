@@ -416,6 +416,7 @@ const Landing = () => {
                 <a href={MAIL.demo} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '16px 32px', borderRadius: 13, boxShadow: '0 18px 38px -14px rgba(0,0,0,.4)' }}>Agendar demonstração</a>
                 <a href={MAIL.falar} style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', fontWeight: 600, fontSize: 16, padding: '16px 28px', borderRadius: 13 }}>Falar com a CCI</a>
               </div>
+              <p style={{ margin: '20px 0 0', fontSize: 14.5, color: '#e3fbf6' }}>ou escreva para <a href="mailto:contato@cci.app.br" style={{ color: '#fff', fontWeight: 700, textDecoration: 'underline' }}>contato@cci.app.br</a></p>
             </div>
           </div>
         </div>
