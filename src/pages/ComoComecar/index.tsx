@@ -59,16 +59,37 @@ const FigPagar = () => (
 )
 
 const FigChave = () => (
-  <svg viewBox="0 0 220 160" width="100%" style={{ maxWidth: 300 }} role="img" aria-label="Solicitar chave de API">
-    <circle cx="78" cy="74" r="30" fill="none" stroke={AMBER} strokeWidth="10" />
-    <rect x="100" y="69" width="86" height="10" rx="5" fill={AMBER} />
-    <rect x="150" y="79" width="10" height="20" rx="5" fill={AMBER} />
-    <rect x="176" y="79" width="10" height="26" rx="5" fill={AMBER} />
-    <rect x="132" y="104" width="70" height="42" rx="10" fill={TEAL} />
-    <path d="M132 146l14-12" stroke={TEAL} strokeWidth="0" />
-    <circle cx="150" cy="125" r="3.5" fill="#0b2b28" />
-    <circle cx="167" cy="125" r="3.5" fill="#0b2b28" />
-    <circle cx="184" cy="125" r="3.5" fill="#0b2b28" />
+  <svg viewBox="0 0 300 210" width="100%" style={{ maxWidth: 250, display: 'block' }} role="img" aria-label="Chave de API do Visor360">
+    <defs>
+      <linearGradient id="v360-kg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#FFD65E" />
+        <stop offset="1" stopColor="#F2A70E" />
+      </linearGradient>
+      <linearGradient id="v360-tg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#2AD3C2" />
+        <stop offset="1" stopColor="#0F9E90" />
+      </linearGradient>
+      <filter id="v360-sh" x="-25%" y="-25%" width="150%" height="160%">
+        <feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#000" floodOpacity="0.35" />
+      </filter>
+    </defs>
+    <g filter="url(#v360-sh)">
+      {/* haste + dentes */}
+      <rect x="150" y="85" width="128" height="26" rx="13" fill="url(#v360-kg)" />
+      <rect x="214" y="99" width="18" height="30" rx="9" fill="url(#v360-kg)" />
+      <rect x="248" y="99" width="18" height="46" rx="9" fill="url(#v360-kg)" />
+      {/* anel (bow) — dois aros concêntricos, centro vazado */}
+      <circle cx="86" cy="98" r="62" fill="none" stroke="url(#v360-kg)" strokeWidth="26" />
+      <circle cx="86" cy="98" r="28" fill="none" stroke="url(#v360-kg)" strokeWidth="13" />
+      {/* etiqueta teal (a "chave de API") pendurada */}
+      <rect x="190" y="104" width="22" height="24" rx="8" fill="url(#v360-tg)" />
+      <rect x="160" y="122" width="98" height="74" rx="22" fill="url(#v360-tg)" />
+      <circle cx="186" cy="160" r="9" fill="#0b3b37" />
+      <circle cx="209" cy="160" r="9" fill="#0b3b37" />
+      <circle cx="232" cy="160" r="9" fill="#0b3b37" />
+    </g>
+    {/* brilho de topo sutil (leveza 3D) */}
+    <circle cx="86" cy="98" r="62" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="3" strokeDasharray="70 300" strokeLinecap="round" transform="rotate(-125 86 98)" />
   </svg>
 )
 

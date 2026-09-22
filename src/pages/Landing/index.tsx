@@ -27,7 +27,6 @@ import LeadChat from '@/components/landing/LeadChat'
 
 const MAIL = {
   demo: 'mailto:comercial@cci.app.br?subject=Agendar%20demonstra%C3%A7%C3%A3o%20Visor360',
-  rep: 'mailto:comercial@cci.app.br?subject=Quero%20ser%20representante%20Visor360',
   falar: 'mailto:comercial@cci.app.br?subject=Falar%20com%20a%20CCI%20-%20Visor360',
   suporte: 'mailto:comercial@cci.app.br?subject=Suporte%20Visor360',
   email: 'mailto:comercial@cci.app.br',
@@ -186,7 +185,6 @@ const Landing = () => {
             <a href="#modulos" style={{ color: 'var(--v-muted)' }}>Módulos</a>
             <a href="#planos" style={{ color: 'var(--v-muted)' }}>Planos</a>
             <a href="#ia" style={{ color: 'var(--v-muted)' }}>Analista de IA</a>
-            <a href="#representantes" style={{ color: 'var(--v-muted)' }}>Para representantes</a>
             <a href="#contato" style={{ color: 'var(--v-muted)' }}>Contato</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -215,9 +213,10 @@ const Landing = () => {
               <h1 className="v360-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.0, color: 'var(--v-ink)', letterSpacing: '-.025em' }}>Menos planilha.<br />Mais lucro.</h1>
               <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
               <div style={{ display: 'flex', gap: 14, marginTop: 34, flexWrap: 'wrap' }}>
-                <a href={MAIL.demo} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Agendar demonstração</a>
+                <Link to="/como-comecar" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Assinar agora</Link>
                 <a href="#modulos" style={{ background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
               </div>
+              <p style={{ margin: '16px 0 0', fontSize: 14.5, color: 'var(--v-muted2)' }}><strong style={{ color: 'var(--v-ink)' }}>R$ 199,99/mês</strong> · Analista de IA opcional (+R$ 70/mês) · sem fidelidade</p>
               <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
                 <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: 'var(--v-ink)' }}>6</div><div style={{ fontSize: 13, color: 'var(--v-muted2)' }}>módulos integrados</div></div>
                 <div style={{ width: 1, background: 'var(--v-border2)' }} />
@@ -386,23 +385,18 @@ const Landing = () => {
             </div>
           </div>
 
-          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: 'var(--v-faint)' }}>O plano conecta ao seu ERP de posto, com dados só de leitura. A liberação é feita pelo seu representante CCI.</p>
+          <p style={{ textAlign: 'center', margin: '22px 0 0', fontSize: 13.5, color: 'var(--v-faint)' }}>O plano conecta ao seu ERP de posto, com dados só de leitura. A liberação é feita pela equipe da CCI.</p>
         </div>
 
         {/* ===================== DOIS PÚBLICOS ===================== */}
         <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
-          <div className="v360-publicos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div style={{ background: 'var(--v-soft)', border: '1px solid var(--v-border)', borderRadius: 22, padding: '38px 34px' }}>
-              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 12.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#0F766E' }}>Para donos de rede</div>
-              <h3 style={{ fontSize: 26, fontWeight: 800, color: 'var(--v-ink)', marginTop: 12, lineHeight: 1.15 }}>Pare de fechar o mês no escuro</h3>
-              <p style={{ margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês.</p>
-              <a href={MAIL.demo} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 22, background: '#16293f', color: '#fff', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração →</a>
-            </div>
-            <div id="representantes" style={{ background: '#16293f', borderRadius: 22, padding: '38px 34px', color: '#fff' }}>
-              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 12.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#FCB619' }}>Para representantes</div>
-              <h3 style={{ fontSize: 26, fontWeight: 800, marginTop: 12, lineHeight: 1.15 }}>Venda, cadastre e libere planos você mesmo</h3>
-              <p style={{ margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.6, color: '#cbd5e1' }}>Um painel comercial próprio pra apresentar os planos, cadastrar o novo cliente e liberar o acesso na hora — sem depender de ninguém pra fechar a venda.</p>
-              <a href={MAIL.rep} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 22, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Quero ser representante →</a>
+          <div style={{ maxWidth: 720, margin: '0 auto', background: 'var(--v-soft)', border: '1px solid var(--v-border)', borderRadius: 22, padding: '42px 36px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 12.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#0F766E' }}>Para donos de rede</div>
+            <h3 style={{ fontSize: 28, fontWeight: 800, color: 'var(--v-ink)', marginTop: 12, lineHeight: 1.15 }}>Pare de fechar o mês no escuro</h3>
+            <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.6, color: 'var(--v-muted2)', maxWidth: 520 }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês. Tudo por <strong style={{ color: 'var(--v-ink)' }}>R$ 199,99/mês</strong>.</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
+              <Link to="/como-comecar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Assinar agora →</Link>
+              <a href={MAIL.demo} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--v-card)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração</a>
             </div>
           </div>
         </div>
@@ -437,7 +431,7 @@ const Landing = () => {
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
-                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="#representantes" style={{ color: 'inherit' }}>Para representantes</a>
+                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="/como-comecar" style={{ color: 'inherit' }}>Como começar</a>
                 </div>
               </div>
               <div>
