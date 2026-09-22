@@ -5,7 +5,6 @@ import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
 import LandingInstallButton from '@/pages/Landing/InstallButton'
-import AssinarModal from '@/pages/Landing/AssinarModal'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -131,7 +130,6 @@ const Landing = () => {
   // persiste) — o clarear vale só pra sessão atual.
   const [dark, setDark] = useState(true)
   const toggleTheme = () => setDark((v) => !v)
-  const [assinarOpen, setAssinarOpen] = useState(false)
 
   // Enquanto a landing está montada, ela manda no tema (classe `dark` no <html>);
   // ao sair (ex.: ir pro /login), restaura o tema original do app.
@@ -365,7 +363,7 @@ const Landing = () => {
                 ))}
               </ul>
 
-              <button type="button" onClick={() => setAssinarOpen(true)} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15.5, padding: '15px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)', display: 'block', width: '100%', marginTop: 26, border: 'none', cursor: 'pointer' }}>Quero assinar</button>
+              <Link to="/como-comecar" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15.5, padding: '15px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)', display: 'block', width: '100%', marginTop: 26 }}>Quero assinar</Link>
             </div>
 
             {/* Add-on: Analista de IA — vendido à parte */}
@@ -453,8 +451,6 @@ const Landing = () => {
         </div>
 
       </div>
-
-      <AssinarModal open={assinarOpen} onClose={() => setAssinarOpen(false)} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowLeft, Phone, MessageCircle, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Phone, MessageCircle, Check, Sparkles, Wrench } from 'lucide-react'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import {
   BRL,
@@ -30,6 +30,10 @@ const CSS = `
 .v360-comecar a{text-decoration:none}
 .v360-comecar .step{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center}
 .v360-comecar .step.rev .fig{order:2}
+@keyframes v360c-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.v360-comecar .v360-planbtn{animation:v360c-float 3.4s ease-in-out infinite}
+.v360-comecar .v360-planbtn:hover{animation-play-state:paused;filter:brightness(1.04)}
+@media(prefers-reduced-motion:reduce){.v360-comecar .v360-planbtn{animation:none}}
 @media(max-width:760px){
   .v360-comecar .step,.v360-comecar .step.rev{grid-template-columns:1fr;gap:20px}
   .v360-comecar .step.rev .fig{order:0}
@@ -93,9 +97,29 @@ const FigPronto = () => (
 
 const ComoComecar = () => {
   const cfg = useAppConfig()
-  const link = stripeLinkFor(cfg, false)
+  const linkBase = stripeLinkFor(cfg, false)
+  const linkIA = stripeLinkFor(cfg, true)
+  const precoComIA = PRECO_BASE + PRECO_IA
   const waLink = buildWhatsappLink(cfg.whatsapp, cfg.whatsappMsg)
   const telLink = buildTelLink(cfg.telefone)
+  const openLink = (l: string) => { if (l) window.open(l, '_blank', 'noopener,noreferrer') }
+
+  /** Par de botões (mesmo tamanho, com efeito flutuante): base (amber) + IA (teal). */
+  const PlanButtons = ({ big = false }: { big?: boolean }) => {
+    const pad = big ? '15px 20px' : '13px 18px'
+    const fs = big ? 15 : 14
+    const baseBtn = { flex: 1, minWidth: 200, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700, fontSize: fs, padding: pad, borderRadius: 12, border: 'none' } as const
+    return (
+      <div style={{ display: 'flex', gap: 12, marginTop: big ? 24 : 20, flexWrap: 'wrap', maxWidth: 470, ...(big ? { marginLeft: 'auto', marginRight: 'auto' } : {}) }}>
+        <button className="v360-planbtn" onClick={() => openLink(linkBase)} disabled={!linkBase} style={{ ...baseBtn, background: AMBER, color: '#16293f', cursor: linkBase ? 'pointer' : 'not-allowed', opacity: linkBase ? 1 : 0.6, boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }}>
+          Completo · {BRL(PRECO_BASE)} <ArrowRight size={16} />
+        </button>
+        <button className="v360-planbtn" onClick={() => openLink(linkIA)} disabled={!linkIA} style={{ ...baseBtn, background: 'linear-gradient(135deg,#0F766E,#14b8a6)', color: '#fff', cursor: linkIA ? 'pointer' : 'not-allowed', opacity: linkIA ? 1 : 0.6, boxShadow: '0 16px 34px -16px rgba(20,184,166,.7)', animationDelay: '.9s' }}>
+          <Sparkles size={16} /> Completo + IA · {BRL(precoComIA)}
+        </button>
+      </div>
+    )
+  }
 
   useEffect(() => {
     const prevTitle = document.title
@@ -121,10 +145,6 @@ const ComoComecar = () => {
       links.forEach((l) => l.remove())
     }
   }, [])
-
-  const irPagar = () => {
-    if (link) window.open(link, '_blank', 'noopener,noreferrer')
-  }
 
   const STEPS = [
     {
@@ -177,6 +197,15 @@ const ComoComecar = () => {
           </p>
         </div>
 
+        {cfg.manutencao ? (
+          <div style={{ background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 22, padding: '52px 28px', textAlign: 'center', marginTop: 56 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 72, height: 72, borderRadius: 20, background: 'rgba(252,182,25,.14)', color: '#f59e0b' }}><Wrench size={34} /></div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--v-ink)', marginTop: 20 }}>Assinaturas em manutenção</h2>
+            <p style={{ margin: '12px auto 0', fontSize: 15.5, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 440 }}>{cfg.manutencaoMsg}</p>
+            <a href="mailto:comercial@cci.app.br?subject=Assinatura%20Visor360" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Falar com a CCI <ArrowRight size={16} /></a>
+          </div>
+        ) : (
+        <>
         {/* Passos */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 56 }}>
           {STEPS.map((s, i) => (
@@ -197,17 +226,7 @@ const ComoComecar = () => {
                 </div>
                 <p style={{ margin: '14px 0 0', fontSize: 15.5, lineHeight: 1.6, color: 'var(--v-muted)' }}>{s.texto}</p>
 
-                {s.acao === 'pagar' && (
-                  link ? (
-                    <button onClick={irPagar} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 20, background: AMBER, color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 22px', borderRadius: 12, border: 'none', cursor: 'pointer', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)' }}>
-                      Pagar com o Stripe <ArrowRight size={16} />
-                    </button>
-                  ) : (
-                    <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 20, background: AMBER, color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>
-                      Ver planos <ArrowRight size={16} />
-                    </Link>
-                  )
-                )}
+                {s.acao === 'pagar' && <PlanButtons />}
 
                 {s.acao === 'contato' && (
                   <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
@@ -230,21 +249,13 @@ const ComoComecar = () => {
           <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.6, color: '#e3fbf6', maxWidth: 460 }}>
             Assine agora e conecte a sua rede em minutos.
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
-            {link ? (
-              <button onClick={irPagar} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: AMBER, color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 30px', borderRadius: 13, border: 'none', cursor: 'pointer', boxShadow: '0 18px 38px -14px rgba(0,0,0,.4)' }}>
-                Pagar com o Stripe <ArrowRight size={17} />
-              </button>
-            ) : (
-              <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: AMBER, color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 30px', borderRadius: 13 }}>
-                Ver planos <ArrowRight size={17} />
-              </Link>
-            )}
-          </div>
+          <PlanButtons big />
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 18, fontSize: 12.5, color: '#c9f2ec' }}>
             <Check size={14} /> Dados só de leitura · pagamento seguro via Stripe
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   )
