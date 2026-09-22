@@ -6,11 +6,11 @@ import {
   BRL,
   PRECO_BASE,
   PRECO_IA,
-  WEBPOSTO,
-  linkPagamento,
-  whatsappLink,
-  telefoneLink,
+  stripeLinkFor,
+  buildWhatsappLink,
+  buildTelLink,
 } from '@/pages/Landing/assinatura'
+import { useAppConfig } from '@/hooks/useAppConfig'
 
 /**
  * "Como começar no Visor360" — página pública (rota `/como-comecar`) com o passo
@@ -92,9 +92,10 @@ const FigPronto = () => (
 )
 
 const ComoComecar = () => {
-  const link = linkPagamento(false)
-  const waLink = whatsappLink()
-  const telLink = telefoneLink()
+  const cfg = useAppConfig()
+  const link = stripeLinkFor(cfg, false)
+  const waLink = buildWhatsappLink(cfg.whatsapp, cfg.whatsappMsg)
+  const telLink = buildTelLink(cfg.telefone)
 
   useEffect(() => {
     const prevTitle = document.title
@@ -211,7 +212,7 @@ const ComoComecar = () => {
                 {s.acao === 'contato' && (
                   <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
                     <a href={telLink ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid var(--v-border2)', color: telLink ? 'var(--v-ink)' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 600, pointerEvents: telLink ? 'auto' : 'none' }}>
-                      <Phone size={15} /> {WEBPOSTO.telefone || 'Telefone a definir'}
+                      <Phone size={15} /> {cfg.telefone || 'Telefone a definir'}
                     </a>
                     <a href={waLink ?? undefined} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid rgba(37,211,102,.4)', background: waLink ? 'rgba(37,211,102,.12)' : 'transparent', color: waLink ? '#5eead4' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 700, pointerEvents: waLink ? 'auto' : 'none' }}>
                       <MessageCircle size={15} /> {waLink ? 'WhatsApp' : 'WhatsApp a definir'}

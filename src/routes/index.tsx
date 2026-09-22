@@ -9,6 +9,7 @@ import Landing from '@/pages/Landing'
 
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 const ComoComecar = lazy(() => import('@/pages/ComoComecar'))
+const AssinaturaConfirmada = lazy(() => import('@/pages/AssinaturaConfirmada'))
 
 const Dashboard = lazy(importDashboard)
 const AoVivo = lazy(() => import('@/pages/AoVivo'))
@@ -29,6 +30,7 @@ const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
 const AdminApuracao = lazy(() => import('@/pages/Admin/Apuracao'))
 const AdminAssistente = lazy(() => import('@/pages/Admin/AssistenteConfig'))
 const AdminControleAcesso = lazy(() => import('@/pages/Painel/ControleAcesso'))
+const AdminAssinatura = lazy(() => import('@/pages/Admin/Assinatura'))
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
@@ -55,6 +57,7 @@ const AppRoutes = () => {
           Landing (gate por sessão). Fica FORA do ProtectedRoute de propósito. */}
       <Route path="/" element={<Landing />} />
       <Route path="/como-comecar" element={<Suspense fallback={<RouteFallback />}><ComoComecar /></Suspense>} />
+      <Route path="/assinatura-confirmada" element={<Suspense fallback={<RouteFallback />}><AssinaturaConfirmada /></Suspense>} />
       <Route path="/login" element={<Login />} />
       <Route path="/redefinir-senha" element={<Suspense fallback={<RouteFallback />}><RedefinirSenha /></Suspense>} />
       <Route path="/frentista/auto" element={<Suspense fallback={<RouteFallback />}><FrentistaAutoLogin /></Suspense>} />
@@ -103,6 +106,7 @@ const AppRoutes = () => {
             <Route path="apuracao" element={<Suspense fallback={<RouteFallback />}><AdminApuracao /></Suspense>} />
             <Route path="ia" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
             <Route path="controle-acesso" element={<Suspense fallback={<RouteFallback />}><AdminControleAcesso /></Suspense>} />
+            <Route path="assinatura" element={<Suspense fallback={<RouteFallback />}><AdminAssinatura /></Suspense>} />
           </Route>
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

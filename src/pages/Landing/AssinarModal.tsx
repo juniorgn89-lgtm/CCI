@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import {
   X, Sparkles, ArrowRight, KeyRound, Phone, MessageCircle, ShieldCheck, Lock,
   BarChart3, Boxes, Users, CircleDollarSign, FileText, Smartphone,
-  Zap, Headphones, TrendingUp, LifeBuoy,
+  Zap, Headphones, TrendingUp, LifeBuoy, Wrench,
 } from 'lucide-react'
 import {
-  BRL, PRECO_BASE, PRECO_IA, WEBPOSTO, linkPagamento, whatsappLink, telefoneLink,
+  BRL, PRECO_BASE, PRECO_IA, stripeLinkFor, buildWhatsappLink, buildTelLink,
 } from '@/pages/Landing/assinatura'
+import { useAppConfig } from '@/hooks/useAppConfig'
 
 /**
  * Tela de contratação/assinatura do Visor360 (tela cheia, aberta pelo "Quero
@@ -84,13 +85,14 @@ interface AssinarModalProps {
 
 const AssinarModal = ({ open, onClose }: AssinarModalProps) => {
   const [comIA, setComIA] = useState(false)
+  const cfg = useAppConfig()
   if (!open) return null
 
   const total = PRECO_BASE + (comIA ? PRECO_IA : 0)
-  const link = linkPagamento(comIA)
+  const link = stripeLinkFor(cfg, comIA)
   const irPagar = () => { if (link) window.open(link, '_blank', 'noopener,noreferrer') }
-  const waLink = whatsappLink()
-  const telLink = telefoneLink()
+  const waLink = buildWhatsappLink(cfg.whatsapp, cfg.whatsappMsg)
+  const telLink = buildTelLink(cfg.telefone)
 
   return (
     <div className="v360-checkout" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--v-bg)', display: 'flex', flexDirection: 'column' }}>
@@ -109,6 +111,16 @@ const AssinarModal = ({ open, onClose }: AssinarModalProps) => {
 
       {/* Conteúdo rolável */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {cfg.manutencao ? (
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: '72px 22px', textAlign: 'center' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 72, height: 72, borderRadius: 20, background: 'rgba(252,182,25,.14)', color: '#f59e0b' }}>
+              <Wrench size={34} />
+            </div>
+            <h2 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 26, fontWeight: 800, color: 'var(--v-ink)', marginTop: 20 }}>Assinaturas em manutenção</h2>
+            <p style={{ margin: '12px auto 0', fontSize: 15.5, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 420 }}>{cfg.manutencaoMsg}</p>
+            <a href="mailto:comercial@cci.app.br?subject=Assinatura%20Visor360" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24, background: '#16293f', color: '#fff', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Falar com a CCI <ArrowRight size={16} /></a>
+          </div>
+        ) : (
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 22px 44px' }}>
 
           {/* ───── HERO ───── */}
@@ -272,7 +284,7 @@ const AssinarModal = ({ open, onClose }: AssinarModalProps) => {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
                   <a href={telLink ?? undefined} className="cardh" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 15px', borderRadius: 12, border: '1px solid var(--v-border2)', background: 'var(--v-bg)', color: telLink ? 'var(--v-ink)' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 600, pointerEvents: telLink ? 'auto' : 'none' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><Phone size={15} style={{ color: '#0F766E' }} /> {WEBPOSTO.telefone || 'Telefone a definir'}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><Phone size={15} style={{ color: '#0F766E' }} /> {cfg.telefone || 'Telefone a definir'}</span>
                     <ArrowRight size={15} style={{ color: 'var(--v-faint)' }} />
                   </a>
                   <a href={waLink ?? undefined} target="_blank" rel="noopener noreferrer" className="cardh" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 15px', borderRadius: 12, border: '1px solid rgba(37,211,102,.4)', background: waLink ? 'rgba(37,211,102,.1)' : 'var(--v-bg)', color: waLink ? '#128c3e' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 700, pointerEvents: waLink ? 'auto' : 'none' }}>
@@ -315,6 +327,7 @@ const AssinarModal = ({ open, onClose }: AssinarModalProps) => {
             <ShieldCheck size={15} style={{ color: '#0F766E' }} /> Ambiente seguro com Stripe · Dados só de leitura · Uma solução CCI
           </div>
         </div>
+        )}
       </div>
     </div>
   )
