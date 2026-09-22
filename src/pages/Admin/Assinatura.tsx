@@ -29,6 +29,7 @@ interface FormState {
   webposto_telefone: string
   webposto_whatsapp: string
   webposto_mensagem: string
+  comercial_whatsapp: string
 }
 
 const EMPTY: FormState = {
@@ -40,6 +41,7 @@ const EMPTY: FormState = {
   webposto_telefone: '',
   webposto_whatsapp: '',
   webposto_mensagem: ASSINATURA_DEFAULTS.whatsappMsg,
+  comercial_whatsapp: '',
 }
 
 const Assinatura = () => {
@@ -63,6 +65,7 @@ const Assinatura = () => {
       webposto_telefone: data.webposto_telefone,
       webposto_whatsapp: data.webposto_whatsapp,
       webposto_mensagem: data.webposto_mensagem || ASSINATURA_DEFAULTS.whatsappMsg,
+      comercial_whatsapp: data.comercial_whatsapp,
     })
   }, [data])
 
@@ -93,6 +96,7 @@ const Assinatura = () => {
         webposto_telefone: form.webposto_telefone.trim(),
         webposto_whatsapp: form.webposto_whatsapp.replace(/\D/g, ''),
         webposto_mensagem: form.webposto_mensagem.trim(),
+        comercial_whatsapp: form.comercial_whatsapp.replace(/\D/g, ''),
       }
       await updateAppConfig(patch)
       await queryClient.invalidateQueries({ queryKey: ['app-config'] })
@@ -203,6 +207,11 @@ const Assinatura = () => {
           <div>
             <label className={labelCls}>Mensagem pronta do WhatsApp</label>
             <textarea rows={2} value={form.webposto_mensagem} onChange={(e) => set('webposto_mensagem', e.target.value)} className={`mt-1 ${inputCls} resize-none`} />
+          </div>
+          <div>
+            <label className={labelCls}><MessageCircle className="mr-1 inline h-3 w-3" />WhatsApp do comercial (chat de leads da landing)</label>
+            <input value={form.comercial_whatsapp} onChange={(e) => set('comercial_whatsapp', e.target.value)} placeholder="5527999999999" className={`mt-1 ${inputCls}`} />
+            <p className="mt-1 text-[11px] text-gray-400">Usado no botão “Falar no WhatsApp” ao fim do chat de captação.</p>
           </div>
         </div>
       </div>

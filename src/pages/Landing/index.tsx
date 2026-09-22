@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
 import LandingInstallButton from '@/pages/Landing/InstallButton'
+import LeadChat from '@/components/landing/LeadChat'
 
 /**
  * Landing institucional do Visor360 — a "capa" pública do app (rota `/`).
@@ -451,6 +452,8 @@ const Landing = () => {
         </div>
 
       </div>
+
+      <LeadChat />
     </div>
   )
 }

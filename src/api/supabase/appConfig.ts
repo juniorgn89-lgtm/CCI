@@ -12,6 +12,7 @@ export interface AppConfigRow {
   webposto_telefone: string
   webposto_whatsapp: string
   webposto_mensagem: string
+  comercial_whatsapp: string
   assinatura_manutencao: boolean
   assinatura_manutencao_msg: string
   updated_at: string

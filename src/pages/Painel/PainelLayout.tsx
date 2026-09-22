@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { Network, Users, User, BarChart3, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard } from 'lucide-react'
+import { Network, Users, User, BarChart3, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard, Inbox } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,7 @@ const MODULOS = [
   { to: '/painel/frentistas', label: 'Frentistas', Icon: User },
   { to: '/painel/redes', label: 'Gerenciar redes', Icon: BarChart3 },
   { to: '/painel/assinatura', label: 'Assinatura', Icon: CreditCard },
+  { to: '/painel/leads', label: 'Leads', Icon: Inbox },
   { to: '/painel/config', label: 'Configurações', Icon: Settings },
   { to: '/painel/apuracao', label: 'Apuração', Icon: CalendarDays },
   { to: '/painel/ia', label: 'Assistente IA', Icon: Sparkles },

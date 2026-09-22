@@ -22,6 +22,8 @@ export interface AssinaturaConfig {
   telefone: string
   whatsapp: string
   whatsappMsg: string
+  /** WhatsApp do comercial da CCI (só dígitos com DDI) — usado pelo chat de leads. */
+  comercialWhatsapp: string
   /** Tela de assinatura em manutenção (mostra aviso no lugar do checkout). */
   manutencao: boolean
   manutencaoMsg: string
@@ -35,6 +37,7 @@ export const ASSINATURA_DEFAULTS: AssinaturaConfig = {
   telefone: '',
   whatsapp: '',
   whatsappMsg: 'Olá! Sou cliente Visor360 e preciso da minha chave de integração (API) do WebPosto.',
+  comercialWhatsapp: '',
   manutencao: false,
   manutencaoMsg: 'Nossas assinaturas estão passando por uma atualização rápida. Volte em instantes ou fale com a CCI.',
 }

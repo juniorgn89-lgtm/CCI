@@ -23,6 +23,7 @@ export const useAppConfig = (): AssinaturaConfig & { isLoading: boolean } => {
         telefone: data.webposto_telefone || ASSINATURA_DEFAULTS.telefone,
         whatsapp: data.webposto_whatsapp || ASSINATURA_DEFAULTS.whatsapp,
         whatsappMsg: data.webposto_mensagem || ASSINATURA_DEFAULTS.whatsappMsg,
+        comercialWhatsapp: data.comercial_whatsapp || ASSINATURA_DEFAULTS.comercialWhatsapp,
         manutencao: data.assinatura_manutencao ?? ASSINATURA_DEFAULTS.manutencao,
         manutencaoMsg: data.assinatura_manutencao_msg || ASSINATURA_DEFAULTS.manutencaoMsg,
       }

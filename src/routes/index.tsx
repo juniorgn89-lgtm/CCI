@@ -31,6 +31,7 @@ const AdminApuracao = lazy(() => import('@/pages/Admin/Apuracao'))
 const AdminAssistente = lazy(() => import('@/pages/Admin/AssistenteConfig'))
 const AdminControleAcesso = lazy(() => import('@/pages/Painel/ControleAcesso'))
 const AdminAssinatura = lazy(() => import('@/pages/Admin/Assinatura'))
+const AdminLeads = lazy(() => import('@/pages/Admin/Leads'))
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
@@ -107,6 +108,7 @@ const AppRoutes = () => {
             <Route path="ia" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
             <Route path="controle-acesso" element={<Suspense fallback={<RouteFallback />}><AdminControleAcesso /></Suspense>} />
             <Route path="assinatura" element={<Suspense fallback={<RouteFallback />}><AdminAssinatura /></Suspense>} />
+            <Route path="leads" element={<Suspense fallback={<RouteFallback />}><AdminLeads /></Suspense>} />
           </Route>
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
