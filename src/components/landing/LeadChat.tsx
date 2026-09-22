@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, X, Send, Sparkles, Loader2, ChevronRight } from 'lucide-react'
+import { MessageCircle, X, Send, Sparkles, Loader2, ChevronRight, Mail } from 'lucide-react'
 import { insertLandingLead, type NovoLead } from '@/api/supabase/leads'
 import { useAppConfig } from '@/hooks/useAppConfig'
 
@@ -97,10 +97,17 @@ const LeadChat = () => {
   }
 
   const passoAtual = PASSOS[step]
-  const waMsg = `Olá! Sou ${answers.nome}, do ${answers.rede || 'meu posto'}${answers.cidade ? ` (${answers.cidade})` : ''}. Tenho interesse no Visor360.`
-  const waLink = cfg.comercialWhatsapp
-    ? `https://wa.me/${cfg.comercialWhatsapp}?text=${encodeURIComponent(waMsg)}`
-    : `mailto:comercial@cci.app.br?subject=${encodeURIComponent('Interesse no Visor360')}&body=${encodeURIComponent(waMsg)}`
+  const resumo = [
+    'Olá! Tenho interesse no Visor360.',
+    `Nome: ${answers.nome}`,
+    answers.rede && `Posto/Rede: ${answers.rede}`,
+    answers.cidade && `Cidade: ${answers.cidade}`,
+    answers.sistema && `Sistema atual: ${answers.sistema}`,
+    answers.whatsapp && `WhatsApp: ${answers.whatsapp}`,
+    answers.email && `E-mail: ${answers.email}`,
+  ].filter(Boolean).join('\n')
+  const waLink = cfg.comercialWhatsapp ? `https://wa.me/${cfg.comercialWhatsapp}?text=${encodeURIComponent(resumo)}` : null
+  const mailLink = `mailto:contato@cci.app.br?subject=${encodeURIComponent(`Novo lead Visor360 — ${answers.nome || 'interesse'}`)}&body=${encodeURIComponent(resumo)}`
 
   return (
     <>
@@ -135,9 +142,16 @@ const LeadChat = () => {
           {/* Entrada / ações */}
           <div style={{ borderTop: '1px solid var(--v-hair)', padding: 12 }}>
             {done ? (
-              <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: '#128c3e', color: '#fff', fontWeight: 700, fontSize: 14, padding: '12px', borderRadius: 11 }}>
-                <MessageCircle size={16} /> Falar agora no WhatsApp
-              </a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {waLink && (
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: '#128c3e', color: '#fff', fontWeight: 700, fontSize: 14, padding: '12px', borderRadius: 11 }}>
+                    <MessageCircle size={16} /> Falar agora no WhatsApp
+                  </a>
+                )}
+                <a href={mailLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: 'var(--v-bg)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 13.5, padding: '11px', borderRadius: 11 }}>
+                  <Mail size={15} /> Enviar por e-mail
+                </a>
+              </div>
             ) : passoAtual?.tipo === 'choices' ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {passoAtual.choices!.map((c) => (

@@ -37,7 +37,7 @@ export const ASSINATURA_DEFAULTS: AssinaturaConfig = {
   telefone: '',
   whatsapp: '',
   whatsappMsg: 'Olá! Sou cliente Visor360 e preciso da minha chave de integração (API) do WebPosto.',
-  comercialWhatsapp: '',
+  comercialWhatsapp: '5527999250088',
   manutencao: false,
   manutencaoMsg: 'Nossas assinaturas estão passando por uma atualização rápida. Volte em instantes ou fale com a CCI.',
 }
