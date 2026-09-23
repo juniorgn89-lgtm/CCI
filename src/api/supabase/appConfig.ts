@@ -38,5 +38,7 @@ export const updateAppConfig = async (patch: AppConfigPatch): Promise<void> => {
   const { error } = await supabase
     .from('app_config')
     .upsert({ id: 'global', ...patch, updated_at: new Date().toISOString() }, { onConflict: 'id' })
-  if (error) throw error
+  // Surface the real Postgres/PostgREST error (missing table/column, RLS, etc.)
+  // — o objeto de erro do supabase não é um Error, então repassamos a mensagem.
+  if (error) throw new Error([error.message, error.details, error.hint].filter(Boolean).join(' · '))
 }

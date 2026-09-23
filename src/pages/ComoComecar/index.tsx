@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowLeft, Phone, MessageCircle, Check, Sparkles, Wrench } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Phone, MessageCircle, Check, Sparkles, Wrench, Info } from 'lucide-react'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import {
   BRL,
@@ -251,14 +251,20 @@ const ComoComecar = () => {
                 {s.acao === 'pagar' && <PlanButtons />}
 
                 {s.acao === 'contato' && (
-                  <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
-                    <a href={telLink ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid var(--v-border2)', color: telLink ? 'var(--v-ink)' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 600, pointerEvents: telLink ? 'auto' : 'none' }}>
-                      <Phone size={15} /> {cfg.telefone || 'Telefone a definir'}
-                    </a>
-                    <a href={waLink ?? undefined} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid rgba(37,211,102,.4)', background: waLink ? 'rgba(37,211,102,.12)' : 'transparent', color: waLink ? '#5eead4' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 700, pointerEvents: waLink ? 'auto' : 'none' }}>
-                      <MessageCircle size={15} /> {waLink ? 'WhatsApp' : 'WhatsApp a definir'}
-                    </a>
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+                      <a href={telLink ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid var(--v-border2)', color: telLink ? 'var(--v-ink)' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 600, pointerEvents: telLink ? 'auto' : 'none' }}>
+                        <Phone size={15} /> {cfg.telefone || 'Telefone a definir'}
+                      </a>
+                      <a href={waLink ?? undefined} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 11, border: '1px solid rgba(37,211,102,.4)', background: waLink ? 'rgba(37,211,102,.12)' : 'transparent', color: waLink ? '#5eead4' : 'var(--v-faint)', fontSize: 13.5, fontWeight: 700, pointerEvents: waLink ? 'auto' : 'none' }}>
+                        <MessageCircle size={15} /> {waLink ? 'WhatsApp' : 'WhatsApp a definir'}
+                      </a>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 16, padding: '12px 14px', borderRadius: 12, background: 'rgba(252,182,25,.10)', border: '1px solid rgba(252,182,25,.35)' }}>
+                      <Info size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--v-muted)' }}>A chave de integração tem um <strong style={{ color: 'var(--v-ink)' }}>custo mensal cobrado pelo próprio WebPosto (Quality)</strong>, à parte da assinatura do Visor360.</span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

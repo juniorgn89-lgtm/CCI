@@ -102,7 +102,8 @@ const Assinatura = () => {
       await queryClient.invalidateQueries({ queryKey: ['app-config'] })
       setSavedAt(Date.now())
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao salvar. Verifique se você é master (RLS).')
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(`Falha ao salvar: ${msg}. Se falar em "column ... does not exist" ou "relation ... does not exist", rode as migrações do Supabase (docs/supabase-app-config.sql e docs/supabase-landing-leads.sql). Se for RLS, confirme que seu usuário é master.`)
     } finally {
       setSaving(false)
     }

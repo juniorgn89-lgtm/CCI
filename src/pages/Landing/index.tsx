@@ -405,22 +405,6 @@ const Landing = () => {
           </div>
         </div>
 
-        {/* ===================== CTA FINAL ===================== */}
-        <div className="v360-wrap" style={{ maxWidth: 1200, margin: '88px auto 0', padding: '0 40px' }}>
-          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 26, background: 'linear-gradient(135deg,#0b5c55 0%,#0F766E 55%,#12897f 100%)', padding: '64px 48px', textAlign: 'center' }}>
-            <div style={{ position: 'absolute', top: -100, right: -60, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(252,182,25,.3) 0%,rgba(252,182,25,0) 70%)' }} />
-            <div style={{ position: 'relative' }}>
-              <h2 style={{ fontSize: 38, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', lineHeight: 1.1 }}>Veja a sua rede no Visor360</h2>
-              <p style={{ margin: '14px auto 0', fontSize: 17, lineHeight: 1.6, color: '#e3fbf6', maxWidth: 520 }}>Uma demonstração rápida com os seus próprios números. Sem compromisso.</p>
-              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 30, flexWrap: 'wrap' }}>
-                <a href={MAIL.demo} style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '16px 32px', borderRadius: 13, boxShadow: '0 18px 38px -14px rgba(0,0,0,.4)' }}>Agendar demonstração</a>
-                <a href={MAIL.falar} style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', fontWeight: 600, fontSize: 16, padding: '16px 28px', borderRadius: 13 }}>Falar com a CCI</a>
-              </div>
-              <p style={{ margin: '20px 0 0', fontSize: 14.5, color: '#e3fbf6' }}>ou escreva para <a href="mailto:contato@cci.app.br" style={{ color: '#fff', fontWeight: 700, textDecoration: 'underline' }}>contato@cci.app.br</a></p>
-            </div>
-          </div>
-        </div>
-
         {/* ===================== RODAPÉ CCI ===================== */}
         <div id="contato" style={{ marginTop: 80, borderTop: '1px solid var(--v-hair)' }}>
           <div className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 40px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 40, flexWrap: 'wrap' }}>
