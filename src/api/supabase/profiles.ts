@@ -41,6 +41,11 @@ export interface ProfileRow {
    * de combustível baixo). Master sempre pode.
    */
   pode_ver_reabastecimento: boolean
+  /**
+   * Permissão pro Modo Demonstração (mascara nome da rede/postos). Master sempre
+   * pode. Opcional: rows lidos antes da migration não têm a coluna.
+   */
+  pode_demonstrar?: boolean
   created_at: string
 }
 
@@ -186,6 +191,19 @@ export const updateProfilePodeVerReabastecimento = async (
   const { error } = await supabase
     .from('profiles')
     .update({ pode_ver_reabastecimento: pode })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/**
+ * Concede/revoga o Modo Demonstração (mascara nome da rede/postos pra
+ * apresentar o sistema). Master sempre pode, mesmo sem esse flag.
+ */
+export const updateProfilePodeDemonstrar = async (userId: string, pode: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase
+    .from('profiles')
+    .update({ pode_demonstrar: pode })
     .eq('user_id', userId)
   if (error) throw error
 }

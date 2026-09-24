@@ -5,6 +5,8 @@ import { fetchProfiles, type ProfileRow } from '@/api/supabase/profiles'
 import { fetchFrentistas } from '@/api/supabase/frentistas'
 import { fetchRedes } from '@/api/supabase/redes'
 import { useAuthStore } from '@/store/auth'
+import { useDemoAtivo } from '@/hooks/useDemo'
+import { DEMO_REDE_NOME, maskPostoNome } from '@/lib/demoMask'
 import { formatNumber } from '@/lib/formatters'
 import { KpiCard, Section, Segmented, Badge, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
@@ -46,6 +48,7 @@ const PessoaMobile = () => {
   const [cargoFiltro, setCargoFiltro] = useState<'todos' | Cargo>('todos')
   const [statusFiltro, setStatusFiltro] = useState<'ativos' | 'inativos' | 'todos'>('ativos')
   const isMaster = useAuthStore((s) => s.isMaster)
+  const demo = useDemoAtivo()
 
   const { data: profiles = [], isLoading: lp } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles, staleTime: 60_000 })
   const { data: frentistas = [], isLoading: lf } = useQuery({ queryKey: ['frentistas'], queryFn: () => fetchFrentistas(), staleTime: 60_000 })
@@ -62,18 +65,18 @@ const PessoaMobile = () => {
         nome: p.full_name || p.email,
         email: p.email,
         cargo: profileCargo(p),
-        posto: p.rede_id ? (redeNomeById.get(p.rede_id) ?? '—') : '— (rede livre)',
+        posto: p.rede_id ? (demo ? DEMO_REDE_NOME : (redeNomeById.get(p.rede_id) ?? '—')) : '— (rede livre)',
         ativo: p.approved,
       })
     }
     for (const f of frentistas) {
-      out.push({ id: `frentista:${f.user_id}`, nome: f.nome, cargo: 'Frentista', posto: f.empresa_nome, ativo: f.ativo })
+      out.push({ id: `frentista:${f.user_id}`, nome: f.nome, cargo: 'Frentista', posto: maskPostoNome(f.empresa_codigo, f.empresa_nome, demo), ativo: f.ativo })
     }
     return out.sort((a, b) => {
       const d = CARGO_ORDER.indexOf(a.cargo) - CARGO_ORDER.indexOf(b.cargo)
       return d !== 0 ? d : a.nome.localeCompare(b.nome, 'pt-BR')
     })
-  }, [profiles, frentistas, redeNomeById, isMaster])
+  }, [profiles, frentistas, redeNomeById, isMaster, demo])
 
   const resumo = useMemo(() => {
     const c: Record<Cargo, number> = { 'Gerente Geral': 0, Supervisor: 0, Gerente: 0, Frentista: 0 }

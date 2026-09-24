@@ -3,6 +3,7 @@ import { Network, Users, User, BarChart3, Settings, CalendarDays, Sparkles, Shie
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { cn } from '@/lib/utils'
+import { useRedeNomeExibicao } from '@/hooks/useDemo'
 
 /**
  * Painel de gestão (master): barra horizontal de navegação entre módulos (pills)
@@ -38,6 +39,7 @@ const PainelLayout = () => {
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
   const profileLoaded = useAuthStore((s) => s.profileLoaded)
   const rede = useTenantStore((s) => s.rede)
+  const redeNome = useRedeNomeExibicao(rede?.nome)
 
   // ESPERA o perfil carregar antes de avaliar a trava. Sem isso, em F5/link-direto
   // o guard rodava com os defaults (isMaster=false, acessoTodas=false) porque o
@@ -73,7 +75,7 @@ const PainelLayout = () => {
         {rede ? (
           <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            {rede.nome} · <span className="font-semibold text-emerald-600 dark:text-emerald-400">conectada</span>
+            {redeNome} · <span className="font-semibold text-emerald-600 dark:text-emerald-400">conectada</span>
           </span>
         ) : (
           <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-900">

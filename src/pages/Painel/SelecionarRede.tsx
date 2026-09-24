@@ -48,12 +48,6 @@ const SelecionarRede = () => {
   }, [redes, busca])
   const mostrarBusca = redes.length > 3
 
-  // A Rede Demonstração fica destacada no topo, num grupo próprio. Detecta pela
-  // URL (mock-quality), não pelo nome — mais robusto.
-  const isDemo = (r: RedeRow) => (r.api_base_url ?? '').includes('mock-quality')
-  const demo = useMemo(() => redesFiltradas.find(isDemo) ?? null, [redesFiltradas])
-  const outras = useMemo(() => redesFiltradas.filter((r) => !isDemo(r)), [redesFiltradas])
-
   const handleConectar = (rede: RedeRow) => {
     queryClient.clear()
     setEmpresas([])
@@ -95,11 +89,6 @@ const SelecionarRede = () => {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-[15.5px] font-bold text-gray-900 dark:text-gray-100">{rede.nome}</p>
-            {isDemo(rede) && (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
-                Dados fictícios
-              </span>
-            )}
             {conectada && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#dbeafe] px-2 py-0.5 text-[10px] font-semibold text-[#1d4ed8] dark:bg-blue-900/40 dark:text-blue-300">
                 <CheckCircle2 className="h-2.5 w-2.5" /> Conectada
@@ -183,22 +172,7 @@ const SelecionarRede = () => {
               Nenhuma rede encontrada para “{busca}”.
             </p>
           ) : (
-            <>
-              {demo && (
-                <div className="space-y-2">
-                  <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Demonstração</p>
-                  {renderRede(demo)}
-                </div>
-              )}
-              {outras.length > 0 && (
-                <div className="space-y-3">
-                  {demo && (
-                    <p className="px-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Suas redes</p>
-                  )}
-                  {outras.map(renderRede)}
-                </div>
-              )}
-            </>
+            <div className="space-y-3">{redesFiltradas.map(renderRede)}</div>
           )}
         </div>
       )}

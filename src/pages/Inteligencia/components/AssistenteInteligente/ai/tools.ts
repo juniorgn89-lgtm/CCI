@@ -10,6 +10,7 @@ import { classifySetor, isVendaCancelada } from '@/lib/setorClassification'
 import { fetchFuncionarios } from '@/api/endpoints/funcionarios'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
+import { isDemoAtivo } from '@/lib/demoMask'
 import type { ClaudeToolDefinition } from './types'
 
 /**
@@ -67,11 +68,14 @@ const resolveEmpresas = (ctx: ToolContext, override?: number[] | number) => {
   return requested.filter((c) => allowed.has(c))
 }
 
-/** Cache do mapa codigo→nome de empresa pra evitar refetch em cada tool call. */
-let _empresaMapCache: { fetchedAt: number; map: Map<number, string> } | null = null
+/** Cache do mapa codigo→nome de empresa pra evitar refetch em cada tool call.
+ * Carimba o estado do Modo Demonstração: alternar a demo invalida o cache, senão
+ * o Cadu seguiria citando os nomes reais (ou os mascarados) por até 5 min. */
+let _empresaMapCache: { fetchedAt: number; demo: boolean; map: Map<number, string> } | null = null
 const TTL_MS = 5 * 60 * 1000
 const getEmpresaMap = async (): Promise<Map<number, string>> => {
-  if (_empresaMapCache && Date.now() - _empresaMapCache.fetchedAt < TTL_MS) {
+  const demo = isDemoAtivo()
+  if (_empresaMapCache && _empresaMapCache.demo === demo && Date.now() - _empresaMapCache.fetchedAt < TTL_MS) {
     return _empresaMapCache.map
   }
   const res = await fetchEmpresas()
@@ -80,7 +84,7 @@ const getEmpresaMap = async (): Promise<Map<number, string>> => {
     const nome = (e.fantasia || e.razao || '').trim() || `Empresa ${e.codigo}`
     map.set(e.codigo, nome)
   }
-  _empresaMapCache = { fetchedAt: Date.now(), map }
+  _empresaMapCache = { fetchedAt: Date.now(), demo, map }
   return map
 }
 

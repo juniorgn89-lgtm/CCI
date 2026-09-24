@@ -46,6 +46,11 @@ interface AuthState {
    */
   canVerReabastecimento: boolean
   /**
+   * Permissão pro Modo Demonstração (mascara nome da rede/postos pra apresentar
+   * o sistema). Master sempre pode; outros só com `profiles.pode_demonstrar`.
+   */
+  canDemonstrar: boolean
+  /**
    * Nome de exibição do usuário (de `profiles.full_name`). Usado no avatar
    * da sidebar e em qualquer lugar que mostre quem está logado. Quando null,
    * UI cai pra `user_metadata.full_name` ou email.
@@ -77,6 +82,7 @@ interface AuthState {
   setAcessoRedes: (todas: boolean, redes: string[]) => void
   setCanApurar: (canApurar: boolean) => void
   setCanVerReabastecimento: (v: boolean) => void
+  setCanDemonstrar: (v: boolean) => void
   setFullName: (name: string | null) => void
   setOnboardingSeen: (v: boolean) => void
   setBriefingSeenToday: (v: boolean) => void
@@ -96,6 +102,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   acessoTodasRedes: false,
   canApurar: false,
   canVerReabastecimento: false,
+  canDemonstrar: false,
   fullName: null,
   onboardingSeen: true,
   briefingSeenToday: true,
@@ -107,6 +114,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAcessoRedes: (acessoTodasRedes, redesPermitidas) => set({ acessoTodasRedes, redesPermitidas }),
   setCanApurar: (canApurar) => set({ canApurar }),
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
+  setCanDemonstrar: (canDemonstrar) => set({ canDemonstrar }),
   setFullName: (fullName) => set({ fullName }),
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),

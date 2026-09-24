@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { PLANOS, getPlano, recursosAcumulados, type PlanoId, type PlanoDef } from '@/lib/planos'
 import useIsMobile from '@/hooks/useIsMobile'
+import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
 import {
@@ -319,7 +320,7 @@ const COMERCIAL_MAIL = 'comercial@cci.app.br'
 const MeuPlanoSection = () => {
   const rede = useTenantStore((s) => s.rede)
   const atual = getPlano(rede?.plano)
-  const redeNome = rede?.nome ?? 'minha rede'
+  const redeNome = useRedeNomeExibicao(rede?.nome) ?? 'minha rede'
 
   const mailFor = (alvo?: PlanoDef) => {
     const subject = alvo ? `Interesse no plano ${alvo.nome} — Visor360` : 'Troca de plano — Visor360'

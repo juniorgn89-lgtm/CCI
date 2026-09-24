@@ -12,6 +12,8 @@ import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { fetchRedes, fetchEmpresasCountForRede } from '@/api/supabase/redes'
 import { useFilterStore } from '@/store/filters'
+import { useDemoStore } from '@/store/demo'
+import { DEMO_REDE_NOME } from '@/lib/demoMask'
 import { cn } from '@/lib/utils'
 
 /**
@@ -28,6 +30,8 @@ const RedeSwitcher = () => {
   const setRede = useTenantStore((s) => s.setRede)
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
   const queryClient = useQueryClient()
+  // Modo Demonstração: esconde os nomes reais das redes (a ativa E as da lista).
+  const demo = useDemoStore((s) => s.ativo)
 
   // Lista de redes (só fetcha quando confirmar que é master)
   const { data: redes = [] } = useQuery({
@@ -90,7 +94,7 @@ const RedeSwitcher = () => {
           aria-label="Trocar rede"
         >
           <Network className="h-3.5 w-3.5 text-blue-500" />
-          <span className="hidden sm:inline">{tenant.nome}</span>
+          <span className="hidden sm:inline">{demo ? DEMO_REDE_NOME : tenant.nome}</span>
           <ChevronDown className="h-3 w-3 text-gray-400" />
         </button>
       </DropdownMenuTrigger>
@@ -105,7 +109,7 @@ const RedeSwitcher = () => {
             Carregando...
           </div>
         ) : (
-          redesAtivas.map((r) => {
+          redesAtivas.map((r, i) => {
             const active = r.id === tenant.id
             const count = empresasCounts?.get(r.id)
             return (
@@ -116,7 +120,7 @@ const RedeSwitcher = () => {
               >
                 <div className="flex min-w-0 flex-col">
                   <span className={cn('truncate', active && 'font-semibold text-blue-600 dark:text-blue-400')}>
-                    {r.nome}
+                    {demo ? `Rede ${i + 1}` : r.nome}
                   </span>
                   {count != null && (
                     <span className="text-[10px] text-gray-400 dark:text-gray-500">

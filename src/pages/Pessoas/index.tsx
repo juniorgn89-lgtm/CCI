@@ -8,6 +8,8 @@ import { fetchRedes } from '@/api/supabase/redes'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
 import useIsMobile from '@/hooks/useIsMobile'
+import { useDemoAtivo } from '@/hooks/useDemo'
+import { DEMO_REDE_NOME, maskPostoNome } from '@/lib/demoMask'
 import PessoaMobile from '@/pages/Pessoas/PessoaMobile'
 
 type Cargo = 'Gerente Geral' | 'Supervisor' | 'Gerente' | 'Frentista'
@@ -87,6 +89,10 @@ const Pessoas = () => {
     return m
   }, [redes])
 
+  // Modo Demonstração: nome da rede e dos postos mascarados (frentistas trazem
+  // empresa_nome direto do Supabase, fora do /EMPRESAS → mascara pelo código).
+  const demo = useDemoAtivo()
+
   const pessoas = useMemo<PessoaRow[]>(() => {
     const out: PessoaRow[] = []
     for (const p of profiles) {
@@ -97,7 +103,7 @@ const Pessoas = () => {
         nome: p.full_name || p.email,
         email: p.email,
         cargo: profileCargo(p),
-        posto: p.rede_id ? (redeNomeById.get(p.rede_id) ?? '—') : '— (rede livre)',
+        posto: p.rede_id ? (demo ? DEMO_REDE_NOME : (redeNomeById.get(p.rede_id) ?? '—')) : '— (rede livre)',
         ativo: p.approved,
       })
     }
@@ -106,7 +112,7 @@ const Pessoas = () => {
         id: `frentista:${f.user_id}`,
         nome: f.nome,
         cargo: 'Frentista',
-        posto: f.empresa_nome,
+        posto: maskPostoNome(f.empresa_codigo, f.empresa_nome, demo),
         ativo: f.ativo,
       })
     }
@@ -117,7 +123,7 @@ const Pessoas = () => {
       if (ca !== cb) return ca - cb
       return a.nome.localeCompare(b.nome, 'pt-BR')
     })
-  }, [profiles, frentistas, redeNomeById, isMaster])
+  }, [profiles, frentistas, redeNomeById, isMaster, demo])
 
   // Cargos visíveis no resumo — não-master não vê o card de Gerente Geral.
   const cargosVisiveis = useMemo<Cargo[]>(

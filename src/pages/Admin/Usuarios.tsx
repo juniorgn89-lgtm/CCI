@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -16,6 +16,7 @@ import {
   updateProfileModulos,
   updateProfilePodeApurar,
   updateProfilePodeVerReabastecimento,
+  updateProfilePodeDemonstrar,
   createUser,
   deleteUser,
   generateRecoveryLink,
@@ -227,6 +228,26 @@ const Usuarios = () => {
     setBusyUserId(row.user_id)
     try {
       await updateProfilePodeApurar(row.user_id, !row.pode_apurar)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleTogglePodeDemo = async (row: ProfileRow) => {
+    if (row.user_id === myUser?.id) {
+      alert('Você não pode mudar o próprio poder.')
+      return
+    }
+    if (row.is_master) {
+      alert('Administrador já pode demonstrar — não precisa do flag.')
+      return
+    }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeDemonstrar(row.user_id, !row.pode_demonstrar)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -541,6 +562,7 @@ const Usuarios = () => {
                         onEditModulos={() => setEditingModulosFor(p)}
                         onTogglePodeApurar={() => handleTogglePodeApurar(p)}
                         onTogglePodeReabast={() => handleTogglePodeReabast(p)}
+                        onTogglePodeDemo={() => handleTogglePodeDemo(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
                         onResetSenha={() => handleResetSenha(p)}
                         onDelete={() => handleDelete(p)}
@@ -909,12 +931,13 @@ interface UserRowProps {
   onEditModulos: () => void
   onTogglePodeApurar: () => void
   onTogglePodeReabast: () => void
+  onTogglePodeDemo: () => void
   onToggleAtivo: () => void
   onResetSenha: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1108,6 +1131,29 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                 <span className={cn(
                   'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
                   p.pode_ver_reabastecimento ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {/* Demonstração (mascara nome da rede/postos pra apresentar o sistema) */}
+            <div className="flex items-center gap-1.5">
+              <Presentation className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeDemo}
+                disabled={busy}
+                role="switch"
+                aria-checked={!!p.pode_demonstrar}
+                aria-label={p.pode_demonstrar ? 'Revogar modo demonstração' : 'Conceder modo demonstração'}
+                title={p.pode_demonstrar ? 'Demonstração: liberado — clique pra revogar' : 'Demonstração: sem acesso — clique pra conceder'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_demonstrar ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_demonstrar ? 'translate-x-[14px]' : 'translate-x-0.5'
                 )} />
               </button>
             </div>

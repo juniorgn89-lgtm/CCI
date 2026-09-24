@@ -5,6 +5,7 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
 import PotencialButton from '@/components/layout/PotencialButton'
+import DemoModeToggle from '@/components/layout/DemoModeToggle'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 import HeaderInstallButton from '@/components/pwa/HeaderInstallButton'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
@@ -128,6 +129,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         <div className="flex items-center gap-2">
           {/* "Potencial desta tela" subiu pro topo (trocou de lugar com a pílula de
               posto, que foi pra barra de ações do módulo). */}
+          {/* Modo Demonstração — só pra quem tem permissão; âmbar quando ativo. */}
+          <DemoModeToggle />
           <PotencialButton />
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL. */}
           <UltimaAtualizacaoInfo />

@@ -175,6 +175,12 @@ const loadTenantForUser = async () => {
       // Master sempre tem o poder de apurar; pra outros, lê o flag do profile.
       useAuthStore.getState().setCanApurar(isMaster || !!typed.pode_apurar)
       useAuthStore.getState().setCanVerReabastecimento(isMaster || !!typed.pode_ver_reabastecimento)
+      // Modo Demonstração: query SEPARADA e resiliente — a coluna pode não existir
+      // ainda (docs/supabase-pode-demonstrar.sql). Erro aqui NÃO quebra o login.
+      const { data: pd, error: pdErr } = await supabase
+        .from('profiles').select('pode_demonstrar').eq('user_id', user.id).maybeSingle()
+      const podeDemonstrar = !pdErr && !!(pd as { pode_demonstrar?: boolean | null } | null)?.pode_demonstrar
+      useAuthStore.getState().setCanDemonstrar(isMaster || podeDemonstrar)
       // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)

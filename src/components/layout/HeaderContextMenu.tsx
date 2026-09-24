@@ -8,6 +8,7 @@ import { useFilterStore } from '@/store/filters'
 import { useTenantStore } from '@/store/tenant'
 import { useTopbarUi } from '@/store/topbarUi'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
 import RedeSwitcher from '@/components/layout/RedeSwitcher'
@@ -75,7 +76,7 @@ const HeaderContextMenu = () => {
   const redeWide = moduloRedeWide(pathname)
   const showCompanySelect = empresasPermitidas.length !== 1 && !redeWide
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
-  const tenantNome = useTenantStore((s) => s.rede?.nome)
+  const tenantNome = useRedeNomeExibicao(useTenantStore((s) => s.rede?.nome)) ?? undefined
   const fantasiasSel = empresaCodigos
     .map((c) => empresasPermitidas.find((e) => e.codigo === c)?.fantasia)
     .filter((n): n is string => !!n)

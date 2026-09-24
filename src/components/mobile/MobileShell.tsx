@@ -7,6 +7,7 @@ import { useFilterStore } from '@/store/filters'
 import { useAuthStore } from '@/store/auth'
 import { useAuth } from '@/hooks/useAuth'
 import useEmpresaNome from '@/hooks/useEmpresaNome'
+import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import type { NavItem } from '@/components/layout/navConfig'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import MobileFilterSheet from '@/components/mobile/MobileFilterSheet'
@@ -61,9 +62,11 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const isCentral = pathname === '/dashboard'
   const showFilterBar = showFilters
 
+  // Nome da rede mascarado no Modo Demonstração.
+  const redeNome = useRedeNomeExibicao(rede?.nome)
   const subtitle = isCentral
-    ? (rede?.nome ? `Rede · ${rede.nome}` : 'Visão consolidada da rede')
-    : (rede?.nome ?? 'Gestão de postos')
+    ? (redeNome ? `Rede · ${redeNome}` : 'Visão consolidada da rede')
+    : (redeNome ?? 'Gestão de postos')
 
   const empresaNome = useEmpresaNome()
   const postoResumo = empresaCodigos.length === 1
