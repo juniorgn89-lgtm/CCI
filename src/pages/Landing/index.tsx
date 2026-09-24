@@ -5,6 +5,8 @@ import { useAuthStore } from '@/store/auth'
 import { setUiScaleSuspended } from '@/lib/uiScale'
 import { PLANOS } from '@/lib/planos'
 import LandingInstallButton from '@/pages/Landing/InstallButton'
+import { useAppConfig } from '@/hooks/useAppConfig'
+import { buildWhatsappLink } from '@/pages/Landing/assinatura'
 import LeadChat from '@/components/landing/LeadChat'
 import PartnerMarquee from '@/components/landing/PartnerMarquee'
 
@@ -130,6 +132,10 @@ const Landing = () => {
   // A landing abre sempre no escuro; refresh volta pro escuro. Tema local (não
   // persiste) — o clarear vale só pra sessão atual.
   const [dark, setDark] = useState(true)
+  // CTAs de contato vão pro WhatsApp do comercial (config), nunca e-mail.
+  const cfg = useAppConfig()
+  const waDemo = buildWhatsappLink(cfg.comercialWhatsapp, 'Olá! Quero agendar uma demonstração do Visor360.') ?? MAIL.demo
+  const waSuporte = buildWhatsappLink(cfg.comercialWhatsapp, 'Olá! Preciso de suporte no Visor360.') ?? MAIL.suporte
   const toggleTheme = () => setDark((v) => !v)
 
   // Enquanto a landing está montada, ela manda no tema (classe `dark` no <html>);
@@ -400,7 +406,7 @@ const Landing = () => {
             <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.6, color: 'var(--v-muted2)', maxWidth: 520 }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês. Tudo por <strong style={{ color: 'var(--v-ink)' }}>R$ 199,99/mês</strong>.</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
               <Link to="/como-comecar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Assinar agora →</Link>
-              <a href={MAIL.demo} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--v-card)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração</a>
+              <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--v-card)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração</a>
             </div>
           </div>
         </div>
@@ -426,7 +432,7 @@ const Landing = () => {
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Contato</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
-                  <a href={MAIL.demo} style={{ color: 'inherit' }}>Agendar demonstração</a><a href={MAIL.suporte} style={{ color: 'inherit' }}>Suporte</a><a href={MAIL.email} style={{ color: 'inherit' }}>comercial@cci.app.br</a>
+                  <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Agendar demonstração</a><a href={waSuporte} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Suporte</a><a href={MAIL.email} style={{ color: 'inherit' }}>comercial@cci.app.br</a>
                 </div>
               </div>
             </div>
