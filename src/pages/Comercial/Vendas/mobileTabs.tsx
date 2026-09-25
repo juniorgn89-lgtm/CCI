@@ -20,10 +20,12 @@ import { brlShort, brl, liters, litersShort, pct, periodoMes, variacaoPct } from
  * entre a Central (hub) e o VendasMobile legado. Pista vive em PistaTabMobile.
  */
 
+// Tile empilhado (rótulo em cima, valor embaixo): no celular, rótulo e valor na
+// mesma linha dentro de meia coluna colidiam (ex.: "Faturamento R$ 3.670.080,64").
 const Detail = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between">
-    <span className="text-gray-500 dark:text-gray-400">{label}</span>
-    <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{value}</span>
+  <div className="min-w-0 rounded-lg bg-white/70 px-2.5 py-1.5 dark:bg-white/[0.04]">
+    <p className="truncate text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+    <p className="mt-0.5 truncate text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
   </div>
 )
 
@@ -120,7 +122,7 @@ export const CombustivelTab = () => {
                   <MarginPill value={f.margem} />
                 </button>
                 {open && (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 bg-gray-50 px-3.5 pb-3 pt-1 text-[11.5px] dark:bg-[#1c1c1c]">
+                  <div className="grid grid-cols-2 gap-2 bg-gray-50 px-3 pb-3 pt-2 dark:bg-[#1c1c1c]">
                     <Detail label="Faturamento" value={brl(f.faturamento)} />
                     <Detail label="Custo (CMV)" value={brl(f.custo)} />
                     <Detail label="Preço médio" value={brl(f.precoMedioVenda)} />
