@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth'
 import { useAuth } from '@/hooks/useAuth'
 import useEmpresaNome from '@/hooks/useEmpresaNome'
 import { useRedeNomeExibicao } from '@/hooks/useDemo'
+import AppLauncher from '@/components/layout/AppLauncher'
 import type { NavItem } from '@/components/layout/navConfig'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import MobileFilterSheet from '@/components/mobile/MobileFilterSheet'
@@ -95,6 +96,8 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
               <span className="block truncate text-[11px] leading-tight text-white/70">{subtitle}</span>
             </span>
           </button>
+          {/* Launcher da suíte CCI (grade ⋮⋮⋮) — abre os outros apps. */}
+          <AppLauncher variant="mobile" />
           {/* Pill "Tempo real" */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
             <span className="relative flex h-2 w-2">

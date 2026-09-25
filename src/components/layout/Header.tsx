@@ -7,6 +7,7 @@ import { useFocusMode } from '@/store/focusMode'
 import PotencialButton from '@/components/layout/PotencialButton'
 import DemoModeToggle from '@/components/layout/DemoModeToggle'
 import ThemeToggle from '@/components/layout/ThemeToggle'
+import AppLauncher from '@/components/layout/AppLauncher'
 import HeaderInstallButton from '@/components/pwa/HeaderInstallButton'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
@@ -150,6 +151,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           <HeaderInstallButton />
           {/* Alternar tema (Claro/Sistema/Escuro) — mesmas opções das Configurações. */}
           <ThemeToggle />
+          {/* Launcher da suíte CCI (grade ⋮⋮⋮ estilo Google) — abre os outros apps. */}
+          <AppLauncher />
           {/* Engrenagem do módulo (ModuleSettings via slot). */}
           <div id={HEADER_TRAY_SLOT_ID} className="flex items-center gap-1" />
         </div>
