@@ -175,7 +175,8 @@ const Landing = () => {
   }, [])
 
   // Usuário logado não vê a landing — vai direto pro painel.
-  if (session) return <Navigate to="/dashboard" replace />
+  // Logado não vê a landing — vai pro painel (preservando ?instalar=1 do launcher).
+  if (session) return <Navigate to={`/dashboard${window.location.search}`} replace />
 
   return (
     <div className="v360-landing">

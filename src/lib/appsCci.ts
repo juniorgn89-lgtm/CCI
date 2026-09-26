@@ -24,7 +24,13 @@ export interface CciApp {
   badge?: string
   /** 'master' = só dono/diretores veem o tile (ex.: portal interno). Default: todos. */
   visivelPara?: 'master' | 'todos'
+  /** É um PWA instalável → o launcher mostra "instalar" (abre o app com ?instalar=1). */
+  pwa?: boolean
 }
+
+/** URL que abre o app já pedindo instalação (o app-alvo trata `?instalar=1`). */
+export const installUrlDe = (app: CciApp): string =>
+  `${app.url}${app.url.includes('?') ? '&' : '?'}instalar=1`
 
 /** Id do app em que este código roda (o tile fica marcado como "você está aqui"). */
 export const APP_ATUAL_ID = 'visor360'
@@ -43,6 +49,7 @@ export const CCI_APPS: CciApp[] = [
     nome: 'Visor360',
     descricao: 'Gestão da rede de postos',
     url: 'https://visor360.cci.app.br/',
+    pwa: true,
     Icon: LayoutDashboard,
     tile: 'from-[#1e3a5f] to-[#2563eb]',
   },
@@ -51,6 +58,7 @@ export const CCI_APPS: CciApp[] = [
     nome: 'Prospecção360',
     descricao: 'Funil e carteira de prospecção',
     url: 'https://prospeccao360.cci.app.br/login',
+    pwa: true,
     Icon: Target,
     tile: 'from-[#0F766E] to-[#14b8a6]',
   },

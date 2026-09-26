@@ -18,6 +18,15 @@ const LandingInstallButton = () => {
   const [help, setHelp] = useState(false)
   useEffect(() => subscribeInstall(() => force((n) => n + 1)), [])
 
+  // Deep link `?instalar=1` (vindo do launcher de outro app da suíte): já abre a instalação.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('instalar') !== '1') return
+    if (isStandalone()) return
+    const p = getInstallPrompt()
+    if (p) void (async () => { await p.prompt(); await p.userChoice; clearInstallPrompt() })()
+    else setHelp(true)
+  }, [])
+
   if (isStandalone()) return null
 
   const onClick = async () => {
