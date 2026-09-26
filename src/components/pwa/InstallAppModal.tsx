@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Download } from 'lucide-react'
-import { getInstallPrompt, clearInstallPrompt } from '@/lib/pwaInstall'
+import { getInstallPrompt, clearInstallPrompt, subscribeInstall } from '@/lib/pwaInstall'
 
 /** Já está rodando como app instalado (tela de início / standalone)? */
 export const isStandalone = () =>
@@ -24,6 +24,11 @@ interface InstallAppModalProps {
  */
 const InstallAppModal = ({ open, onClose, nome = 'Visor360' }: InstallAppModalProps) => {
   const disparado = useRef(false)
+  // O `beforeinstallprompt` costuma chegar um pouco DEPOIS do load (caso do deep
+  // link `?instalar=1`, que abre o modal no primeiro render): quando ele chega
+  // com o modal aberto, re-renderiza e dispara o prompt nativo no lugar dos passos.
+  const [, tick] = useState(0)
+  useEffect(() => subscribeInstall(() => tick((n) => n + 1)), [])
 
   useEffect(() => {
     if (!open) { disparado.current = false; return }
@@ -36,7 +41,7 @@ const InstallAppModal = ({ open, onClose, nome = 'Visor360' }: InstallAppModalPr
       clearInstallPrompt()
       onClose()
     })()
-  }, [open, onClose])
+  })
 
   if (!open) return null
   // Prompt nativo em andamento — o navegador mostra a própria caixa.

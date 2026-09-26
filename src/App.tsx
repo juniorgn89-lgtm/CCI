@@ -11,6 +11,7 @@ import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
 import { todayLocal } from '@/lib/period'
 import type { PlanoId } from '@/lib/planos'
+import InstallDeepLink from '@/components/pwa/InstallDeepLink'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -248,6 +249,9 @@ const App = () => {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <PerfScreenTracker />
+        {/* `?instalar=1` vindo do launcher de outro app da suíte: vale em qualquer
+            rota (inclusive /login, antes de autenticar), por isso fica na raiz. */}
+        <InstallDeepLink />
         <PerfProfiler id="page">
           <AppRoutes />
         </PerfProfiler>

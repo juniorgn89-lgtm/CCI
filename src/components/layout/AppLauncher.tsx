@@ -129,6 +129,9 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
               <Download className="h-3.5 w-3.5" /> Instalar o Visor360 neste aparelho
             </button>
           )}
+          <p className="mt-1 px-3 pb-1 text-center text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">
+            Os outros apps se instalam a partir deles mesmos: o clique abre o app e ele pede a instalação.
+          </p>
         </DropdownMenuContent>
       </DropdownMenu>
 
