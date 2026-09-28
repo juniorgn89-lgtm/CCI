@@ -12,6 +12,7 @@ import { useFilterStore } from '@/store/filters'
 import { todayLocal } from '@/lib/period'
 import type { PlanoId } from '@/lib/planos'
 import InstallDeepLink from '@/components/pwa/InstallDeepLink'
+import MarcaTextoLinhas from '@/components/tables/MarcaTextoLinhas'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -252,6 +253,8 @@ const App = () => {
         {/* `?instalar=1` vindo do launcher de outro app da suíte: vale em qualquer
             rota (inclusive /login, antes de autenticar), por isso fica na raiz. */}
         <InstallDeepLink />
+        {/* Marca-texto de linhas em qualquer tabela sem ação própria (delegado, global). */}
+        <MarcaTextoLinhas />
         <PerfProfiler id="page">
           <AppRoutes />
         </PerfProfiler>

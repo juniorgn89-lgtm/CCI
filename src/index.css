@@ -243,3 +243,25 @@
   80%  { opacity: 1; transform: translateY(-24px) scale(1); }
   100% { opacity: 0; transform: translateY(-32px) scale(0.8); }
 }
+
+/* "Marca-texto" de linhas (components/tables/MarcaTextoLinhas.tsx): clicar numa
+   linha sem ação própria liga `data-marcada`. O tom entra POR CIMA do fundo da
+   célula (heatmap incluído) via inset shadow, sem trocar a cor original; a
+   1ª célula ganha uma barra amarela à esquerda. Esc limpa. */
+tbody > tr[data-marcada] > td,
+tbody > tr[data-marcada] > th {
+  box-shadow: inset 0 0 0 9999px rgba(250, 204, 21, 0.28);
+  cursor: default;
+}
+tbody > tr[data-marcada] > td:first-child,
+tbody > tr[data-marcada] > th:first-child {
+  box-shadow: inset 3px 0 0 #eab308, inset 0 0 0 9999px rgba(250, 204, 21, 0.28);
+}
+.dark tbody > tr[data-marcada] > td,
+.dark tbody > tr[data-marcada] > th {
+  box-shadow: inset 0 0 0 9999px rgba(250, 204, 21, 0.16);
+}
+.dark tbody > tr[data-marcada] > td:first-child,
+.dark tbody > tr[data-marcada] > th:first-child {
+  box-shadow: inset 3px 0 0 #facc15, inset 0 0 0 9999px rgba(250, 204, 21, 0.16);
+}
