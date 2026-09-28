@@ -65,7 +65,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
   // Só busca os 6 meses quando ligado (evita custo no dia a dia). Lê o AGREGADO
   // por setor/dia (view) — a sazonal não precisa do detalhe por produto, então
   // troca ~675 páginas de apuracao_vendas por 1–3. Ver useCentralSazonal.
-  const { data: histRows = [], isLoading } = useRedeSetorDiaria(histIni, histEnd, { enabled })
+  const { data: histRows = [], isLoading } = useRedeSetorDiaria(histIni, histEnd, { enabled, setor })
 
   // Período de comparação COMPLETO (mês inteiro anterior — ou o mesmo mês do ano
   // passado) pro badge. Comparar a projeção do mês CHEIO com um período PARCIAL
@@ -73,12 +73,12 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   const cmpStart = monthsBackFirst(monthStart, cmpOffset)
   const cmpEnd = prevDay(monthsBackFirst(monthStart, cmpOffset - 1))
-  const { data: cmpRows = [] } = useRedeSetorDiaria(cmpStart, cmpEnd, { enabled })
+  const { data: cmpRows = [] } = useRedeSetorDiaria(cmpStart, cmpEnd, { enabled, setor })
 
   // Mês CORRENTE rede-wide (agregado por setor/dia) — base do FATOR de fechamento
   // rede-wide, aplicado em TODO escopo pra a projeção por posto somar com a rede.
   const monthEndIso = fimDoMesIso(dataInicial || todayLocal())
-  const { data: curRows = [] } = useRedeSetorDiaria(monthStart, monthEndIso, { enabled })
+  const { data: curRows = [] } = useRedeSetorDiaria(monthStart, monthEndIso, { enabled, setor })
 
   return useMemo(() => {
     const matchEmpresa = (code: number) => (empresaCodigos.length === 0 ? permittedCodes.has(code) : empresaCodigos.includes(code))

@@ -1181,7 +1181,7 @@ export interface ApuracaoVendaSetorDiariaRow {
  * Ver docs/supabase-apuracao-vendas-setor-diaria.sql.
  */
 export const fetchVendasSetorDiaria = async (
-  params: { dataInicial: string; dataFinal: string; empresaCodigos?: number[] },
+  params: { dataInicial: string; dataFinal: string; empresaCodigos?: number[]; setor?: string },
 ): Promise<ApuracaoVendaSetorDiariaRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
@@ -1203,6 +1203,11 @@ export const fetchVendasSetorDiaria = async (
       .range(from, from + pageSize - 1)
     // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
     if (redeId) query = query.eq('rede_id', redeId)
+    // Setor NO SERVIDOR: o Postgres empurra o filtro pra dentro do GROUP BY da
+    // view e varre só as linhas daquele setor (combustível ≈ 5% da tabela).
+    // Sem isto, 6 meses de histórico = ~115 mil linhas base agregadas numa
+    // instrução só, com a RLS avaliada linha a linha → 5,7 s/página e timeout.
+    if (params.setor) query = query.eq('setor', params.setor)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {
       query = query.in('empresa_codigo', params.empresaCodigos)
     }

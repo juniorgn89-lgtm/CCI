@@ -43,12 +43,13 @@ export const useRedeVendasCache = (
 export const useRedeSetorDiaria = (
   dataInicial: string,
   dataFinal: string,
-  opts?: { enabled?: boolean; staleTime?: number },
+  opts?: { enabled?: boolean; staleTime?: number; setor?: string },
 ) => {
   const rede = useTenantStore((s) => s.rede)
+  const setor = opts?.setor
   return useQuery<ApuracaoVendaSetorDiariaRow[]>({
-    queryKey: ['rede-setor-diaria', rede?.id, dataInicial, dataFinal],
-    queryFn: () => fetchVendasSetorDiaria({ dataInicial, dataFinal }),
+    queryKey: ['rede-setor-diaria', rede?.id, dataInicial, dataFinal, setor ?? 'todos'],
+    queryFn: () => fetchVendasSetorDiaria({ dataInicial, dataFinal, setor }),
     enabled: (opts?.enabled ?? true) && !!rede && !!dataInicial && !!dataFinal,
     staleTime: opts?.staleTime ?? 5 * 60 * 1000,
   })
