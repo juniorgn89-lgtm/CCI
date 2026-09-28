@@ -2,6 +2,8 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEven
 import { Sparkles } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { useChartTheme } from '@/lib/chartTheme'
+import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
+import type { ProjecaoModo } from '@/lib/projecaoModo'
 import { cn } from '@/lib/utils'
 
 /**
@@ -115,6 +117,9 @@ interface AnaliseSemanalLineCardProps {
    *  o fim do mês e uma linha tracejada de "projeção de fechamento" é sobreposta
    *  — pra comparar cada dia realizado com o esperado. */
   projecao?: { data: string; esperado: number }[]
+  /** Modo da projeção (sazonal × linear + motivo): a legenda só diz "por
+   *  dia-da-semana" quando foi mesmo; no linear mostra o aviso com o porquê. */
+  projecaoModo?: ProjecaoModo
   /** Cor da linha/área. Default: accent do tema (sensível ao dark). */
   accent?: string
   /** Faixa de fim de semana (sáb/dom). Default true. */
@@ -136,7 +141,7 @@ interface AnaliseSemanalLineCardProps {
   headerExtra?: ReactNode
 }
 
-const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900', scope = 'da rede', chartType = 'line', headerExtra }: AnaliseSemanalLineCardProps) => {
+const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun = 'volume', unit = 'litros', lbLabel = 'L.B./litro', plotFaturamento = false, projecao, projecaoModo, accent: accentProp, showWeekend = true, height = 300, cardBg = 'bg-white dark:bg-gray-900', scope = 'da rede', chartType = 'line', headerExtra }: AnaliseSemanalLineCardProps) => {
   const ct = useChartTheme()
   const accent = accentProp ?? ct.accent
   // Valor plotado: faturamento (quando ligado) ou a quantidade (litros/unidades).
@@ -299,7 +304,8 @@ const AnaliseSemanalLineCard = ({ data, title = 'Litros vendidos por dia', noun 
       {g.hasProj && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-gray-500 dark:text-gray-400">
           <span className="inline-flex items-center gap-1.5"><span className="h-[3px] w-4 rounded-full" style={{ backgroundColor: accent }} />Realizado</span>
-          <span className="inline-flex items-center gap-1.5"><svg width="18" height="4" className="overflow-visible"><line x1="0" y1="2" x2="18" y2="2" stroke="#7c3aed" strokeWidth="2" strokeDasharray="6 4" /></svg>Projeção esperada (por dia-da-semana, até o fim do mês)</span>
+          <span className="inline-flex items-center gap-1.5"><svg width="18" height="4" className="overflow-visible"><line x1="0" y1="2" x2="18" y2="2" stroke="#7c3aed" strokeWidth="2" strokeDasharray="6 4" /></svg>{projecaoModo?.linear ? 'Projeção linear (média dos dias decorridos, até o fim do mês)' : 'Projeção esperada (por dia-da-semana, até o fim do mês)'}</span>
+          {projecaoModo && <ProjecaoModoAviso modo={projecaoModo} />}
         </div>
       )}
 

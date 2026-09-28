@@ -884,6 +884,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               sparkline={false}
               cenarios={false}
               mediasInteiras
+              modo={sz.modo}
               loading={isLoadingVendas || sz.isLoading}
             />
           </div>
@@ -958,7 +959,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                     )}
                     {verPorPosto
                       ? <PostoDiaTabela matrix={postoDiaMatrix!} title="Faturamento por dia" noun="faturamento" formatValue={(v) => formatCurrencyInt(v)} />
-                      : <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} cardBg="bg-white dark:bg-transparent" />}
+                      : <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} projecaoModo={sz.modo} cardBg="bg-white dark:bg-transparent" />}
                   </div>
                   )
                 })()}

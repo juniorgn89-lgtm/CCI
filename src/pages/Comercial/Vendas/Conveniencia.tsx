@@ -149,6 +149,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     projecaoFat,
     projComparativo,
     sazonalFatIndex,
+    sazonalModo,
     catalogProducts,
     gruposList,
     groupTable,
@@ -400,6 +401,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               sparkline={false}
               cenarios={false}
               mediasInteiras
+              modo={sazonalModo}
               loading={showSkeleton}
             />
           </div>
@@ -481,7 +483,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                         )}
                         {verPorPosto
                           ? <PostoDiaTabela matrix={postoDiaMatrix!} title="Faturamento por dia" noun="faturamento" formatValue={(v) => formatCurrencyInt(v)} />
-                          : <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} cardBg="bg-white dark:bg-transparent" />}
+                          : <AnaliseSemanalLineCard data={diaSerie} title="Faturamento por dia" noun="faturamento" unit="unidades" lbLabel="L.B./unidade" plotFaturamento projecao={projFatDaily} projecaoModo={sazonalModo} cardBg="bg-white dark:bg-transparent" />}
                       </div>
                       )
                     })()}

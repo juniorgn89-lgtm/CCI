@@ -967,6 +967,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               lbPorUnidade={pilotoSazonal.sazonal.litros.esperado > 0 ? pilotoSazonal.sazonal.lucro.esperado / pilotoSazonal.sazonal.litros.esperado : 0}
               sparkline={false}
               cenarios={false}
+              modo={pilotoSazonal.modo}
               mediasInteiras
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
@@ -1077,7 +1078,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                         )}
                         {verPorPosto
                           ? <PostoDiaTabela matrix={postoDiaMatrix!} title="Litros vendidos por dia" noun="volume" formatValue={(v) => formatNumber(Math.round(v))} />
-                          : <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} cardBg="bg-white dark:bg-transparent" />}
+                          : <AnaliseSemanalLineCard data={diaSerie} projecao={projLitrosDaily} projecaoModo={pilotoSazonal.modo} cardBg="bg-white dark:bg-transparent" />}
                       </div>
                       )
                     })()}

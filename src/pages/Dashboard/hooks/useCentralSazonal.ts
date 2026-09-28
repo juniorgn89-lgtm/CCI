@@ -6,6 +6,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { todayLocal } from '@/lib/period'
 import { weekdayIndices, diasOperacaoProxy } from '@/lib/projection'
+import { modoProjecao, MIN_DIAS_SAZONAL, type ProjecaoModo } from '@/lib/projecaoModo'
 
 /**
  * Índices SAZONAIS (dia-da-semana) da Central, POR SETOR na rede e POR MÉTRICA
@@ -38,6 +39,8 @@ export interface CentralSazonal {
   isLoading: boolean
   /** Índice de dia-da-semana do SETOR na rede, por métrica. `{}` = linear. */
   indice: (setor: SetorId, metrica: Metrica) => Record<number, number>
+  /** Modo efetivo (sazonal/linear + motivo) do setor — pro aviso do painel. */
+  modo: (setor: SetorId) => ProjecaoModo
 }
 
 const useCentralSazonal = (): CentralSazonal => {
@@ -75,10 +78,13 @@ const useCentralSazonal = (): CentralSazonal => {
       [...dm.entries()].map(([data, v]) => ({ data, value: v[k] })).sort((a, b) => a.data.localeCompare(b.data))
 
     const idx = new Map<string, Record<number, number>>()
+    const modos = new Map<SetorId, ProjecaoModo>()
     for (const s of SETORES) {
       const dm = byDay.get(s)!
       // <90d de histórico do setor → linear (índice vazio).
-      const linear = diasOperacaoProxy(first.get(s) ?? null, today) < 90
+      const diasOperacao = diasOperacaoProxy(first.get(s) ?? null, today)
+      const linear = diasOperacao < MIN_DIAS_SAZONAL
+      modos.set(s, modoProjecao({ isLoading, histDias: dm.size, diasOperacao }))
       idx.set(`${s}|faturamento`, linear ? EMPTY : weekdayIndices(serie(dm, 'fat')))
       idx.set(`${s}|qtd`, linear ? EMPTY : weekdayIndices(serie(dm, 'qtd')))
       idx.set(`${s}|lucro`, linear ? EMPTY : weekdayIndices(serie(dm, 'luc')))
@@ -87,6 +93,7 @@ const useCentralSazonal = (): CentralSazonal => {
     return {
       isLoading,
       indice: (setor: SetorId, metrica: Metrica) => idx.get(`${setor}|${metrica}`) ?? EMPTY,
+      modo: (setor: SetorId) => modos.get(setor) ?? modoProjecao({ isLoading, histDias: 0, diasOperacao: 0 }),
     }
   }, [histRows, isLoading, empresaCodigos, permittedCodes])
 }

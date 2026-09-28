@@ -6,6 +6,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useRedeSetorDiaria } from '@/pages/Operacao/hooks/useRedeVendasCache'
 import { todayLocal } from '@/lib/period'
 import { fimDoMesIso, weekdayIndices, diasOperacaoProxy, projecaoSazonal, reprojectByFactor, type ProjecaoAvancadaResult } from '@/lib/projection'
+import { modoProjecao, MIN_DIAS_SAZONAL, type ProjecaoModo } from '@/lib/projecaoModo'
 
 /**
  * Projeção SAZONAL rede-wide. Busca 6 meses de histórico diário do cache
@@ -40,6 +41,8 @@ export interface ProjecaoSazonalPiloto {
   diasOperacao: number
   linear: boolean
   histDias: number
+  /** Modo efetivo + motivo — pra UI dizer a verdade quando cai em linear. */
+  modo: ProjecaoModo
   indices: { faturamento: Record<number, number>; litros: Record<number, number>; lucro: Record<number, number> }
   /** Fator de fechamento REDE-WIDE por métrica (`esperado = realizado × fator`).
    * Mesmo fator em todo escopo → a projeção por posto soma exato com a rede. */
@@ -112,7 +115,8 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
 
     const today = todayLocal()
     const diasOperacao = diasOperacaoProxy(firstData || null, today)
-    const linear = diasOperacao < 90
+    const linear = diasOperacao < MIN_DIAS_SAZONAL
+    const modo = modoProjecao({ isLoading, histDias: byDay.size, diasOperacao })
     const monthEnd = fimDoMesIso(dataInicial || today)
     const proj = (key: 'faturamento' | 'litros' | 'lucroBruto', idx: Record<number, number>) =>
       projecaoSazonal({
@@ -150,6 +154,7 @@ const useProjecaoSazonalPiloto = (dailyData: FuelDailyPoint[], enabled = true, s
       diasOperacao,
       linear,
       histDias: byDay.size,
+      modo,
       indices: { faturamento: idxFat, litros: idxLit, lucro: idxLuc },
       fatores,
       // `sazonal` também reprojEtado pelo fator rede-wide → o card grande

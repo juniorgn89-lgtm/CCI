@@ -13,6 +13,10 @@ import { fetchVendasCache } from '@/api/supabase/apuracao'
 import { weekdayMonthEndFactor, projecaoSazonal, projecaoAvancada, fimDoMesIso } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
+import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
+
+const SETORES_PROJ = ['combustivel', 'automotivos', 'conveniencia'] as const
+const SETOR_NOME: Record<(typeof SETORES_PROJ)[number], string> = { combustivel: 'combustível', automotivos: 'automotivos', conveniencia: 'conveniência' }
 
 const PROJECAO_TOOLTIP_SAZONAL =
   'Projeção de fechamento do mês SAZONAL por posto: realizado × fator fim-de-mês ponderado pelo dia-da-semana (índice de 6 meses de histórico de cada posto; ramo linear quando <90d de operação). A rede é a SOMA dos postos — o painel e a tabela por posto batem número a número. Base fiscal carimbada; é estimativa, não o valor fechado.'
@@ -413,6 +417,11 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 text={PROJECAO_TOOLTIP_SAZONAL}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
               />
+              {/* Honestidade: fechado = rede (3 setores) → um chip por setor em linear;
+                  aberto = só o setor escolhido. Some quando tudo é sazonal. */}
+              {(expanded ? [setorProj] : SETORES_PROJ).map((s) => (
+                <ProjecaoModoAviso key={s} modo={sazonal.modo(s)} contexto={SETOR_NOME[s]} tone="navy" />
+              ))}
               {projResumo.cmpPct !== null && (
                 <>
                   <span

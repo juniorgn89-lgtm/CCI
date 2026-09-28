@@ -932,6 +932,8 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
     /** Índice sazonal (dia-da-semana) de FATURAMENTO — pra linha de projeção do
      *  gráfico. `{}` = linear. */
     sazonalFatIndex: sz.linear ? {} : sz.indices.faturamento,
+    /** Modo efetivo da projeção (sazonal × linear + motivo) — pros avisos da UI. */
+    sazonalModo: sz.modo,
     // Consolidado a partir do cache (apuracao_vendas) — sempre "instantâneo".
     isCacheHit: true,
     // Vendas brutas não são mais expostas (cache é agregado); os modals

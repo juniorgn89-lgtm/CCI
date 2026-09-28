@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LineChart, TrendingUp, TrendingDown, CalendarCheck, CalendarClock, Gauge, ShieldCheck, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
 import { ResponsiveContainer, ComposedChart, Area, Line } from 'recharts'
 import InfoHint from '@/components/ui/InfoHint'
+import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
+import type { ProjecaoModo } from '@/lib/projecaoModo'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
@@ -29,6 +31,8 @@ interface ProjecaoExecutivaProps {
   /** Médias (ritmo/dia, média/dia) como número INTEIRO em vez de compacto. */
   mediasInteiras?: boolean
   loading?: boolean
+  /** Modo efetivo da projeção — chip "Projeção linear" (com motivo) quando não é sazonal. */
+  modo?: ProjecaoModo
   /** Expansão controlada por fora (toggle global que também abre os detalhes
    * por combustível nos KPIs). Se omitido, usa estado interno. */
   expanded?: boolean
@@ -123,6 +127,7 @@ const ProjecaoExecutiva = ({
   cenarios = true,
   mediasInteiras = false,
   loading = false,
+  modo,
   expanded: expandedProp,
   onToggleExpanded,
 }: ProjecaoExecutivaProps) => {
@@ -191,6 +196,7 @@ const ProjecaoExecutiva = ({
             align="start"
             className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
           />
+          {modo && <ProjecaoModoAviso modo={modo} tone="navy" />}
         </div>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
           <LineChart className="h-4 w-4 text-white" />
