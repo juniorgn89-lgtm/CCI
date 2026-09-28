@@ -33,6 +33,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.1',
+    data: '2026-09-28',
+    resumo: 'Marque linhas nas tabelas com um clique e abra a aba Combustível da Central bem mais rápido.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Marca-texto nas tabelas',
+        descricao:
+          'Clique numa linha de qualquer tabela para destacá-la em amarelo e acompanhar um posto ou produto na tela. Clique de novo para tirar; Esc limpa tudo. Linhas que abrem detalhes continuam abrindo.',
+      },
+      {
+        icone: 'atualizacao',
+        titulo: 'Central da Rede · Combustível mais rápida',
+        descricao: 'A aba passou a ler só os dados de combustível, em vez de toda a rede. Os números são os mesmos, só chegam antes.',
+      },
+    ],
+  },
+  {
     versao: '1.2.0',
     data: '2026-09-28',
     resumo: 'Os apps da CCI num só lugar, Modo Demonstração e análises prontas no Cadu iA.',
