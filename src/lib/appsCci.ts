@@ -26,6 +26,18 @@ export interface CciApp {
   visivelPara?: 'master' | 'todos'
   /** É um PWA instalável → o launcher mostra "instalar" (abre o app com ?instalar=1). */
   pwa?: boolean
+  /**
+   * URL do manifesto (só PWAs). É por ela que `getInstalledRelatedApps` confirma
+   * "instalado" — e ela precisa estar em `related_applications` do NOSSO
+   * manifesto (vite.config.ts). Igual ao registro do Prospecção360.
+   */
+  manifest?: string
+  /**
+   * O manifesto DELE também declara o nosso. Só com a relação nos dois sentidos
+   * o navegador confirma instalação entre domínios — e só então "ausente na
+   * resposta" significa "não instalado" (e o tile pode dizer "instalar").
+   */
+  reciproco?: boolean
 }
 
 /** URL que abre o app já pedindo instalação (o app-alvo trata `?instalar=1`). */
@@ -50,6 +62,7 @@ export const CCI_APPS: CciApp[] = [
     descricao: 'Gestão da rede de postos',
     url: 'https://visor360.cci.app.br/',
     pwa: true,
+    manifest: 'https://visor360.cci.app.br/manifest.webmanifest',
     Icon: LayoutDashboard,
     tile: 'from-[#1e3a5f] to-[#2563eb]',
   },
@@ -59,6 +72,8 @@ export const CCI_APPS: CciApp[] = [
     descricao: 'Funil e carteira de prospecção',
     url: 'https://prospeccao360.cci.app.br/login',
     pwa: true,
+    manifest: 'https://prospeccao360.cci.app.br/manifest.webmanifest',
+    reciproco: true,
     Icon: Target,
     tile: 'from-[#0F766E] to-[#14b8a6]',
   },

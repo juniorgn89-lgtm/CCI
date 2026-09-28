@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Grip, Check, Download } from 'lucide-react'
+import { Grip, Check, Download, MonitorDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { CCI_APPS, APP_ATUAL_ID, installUrlDe } from '@/lib/appsCci'
 import InstallAppModal, { isStandalone } from '@/components/pwa/InstallAppModal'
+import { useAppsInstalados } from '@/lib/appsInstalados'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,9 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
   const apps = CCI_APPS.filter((a) => a.visivelPara !== 'master' || isMaster)
   const [installOpen, setInstallOpen] = useState(false)
   const instalado = isStandalone()
+  // O que o navegador CONFIRMOU instalado (getInstalledRelatedApps). Fora da
+  // lista = "não sei", a não ser que ele tenha respondido e o app seja recíproco.
+  const { instalados, respondeu } = useAppsInstalados()
 
   return (
     <>
@@ -66,12 +70,26 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
             <div className="grid grid-cols-3">
               {apps.map((app) => {
                 const atual = app.id === APP_ATUAL_ID
+                const appInstalado = instalados.has(app.id)
                 const Icon = app.Icon
-                const icone = app.img ? (
-                  <img src={app.img} alt="" className="h-12 w-12 object-contain drop-shadow-sm" />
-                ) : (
-                  <span className={cn('flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', app.tile)}>
-                    {Icon && <Icon className="h-6 w-6" />}
+                const icone = (
+                  <span className="relative">
+                    {app.img ? (
+                      <img src={app.img} alt="" className="h-12 w-12 object-contain drop-shadow-sm" />
+                    ) : (
+                      <span className={cn('flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', app.tile)}>
+                        {Icon && <Icon className="h-6 w-6" />}
+                      </span>
+                    )}
+                    {/* Selo só do que o navegador confirmou instalado. */}
+                    {appInstalado && !atual && (
+                      <span
+                        title="Instalado neste aparelho"
+                        className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-white text-emerald-600 shadow ring-1 ring-black/10 dark:bg-[#1f1f22] dark:text-emerald-400 dark:ring-white/15"
+                      >
+                        <MonitorDown className="h-3 w-3" />
+                      </span>
+                    )}
                   </span>
                 )
                 const nome = (
@@ -102,7 +120,12 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
                       {icone}
                       {nome}
                     </a>
-                    {app.pwa && (
+                    {appInstalado && (
+                      <span className="mt-0.5 block text-[9.5px] font-medium text-emerald-600 dark:text-emerald-400">instalado</span>
+                    )}
+                    {/* "instalar" só quando NÃO instalado é conhecido: o navegador respondeu
+                        e o app de destino declara a relação de volta no manifesto dele. */}
+                    {app.pwa && app.reciproco && respondeu && !appInstalado && (
                       <a
                         href={installUrlDe(app)}
                         target="_blank"
