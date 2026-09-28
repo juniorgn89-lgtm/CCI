@@ -25,6 +25,17 @@ export default defineConfig({
         orientation: 'any',
         start_url: '/',
         scope: '/',
+        // Quando o navegador entrega um link ao app instalado, reaproveita a
+        // janela aberta em vez de abrir outra.
+        launch_handler: { client_mode: 'navigate-existing' },
+        // Relação com os outros apps da suíte, nos dois sentidos: é o que
+        // permite ao Prospecção360 confirmar (getInstalledRelatedApps) que o
+        // Visor360 está instalado — e vice-versa. Sem isto, o launcher do outro
+        // app não sabe e não pode dizer "instalado" nem "instalar".
+        related_applications: [
+          { platform: 'webapp', url: 'https://visor360.cci.app.br/manifest.webmanifest' },
+          { platform: 'webapp', url: 'https://prospeccao360.cci.app.br/manifest.webmanifest' },
+        ],
         icons: [
           {
             src: '/brand/visor360-icon-192.png',
