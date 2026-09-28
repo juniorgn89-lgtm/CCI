@@ -1104,8 +1104,17 @@ export interface ApuracaoVendaRow {
 /** Linha pronta pra UPSERT (sem campos de auditoria que o banco preenche). */
 export type ApuracaoVendaUpsert = Omit<ApuracaoVendaRow, 'computed_at' | 'computed_by'>
 
+/** Mesmos params do caixa + filtro opcional de setor, aplicado NO SERVIDOR. */
+export interface FetchVendasCacheParams extends FetchCaixasCacheParams {
+  /** `combustivel` | `automotivos` | `conveniencia`. Sem ele, traz a rede toda
+   * (todos os setores) — em set/2026 a conveniência era ~90% das linhas, então
+   * uma tela de combustível baixava ~20 mil linhas pra usar ~300. Há índice
+   * parcial (rede_id, data, setor) pra isto. */
+  setor?: string
+}
+
 export const fetchVendasCache = async (
-  params: FetchCaixasCacheParams,
+  params: FetchVendasCacheParams,
 ): Promise<ApuracaoVendaRow[]> => {
   if (!supabase) return []
   const __t0 = perfNow()
@@ -1126,6 +1135,7 @@ export const fetchVendasCache = async (
       .order('empresa_codigo', { ascending: true })
       .order('produto_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
+    if (params.setor) query = query.eq('setor', params.setor)
     // Escopo por rede (evita scan cross-rede/timeout em usuário multi-rede).
     if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos && params.empresaCodigos.length > 0) {

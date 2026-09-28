@@ -266,8 +266,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
   // Fetch rede-wide COMPARTILHADO (chave canônica) — mesma leitura que Combustível
   // e Conveniência reaproveitam via React Query (ver useRedeVendasCache).
-  const { data: cacheCur = [], isLoading: isLoadingVendas } = useRedeVendasCache(curIni, curEnd)
-  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal)
+  const { data: cacheCur = [], isLoading: isLoadingVendas } = useRedeVendasCache(curIni, curEnd, { setor: 'automotivos' })
+  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal, { setor: 'automotivos' })
 
   // Rows do cache (automotivos, posto selecionado) → "itens" agregados que os
   // memos já consomem (vendaCodigo dispensado). `[]` = rede; subconjunto = recorte.

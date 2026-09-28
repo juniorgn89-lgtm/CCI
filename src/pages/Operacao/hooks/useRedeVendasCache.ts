@@ -18,12 +18,16 @@ import { fetchVendasCache, fetchVendasSetorDiaria, type ApuracaoVendaRow, type A
 export const useRedeVendasCache = (
   dataInicial: string,
   dataFinal: string,
-  opts?: { enabled?: boolean; staleTime?: number },
+  opts?: { enabled?: boolean; staleTime?: number; setor?: string },
 ) => {
   const rede = useTenantStore((s) => s.rede)
+  // `setor` filtra NO SERVIDOR: cada aba baixa só o próprio setor (combustível é
+  // ~1% das linhas; conveniência ~90%). A chave inclui o setor, então as abas
+  // deixam de compartilhar UMA leitura gigante e passam a ter leituras pequenas.
+  const setor = opts?.setor
   return useQuery<ApuracaoVendaRow[]>({
-    queryKey: ['rede-vendas-cache', rede?.id, dataInicial, dataFinal],
-    queryFn: () => fetchVendasCache({ dataInicial, dataFinal }),
+    queryKey: ['rede-vendas-cache', rede?.id, dataInicial, dataFinal, setor ?? 'todos'],
+    queryFn: () => fetchVendasCache({ dataInicial, dataFinal, setor }),
     enabled: (opts?.enabled ?? true) && !!rede && !!dataInicial && !!dataFinal,
     staleTime: opts?.staleTime ?? 5 * 60 * 1000,
   })

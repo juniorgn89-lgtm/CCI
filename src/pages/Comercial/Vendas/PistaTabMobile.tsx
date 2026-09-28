@@ -61,8 +61,8 @@ const PistaTabMobile = () => {
   const curIni = splitCur.closedDays?.dataInicial ?? ''
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
   // Fetch rede-wide COMPARTILHADO (chave canônica) — ver useRedeVendasCache.
-  const { data: cacheCur = [], isLoading } = useRedeVendasCache(curIni, curEnd)
-  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal)
+  const { data: cacheCur = [], isLoading } = useRedeVendasCache(curIni, curEnd, { setor: 'automotivos' })
+  const { data: cachePrev = [] } = useRedeVendasCache(prevInicial, prevFinal, { setor: 'automotivos' })
 
   // Rows do cache (automotivos, posto selecionado) → itens agregados. Ticket
   // médio vem do `cupons` (distinto por empresa+dia+setor), dedup por dia.

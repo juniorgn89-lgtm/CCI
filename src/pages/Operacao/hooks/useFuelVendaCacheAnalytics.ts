@@ -65,9 +65,9 @@ const useFuelVendaCacheAnalytics = () => {
   // Fetch rede-wide COMPARTILHADO (chave canônica) — Conveniência e Automotivo
   // reaproveitam a MESMA leitura via React Query em vez de rebaixá-la sob chave
   // privada. Mudar o filtro de posto re-agrega no cliente, sem refetch.
-  const { data: curRows = [], isLoading } = useRedeVendasCache(closedIni, closedEnd)
-  const { data: prevRows = [] } = useRedeVendasCache(prevInicial, prevFinal)
-  const { data: semRows = [] } = useRedeVendasCache(semanaAntInicial, semanaAntFinal)
+  const { data: curRows = [], isLoading } = useRedeVendasCache(closedIni, closedEnd, { setor: 'combustivel' })
+  const { data: prevRows = [] } = useRedeVendasCache(prevInicial, prevFinal, { setor: 'combustivel' })
+  const { data: semRows = [] } = useRedeVendasCache(semanaAntInicial, semanaAntFinal, { setor: 'combustivel' })
 
   return useMemo(() => {
     const matchEmpresa = (code: number) =>

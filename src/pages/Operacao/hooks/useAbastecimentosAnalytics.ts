@@ -368,28 +368,36 @@ const useAbastecimentosAnalytics = (
   const { vendaByProduct, descAcrByFrentista } = useFuelVendaCost(rawSingle && !lean ? scopedCodes : [], dataInicial, dataFinal)
   const isLoadingLmc = isLoadingLmcRaw && !cacheHasCostEmbedded
 
+  // Cadastros da Quality (produtos/funcionários/bombas/bicos) só servem pra dar
+  // NOME às linhas físicas de abastecimento — que só existem com 1 posto
+  // (`rawSingle`). Rede-wide ("Todos"), a aba Combustível abre 100% do cache e
+  // estas 4 chamadas ao vivo eram puro custo na abertura.
   const { data: produtosData } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
+    enabled: rawSingle,
   })
 
   const { data: funcionariosData } = useQuery({
     queryKey: ['funcionarios'],
     queryFn: () => fetchAllPages((p) => fetchFuncionarios({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
     staleTime: 30 * 60 * 1000,
+    enabled: rawSingle,
   })
 
   const { data: bombasData } = useQuery({
     queryKey: ['bombas'],
     queryFn: () => fetchBombas(),
     staleTime: 30 * 60 * 1000,
+    enabled: rawSingle,
   })
 
   const { data: bicosData } = useQuery({
     queryKey: ['bicos'],
     queryFn: () => fetchAllPages((p) => fetchBicos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
     staleTime: 30 * 60 * 1000,
+    enabled: rawSingle,
   })
 
   const { data: empresasData } = useQuery({

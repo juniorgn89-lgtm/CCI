@@ -279,10 +279,10 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
   const curEnd = splitCur.closedDays?.dataFinal ?? ''
   // Fetch rede-wide COMPARTILHADO (chave canônica) — mesma leitura que Combustível
   // e Automotivo reaproveitam via React Query (ver useRedeVendasCache).
-  const { data: curRows = [], isLoading: l1 } = useRedeVendasCache(curIni, curEnd)
-  const { data: prevRows = [], isLoading: l2 } = useRedeVendasCache(prevMonth.dataInicial, prevMonth.dataFinal)
-  const { data: cmpRows = [] } = useRedeVendasCache(cmp.dataInicial, cmp.dataFinal, { enabled: isPrevYear })
-  const { data: evoRows = [], isLoading: l6 } = useRedeVendasCache(evolutionRange.dataInicial, evolutionRange.dataFinal, { staleTime: 10 * 60 * 1000 })
+  const { data: curRows = [], isLoading: l1 } = useRedeVendasCache(curIni, curEnd, { setor: 'conveniencia' })
+  const { data: prevRows = [], isLoading: l2 } = useRedeVendasCache(prevMonth.dataInicial, prevMonth.dataFinal, { setor: 'conveniencia' })
+  const { data: cmpRows = [] } = useRedeVendasCache(cmp.dataInicial, cmp.dataFinal, { enabled: isPrevYear, setor: 'conveniencia' })
+  const { data: evoRows = [], isLoading: l6 } = useRedeVendasCache(evolutionRange.dataInicial, evolutionRange.dataFinal, { staleTime: 10 * 60 * 1000, setor: 'conveniencia' })
 
   // Estoque — snapshot POR-POSTO (não consolida na rede); só com 1 posto.
   const { data: estoqueRaw, isLoading: l5 } = useQuery({

@@ -50,7 +50,7 @@ const useBriefingProjecaoCombustivel = (enabled: boolean): BriefingProjecao => {
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])
 
   // Mesma fonte da Central/abas (apuracao_vendas). Rede-wide; filtra permitidos.
-  const { data: curRows = [], isLoading } = useRedeVendasCache(dia1, fim, { enabled })
+  const { data: curRows = [], isLoading } = useRedeVendasCache(dia1, fim, { enabled, setor: 'combustivel' })
 
   const dailyData = useMemo<FuelDailyPoint[]>(() => {
     const byDay = new Map<string, { litros: number; fat: number; luc: number }>()
