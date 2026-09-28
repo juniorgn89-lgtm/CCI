@@ -1,12 +1,46 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 // import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { readFileSync } from 'fs'
+import { RELEASE_NOTES } from './src/releaseNotes'
+
+// Versão única: package.json → __APP_VERSION__ (Configurações › Sobre, tela de
+// atualização) e /release-notes.json.
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
+
+/**
+ * Publica src/releaseNotes.ts como `/release-notes.json` (build e dev). É por
+ * esse arquivo que o app ANTIGO, ao clicar em "Atualizar", mostra as novidades
+ * da versão NOVA enquanto ela é instalada — o bundle velho não as conhece.
+ * JSON fica fora do precache do Service Worker (globPatterns), então a busca
+ * vai sempre à rede e pega o deploy mais recente.
+ */
+const releaseNotesPlugin = (): Plugin => {
+  const corpo = () => JSON.stringify({ versao: pkg.version, notas: RELEASE_NOTES })
+  return {
+    name: 'visor360-release-notes',
+    configureServer(server) {
+      server.middlewares.use('/release-notes.json', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(corpo())
+      })
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'release-notes.json', source: corpo() })
+    },
+  }
+}
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
+    releaseNotesPlugin(),
     // basicSsl(), // enable for local HTTPS testing
     VitePWA({
       // 'prompt' (não 'autoUpdate'): o SW novo fica em wait e a UI mostra um

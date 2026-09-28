@@ -20,8 +20,10 @@ import {
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
 import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
+import { NovidadesModal } from '@/components/feedback/Novidades'
+import { RELEASE_NOTES } from '@/releaseNotes'
 
-const APP_VERSION = 'v1.1.0'
+const APP_VERSION = `v${__APP_VERSION__}`
 const SUPPORTE_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string) || 'contato@cci.app.br'
 
 const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -451,6 +453,7 @@ const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
   const isMobile = useIsMobile()
   const [scaleMode, setScaleMode] = useState<UiScaleMode>(() => getUiScaleMode())
+  const [novidades, setNovidades] = useState(false)
   const handleScaleChange = (m: UiScaleMode) => {
     setScaleMode(m)
     setUiScaleMode(m)
@@ -667,6 +670,20 @@ const Configuracoes = () => {
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Visor360 {APP_VERSION}</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setNovidades(true)}
+            className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
+              <Sparkles className="h-4 w-4 text-amber-600 dark:text-[#FCB619]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Novidades</p>
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">O que mudou nas últimas versões</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </button>
           <a
             href={`mailto:${SUPPORTE_EMAIL}`}
             className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -682,6 +699,8 @@ const Configuracoes = () => {
           </a>
         </div>
       </section>
+
+      <NovidadesModal open={novidades} onClose={() => setNovidades(false)} releases={RELEASE_NOTES} />
     </div>
   )
 }
