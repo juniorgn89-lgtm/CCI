@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { RefreshCw, X } from 'lucide-react'
+import { RefreshCw, X, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { RELEASE_NOTES, type ReleaseNote } from '@/releaseNotes'
 import { NovidadesLista, NovidadesModal, novidadesDesde } from '@/components/feedback/Novidades'
@@ -116,16 +117,18 @@ const PwaUpdatePrompt = () => {
 
 /* ---------------------------------------------------------------- overlay */
 
-type Fase = 'preparando' | 'instalando' | 'reiniciando'
+type Fase = 'preparando' | 'instalando' | 'pronto' | 'reiniciando'
 
 const ROTULO: Record<Fase, string> = {
   preparando: 'Preparando a atualização…',
   instalando: 'Instalando a nova versão…',
+  pronto: 'Pronto para reiniciar',
   reiniciando: 'Reiniciando o Visor360…',
 }
 
-/** Tempo mínimo com a lista na tela antes de reiniciar — é pra dar tempo de ler. */
-const TEMPO_LEITURA_MS = 7000
+/** Duração da barra de instalação; depois ela para em "Pronto" e ESPERA o OK —
+ *  quem decide quando reiniciar é o usuário (tempo de ler as novidades). */
+const TEMPO_INSTALACAO_MS = 2500
 const TEMPO_PREPARO_MIN_MS = 900
 const TIMEOUT_NOTAS_MS = 2500
 /** Se o SW novo não assumir (e o plugin não recarregar), recarrega na marra. */
@@ -161,6 +164,8 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
   const aplicado = useRef(false)
   // `aplicar` muda de identidade a cada render do pai; o fluxo roda UMA vez.
   const aplicarRef = useRef(aplicar)
+  // Disparado pelo botão OK (definido dentro do efeito, que tem os timers).
+  const reiniciarRef = useRef<() => void>(() => {})
   aplicarRef.current = aplicar
 
   useEffect(() => {
@@ -187,21 +192,23 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
 
       depois(espera, () => {
         setFase('instalando')
-        // Barra avança em passos até ~92% ao longo do tempo de leitura.
-        const passos = 24
+        // Barra avança em passos até 100% e para em "Pronto": o reinício só
+        // acontece no OK do usuário.
+        const passos = 12
         for (let i = 1; i <= passos; i++) {
-          depois((TEMPO_LEITURA_MS * i) / passos, () => setProgresso(18 + Math.round((74 * i) / passos)))
+          depois((TEMPO_INSTALACAO_MS * i) / passos, () => setProgresso(18 + Math.round((82 * i) / passos)))
         }
-        depois(TEMPO_LEITURA_MS + 150, () => {
-          setFase('reiniciando')
-          setProgresso(100)
-          if (aplicado.current) return
-          aplicado.current = true
-          // skipWaiting → SW novo assume → o plugin recarrega a página.
-          aplicarRef.current()
-          depois(TIMEOUT_REINICIO_MS, () => window.location.reload())
-        })
+        depois(TEMPO_INSTALACAO_MS + 150, () => setFase('pronto'))
       })
+    }
+
+    // OK → skipWaiting → SW novo assume → o plugin recarrega a página.
+    reiniciarRef.current = () => {
+      if (aplicado.current) return
+      aplicado.current = true
+      setFase('reiniciando')
+      aplicarRef.current()
+      depois(TIMEOUT_REINICIO_MS, () => window.location.reload())
     }
 
     setProgresso(12)
@@ -240,7 +247,9 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
         <div className="mt-7 w-full">
           <div className="mb-2 flex items-center justify-between text-[12.5px]">
             <span className="flex items-center gap-2 font-medium text-white/85">
-              <RefreshCw className={fase === 'reiniciando' ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5 motion-safe:animate-spin [animation-duration:1.6s]'} />
+              {fase === 'pronto'
+                ? <Check className="h-3.5 w-3.5 text-emerald-300" />
+                : <RefreshCw className={fase === 'reiniciando' ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5 motion-safe:animate-spin [animation-duration:1.6s]'} />}
               {ROTULO[fase]}
             </span>
             <span className="tabular-nums text-white/60">{progresso}%</span>
@@ -276,8 +285,24 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
           )}
         </div>
 
-        <p className="mt-6 text-center text-[11.5px] text-white/45">
-          Não feche o app. Ele reinicia sozinho em instantes.
+        {/* OK: aparece quando a instalação termina; até lá o usuário lê com calma. */}
+        <button
+          type="button"
+          onClick={() => reiniciarRef.current()}
+          disabled={fase !== 'pronto'}
+          className={cn(
+            'mt-6 inline-flex h-11 w-full max-w-xs items-center justify-center gap-2 rounded-xl text-sm font-bold transition-all',
+            fase === 'pronto'
+              ? 'bg-[#FCB619] text-[#1e3a5f] shadow-lg shadow-black/20 hover:bg-[#ffc733] active:scale-[0.98]'
+              : 'cursor-default bg-white/10 text-white/40',
+          )}
+        >
+          {fase === 'reiniciando' ? 'Reiniciando…' : fase === 'pronto' ? 'OK, reiniciar agora' : 'Instalando…'}
+        </button>
+        <p className="mt-3 text-center text-[11.5px] text-white/45">
+          {fase === 'pronto'
+            ? 'Leia com calma. O app só reinicia quando você tocar em OK.'
+            : 'Não feche o app enquanto a atualização é instalada.'}
         </p>
       </div>
     </div>
