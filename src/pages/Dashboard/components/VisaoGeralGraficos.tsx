@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
+import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, PieChart, Pie, Cell } from 'recharts'
 import { Activity, PieChart as PieIcon, Trophy, Percent, TrendingUp, TrendingDown, Minus, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,6 +33,12 @@ const RANK_TABS: { id: RankMetric; label: string }[] = [
 ]
 
 const pct = (v: number, casas = 2) => `${v.toFixed(casas).replace('.', ',')}%`
+/** Tick de eixo em R$ sem o prefixo ("380K", "1,2M") — cabe em 44px sem quebrar. */
+const kShort = (v: number) => {
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace('.', ',')}M`
+  if (Math.abs(v) >= 1_000) return `${Math.round(v / 1_000)}K`
+  return String(Math.round(v))
+}
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 const varPct = (atual: number, anterior: number): number | null => (anterior > 0 ? ((atual - anterior) / anterior) * 100 : null)
 
@@ -110,7 +116,7 @@ const Donut = ({ title, dados, total, totalLabel, fmt }: {
     <Card Icon={PieIcon} title={title}>
       <div className="flex items-center gap-5">
         <div className="relative h-[120px] w-[120px] shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 120, height: 120 }}>
             <PieChart>
               <Pie
                 data={ordenados}
@@ -183,8 +189,25 @@ const VisaoGeralGraficos = () => {
     }
     return [...porDia.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([data, v]) => ({ data, faturamento: v.fat, lucroBruto: v.lb, margem: v.fat > 0 ? (v.lb / v.fat) * 100 : 0 }))
+      .map(([data, v], idx) => ({ idx, data, faturamento: v.fat, lucroBruto: v.lb, margem: v.fat > 0 ? (v.lb / v.fat) * 100 : 0 }))
   }, [setores])
+
+  // Faixas de fim de semana (sáb+dom contíguos) em índices do eixo numérico
+  // escondido: [i-0.5, i+0.5] cobre o slot inteiro da barra (o ReferenceArea no
+  // eixo de categoria só iria de centro a centro). Mesma leitura do gráfico
+  // "Litros vendidos por dia" da aba Combustível.
+  const faixasFimSemana = useMemo(() => {
+    const out: { x1: number; x2: number }[] = []
+    for (const d of evolucao) {
+      const [y, m, dd] = d.data.split('-').map(Number)
+      const wd = new Date(y, m - 1, dd).getDay()
+      if (wd !== 0 && wd !== 6) continue
+      const ult = out[out.length - 1]
+      if (ult && ult.x2 === d.idx - 0.5) ult.x2 = d.idx + 0.5
+      else out.push({ x1: d.idx - 0.5, x2: d.idx + 0.5 })
+    }
+    return out
+  }, [evolucao])
 
   // Ranking por posto: LB e faturamento somam os 3 setores; margem = LB total ÷
   // faturamento total (NUNCA média de percentuais); litros = só combustível.
@@ -258,34 +281,43 @@ const VisaoGeralGraficos = () => {
       <Card
         Icon={Activity}
         title="Evolução da rede"
-        hint="Faturamento e lucro bruto por dia, somando os três setores. A linha é a margem bruta do dia (lucro bruto ÷ faturamento)."
+        hint="Faturamento (barras, eixo esquerdo) e lucro bruto (linha, eixo direito) por dia, somando os três setores. Fins de semana em faixa clara. A margem do dia aparece ao passar o mouse."
         className="lg:col-span-2 xl:col-span-7"
         right={
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Faturamento</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#10b981]" />Lucro bruto</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full" style={{ background: ct.dark ? '#e5e7eb' : '#1e3a5f' }} />Margem (%)</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full bg-[#10b981]" />Lucro bruto</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-100 ring-1 ring-amber-200/70 dark:bg-amber-400/15 dark:ring-amber-300/20" />Fim de semana</span>
           </div>
         }
       >
-        <p className="-mt-2 mb-2 text-[11px] text-gray-400">Faturamento e lucro bruto diário</p>
+        <p className="-mt-2 mb-2 text-[11px] text-gray-400">Por dia, em R$ · margem no detalhe ao passar o mouse</p>
         {/* Ocupa a altura da linha (os dois donuts empilhados ao lado ditam a
             altura); nunca menos de 230px. */}
         <div className="min-h-[230px] flex-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={evolucao} margin={{ top: 6, right: 4, bottom: 0, left: 0 }} barGap={2}>
+        <ResponsiveContainer width="100%" height="100%" minHeight={230} initialDimension={{ width: 600, height: 230 }}>
+          <ComposedChart data={evolucao} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
             <XAxis dataKey="data" tickFormatter={ddmm} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={18} />
-            <YAxis yAxisId="rs" tickFormatter={formatCurrencyShort} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} width={64} />
-            <YAxis yAxisId="pct" orientation="right" tickFormatter={(v: number) => `${Math.round(v)}%`} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} width={36} domain={[0, (max: number) => Math.max(20, Math.ceil(max / 5) * 5)]} />
+            {/* Eixo numérico ESCONDIDO só pras faixas de fim de semana: domínio
+                [-0.5, n-0.5] alinha o valor i ao centro da categoria i. */}
+            <XAxis xAxisId="idx" type="number" dataKey="idx" domain={[-0.5, Math.max(0.5, evolucao.length - 0.5)]} hide />
+            {faixasFimSemana.map((f) => (
+              <ReferenceArea key={f.x1} xAxisId="idx" yAxisId="rs" x1={f.x1} x2={f.x2} fill={ct.dark ? 'rgba(251,191,36,0.07)' : 'rgba(251,191,36,0.10)'} stroke="none" ifOverflow="visible" />
+            ))}
+            {/* Ticks sem "R$ " (a moeda está no subtítulo): com o prefixo o rótulo
+                quebrava em duas linhas. */}
+            <YAxis yAxisId="rs" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} width={44} />
+            <YAxis yAxisId="lb" orientation="right" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.dark ? '#34d399' : '#059669' }} axisLine={false} tickLine={false} width={44} domain={[0, 'auto']} />
             <Tooltip
               labelFormatter={((l: string) => ddmm(l)) as never}
               formatter={((v: number, name: string) => name === 'Margem' ? [pct(v), name] : [formatCurrencyInt(v), name]) as never}
               contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
             />
-            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
-            <Bar yAxisId="rs" dataKey="lucroBruto" name="Lucro bruto" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
-            <Line yAxisId="pct" type="monotone" dataKey="margem" name="Margem" stroke={ct.dark ? '#e5e7eb' : '#1e3a5f'} strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: ct.dark ? '#e5e7eb' : '#1e3a5f' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+            <Line yAxisId="lb" type="monotone" dataKey="lucroBruto" name="Lucro bruto" stroke="#10b981" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: '#10b981' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+            {/* Margem só no tooltip: série sem traço (o eixo não importa, ela não é desenhada). */}
+            <Line yAxisId="lb" dataKey="margem" name="Margem" stroke="none" dot={false} activeDot={false} legendType="none" isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
         </div>
