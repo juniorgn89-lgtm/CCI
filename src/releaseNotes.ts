@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.3',
+    data: '2026-10-02',
+    resumo: 'A tela de atualização agora espera você: leia as novidades e toque em OK para reiniciar.',
+    itens: [
+      {
+        icone: 'atualizacao',
+        titulo: 'Atualização no seu tempo',
+        descricao: 'Depois de instalar, o app mostra "Pronto para reiniciar" e só reinicia quando você tocar em OK. Nada de tela sumindo no meio da leitura.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Evolução da rede mais clara',
+        descricao: 'Na Visão Geral, o lucro bruto virou uma linha com eixo próprio, os fins de semana ganharam faixa clara e a margem do dia aparece ao passar o mouse.',
+      },
+    ],
+  },
+  {
     versao: '1.2.2',
     data: '2026-10-02',
     resumo: 'A Visão Geral da Central ganhou dois modos: executivo, com gráficos, e análise detalhada, com as tabelas.',
