@@ -13,6 +13,8 @@ import HeaderTray from '@/components/layout/HeaderTray'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
+import useBoolParam from '@/hooks/useBoolParam'
+import CollapseTransition from '@/components/ui/CollapseTransition'
 
 const BenchmarkSetor = lazy(() => import('@/pages/Dashboard/components/BenchmarkSetor'))
 // Abas de Vendas (por-posto) movidas pra Central — renderizadas `embedded`
@@ -21,6 +23,8 @@ const Combustivel = lazy(() => import('@/pages/Comercial/Vendas/Combustivel'))
 const Pista = lazy(() => import('@/pages/Comercial/Vendas/Pista'))
 const Conveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 const GestaoPrecos = lazy(() => import('@/pages/Dashboard/components/GestaoPrecos'))
+// Gráficos executivos da Visão Geral (mesmo chunk lazy do Recharts).
+const VisaoGeralGraficos = lazy(() => import('@/pages/Dashboard/components/VisaoGeralGraficos'))
 
 type TabId = 'setor' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
 
@@ -60,6 +64,9 @@ const Dashboard = () => {
     (v): v is TabId =>
       v === 'setor' || v === 'combustivel' || v === 'pista' || v === 'conveniencia' || v === 'precos',
   )
+  // Modo de análise da Visão Geral (`?detalhe=1`): F5 e link compartilhado
+  // abrem direto no Detalhamento; não toca em `?tab=` nem nos filtros.
+  const [detalhe, setDetalhe] = useBoolParam('detalhe')
   // Set-state durante render quando a aba persistida foi escondida via engrenagem.
   if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
     setActiveTab(visibleTabs[0].id as TabId)
@@ -123,8 +130,14 @@ const Dashboard = () => {
           {visibleTabs.length > 0 && (
             <Suspense fallback={<TabSkeleton />}>
               {activeTab === 'setor' && (
-                <div style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
-                  <BenchmarkSetor />
+                <div className="space-y-4" style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
+                  {/* MODO EXECUTIVO (default): KPIs → gráficos → Detalhamento fechado.
+                      MODO ANÁLISE (?detalhe=1): KPIs → Detalhamento expandido; os
+                      gráficos ficam MONTADOS e só recolhem (sem refetch/flicker). */}
+                  <CollapseTransition open={!detalhe}>
+                    <VisaoGeralGraficos />
+                  </CollapseTransition>
+                  <BenchmarkSetor expanded={detalhe} onToggle={() => setDetalhe(!detalhe)} />
                 </div>
               )}
               {activeTab === 'combustivel' && <Combustivel embedded />}

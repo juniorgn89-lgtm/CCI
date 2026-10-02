@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Trophy, Globe, LineChart, CalendarClock } from 'lucide-react'
+import { Fuel, Wrench, Store, Layers, ChevronDown, ChevronUp, ChevronRight, TrendingUp, TrendingDown, Trophy, Globe, LineChart, CalendarClock } from 'lucide-react'
+import CollapseTransition from '@/components/ui/CollapseTransition'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
 import InfoHint from '@/components/ui/InfoHint'
@@ -723,7 +724,13 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
   )
 }
 
-const BenchmarkSetor = () => {
+interface BenchmarkSetorProps {
+  /** Modo de análise: corpo (sub-abas + tabelas) expandido. Fechado = só o cabeçalho. */
+  expanded: boolean
+  onToggle: () => void
+}
+
+const BenchmarkSetor = ({ expanded, onToggle }: BenchmarkSetorProps) => {
   const [view, setView] = useState<ViewMode>('realizado')
 
   const rede = useRedeSetores()
@@ -831,7 +838,9 @@ const BenchmarkSetor = () => {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 md:flex-row md:items-start md:justify-between">
+      {/* Cabeçalho SEMPRE visível (é o que resta no modo executivo) + o botão que
+          alterna o modo. O corpo (sub-abas + tabelas) fica montado e só recolhe. */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-gray-500" />
@@ -841,20 +850,35 @@ const BenchmarkSetor = () => {
             </h3>
           </div>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {view === 'realizado'
+            {!expanded || view === 'realizado'
               ? 'Aqui temos todas as vendas setorizadas com maior nível de detalhes'
               : 'Projeção de fechamento do mês por posto, no ritmo atual dos dias decorridos'}
           </p>
-          {/* Sub-aba: Realizado · Projeções */}
-          <div className="mt-3">
-            <Segmented
-              tabs={[{ id: 'realizado', label: 'REALIZADO', Icon: Layers }, { id: 'projecoes', label: 'PROJEÇÕES', Icon: LineChart }]}
-              active={view}
-              onSelect={(id) => setView(id as ViewMode)}
-            />
-          </div>
         </div>
-        {/* Realizado e Projeções mostram os setores empilhados — sem seletor de escopo. */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors',
+            expanded
+              ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-transparent dark:text-gray-200 dark:hover:bg-white/5'
+              : 'bg-[#1e3a5f] text-white shadow-sm hover:bg-[#16293f] dark:bg-blue-600 dark:hover:bg-blue-500',
+          )}
+        >
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {expanded ? 'Recolher detalhamento' : 'Ver detalhamento'}
+        </button>
+      </div>
+
+      <CollapseTransition open={expanded}>
+      <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+        {/* Sub-aba: Realizado · Projeções */}
+        <Segmented
+          tabs={[{ id: 'realizado', label: 'REALIZADO', Icon: Layers }, { id: 'projecoes', label: 'PROJEÇÕES', Icon: LineChart }]}
+          active={view}
+          onSelect={(id) => setView(id as ViewMode)}
+        />
       </div>
 
       {view === 'realizado' && (
@@ -908,6 +932,7 @@ const BenchmarkSetor = () => {
           </p>
         </div>
       )}
+      </CollapseTransition>
     </div>
   )
 }
