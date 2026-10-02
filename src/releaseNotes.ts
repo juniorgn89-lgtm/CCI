@@ -33,6 +33,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.2',
+    data: '2026-10-02',
+    resumo: 'A Visão Geral da Central ganhou dois modos: executivo, com gráficos, e análise detalhada, com as tabelas.',
+    itens: [
+      {
+        icone: 'relatorio',
+        titulo: 'Visão Geral em dois modos',
+        descricao:
+          'Ao abrir a Central você vê os indicadores e seis gráficos da rede: evolução diária, participação por setor, ranking de postos, variação do período e margem por setor. Clique em "Ver detalhamento" para recolher os gráficos e abrir as tabelas por posto com toda a largura.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Link direto para a análise',
+        descricao: 'O modo detalhado fica na URL: ao atualizar a página ou compartilhar o link, ele abre já nas tabelas.',
+      },
+    ],
+  },
+  {
     versao: '1.2.1',
     data: '2026-09-28',
     resumo: 'Marque linhas nas tabelas com um clique e abra a aba Combustível da Central bem mais rápido.',
