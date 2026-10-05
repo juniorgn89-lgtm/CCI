@@ -1,4 +1,4 @@
-import { LayoutDashboard, Target, ShieldCheck, Building2, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Target, ShieldCheck, Building2, Briefcase, type LucideIcon } from 'lucide-react'
 
 /**
  * Registro dos apps da suíte CCI — alimenta o launcher (botão de grade no
@@ -84,6 +84,18 @@ export const CCI_APPS: CciApp[] = [
     url: 'https://www.cci.app.br/cliente/login',
     Icon: Building2,
     tile: 'from-[#f59e0b] to-[#FCB619]',
+  },
+  {
+    // Sistema de gestão do escritório (Next.js, backend próprio, ERP AutoSystem).
+    // Entra na suíte como app SEPARADO, de propósito: ~100 telas de cadastro e
+    // escrita que não cabem no Visor somente-leitura. Repositório em
+    // C:BlakBoxGestaoDePosto. Não é PWA instalável pelo deep link daqui.
+    id: 'gestao-posto',
+    nome: 'Gestão de Posto',
+    descricao: 'Financeiro, caixas, conciliação, maquininhas e rotinas do escritório',
+    url: 'https://sistema.gestaopombal.com/login',
+    Icon: Briefcase,
+    tile: 'from-[#4338ca] to-[#6366f1]',
   },
   {
     id: 'portal-admin',
