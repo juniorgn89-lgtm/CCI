@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.4',
+    data: '2026-10-06',
+    resumo: 'O Gestão360 entrou na suíte: abra a rotina do escritório pelo launcher.',
+    itens: [
+      {
+        icone: 'apps',
+        titulo: 'Gestão360 no launcher',
+        descricao: 'Conferência de caixa, conciliação bancária, contas a pagar e fiscal num app próprio da CCI. Toque na grade de apps para abrir.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Launcher sem o "instalar" teimoso',
+        descricao: 'O link "instalar" embaixo dos outros apps aparecia mesmo com o app já instalado. Saiu. Cada app se instala a partir dele mesmo.',
+      },
+    ],
+  },
+  {
     versao: '1.2.3',
     data: '2026-10-02',
     resumo: 'A tela de atualização agora espera você: leia as novidades e toque em OK para reiniciar.',

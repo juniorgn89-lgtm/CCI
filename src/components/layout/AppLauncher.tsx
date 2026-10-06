@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Grip, Check, Download, MonitorDown } from 'lucide-react'
+import { Grip, Check, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
-import { CCI_APPS, APP_ATUAL_ID, installUrlDe } from '@/lib/appsCci'
+import { CCI_APPS, APP_ATUAL_ID } from '@/lib/appsCci'
 import InstallAppModal, { isStandalone } from '@/components/pwa/InstallAppModal'
-import { useAppsInstalados } from '@/lib/appsInstalados'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,9 +21,10 @@ interface AppLauncherProps {
  * primeiro tile é o site da CCI (como a "Conta" do Google), o app atual fica
  * marcado e os demais abrem em nova aba. Lista em src/lib/appsCci.ts.
  *
- * Instalar: um site NÃO consegue instalar o PWA de outro domínio, então os tiles
- * PWA ganham "⬇ instalar" que abre o app já com `?instalar=1` (ele mesmo pede a
- * instalação ao carregar). O app atual instala daqui (prompt nativo / passos).
+ * Instalar: só o app ATUAL instala daqui (prompt nativo / passos). Os outros
+ * tiles não mostram "instalar": a detecção de "instalado" entre domínios
+ * (getInstalledRelatedApps) se mostrou inconfiável e o link aparecia mesmo
+ * com o app já instalado. Cada app se instala a partir dele mesmo.
  */
 const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
   // Tiles marcados visivelPara: "master" (ex.: portal interno) só pra dono/diretores.
@@ -32,9 +32,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
   const apps = CCI_APPS.filter((a) => a.visivelPara !== 'master' || isMaster)
   const [installOpen, setInstallOpen] = useState(false)
   const instalado = isStandalone()
-  // O que o navegador CONFIRMOU instalado (getInstalledRelatedApps). Fora da
-  // lista = "não sei", a não ser que ele tenha respondido e o app seja recíproco.
-  const { instalados, respondeu } = useAppsInstalados()
 
   return (
     <>
@@ -70,7 +67,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
             <div className="grid grid-cols-3">
               {apps.map((app) => {
                 const atual = app.id === APP_ATUAL_ID
-                const appInstalado = instalados.has(app.id)
                 const Icon = app.Icon
                 const icone = (
                   <span className="relative">
@@ -79,15 +75,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
                     ) : (
                       <span className={cn('flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', app.tile)}>
                         {Icon && <Icon className="h-6 w-6" />}
-                      </span>
-                    )}
-                    {/* Selo só do que o navegador confirmou instalado. */}
-                    {appInstalado && !atual && (
-                      <span
-                        title="Instalado neste aparelho"
-                        className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-white text-emerald-600 shadow ring-1 ring-black/10 dark:bg-[#1f1f22] dark:text-emerald-400 dark:ring-white/15"
-                      >
-                        <MonitorDown className="h-3 w-3" />
                       </span>
                     )}
                   </span>
@@ -120,22 +107,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
                       {icone}
                       {nome}
                     </a>
-                    {appInstalado && (
-                      <span className="mt-0.5 block text-[9.5px] font-medium text-emerald-600 dark:text-emerald-400">instalado</span>
-                    )}
-                    {/* "instalar" só quando NÃO instalado é conhecido: o navegador respondeu
-                        e o app de destino declara a relação de volta no manifesto dele. */}
-                    {app.pwa && app.reciproco && respondeu && !appInstalado && (
-                      <a
-                        href={installUrlDe(app)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`Instalar o ${app.nome} neste aparelho`}
-                        className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 text-[9.5px] font-medium text-[#0F766E] hover:underline dark:text-[#14b8a6]"
-                      >
-                        <Download className="h-2.5 w-2.5" /> instalar
-                      </a>
-                    )}
                   </div>
                 )
               })}
@@ -152,9 +123,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
               <Download className="h-3.5 w-3.5" /> Instalar o Visor360 neste aparelho
             </button>
           )}
-          <p className="mt-1 px-3 pb-1 text-center text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">
-            Os outros apps se instalam a partir deles mesmos: o clique abre o app e ele pede a instalação.
-          </p>
         </DropdownMenuContent>
       </DropdownMenu>
 
