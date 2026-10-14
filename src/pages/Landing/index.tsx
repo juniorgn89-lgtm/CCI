@@ -221,10 +221,10 @@ const Landing = () => {
               <h1 className="v360-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.0, color: 'var(--v-ink)', letterSpacing: '-.025em' }}>Menos planilha.<br />Mais lucro.</h1>
               <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
               <div style={{ display: 'flex', gap: 14, marginTop: 34, flexWrap: 'wrap' }}>
-                <Link to="/como-comecar" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Assinar agora</Link>
+                <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Falar com a CCI</a>
                 <a href="#modulos" style={{ background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
               </div>
-              <p style={{ margin: '16px 0 0', fontSize: 14.5, color: 'var(--v-muted2)' }}><strong style={{ color: 'var(--v-ink)' }}>R$ 199,99/mês</strong> · Analista de IA opcional (+R$ 70/mês) · sem fidelidade</p>
+              <p style={{ margin: '16px 0 0', fontSize: 14.5, color: 'var(--v-muted2)' }}><strong style={{ color: 'var(--v-ink)' }}>Valores sob consulta</strong> · Analista de IA opcional · sem fidelidade</p>
               <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
                 <div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 27, color: 'var(--v-ink)' }}>6</div><div style={{ fontSize: 13, color: 'var(--v-muted2)' }}>módulos integrados</div></div>
                 <div style={{ width: 1, background: 'var(--v-border2)' }} />
@@ -347,7 +347,7 @@ const Landing = () => {
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Plano</div>
             <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um plano. Tudo liberado.</h2>
             <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Todos os módulos e o app no celular num plano só. O Analista de IA entra como opcional, quando você quiser.</p>
-            <Link to="/como-comecar" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 14.5, fontWeight: 700, color: '#0F766E' }}>Como começar — veja o passo a passo →</Link>
+            <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, fontSize: 14.5, fontWeight: 700, color: '#0F766E' }}>Fale com a CCI para contratar →</a>
           </div>
 
           <div style={{ maxWidth: 470, margin: '48px auto 0' }}>
@@ -358,10 +358,9 @@ const Landing = () => {
 
               <div style={{ margin: '22px 0 4px', paddingBottom: 22, borderBottom: '1px solid rgba(255,255,255,.12)' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
-                  <span className="tnum" style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 46, color: '#fff', letterSpacing: '-.02em' }}>R$ 199,99</span>
-                  <span style={{ fontSize: 15, color: '#93a7c4', fontWeight: 600 }}>/mês</span>
+                  <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 30, color: '#fff', letterSpacing: '-.02em' }}>Valor sob consulta</span>
                 </div>
-                <div style={{ fontSize: 12.5, color: '#93a7c4', marginTop: 4 }}>todas as funções liberadas, sem pacote extra</div>
+                <div style={{ fontSize: 12.5, color: '#93a7c4', marginTop: 4 }}>todas as funções liberadas, sem pacote extra · condições na conversa com a CCI</div>
               </div>
 
               <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fcd77f', marginTop: 18 }}>Tudo o que está incluído:</div>
@@ -374,7 +373,7 @@ const Landing = () => {
                 ))}
               </ul>
 
-              <Link to="/como-comecar" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15.5, padding: '15px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)', display: 'block', width: '100%', marginTop: 26 }}>Quero assinar</Link>
+              <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15.5, padding: '15px 20px', borderRadius: 12, textAlign: 'center', boxShadow: '0 16px 34px -14px rgba(252,182,25,.7)', display: 'block', width: '100%', marginTop: 26 }}>Falar com a CCI</a>
             </div>
 
             {/* Add-on: Analista de IA — vendido à parte */}
@@ -390,8 +389,8 @@ const Landing = () => {
                 <p style={{ margin: '3px 0 0', fontSize: 12.5, lineHeight: 1.4, color: 'var(--v-muted2)' }}>A Inteligência que explica o número e aponta onde está a perda.</p>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 18, color: 'var(--v-ink)' }}>+R$ 70</div>
-                <div style={{ fontSize: 11, color: 'var(--v-faint)' }}>/mês</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 14, color: 'var(--v-ink)' }}>Sob consulta</div>
+                <div style={{ fontSize: 11, color: 'var(--v-faint)' }}>opcional</div>
               </div>
             </div>
           </div>
@@ -404,9 +403,9 @@ const Landing = () => {
           <div style={{ maxWidth: 720, margin: '0 auto', background: 'var(--v-soft)', border: '1px solid var(--v-border)', borderRadius: 22, padding: '42px 36px', textAlign: 'center' }}>
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 12.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#0F766E' }}>Para donos de rede</div>
             <h3 style={{ fontSize: 28, fontWeight: 800, color: 'var(--v-ink)', marginTop: 12, lineHeight: 1.15 }}>Pare de fechar o mês no escuro</h3>
-            <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.6, color: 'var(--v-muted2)', maxWidth: 520 }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês. Tudo por <strong style={{ color: 'var(--v-ink)' }}>R$ 199,99/mês</strong>.</p>
+            <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.6, color: 'var(--v-muted2)', maxWidth: 520 }}>Acompanhe cada posto sem depender de planilha manual. O Visor360 mostra onde o lucro está escapando e o que fazer a respeito — hoje, não no fim do mês. <strong style={{ color: 'var(--v-ink)' }}>Fale com a CCI</strong> para conhecer as condições.</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
-              <Link to="/como-comecar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Assinar agora →</Link>
+              <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 15, padding: '13px 24px', borderRadius: 12 }}>Falar com a CCI →</a>
               <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--v-card)', border: '1px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 15, padding: '13px 22px', borderRadius: 12 }}>Agendar demonstração</a>
             </div>
           </div>
@@ -427,7 +426,7 @@ const Landing = () => {
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
-                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href="/como-comecar" style={{ color: 'inherit' }}>Como começar</a>
+                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Fale com a CCI</a>
                 </div>
               </div>
               <div>
