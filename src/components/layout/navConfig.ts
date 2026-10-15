@@ -50,12 +50,12 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Gestão',
     items: [
+      // Gestão de tarefas (Painel / Tarefas / Rotinas como abas) — só em redes com o módulo ligado; primeiro do grupo.
+      { label: 'Tarefas', path: '/gestao', icon: ClipboardList, requerGestao: true },
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
       { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
-      // Gestão de tarefas (Painel / Tarefas / Rotinas como abas) — só em redes com o módulo ligado.
-      { label: 'Tarefas', path: '/gestao', icon: ClipboardList, requerGestao: true },
     ],
   },
 ]

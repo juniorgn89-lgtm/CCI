@@ -54,6 +54,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       },
       {
         icone: 'ajuste',
+        titulo: 'Tarefas: agenda em calendário',
+        descricao: 'A Agenda virou um calendário do mês (segunda a domingo) com as tarefas de cada dia, o que as rotinas ainda vão gerar nos dias futuros e a semana ao clicar num dia. O item Tarefas passou a ser o primeiro do grupo Gestão no menu. Na lista, tarefa com checklist pendente mostra "Abrir checklist" em vez de Concluir, para ninguém fechar sem fazer; sem checklist, Concluir é direto.',
+      },
+      {
+        icone: 'ajuste',
         titulo: 'Tarefas: editar, adiar e ver o histórico',
         descricao: 'Gestor edita a tarefa depois de criada; responsável adia com motivo; o detalhe mostra quem fez o quê e quando. Marcar a primeira etapa já põe a tarefa em andamento. No celular a lista virou cards e os botões dos modais ficam sempre visíveis. Rotinas ganharam Duplicar e a prévia da próxima geração; setores podem ser renomeados.',
       },

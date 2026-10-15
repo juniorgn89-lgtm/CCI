@@ -362,7 +362,9 @@ const Sidebar = () => {
       items = items
         .filter((item) => !hiddenModules.includes(item.path))
         .slice()
-        .sort((a, b) => (orderIdx.get(a.path) ?? 999) - (orderIdx.get(b.path) ?? 999))
+        // Tarefas (requerGestao) fica sempre em primeiro no grupo; o resto segue a
+        // ordem personalizada (itens fora do registro vão pro fim).
+        .sort((a, b) => (a.requerGestao ? -1 : (orderIdx.get(a.path) ?? 999)) - (b.requerGestao ? -1 : (orderIdx.get(b.path) ?? 999)))
       return { ...group, items }
     })
     .filter((g) => g.items.length > 0)

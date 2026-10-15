@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useFilters } from '@/hooks/useFilters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Layers, Pencil, CalendarClock, History,
+  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Layers, Pencil, CalendarClock, History, ListChecks,
 } from 'lucide-react'
 import {
   fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, estaAtrasada,
@@ -12,7 +12,8 @@ import {
 } from '@/api/supabase/gestaoTarefas'
 import { useGestaoBase, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, fmtDataHora, fmtData, hojeLocal, somaDias } from './comum'
 import { Modal, ModalRodape, Erro, Segmentos } from './comumUi'
-import { Kanban, Agenda } from './TarefasVisoes'
+import { Kanban } from './TarefasVisoes'
+import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
 import { cn } from '@/lib/utils'
 
@@ -86,9 +87,11 @@ const Tarefas = () => {
     minhas: todas.filter((t) => t.responsavel_id === base.userId && (t.status === 'a_fazer' || t.status === 'em_andamento')).length,
   }), [todas, hoje, base.userId])
 
-  const lista = useMemo(() => {
+  // Filtro da página (abas + selects + busca + posto global). A Agenda usa o
+  // mesmo filtro sobre as tarefas do mês que ela carrega por conta própria.
+  const filtro = useMemo(() => {
     const q = busca.trim().toLowerCase()
-    return todas.filter((t) => {
+    return (t: TarefaRow) => {
       if (aba === 'atrasadas' && !estaAtrasada(t)) return false
       if (aba === 'hoje' && !(t.vence_dia === hoje && t.status !== 'concluida' && t.status !== 'cancelada')) return false
       if (aba === 'andamento' && t.status !== 'em_andamento') return false
@@ -99,11 +102,15 @@ const Tarefas = () => {
       if (empresaCodigos.length > 0 && t.empresa_codigo !== null && !empresaCodigos.includes(t.empresa_codigo)) return false
       if (statusSel === 'atrasada' ? !estaAtrasada(t) : statusSel !== 'todos' && t.status !== statusSel) return false
       return !q || t.titulo.toLowerCase().includes(q) || (t.descricao ?? '').toLowerCase().includes(q) || (base.nomePosto(t.empresa_codigo) ?? '').toLowerCase().includes(q)
-    }).sort((a, b) => {
+    }
+  }, [aba, busca, respSel, setorSel, postoSel, empresaCodigos, statusSel, hoje, base])
+
+  const lista = useMemo(() => {
+    return todas.filter(filtro).sort((a, b) => {
       const peso = (t: TarefaRow) => (estaAtrasada(t) ? 0 : t.vence_dia === hoje && t.status !== 'concluida' && t.status !== 'cancelada' ? 1 : 2)
       return peso(a) - peso(b) || a.vence_em.localeCompare(b.vence_em)
     })
-  }, [todas, aba, busca, respSel, setorSel, postoSel, empresaCodigos, statusSel, hoje, base])
+  }, [todas, filtro, hoje])
 
   if (!base.redeId) return <div className="p-6 text-sm text-gray-500">Selecione uma rede para ver as tarefas.</div>
 
@@ -191,7 +198,7 @@ const Tarefas = () => {
       {visao === 'kanban' && !tarefas.isLoading && (
         <Kanban tarefas={lista.filter((t) => t.status !== 'cancelada')} ctx={base} onAbrir={setDetalhe} onMudar={mudar} />
       )}
-      {visao === 'agenda' && !tarefas.isLoading && <Agenda tarefas={lista} ctx={base} onAbrir={setDetalhe} />}
+      {visao === 'agenda' && <Agenda ctx={{ redeId: base.redeId, nomePosto: base.nomePosto, nomeUsuario: base.nomeUsuario }} filtro={filtro} onAbrir={setDetalhe} />}
 
       {visao === 'lista' && <div className={cn(containerCls, 'overflow-hidden')}>
         {tarefas.isLoading ? (
@@ -226,7 +233,7 @@ const Tarefas = () => {
                         {t.checklist.length > 0 && <span>{feitos}/{t.checklist.length} etapas</span>}
                       </span>
                     </button>
-                    <div className="flex justify-end"><AcoesTarefa t={t} onMudar={mudar} compacto /></div>
+                    <div className="flex justify-end"><AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} /></div>
                   </li>
                 )
               })}
@@ -271,7 +278,7 @@ const Tarefas = () => {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          <AcoesTarefa t={t} onMudar={mudar} compacto />
+                          <AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} />
                         </td>
                       </tr>
                     )
@@ -311,11 +318,34 @@ const Tarefas = () => {
 
 /* ─── ações de status ─────────────────────────────────────────────────── */
 
-const AcoesTarefa = ({ t, onMudar, compacto, destaque }: { t: TarefaRow; onMudar: (t: TarefaRow, s: TarefaStatus) => void; compacto?: boolean; destaque?: boolean }) => {
+/**
+ * Ações de status. Na lista (compacto) a regra evita concluir sem fazer:
+ * tarefa com checklist incompleto só oferece "Abrir checklist" (vai pro
+ * detalhe, onde as etapas ficam visíveis); sem checklist, Concluir direto.
+ * Iniciar fica só no detalhe. Errou? Reabrir, e o histórico guarda os dois.
+ */
+const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir }: {
+  t: TarefaRow; onMudar: (t: TarefaRow, s: TarefaStatus) => void; compacto?: boolean; destaque?: boolean; onAbrir?: (t: TarefaRow) => void
+}) => {
   const b = cn(btnGhost, compacto ? 'h-7 px-2 text-xs' : 'h-9')
   const concluirCls = destaque
     ? cn(b, 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-600')
     : cn(b, 'border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300')
+  const aberta = t.status === 'a_fazer' || t.status === 'em_andamento'
+  const checklistPendente = t.checklist.length > 0 && t.checklist.some((c) => !c.feito)
+  if (compacto && aberta) {
+    if (checklistPendente && onAbrir) {
+      const feitos = t.checklist.filter((c) => c.feito).length
+      return (
+        <button type="button" className={b} onClick={() => onAbrir(t)} title="Marque as etapas antes de concluir">
+          <ListChecks className="h-3.5 w-3.5" /> Abrir checklist <span className="tabular-nums text-gray-400">{feitos}/{t.checklist.length}</span>
+        </button>
+      )
+    }
+    return (
+      <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
+    )
+  }
   if (t.status === 'a_fazer') return (
     <span className="inline-flex gap-1">
       <button type="button" className={b} onClick={() => onMudar(t, 'em_andamento')}><Play className="h-3.5 w-3.5" /> Iniciar</button>
