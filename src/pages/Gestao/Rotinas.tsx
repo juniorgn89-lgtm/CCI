@@ -88,7 +88,10 @@ const Rotinas = () => {
         ) : lista.length === 0 ? (
           <div className="p-10 text-center text-sm text-gray-500 dark:text-gray-400">
             <Repeat className="mx-auto mb-2 h-6 w-6 opacity-50" />
-            {rotinas.data?.length ? 'Nenhuma rotina com esses filtros.' : 'Nenhuma rotina ainda — crie a primeira em "Nova rotina".'}
+            {rotinas.data?.length ? 'Nenhuma rotina com esses filtros.' : 'Nenhuma rotina ainda. Uma rotina gera as tarefas do dia sozinha, posto por posto.'}
+            {!rotinas.data?.length && (
+              <div className="mt-3"><button type="button" className={btnPrimary} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Criar a primeira rotina</button></div>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -109,6 +112,11 @@ const Rotinas = () => {
                 <button type="button" className={cn(btnGhost, 'h-8 px-2')} onClick={() => setCopiaDe(r)} title="Duplicar rotina (cria uma cópia para ajustar)">
                   <Copy className="h-3.5 w-3.5" />
                 </button>
+                {r.ativa && !r.responsavel_id && (
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title="Sem responsável nenhuma tarefa é gerada. Abra a rotina e escolha quem faz.">
+                    não gera tarefas
+                  </span>
+                )}
                 <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', r.ativa ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400')}>
                   {r.ativa ? 'Ativa' : 'Inativa'}
                 </span>

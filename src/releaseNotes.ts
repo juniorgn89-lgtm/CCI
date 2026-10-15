@@ -54,6 +54,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       },
       {
         icone: 'ajuste',
+        titulo: 'Tarefas: detalhes do dia a dia',
+        descricao: '"Você" no lugar do seu nome; prazo em linguagem de gente ("hoje às 18:00", "atrasada há 2 dias"); a bolinha do menu conta só as suas, se você não é gestor; a linha inteira abre a tarefa; "Desfazer" logo após concluir; cancelar pede confirmação; atalhos Hoje, Amanhã e Segunda ao criar; a tela lembra visão, período e filtros; foto aparece em miniatura; rotina sem responsável mostra "não gera tarefas"; checklist por etapas com botão.',
+      },
+      {
+        icone: 'ajuste',
         titulo: 'Tarefas: agenda em calendário',
         descricao: 'A Agenda virou um calendário do mês (segunda a domingo) com as tarefas de cada dia, o que as rotinas ainda vão gerar nos dias futuros e a semana ao clicar num dia. O item Tarefas passou a ser o primeiro do grupo Gestão no menu. Na lista, tarefa com checklist pendente mostra "Abrir checklist" em vez de Concluir, para ninguém fechar sem fazer; sem checklist, Concluir é direto.',
       },

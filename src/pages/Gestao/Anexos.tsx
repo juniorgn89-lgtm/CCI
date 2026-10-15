@@ -5,6 +5,16 @@ import { fetchAnexos, enviarAnexo, urlAnexo, removerAnexo, ANEXO_MAX_BYTES, type
 import { useGestaoBase, btnGhost, fmtDataHora } from './comum'
 import { Erro } from './comumUi'
 
+/** Miniatura de uma foto (link temporário do bucket privado). */
+const Miniatura = ({ a, onAbrir }: { a: AnexoRow; onAbrir: () => void }) => {
+  const url = useQuery({ queryKey: ['gestao-anexo-url', a.id], queryFn: () => urlAnexo(a), staleTime: 50 * 60 * 1000 })
+  return (
+    <button type="button" onClick={onAbrir} className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800" title="Abrir a foto">
+      {url.data ? <img src={url.data} alt={a.nome} className="h-full w-full object-cover" loading="lazy" /> : <ImageIcon className="m-auto h-4 w-4 text-gray-400" />}
+    </button>
+  )
+}
+
 /** Foto ou documento da tarefa (bucket privado; abre por link temporário). */
 const AnexosTarefa = ({ tarefa }: { tarefa: TarefaRow }) => {
   const base = useGestaoBase()
@@ -45,7 +55,7 @@ const AnexosTarefa = ({ tarefa }: { tarefa: TarefaRow }) => {
         <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
           {(anexos.data ?? []).map((a) => (
             <li key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
-              {a.tipo?.startsWith('image/') ? <ImageIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" /> : <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />}
+              {a.tipo?.startsWith('image/') ? <Miniatura a={a} onAbrir={() => void abrir(a)} /> : <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />}
               <button type="button" onClick={() => void abrir(a)} className="min-w-0 flex-1 truncate text-left font-medium text-gray-800 hover:underline dark:text-gray-200">{a.nome}</button>
               <span className="hidden whitespace-nowrap text-gray-400 sm:inline">{a.autor_nome ?? ''} · {fmtDataHora(a.criado_em)}</span>
               <button type="button" onClick={() => void abrir(a)} className="text-gray-400 hover:text-gray-700" title="Abrir"><ExternalLink className="h-3.5 w-3.5" /></button>

@@ -40,8 +40,9 @@ export const useGestaoBase = () => {
   })
   const { postos } = useRedePostos()
 
+  // Quem está logado se vê como "Você" — bate o olho e sabe o que é seu.
   const nomeUsuario = (id: string | null | undefined) =>
-    id ? (usuarios.data ?? []).find((u) => u.user_id === id)?.nome ?? 'Usuário' : null
+    id ? (id === user?.id ? 'Você' : (usuarios.data ?? []).find((u) => u.user_id === id)?.nome ?? 'Usuário') : null
   const nomeSetor = (id: string | null | undefined) =>
     id ? (setores.data ?? []).find((s) => s.id === id)?.nome ?? 'Setor' : null
   const nomePosto = (codigo: number | null | undefined) => {
@@ -78,6 +79,29 @@ export const fmtData = (dia: string) => {
 export const hojeLocal = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+/**
+ * Prazo em linguagem de gente: "hoje às 18:00", "amanhã 08:00",
+ * "atrasada há 2 dias". Fora disso cai na data curta. `aberta` = ainda
+ * pode atrasar (a fazer / em andamento).
+ */
+export const fmtPrazo = (venceEm: string, aberta: boolean, agora = new Date()) => {
+  const d = new Date(venceEm)
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const hoje = hojeLocal()
+  const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  if (aberta && d.getTime() < agora.getTime()) {
+    const ms = agora.getTime() - d.getTime()
+    const h = Math.floor(ms / 3_600_000)
+    const dd = Math.floor(ms / 86_400_000)
+    if (h < 1) return 'atrasada há minutos'
+    if (dd < 1) return `atrasada há ${h} h`
+    return `atrasada há ${dd} dia${dd > 1 ? 's' : ''}`
+  }
+  if (dia === hoje) return `hoje às ${hora}`
+  if (dia === somaDias(hoje, 1)) return `amanhã ${hora}`
+  if (dia === somaDias(hoje, -1)) return `ontem ${hora}`
+  return fmtDataHora(venceEm)
 }
 export const somaDias = (dia: string, n: number) => {
   const [y, m, d] = dia.split('-').map(Number)
