@@ -8,6 +8,7 @@ import { useChartTheme } from '@/lib/chartTheme'
 import { useGestaoBase, containerCls, hojeLocal, somaDias, fmtDataHora } from './comum'
 import { Segmentos } from './comumUi'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 /**
  * Gestão → Painel de tarefas: execução das rotinas e tarefas por empresa,
@@ -113,10 +114,10 @@ const Painel = () => {
 
   if (!base.redeId) return <div className="p-6 text-sm text-gray-500">Selecione uma rede para ver o painel.</div>
 
-  const kpi = (Icon: typeof Gauge, rotulo: string, valor: string, detalhe: string, tom?: 'ok' | 'alerta') => (
+  const kpi = (Icon: typeof Gauge, rotulo: string, valor: string, detalhe: string, ajuda: string, tom?: 'ok' | 'alerta') => (
     <div className={cn(containerCls, 'p-4')}>
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {rotulo} <Icon className={cn('h-4 w-4', tom === 'ok' ? 'text-emerald-500' : tom === 'alerta' ? 'text-red-500' : 'text-gray-400')} />
+        <span className="inline-flex items-center gap-1">{rotulo} <InfoHint text={ajuda} /></span> <Icon className={cn('h-4 w-4', tom === 'ok' ? 'text-emerald-500' : tom === 'alerta' ? 'text-red-500' : 'text-gray-400')} />
       </div>
       <div className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{valor}</div>
       <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{detalhe}</div>
@@ -136,16 +137,17 @@ const Painel = () => {
       {tarefasQ.isLoading && <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {kpi(Gauge, 'Execução', r.execucao === null ? '—' : `${r.execucao}%`, r.vencidas.length ? `${r.vencidasPrazo.length} de ${r.vencidas.length} vencidas concluídas no prazo` : 'nenhuma tarefa vencida no período')}
-        {kpi(CheckCircle2, 'Concluídas', String(r.concluidas.length), `${r.concluidasPrazo.length} no prazo`, 'ok')}
-        {kpi(Clock, 'Pendentes', String(r.pendentes.length), 'dentro do prazo')}
-        {kpi(AlertTriangle, 'Atrasadas', String(r.atrasadas.length), 'abertas e vencidas', r.atrasadas.length ? 'alerta' : undefined)}
+        {kpi(Gauge, 'Execução', r.execucao === null ? '—' : `${r.execucao}%`, r.vencidas.length ? `${r.vencidasPrazo.length} de ${r.vencidas.length} vencidas concluídas no prazo` : 'nenhuma tarefa vencida no período',
+          'Das tarefas que já venceram no período, quantas foram concluídas até o prazo. Concluir atrasado não conta. Acima de 90% é verde, 70% a 90% âmbar, abaixo vermelho.')}
+        {kpi(CheckCircle2, 'Concluídas', String(r.concluidas.length), `${r.concluidasPrazo.length} no prazo`, 'Tarefas concluídas no período, e quantas delas antes do vencimento.', 'ok')}
+        {kpi(Clock, 'Pendentes', String(r.pendentes.length), 'dentro do prazo', 'Abertas (a fazer ou em andamento) que ainda não venceram. Não são problema, ainda.')}
+        {kpi(AlertTriangle, 'Atrasadas', String(r.atrasadas.length), 'abertas e vencidas', 'Abertas que já passaram do vencimento. É aqui que o gestor precisa agir: cobrar, adiar com motivo ou cancelar.', r.atrasadas.length ? 'alerta' : undefined)}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
         {/* Saúde operacional */}
         <div className={cn(containerCls, 'p-4')}>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Saúde operacional</p>
+          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">Saúde operacional <InfoHint text="A execução do período num medidor, com a comparação desta semana contra a anterior. Mesma conta do card Execução." /></p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">Tarefas vencidas concluídas no prazo · {periodo} dias</p>
           <div className="my-4 flex flex-col items-center">
             <div className="relative h-32 w-32">
@@ -187,7 +189,7 @@ const Painel = () => {
 
         {/* Execução diária */}
         <div className={cn(containerCls, 'p-4')}>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Execução diária</p>
+          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100">Execução diária <InfoHint text="Dia a dia: das tarefas que venciam naquele dia, a parte concluída no prazo. Dia sem tarefa vencendo fica vazio, não zero." /></p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">% das tarefas vencidas no dia concluídas no prazo</p>
           <div className="mt-3 h-56">
             <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 224 }}>
@@ -210,7 +212,7 @@ const Painel = () => {
         {/* Execução por corte */}
         <div className={cn(containerCls, 'p-4')}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><ListChecks className="h-4 w-4 text-emerald-500" /> Execução por empresa, setor e pessoa</p>
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><ListChecks className="h-4 w-4 text-emerald-500" /> Execução por empresa, setor e pessoa <InfoHint text="A mesma execução quebrada por posto, setor ou responsável, para achar onde está travando. Clique no nome para abrir a lista de tarefas daquele corte." /></p>
             <Segmentos<Corte> opcoes={[{ value: 'empresa', label: 'Empresa' }, { value: 'setor', label: 'Setor' }, { value: 'pessoa', label: 'Pessoa' }]} valor={corte} onChange={setCorte} />
           </div>
           {r.linhas.length === 0 ? (
@@ -234,7 +236,7 @@ const Painel = () => {
         <div className="space-y-4">
           {/* Pedem atenção */}
           <div className={cn(containerCls, 'p-4')}>
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><AlertTriangle className="h-4 w-4 text-red-500" /> Pedem atenção</p>
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><AlertTriangle className="h-4 w-4 text-red-500" /> Pedem atenção <InfoHint text="Atalhos para o que precisa de ação agora: atrasadas e as que vencem hoje. Cada linha abre a lista já filtrada." /></p>
             {r.atencao.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">Nada atrasado ou vencendo hoje. 👋</p>
             ) : (
@@ -257,7 +259,7 @@ const Painel = () => {
 
           {/* Atividade recente */}
           <div className={cn(containerCls, 'p-4')}>
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><Activity className="h-4 w-4 text-emerald-500" /> Atividade recente</p>
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><Activity className="h-4 w-4 text-emerald-500" /> Atividade recente <InfoHint text="Quem fez o quê por último na rede: criou, iniciou, concluiu, adiou, cancelou ou mexeu no checklist. O histórico completo de cada tarefa fica no detalhe dela." /></p>
             {(atividadesQ.data ?? []).length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">Sem atividade ainda.</p>
             ) : (

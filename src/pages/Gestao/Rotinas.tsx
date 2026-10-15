@@ -10,6 +10,7 @@ import {
 import { useGestaoBase, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, hojeLocal, fmtData } from './comum'
 import { Modal, ModalRodape, Erro } from './comumUi'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 /**
  * Gestão → Rotinas: modelos recorrentes que geram as tarefas sozinhos
@@ -78,6 +79,7 @@ const Rotinas = () => {
         </select>
         <button type="button" className={btnGhost} onClick={() => setSetoresAberto(true)}><Layers className="h-4 w-4" /> Setores</button>
         <button type="button" className={btnPrimary} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Nova rotina</button>
+        <InfoHint text="Rotina é o modelo: diz o que fazer, em quais postos, quem faz e com que frequência. Todo dia à meia-noite ela gera as tarefas do dia, uma por posto. Pausar (botão de energia) para de gerar sem apagar o histórico; Duplicar cria uma cópia para ajustar." />
       </div>
 
       <Erro msg={erro} />
@@ -211,7 +213,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
           <textarea className={inputCls} rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </div>
         <div>
-          <label className={labelCls}>Postos ({empresas.length ? `${empresas.length} selecionado(s)` : 'nenhum = uma tarefa só, sem posto'})</label>
+          <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Postos ({empresas.length ? `${empresas.length} selecionado(s)` : 'nenhum = uma tarefa só, sem posto'}) <InfoHint text="Cada posto marcado vira uma tarefa própria todo dia, com o mesmo responsável e checklist. Sem posto marcado, nasce uma tarefa só, da rede." /></label>
           <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-700">
             {base.postos.length === 0 && <span className="text-xs text-gray-400">Carregando postos da rede…</span>}
             {base.postos.map((p) => {
@@ -227,7 +229,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelCls}>Responsável</label>
+            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Responsável <InfoHint text="Quem recebe as tarefas geradas. Sem responsável a rotina fica cadastrada mas não gera nada, e aparece com o selo 'não gera tarefas' na lista." /></label>
             <select className={selectCls} value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
               <option value="">Sem responsável (não gera)</option>
               {base.usuarios.map((u) => <option key={u.user_id} value={u.user_id}>{u.nome}</option>)}
@@ -244,7 +246,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
 
         <div className="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <div>
-            <label className={labelCls}>Recorrência</label>
+            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Recorrência <InfoHint text="Todos os dias, só dias úteis (segunda a sexta) ou dias escolhidos. 'Início em' é a partir de quando gera; 'vence às' é a hora limite de cada tarefa gerada. A linha verde abaixo resume e mostra a próxima geração." /></label>
             <div className="flex flex-wrap items-center gap-2">
               {(Object.keys(RECORRENCIA_LABEL) as Recorrencia[]).map((r) => (
                 <button key={r} type="button" onClick={() => setRecorrencia(r)}
@@ -280,7 +282,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
             </p>
           </div>
           <div>
-            <label className={labelCls}>Referente a</label>
+            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Referente a <InfoHint text="De que dia a tarefa trata. 'Conferir o caixa' gerada hoje normalmente é sobre ontem (dia anterior); um fechamento gerado no dia 1 é sobre o mês anterior. Isso aparece na tarefa como 'referente a'." /></label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(REFERENTE_LABEL) as ReferenteA[]).map((r) => (
                 <button key={r} type="button" onClick={() => setReferente(r)}
@@ -296,7 +298,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
         </div>
 
         <div>
-          <label className={labelCls}>Checklist-modelo (copiado para cada tarefa gerada)</label>
+          <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Checklist-modelo (copiado para cada tarefa gerada) <InfoHint text="As etapas entram em toda tarefa que a rotina gerar. Mudar aqui vale só para as próximas; as já geradas ficam como estão." /></label>
           {checklist.length > 0 && (
             <ul className="mb-2 space-y-1">
               {checklist.map((c, i) => (

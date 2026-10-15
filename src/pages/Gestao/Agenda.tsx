@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Building2, User, Loader2 } fro
 import { fetchTarefas, fetchRotinas, estaAtrasada, type TarefaRow, type RotinaRow } from '@/api/supabase/gestaoTarefas'
 import { containerCls, btnGhost, hojeLocal, somaDias } from './comum'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
 
 /**
  * Agenda: calendário mensal (seg–dom) com as tarefas do dia e, nos dias
@@ -118,7 +119,7 @@ export const Agenda = ({ ctx, filtro, onAbrir }: {
         <span className="inline-flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span>
-            <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100" data-agenda-titulo>{titulo}</span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100"><span data-agenda-titulo>{titulo}</span> <InfoHint text="As tarefas de cada dia, com a cor do status, e nos dias futuros o que as rotinas ainda vão gerar (bolinha vazada). Clique num dia para ver a semana; clique no título para abrir a tarefa. Os filtros da tela valem aqui também." /></span>
             <span className="block text-[11px] text-gray-500">{tarefasQ.isLoading ? 'carregando…' : `${totalVisivel} tarefa(s)`}</span>
           </span>
         </span>

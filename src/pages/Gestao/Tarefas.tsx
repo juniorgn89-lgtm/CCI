@@ -16,6 +16,8 @@ import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
 import { cn } from '@/lib/utils'
+import InfoHint from '@/components/ui/InfoHint'
+import HeaderHint from '@/components/tables/HeaderHint'
 
 /**
  * Gestão → Tarefas: as tarefas das rotinas e as avulsas da rede. Abas por
@@ -183,7 +185,7 @@ const Tarefas = () => {
     <div className="space-y-4">
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {abas.map((a) => (
             <button key={a.id} type="button" onClick={() => setAba(a.id)}
               className={cn('inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors', aba === a.id ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : cn('text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800', a.cor))}>
@@ -191,10 +193,12 @@ const Tarefas = () => {
               <span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', aba === a.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800')}>{a.n}</span>
             </button>
           ))}
+          <InfoHint className="ml-1" text="Atrasadas: abertas que passaram do vencimento. Vencem hoje: abertas com prazo hoje. Em andamento: alguém já começou. Minhas pendentes: as suas abertas. Os números contam o período escolhido à direita." />
         </div>
         <span className="ml-auto flex flex-wrap items-center gap-2">
           <Segmentos<Visao> opcoes={[{ value: 'lista', label: 'Lista' }, { value: 'kanban', label: 'Kanban' }, { value: 'agenda', label: 'Agenda' }]} valor={visao} onChange={setVisao} />
           <Segmentos<Periodo> opcoes={[{ value: 7, label: '7 dias' }, { value: 14, label: '14 dias' }, { value: 30, label: '30 dias' }]} valor={periodo} onChange={setPeriodo} />
+          <InfoHint text="Lista, Kanban (arraste entre colunas) ou Agenda (calendário do mês). O período é quantos dias para trás a lista mostra; os próximos 7 dias aparecem sempre." />
           {base.podeGerir && <button type="button" className={btnPrimary} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Nova tarefa</button>}
         </span>
       </div>
@@ -283,9 +287,9 @@ const Tarefas = () => {
                     <th className="px-4 py-2 font-semibold">Tarefa</th>
                     <th className="px-3 py-2 font-semibold">Posto</th>
                     <th className="px-3 py-2 font-semibold">Responsável</th>
-                    <th className="px-3 py-2 font-semibold">Vence</th>
-                    <th className="px-3 py-2 font-semibold">Status</th>
-                    <th className="px-4 py-2 text-right font-semibold">Ação</th>
+                    <HeaderHint align="left" className="font-semibold" label="Vence" help="Prazo em palavras: hoje, amanhã ou há quanto tempo está atrasada. Passe o mouse para ver a data e a hora exatas. Atrasadas vêm primeiro, depois as de hoje." />
+                    <HeaderHint align="left" className="font-semibold" label="Status" help="A fazer: ninguém começou. Em andamento: alguém começou (marcar a primeira etapa do checklist já faz isso). Concluída e Cancelada fecham a tarefa; Reabrir volta para A fazer." />
+                    <HeaderHint align="right" className="px-4 font-semibold" label="Ação" help="Sem checklist: Concluir direto, com Desfazer por alguns segundos. Com checklist pendente: Abrir checklist, para marcar as etapas antes de concluir. Adiar, editar e cancelar ficam dentro da tarefa." />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -485,7 +489,7 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
         <AnexosTarefa tarefa={t} />
         {aberta && (
           <div>
-            <label className={labelCls} htmlFor="obs-tarefa">Observação (opcional, vai para o histórico)</label>
+            <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="obs-tarefa">Observação (opcional, vai para o histórico) <InfoHint text="O que você escrever aqui é gravado junto com a próxima ação: concluir, adiar ou cancelar. Serve para explicar um atraso, um problema encontrado ou por que adiou." /></label>
             <textarea id="obs-tarefa" rows={2} className={inputCls} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: tanque 2 sem leitura, bomba em manutenção" />
           </div>
         )}
@@ -524,7 +528,7 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
 
         {/* Histórico: quem fez o quê e quando (inclui observações, adiamentos e edições). */}
         <div>
-          <p className={cn(labelCls, 'inline-flex items-center gap-1')}><History className="h-3.5 w-3.5" /> Histórico</p>
+          <p className={cn(labelCls, 'inline-flex items-center gap-1')}><History className="h-3.5 w-3.5" /> Histórico <InfoHint text="Tudo que aconteceu com esta tarefa, do mais novo para o mais antigo: quem criou ou gerou, iniciou, mexeu no checklist, adiou, editou, concluiu, reabriu ou cancelou, com a observação de cada ação." /></p>
           {historico.isLoading ? (
             <p className="text-xs text-gray-400">Carregando…</p>
           ) : (historico.data ?? []).length === 0 ? (
@@ -625,7 +629,7 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
               <option value="">Sem posto (rede)</option>
               {base.postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia || p.razao || `Posto ${p.codigo}`}</option>)}
             </select></div>
-          <div><label className={labelCls} htmlFor="tf-resp">Responsável <span className="font-normal text-gray-400">(obrigatório)</span></label>
+          <div><label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-resp">Responsável <span className="font-normal text-gray-400">(obrigatório)</span> <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></label>
             <select id="tf-resp" className={cn(selectCls, tentou && respInvalido && campoErro)} value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
               <option value="">Selecione…</option>
               {base.usuarios.map((u) => <option key={u.user_id} value={u.user_id}>{u.nome}</option>)}
@@ -653,7 +657,7 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
         </div>
         <div><label className={labelCls} htmlFor="tf-desc">Descrição (opcional)</label><textarea id="tf-desc" className={inputCls} rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
         <div>
-          <label className={labelCls} htmlFor="tf-check">Checklist (opcional)</label>
+          <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-check">Checklist (opcional) <InfoHint text="Etapas que precisam ser marcadas antes de concluir. Com checklist, a lista mostra Abrir checklist em vez de Concluir, e marcar a primeira etapa já põe a tarefa em andamento." /></label>
           {checklist.length > 0 && (
             <ul className="mb-2 space-y-1">
               {checklist.map((c, i) => (

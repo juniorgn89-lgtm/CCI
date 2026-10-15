@@ -55,7 +55,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         icone: 'ajuste',
         titulo: 'Tarefas: detalhes do dia a dia',
-        descricao: '"Você" no lugar do seu nome; prazo em linguagem de gente ("hoje às 18:00", "atrasada há 2 dias"); a bolinha do menu conta só as suas, se você não é gestor; a linha inteira abre a tarefa; "Desfazer" logo após concluir; cancelar pede confirmação; atalhos Hoje, Amanhã e Segunda ao criar; a tela lembra visão, período e filtros; foto aparece em miniatura; rotina sem responsável mostra "não gera tarefas"; checklist por etapas com botão.',
+        descricao: '"Você" no lugar do seu nome; prazo em linguagem de gente ("hoje às 18:00", "atrasada há 2 dias"); a bolinha do menu conta só as suas, se você não é gestor; a linha inteira abre a tarefa; "Desfazer" logo após concluir; cancelar pede confirmação; atalhos Hoje, Amanhã e Segunda ao criar; a tela lembra visão, período e filtros; foto aparece em miniatura; rotina sem responsável mostra "não gera tarefas"; checklist por etapas com botão; "?" de ajuda nos cards, colunas e campos do módulo.',
       },
       {
         icone: 'ajuste',
