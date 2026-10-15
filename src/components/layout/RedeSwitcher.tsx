@@ -72,6 +72,7 @@ const RedeSwitcher = () => {
       chave: target.chave,
       api_base_url: target.api_base_url,
       plano: target.plano,
+      gestao_habilitado: !!target.gestao_habilitado,
     })
 
     // Limpa filtro de empresa selecionada (códigos da Quality são diferentes por rede)

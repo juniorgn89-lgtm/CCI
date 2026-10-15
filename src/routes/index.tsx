@@ -24,6 +24,7 @@ const Comercial = lazy(() => import('@/pages/Comercial'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Pessoas = lazy(() => import('@/pages/Pessoas'))
+const Gestao = lazy(() => import('@/pages/Gestao'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
 const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
@@ -32,6 +33,7 @@ const AdminAssistente = lazy(() => import('@/pages/Admin/AssistenteConfig'))
 const AdminControleAcesso = lazy(() => import('@/pages/Painel/ControleAcesso'))
 const AdminAssinatura = lazy(() => import('@/pages/Admin/Assinatura'))
 const AdminLeads = lazy(() => import('@/pages/Admin/Leads'))
+const AdminContratoWebPosto = lazy(() => import('@/pages/Admin/ContratoWebPosto'))
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
@@ -80,6 +82,9 @@ const AppRoutes = () => {
           {/* Compliance ocultado — rota redireciona pro dashboard (reativar: repor a rota + o item no navConfig/modulos/appStructure). */}
           <Route path="/compliance" element={<Navigate to="/dashboard" replace />} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
+          <Route path="/gestao" element={<Suspense fallback={<RouteFallback />}><Gestao /></Suspense>} />
+          <Route path="/gestao/tarefas" element={<Navigate to="/gestao?tab=tarefas" replace />} />
+          <Route path="/gestao/rotinas" element={<Navigate to="/gestao?tab=rotinas" replace />} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
           {/* Operação = Bombas + Reabastecimento em abas. As rotas antigas redirecionam. */}
@@ -109,6 +114,7 @@ const AppRoutes = () => {
             <Route path="controle-acesso" element={<Suspense fallback={<RouteFallback />}><AdminControleAcesso /></Suspense>} />
             <Route path="assinatura" element={<Suspense fallback={<RouteFallback />}><AdminAssinatura /></Suspense>} />
             <Route path="leads" element={<Suspense fallback={<RouteFallback />}><AdminLeads /></Suspense>} />
+            <Route path="contrato" element={<Suspense fallback={<RouteFallback />}><AdminContratoWebPosto /></Suspense>} />
           </Route>
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

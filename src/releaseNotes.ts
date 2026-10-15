@@ -33,6 +33,38 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.5',
+    data: '2026-10-15',
+    resumo: 'Diretores ganham a conta do contrato com o WebPosto: clientes, chaves, postos e repasse do mês.',
+    itens: [
+      {
+        icone: 'relatorio',
+        titulo: 'Contrato WebPosto no Painel',
+        descricao: 'Tela só para diretores com redes ativas, chaves, postos contados ao vivo na API e o repasse líquido e faturado do mês, com os parâmetros do contrato editáveis.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Módulo Tarefas (em teste)',
+        descricao: 'Painel, Tarefas e Rotinas num módulo só: rotinas geram tarefas por posto todos os dias, com checklist, responsável, setor, foto ou documento, Kanban e Agenda. A CCI liga por rede enquanto testa.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Tarefas: menos cliques no dia a dia',
+        descricao: 'Bolinha no menu com o que está atrasado ou vence hoje; atrasadas sempre no topo; o filtro de posto da barra vale na lista; quem executa abre direto nas suas pendentes; ao fechar o checklist o botão Concluir se destaca; observação opcional ao concluir ou cancelar; os cortes do painel abrem a lista já filtrada.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Tarefas: editar, adiar e ver o histórico',
+        descricao: 'Gestor edita a tarefa depois de criada; responsável adia com motivo; o detalhe mostra quem fez o quê e quando. Marcar a primeira etapa já põe a tarefa em andamento. No celular a lista virou cards e os botões dos modais ficam sempre visíveis. Rotinas ganharam Duplicar e a prévia da próxima geração; setores podem ser renomeados.',
+      },
+      {
+        icone: 'relatorio',
+        titulo: 'Contrato WebPosto: fechar o mês',
+        descricao: 'Botão que guarda a foto do mês (redes, postos e valores) para conferir o repasse quando ele chegar, com histórico dos últimos meses.',
+      },
+    ],
+  },
+  {
     versao: '1.2.4',
     data: '2026-10-06',
     resumo: 'O Gestão360 entrou na suíte: abra a rotina do escritório pelo launcher.',

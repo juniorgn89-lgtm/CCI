@@ -46,6 +46,8 @@ export interface ProfileRow {
    * pode. Opcional: rows lidos antes da migration não têm a coluna.
    */
   pode_demonstrar?: boolean
+  /** Gere tarefas e rotinas do módulo Gestão (docs/supabase-gestao-tarefas.sql). */
+  pode_gerir_tarefas?: boolean
   created_at: string
 }
 
@@ -205,6 +207,13 @@ export const updateProfilePodeDemonstrar = async (userId: string, pode: boolean)
     .from('profiles')
     .update({ pode_demonstrar: pode })
     .eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Concede/revoga a gestão de tarefas (criar rotinas, setores e tarefas). Master sempre pode. */
+export const updateProfilePodeGerirTarefas = async (userId: string, pode: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('profiles').update({ pode_gerir_tarefas: pode }).eq('user_id', userId)
   if (error) throw error
 }
 

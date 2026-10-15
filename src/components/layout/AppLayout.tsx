@@ -163,7 +163,8 @@ const AppLayout = () => {
   // não-master perde masterOnly e módulos fora da lista permitida. Depois a
   // personalização oculta/reordena (itens fora do registro ficam no fim).
   const visibleNavItems = (() => {
-    let items = isMaster ? navItems : navItems.filter((item) => !item.masterOnly)
+    const gestaoOn = !!tenantRede?.gestao_habilitado
+    let items = (isMaster ? navItems : navItems.filter((item) => !item.masterOnly)).filter((item) => !item.requerGestao || gestaoOn)
     if (!isMaster && modulosPermitidos && modulosPermitidos.length > 0) {
       items = items.filter((item) => {
         const id = moduloIdByPath.get(item.path)

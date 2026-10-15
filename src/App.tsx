@@ -164,10 +164,24 @@ const loadTenantForUser = async () => {
         // o login: a rede só fica sem plano (card "Meu plano" cai no neutro).
         if (alvo) {
           const { data: pl, error: plErr } = await supabase
-            .from('redes').select('plano').eq('id', alvo.id).maybeSingle()
+            .from('redes').select('plano, gestao_habilitado').eq('id', alvo.id).maybeSingle()
           if (!plErr && pl) {
-            const plano = (pl as { plano: PlanoId | null }).plano
-            useTenantStore.getState().setRede({ ...alvo, plano })
+            const { plano, gestao_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null }
+            useTenantStore.getState().setRede({ ...alvo, plano, gestao_habilitado: !!gestao_habilitado })
+          }
+        }
+      }
+      // Master: a rede vem da escolha persistida (zustand). Reler plano e flag do
+      // módulo Tarefas no servidor, senão uma rede escolhida antes da flag existir
+      // fica pra sempre sem o item "Tarefas" no menu.
+      if (isMaster) {
+        const persisted = useTenantStore.getState().rede
+        if (persisted) {
+          const { data: pl, error: plErr } = await supabase
+            .from('redes').select('plano, gestao_habilitado').eq('id', persisted.id).maybeSingle()
+          if (!plErr && pl) {
+            const { plano, gestao_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null }
+            useTenantStore.getState().setRede({ ...persisted, plano, gestao_habilitado: !!gestao_habilitado })
           }
         }
       }
@@ -180,9 +194,12 @@ const loadTenantForUser = async () => {
       // Modo Demonstração: query SEPARADA e resiliente — a coluna pode não existir
       // ainda (docs/supabase-pode-demonstrar.sql). Erro aqui NÃO quebra o login.
       const { data: pd, error: pdErr } = await supabase
-        .from('profiles').select('pode_demonstrar').eq('user_id', user.id).maybeSingle()
-      const podeDemonstrar = !pdErr && !!(pd as { pode_demonstrar?: boolean | null } | null)?.pode_demonstrar
+        .from('profiles').select('pode_demonstrar, pode_gerir_tarefas').eq('user_id', user.id).maybeSingle()
+      const flags = pd as { pode_demonstrar?: boolean | null; pode_gerir_tarefas?: boolean | null } | null
+      const podeDemonstrar = !pdErr && !!flags?.pode_demonstrar
       useAuthStore.getState().setCanDemonstrar(isMaster || podeDemonstrar)
+      // Gestão de tarefas: gestor marcado em Usuários; master sempre.
+      useAuthStore.getState().setCanGerirTarefas(isMaster || (!pdErr && !!flags?.pode_gerir_tarefas))
       // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)

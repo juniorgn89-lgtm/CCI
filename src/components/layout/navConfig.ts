@@ -1,6 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Fuel,
-  Network, ShieldAlert, UsersRound, TrendingUp, Radio, Building2,
+  Network, ShieldAlert, UsersRound, TrendingUp, Radio, Building2, ClipboardList,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -9,6 +9,8 @@ export interface NavItem {
   icon: typeof BarChart3
   /** Quando true, item só aparece pro gerente (is_master). */
   masterOnly?: boolean
+  /** Módulo Gestão (tarefas): só aparece quando a rede tem `gestao_habilitado`. */
+  requerGestao?: boolean
 }
 
 export interface NavGroup {
@@ -52,6 +54,8 @@ export const navGroups: NavGroup[] = [
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
       { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
+      // Gestão de tarefas (Painel / Tarefas / Rotinas como abas) — só em redes com o módulo ligado.
+      { label: 'Tarefas', path: '/gestao', icon: ClipboardList, requerGestao: true },
     ],
   },
 ]

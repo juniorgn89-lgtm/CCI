@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -16,7 +16,7 @@ import {
   updateProfileModulos,
   updateProfilePodeApurar,
   updateProfilePodeVerReabastecimento,
-  updateProfilePodeDemonstrar,
+  updateProfilePodeDemonstrar, updateProfilePodeGerirTarefas,
   createUser,
   deleteUser,
   generateRecoveryLink,
@@ -228,6 +228,19 @@ const Usuarios = () => {
     setBusyUserId(row.user_id)
     try {
       await updateProfilePodeApurar(row.user_id, !row.pode_apurar)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleTogglePodeGerirTarefas = async (row: ProfileRow) => {
+    if (row.is_master) { alert('Administrador já gere tarefas — não precisa do flag.'); return }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeGerirTarefas(row.user_id, !row.pode_gerir_tarefas)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -563,6 +576,7 @@ const Usuarios = () => {
                         onTogglePodeApurar={() => handleTogglePodeApurar(p)}
                         onTogglePodeReabast={() => handleTogglePodeReabast(p)}
                         onTogglePodeDemo={() => handleTogglePodeDemo(p)}
+                        onTogglePodeGerirTarefas={() => handleTogglePodeGerirTarefas(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
                         onResetSenha={() => handleResetSenha(p)}
                         onDelete={() => handleDelete(p)}
@@ -932,12 +946,13 @@ interface UserRowProps {
   onTogglePodeApurar: () => void
   onTogglePodeReabast: () => void
   onTogglePodeDemo: () => void
+  onTogglePodeGerirTarefas: () => void
   onToggleAtivo: () => void
   onResetSenha: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1154,6 +1169,29 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                 <span className={cn(
                   'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
                   p.pode_demonstrar ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {/* Gestão de tarefas (cria rotinas, setores e tarefas do módulo Tarefas) */}
+            <div className="flex items-center gap-1.5">
+              <ClipboardList className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeGerirTarefas}
+                disabled={busy}
+                role="switch"
+                aria-checked={!!p.pode_gerir_tarefas}
+                aria-label={p.pode_gerir_tarefas ? 'Revogar gestão de tarefas' : 'Conceder gestão de tarefas'}
+                title={p.pode_gerir_tarefas ? 'Gestão de tarefas: liberado — clique pra revogar' : 'Gestão de tarefas: só executa — clique pra liberar criar rotinas e tarefas'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_gerir_tarefas ? 'bg-[#1e3a5f]' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_gerir_tarefas ? 'translate-x-[14px]' : 'translate-x-0.5'
                 )} />
               </button>
             </div>

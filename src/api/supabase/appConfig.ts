@@ -15,6 +15,13 @@ export interface AppConfigRow {
   comercial_whatsapp: string
   assinatura_manutencao: boolean
   assinatura_manutencao_msg: string
+  /* ─── Contrato WebPosto (docs/supabase-app-config-contrato.sql) ─── */
+  /** Valor líquido por posto ativo ao mês (R$). */
+  contrato_valor_posto?: number | string | null
+  /** Alíquota efetiva do Simples em %, para o gross-up. */
+  contrato_aliquota_pct?: number | string | null
+  contrato_inicio?: string | null
+  contrato_observacoes?: string | null
   updated_at: string
 }
 

@@ -50,6 +50,8 @@ interface AuthState {
    * o sistema). Master sempre pode; outros só com `profiles.pode_demonstrar`.
    */
   canDemonstrar: boolean
+  /** Gere tarefas e rotinas (profiles.pode_gerir_tarefas). Master sempre. */
+  canGerirTarefas: boolean
   /**
    * Nome de exibição do usuário (de `profiles.full_name`). Usado no avatar
    * da sidebar e em qualquer lugar que mostre quem está logado. Quando null,
@@ -83,6 +85,7 @@ interface AuthState {
   setCanApurar: (canApurar: boolean) => void
   setCanVerReabastecimento: (v: boolean) => void
   setCanDemonstrar: (v: boolean) => void
+  setCanGerirTarefas: (v: boolean) => void
   setFullName: (name: string | null) => void
   setOnboardingSeen: (v: boolean) => void
   setBriefingSeenToday: (v: boolean) => void
@@ -103,6 +106,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   canApurar: false,
   canVerReabastecimento: false,
   canDemonstrar: false,
+  canGerirTarefas: false,
   fullName: null,
   onboardingSeen: true,
   briefingSeenToday: true,
@@ -115,6 +119,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setCanApurar: (canApurar) => set({ canApurar }),
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setCanDemonstrar: (canDemonstrar) => set({ canDemonstrar }),
+  setCanGerirTarefas: (canGerirTarefas) => set({ canGerirTarefas }),
   setFullName: (fullName) => set({ fullName }),
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),

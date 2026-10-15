@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search } from 'lucide-react'
+import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search, ClipboardList } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import {
   fetchRedes,
   createRede,
   updateRede,
   toggleRedeAtivo,
+  toggleRedeGestao,
   deleteRede,
   type RedeRow,
 } from '@/api/supabase/redes'
@@ -68,6 +69,18 @@ const Redes = () => {
     setBusyId(rede.id)
     try {
       await toggleRedeAtivo(rede.id, !rede.ativo)
+      queryClient.invalidateQueries({ queryKey: ['redes'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleToggleGestao = async (rede: RedeRow) => {
+    setBusyId(rede.id)
+    try {
+      await toggleRedeGestao(rede.id, !rede.gestao_habilitado)
       queryClient.invalidateQueries({ queryKey: ['redes'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -163,6 +176,7 @@ const Redes = () => {
                 <th className="px-4 py-2.5 text-left font-medium">Nome</th>
                 <th className="px-4 py-2.5 text-left font-medium">CHAVE</th>
                 <th className="px-4 py-2.5 text-center font-medium">Status</th>
+                <th className="px-4 py-2.5 text-center font-medium" title="Módulo Gestão: Painel, Tarefas e Rotinas">Tarefas</th>
                 <th className="px-4 py-2.5 text-right font-medium">Ação</th>
               </tr>
             </thead>
@@ -173,6 +187,7 @@ const Redes = () => {
                   rede={r}
                   busy={busyId === r.id}
                   onToggle={() => handleToggleAtivo(r)}
+                  onToggleGestao={() => handleToggleGestao(r)}
                   onEdit={() => setEditingRede(r)}
                   onDelete={() => setDeletingRede(r)}
                 />
@@ -230,12 +245,14 @@ const RedeRowComp = ({
   rede,
   busy,
   onToggle,
+  onToggleGestao,
   onEdit,
   onDelete,
 }: {
   rede: RedeRow
   busy: boolean
   onToggle: () => void
+  onToggleGestao: () => void
   onEdit: () => void
   onDelete: () => void
 }) => {
@@ -285,6 +302,28 @@ const RedeRowComp = ({
           )}>
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : (rede.ativo ? 'Ativa' : 'Inativa')}
           </span>
+        </div>
+      </td>
+      {/* Módulo Gestão (tarefas/rotinas) — liga o menu "Tarefas" pra esta rede */}
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1.5">
+          <ClipboardList className="h-3.5 w-3.5 text-gray-400" />
+          <button
+            onClick={onToggleGestao}
+            disabled={busy}
+            role="switch"
+            aria-checked={!!rede.gestao_habilitado}
+            aria-label={rede.gestao_habilitado ? 'Desligar módulo Tarefas' : 'Ligar módulo Tarefas'}
+            title={rede.gestao_habilitado ? 'Tarefas: ligado pra esta rede — clique pra desligar' : 'Tarefas: desligado — clique pra ligar'}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+              rede.gestao_habilitado ? 'bg-[#1e3a5f]' : 'bg-gray-300 dark:bg-gray-700',
+              busy && 'opacity-50 cursor-wait'
+            )}
+          >
+            <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', rede.gestao_habilitado ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+          </button>
         </div>
       </td>
       <td className="px-4 py-3 text-right">

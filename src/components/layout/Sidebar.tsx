@@ -27,6 +27,7 @@ import {
   Gauge,
   Tag,
   Sun,
+  Repeat,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -37,6 +38,7 @@ import { normalizePlano, moduloAllowedByPlano } from '@/lib/access'
 import { navGroups } from '@/components/layout/navConfig'
 import { usePersonalizationStore } from '@/store/personalization'
 import { useTenantStore } from '@/store/tenant'
+import { useTarefasAtencao } from '@/hooks/useTarefasAtencao'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -95,6 +97,11 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Bombas', to: '/operacao?tab=bombas', Icon: Gauge },
     { label: 'Reabastecimento', to: '/operacao?tab=reabastecimento', Icon: Fuel },
   ],
+  '/gestao': [
+    { label: 'Painel', to: '/gestao', Icon: LayoutGrid },
+    { label: 'Tarefas', to: '/gestao?tab=tarefas', Icon: ClipboardList },
+    { label: 'Rotinas', to: '/gestao?tab=rotinas', Icon: Repeat },
+  ],
   '/produtividade': [
     { label: 'Pista', to: '/produtividade?tab=pista', Icon: Fuel },
     { label: 'Loja', to: '/produtividade?tab=loja', Icon: Store },
@@ -126,6 +133,7 @@ const Sidebar = () => {
   const podeTrocarRede = acessoTodasRedes || redesPermitidas.length > 1
   const canApurar = useAuthStore((s) => s.canApurar)
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
+  const canGerirTarefas = useAuthStore((s) => s.canGerirTarefas)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -330,9 +338,13 @@ const Sidebar = () => {
   // fora da lista permitida, (c) itens ocultos na personalização; e reordena
   // dentro do grupo pela ordem personalizada. Itens fora do registro
   // (ex.: Selecionar Rede) ficam intactos (index 999 → no fim, sem ocultar).
+  const gestaoOn = !!useTenantStore((s) => s.rede)?.gestao_habilitado
+  // Bolinha no item Tarefas: abertas vencidas ou vencendo hoje (0 = sem bolinha).
+  const tarefasAtencao = useTarefasAtencao()
   const visibleNavGroups = navGroups
     .map((group) => {
-      let items = group.items
+      // Módulo Gestão (tarefas) só em redes com o módulo ligado — master inclusive.
+      let items = group.items.filter((item) => !item.requerGestao || gestaoOn)
       if (!isMaster) {
         // "Selecionar Rede" (masterOnly) também aparece pra não-master que pode
         // trocar de rede (acesso a várias ou todas).
@@ -381,15 +393,18 @@ const Sidebar = () => {
                 const Icon = item.icon
                 const rawSub = MODULE_SUBOPTIONS[item.path]
                 // Reabastecimento tem permissão própria — some do submenu de Operação.
-                const subOptions = rawSub && !canVerReabastecimento
+                let subOptions = rawSub && !canVerReabastecimento
                   ? rawSub.filter((s) => s.to !== '/operacao?tab=reabastecimento')
                   : rawSub
+                // Rotinas é de gestor/diretor — some do submenu de Tarefas pros demais.
+                if (subOptions && !canGerirTarefas) subOptions = subOptions.filter((s) => s.to !== '/gestao?tab=rotinas')
                 // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
                 // abre o menu de opções (em vez de navegar direto). Só vale pros
                 // módulos com abas deep-linkáveis; os demais navegam normal.
                 const optionsMode = mode === 'options' && narrow && !!subOptions
                 const optionsOpen = openOptions === item.path
 
+                const badge = item.path === '/gestao' && tarefasAtencao > 0 ? tarefasAtencao : 0
                 const inner = (
                   <>
                     {/* Barra vertical indicando item ativo. Fica colada à esquerda
@@ -402,7 +417,7 @@ const Sidebar = () => {
                     )}
                     {/* Coluna fixa do ícone — fica sempre na mesma posição quer
                         a sidebar esteja narrow ou wide. */}
-                    <span className="flex h-9 w-10 shrink-0 items-center justify-center">
+                    <span className="relative flex h-9 w-10 shrink-0 items-center justify-center">
                       <Icon
                         className={cn(
                           'h-[17px] w-[17px]',
@@ -411,9 +426,22 @@ const Sidebar = () => {
                             : 'text-gray-400 dark:text-white/55',
                         )}
                       />
+                      {badge > 0 && !wide && (
+                        <span aria-hidden className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-[#0f0f0f]" />
+                      )}
                     </span>
                     {wide && (
-                      <span className="text-[13px] font-medium">{item.label}</span>
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
+                        <span className="text-[13px] font-medium">{item.label}</span>
+                        {badge > 0 && (
+                          <span
+                            className="rounded-full bg-amber-500 px-1.5 py-px text-[10px] font-semibold leading-4 text-white tabular-nums"
+                            title={`${badge} tarefa(s) atrasada(s) ou vencendo hoje`}
+                          >
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                        )}
+                      </span>
                     )}
                   </>
                 )

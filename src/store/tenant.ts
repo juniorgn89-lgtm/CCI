@@ -25,6 +25,8 @@ export interface Rede {
    * a UI cai num estado neutro ("Não definido"). Ver src/lib/planos.ts.
    */
   plano?: PlanoId | null
+  /** Módulo Gestão (tarefas/rotinas) ligado pra esta rede (docs/supabase-gestao-tarefas-2.sql). */
+  gestao_habilitado?: boolean
 }
 
 interface TenantState {

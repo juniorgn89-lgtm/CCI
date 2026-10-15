@@ -9,7 +9,7 @@ import { useAppConfig } from '@/hooks/useAppConfig'
  * insert público) e encaminha o resumo pro WhatsApp/e-mail da CCI. Sem IA e sem
  * backend. Renderiza dentro de `.v360-landing` (herda os tokens de tema).
  *
- * Destinos: WhatsApp = comercial da config (padrão +55 27 99925-0088);
+ * Destinos: WhatsApp = comercial da config (padrão +55 27 99272-5459);
  * e-mail = contato@cci.app.br.
  */
 

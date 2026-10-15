@@ -14,6 +14,14 @@ export interface RedeRow {
   plano?: PlanoId | null
   /** Apuração automática (cron diário) ligada pra esta rede. Default true. */
   apuracao_auto?: boolean
+  /**
+   * Veio pelo canal WebPosto → entra no repasse do contrato. false = cliente
+   * próprio da CCI (anterior ao contrato), fora da conta. Migration:
+   * docs/supabase-redes-repasse-webposto.sql.
+   */
+  repasse_webposto?: boolean
+  /** Módulo Gestão (tarefas/rotinas) ligado pra esta rede (docs/supabase-gestao-tarefas-2.sql). */
+  gestao_habilitado?: boolean
   created_at: string
   updated_at: string
   /* ─── Assistente IA · configuração por rede (migration: supabase-assistente-config.sql) ─── */
@@ -93,6 +101,8 @@ interface UpdateRedeInput {
   ativo?: boolean
   plano?: PlanoId
   apuracao_auto?: boolean
+  repasse_webposto?: boolean
+  gestao_habilitado?: boolean
   assistente_habilitado?: boolean
   assistente_tier?: AssistenteTier
   assistente_limite_mensal_usd?: number | null
@@ -141,6 +151,14 @@ export const toggleRedeApuracaoAuto = (id: string, apuracao_auto: boolean) =>
 /** Define o plano comercial (Basic/Premium/Pro) de uma rede. */
 export const updateRedePlano = (id: string, plano: PlanoId) =>
   updateRede(id, { plano })
+
+/** Liga/desliga o módulo Gestão (tarefas e rotinas) pra uma rede. */
+export const toggleRedeGestao = (id: string, gestao_habilitado: boolean) =>
+  updateRede(id, { gestao_habilitado })
+
+/** Marca a origem comercial da rede: WebPosto (repasse) ou cliente próprio da CCI. */
+export const toggleRedeRepasseWebposto = (id: string, repasse_webposto: boolean) =>
+  updateRede(id, { repasse_webposto })
 
 /** Lê só a flag de apuração automática da rede (default true se a coluna for null). */
 export const fetchRedeApuracaoAuto = async (id: string): Promise<boolean> => {
