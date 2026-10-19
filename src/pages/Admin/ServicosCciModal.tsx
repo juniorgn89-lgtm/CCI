@@ -1,11 +1,20 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, AlertTriangle, Check } from 'lucide-react'
+import { Loader2, AlertTriangle, Check, Copy, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Modal, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
 import { fetchCciPostosAdmin, marcarCciServico, NOME_SERVICO_CCI, SERVICOS_MARCAVEIS } from '@/api/supabase/cciServicos'
 
 const fmtData = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/')
+const fmtCnpj = (c: string) => (c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : c)
+const PROSPECCAO_URL = 'https://prospeccao360.cci.app.br/carteira'
+/** Cadastro pelo CNPJ no Prospecção (só diretor): já abre consultando a Receita, aceita outro estado. */
+const linkCadastro = (cnpj: string) => `https://prospeccao360.cci.app.br/novo-posto?cnpj=${cnpj}`
+
+/** Copia para a área de transferência; devolve se deu certo (sem permissão = false). */
+const copiar = async (texto: string) => {
+  try { await navigator.clipboard.writeText(texto); return true } catch { return false }
+}
 
 /**
  * Admin › Redes › Serviços: a grade postos × serviços da CCI. Marcar aqui grava
@@ -19,6 +28,12 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [encerrar, setEncerrar] = useState<{ empresa: number; posto: string; servico: string } | null>(null)
+  // Feedback "copiado" por chave (CNPJ de um posto ou 'todos').
+  const [copiado, setCopiado] = useState<string | null>(null)
+  const copiarCom = async (chave: string, texto: string) => {
+    if (await copiar(texto)) { setCopiado(chave); window.setTimeout(() => setCopiado((c) => (c === chave ? null : c)), 1800) }
+    else setErro('Não deu para copiar automaticamente: selecione o CNPJ e copie com Ctrl+C.')
+  }
 
   const marcar = async (empresa: number, servico: string, ligado: boolean) => {
     const k = `${empresa}|${servico}`
@@ -52,7 +67,20 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
             {semLead > 0 && (
               <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                {semLead === postos.length ? 'Nenhum posto desta rede está cadastrado' : semLead === 1 ? '1 posto não está cadastrado' : `${semLead} postos não estão cadastrados`} como lead no Prospecção (mesmo CNPJ). Para marcar serviço, o vendedor cadastra o posto lá primeiro.
+                <span className="min-w-0 flex-1">
+                  {semLead === postos.length ? 'Nenhum posto desta rede está cadastrado' : semLead === 1 ? '1 posto não está cadastrado' : `${semLead} postos não estão cadastrados`} como lead no Prospecção (mesmo CNPJ). Para marcar serviço, cadastre o posto lá primeiro: em cada um, "Cadastrar no Prospecção" abre o cadastro pelo CNPJ já preenchido (vale para outro estado).
+                  <span className="mt-1.5 flex flex-wrap gap-2">
+                    {semLead > 1 && (
+                      <button type="button" onClick={() => copiarCom('todos', postos.filter((p) => !p.no_prospeccao && p.cnpj).map((p) => `${p.nome}: ${fmtCnpj(p.cnpj)}`).join('\n'))}
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[11.5px] font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-transparent dark:text-amber-200 dark:hover:bg-amber-900/30">
+                        {copiado === 'todos' ? <><Check className="h-3 w-3" /> Copiados</> : <><Copy className="h-3 w-3" /> Copiar os {semLead} CNPJs</>}
+                      </button>
+                    )}
+                    <a href={PROSPECCAO_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[11.5px] font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-transparent dark:text-amber-200 dark:hover:bg-amber-900/30">
+                      <ExternalLink className="h-3 w-3" /> Abrir o Prospecção
+                    </a>
+                  </span>
+                </span>
               </p>
             )}
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
@@ -68,7 +96,21 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
                     <tr key={p.empresa_codigo} className={cn(!p.no_prospeccao && 'bg-gray-50/60 dark:bg-white/[0.02]')}>
                       <td className="px-3 py-2">
                         <p className="font-semibold text-gray-900 dark:text-gray-100">{p.nome}</p>
-                        <p className="font-mono text-[10.5px] text-gray-400">{p.cnpj || 'sem CNPJ'}{!p.no_prospeccao && <span className="ml-1.5 font-sans text-amber-600 dark:text-amber-400">· não está no Prospecção</span>}</p>
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-gray-400">
+                          <span className="select-all font-mono">{p.cnpj ? fmtCnpj(p.cnpj) : 'sem CNPJ'}</span>
+                          {p.cnpj && (
+                            <button type="button" onClick={() => copiarCom(p.cnpj, p.cnpj)} title="Copiar só os números do CNPJ"
+                              className={cn('inline-flex items-center gap-0.5 rounded px-1 py-px font-semibold transition-colors', copiado === p.cnpj ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#2563eb] hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40')}>
+                              {copiado === p.cnpj ? <><Check className="h-3 w-3" /> copiado</> : <><Copy className="h-3 w-3" /> copiar</>}
+                            </button>
+                          )}
+                          {!p.no_prospeccao && <span className="text-amber-600 dark:text-amber-400">· não está no Prospecção</span>}
+                          {!p.no_prospeccao && p.cnpj && (
+                            <a href={linkCadastro(p.cnpj)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 rounded px-1 py-px font-semibold text-[#2563eb] hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40">
+                              <ExternalLink className="h-3 w-3" /> Cadastrar no Prospecção
+                            </a>
+                          )}
+                        </p>
                       </td>
                       {SERVICOS_MARCAVEIS.map((s) => {
                         const ativo = p.ativos.find((a) => a.servico === s)
