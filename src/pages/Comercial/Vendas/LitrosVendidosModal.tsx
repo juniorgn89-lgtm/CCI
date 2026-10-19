@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatLiters, formatDate } from '@/lib/formatters'
+import { GUIAS } from '@/lib/guiasModais'
 import useLmcReconciliacao, { type ReconRow, type ReconStatus, RECON_OK_PCT, RECON_ATENCAO_PCT } from '@/pages/Operacao/hooks/useLmcReconciliacao'
 
 interface Props {
@@ -42,7 +43,7 @@ const LitrosVendidosModal = ({ open, onClose, dataInicial, dataFinal }: Props) =
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.litrosVendidos} className="flex max-h-[88vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2">

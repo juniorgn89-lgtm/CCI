@@ -373,22 +373,6 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
     },
   },
 
-  '/pessoas': {
-    defaultTab: '',
-    tabs: {
-      '': {
-        tela: 'Pessoas',
-        intro: 'Diretório (somente leitura) da equipe da rede — gerentes, supervisores e frentistas. Números fictícios.',
-        sections: [
-          { n: 1, title: 'Resumo por cargo', exemplo: 'Gerente Geral 1 · Supervisor 3 · Gerente 8 · Frentista 42', comoLer: 'Cards contam só os ativos. Clique num card pra filtrar a lista por aquele cargo.' },
-          { n: 2, title: 'Busca e status', exemplo: 'Buscar "silva" · Ativos / Inativos / Todos · 12 pessoas', comoLer: 'A busca cobre nome, email e posto; o seletor filtra ativos/inativos; o contador mostra quantas batem.' },
-          { n: 3, title: 'Lista de pessoas', exemplo: 'João Exemplo · Frentista · Posto Exemplo · Ativo', comoLer: 'Nome, cargo (selo colorido), posto/rede e status. Ordenada por cargo e nome.' },
-          { n: 4, title: 'Somente visualização', exemplo: 'Gerenciamento em /admin', comoLer: 'Esta tela não cria nem edita — criar, editar ou inativar é nas telas de Admin.' },
-        ],
-      },
-    },
-  },
-
   '/inteligencia': {
     defaultTab: 'analise',
     tabs: {

@@ -52,6 +52,8 @@ interface AuthState {
   canDemonstrar: boolean
   /** Gere tarefas e rotinas (profiles.pode_gerir_tarefas). Master sempre. */
   canGerirTarefas: boolean
+  /** Libera/recusa pedidos de compra e define tetos (profiles.pode_liberar_compras). Master sempre. */
+  canLiberarCompras: boolean
   /**
    * Nome de exibição do usuário (de `profiles.full_name`). Usado no avatar
    * da sidebar e em qualquer lugar que mostre quem está logado. Quando null,
@@ -86,6 +88,7 @@ interface AuthState {
   setCanVerReabastecimento: (v: boolean) => void
   setCanDemonstrar: (v: boolean) => void
   setCanGerirTarefas: (v: boolean) => void
+  setCanLiberarCompras: (v: boolean) => void
   setFullName: (name: string | null) => void
   setOnboardingSeen: (v: boolean) => void
   setBriefingSeenToday: (v: boolean) => void
@@ -107,6 +110,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   canVerReabastecimento: false,
   canDemonstrar: false,
   canGerirTarefas: false,
+  canLiberarCompras: false,
   fullName: null,
   onboardingSeen: true,
   briefingSeenToday: true,
@@ -120,6 +124,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setCanVerReabastecimento: (canVerReabastecimento) => set({ canVerReabastecimento }),
   setCanDemonstrar: (canDemonstrar) => set({ canDemonstrar }),
   setCanGerirTarefas: (canGerirTarefas) => set({ canGerirTarefas }),
+  setCanLiberarCompras: (canLiberarCompras) => set({ canLiberarCompras }),
   setFullName: (fullName) => set({ fullName }),
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),

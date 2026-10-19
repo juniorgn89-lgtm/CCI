@@ -14,6 +14,9 @@ import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brl, brlShort, litersShort, liters, pct, variacaoPct } from '@/components/mobile/format'
 import PistaTabMobile from '@/pages/Comercial/Vendas/PistaTabMobile'
 import { CombustivelTab, ConvenienciaTab } from '@/pages/Comercial/Vendas/mobileTabs'
+import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
+import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
+import { TanquesMobileSection, ContasMobileSection } from '@/pages/Dashboard/components/mobile/CentralMobileExtras'
 
 /**
  * Visão Geral da Central — versão mobile. Rede-wide, venda fiscal
@@ -23,6 +26,9 @@ const CentralOverview = () => {
   const rede = useRedeSetores()
   const { dataInicial, dataFinal, comparisonMode } = useFilterStore()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
+  // Modais de detalhe (mesmos do desktop): setor posto a posto / resumo do posto.
+  const [setorSel, setSetorSel] = useState<SetorModal | null>(null)
+  const [postoSel, setPostoSel] = useState<number | null>(null)
 
   // Período pra projeção (linear por dias decorridos — método da Central).
   const periodo = useMemo(() => {
@@ -39,10 +45,10 @@ const CentralOverview = () => {
   const agg = useMemo(() => {
     const { combustivel, automotivos, conveniencia } = rede
     // Faturamento ano anterior existe no nível POSTO (não no setor) — agregamos por posto.
-    const byPosto = new Map<number, { nome: string; fat: number; lucro: number; fatAA: number }>()
+    const byPosto = new Map<number, { codigo: number; nome: string; fat: number; lucro: number; fatAA: number }>()
     for (const setor of [combustivel, automotivos, conveniencia]) {
       for (const p of setor.postos) {
-        const cur = byPosto.get(p.empresaCodigo) ?? { nome: p.posto, fat: 0, lucro: 0, fatAA: 0 }
+        const cur = byPosto.get(p.empresaCodigo) ?? { codigo: p.empresaCodigo, nome: p.posto, fat: 0, lucro: 0, fatAA: 0 }
         cur.fat += p.faturamento
         cur.lucro += p.lucroBruto
         cur.fatAA += p.faturamentoAnoAnterior
@@ -117,10 +123,10 @@ const CentralOverview = () => {
     { label: 'Margem', realizado: global.margem, proj: global.margem, fmt: (n) => pct(n), ratio: true },
   ]
 
-  const setores = [
-    { nome: 'Combustível', Icon: Fuel, sub: liters(combustivel.qtd), s: combustivel },
-    { nome: 'Automotivos', Icon: Wrench, sub: `${automotivos.qtd.toLocaleString('pt-BR')} un`, s: automotivos },
-    { nome: 'Conveniência', Icon: Store, sub: `${conveniencia.qtd.toLocaleString('pt-BR')} un`, s: conveniencia },
+  const setores: { id: SetorModal; nome: string; Icon: typeof Fuel; sub: string; s: typeof combustivel }[] = [
+    { id: 'combustivel', nome: 'Combustível', Icon: Fuel, sub: liters(combustivel.qtd), s: combustivel },
+    { id: 'automotivos', nome: 'Automotivos', Icon: Wrench, sub: `${automotivos.qtd.toLocaleString('pt-BR')} un`, s: automotivos },
+    { id: 'conveniencia', nome: 'Conveniência', Icon: Store, sub: `${conveniencia.qtd.toLocaleString('pt-BR')} un`, s: conveniencia },
   ]
 
   return (
@@ -140,10 +146,10 @@ const CentralOverview = () => {
 
       <ProjecaoSection metrics={projMetrics} periodo={periodo} />
 
-      <Section Icon={Layers} title="Por setor">
+      <Section Icon={Layers} title="Por setor" right={<span className="text-[10.5px] text-gray-400">toque p/ ver por posto</span>}>
         <div className="space-y-2.5">
-          {setores.map(({ nome, Icon, sub, s }) => (
-            <div key={nome} className="flex items-center gap-3">
+          {setores.map(({ id, nome, Icon, sub, s }) => (
+            <button key={nome} type="button" onClick={() => setSetorSel(id)} className="flex w-full items-center gap-3 text-left active:opacity-70">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-[#303030]">
                 <Icon className="h-[18px] w-[18px] text-gray-500 dark:text-gray-400" />
               </span>
@@ -155,7 +161,7 @@ const CentralOverview = () => {
                 <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(s.faturamento)}</span>
                 <MarginPill value={s.margem} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Section>
@@ -163,7 +169,7 @@ const CentralOverview = () => {
       <Section Icon={Trophy} title="Ranking de postos" flush>
         <div className="divide-y divide-gray-100 dark:divide-[#303030]">
           {agg.postos.map((p, i) => (
-            <div key={p.nome} className="px-3.5 py-2.5">
+            <button key={p.codigo} type="button" onClick={() => setPostoSel(p.codigo)} className="block w-full px-3.5 py-2.5 text-left active:bg-gray-50 dark:active:bg-white/5">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">
                   <span className="mr-1.5 font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>{p.nome}
@@ -175,10 +181,13 @@ const CentralOverview = () => {
                 <span className="text-[12px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.fat)}</span>
                 <DeltaBadge value={variacaoPct(p.fat, p.fatAA)} label={cmpLabel} small />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Section>
+
+      <TanquesMobileSection />
+      <ContasMobileSection />
 
       {formasDonut.data.length > 0 && (
         <Section Icon={CreditCard} title="Formas de pagamento" accent="blue"
@@ -193,6 +202,9 @@ const CentralOverview = () => {
           <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={160} />
         </Section>
       )}
+
+      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorSel(null); setPostoSel(c) }} />
+      <PostoResumoModal empresaCodigo={postoSel} onClose={() => setPostoSel(null)} />
     </div>
   )
 }

@@ -28,7 +28,7 @@ export interface QualidadeIssue<T = unknown> {
 }
 
 /** Classifica uma forma de pagamento em categoria curta pra exibição. */
-const fpgCategoria = (tipo: string, nome: string): string => {
+export const fpgCategoria = (tipo: string, nome: string): string => {
   const s = `${tipo} ${nome}`.toLowerCase()
   if (s.includes('dinheiro') || s.includes('especie') || s.includes('espécie')) return 'Dinheiro'
   if (s.includes('pix')) return 'PIX'
@@ -102,11 +102,25 @@ export interface CupomMultiAbast {
   }>
   /** Combustíveis diferentes no mesmo cupom (ex.: gasolina + diesel). */
   mixCombustiveis: boolean
-  /** Formas de pagamento diferentes (ex.: cartão + dinheiro). */
+  /**
+   * Formas de pagamento diferentes de verdade (ex.: cartão + dinheiro). Perna
+   * em dinheiro abaixo de R$ 5 ou de 2% do cupom é troco, não mistura.
+   */
   mixPagamentos: boolean
-  /** Score 1-3: 1 = mesmo combustível + 1 forma pgto, 3 = mix de tudo. */
+  /** Minutos entre o primeiro e o último abastecimento com hora; null sem 2 horas. */
+  spreadMin: number | null
+  /** Itens espalhados pelo turno: mais de 60 min entre o primeiro e o último. */
+  espalhado: boolean
+  /** Quanto do cupom foi pago em dinheiro (a parte que pode sumir). */
+  dinheiro: number
+  /** Sinais acesos entre os 4: vários abastecimentos, combustíveis diferentes, horários espalhados, pagamento misto. */
+  nSinais: number
+  /** Risco pela contagem de sinais: 3+ = alto, 2 = médio, 1 = baixo. */
   riscoScore: 1 | 2 | 3
 }
+
+/** Limiares da regra de montagem — os mesmos que o modal declara. */
+export const MONTAGEM = { dinheiroMinimo: 5, dinheiroMinimoPct: 2, espalhadoMin: 60 }
 
 export interface QualidadeData {
   abastecimentos: QualidadeIssue[]
@@ -136,6 +150,13 @@ const daysBetween = (a: string, b: string): number => {
 }
 
 /* ─── Hook ─── */
+
+/** Busca por lista de códigos em lotes de 40, um lote por vez (URL curta e sem estourar o limite de requisições do ERP). */
+const emLotes = async <T>(codigos: number[], buscar: (lote: number[]) => Promise<T[]>): Promise<T[]> => {
+  const out: T[] = []
+  for (let i = 0; i < codigos.length; i += 40) out.push(...(await buscar(codigos.slice(i, i + 40))))
+  return out
+}
 
 const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData => {
   const { empresaCodigos, dataInicial, dataFinal } = useFilterStore()
@@ -342,12 +363,13 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
   // com clienteRazao no /CARTAO). Lote enxuto: nº de outliers é pequeno.
   const { data: vendasSuspeitas = [] } = useQuery({
     queryKey: ['vendasSuspeitas-qualidade', empresaCodigo, suspiciousVendaKey],
-    queryFn: () => fetchVendas({
+    // Em lotes: dezenas de códigos numa URL só passam do limite e o ERP recusa (o navegador mostra como CORS).
+    queryFn: () => emLotes(suspiciousVendaCodigos, (lote) => fetchVendas({
       empresaCodigo: empresaCodigo!,
-      vendaCodigo: suspiciousVendaCodigos,
+      vendaCodigo: lote,
       situacao: 'A',
       limite: 1000,
-    }).then((res) => res.resultados ?? []),
+    }).then((res) => res.resultados ?? [])),
     enabled: hasEmpresa && empresaCodigo !== null && suspiciousVendaCodigos.length > 0,
     staleTime: 5 * 60 * 1000,
   })
@@ -362,11 +384,11 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
 
   const { data: clientesSuspeitos = [] } = useQuery({
     queryKey: ['clientesSuspeitos-qualidade', empresaCodigo, suspiciousClienteKey],
-    queryFn: () => fetchClientes({
+    queryFn: () => emLotes(suspiciousClienteCodigos, (lote) => fetchClientes({
       empresaCodigo: empresaCodigo!,
-      clienteCodigo: suspiciousClienteCodigos,
+      clienteCodigo: lote,
       limite: 1000,
-    }).then((res) => res.resultados ?? []),
+    }).then((res) => res.resultados ?? [])),
     enabled: hasEmpresa && empresaCodigo !== null && suspiciousClienteCodigos.length > 0,
     staleTime: 30 * 60 * 1000,
   })
@@ -410,6 +432,7 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
       const formaPagamento = adquirente !== '—' && /cart/i.test(r.formaPagamento)
         ? r.formaPagamento.replace(/cart[ãa]o/i, `Cartão (${adquirente})`)
         : r.formaPagamento
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- só pra tirar vendaCodigo do spread
       const { vendaCodigo: _vendaCodigo, ...rest } = r
       return { ...rest, adquirente, clienteNome: clienteNome || '—', formaPagamento }
     })
@@ -476,7 +499,7 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
         {
           id: 'cupom-multi-abast',
           label: 'Cupom com múltiplos abastecimentos',
-          description: 'Vendas com 2+ itens de combustível e ao menos uma perna em dinheiro — sinal de "montagem de cupom" pra ocultar dinheiro desviado.',
+          description: 'Vendas com 2+ abastecimentos de combustível e alguma parte em dinheiro — sinal de "montagem de cupom". Risco pela contagem de 4 sinais: vários abastecimentos, combustíveis diferentes, horários espalhados (mais de 1 h) e pagamento misto (dinheiro relevante, acima de R$ 5 e de 2% do cupom).',
           severity: 'high',
           count: 0,
           items: [],
@@ -611,14 +634,24 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
       const temDinheiro = formasPagamento.some((f) => fpgCategoria(f.tipo, f.nome) === 'Dinheiro')
       if (formasPagamento.length > 0 && !temDinheiro) continue
 
-      const tiposFpgUnicos = new Set(formasPagamento.map((f) => f.tipo))
-      const mixPagamentos = tiposFpgUnicos.size >= 2
+      const totalCupom = abastecimentos.reduce((s, a) => s + a.totalVenda, 0)
+      const dinheiro = formasPagamento.filter((f) => fpgCategoria(f.tipo, f.nome) === 'Dinheiro').reduce((s, f) => s + f.valor, 0)
+      // Mistura de pagamento só conta quando a perna em dinheiro é relevante:
+      // R$ 1,57 de troco num cupom de R$ 482 não é "parte em dinheiro".
+      const dinheiroRelevante = dinheiro >= MONTAGEM.dinheiroMinimo && totalCupom > 0 && (dinheiro / totalCupom) * 100 >= MONTAGEM.dinheiroMinimoPct
+      const categoriasFpg = new Set(formasPagamento.map((f) => fpgCategoria(f.tipo, f.nome)))
+      const mixPagamentos = categoriasFpg.size >= 2 && dinheiroRelevante
 
-      const riscoScore: 1 | 2 | 3 = mixCombustiveis && mixPagamentos
-        ? 3
-        : mixCombustiveis || mixPagamentos
-        ? 2
-        : 1
+      // Intervalo entre o primeiro e o último abastecimento com hora.
+      const tsMs = abastecimentos
+        .map((a) => (a.dataHoraAbastecimento ? new Date(a.dataHoraAbastecimento).getTime() : NaN))
+        .filter((t) => !Number.isNaN(t))
+      const spreadMin = tsMs.length >= 2 ? (Math.max(...tsMs) - Math.min(...tsMs)) / 60000 : null
+      const espalhado = spreadMin != null && spreadMin > MONTAGEM.espalhadoMin
+
+      // Quatro sinais; "vários abastecimentos" é sempre verdadeiro aqui.
+      const nSinais = 1 + (mixCombustiveis ? 1 : 0) + (espalhado ? 1 : 0) + (mixPagamentos ? 1 : 0)
+      const riscoScore: 1 | 2 | 3 = nSinais >= 3 ? 3 : nSinais === 2 ? 2 : 1
 
       const firstItem = itens[0]
       // Hora do cupom = primeiro abastecimento real do conjunto (não
@@ -635,10 +668,14 @@ const useQualidadeDados = (empresaCodigoOverride?: number | null): QualidadeData
         funcionarioCodigo: firstItem.funcionarioCodigo,
         funcionarioNome: funcMap.get(firstItem.funcionarioCodigo) ?? `Funcionário ${firstItem.funcionarioCodigo}`,
         abastecimentos,
-        totalVenda: abastecimentos.reduce((s, a) => s + a.totalVenda, 0),
+        totalVenda: totalCupom,
         formasPagamento,
         mixCombustiveis,
         mixPagamentos,
+        spreadMin,
+        espalhado,
+        dinheiro,
+        nSinais,
         riscoScore,
       })
     }

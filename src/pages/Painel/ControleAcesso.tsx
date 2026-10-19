@@ -146,7 +146,7 @@ const ControleAcesso = () => {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1e3a5f]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
           <ShieldCheck className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -158,7 +158,7 @@ const ControleAcesso = () => {
       {isLoading ? (
         <div className="h-52 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black dark:text-gray-400">
           Ainda sem registros de acesso — eles começam a aparecer conforme a equipe usar o app.
         </div>
       ) : (
@@ -364,7 +364,7 @@ const AcessoUsuarioModal = ({ user, redeNome, onClose }: { user: UserRef; redeNo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Acessos de ${user.nome}`}>
       <button className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" aria-label="Fechar" onClick={onClose} />
-      <div className="relative flex max-h-[86vh] w-full max-w-2xl animate-fade-in flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0f0f0f]">
+      <div className="relative flex max-h-[86vh] w-full max-w-2xl animate-fade-in flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 p-4 dark:border-white/10">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1e3a5f] text-[13px] font-bold uppercase text-white">{user.nome.slice(0, 2)}</span>
           <div className="min-w-0 flex-1">
@@ -450,14 +450,14 @@ const AcessoUsuarioModal = ({ user, redeNome, onClose }: { user: UserRef; redeNo
 }
 
 const MiniKpi = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-3 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div className="rounded-xl border border-gray-200 bg-white p-3 text-center shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
     <p className="text-[10.5px] text-gray-500 dark:text-gray-400">{label}</p>
   </div>
 )
 
 const Kpi = ({ Icon, label, value, tint }: { Icon: typeof Users; label: string; value: string; tint: string }) => (
-  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="flex items-center gap-2">
       <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', tint)}>
         <Icon className="h-4 w-4" />
@@ -469,7 +469,7 @@ const Kpi = ({ Icon, label, value, tint }: { Icon: typeof Users; label: string; 
 )
 
 const Card = ({ titulo, acao, children }: { titulo: string; acao?: React.ReactNode; children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
     <div className="mb-3 flex items-center justify-between gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{titulo}</p>
       {acao}

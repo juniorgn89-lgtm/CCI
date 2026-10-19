@@ -1,440 +1,197 @@
 import { useMemo, useState } from 'react'
-import { Radar, ArrowRight, LayoutGrid, List, ChevronDown, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Radar, ArrowRight, ChevronDown, AlertTriangle, CheckCircle2, TrendingUp, Hand, ArrowDownRight, ShoppingBag, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
-import useComercialData from '@/pages/Comercial/hooks/useComercialData'
-import {
-  classificar, acaoDe, SITUACAO_META, ACAO_META, TONE_CLASSES,
-  type Situacao, type Acao,
-} from '@/lib/radarClassificacao'
+import useReguaPreco, { milShort, moneyL, FRESCOR_OK, FRESCOR_WARN, type CardPreco, type Veredito, type Frescor } from '@/pages/Comercial/hooks/useReguaPreco'
 
-// Textos de ajuda ("?") dos conceitos-chave — reusados no Resumo e nos Cards.
-const HINT_MARGEM = 'Margem bruta = lucro bruto ÷ faturamento (o % que sobra de cada real vendido depois do custo). O "L.B./L" abaixo é o lucro bruto por litro — a folga que dá pra ceder no preço sem ter prejuízo.'
-const HINT_PRECO = 'Preço de venda médio do período (faturamento ÷ litros), ponderado pelo volume.'
-const HINT_CUSTO = 'Custo de reposição por litro — o "chão" do preço. Vender abaixo disso é prejuízo.'
-const HINT_VOLUME = 'Litros vendidos por dia OPERADO (dia sem venda = posto fechado, não entra na conta).'
+/**
+ * Radar de Preços · Visão Geral — a régua de preço, no estilo lista: cada posto
+ * e combustível com UM veredito (Subir / Segurar / Pode ceder / Confirmar o
+ * custo), o número da ação, a conta por trás e o botão Analisar. Substitui as
+ * duas leituras antigas (Oportunidades e Radar), que podiam discordar.
+ */
 
-const moneyL = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 const pct = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
-const litros = (v: number) => `${Math.round(v).toLocaleString('pt-BR')} L`
-
-// ── Frescor do custo de reposição (LMC) ──────────────────────────────────────
-// TODA a leitura do Radar (margem, folga, "pode ceder") depende do custo. Se o
-// custo é velho (o posto não lançou nota nova), a margem aparece mais gorda do
-// que é — e o dono pode cortar preço vendendo quase no custo. O DIA é fato; a
-// cor é só um alerta. Custo velho NUNCA deve ler como "seguro pra cortar".
-const FRESCOR_OK = 3   // ≤3 dias → verde
-const FRESCOR_WARN = 10 // 4–10 dias → amarelo · >10 → vermelho
-type Frescor = 'ok' | 'warn' | 'old' | 'unknown'
-const frescorDe = (dias: number | null): Frescor =>
-  dias == null ? 'unknown' : dias <= FRESCOR_OK ? 'ok' : dias <= FRESCOR_WARN ? 'warn' : 'old'
-const custoIdadeLabel = (dias: number | null): string =>
-  dias == null ? 'custo sem data'
-    : dias <= 0 ? 'custo de hoje'
-      : dias === 1 ? 'custo de ontem'
-        : `custo de ${dias} dias atrás`
-const FRESCOR_CLASSES: Record<Frescor, string> = {
-  ok: 'text-emerald-600 dark:text-emerald-400',
-  warn: 'text-amber-600 dark:text-amber-400',
-  old: 'text-red-600 dark:text-red-400',
-  unknown: 'text-gray-400 dark:text-gray-500',
+const custoIdadeLabel = (dias: number | null) => (dias == null ? 'custo sem data' : dias <= 0 ? 'custo de hoje' : dias === 1 ? 'custo de ontem' : `custo de ${dias} dias atrás`)
+const FRESCOR_CLS: Record<Frescor, string> = { ok: 'text-emerald-600 dark:text-emerald-400', warn: 'text-amber-600 dark:text-amber-400', old: 'text-red-600 dark:text-red-400', unknown: 'text-gray-400 dark:text-gray-500' }
+const CustoFrescor = ({ c }: { c: CardPreco }) => {
+  const Icon = c.frescor === 'ok' ? CheckCircle2 : AlertTriangle
+  return <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', FRESCOR_CLS[c.frescor])}><Icon className="h-3 w-3 shrink-0" />{custoIdadeLabel(c.custoStaleDays)}</span>
 }
 
-/** Selo de frescor do custo — o dado que sustenta (ou desmente) a margem. */
-const CustoFrescor = ({ dias, className }: { dias: number | null; className?: string }) => {
-  const f = frescorDe(dias)
-  const Icon = f === 'ok' ? CheckCircle2 : AlertTriangle
-  return (
-    <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', FRESCOR_CLASSES[f], className)}>
-      <Icon className="h-3 w-3 shrink-0" />{custoIdadeLabel(dias)}
-    </span>
-  )
-}
+const GRUPOS: { id: Veredito; titulo: string; sub: string; Icon: typeof TrendingUp; tone: 'emerald' | 'red' | 'blue' | 'amber' }[] = [
+  { id: 'subir', titulo: 'Subir o preço', sub: 'abaixo da referência: dinheiro deixado na bomba', Icon: TrendingUp, tone: 'emerald' },
+  { id: 'segurar', titulo: 'Segurar', sub: 'na referência ou perto do piso: não corte', Icon: Hand, tone: 'red' },
+  { id: 'ceder', titulo: 'Pode ceder', sub: 'acima da referência com margem saudável: munição se a rua apertar', Icon: ArrowDownRight, tone: 'blue' },
+  { id: 'confirmar', titulo: 'Confirmar o custo', sub: 'daria para ceder, mas o custo é velho ou sem data', Icon: HelpCircle, tone: 'amber' },
+]
+const TONE = {
+  emerald: { text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
+  red: { text: 'text-red-700 dark:text-red-300', dot: 'bg-red-500', pill: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
+  blue: { text: 'text-blue-700 dark:text-blue-300', dot: 'bg-blue-500', pill: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
+  amber: { text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
+  gray: { text: 'text-gray-700 dark:text-gray-200', dot: 'bg-gray-400', pill: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
+} as const
 
-interface RadarItem {
-  postoCodigo: number
-  posto: string
-  fuel: string
-  precoMedio: number
-  custo: number
-  folgaL: number
-  margemPct: number
-  volumeDia: number
-  situacao: Situacao
-  /** Dias desde o último custo de reposição lançado (LMC). null = sem data. */
-  custoStaleDays: number | null
-}
-
-const ACOES: Acao[] = ['cuidado', 'atencao', 'oportunidade']
-
-/** Frase explicativa da linha do Resumo (por situação, com os números). */
-const explicar = (it: RadarItem): string => {
-  if (it.situacao === 'piso') return `Margem ${pct(it.margemPct)} encosta no piso ${moneyL(it.custo)}. Cortar aqui vende no prejuízo.`
-  if (it.situacao === 'apertada') return `Margem ${pct(it.margemPct)} apertada — só corte se trouxer volume (folga de só ${moneyL(it.folgaL)}/L).`
-  return `Folga de ${moneyL(it.folgaL)}/L sobre o custo — dá pra ceder se a concorrência apertar.`
-}
-
-/** Ressalva vermelha quando a leitura de "pode ceder" se apoia em custo velho —
- *  o caso em que o dono corta preço confiando num custo que pode ter subido. */
-const ressalvaCusto = (it: RadarItem): string | null =>
-  acaoDe(it.situacao) === 'oportunidade' && frescorDe(it.custoStaleDays) === 'old'
-    ? `O custo é de ${it.custoStaleDays} dias atrás. Confirme o custo real antes de cortar — se subiu, essa folga pode não existir.`
-    : null
-
-/** Select estilizado dos filtros (aba Todos os cards). */
 const Sel = ({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) => (
   <div className="relative">
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800">
-      {children}
-    </select>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800">{children}</select>
     <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
   </div>
 )
 
-const AnalisarBtn = ({ onClick }: { onClick: () => void }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
-  >
-    Analisar <ArrowRight className="h-3.5 w-3.5" />
-  </button>
-)
-
-/** Chip de KPI do topo (POSTOS / PERTO DO PISO / COM FOLGA). Escopo de módulo
- *  (não recriar no render). */
-const ChipKpi = ({ label, value, tone, hint }: { label: string; value: number; tone?: 'red' | 'green'; hint?: string }) => (
-  <div className={cn(
-    'rounded-xl border px-3 py-2 text-center',
-    tone === 'red' ? 'border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/15'
-      : tone === 'green' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/15'
-        : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40',
-  )}>
-    <p className={cn('flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider', tone === 'red' ? 'text-red-600 dark:text-red-400' : tone === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>
-      {label}{hint && <InfoHint text={hint} />}
-    </p>
-    <p className={cn('text-lg font-bold tabular-nums', tone === 'red' ? 'text-red-700 dark:text-red-300' : tone === 'green' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-100')}>{value}<span className="text-[10px] font-medium text-gray-400"> {label === 'POSTOS' ? '' : 'cards'}</span></p>
+const Chip = ({ label, value, sub, tone, hint }: { label: string; value: string | number; sub?: string; tone?: keyof typeof TONE; hint?: string }) => (
+  <div className={cn('rounded-xl border px-3 py-2 text-center', tone ? 'border-gray-200 dark:border-gray-700' : 'border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40')}>
+    <p className={cn('flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider', tone ? TONE[tone].text : 'text-gray-400')}>{label}{hint && <InfoHint text={hint} />}</p>
+    <p className={cn('text-lg font-bold tabular-nums leading-tight', tone ? TONE[tone].text : 'text-gray-800 dark:text-gray-100')}>{value}</p>
+    {sub && <p className="text-[10px] tabular-nums text-gray-400">{sub}</p>}
   </div>
 )
 
-/** Mini-KPI dentro do card (aba Todos os cards). */
-const StatMini = ({ label, value, foot, tone, hint }: { label: string; value: string; foot?: string; tone?: string; hint?: string }) => (
-  <div className="rounded-lg bg-gray-50/70 px-2.5 py-2 dark:bg-gray-800/40">
-    <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-      {label}{hint && <InfoHint text={hint} />}
-    </p>
-    <p className={cn('text-[15px] font-bold tabular-nums text-gray-900 dark:text-gray-100', tone)}>{value}</p>
-    {foot && <p className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{foot}</p>}
-  </div>
-)
+interface Props { onAnalisar: (postoCodigo: number, fuel: string) => void }
 
-interface RadarVisaoGeralProps {
-  /** Abre a análise (drill) pré-filtrada no posto+combustível clicado. */
-  onAnalisar: (postoCodigo: number, fuel: string) => void
-}
-
-const RadarVisaoGeral = ({ onAnalisar }: RadarVisaoGeralProps) => {
-  const data = useComercialData()
-  const [view, setView] = useState<'resumo' | 'cards'>('resumo')
+const RadarVisaoGeral = ({ onAnalisar }: Props) => {
+  const r = useReguaPreco()
   const [fPosto, setFPosto] = useState<number | 'todos'>('todos')
-  const [fFuel, setFFuel] = useState<string>('todos')
-  const [fSit, setFSit] = useState<Situacao | 'todas'>('todas')
+  const [fFuel, setFFuel] = useState('todos')
+  const [fVer, setFVer] = useState<Veredito | 'todos'>('todos')
+  const [aberto, setAberto] = useState<string | null>(null)
 
-  const itens = useMemo<RadarItem[]>(() => {
-    const out: RadarItem[] = []
-    for (const p of data.postos) {
-      for (const f of p.produtos) {
-        if (!f.comCusto || f.litros <= 0) continue
-        const margemPct = f.faturamento > 0 ? (f.lucroBruto / f.faturamento) * 100 : 0
-        out.push({
-          postoCodigo: p.empresaCodigo,
-          posto: p.posto,
-          fuel: f.nome,
-          precoMedio: f.precoVenda,
-          custo: f.precoCusto,
-          folgaL: f.margemL,
-          margemPct,
-          volumeDia: p.diasOperados > 0 ? f.litros / p.diasOperados : f.litros,
-          situacao: classificar(margemPct),
-          custoStaleDays: p.custoStaleDays,
-        })
-      }
-    }
-    return out
-  }, [data.postos])
+  const postos = useMemo(() => { const m = new Map<number, string>(); for (const c of r.cards) if (!m.has(c.empresaCodigo)) m.set(c.empresaCodigo, c.posto); return [...m.entries()].map(([codigo, nome]) => ({ codigo, nome })) }, [r.cards])
+  const fuels = useMemo(() => [...new Set(r.cards.map((c) => c.fuel))], [r.cards])
+  const filtrados = useMemo(() => r.cards.filter((c) => (fPosto === 'todos' || c.empresaCodigo === fPosto) && (fFuel === 'todos' || c.fuel === fFuel) && (fVer === 'todos' || c.veredito === fVer)), [r.cards, fPosto, fFuel, fVer])
+  const ordenar = (v: Veredito, lista: CardPreco[]) => [...lista].sort((a, b) => (v === 'subir' ? b.valor - a.valor : v === 'ceder' || v === 'confirmar' ? b.quantoL - a.quantoL : a.margemPct - b.margemPct))
 
-  // Piso de referência por combustível (custo médio ponderado por volume da rede).
-  const pisoPorFuel = useMemo(() => {
-    const acc = new Map<string, { cad: number; vol: number }>()
-    for (const p of data.postos) {
-      for (const f of p.produtos) {
-        if (!f.comCusto || f.litros <= 0) continue
-        const e = acc.get(f.nome) ?? { cad: 0, vol: 0 }
-        e.cad += f.precoCusto * f.litros; e.vol += f.litros
-        acc.set(f.nome, e)
-      }
-    }
-    const m = new Map<string, number>()
-    for (const [nome, e] of acc) m.set(nome, e.vol > 0 ? e.cad / e.vol : 0)
-    return m
-  }, [data.postos])
+  if (r.isLoading) return <div className="space-y-4"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>
+  if (!r.hasRede || r.cards.length === 0) return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem venda de combustível com custo no período para montar a régua.</div>
 
-  const postos = useMemo(() => {
-    const seen = new Map<number, string>()
-    for (const it of itens) if (!seen.has(it.postoCodigo)) seen.set(it.postoCodigo, it.posto)
-    return [...seen.entries()].map(([codigo, nome]) => ({ codigo, nome }))
-  }, [itens])
-  const fuels = useMemo(() => {
-    const set = new Set(itens.map((i) => i.fuel))
-    return [...set]
-  }, [itens])
-
-  const kpiPiso = itens.filter((i) => i.situacao === 'piso').length
-  const kpiFolga = itens.filter((i) => i.situacao === 'folga').length
-  // Quantos combustíveis apoiam a leitura num custo defasado (>FRESCOR_WARN dias).
-  const custoVelhoCount = itens.filter((i) => frescorDe(i.custoStaleDays) === 'old').length
-
-  // Filtros compartilhados pelos dois modos (Resumo e Todos os cards).
-  const itensFiltrados = useMemo(() => itens.filter((i) =>
-    (fPosto === 'todos' || i.postoCodigo === fPosto) &&
-    (fFuel === 'todos' || i.fuel === fFuel) &&
-    (fSit === 'todas' || i.situacao === fSit),
-  ), [itens, fPosto, fFuel, fSit])
-
-  if (data.isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-96 rounded-2xl" />
-      </div>
-    )
-  }
-  if (!data.hasRede || itens.length === 0) {
-    return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem dados de combustível no período pra montar o radar.</div>
-  }
+  const t = r.totais
+  const refTexto = r.postosComVizinhos > 0
+    ? `Referência: ${r.postosComVizinhos} de ${r.totalPostos} postos usam os próprios vizinhos (${r.comPraca} ${r.comPraca === 1 ? 'combustível' : 'combustíveis'} com vizinho atualizado); nos demais, a média da rede.`
+    : 'Referência: média da rede em todos os postos. Para um posto usar os vizinhos dele, ligue na análise do posto ou na aba Concorrência.'
 
   return (
     <div className="space-y-4">
       {/* Cabeçalho */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] text-white shadow-sm shadow-blue-500/20">
-            <Radar className="h-5 w-5" />
-          </span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] text-white shadow-sm shadow-blue-500/20"><Radar className="h-5 w-5" /></span>
           <div>
-            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Radar de Preços · Visão Geral</h3>
-            <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">Cada posto, cada combustível — o que fazer no preço, num olhar.<br />Clique em <span className="font-medium">Analisar</span> pra abrir o posto direto.</p>
+            <h3 className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-900 dark:text-gray-100">Radar de Preços <InfoHint text="Uma régua só por posto e combustível, em R$/L: o piso (custo), a referência (praça do posto quando cadastrada e ligada; senão a média da rede) e o preço atual. Subir = abaixo da referência com volume, e o valor é (alvo − preço) × litros; Segurar = na referência ou perto do piso; Pode ceder = acima da referência com margem saudável, até não passar da referência nem descer de 9% de margem; Confirmar o custo = daria para ceder, mas o custo é velho ou sem data. Regra fixa sobre venda e custo apurados." /></h3>
+            <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">Cada posto, cada combustível: subir, segurar ou ceder, com o número. Clique em <span className="font-medium">Analisar</span> para abrir o posto.</p>
+            <p className="mt-0.5 text-[11px] text-gray-400">{refTexto}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-stretch gap-2">
-          <ChipKpi label="POSTOS" value={postos.length} hint="Postos da rede que entraram no radar (têm combustível com custo apurado no período)." />
-          <ChipKpi label="PERTO DO PISO" value={kpiPiso} tone="red" hint="Quantos combustíveis (posto × produto) estão com a margem perto do custo — cortar preço ali vende quase no prejuízo." />
-          <ChipKpi label="COM FOLGA" value={kpiFolga} tone="green" hint="Quantos combustíveis têm margem folgada — dá pra ceder preço se a concorrência apertar, sem encostar no piso." />
+        <div className="grid shrink-0 grid-cols-3 gap-2 sm:grid-cols-5">
+          <Chip label="Postos" value={t.postos} />
+          <Chip label="Subir" value={t.subir} sub={t.subirValor > 0 ? `+${milShort(t.subirValor)} no período` : undefined} tone="emerald" hint="Combustíveis abaixo da referência. O valor soma (alvo − preço) × litros do período, com o litro constante." />
+          <Chip label="Segurar" value={t.segurar} tone="red" hint="Na referência ou perto do piso. Aqui não se corta preço." />
+          <Chip label="Pode ceder" value={t.ceder} tone="blue" hint="Acima da referência com margem saudável e custo fresco: dá para baixar se a rua apertar." />
+          <Chip label="Confirmar" value={t.confirmar} tone="amber" hint="Daria para ceder, mas o custo é velho ou sem data. Confirmar o custo antes de cortar." />
         </div>
       </div>
 
-      {/* Aviso de integridade — as situações são referência; o custo manda. Sem
-          selo de "sem erro": o dado velho é sinalizado, não escondido. */}
-      <div className={cn(
-        'flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-[11px] leading-snug',
-        custoVelhoCount > 0
-          ? 'border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200'
-          : 'border-gray-200 bg-gray-50/70 text-gray-500 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-400',
-      )}>
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span className="flex flex-wrap items-center gap-x-1">
-          As situações (No limite / Folga) são <span className="font-semibold">referência pela margem, não regra</span> — quem manda é o <span className="font-semibold">custo</span>.
-          {custoVelhoCount > 0
-            ? ` ${custoVelhoCount} ${custoVelhoCount === 1 ? 'combustível está' : 'combustíveis estão'} com custo de mais de ${FRESCOR_WARN} dias — confirme antes de mexer no preço.`
-            : ' Confira o frescor do custo em cada card antes de mexer no preço.'}
-          <InfoHint text={`Frescor do custo: verde = atualizado (até ${FRESCOR_OK} dias), amarelo = ${FRESCOR_OK + 1}–${FRESCOR_WARN} dias, vermelho = mais de ${FRESCOR_WARN} dias. "Custo sem data" = o sistema tem o VALOR do custo, mas não conseguiu confirmar de quando ele é (a fonte da data está indisponível). Custo velho pode inflar a margem — por isso o aviso.`} />
-        </span>
-      </div>
-
-      {/* Toggle de visão */}
-      <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-        {([['resumo', 'Resumo', List], ['cards', 'Todos os cards', LayoutGrid]] as const).map(([id, label, Icon]) => (
-          <button key={id} type="button" onClick={() => setView(id)}
-            className={cn('inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors',
-              view === id ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200')}>
-            <Icon className="h-3.5 w-3.5" />{label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filtros — compartilhados pelos dois modos. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Filtrar</span>
-        <Sel value={String(fPosto)} onChange={(v) => setFPosto(v === 'todos' ? 'todos' : Number(v))}>
-          <option value="todos">Todos os postos</option>
-          {postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}</option>)}
-        </Sel>
-        <Sel value={fFuel} onChange={setFFuel}>
-          <option value="todos">Todos os combustíveis</option>
-          {fuels.map((f) => <option key={f} value={f}>{f}</option>)}
-        </Sel>
-        <Sel value={fSit} onChange={(v) => setFSit(v as Situacao | 'todas')}>
-          <option value="todas">Todas as situações</option>
-          <option value="piso">No limite</option>
-          <option value="apertada">Aperto</option>
-          <option value="saudavel">Estável</option>
-          <option value="folga">Folga</option>
-        </Sel>
-        <span className="text-[11px] text-gray-400">{itensFiltrados.length} {itensFiltrados.length === 1 ? 'item' : 'itens'}</span>
-      </div>
-
-      {/* ── RESUMO — agrupado por ação ── */}
-      {view === 'resumo' && (
-        <div className="space-y-5">
-          {ACOES.map((acao) => {
-            const meta = ACAO_META[acao]
-            const lista = itensFiltrados.filter((i) => acaoDe(i.situacao) === acao)
-            if (lista.length === 0) return null
-            const tc = TONE_CLASSES[meta.tone]
-            return (
-              <div key={acao}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className={cn('h-2.5 w-2.5 rounded-full', tc.dot)} />
-                  <h4 className={cn('text-sm font-bold', tc.text)}>{meta.titulo}</h4>
-                  <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{lista.length}</span>
-                  <span className="text-[11px] text-gray-400">{meta.sub}</span>
-                </div>
-                <div className="space-y-3">
-                  {/* Subgrupo por combustível, do MELHOR pro pior (maior margem 1º). */}
-                  {[...new Set(lista.map((i) => i.fuel))]
-                    .map((fuel) => {
-                      const rowsF = [...lista].filter((i) => i.fuel === fuel).sort((a, b) => b.margemPct - a.margemPct)
-                      const media = rowsF.reduce((s, i) => s + i.margemPct, 0) / rowsF.length
-                      return { fuel, rowsF, media }
-                    })
-                    .sort((a, b) => b.media - a.media)
-                    .map(({ fuel, rowsF }) => {
-                      return (
-                      <div key={fuel}>
-                        <p className="mb-1.5 flex items-center gap-1.5 pl-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          {fuel}
-                          <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{rowsF.length}</span>
-                        </p>
-                        <div className="space-y-2">
-                          {rowsF.map((it) => {
-                            const sm = SITUACAO_META[it.situacao]
-                            const stc = TONE_CLASSES[sm.tone]
-                            const rc = ressalvaCusto(it)
-                            return (
-                              <div key={`${it.postoCodigo}:${it.fuel}`} className="relative flex items-center gap-4 overflow-hidden rounded-xl border border-gray-200 bg-white px-4 py-3 pl-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                                <span className={cn('absolute inset-y-0 left-0 w-[3px]', stc.dot)} />
-                                <div className="w-40 shrink-0">
-                                  <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{it.posto}</p>
-                                  <CustoFrescor dias={it.custoStaleDays} className="mt-0.5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className={cn('text-[13px] font-bold', stc.text)}>{sm.titulo}</p>
-                                  <p className="text-[12px] leading-snug text-gray-500 dark:text-gray-400">{explicar(it)}</p>
-                                  {rc && (
-                                    <p className="mt-1 inline-flex items-start gap-1 text-[11px] font-semibold leading-snug text-red-600 dark:text-red-400">
-                                      <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />{rc}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="hidden w-16 shrink-0 text-right sm:block">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Margem</p>
-                                  <p className={cn('text-[13px] font-bold tabular-nums', stc.text)}>{pct(it.margemPct)}</p>
-                                </div>
-                                <div className="hidden w-20 shrink-0 text-right sm:block">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Folga/L</p>
-                                  <p className="text-[13px] font-bold tabular-nums text-gray-700 dark:text-gray-200">{moneyL(it.folgaL)}</p>
-                                </div>
-                                <AnalisarBtn onClick={() => onAnalisar(it.postoCodigo, it.fuel)} />
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
+      {(t.custoVelho > 0 || t.semData > 0) && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-[11px] leading-snug text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>Quem manda na régua é o custo. {t.custoVelho > 0 ? `${t.custoVelho} ${t.custoVelho === 1 ? 'combustível está' : 'combustíveis estão'} com custo de mais de ${FRESCOR_WARN} dias` : ''}{t.custoVelho > 0 && t.semData > 0 ? ' e ' : ''}{t.semData > 0 ? `${t.semData} sem data confirmada` : ''}. Nesses, "ceder" vira "confirmar o custo"; "subir" continua válido. <InfoHint text={`Frescor do custo: até ${FRESCOR_OK} dias verde, até ${FRESCOR_WARN} amarelo, acima vermelho. Sem data = o sistema tem o valor do custo mas não a data dele (fonte indisponível). Custo velho pode inflar a margem.`} /></span>
         </div>
       )}
 
-      {/* ── TODOS OS CARDS — MESMA ordem do Resumo: ação → combustível (melhor→pior) → margem ── */}
-      {view === 'cards' && (
-        <div className="space-y-5">
-          {ACOES.map((acao) => {
-            const meta = ACAO_META[acao]
-            const lista = itensFiltrados.filter((i) => acaoDe(i.situacao) === acao)
-            if (lista.length === 0) return null
-            const tc = TONE_CLASSES[meta.tone]
-            // Subgrupo por combustível do MELHOR pro pior (igual ao Resumo).
-            const gruposFuel = [...new Set(lista.map((i) => i.fuel))]
-              .map((fuel) => {
-                const cards = [...lista].filter((i) => i.fuel === fuel).sort((a, b) => b.margemPct - a.margemPct)
-                const media = cards.reduce((s, i) => s + i.margemPct, 0) / cards.length
-                return { fuel, cards, media }
-              })
-              .sort((a, b) => b.media - a.media)
-            return (
-              <div key={acao}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className={cn('h-2.5 w-2.5 rounded-full', tc.dot)} />
-                  <h4 className={cn('text-sm font-bold', tc.text)}>{meta.titulo}</h4>
-                  <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{lista.length}</span>
-                  <span className="text-[11px] text-gray-400">{meta.sub}</span>
-                </div>
-                <div className="space-y-4">
-                  {gruposFuel.map(({ fuel, cards }) => (
-                    <div key={fuel}>
-                      <p className="mb-1.5 flex items-center gap-1.5 pl-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        {fuel}
-                        <span className="font-normal normal-case text-gray-400">· piso {moneyL(pisoPorFuel.get(fuel) ?? 0)}/L</span>
-                      </p>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                        {cards.map((it) => {
-                          const sm = SITUACAO_META[it.situacao]
-                          const stc = TONE_CLASSES[sm.tone]
-                          const rc = ressalvaCusto(it)
-                          return (
-                            <div key={`${it.postoCodigo}:${it.fuel}`} className="relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                              <span className={cn('absolute inset-x-0 top-0 h-[3px]', stc.dot)} />
-                              <div className="flex flex-col gap-2 p-3.5">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100">{it.posto}</p>
-                                  <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold', stc.pill)}>
-                                    <span className={cn('h-1.5 w-1.5 rounded-full', stc.dot)} />{sm.pill}
-                                  </span>
-                                </div>
-                                <p className={cn('text-[12px] font-semibold leading-snug', stc.text)}>{sm.frase}</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <StatMini label="Preço médio" value={moneyL(it.precoMedio)} hint={HINT_PRECO} />
-                                  <StatMini label="Margem" value={pct(it.margemPct)} foot={`L.B. ${moneyL(it.folgaL)}/L`} tone={stc.text} hint={HINT_MARGEM} />
-                                  <StatMini label="Custo (piso)" value={moneyL(it.custo)} foot={`folga ${moneyL(it.folgaL)}/L`} hint={HINT_CUSTO} />
-                                  <StatMini label="Volume/dia" value={litros(it.volumeDia)} hint={HINT_VOLUME} />
-                                </div>
-                                <CustoFrescor dias={it.custoStaleDays} />
-                                {rc && (
-                                  <p className="inline-flex items-start gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-semibold leading-snug text-red-700 dark:bg-red-950/30 dark:text-red-300">
-                                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />{rc}
-                                  </p>
-                                )}
-                              </div>
-                              <button type="button" onClick={() => onAnalisar(it.postoCodigo, it.fuel)}
-                                className="mt-auto border-t border-gray-100 py-2 text-center text-[12px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-[#2563eb] dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-blue-300">
-                                Analisar →
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Filtrar</span>
+        <Sel value={String(fPosto)} onChange={(v) => setFPosto(v === 'todos' ? 'todos' : Number(v))}><option value="todos">Todos os postos</option>{postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}</option>)}</Sel>
+        <Sel value={fFuel} onChange={setFFuel}><option value="todos">Todos os combustíveis</option>{fuels.map((f) => <option key={f} value={f}>{f}</option>)}</Sel>
+        <Sel value={fVer} onChange={(v) => setFVer(v as Veredito | 'todos')}><option value="todos">Todos os vereditos</option>{GRUPOS.map((g) => <option key={g.id} value={g.id}>{g.titulo}</option>)}</Sel>
+        <span className="text-[11px] text-gray-400">{filtrados.length} {filtrados.length === 1 ? 'item' : 'itens'}</span>
+      </div>
+
+      {/* Grupos por veredito */}
+      <div className="space-y-5">
+        {GRUPOS.map((g) => {
+          const lista = ordenar(g.id, filtrados.filter((c) => c.veredito === g.id))
+          if (lista.length === 0) return null
+          const tc = TONE[g.tone]
+          const soma = g.id === 'subir' ? lista.reduce((s, c) => s + c.valor, 0) : 0
+          return (
+            <div key={g.id}>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className={cn('h-2.5 w-2.5 rounded-full', tc.dot)} />
+                <h4 className={cn('inline-flex items-center gap-1.5 text-sm font-bold', tc.text)}><g.Icon className="h-4 w-4" /> {g.titulo}</h4>
+                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{lista.length}</span>
+                <span className="text-[11px] text-gray-400">{g.sub}</span>
+                {soma > 0 && <span className={cn('ml-auto text-[12px] font-bold tabular-nums', tc.text)}>+{milShort(soma)} no período</span>}
               </div>
-            )
-          })}
+              <div className="space-y-2">
+                {lista.map((c) => {
+                  const ab = aberto === c.id
+                  return (
+                    <div key={c.id} className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+                      <span className={cn('absolute inset-y-0 left-0 w-[3px]', tc.dot)} />
+                      <div className="flex items-center gap-4 px-4 py-3 pl-5">
+                        <div className="w-44 shrink-0">
+                          <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{c.posto}</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">{c.fuel}</p>
+                          <CustoFrescor c={c} />
+                        </div>
+                        <button type="button" onClick={() => setAberto(ab ? null : c.id)} className="min-w-0 flex-1 text-left" title="Ver a conta">
+                          <p className={cn('text-[13px] font-bold', tc.text)}>{c.acao}</p>
+                          <p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{c.motivo}</p>
+                        </button>
+                        <div className="hidden w-24 shrink-0 text-right md:block">
+                          <p className="flex items-center justify-end gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Preço · ref.<InfoHint align="end" text="Em cima, o preço de bomba de hoje deste posto (o de tabela; é o mesmo da aba Concorrência e da análise do posto). Embaixo, a referência que a régua usa para comparar: a média dos vizinhos DESTE posto (cada vizinho pesa igual, só preços de até 7 dias) quando a concorrência está ligada e cadastrada, ou senão o preço médio da própria rede para o mesmo combustível." /></p>
+                          <p className="text-[12px] font-semibold tabular-nums text-gray-800 dark:text-gray-200">{moneyL(c.preco)}</p>
+                          <p className="text-[10px] tabular-nums text-gray-400">{c.referencia ? `${c.referencia.tipo === 'praca' ? (c.referencia.n === 1 ? '1 vizinho' : `${c.referencia.n} vizinhos`) : 'rede'} ${moneyL(c.referencia.preco)}` : 'sem ref.'}</p>
+                        </div>
+                        <div className="hidden w-16 shrink-0 text-right sm:block">
+                          <p className="flex items-center justify-end gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Margem<InfoHint align="end" text="Quanto sobra do preço de bomba depois do custo do combustível, em % do preço. Embaixo, o mesmo em reais por litro. Vermelho abaixo de 5%, âmbar abaixo de 9%. É o mesmo número da aba Margem por posto (lá, ao abrir o posto)." /></p>
+                          <p className={cn('text-[13px] font-bold tabular-nums', c.margemPct < 5 ? 'text-red-600 dark:text-red-400' : c.margemPct < 9 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-100')}>{pct(c.margemPct)}</p>
+                          <p className="text-[10px] tabular-nums text-gray-400">{moneyL(c.lbL)}/L</p>
+                        </div>
+                        <div className="hidden w-24 shrink-0 text-right sm:block">
+                          <p className="flex items-center justify-end gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">{c.veredito === 'subir' ? 'Vale' : c.quantoL > 0 ? 'Até' : 'Volume/dia'}<InfoHint align="end" text={c.veredito === 'subir' ? 'Quanto a mais de lucro bruto a alta sugerida teria trazido no período filtrado: a alta por litro × os litros vendidos, supondo que o volume não caia.' : c.quantoL > 0 ? 'Até quanto por litro dá para baixar o preço com segurança: o menor entre voltar à referência e manter a margem mínima de segurança.' : 'Litros vendidos por dia, em média, neste combustível e posto. Serve para medir o peso de qualquer mudança de preço.'} /></p>
+                          <p className={cn('text-[13px] font-bold tabular-nums', c.veredito === 'subir' ? tc.text : 'text-gray-800 dark:text-gray-100')}>{c.veredito === 'subir' ? `+${milShort(c.valor)}` : c.quantoL > 0 ? `${moneyL(c.quantoL)}/L` : `${Math.round(c.volumeDia).toLocaleString('pt-BR')} L`}</p>
+                        </div>
+                        <button type="button" onClick={() => onAnalisar(c.empresaCodigo, c.fuel)} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">Analisar <ArrowRight className="h-3.5 w-3.5" /></button>
+                      </div>
+                      {ab && (
+                        <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3 text-[12px] dark:border-gray-800 dark:bg-gray-800/30">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Como a régua chegou nisso</p>
+                          <ul className="mt-1 space-y-1 text-gray-700 dark:text-gray-300">{c.porque.map((l, i) => <li key={i} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{l}</li>)}</ul>
+                          {c.risco && <p className="mt-2 inline-flex items-start gap-1.5 text-amber-700 dark:text-amber-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span><b className="font-semibold">Atenção:</b> {c.risco}</span></p>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+        {filtrados.length === 0 && <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700">Nada com estes filtros.</p>}
+      </div>
+
+      {/* Loja: a oportunidade que não é de bomba */}
+      {r.loja.length > 0 && fVer === 'todos' && fFuel === 'todos' && (
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+            <h4 className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 dark:text-teal-300"><ShoppingBag className="h-4 w-4" /> Loja com margem abaixo da rede</h4>
+            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto).length}</span>
+            <span className="text-[11px] text-gray-400">é mix e exposição, não preço de bomba</span>
+          </div>
+          <div className="space-y-2">
+            {r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto).map((l) => (
+              <div key={l.empresaCodigo} className="relative flex items-center gap-4 overflow-hidden rounded-xl border border-gray-200 bg-white px-4 py-3 pl-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+                <span className="absolute inset-y-0 left-0 w-[3px] bg-teal-500" />
+                <div className="w-44 shrink-0"><p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{l.posto}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">Conveniência</p></div>
+                <div className="min-w-0 flex-1"><p className="text-[13px] font-bold text-teal-700 dark:text-teal-300">Puxar a margem da loja para {l.redeMargemPct.toFixed(0)}%</p><p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{l.porque[0]} {l.porque[1]}</p></div>
+                <div className="hidden w-24 shrink-0 text-right sm:block"><p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Vale</p><p className="text-[13px] font-bold tabular-nums text-teal-700 dark:text-teal-300">+{milShort(l.valor)}</p></div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

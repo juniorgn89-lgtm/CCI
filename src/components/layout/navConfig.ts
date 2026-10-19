@@ -1,7 +1,6 @@
 import {
   BarChart3, Warehouse, DollarSign, Brain, Fuel,
-  Network, ShieldAlert, UsersRound, TrendingUp, Radio, Building2, ClipboardList,
-} from 'lucide-react'
+  ShieldAlert, TrendingUp, Radio, Building2, ClipboardList, ShoppingCart, Settings } from 'lucide-react'
 
 export interface NavItem {
   label: string
@@ -11,6 +10,8 @@ export interface NavItem {
   masterOnly?: boolean
   /** Módulo Gestão (tarefas): só aparece quando a rede tem `gestao_habilitado`. */
   requerGestao?: boolean
+  /** Módulo Compras: só aparece quando a rede tem `compras_habilitado`. */
+  requerCompras?: boolean
 }
 
 export interface NavGroup {
@@ -20,17 +21,10 @@ export interface NavGroup {
 
 export const navGroups: NavGroup[] = [
   {
-    title: 'Sistema',
-    items: [
-      { label: 'Selecionar Rede', path: '/selecionar-rede', icon: Network, masterOnly: true },
-    ],
-  },
-  {
     title: 'Geral',
     items: [
       { label: 'Central da Rede', path: '/dashboard', icon: BarChart3 },
       { label: 'Ao Vivo', path: '/ao-vivo', icon: Radio },
-      { label: 'Rede', path: '/rede', icon: Building2 },
     ],
   },
   {
@@ -52,10 +46,21 @@ export const navGroups: NavGroup[] = [
     items: [
       // Gestão de tarefas (Painel / Tarefas / Rotinas como abas) — só em redes com o módulo ligado; primeiro do grupo.
       { label: 'Tarefas', path: '/gestao', icon: ClipboardList, requerGestao: true },
+      // Compras (pedidos com liberação) — só em redes com o módulo ligado.
+      { label: 'Compras', path: '/compras', icon: ShoppingCart, requerCompras: true },
       { label: 'Estoques', path: '/estoques', icon: Warehouse },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
-      { label: 'Pessoas', path: '/pessoas', icon: UsersRound },
+    ],
+  },
+  {
+    // Sistema fecha o menu: os cadastros (postos e pessoas), que são consulta,
+    // e "Configuração" = o painel do sistema (/painel: selecionar rede,
+    // cadastros, redes, comercial, acesso, parâmetros).
+    title: 'Sistema',
+    items: [
+      { label: 'Rede', path: '/rede', icon: Building2 },
+      { label: 'Configuração', path: '/painel', icon: Settings, masterOnly: true },
     ],
   },
 ]

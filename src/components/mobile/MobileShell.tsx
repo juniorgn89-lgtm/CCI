@@ -161,7 +161,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
               className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
             >
               <Settings className="h-5 w-5 shrink-0 text-gray-500" />
-              <span className="flex-1 text-left">Configurações</span>
+              <span className="flex-1 text-left">Parâmetros</span>
               <ChevronRight className="h-4 w-4 text-gray-400" />
             </button>
 

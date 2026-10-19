@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import RouteFallback from '@/components/feedback/RouteFallback'
@@ -7,12 +7,20 @@ import { importDashboard } from '@/routes/prefetch'
 import Login from '@/pages/Login'
 import Landing from '@/pages/Landing'
 
+/** Redirect que mantém ?query e #seção (o <Navigate> puro descarta o hash, e
+ *  links como /configuracoes#manutencao-bombas caíam no topo da página). */
+const RedirectComHash = ({ to }: { to: string }) => {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
+
 const RedefinirSenha = lazy(() => import('@/pages/RedefinirSenha'))
 const ComoComecar = lazy(() => import('@/pages/ComoComecar'))
 const AssinaturaConfirmada = lazy(() => import('@/pages/AssinaturaConfirmada'))
 
 const Dashboard = lazy(importDashboard)
 const AoVivo = lazy(() => import('@/pages/AoVivo'))
+const Diagnostico = lazy(() => import('@/pages/Diagnostico'))
 const Rede = lazy(() => import('@/pages/Rede'))
 const Estoques = lazy(() => import('@/pages/Estoques'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
@@ -23,8 +31,8 @@ const Produtividade = lazy(() => import('@/pages/Produtividade'))
 const Comercial = lazy(() => import('@/pages/Comercial'))
 const Mobile = lazy(() => import('@/pages/Mobile'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
-const Pessoas = lazy(() => import('@/pages/Pessoas'))
 const Gestao = lazy(() => import('@/pages/Gestao'))
+const Compras = lazy(() => import('@/pages/Compras'))
 const AdminFrentistas = lazy(() => import('@/pages/Admin/Frentistas'))
 const AdminUsuarios = lazy(() => import('@/pages/Admin/Usuarios'))
 const AdminRedes = lazy(() => import('@/pages/Admin/Redes'))
@@ -81,10 +89,12 @@ const AppRoutes = () => {
           <Route path="/qualidade-dados" element={<Suspense fallback={<RouteFallback />}><QualidadeDados /></Suspense>} />
           {/* Compliance ocultado — rota redireciona pro dashboard (reativar: repor a rota + o item no navConfig/modulos/appStructure). */}
           <Route path="/compliance" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><Pessoas /></Suspense>} />
+          {/* Pessoas (diretório só-leitura) foi removida; o cadastro vive no painel. */}
+          <Route path="/pessoas" element={<Navigate to="/painel/usuarios" replace />} />
           <Route path="/gestao" element={<Suspense fallback={<RouteFallback />}><Gestao /></Suspense>} />
           <Route path="/gestao/tarefas" element={<Navigate to="/gestao?tab=tarefas" replace />} />
           <Route path="/gestao/rotinas" element={<Navigate to="/gestao?tab=rotinas" replace />} />
+          <Route path="/compras" element={<Suspense fallback={<RouteFallback />}><Compras /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
           {/* Operação = Bombas + Reabastecimento em abas. As rotas antigas redirecionam. */}
@@ -95,7 +105,7 @@ const AppRoutes = () => {
           <Route path="/mobile" element={<Suspense fallback={<RouteFallback />}><Mobile /></Suspense>} />
           {/* Módulos de gestão moram no Painel (com a nav de pills). As rotas
               antigas redirecionam pra não ter dois lugares pra mesma coisa. */}
-          <Route path="/configuracoes" element={<Navigate to="/painel/config" replace />} />
+          <Route path="/configuracoes" element={<RedirectComHash to="/painel/config" />} />
           <Route path="/admin/frentistas" element={<Navigate to="/painel/frentistas" replace />} />
           <Route path="/admin/usuarios" element={<Navigate to="/painel/usuarios" replace />} />
           <Route path="/admin/redes" element={<Navigate to="/painel/redes" replace />} />
@@ -119,6 +129,11 @@ const AppRoutes = () => {
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
+      </Route>
+
+      {/* Diagnóstico do posto: tela cheia, sem o layout com menu (abre em nova guia). */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/diagnostico" element={<Suspense fallback={<RouteFallback />}><Diagnostico /></Suspense>} />
       </Route>
 
       {/* Frentista routes */}

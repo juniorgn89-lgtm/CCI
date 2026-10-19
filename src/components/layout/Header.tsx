@@ -4,7 +4,6 @@ import { LayoutGrid, RefreshCw } from 'lucide-react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useFocusMode } from '@/store/focusMode'
-import PotencialButton from '@/components/layout/PotencialButton'
 import DemoModeToggle from '@/components/layout/DemoModeToggle'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 import AppLauncher from '@/components/layout/AppLauncher'
@@ -36,7 +35,7 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
   const isFetching = useIsFetching()
 
   // A pílula de posto/rede (HeaderContextMenu) migrou pra barra de AÇÕES do módulo
-  // (AppLayout) — e o "Potencial desta tela" subiu pra cá. O HeaderContextMenu agora
+  // (AppLayout). O "Potencial desta tela" saiu em 18/10/2026 (a dica dos modais o substitui). O HeaderContextMenu agora
   // é auto-suficiente (computa o próprio rótulo/flags).
   // No Modo Foco a sidebar some — mostramos o hambúrguer no desktop também,
   // pra trocar de módulo sem sair do foco.
@@ -128,11 +127,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* "Potencial desta tela" subiu pro topo (trocou de lugar com a pílula de
-              posto, que foi pra barra de ações do módulo). */}
           {/* Modo Demonstração — só pra quem tem permissão; âmbar quando ativo. */}
           <DemoModeToggle />
-          <PotencialButton />
           {/* Referência de frescor do dado — última atualização EM TEMPO REAL. */}
           <UltimaAtualizacaoInfo />
           <button

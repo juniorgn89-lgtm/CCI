@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown } from 'lucide-react'
-import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
+import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown, CalendarRange, Gauge } from 'lucide-react'
+import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatLitersShort, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -11,9 +11,11 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchVendasCache } from '@/api/supabase/apuracao'
 import { weekdayMonthEndFactor, projecaoSazonal, projecaoAvancada, fimDoMesIso } from '@/lib/projection'
-import { todayLocal } from '@/lib/period'
+import { todayLocal, offsetPeriod } from '@/lib/period'
 import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
+import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
+import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 
 const SETORES_PROJ = ['combustivel', 'automotivos', 'conveniencia'] as const
 const SETOR_NOME: Record<(typeof SETORES_PROJ)[number], string> = { combustivel: 'combustível', automotivos: 'automotivos', conveniencia: 'conveniência' }
@@ -59,6 +61,24 @@ const CompBadge = ({ current, previous, label, title }: { current: number; previ
   )
 }
 
+/** Projeção de fechamento do setor (mesma engine sazonal do painel e das abas). */
+interface ProjSetor {
+  lucro: number
+  faturamento: number
+  volume: number
+  diasFechados: number
+  diasRestantes: number
+}
+
+/** Projeção de fechamento do setor (mesma engine sazonal do painel e das abas). */
+interface ProjSetor {
+  lucro: number
+  faturamento: number
+  volume: number
+  diasFechados: number
+  diasRestantes: number
+}
+
 interface SegmentCardProps {
   label: string
   Icon: typeof Droplets
@@ -67,47 +87,116 @@ interface SegmentCardProps {
   iconColor: string
   loading: boolean
   lucroBruto: number
-  /** Lucro bruto do período comparativo (mês/ano anterior) — alimenta o CompBadge. */
+  /** Lucro bruto do período comparativo (mesmos dias) — alimenta o CompBadge. */
   lucroBrutoAnterior: number
   /** Rótulo curto do comparativo ("AA"/"MA") + tooltip completo. */
   cmpLabel: string
   cmpTitle: string
-  primary: { label: string; value: string }
-  secondary: { label: string; value: string }
+  /** Projeção de fechamento do mês. */
+  proj: ProjSetor
+  /** Lucro bruto do mês comparativo INTEIRO (ano ou mês anterior, cheio). null = sem base. */
+  cheioAnterior: number | null
+  /** Rótulo do mês comparativo cheio (ex.: "out/25"). */
+  cheioLabel: string
+  /** Três números do rodapé (eficiência + volume). */
+  rodape: { label: string; value: string }[]
+  /** Clique no card → modal do setor posto a posto. */
+  onClick?: () => void
 }
 
-const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, primary, secondary }: SegmentCardProps) => (
-  <div className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-gray-700', cardBg)}>
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{label}</p>
-        <p className="inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
-          Lucro bruto
-          <InfoHint text="Faturamento − Custo dos produtos vendidos, somando todos os postos da rede. Não inclui despesas operacionais." />
-        </p>
+/**
+ * Card de setor: realizado em destaque, barra de ritmo (cheio = realizado,
+ * vazio = o que falta até a projeção), "fecha em" comparado ao mês inteiro do
+ * ano/mês anterior, e o que falta por dia. Mês fechado → "Fechou em", sem barra.
+ */
+const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, proj, cheioAnterior, cheioLabel, rodape, onClick }: SegmentCardProps) => {
+  const fechado = proj.diasRestantes <= 0
+  const entregue = proj.lucro > 0 ? Math.min(100, (lucroBruto / proj.lucro) * 100) : 0
+  const falta = Math.max(0, proj.lucro - lucroBruto)
+  const porDia = proj.diasRestantes > 0 ? falta / proj.diasRestantes : 0
+  const vsCheio = cheioAnterior && cheioAnterior > 0 ? ((proj.lucro - cheioAnterior) / cheioAnterior) * 100 : null
+  return (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      title={onClick ? 'Ver o setor posto a posto' : undefined}
+      onClick={onClick ? (e) => { if ((e.target as HTMLElement).closest('button')) return; onClick() } : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-gray-700', cardBg, onClick && 'cursor-pointer transition-shadow hover:shadow-md hover:ring-2 hover:ring-[#1e3a5f]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] dark:hover:ring-blue-400/40')}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{label}</p>
+          <p className="inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
+            Lucro bruto
+            <InfoHint text="Faturamento − Custo dos produtos vendidos, somando todos os postos da rede. Não inclui despesas operacionais." />
+          </p>
+        </div>
+        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+          <Icon className={cn('h-[18px] w-[18px]', iconColor)} />
+        </div>
       </div>
-      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
-        <Icon className={cn('h-[18px] w-[18px]', iconColor)} />
+      {loading ? (
+        <div className="mt-4 h-8 w-32 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+      ) : (
+        <p className="mt-3 text-[26px] font-extrabold tabular-nums tracking-tight text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
+      )}
+      {!loading && <CompBadge current={lucroBruto} previous={lucroBrutoAnterior} label={cmpLabel} title={cmpTitle} />}
+
+      {/* Projeção: barra de ritmo + "fecha em" + falta/dia */}
+      {!loading && (
+        <div className="mt-3 space-y-1.5">
+          {fechado ? (
+            <p className="text-[12px] text-gray-600 dark:text-gray-300">
+              <span className="font-semibold text-gray-800 dark:text-gray-100">Fechou em {formatCurrencyInt(lucroBruto)}</span>
+              {vsCheio !== null && (
+                <span className={cn('ml-1.5 font-semibold tabular-nums', vsCheio >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                  {vsCheio >= 0 ? '▲ +' : '▼ '}{vsCheio.toFixed(1).replace('.', ',')}% vs {cheioLabel}
+                </span>
+              )}
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200/80 dark:bg-gray-700/80" title={`${Math.round(entregue)}% do lucro projetado já realizado`}>
+                  <div className="h-full rounded-full bg-[#1e3a5f] dark:bg-blue-500" style={{ width: `${Math.max(2, entregue)}%` }} />
+                </div>
+                <span className="shrink-0 text-[10px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{Math.round(entregue)}% do mês</span>
+              </div>
+              <p className="flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-snug">
+                <span className="text-gray-500 dark:text-gray-400">Fecha em</span>
+                <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(proj.lucro)}</span>
+                {vsCheio !== null ? (
+                  <span className={cn('inline-flex items-center gap-0.5 font-semibold tabular-nums', vsCheio >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                    {vsCheio >= 0 ? '▲ +' : '▼ '}{vsCheio.toFixed(1).replace('.', ',')}% vs {cheioLabel}
+                    <InfoHint text={`Projeção de fechamento comparada ao mês INTEIRO de ${cheioLabel} (${formatCurrencyInt(cheioAnterior ?? 0)}). É a resposta para "vou fechar melhor que ${cheioLabel}?". O selo acima compara só os mesmos dias já decorridos.`} />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-[11px] text-gray-400">
+                    sem base de {cheioLabel}
+                    <InfoHint text={`Não há apuração de ${cheioLabel} inteiro no cache para comparar a projeção. Sem base, não inventamos número.`} />
+                  </span>
+                )}
+              </p>
+              <p className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+                faltam {formatCurrencyInt(falta)} · {formatCurrencyInt(porDia)}/dia · {proj.diasRestantes} dia{proj.diasRestantes === 1 ? '' : 's'}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="mt-auto grid grid-cols-3 gap-2 border-t border-gray-200/70 pt-3 dark:border-gray-700/70">
+        {rodape.map((r) => (
+          <div key={r.label} className="min-w-0">
+            <p className="truncate text-[13px] font-bold tabular-nums text-gray-700 dark:text-gray-200">{r.value}</p>
+            <p className="truncate text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{r.label}</p>
+          </div>
+        ))}
       </div>
     </div>
-    {loading ? (
-      <div className="mt-4 h-8 w-32 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-    ) : (
-      <p className="mt-4 text-[26px] font-extrabold tabular-nums tracking-tight text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
-    )}
-    {!loading && <CompBadge current={lucroBruto} previous={lucroBrutoAnterior} label={cmpLabel} title={cmpTitle} />}
-    <div className="mt-auto flex items-end justify-between gap-2 pt-4">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200">{primary.value}</p>
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{primary.label}</p>
-      </div>
-      <div className="min-w-0 text-right">
-        <p className="truncate text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200">{secondary.value}</p>
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{secondary.label}</p>
-      </div>
-    </div>
-  </div>
-)
+  )
+}
 
 const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean) => void } = {}) => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
@@ -129,6 +218,9 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const [projView, setProjView] = useState<'grafico' | 'tabela'>('grafico')
   const [selDia, setSelDia] = useState<number | null>(null)
   const [setorProj, setSetorProj] = useState<'combustivel' | 'automotivos' | 'conveniencia'>('combustivel')
+  // Modais de detalhe dos cards (setor posto a posto → resumo do posto).
+  const [setorModal, setSetorModal] = useState<SetorModal | null>(null)
+  const [postoModal, setPostoModal] = useState<number | null>(null)
   // Avisa o pai (Dashboard) quando abre/fecha — pra ocultar o Detalhamento por setor.
   useEffect(() => { onExpandedChange?.(expanded) }, [expanded, onExpandedChange])
   const setorLabel = setorProj === 'combustivel' ? 'combustível' : setorProj === 'automotivos' ? 'automotivos' : 'conveniência'
@@ -197,17 +289,69 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
         today: projToday,
         dataFinal: projMonthEnd,
         indices: sazonal.indice(setorId, metrica),
-      }).esperado
-    const faturamento = proj((d) => d.faturamento, 'faturamento')
-    const lucroBruto = proj((d) => d.lucroBruto, 'lucro')
-    const volume = proj((d) => d.qtd, 'qtd')
-    return { volume, faturamento, lucroBruto, margem: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0 }
+      })
+    const fat = proj((d) => d.faturamento, 'faturamento')
+    const lucro = proj((d) => d.lucroBruto, 'lucro')
+    const vol = proj((d) => d.qtd, 'qtd')
+    const faturamento = fat.esperado, lucroBruto = lucro.esperado, volume = vol.esperado
+    return {
+      volume, faturamento, lucroBruto,
+      margem: faturamento > 0 ? (lucroBruto / faturamento) * 100 : 0,
+      diasFechados: lucro.diasFechados, diasRestantes: lucro.diasRestantes,
+      confiabilidade: lucro.confiabilidade, confiabilidadePct: lucro.confiabilidadePct,
+    }
   }
+  const projComb = projSetor(combustivel, 'combustivel')
+  const projAuto = projSetor(automotivos, 'automotivos')
+  const projConv = projSetor(conveniencia, 'conveniencia')
   const projLinhas = [
-    { setor: 'Combustível', ...projSetor(combustivel, 'combustivel') },
-    { setor: 'Automotivos', ...projSetor(automotivos, 'automotivos') },
-    { setor: 'Conveniência', ...projSetor(conveniencia, 'conveniencia') },
+    { setor: 'Combustível', ...projComb },
+    { setor: 'Automotivos', ...projAuto },
+    { setor: 'Conveniência', ...projConv },
   ]
+  const projCard = (p: typeof projComb) => ({ lucro: p.lucroBruto, faturamento: p.faturamento, volume: p.volume, diasFechados: p.diasFechados, diasRestantes: p.diasRestantes })
+  const projGlobalCard = {
+    lucro: projLinhas.reduce((a, r) => a + r.lucroBruto, 0),
+    faturamento: projLinhas.reduce((a, r) => a + r.faturamento, 0),
+    volume: 0,
+    diasFechados: Math.max(projComb.diasFechados, projAuto.diasFechados, projConv.diasFechados),
+    diasRestantes: Math.max(projComb.diasRestantes, projAuto.diasRestantes, projConv.diasRestantes),
+  }
+
+  // ── Mês comparativo INTEIRO (ano anterior ou mês anterior, conforme o toggle):
+  // lucro bruto cheio por setor, pra comparar a PROJEÇÃO de fechamento com um
+  // mês fechado de verdade (o selo "vs AA" dos cards compara só os mesmos dias).
+  const mesCheio = useMemo(() => {
+    const [y, m] = (dataInicial || todayLocal()).split('-').map(Number)
+    if (!y || !m) return null
+    const ini = offsetPeriod(`${y}-${pad(m)}-01`, comparisonMode === 'prevYear' ? 12 : 1)
+    const [cy, cm] = ini.split('-').map(Number)
+    return { ini, fim: fimDoMesIso(ini), label: `${MESES[cm - 1]}/${String(cy).slice(2)}` }
+  }, [dataInicial, comparisonMode])
+  const { data: cheioRows = [], isFetched: cheioFetched } = useQuery({
+    queryKey: ['proj-mes-cheio-anterior', codes.join(','), mesCheio?.ini, mesCheio?.fim],
+    queryFn: () => fetchVendasCache({ empresaCodigos: codes, dataInicial: mesCheio!.ini, dataFinal: mesCheio!.fim }),
+    enabled: codes.length > 0 && !!mesCheio,
+    staleTime: 10 * 60 * 1000,
+  })
+  const cheio = useMemo(() => {
+    const acc: Record<'combustivel' | 'automotivos' | 'conveniencia', number> = { combustivel: 0, automotivos: 0, conveniencia: 0 }
+    let linhas = 0
+    for (const r of cheioRows) {
+      if (r.setor !== 'combustivel' && r.setor !== 'automotivos' && r.setor !== 'conveniencia') continue
+      acc[r.setor] += r.total_venda - r.total_custo
+      linhas++
+    }
+    const temBase = cheioFetched && linhas > 0
+    const total = acc.combustivel + acc.automotivos + acc.conveniencia
+    return {
+      combustivel: temBase ? acc.combustivel : null,
+      automotivos: temBase ? acc.automotivos : null,
+      conveniencia: temBase ? acc.conveniencia : null,
+      total: temBase ? total : null,
+    }
+  }, [cheioRows, cheioFetched])
+  const cheioLabel = mesCheio?.label ?? (comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.')
   const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
   const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
   const projTotal = {
@@ -366,36 +510,56 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               alinhar com o rodapé do cartão de Projeção (mais alto). */}
           <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SegmentCard
+            onClick={() => setSetorModal('combustivel')}
             label="Combustível" Icon={Droplets} cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
             loading={isLoading} lucroBruto={combustivel.lucroBruto}
             lucroBrutoAnterior={combustivel.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            primary={{ label: 'Margem', value: fmtPct(combustivel.margem) }}
-            secondary={{ label: 'L. bruto / litro', value: formatCurrency(combustivel.lucroPorUnidade) }}
+            proj={projCard(projComb)} cheioAnterior={cheio.combustivel} cheioLabel={cheioLabel}
+            rodape={[
+              { label: 'Margem', value: fmtPct(combustivel.margem) },
+              { label: 'L.B./litro', value: formatCurrency(combustivel.lucroPorUnidade) },
+              { label: 'L. proj.', value: formatLitersShort(projComb.volume) },
+            ]}
           />
           <SegmentCard
+            onClick={() => setSetorModal('automotivos')}
             label="Automotivos" Icon={Wrench} cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
             iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
             loading={isLoading} lucroBruto={automotivos.lucroBruto}
             lucroBrutoAnterior={automotivos.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            primary={{ label: 'Faturamento', value: formatCurrencyInt(automotivos.faturamento) }}
-            secondary={{ label: 'Margem', value: fmtPct(automotivos.margem) }}
+            proj={projCard(projAuto)} cheioAnterior={cheio.automotivos} cheioLabel={cheioLabel}
+            rodape={[
+              { label: 'Fatur.', value: formatCurrencyShort(automotivos.faturamento) },
+              { label: 'Margem', value: fmtPct(automotivos.margem) },
+              { label: 'Fat. proj.', value: formatCurrencyShort(projAuto.faturamento) },
+            ]}
           />
           <SegmentCard
+            onClick={() => setSetorModal('conveniencia')}
             label="Conveniência" Icon={Store} cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
             iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
             loading={isLoading} lucroBruto={conveniencia.lucroBruto}
             lucroBrutoAnterior={conveniencia.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            primary={{ label: 'Faturamento', value: formatCurrencyInt(conveniencia.faturamento) }}
-            secondary={{ label: 'Margem', value: fmtPct(conveniencia.margem) }}
+            proj={projCard(projConv)} cheioAnterior={cheio.conveniencia} cheioLabel={cheioLabel}
+            rodape={[
+              { label: 'Fatur.', value: formatCurrencyShort(conveniencia.faturamento) },
+              { label: 'Margem', value: fmtPct(conveniencia.margem) },
+              { label: 'Fat. proj.', value: formatCurrencyShort(projConv.faturamento) },
+            ]}
           />
           <SegmentCard
+            onClick={() => setSetorModal('global')}
             label="Global" Icon={Globe} cardBg="bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900"
             iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
             loading={isLoading} lucroBruto={global.lucroBruto}
             lucroBrutoAnterior={global.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            primary={{ label: 'Faturamento', value: formatCurrencyInt(global.faturamento) }}
-            secondary={{ label: 'Margem', value: fmtPct(global.margem) }}
+            proj={projGlobalCard} cheioAnterior={cheio.total} cheioLabel={cheioLabel}
+            rodape={[
+              { label: 'Fatur.', value: formatCurrencyShort(global.faturamento) },
+              { label: 'Margem', value: fmtPct(global.margem) },
+              { label: 'Fat. proj.', value: formatCurrencyShort(projTotal.faturamento) },
+            ]}
           />
           </div>
         </div>
@@ -412,7 +576,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               <span
                 className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT_CONFIA[projResumo.confiabilidade])}
               />
-              Projeção
+              {expanded ? 'Projeção' : 'Ritmo do mês'}
               <InfoHint
                 text={PROJECAO_TOOLTIP_SAZONAL}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
@@ -422,24 +586,8 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               {(expanded ? [setorProj] : SETORES_PROJ).map((s) => (
                 <ProjecaoModoAviso key={s} modo={sazonal.modo(s)} contexto={SETOR_NOME[s]} tone="navy" />
               ))}
-              {projResumo.cmpPct !== null && (
-                <>
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-                      projResumo.cmpPct >= 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100',
-                    )}
-                  >
-                    {projResumo.cmpPct >= 0 ? '▲' : '▼'} {projResumo.cmpPct >= 0 ? '+' : ''}{projResumo.cmpPct.toFixed(1).replace('.', ',')}% vs {cmpLabelLong}
-                  </span>
-                  <InfoHint
-                    text={`Projeção da rede vs fechamento do ${cmpLabelLong} (${formatCurrencyInt(global.faturamentoAnoAnterior)})`}
-                    className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
-                  />
-                </>
-              )}
             </p>
-            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Fim do mês'}</p>
+            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Como o mês está indo · lucro bruto da rede'}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {expanded && (
@@ -467,38 +615,67 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           </div>
         </div>
 
-        {/* Tabela (fechado) */}
-        {!expanded && (
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="border-b border-white/15 text-left text-white/55">
-                <th className="px-5 py-1 font-semibold uppercase tracking-wide">Setor</th>
-                <th className="py-1 text-right font-semibold uppercase tracking-wide">Litros/Qtde</th>
-                <th className="py-1 text-right font-semibold uppercase tracking-wide">Faturamento</th>
-                <th className="py-1 text-right font-semibold uppercase tracking-wide">Lucro bruto</th>
-                <th className="px-5 py-1 text-right font-semibold uppercase tracking-wide">Margem</th>
-              </tr>
-            </thead>
-            <tbody className="text-white/90">
-              {projLinhas.map((r) => (
-                <tr key={r.setor} className="border-b border-white/10">
-                  <td className="px-5 py-2.5">{r.setor}</td>
-                  <td className="py-2.5 text-right tabular-nums">{formatNumber(Math.round(r.volume))}</td>
-                  <td className="py-2.5 text-right tabular-nums">{formatCurrencyInt(r.faturamento)}</td>
-                  <td className="py-2.5 text-right tabular-nums">{formatCurrencyInt(r.lucroBruto)}</td>
-                  <td className="px-5 py-2.5 text-right tabular-nums">{fmtPct(r.margem)}</td>
-                </tr>
-              ))}
-              <tr className="font-bold text-white">
-                <td className="px-5 pt-2.5">Total</td>
-                <td className="pt-2.5 text-right tabular-nums text-white/50">—</td>
-                <td className="pt-2.5 text-right tabular-nums">{formatCurrencyInt(projTotal.faturamento)}</td>
-                <td className="pt-2.5 text-right tabular-nums">{formatCurrencyInt(projTotal.lucroBruto)}</td>
-                <td className="px-5 pt-2.5 text-right tabular-nums">{fmtPct(projTotal.margem)}</td>
-              </tr>
-            </tbody>
-          </table>
-        )}
+        {/* Ritmo do mês (fechado): o que não cabe nos cards, uma vez só. */}
+        {!expanded && (() => {
+          const fechado = projGlobalCard.diasRestantes <= 0
+          const entregue = projGlobalCard.lucro > 0 ? Math.min(100, (global.lucroBruto / projGlobalCard.lucro) * 100) : 0
+          const falta = Math.max(0, projGlobalCard.lucro - global.lucroBruto)
+          const porDia = projGlobalCard.diasRestantes > 0 ? falta / projGlobalCard.diasRestantes : 0
+          const vsCheio = cheio.total && cheio.total > 0 ? ((projGlobalCard.lucro - cheio.total) / cheio.total) * 100 : null
+          const vsParcial = global.lucroBrutoAnoAnterior > 0 ? ((global.lucroBruto - global.lucroBrutoAnoAnterior) / global.lucroBrutoAnoAnterior) * 100 : null
+          const fimMes = projMonthEnd.split('-').reverse().slice(0, 2).join('/')
+          const Pct = ({ v }: { v: number | null }) => v === null
+            ? <span className="text-white/50">sem base</span>
+            : <span className={cn('font-bold tabular-nums', v >= 0 ? 'text-emerald-300' : 'text-red-300')}>{v >= 0 ? '▲ +' : '▼ '}{v.toFixed(1).replace('.', ',')}%</span>
+          return (
+            <div className="flex flex-1 flex-col gap-3 px-5 pb-5 text-white">
+              {/* Barra grande do mês */}
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[28px] font-extrabold tabular-nums leading-none">{fechado ? '100' : Math.round(entregue)}%</span>
+                  <span className="text-[11px] text-white/70">{fechado ? 'mês fechado' : `do lucro do mês já entrou`}</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full bg-[#34d399]" style={{ width: `${fechado ? 100 : Math.max(2, entregue)}%` }} />
+                </div>
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-white/70">
+                  <CalendarRange className="h-3.5 w-3.5" />
+                  {fechado
+                    ? 'Período fechado: projeção = realizado.'
+                    : `${projGlobalCard.diasFechados} dias fechados · ${projGlobalCard.diasRestantes} restantes · fecha em ${fimMes}`}
+                </p>
+              </div>
+
+              {/* Fecha em + comparações */}
+              <div className="rounded-xl bg-white/[0.07] p-3">
+                <p className="text-[10px] uppercase tracking-wider text-white/55">{fechado ? 'Fechou em' : 'Fecha em'}</p>
+                <p className="text-[20px] font-extrabold tabular-nums leading-tight">{formatCurrencyInt(fechado ? global.lucroBruto : projGlobalCard.lucro)}</p>
+                <div className="mt-2 space-y-1 text-[11px] text-white/80">
+                  <p className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1">vs {cheioLabel} inteiro <InfoHint text={`Projeção de fechamento contra o lucro bruto do mês INTEIRO de ${cheioLabel}${cheio.total ? ` (${formatCurrencyInt(cheio.total)})` : ''}. É a pergunta que importa: vou fechar melhor que ${cheioLabel}?`} className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" /></span>
+                    <Pct v={vsCheio} />
+                  </p>
+                  <p className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1">vs {cmpLabelLong}, mesmos dias <InfoHint text="Realizado até agora contra o mesmo número de dias do período comparativo. É o mesmo selo dos cards." className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" /></span>
+                    <Pct v={vsParcial} />
+                  </p>
+                  {!fechado && (
+                    <p className="flex items-center justify-between gap-2 border-t border-white/10 pt-1">
+                      <span>faltam {formatCurrencyInt(falta)}</span>
+                      <span className="tabular-nums">{formatCurrencyInt(porDia)}/dia</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Método e confiança */}
+              <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/70">
+                <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /> confiança <span className={cn('font-semibold capitalize', projResumo.confiabilidade === 'alta' ? 'text-emerald-300' : projResumo.confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{projResumo.confiabilidade}</span> ({Math.round(projResumo.confiabilidadePct)}%)</span>
+                <span>· sazonal por dia da semana{SETORES_PROJ.some((x) => sazonal.modo(x).linear) ? ' (linear onde falta histórico)' : ''}</span>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Régua (aberto) */}
         {expanded && (
@@ -638,6 +815,9 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
         {!expanded && <div className="pb-4" />}
       </div>
     </div>
+
+      <SetorPostosModal setor={setorModal} onClose={() => setSetorModal(null)} onPosto={(c) => { setSetorModal(null); setPostoModal(c) }} />
+      <PostoResumoModal empresaCodigo={postoModal} onClose={() => setPostoModal(null)} />
     </div>
   )
 }

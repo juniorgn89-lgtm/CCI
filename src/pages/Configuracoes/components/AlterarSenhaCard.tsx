@@ -56,7 +56,7 @@ const AlterarSenhaCard = () => {
       <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
         Segurança
       </h2>
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />

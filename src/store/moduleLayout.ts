@@ -106,10 +106,8 @@ export const useConvenienciasLayout = createModuleLayoutStore('visor360-convenie
 
 export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layout', [
   { id: 'visao', label: 'Visão Geral', visible: true },
-  { id: 'geral', label: 'Estoque geral', visible: true },
-  { id: 'giro', label: 'Giro', visible: true },
-  { id: 'mediaVendas', label: 'Média de venda (6m)', visible: true },
-  { id: 'necessidade', label: 'Necessidade', visible: true },
+  { id: 'produtos', label: 'Produtos', visible: true },
+  { id: 'comprar', label: 'Comprar', visible: true },
 ])
 
 // Bump no nome da store força reset pra essa aba específica (rename
@@ -123,7 +121,6 @@ export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fechamento', label: 'Fechamento', visible: false },
-  { id: 'cartoes', label: 'Cartões', visible: false },
 ])
 
 // Produtividade não usa mais moduleLayout: virou 2 abas fixas (Dash + Funcionários)

@@ -28,14 +28,17 @@ import RouteFallback from '@/components/feedback/RouteFallback'
 import { Skeleton } from '@/components/ui/skeleton'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
+import VerDetalhamentoButton from '@/components/ui/VerDetalhamentoButton'
 import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
-import ProjecaoExecutiva from './ProjecaoExecutiva'
+import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
 import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from './useProjecaoSazonalPiloto'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import { smoothedProjection, projecaoSazonal, reprojectByFactor, fimDoMesIso, expectedDailySeries, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
+import ProjecaoPorItemTable from '@/pages/Comercial/Vendas/ProjecaoPorItemTable'
 import { cn } from '@/lib/utils'
 import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -49,11 +52,12 @@ const ParetoAnalysis = lazy(() => import('@/pages/Conveniencias/components/Paret
 const CurvaABC = lazy(() => import('@/pages/Conveniencias/components/CurvaABC'))
 const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
 
-type TabId = 'diadia' | 'grupo' | 'pareto' | 'abc' | 'catalogo'
+type TabId = 'diadia' | 'grupo' | 'projecao' | 'pareto' | 'abc' | 'catalogo'
 
 const TABS: { id: TabId; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: 'diadia', label: 'Realizado dia a dia', Icon: CalendarDays },
   { id: 'grupo', label: 'Realizado por grupo', Icon: LayoutDashboard },
+  { id: 'projecao', label: 'Projeção por categoria', Icon: TrendingUp },
   { id: 'pareto', label: 'Análise de Pareto', Icon: BarChart3 },
   { id: 'abc', label: 'Curva ABC', Icon: ListOrdered },
   { id: 'catalogo', label: 'Catálogo', Icon: Package },
@@ -113,13 +117,15 @@ interface KpiCardProps {
   /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
    * período é projetável (tem dias futuros). */
   projecao?: string
+  /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
+  ritmo?: ReactNode
   /** Comparação com o período anterior (DeltaBadge). */
   current?: number
   previous?: number
   comparisonLabel?: string
 }
 
-const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, current, previous, comparisonLabel }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo, current, previous, comparisonLabel }: KpiCardProps) => (
   <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -142,7 +148,8 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         )}
       </div>
     )}
-    {projecao && !loading && (
+    {ritmo && !loading && <div className="mt-2">{ritmo}</div>}
+    {projecao && !ritmo && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
@@ -205,6 +212,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
 
   // Aba ativa (Visão Geral por padrão — mostra "Por categoria" + "Top 20 produtos")
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
+  // Tabela dia a dia abre RECOLHIDA: gráfico primeiro; a tabela sob demanda.
+  const [detalheAberto, setDetalheAberto] = useState(false)
   // Modal de detalhe do dia — navegável ‹ › pela lista de dias da semana ativa.
   const diaNav = useListNavigator<PistaDiaData>()
   // Página da tabela dia a dia (0-based; 0 = dias mais recentes).
@@ -781,7 +790,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               current={cmpKpis.atual.faturamento}
               previous={cmpKpis.prev.faturamento > 0 ? cmpKpis.prev.faturamento : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoFat) : undefined}
+              ritmo={!isLoadingVendas && computed ? (
+                <ProjecaoRitmo realizado={cmpKpis.atual.faturamento} projetado={projecaoPista.projetadoFat} diasRestantes={projecaoPista.fat.diasRestantes}
+                  cheioAnterior={sz.cmpAnterior.faturamento > 0 ? sz.cmpAnterior.faturamento : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} />
+              ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.faturamento > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -807,7 +819,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               current={cmpKpis.atual.lucroBruto}
               previous={cmpKpis.prev.lucroBruto > 0 ? cmpKpis.prev.lucroBruto : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoPista.isProjetada && computed ? formatCurrencyInt(projecaoPista.projetadoLucro) : undefined}
+              ritmo={!isLoadingVendas && computed ? (
+                <ProjecaoRitmo realizado={cmpKpis.atual.lucroBruto} projetado={projecaoPista.projetadoLucro} diasRestantes={projecaoPista.fat.diasRestantes}
+                  cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} />
+              ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.lucroBruto > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -876,15 +891,20 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
             />
             </div>
             </div>
-            <ProjecaoExecutiva
-              fat={projecaoPista.fat}
-              projetadoLucro={projecaoPista.projetadoLucro}
+            <RitmoDoMesCard
+              realizado={cmpKpis.atual.lucroBruto}
+              projetado={projecaoPista.projetadoLucro}
+              diasFechados={projecaoPista.fat.diasFechados}
+              diasRestantes={projecaoPista.fat.diasRestantes}
               dataFinal={projecaoPista.dataFinalProjecao}
-              comparativo={sz.cmpAnterior.faturamento > 0 ? { anterior: sz.cmpAnterior.faturamento, label: sz.cmpLabel } : undefined}
-              sparkline={false}
-              cenarios={false}
-              mediasInteiras
+              cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null}
+              cheioLabel={sz.cmpLabel}
+              parcialAnterior={cmpKpis.prev.lucroBruto}
+              parcialLabel={cmpLabel}
+              confiabilidade={projecaoPista.fat.confiabilidade}
+              confiabilidadePct={projecaoPista.fat.confiabilidadePct}
               modo={sz.modo}
+              contexto="automotivos"
               loading={isLoadingVendas || sz.isLoading}
             />
           </div>
@@ -963,6 +983,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                   </div>
                   )
                 })()}
+                {/* Tabela dia a dia recolhida por padrão: o gráfico fica, a tabela abre sob demanda. */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-5 py-2.5 dark:border-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Tabela dia a dia · {diasOrdenados.length} dias{detalheAberto ? '' : ' · recolhida'}</span>
+                  <VerDetalhamentoButton aberto={detalheAberto} onToggle={() => setDetalheAberto((v) => !v)} />
+                </div>
+                {detalheAberto && (
+                  <>
                 {/* Mesmo sentido do paginador "Por posto": abre na quinzena mais recente. */}
                 <TablePager
                   page={(diaPageCount - 1) - diaPageSafe}
@@ -1092,6 +1119,8 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
                     </tbody>
                   </table>
                 </div>
+                </>
+                )}
                 </>
               )}
               </>
@@ -1450,6 +1479,38 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
           </>
           )}
           {/* fim do activeTab === 'grupo' */}
+          {activeTab === 'projecao' && (
+            isLoadingVendas ? (
+              <div className="space-y-2 p-5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 rounded-md" />
+                ))}
+              </div>
+            ) : (
+              <ProjecaoPorItemTable
+                rotuloItem="Categoria"
+                rotuloQtd="Unidades"
+                sufixoDia="un/dia"
+                rotuloLb="L.B. / unidade"
+                vazio="Nenhuma venda de produto automotivo no período."
+                linhas={(computed?.categorias ?? []).map((c) => ({ codigo: c.nome, nome: c.nome, qtd: c.qtdVendida, faturamento: c.faturamento, lucroBruto: c.faturamento - c.custo, badgeCls: CATEGORIA_COLOR[c.nome] ?? CATEGORIA_COLOR['Outros'] }))}
+                // Mesmo fator rede-wide dos cards (esperado ÷ realizado) aplicado a cada categoria.
+                projetar={(l) => {
+                  const kFat = projecaoPista.realizadoFat > 0 ? projecaoPista.projetadoFat / projecaoPista.realizadoFat : 1
+                  const kLucro = projecaoPista.realizadoLucro > 0 ? projecaoPista.projetadoLucro / projecaoPista.realizadoLucro : kFat
+                  return { qtd: l.qtd * kFat, fat: l.faturamento * kFat, lucro: l.lucroBruto * kLucro }
+                }}
+                meta={{
+                  diasFechados: projecaoPista.fat.diasFechados,
+                  diasRestantes: projecaoPista.fat.diasRestantes,
+                  linear: sz.linear,
+                  dataFinal: projecaoPista.dataFinalProjecao,
+                  confiabilidade: projecaoPista.fat.confiabilidade,
+                  confiabilidadePct: projecaoPista.fat.confiabilidadePct,
+                }}
+              />
+            )
+          )}
           </section>
         </>
       )}

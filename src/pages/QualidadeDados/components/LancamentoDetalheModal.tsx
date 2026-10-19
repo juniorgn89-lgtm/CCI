@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
 import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import { cn } from '@/lib/utils'
+import { GUIAS } from '@/lib/guiasModais'
 import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSection'
 
 export interface DetailField {
@@ -34,6 +35,13 @@ export interface LancamentoDetalheData {
   severidade: IssueSeverity
   /** Lista de detalhes do lançamento (renderiza como key-value). */
   details: DetailField[]
+  /**
+   * Corpo pronto (relatório). Quando vem, substitui motivo + código + tabela:
+   * o próprio corpo cuida de explicar, mostrar o código e dizer o que fazer.
+   */
+  corpo?: ReactNode
+  /** Selo curto ao lado do título (ex.: "Risco alto"). */
+  selo?: { label: string; cls: string; dot: string }
 }
 
 interface LancamentoDetalheModalProps {
@@ -100,7 +108,7 @@ const LancamentoDetalheModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[92vh] w-[95vw] max-w-2xl flex-col overflow-hidden p-4 sm:p-5">
+      <DialogContent guia={GUIAS.lancamentoQualidade} className="flex max-h-[92vh] w-[95vw] max-w-2xl flex-col overflow-hidden p-4 sm:p-5">
         {navegavel && (
           <DialogNavArrows
             onPrev={() => onPrev?.()}
@@ -112,13 +120,17 @@ const LancamentoDetalheModal = ({
           />
         )}
         <DialogHeader className="space-y-0.5 pr-8">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DialogTitle className="text-base">{data.title}</DialogTitle>
+            {data.selo && <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold', data.selo.cls)}><span className={cn('h-2 w-2 rounded-full', data.selo.dot)} />{data.selo.label}</span>}
             <DialogNavCounter position={position} />
           </div>
           {data.subtitle && <DialogDescription className="text-xs">{data.subtitle}</DialogDescription>}
         </DialogHeader>
 
+        {data.corpo ? (
+          <div className={cn('flex-1 overflow-auto', navegavel ? 'px-4' : 'pr-1')}>{data.corpo}</div>
+        ) : (
         <div className="flex-1 space-y-2.5 overflow-auto">
           {/* Motivo do alerta */}
           <div className={cn('flex items-start gap-2 rounded-md px-2.5 py-1.5 text-xs', sev.bg)}>
@@ -192,6 +204,7 @@ const LancamentoDetalheModal = ({
             </table>
           </section>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   )

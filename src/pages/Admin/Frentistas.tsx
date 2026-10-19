@@ -194,7 +194,7 @@ const Frentistas = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
@@ -240,17 +240,17 @@ const Frentistas = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar nome, código ou posto..."
-            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           />
         </div>
       )}
 
       {isLoading ? (
-        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
       ) : frentistasFiltrados.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {search.trim() ? 'Nenhum frentista encontrado pra essa busca.' : 'Nenhum frentista cadastrado.'}
           </p>
@@ -260,7 +260,7 @@ const Frentistas = () => {
           {gruposPorRede.map((g) => (
             <div
               key={g.redeId}
-              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
             >
               <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
                 <Network className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -375,7 +375,7 @@ const CreateFrentistaModal = ({ empresas, codigosJaCadastrados, onClose, onCreat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Novo frentista</h2>
           <button
@@ -493,7 +493,7 @@ interface FrentistaTabelaProps {
 
 const FrentistaTabela = ({ items, busyUserId, onToggle, onDelete, onResetPin }: FrentistaTabelaProps) => (
   <table className="w-full text-sm">
-    <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+    <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
       <tr>
         <th className="px-4 py-2.5 text-left font-medium">Código</th>
         <th className="px-4 py-2.5 text-left font-medium">Nome</th>

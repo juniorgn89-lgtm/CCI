@@ -4,6 +4,7 @@ import { DialogNavArrows, DialogNavCounter } from '@/components/ui/DialogNav'
 import useArrowKeyNav from '@/hooks/useArrowKeyNav'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
+import { GUIAS } from '@/lib/guiasModais'
 import BarCell from '@/components/tables/BarCell'
 
 export interface PistaGrupoDetalhe {
@@ -53,7 +54,7 @@ const PistaDiaModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.pistaDia} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         {navegavel && (
           <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="dia anterior" nextLabel="próximo dia" />
         )}

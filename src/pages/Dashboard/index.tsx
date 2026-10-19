@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Activity, Layers, Fuel, Wrench, Store, Tag } from 'lucide-react'
+import { Activity, Layers, Fuel, Wrench, Store, Tag, Stethoscope } from 'lucide-react'
+import { useFilterStore } from '@/store/filters'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
@@ -25,6 +26,9 @@ const Conveniencia = lazy(() => import('@/pages/Comercial/Vendas/Conveniencia'))
 const GestaoPrecos = lazy(() => import('@/pages/Dashboard/components/GestaoPrecos'))
 // Gráficos executivos da Visão Geral (mesmo chunk lazy do Recharts).
 const VisaoGeralGraficos = lazy(() => import('@/pages/Dashboard/components/VisaoGeralGraficos'))
+const TanquesRedeCard = lazy(() => import('@/pages/Dashboard/components/TanquesRedeCard'))
+const ContasRedeCard = lazy(() => import('@/pages/Dashboard/components/ContasRedeCard'))
+const CentralCompartilhar = lazy(() => import('@/pages/Dashboard/components/CentralCompartilhar'))
 
 type TabId = 'setor' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
 
@@ -52,6 +56,9 @@ const TabSkeleton = () => (
 
 const Dashboard = () => {
   const isMobile = useIsMobile()
+  // "Diagnóstico anual" abre em nova guia: com o posto do filtro quando há um só, senão a rede inteira.
+  const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  const diagnosticoHref = `/diagnostico?empresa=${empresaCodigos.length === 1 ? empresaCodigos[0] : 'rede'}`
 
   // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar) —
   // fonte única compartilhada com a tela de Personalização (Configurações).
@@ -123,7 +130,26 @@ const Dashboard = () => {
           {/* Cards de segmento rede-wide (Combustível, Automotivos, Conveniência,
               Global, Projeção) — só na "Visão Geral". As abas ao vivo e as de
               vendas por-posto têm seus próprios painéis/projeções. */}
-          {activeTab === 'setor' && <ProjecoesPainel />}
+          {activeTab === 'setor' && (
+            <>
+              {/* Ações desta tela (diagnóstico anual e PDF) ficam no conteúdo, à
+                  direita, acima dos cartões — a barra do topo fica só com abas e
+                  filtros, sem espremer nada em telas menores. */}
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <a
+                  href={diagnosticoHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Um ano contra o anterior, com os achados — abre em nova guia"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
+                >
+                  <Stethoscope className="h-3.5 w-3.5" /> Diagnóstico anual
+                </a>
+                <Suspense fallback={null}><CentralCompartilhar /></Suspense>
+              </div>
+              <ProjecoesPainel />
+            </>
+          )}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs). Todas as
               abas de vendas são consolidadas (cache) → renderizam rede-wide. */}
@@ -135,7 +161,13 @@ const Dashboard = () => {
                       MODO ANÁLISE (?detalhe=1): KPIs → Detalhamento expandido; os
                       gráficos ficam MONTADOS e só recolhem (sem refetch/flicker). */}
                   <CollapseTransition open={!detalhe}>
-                    <VisaoGeralGraficos />
+                    <div className="space-y-4">
+                      <VisaoGeralGraficos />
+                      {/* Tanques da rede: nível de cada tanque por posto (abaixo dos gráficos). */}
+                      <TanquesRedeCard />
+                      {/* Contas a pagar × a receber da rede (abaixo dos tanques). */}
+                      <ContasRedeCard />
+                    </div>
                   </CollapseTransition>
                   <BenchmarkSetor expanded={detalhe} onToggle={() => setDetalhe(!detalhe)} />
                 </div>

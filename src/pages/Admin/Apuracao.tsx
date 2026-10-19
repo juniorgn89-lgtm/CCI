@@ -669,7 +669,7 @@ const Apuracao = () => {
   const today = todayParts()
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -870,7 +870,7 @@ const MonthCard = ({ label, state, isFutureMonth, isCurrentMonth, disabled, avis
   return (
     <div
       className={cn(
-        'rounded-xl border bg-white p-3 transition-colors dark:bg-gray-900',
+        'rounded-xl border bg-white p-3 transition-colors dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
         state.status === 'apurado'
           ? 'border-emerald-200 dark:border-emerald-900/40'
           : state.status === 'em_andamento'

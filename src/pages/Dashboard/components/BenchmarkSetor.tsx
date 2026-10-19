@@ -558,13 +558,13 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
               {/* Eficiência */}
               {isComb ? (
                 <>
-                  <HeaderHint groupStart label={<>Preço<br />venda</>} help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
-                  <HeaderHint label={<>Preço<br />custo</>} help="Custo médio por unidade: custo ÷ quantidade." />
+                  <HeaderHint groupStart label={<>Preço<br />médio</>} help="Preço médio vendido por litro no período: faturamento ÷ litros. Não é o preço de bomba de hoje: mistura as trocas de preço do período e os descontos dados na venda." />
+                  <HeaderHint label={<>Custo<br />médio</>} help="Custo médio por litro no período: custo (CMV) ÷ litros. É a média das compras que saíram no período, não o custo da última carga." />
                   <HeaderHint label={data.lbLabel} help="Lucro bruto por unidade: lucro ÷ quantidade." />
                 </>
               ) : (
                 <>
-                  <HeaderHint groupStart label={<>Preço<br />médio</>} help="Preço médio de venda por unidade: faturamento ÷ quantidade." />
+                  <HeaderHint groupStart label={<>Preço<br />médio</>} help="Preço médio vendido por unidade no período: faturamento ÷ quantidade. Não é o preço de tabela: mistura trocas de preço e descontos do período." />
                   <HeaderHint label={<>Custo<br />médio</>} help="Custo médio por unidade: custo ÷ quantidade." />
                   <HeaderHint label={<>Ticket<br />médio</>} help="Faturamento ÷ nº de cupons (vendas)." />
                 </>

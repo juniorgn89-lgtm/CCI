@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
+import { GUIAS } from '@/lib/guiasModais'
 import { smoothedProjection, PROJECAO_TOOLTIP } from '@/lib/projection'
 
 export interface CategoriaData {
@@ -126,7 +127,7 @@ const CategoriaDetalheModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.categoriaDetalhe} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         {navegavel && (
           <DialogNavArrows onPrev={() => onPrev?.()} onNext={() => onNext?.()} canPrev={canPrev} canNext={canNext} prevLabel="categoria anterior" nextLabel="próxima categoria" />
         )}
@@ -188,8 +189,8 @@ const CategoriaDetalheModal = ({
               />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrency(lucro)} tooltip="Lucro bruto total: faturamento − custo (R$)." />
               <Kpi Icon={Percent} label="Margem" value={`${margemPct.toFixed(2).replace('.', ',')}%`} tooltip="(Lucro bruto ÷ faturamento) × 100." />
-              <Kpi Icon={Receipt} label="Ticket / unid." value={formatCurrency(ticketMedio)} tooltip="Faturamento ÷ unidades vendidas (R$ por unidade)." />
-              <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(precoMedioCusto)} tooltip="Custo total ÷ unidades vendidas (R$ por unidade)." />
+              <Kpi Icon={Receipt} label="Preço médio" value={formatCurrency(ticketMedio)} tooltip="Preço médio vendido por unidade no período: faturamento ÷ quantidade. Não é o preço de tabela: mistura trocas de preço e descontos do período." />
+              <Kpi Icon={Wallet} label="Custo médio" value={formatCurrency(precoMedioCusto)} tooltip="Custo total ÷ unidades vendidas (R$ por unidade)." />
               <Kpi Icon={Package} label="SKUs ativos" value={formatNumber(categoria.qtdProdutos)} tooltip="Quantidade de produtos distintos com venda no período." />
             </div>
           </section>
@@ -228,7 +229,7 @@ const CategoriaDetalheModal = ({
                           <span>{formatNumber(Math.round(p.quantidade))} unid.</span>
                           <span>margem {margemP.toFixed(2).replace('.', ',')}%</span>
                           <span>custo <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(p.custo)}</span></span>
-                          <span>preço méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(precoMedio)}</span></span>
+                          <span>preço médio <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(precoMedio)}</span></span>
                           <span>custo méd <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(custoMedio)}</span></span>
                         </span>
                         <CoberturaBadge

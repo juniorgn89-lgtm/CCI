@@ -164,10 +164,10 @@ const loadTenantForUser = async () => {
         // o login: a rede só fica sem plano (card "Meu plano" cai no neutro).
         if (alvo) {
           const { data: pl, error: plErr } = await supabase
-            .from('redes').select('plano, gestao_habilitado').eq('id', alvo.id).maybeSingle()
+            .from('redes').select('plano, gestao_habilitado, cliente_desde, created_at, compras_habilitado').eq('id', alvo.id).maybeSingle()
           if (!plErr && pl) {
-            const { plano, gestao_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null }
-            useTenantStore.getState().setRede({ ...alvo, plano, gestao_habilitado: !!gestao_habilitado })
+            const { plano, gestao_habilitado, cliente_desde, created_at, compras_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null; cliente_desde?: string | null; created_at?: string; compras_habilitado?: boolean | null }
+            useTenantStore.getState().setRede({ ...alvo, plano, gestao_habilitado: !!gestao_habilitado, cliente_desde: cliente_desde ?? null, created_at, compras_habilitado: !!compras_habilitado })
           }
         }
       }
@@ -178,10 +178,10 @@ const loadTenantForUser = async () => {
         const persisted = useTenantStore.getState().rede
         if (persisted) {
           const { data: pl, error: plErr } = await supabase
-            .from('redes').select('plano, gestao_habilitado').eq('id', persisted.id).maybeSingle()
+            .from('redes').select('plano, gestao_habilitado, cliente_desde, created_at, compras_habilitado').eq('id', persisted.id).maybeSingle()
           if (!plErr && pl) {
-            const { plano, gestao_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null }
-            useTenantStore.getState().setRede({ ...persisted, plano, gestao_habilitado: !!gestao_habilitado })
+            const { plano, gestao_habilitado, cliente_desde, created_at, compras_habilitado } = pl as { plano: PlanoId | null; gestao_habilitado?: boolean | null; cliente_desde?: string | null; created_at?: string; compras_habilitado?: boolean | null }
+            useTenantStore.getState().setRede({ ...persisted, plano, gestao_habilitado: !!gestao_habilitado, cliente_desde: cliente_desde ?? null, created_at, compras_habilitado: !!compras_habilitado })
           }
         }
       }
@@ -194,12 +194,14 @@ const loadTenantForUser = async () => {
       // Modo Demonstração: query SEPARADA e resiliente — a coluna pode não existir
       // ainda (docs/supabase-pode-demonstrar.sql). Erro aqui NÃO quebra o login.
       const { data: pd, error: pdErr } = await supabase
-        .from('profiles').select('pode_demonstrar, pode_gerir_tarefas').eq('user_id', user.id).maybeSingle()
-      const flags = pd as { pode_demonstrar?: boolean | null; pode_gerir_tarefas?: boolean | null } | null
+        .from('profiles').select('pode_demonstrar, pode_gerir_tarefas, pode_liberar_compras').eq('user_id', user.id).maybeSingle()
+      const flags = pd as { pode_demonstrar?: boolean | null; pode_gerir_tarefas?: boolean | null; pode_liberar_compras?: boolean | null } | null
       const podeDemonstrar = !pdErr && !!flags?.pode_demonstrar
       useAuthStore.getState().setCanDemonstrar(isMaster || podeDemonstrar)
       // Gestão de tarefas: gestor marcado em Usuários; master sempre.
       useAuthStore.getState().setCanGerirTarefas(isMaster || (!pdErr && !!flags?.pode_gerir_tarefas))
+      // Compras: libera pedidos quem foi marcado em Usuários; master sempre.
+      useAuthStore.getState().setCanLiberarCompras(isMaster || (!pdErr && !!flags?.pode_liberar_compras))
       // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)

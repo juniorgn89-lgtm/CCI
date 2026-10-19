@@ -5,6 +5,7 @@ import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchProdutos } from '@/api/endpoints/produtos'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
+import { useFilterStore } from '@/store/filters'
 
 export type ReabastNivel = 'critico' | 'alerta' | 'ok'
 
@@ -52,6 +53,9 @@ interface UseReabastecimentoOptions {
   empresaCodigo?: number | null
   /** Quando true, também busca LMC pra derivar última compra + projeção de consumo. */
   includeDetalhes?: boolean
+  /** Quando true, respeita o filtro global de posto (Central). Módulos
+   *  rede-wide (Operação) deixam false e veem todos os permitidos. */
+  respeitarFiltro?: boolean
 }
 
 const fmtDate = (d: Date): string => {
@@ -62,7 +66,8 @@ const fmtDate = (d: Date): string => {
 }
 
 const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
-  const { empresaCodigo, includeDetalhes = false } = options
+  const { empresaCodigo, includeDetalhes = false, respeitarFiltro = false } = options
+  const filtroPostos = useFilterStore((s) => s.empresaCodigos)
 
   const { data: empresasData } = useQuery({
     queryKey: ['empresas'],
@@ -104,8 +109,11 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     if (empresaCodigo != null && allowedEmpresasCodes.includes(empresaCodigo)) {
       return [empresaCodigo]
     }
-    return allowedEmpresasCodes.slice().sort((a, b) => a - b)
-  }, [empresaCodigo, allowedEmpresasCodes])
+    const base = respeitarFiltro && filtroPostos.length > 0
+      ? allowedEmpresasCodes.filter((c) => filtroPostos.includes(c))
+      : allowedEmpresasCodes
+    return base.slice().sort((a, b) => a - b)
+  }, [empresaCodigo, allowedEmpresasCodes, respeitarFiltro, filtroPostos])
 
   // Tanques
   const { data: tanquesAll = [], isLoading } = useQuery({
@@ -132,7 +140,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
   }, [today])
   const lmcFinal = useMemo(() => fmtDate(today), [today])
 
-  const { data: lmcData = [] } = useQuery({
+  const { data: lmcData = [], isLoading: lmcLoading } = useQuery({
     queryKey: ['lmc-reabast', empresasCodes.join(','), lmcInicial, lmcFinal],
     queryFn: async () => {
       // Fetch por empresa em paralelo — quando passamos array no `empresaCodigo`
@@ -162,7 +170,7 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
   // reflete a NF assim que CADASTRADA (não espera a escrituração do LMC) e vem
   // por PRODUTO, casando direto com o produto do tanque. NF cancelada some daqui,
   // então já fica de fora naturalmente.
-  const { data: compraItens = [] } = useQuery({
+  const { data: compraItens = [], isLoading: compraLoading } = useQuery({
     queryKey: ['compra-itens-reabast', empresasCodes.join(','), lmcInicial, lmcFinal],
     queryFn: async () => {
       if (empresasCodes.length === 0) return []
@@ -346,6 +354,8 @@ const useReabastecimento = (options: UseReabastecimentoOptions = {}) => {
     baixos,
     criticos,
     isLoading,
+    /** LMC + compras ainda chegando (só com includeDetalhes). */
+    isLoadingDetalhes: includeDetalhes && (lmcLoading || compraLoading),
     hasAlertas: baixos.length > 0,
   }
 }

@@ -13,7 +13,8 @@ import HeaderHint from '@/components/tables/HeaderHint'
 import { GROUP_TINT } from '@/lib/groupTint'
 import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
-import ProjecaoExecutiva from './ProjecaoExecutiva'
+import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
 import { fimDoMesIso, expectedDailySeries } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
@@ -28,6 +29,8 @@ import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import usePostoNomes from '@/hooks/usePostoNomes'
 import useConvenienceData from '@/pages/Conveniencias/hooks/useConvenienceData'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import VerDetalhamentoButton from '@/components/ui/VerDetalhamentoButton'
+import ProjecaoPorItemTable from '@/pages/Comercial/Vendas/ProjecaoPorItemTable'
 
 // Lazy: abas de análise, cada uma é seu próprio chunk
 const ConvenienciaVisaoGeral = lazy(() => import('@/pages/Comercial/Vendas/ConvenienciaVisaoGeral'))
@@ -35,11 +38,12 @@ const ParetoAnalysis = lazy(() => import('@/pages/Conveniencias/components/Paret
 const CurvaABC = lazy(() => import('@/pages/Conveniencias/components/CurvaABC'))
 const ProductCatalog = lazy(() => import('@/pages/Conveniencias/components/ProductCatalog'))
 
-type TabId = 'diadia' | 'grupo' | 'pareto' | 'abc' | 'catalogo'
+type TabId = 'diadia' | 'grupo' | 'projecao' | 'pareto' | 'abc' | 'catalogo'
 
 const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'diadia', label: 'Realizado Dia a Dia', Icon: CalendarDays },
   { id: 'grupo', label: 'Realizado por Grupo', Icon: LayoutDashboard },
+  { id: 'projecao', label: 'Projeção por Grupo', Icon: TrendingUp },
   { id: 'pareto', label: 'Análise de Pareto', Icon: BarChart3 },
   { id: 'abc', label: 'Curva ABC', Icon: ListOrdered },
   { id: 'catalogo', label: 'Catálogo', Icon: Package },
@@ -86,9 +90,11 @@ interface KpiCardProps {
   /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
    * período é projetável (tem dias futuros). */
   projecao?: string
+  /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
+  ritmo?: ReactNode
 }
 
-const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao }: KpiCardProps) => {
+const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo }: KpiCardProps) => {
   if (loading) return <KpiSkeleton />
   return (
     <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
@@ -102,16 +108,17 @@ const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, ca
         </div>
       </div>
       <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-      {projecao && (
-        <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
-          <TrendingUp className="h-3 w-3 shrink-0" />
-          <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
-        </p>
-      )}
       {delta !== undefined && isFinite(delta) && delta !== 0 && (
         <div className="mt-1">
           <DeltaPill pct={delta} />
         </div>
+      )}
+      {ritmo && <div className="mt-2">{ritmo}</div>}
+      {projecao && !ritmo && (
+        <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
+          <TrendingUp className="h-3 w-3 shrink-0" />
+          <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
+        </p>
       )}
       {extra && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
     </div>
@@ -136,6 +143,8 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   const empresaNome = useEmpresaNome()
   const { dataFinal } = useFilterStore()
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
+  // Tabela dia a dia abre RECOLHIDA: gráfico primeiro; a tabela sob demanda.
+  const [detalheAberto, setDetalheAberto] = useState(false)
   const [selectedDia, setSelectedDia] = useState<PistaDiaData | null>(null)
   // Página da tabela dia a dia (0-based; 0 = dias mais recentes).
   const [diaPage, setDiaPage] = useState(0)
@@ -147,7 +156,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     kpis,
     projecao,
     projecaoFat,
-    projComparativo,
+    projCheioAnterior,
     sazonalFatIndex,
     sazonalModo,
     catalogProducts,
@@ -304,7 +313,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-emerald-600 dark:text-emerald-400"
               cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
               loading={showSkeleton}
-              projecao={projecao.isProjetada ? formatCurrencyInt(projecao.faturamento) : undefined}
+              ritmo={kpis ? (
+                <ProjecaoRitmo realizado={kpis.faturamento} projetado={projecao.faturamento} diasRestantes={projecaoFat.diasRestantes}
+                  cheioAnterior={projCheioAnterior.faturamento > 0 ? projCheioAnterior.faturamento : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} />
+              ) : undefined}
               extra={
                 kpis ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -328,7 +340,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               iconColor="text-blue-600 dark:text-blue-400"
               cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
               loading={showSkeleton}
-              projecao={projecao.isProjetada ? formatCurrencyInt(projecao.lucroBruto) : undefined}
+              ritmo={kpis ? (
+                <ProjecaoRitmo realizado={kpis.margem} projetado={projecao.lucroBruto} diasRestantes={projecaoFat.diasRestantes}
+                  cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} />
+              ) : undefined}
               extra={
                 kpis ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -393,15 +408,20 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
 
             </div>
             </div>
-            <ProjecaoExecutiva
-              fat={projecaoFat}
-              projetadoLucro={projecao.lucroBruto}
+            <RitmoDoMesCard
+              realizado={kpis?.margem ?? 0}
+              projetado={projecao.lucroBruto}
+              diasFechados={projecaoFat.diasFechados}
+              diasRestantes={projecaoFat.diasRestantes}
               dataFinal={fimDoMesIso(dataInicial)}
-              comparativo={projComparativo}
-              sparkline={false}
-              cenarios={false}
-              mediasInteiras
+              cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null}
+              cheioLabel={projCheioAnterior.label}
+              parcialAnterior={kpis?.cmp.margem}
+              parcialLabel={kpis?.comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'}
+              confiabilidade={projecaoFat.confiabilidade}
+              confiabilidadePct={projecaoFat.confiabilidadePct}
               modo={sazonalModo}
+              contexto="conveniência"
               loading={showSkeleton}
             />
           </div>
@@ -487,6 +507,13 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                       </div>
                       )
                     })()}
+                    {/* Tabela dia a dia recolhida por padrão: o gráfico fica, a tabela abre sob demanda. */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-5 py-2.5 dark:border-gray-800">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Tabela dia a dia · {diasOrdenados.length} dias{detalheAberto ? '' : ' · recolhida'}</span>
+                      <VerDetalhamentoButton aberto={detalheAberto} onToggle={() => setDetalheAberto((v) => !v)} />
+                    </div>
+                    {detalheAberto && (
+                      <>
                     {/* Mesmo sentido do paginador "Por posto": abre na quinzena mais recente. */}
                     <TablePager
                       page={(diaPageCount - 1) - diaPageSafe}
@@ -611,6 +638,8 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                       </table>
                     </div>
                     </>
+                    )}
+                    </>
                   )
                 )}
                 {activeTab === 'grupo' && (
@@ -621,6 +650,30 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
                     vendaItens={vendaItens}
                     dataInicial={dataInicial}
                     dataFinal={dataFinal}
+                  />
+                )}
+                {activeTab === 'projecao' && (
+                  <ProjecaoPorItemTable
+                    rotuloItem="Grupo"
+                    rotuloQtd="Unidades"
+                    sufixoDia="un/dia"
+                    rotuloLb="L.B. / unidade"
+                    vazio="Nenhuma venda de conveniência no período."
+                    linhas={groupTable.map((g) => ({ codigo: g.grupoCodigo, nome: g.nome, qtd: g.quantidade, faturamento: g.faturamento, lucroBruto: g.margemTotal }))}
+                    // Mesmo fator rede-wide dos cards (esperado ÷ realizado) aplicado a cada grupo.
+                    projetar={(l) => {
+                      const kFat = kpis && kpis.faturamento > 0 ? projecao.faturamento / kpis.faturamento : 1
+                      const kLucro = kpis && kpis.margem > 0 ? projecao.lucroBruto / kpis.margem : kFat
+                      return { qtd: l.qtd * kFat, fat: l.faturamento * kFat, lucro: l.lucroBruto * kLucro }
+                    }}
+                    meta={{
+                      diasFechados: projecaoFat.diasFechados,
+                      diasRestantes: projecaoFat.diasRestantes,
+                      linear: sazonalModo.linear,
+                      dataFinal: fimDoMesIso(dataInicial || new Date().toISOString().slice(0, 10)),
+                      confiabilidade: projecaoFat.confiabilidade,
+                      confiabilidadePct: projecaoFat.confiabilidadePct,
+                    }}
                   />
                 )}
                 {activeTab === 'pareto' && <div className="p-4"><ParetoAnalysis products={catalogProducts} /></div>}

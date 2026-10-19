@@ -20,6 +20,7 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import useFuelVendaCacheAnalytics from '@/pages/Operacao/hooks/useFuelVendaCacheAnalytics'
 import MovimentoFiscalValidacao from '@/pages/Comercial/Vendas/MovimentoFiscalValidacao'
 import useShowSkeleton from '@/hooks/useShowSkeleton'
+import VerDetalhamentoButton from '@/components/ui/VerDetalhamentoButton'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import DetalheDiaModal, { type DetalheDiaData } from '@/pages/Comercial/Vendas/DetalheDiaModal'
 import AnaliseSemanalLineCard from '@/pages/Comercial/Vendas/AnaliseSemanalLineCard'
@@ -27,6 +28,7 @@ import useProjecaoSazonalPiloto from '@/pages/Comercial/Vendas/useProjecaoSazona
 import { heatCell, useChartTheme } from '@/lib/chartTheme'
 import FuelDetalheModal from '@/pages/Comercial/Vendas/FuelDetalheModal'
 import LitrosVendidosModal from '@/pages/Comercial/Vendas/LitrosVendidosModal'
+import ProjecaoPorItemTable from '@/pages/Comercial/Vendas/ProjecaoPorItemTable'
 import BarCell from '@/components/tables/BarCell'
 import HeaderHint from '@/components/tables/HeaderHint'
 import TablePager from '@/components/tables/TablePager'
@@ -34,7 +36,8 @@ import PostoDiaTabela from '@/pages/Comercial/Vendas/PostoDiaTabela'
 import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
-import ProjecaoExecutiva from './ProjecaoExecutiva'
+import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
 import { projecaoSazonal, expectedDailySeries, reprojectByFactor } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
@@ -99,7 +102,7 @@ const formatPct = (v: number, digits = 2): string => {
   return `${sign}${Math.abs(v).toFixed(digits).replace('.', ',')}%`
 }
 
-type DetalheTab = 'dia' | 'combustivel' | 'meses' | 'semana'
+type DetalheTab = 'dia' | 'combustivel' | 'projecao' | 'meses' | 'semana'
 
 /** Cabeçalho de GRUPO (linha superior do thead) — agrupa colunas por tema.
  * `first` omite o divisor vertical à esquerda (1º grupo). */
@@ -112,6 +115,7 @@ const GroupTh = ({ label, colSpan, first }: { label: string; colSpan: number; fi
 const DETALHE_TABS: { id: DetalheTab; label: string }[] = [
   { id: 'dia', label: 'Realizado dia a dia' },
   { id: 'combustivel', label: 'Realizado - por combustível' },
+  { id: 'projecao', label: 'Projeção por combustível' },
   { id: 'meses', label: 'Últimos 12 meses' },
   { id: 'semana', label: 'Análise semanal' },
 ]
@@ -137,6 +141,8 @@ interface KpiCardProps {
   /** Valor projetado pra fim do mês (string já formatada). Só aparece quando o
    * período é projetável (tem dias futuros). */
   projecao?: string
+  /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
+  ritmo?: ReactNode
   /** Quebra da projeção por combustível (toggle global "Ver detalhes"). */
   projDetalhe?: ReactNode
   /** Se o detalhe por combustível deve aparecer (estado global expandido). */
@@ -145,7 +151,7 @@ interface KpiCardProps {
   onClick?: () => void
 }
 
-const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, projDetalhe, mostrarProjDetalhe, onClick }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, ritmo, projDetalhe, mostrarProjDetalhe, onClick }: KpiCardProps) => (
   <div
     className={cn(
       'flex h-full flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700',
@@ -182,7 +188,8 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         )}
       </div>
     )}
-    {projecao && !loading && (
+    {ritmo && !loading && <div className="mt-2">{ritmo}</div>}
+    {projecao && !ritmo && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
@@ -242,6 +249,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
 
   const ct = useChartTheme()
   const [detalheTab, setDetalheTab] = useState<DetalheTab>('dia')
+  // Tabela dia a dia abre RECOLHIDA: gráfico primeiro; a tabela sob demanda.
+  const [detalheAberto, setDetalheAberto] = useState(false)
   const [selectedDay, setSelectedDay] = useState<DetalheDiaData | null>(null)
   const [selectedFuel, setSelectedFuel] = useState<FuelVendaFuelType | null>(null)
   // ABASTECIMENTO físico (frentista/bomba/hora) SOB DEMANDA: a aba abre 100% do
@@ -831,7 +840,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               current={vendaKpis.litros}
               previous={vendaCmp.litros > 0 ? vendaCmp.litros : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatLiters(projecaoCombustivel.projetadoLitros) : undefined}
+              ritmo={!showSkeleton ? (
+                <ProjecaoRitmo realizado={vendaKpis.litros} projetado={projecaoCombustivel.projetadoLitros} diasRestantes={projecaoCombustivel.fat.diasRestantes}
+                  cheioAnterior={pilotoSazonal.cmpAnterior.litros > 0 ? pilotoSazonal.cmpAnterior.litros : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatLiters} />
+              ) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
               extra={
@@ -859,7 +871,10 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               current={vendaKpis.lucroBruto}
               previous={vendaCmp.lucroBruto > 0 ? vendaCmp.lucroBruto : undefined}
               comparisonLabel={cmpLabel}
-              projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatCurrencyInt(projecaoCombustivel.projetadoLucro) : undefined}
+              ritmo={!showSkeleton ? (
+                <ProjecaoRitmo realizado={vendaKpis.lucroBruto} projetado={projecaoCombustivel.projetadoLucro} diasRestantes={projecaoCombustivel.fat.diasRestantes}
+                  cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatCurrencyInt} />
+              ) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))}
               extra={
@@ -958,17 +973,20 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
             />
             </div>
             </div>
-            <ProjecaoExecutiva
-              fat={pilotoSazonal.sazonal.litros}
-              projetadoLucro={pilotoSazonal.sazonal.lucro.esperado}
+            <RitmoDoMesCard
+              realizado={vendaKpis.lucroBruto}
+              projetado={projecaoCombustivel.projetadoLucro}
+              diasFechados={projecaoCombustivel.fat.diasFechados}
+              diasRestantes={projecaoCombustivel.fat.diasRestantes}
               dataFinal={projecaoCombustivel.dataFinalProjecao}
-              comparativo={pilotoSazonal.cmpAnterior.litros > 0 ? { anterior: pilotoSazonal.cmpAnterior.litros, label: pilotoSazonal.cmpLabel } : undefined}
-              metrica="litros"
-              lbPorUnidade={pilotoSazonal.sazonal.litros.esperado > 0 ? pilotoSazonal.sazonal.lucro.esperado / pilotoSazonal.sazonal.litros.esperado : 0}
-              sparkline={false}
-              cenarios={false}
+              cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null}
+              cheioLabel={pilotoSazonal.cmpLabel}
+              parcialAnterior={vendaCmp.lucroBruto}
+              parcialLabel={cmpLabel}
+              confiabilidade={pilotoSazonal.sazonal.lucro.confiabilidade}
+              confiabilidadePct={pilotoSazonal.sazonal.lucro.confiabilidadePct}
               modo={pilotoSazonal.modo}
-              mediasInteiras
+              contexto="combustível"
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor || pilotoSazonal.isLoading}
@@ -1082,6 +1100,13 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </div>
                       )
                     })()}
+                    {/* Tabela dia a dia recolhida por padrão: o gráfico fica, a tabela abre sob demanda. */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-5 py-2.5 dark:border-gray-800">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Tabela dia a dia · {diasOrdenados.length} dias{detalheAberto ? '' : ' · recolhida'}</span>
+                      <VerDetalhamentoButton aberto={detalheAberto} onToggle={() => setDetalheAberto((v) => !v)} />
+                    </div>
+                    {detalheAberto && (
+                      <>
                     {/* Mesmo sentido do paginador da tabela "Por posto": abre na
                         quinzena mais recente (última página), ‹ volta no tempo e
                         › avança. diaPage interno segue 0 = mais recente. */}
@@ -1120,9 +1145,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <HeaderHint label="Lucro bruto" help="Faturamento líquido − custo (CMV) do dia." />
                             <HeaderHint label="Acrés./Desc." help="Acréscimos − descontos do dia (líquido do ajuste). Valor negativo = desconto predominou." />
                             <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-                            <HeaderHint groupStart label="Preço venda" help="Preço médio de venda por litro: faturamento ÷ litros." />
-                            <HeaderHint label="Preço custo" help="Custo médio de aquisição por litro: custo ÷ litros." />
-                            <HeaderHint label="L.B. litro" help="Lucro bruto por litro: preço venda − preço custo (R$/L)." />
+                            <HeaderHint groupStart label="Preço médio" help="Preço médio vendido por litro no período: faturamento ÷ litros. Não é o preço de bomba de hoje: mistura as trocas de preço do período e os descontos dados na venda." />
+                            <HeaderHint label="Custo médio" help="Custo médio por litro no período: custo (CMV) ÷ litros. É a média das compras que saíram no período, não o custo da última carga." />
+                            <HeaderHint label="L.B./litro" help="Lucro bruto por litro no período: preço médio − custo médio (R$/L)." />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1232,6 +1257,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                     </div>
                     </>
                     )}
+                    </>
+                    )}
                   </>
                 )}
 
@@ -1274,9 +1301,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                             <HeaderHint label="Acréscimos" help="Acréscimos aplicados nas vendas desse combustível (R$)." />
                             <HeaderHint label="Descontos" help="Descontos concedidos nas vendas desse combustível (R$)." />
                             <HeaderHint label="Margem" help="(Lucro bruto ÷ faturamento) × 100." />
-                            <HeaderHint groupStart label="Preço venda" help="Preço médio de venda por litro: faturamento ÷ litros." />
-                            <HeaderHint label="Preço custo" help="Custo médio de aquisição por litro: custo ÷ litros." />
-                            <HeaderHint label="L.B. litro" help="Lucro bruto por litro: preço venda − preço custo (R$/L)." />
+                            <HeaderHint groupStart label="Preço médio" help="Preço médio vendido por litro no período: faturamento ÷ litros. Não é o preço de bomba de hoje: mistura as trocas de preço do período e os descontos dados na venda." />
+                            <HeaderHint label="Custo médio" help="Custo médio por litro no período: custo (CMV) ÷ litros. É a média das compras que saíram no período, não o custo da última carga." />
+                            <HeaderHint label="L.B./litro" help="Lucro bruto por litro no período: preço médio − custo médio (R$/L)." />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1369,6 +1396,26 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
                       </table>
                     </div>
                   )
+                )}
+
+                {/* ── Tab: Projeção por combustível ── */}
+                {detalheTab === 'projecao' && (
+                  <ProjecaoPorItemTable
+                    rotuloItem="Combustível"
+                    rotuloQtd="Litros"
+                    sufixoDia="L/dia"
+                    rotuloLb="L.B. / litro"
+                    linhas={mix.map((f) => ({ codigo: f.produtoCodigo, nome: f.nome, qtd: f.litros, faturamento: f.faturamento, lucroBruto: f.lucroBruto, corDot: fuelColor(f.nome) }))}
+                    projetar={(l) => { const p = projDetalhePorFuel.get(l.nome); return p ? { qtd: p.litros, fat: p.fat, lucro: p.lucro } : undefined }}
+                    meta={{
+                      diasFechados: projecaoCombustivel.fat.diasFechados,
+                      diasRestantes: projecaoCombustivel.fat.diasRestantes,
+                      linear: pilotoSazonal.linear,
+                      dataFinal: projecaoCombustivel.dataFinalProjecao,
+                      confiabilidade: projecaoCombustivel.fat.confiabilidade,
+                      confiabilidadePct: projecaoCombustivel.fat.confiabilidadePct,
+                    }}
+                  />
                 )}
 
                 {/* ── Tab: Últimos 12 meses ── */}

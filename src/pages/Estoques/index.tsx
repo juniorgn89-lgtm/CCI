@@ -1,12 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Warehouse, Package, RefreshCw, TrendingUp, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
+import { Warehouse, Package, ShoppingCart, Settings, LayoutDashboard, CalendarRange } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -14,23 +13,25 @@ import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
-import EstoqueGeral from '@/pages/Estoques/components/abas/EstoqueGeral'
-import GiroProdutos from '@/pages/Estoques/components/abas/GiroProdutos'
-import MediaVendas from '@/pages/Estoques/components/abas/MediaVendas'
-import NecessidadeEstoque from '@/pages/Estoques/components/abas/NecessidadeEstoque'
+import ProdutosEstoque from '@/pages/Estoques/components/abas/ProdutosEstoque'
+import ComprarEstoque from '@/pages/Estoques/components/abas/ComprarEstoque'
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import useSetorProduto from '@/pages/Estoques/hooks/useSetorProduto'
+import type { AbrirProdutos } from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
 import useIsMobile from '@/hooks/useIsMobile'
 import EstoqueMobile from '@/pages/Estoques/EstoqueMobile'
 
-const EstoqueVisaoGeralRede = lazy(() => import('@/pages/Estoques/components/abas/EstoqueVisaoGeralRede'))
+const EstoqueVisaoGeral = lazy(() => import('@/pages/Estoques/components/abas/EstoqueVisaoGeral'))
 
 const TAB_ICONS: Record<string, typeof Warehouse> = {
   visao: LayoutDashboard,
-  geral: Package,
-  giro: RefreshCw,
-  mediaVendas: TrendingUp,
-  necessidade: ShoppingCart,
+  produtos: Package,
+  comprar: ShoppingCart,
 }
+
+/** Abas antigas (links/favoritos) → as novas: Estoque geral/Giro/Média viraram
+ *  "Produtos"; Necessidade virou "Comprar". */
+const ABA_ANTIGA: Record<string, string> = { geral: 'produtos', giro: 'produtos', mediaVendas: 'produtos', necessidade: 'comprar' }
 
 /** Intervalo de datas coberto pela janela móvel (hoje − (N−1) dias … hoje). */
 const fmtJanelaPeriodo = (janelaDias: number): string => {
@@ -82,12 +83,10 @@ const JanelaSelect = ({
 )
 
 /**
- * Página Estoques — Visão Geral (rede inteira) + abas de detalhe por-posto
- * (Estoque geral / Giro / Média de vendas / Necessidade). A Visão Geral resume
- * o estoque de TODOS os postos do filtro (hook leve rede-wide); as abas de
- * detalhe são por-posto, com seletor em pílula. Sem gate de 1 posto: a Visão
- * Geral abre a rede; o detalhe escolhe um posto. O dado pesado single-posto
- * (useEstoqueAnalytics) só roda nas abas de detalhe.
+ * Página Estoques — três abas de UM posto (seletor em pílula): Visão Geral
+ * (valor, risco, ruptura, Curva ABC, Giro × Margem, grupos — por setor),
+ * Produtos (estoque e venda numa lista só) e Comprar (o que pedir). Os blocos
+ * da Visão Geral abrem Produtos com o mesmo filtro.
  */
 const Estoques = () => {
   const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/estoques')
@@ -95,51 +94,50 @@ const Estoques = () => {
   // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível
   // (sem mutar estado/URL no render).
-  const [tabParam, setActiveTab] = useTabParam<string>(
+  const [tabParamBruto, setActiveTab] = useTabParam<string>(
     'visao',
-    (v): v is string => v != null && layoutTabs.some((t) => t.id === v),
+    (v): v is string => v != null && (layoutTabs.some((t) => t.id === v) || v in ABA_ANTIGA),
   )
+  const tabParam = ABA_ANTIGA[tabParamBruto] ?? tabParamBruto
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
   const [coberturaDias, setCoberturaDias] = useState(30)
   // Janela móvel (30/60/90 dias) que controla as métricas de volume: giro,
   // estoque médio, média de venda e a necessidade de reabastecimento derivada.
   const [janelaDias, setJanelaDias] = useState<30 | 60 | 90>(30)
 
-  // Estoque é FÍSICO por-posto → o detalhe mostra UM posto por vez, com seletor
-  // quando o filtro tem mais de um. Respeita o filtro sem alterar o estado global.
+  // Estoque é FÍSICO por posto: o módulo é gateado (moduleScope) e usa o posto
+  // do seletor do cabeçalho. Sem exatamente um posto permitido → gate de escolha.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas(), staleTime: 10 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
-  const postos = empresaCodigos.length === 0
-    ? empresasPermitidas
-    : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
-  const [activeCodigo, setActiveCodigo] = useState<number | null>(null)
-  const postoCodes = postos.map((p) => p.codigo)
-  const selectedCodigo = activeCodigo != null && postoCodes.includes(activeCodigo)
-    ? activeCodigo
-    : (postos[0]?.codigo ?? null)
+  const selectedCodigo = empresaCodigos.length === 1 && empresasPermitidas.some((e) => e.codigo === empresaCodigos[0])
+    ? empresaCodigos[0]
+    : null
 
-  // Abas de detalhe são single-posto; a Visão Geral é rede-wide. O hook pesado
-  // (fan-out de estoque + histórico do posto) SÓ roda no detalhe — null desliga
-  // o fetch na Visão Geral (que usa seu próprio hook leve).
-  const isDetail = activeTab !== 'visao'
-  const { productAnalytics, categorias, isLoading } = useEstoqueAnalytics(coberturaDias, janelaDias, isDetail ? selectedCodigo : null)
+  // Todas as abas são de UM posto (estoque é físico por posto).
+  const { productAnalytics, categorias, isLoading: carregandoEstoque } = useEstoqueAnalytics(coberturaDias, janelaDias, selectedCodigo)
+  const { setorDe, carregando: carregandoSetor } = useSetorProduto()
+  const isLoading = carregandoEstoque || carregandoSetor
+  // Bloco da Visão Geral → aba Produtos com o mesmo filtro (a key remonta a lista).
+  const [filtroProdutos, setFiltroProdutos] = useState<{ f: AbrirProdutos; n: number } | null>(null)
 
   // Abas cuja métrica depende da janela e mostram o seletor NO PARENT.
-  const showJanelaSelector = ['giro', 'mediaVendas', 'necessidade'].includes(activeTab)
+  const showJanelaSelector = ['visao', 'produtos', 'comprar'].includes(activeTab)
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
-  const showSkeleton = isLoading && productAnalytics.length === 0
+  // Esqueleto enquanto QUALQUER parte carrega: o saldo chega antes das vendas, e
+  // mostrar a lista sem as vendas dava "Vendido 0 / Sem movimento: todos" (falso).
+  const showSkeleton = isLoading
   const isMobile = useIsMobile()
 
   // Mobile: tela própria (Reposição / Estoque / Giro).
   if (isMobile) return <EstoqueMobile />
   // Sem posto disponível (nenhuma empresa permitida) → estado de seleção.
-  if (postos.length === 0) return <SelectCompanyState />
+  if (selectedCodigo == null) return <SelectCompanyState />
 
-  const abrirPosto = (codigo: number, tab: 'geral' | 'giro' | 'necessidade') => {
-    setActiveCodigo(codigo)
-    setActiveTab(tab)
+  const abrirProdutos = (f: AbrirProdutos) => {
+    setFiltroProdutos((v) => ({ f, n: (v?.n ?? 0) + 1 }))
+    setActiveTab('produtos')
   }
 
   return (
@@ -160,23 +158,12 @@ const Estoques = () => {
           webPosto, cujo "Qtd" não muda com a data). Histórico fixo de 6m é
           interno. Sem DateRangeToolbar aqui → a barra de período não aparece. */}
 
-      {/* Seletor de posto — só nas abas de DETALHE (single-posto) e com >1 posto.
-          A Visão Geral é rede-wide e não usa seletor. */}
-      {isDetail && postos.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PostoLocalSelect variant="pill" postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
-        </div>
-      )}
 
       {visibleTabs.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Settings className="mb-3 h-8 w-8 text-gray-300 dark:text-gray-600" />
           <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma aba visível. Use o botão ⚙️ para personalizar.</p>
         </div>
-      ) : activeTab === 'visao' ? (
-        <Suspense fallback={<TableSkeleton />}>
-          <EstoqueVisaoGeralRede postos={postos} onOpenPosto={abrirPosto} />
-        </Suspense>
       ) : showSkeleton ? (
         <TableSkeleton />
       ) : (
@@ -193,16 +180,20 @@ const Estoques = () => {
               </span>
             </div>
           )}
-          {activeTab === 'geral' && <EstoqueGeral data={productAnalytics} categorias={categorias} />}
-          {activeTab === 'giro' && <GiroProdutos data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
-          {activeTab === 'mediaVendas' && <MediaVendas data={productAnalytics} categorias={categorias} janelaDias={janelaDias} />}
-          {activeTab === 'necessidade' && (
-            <NecessidadeEstoque
+          {activeTab === 'visao' && (
+            <Suspense fallback={<TableSkeleton />}>
+              <EstoqueVisaoGeral data={productAnalytics} setorDe={setorDe} coberturaDias={coberturaDias} janelaDias={janelaDias} onAbrirProdutos={abrirProdutos} />
+            </Suspense>
+          )}
+          {activeTab === 'produtos' && <ProdutosEstoque key={filtroProdutos?.n ?? 0} data={productAnalytics} categorias={categorias} janelaDias={janelaDias} coberturaDias={coberturaDias} setorDe={setorDe} filtroInicial={filtroProdutos?.f} />}
+          {activeTab === 'comprar' && (
+            <ComprarEstoque
               data={productAnalytics}
               categorias={categorias}
               coberturaDias={coberturaDias}
               janelaDias={janelaDias}
               onCoberturaChange={setCoberturaDias}
+              empresaCodigo={selectedCodigo}
             />
           )}
         </>

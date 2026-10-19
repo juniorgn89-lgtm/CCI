@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Fuel, Receipt, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChecks, Banknote, CreditCard, Smartphone, HelpCircle } from 'lucide-react'
+import { Fuel, Receipt, Wallet, Boxes, Landmark, CheckCircle2, Archive, ListChecks, ChevronDown, ChevronRight } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -14,6 +14,8 @@ import QualidadeKpis from '@/pages/QualidadeDados/components/QualidadeKpis'
 import SherlockHero from '@/pages/QualidadeDados/components/SherlockHero'
 import LancamentoDetalheModal, { type LancamentoDetalheData } from '@/pages/QualidadeDados/components/LancamentoDetalheModal'
 import ArquivadosView from '@/pages/QualidadeDados/components/ArquivadosView'
+import CupomMontagemDetalhe from '@/pages/QualidadeDados/components/CupomMontagemDetalhe'
+import { nivelCupom } from '@/pages/QualidadeDados/lib/cupomNivel'
 import useQualidadeDados, {
   type QualidadeIssue,
   type AbastecimentoRow,
@@ -423,180 +425,83 @@ const PrecoSuspeitoTable = ({
 }
 
 /* ─── Adapter Cupom Multi-Abast ─── */
-// Mapeia tipo/nome de FPG pro ícone visual. Tenta nome primeiro (mais específico),
-// cai pra tipo se não bater. Default = HelpCircle (não conseguimos classificar).
-const fpgIcon = (tipo: string, nome: string) => {
-  const s = `${tipo} ${nome}`.toLowerCase()
-  if (s.includes('dinheiro') || s.includes('especie')) return Banknote
-  if (s.includes('pix')) return Smartphone
-  if (s.includes('cart') || s.includes('credit') || s.includes('debit') || s.includes('prime')) return CreditCard
-  return HelpCircle
-}
-
 const adaptCupomMultiAbast = (c: CupomMultiAbast, _qi: QualidadeIssue): LancamentoDetalheData => {
   void _qi
   const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
-  const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 8) : c.dataHora.substring(11, 19)
-
-  // Calcula o "spread" — intervalo entre o primeiro e o último abastecimento
-  // do mesmo cupom. Cliente real abastece de uma vez (poucos minutos);
-  // cupom "montado" tem itens espalhados pelo turno.
-  const tsMs = c.abastecimentos
-    .map((a) => (a.dataHoraAbastecimento ? new Date(a.dataHoraAbastecimento).getTime() : NaN))
-    .filter((t) => !Number.isNaN(t))
-    .sort((a, b) => a - b)
-  let spreadLabel: string | null = null
-  let spreadCritical = false
-  if (tsMs.length >= 2) {
-    const diffMin = (tsMs[tsMs.length - 1] - tsMs[0]) / 60000
-    spreadCritical = diffMin > 15
-    if (diffMin < 1) spreadLabel = '< 1 min (normal)'
-    else if (diffMin < 60) spreadLabel = `${Math.round(diffMin)} min`
-    else {
-      const h = Math.floor(diffMin / 60)
-      const m = Math.round(diffMin % 60)
-      spreadLabel = m > 0 ? `${h}h ${m}min` : `${h}h`
-    }
-  }
-
-  // Soma por tipo de combustível pra mostrar resumo no topo da lista de abastecimentos.
-  const porCombustivel = new Map<string, { litros: number; total: number }>()
-  c.abastecimentos.forEach((a) => {
-    const key = a.tipoCombustivel || a.produtoNome
-    const prev = porCombustivel.get(key) ?? { litros: 0, total: 0 }
-    porCombustivel.set(key, { litros: prev.litros + a.quantidade, total: prev.total + a.totalVenda })
-  })
-
-  const abastecimentosNode = (
-    <div className="space-y-2">
-      {/* Resumo por combustível (só aparece quando tem mix) */}
-      {c.mixCombustiveis && (
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from(porCombustivel.entries()).map(([nome, agg]) => (
-            <span
-              key={nome}
-              className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
-              <Fuel className="h-2.5 w-2.5 text-gray-400" />
-              {nome} · {formatNumber(agg.litros)}L · {formatCurrency(agg.total)}
-            </span>
-          ))}
-        </div>
-      )}
-      {/* Lista de itens */}
-      <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
-        {c.abastecimentos.map((a, idx) => {
-          const horaAbast = a.dataHoraAbastecimento
-            ? a.dataHoraAbastecimento.includes('T')
-              ? a.dataHoraAbastecimento.split('T')[1]?.substring(0, 5)
-              : a.dataHoraAbastecimento.substring(11, 16)
-            : null
-          return (
-            <li key={idx} className="flex items-center gap-2 px-2 py-1">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[9px] font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                {idx + 1}
-              </span>
-              <Fuel className="h-3 w-3 shrink-0 text-gray-400" />
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[11px] font-medium text-gray-900 dark:text-gray-100">
-                  {a.produtoNome}
-                </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  {a.bombaDescricao} · {formatNumber(a.quantidade)} L × {formatCurrency(a.precoVenda)}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-baseline gap-2">
-                {horaAbast ? (
-                  <span className="font-mono text-[10px] font-medium tabular-nums text-gray-600 dark:text-gray-400">
-                    {horaAbast}
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-gray-400">—</span>
-                )}
-                <span className="w-16 text-right font-mono text-[11px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                  {formatCurrency(a.totalVenda)}
-                </span>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-
-  const formasPagamentoNode = c.formasPagamento.length > 0 ? (
-    <div className="flex flex-wrap gap-1.5">
-      {c.formasPagamento.map((f, idx) => {
-        const Icon = fpgIcon(f.tipo, f.nome)
-        return (
-          <span
-            key={idx}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-          >
-            <Icon className="h-3 w-3 text-gray-400" />
-            <span className="capitalize">{f.nome.toLowerCase().replace(/\.+$/, '')}</span>
-            <span className="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(f.valor)}</span>
-          </span>
-        )
-      })}
-    </div>
-  ) : null
-
-  const motivoBase = `Esse cupom tem ${c.abastecimentos.length} abastecimentos no mesmo lançamento.`
-  const motivoExtra = c.riscoScore === 3
-    ? ' ⚠ Combina combustíveis diferentes E mistura formas de pagamento — sinal forte de "montagem" pra ocultar fraude.'
-    : c.mixCombustiveis
-    ? ' Combustíveis diferentes no mesmo cupom (ex.: gasolina + diesel) — incomum num cliente real.'
-    : c.mixPagamentos
-    ? ' Mix de formas de pagamento (ex.: cartão + dinheiro) — pode ser legítimo, mas vale conferir.'
-    : ' Mesmo combustível repetido — pode ser caminhão/frota, mas vale conferir o cliente.'
+  const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 5) : c.dataHora.substring(11, 16)
+  // O corpo é um relatório próprio (CupomMontagemDetalhe): veredito, sinais,
+  // linha do tempo, fechamento e o que fazer. Os campos genéricos ficam
+  // preenchidos só por compatibilidade de tipo.
   return {
-    title: `Cupom Venda #${c.vendaCodigo}`,
+    title: `Cupom ${c.vendaCodigo}`,
     subtitle: `${formatDate(day)} ${hora} · ${c.funcionarioNome}`,
     codigoLabel: 'Código da venda (no Quality)',
     codigoValue: String(c.vendaCodigo),
-    qualityHint: 'Acesse Quality → Vendas → buscar pelo código acima. Confirme com o frentista e revise o cupom físico.',
-    motivo: motivoBase + motivoExtra,
+    qualityHint: 'Quality › Vendas › buscar pelo código.',
+    motivo: '',
     severidade: c.riscoScore === 3 ? 'high' : c.riscoScore === 2 ? 'medium' : 'low',
-    details: [
-      { label: 'Data', value: formatDate(day) },
-      { label: 'Hora', value: hora || '—' },
-      { label: 'Frentista', value: c.funcionarioNome },
-      { label: 'Abastecimentos', value: abastecimentosNode },
-      ...(spreadLabel
-        ? [{
-            label: 'Intervalo 1º → último',
-            value: spreadCritical ? `${spreadLabel} ⚠` : spreadLabel,
-            highlight: spreadCritical,
-          }]
-        : []),
-      { label: 'Total cupom', value: formatCurrency(c.totalVenda), numeric: true },
-      { label: 'Formas de pagamento', value: formasPagamentoNode },
-      { label: 'Combustíveis diferentes', value: c.mixCombustiveis ? 'Sim ⚠' : 'Não', highlight: c.mixCombustiveis },
-      { label: 'Score de risco', value: c.riscoScore === 3 ? '3 (ALTO)' : c.riscoScore === 2 ? '2 (MÉDIO)' : '1 (BAIXO)' },
-    ],
+    details: [],
+    selo: nivelCupom(c.riscoScore),
+    corpo: <CupomMontagemDetalhe c={c} />,
   }
 }
 
-const RiscoBadge = ({ score }: { score: 1 | 2 | 3 }) => {
-  // Só fonte colorida (sem fundo de pílula) — menos poluição visual.
-  const base = 'text-[10px] font-bold uppercase tracking-wider'
-  if (score === 3) return <span className={`${base} text-red-600 dark:text-red-400`}>Alto</span>
-  if (score === 2) return <span className={`${base} text-amber-600 dark:text-amber-400`}>Médio</span>
-  return <span className={`${base} text-blue-600 dark:text-blue-400`}>Baixo</span>
-}
 
+const minutosCurto = (min: number | null) => {
+  if (min == null) return null
+  if (min < 1) return '<1 min'
+  if (min < 60) return `${Math.round(min)} min`
+  const h = Math.floor(min / 60), m = Math.round(min % 60)
+  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+}
+const nomeBonito = (s: string) => s.trim().replace(/[\s.]+$/, '').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+
+/**
+ * Cupons "montados" agrupados por frentista: quem mais aparece vem primeiro,
+ * com o resumo do grupo (cupons, risco alto, dinheiro) e as linhas enxutas:
+ * risco, cupom, quando, itens por combustível, intervalo, total e dinheiro.
+ */
 const CupomMultiAbastTable = ({
   items, qi, onOpen, selection,
 }: { items: CupomMultiAbast[]; qi: QualidadeIssue; selection?: SelectionProps<CupomMultiAbast> } & RowClickable) => {
-  const visible = items.slice(0, 100)
-  const visibleIds = visible.map((c) => {
+  // Grupos começam RECOLHIDOS: a visão de entrada é o resumo por frentista; abre quem interessa.
+  const [abertos, setAbertos] = useState<Set<number>>(new Set())
+  const LIMITE_POR_GRUPO = 40
+
+  // Grupos por frentista, ordenados por risco alto e depois por dinheiro.
+  const grupos = (() => {
+    const m = new Map<number, { codigo: number; nome: string; cupons: CupomMultiAbast[] }>()
+    for (const c of items) {
+      const g = m.get(c.funcionarioCodigo) ?? { codigo: c.funcionarioCodigo, nome: c.funcionarioNome, cupons: [] }
+      g.cupons.push(c)
+      m.set(c.funcionarioCodigo, g)
+    }
+    return [...m.values()].map((g) => ({
+      ...g,
+      altos: g.cupons.filter((c) => c.riscoScore === 3).length,
+      medios: g.cupons.filter((c) => c.riscoScore === 2).length,
+      dinheiro: g.cupons.reduce((s, c) => s + c.dinheiro, 0),
+      total: g.cupons.reduce((s, c) => s + c.totalVenda, 0),
+      itens: g.cupons.reduce((s, c) => s + c.abastecimentos.length, 0),
+    })).sort((a, b) => b.altos - a.altos || b.dinheiro - a.dinheiro || b.cupons.length - a.cupons.length)
+  })()
+
+  const idDe = (c: CupomMultiAbast) => {
     const id = selection?.identityOf(c)
     return id ? { key: keyOf(selection!.tipoIssue, id.codigo), rotulo: id.rotulo } : null
-  })
-  const totalSelectedVisible = selection
-    ? visibleIds.filter((v) => v && selection.selectedKeys.has(v.key)).length
-    : 0
+  }
+  const todosVisiveis = grupos.flatMap((g) => g.cupons.slice(0, LIMITE_POR_GRUPO))
+  const idsVisiveis = todosVisiveis.map(idDe)
+  const totalSelectedVisible = selection ? idsVisiveis.filter((v) => v && selection.selectedKeys.has(v.key)).length : 0
+  const toggleGrupo = (codigo: number) => setAbertos((prev) => { const n = new Set(prev); if (n.has(codigo)) n.delete(codigo); else n.add(codigo); return n })
+  const nCols = 9 + (selection ? 1 : 0)
+
+  const combustiveisDe = (c: CupomMultiAbast) => {
+    const m = new Map<string, number>()
+    for (const a of c.abastecimentos) { const k = nomeBonito(a.tipoCombustivel || a.produtoNome.split(' ')[0]); m.set(k, (m.get(k) ?? 0) + a.quantidade) }
+    return [...m.entries()].map(([k, l]) => `${k} ${formatNumber(l)} L`).join(' · ')
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -604,82 +509,78 @@ const CupomMultiAbastTable = ({
           <tr>
             {selection && (
               <th className="w-8 px-3 py-2 text-left">
-                <HeaderCheck
-                  totalVisible={visible.length}
-                  totalSelectedVisible={totalSelectedVisible}
-                  onToggle={() => selection.onToggleAll(visibleIds.filter((v): v is { key: string; rotulo: string } => !!v))}
-                />
+                <HeaderCheck totalVisible={todosVisiveis.length} totalSelectedVisible={totalSelectedVisible} onToggle={() => selection.onToggleAll(idsVisiveis.filter((v): v is { key: string; rotulo: string } => !!v))} />
               </th>
             )}
             <th className="px-3 py-2 text-left font-medium">Risco</th>
-            <th className="px-3 py-2 text-left font-medium">Venda #</th>
-            <th className="px-3 py-2 text-left font-medium">Data / Hora</th>
-            <th className="px-3 py-2 text-left font-medium">Frentista</th>
+            <th className="px-3 py-2 text-left font-medium">Cupom</th>
+            <th className="px-3 py-2 text-left font-medium">Quando</th>
+            <th className="px-3 py-2 text-right font-medium">Itens</th>
             <th className="px-3 py-2 text-left font-medium">Combustíveis</th>
+            <th className="px-3 py-2 text-right font-medium">Intervalo</th>
             <th className="px-3 py-2 text-right font-medium">Total</th>
-            <th className="px-3 py-2 text-left font-medium">Pagamento</th>
+            <th className="px-3 py-2 text-right font-medium">Dinheiro</th>
+            <th className="px-3 py-2 text-right font-medium">Sinais</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-          {visible.map((c, idx) => {
-            const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
-            const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 5) : c.dataHora.substring(11, 16)
-            const vid = visibleIds[idx]
-            const isSel = selection && vid ? selection.selectedKeys.has(vid.key) : false
-            const combustiveisLabel = c.abastecimentos
-              .map((a) => `${a.tipoCombustivel || a.produtoNome.split(' ')[0]} ${formatNumber(a.quantidade)}L`)
-              .join(' + ')
-            const pagamentoLabel = c.formasPagamento.length > 0
-              ? c.formasPagamento.map((f) => `${f.tipo} ${formatCurrency(f.valor)}`).join(' · ')
-              : '—'
-            return (
-              <tr
-                key={c.vendaCodigo}
-                className={cn(
-                  'cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40',
-                  // Linha inteira com fundo vermelho uniforme quando há mistura
-                  // (combustível ou pagamento) — sem destaque remendado por célula.
-                  (c.mixCombustiveis || c.mixPagamentos) && 'bg-red-50/60 dark:bg-red-900/15',
-                  c.riscoScore === 3 && 'border-l-2 border-red-400 dark:border-red-500/70',
-                  isSel && 'bg-blue-50/60 dark:bg-blue-900/20',
-                )}
-                onClick={() => onOpen(visible, idx, adaptCupomMultiAbast, qi)}
-              >
-                {selection && vid && (
-                  <td className="px-3 py-1.5">
-                    <RowCheck checked={isSel} onChange={() => selection.onToggle(vid.key, vid.rotulo)} ariaLabel={`Selecionar ${vid.rotulo}`} />
-                  </td>
-                )}
-                <td className="px-3 py-1.5">
-                  <RiscoBadge score={c.riscoScore} />
-                </td>
-                <td className="px-3 py-1.5 font-mono tabular-nums text-blue-600 underline-offset-2 hover:underline dark:text-blue-400">
-                  #{c.vendaCodigo}
-                </td>
-                <td className="px-3 py-1.5 tabular-nums text-gray-900 dark:text-gray-100">
-                  {formatDate(day)} {hora && <span className="text-gray-500 dark:text-gray-400">{hora}</span>}
-                </td>
-                <td className="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-300">{c.funcionarioNome}</td>
-                <td className={cn(
-                  'px-3 py-1.5 text-xs',
-                  c.mixCombustiveis ? 'font-medium text-gray-800 dark:text-gray-200' : 'text-gray-700 dark:text-gray-300',
-                )}>
-                  {combustiveisLabel}
-                  <span className="ml-1 text-[10px] text-gray-400">({c.abastecimentos.length} itens)</span>
-                </td>
-                <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                  {formatCurrency(c.totalVenda)}
-                </td>
-                <td className={cn(
-                  'px-3 py-1.5 text-[11px]',
-                  c.mixPagamentos ? 'font-medium text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400',
-                )}>
-                  {pagamentoLabel}
+        {grupos.map((g) => {
+          const fechado = !abertos.has(g.codigo)
+          const lista = g.cupons.slice(0, LIMITE_POR_GRUPO)
+          return (
+            <tbody key={g.codigo} className="divide-y divide-gray-100 border-t border-gray-200 dark:divide-gray-800 dark:border-gray-700">
+              <tr className="cursor-pointer bg-gray-50/80 hover:bg-gray-100/70 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]" onClick={() => toggleGrupo(g.codigo)}>
+                <td colSpan={nCols} className="px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-gray-900 dark:text-white">
+                      {fechado ? <ChevronRight className="h-3.5 w-3.5 text-gray-400" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
+                      {nomeBonito(g.nome)}
+                    </span>
+                    <span className="text-[11px] text-gray-600 dark:text-gray-300">{g.cupons.length} {g.cupons.length === 1 ? 'cupom' : 'cupons'} · {g.itens} abastecimentos</span>
+                    {g.altos > 0 && <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">{g.altos} risco alto</span>}
+                    {g.medios > 0 && <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{g.medios} médio</span>}
+                    <span className="ml-auto text-[11px] text-gray-600 dark:text-gray-300">Total <b className="font-semibold text-gray-900 dark:text-white">{formatCurrency(g.total)}</b> · Dinheiro <b className={cn('font-semibold', g.dinheiro > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400')}>{formatCurrency(g.dinheiro)}</b></span>
+                  </div>
                 </td>
               </tr>
-            )
-          })}
-        </tbody>
+              {!fechado && lista.map((c, idx) => {
+                const day = c.dataHora.split('T')[0] || c.dataHora.slice(0, 10)
+                const hora = c.dataHora.includes('T') ? c.dataHora.split('T')[1]?.substring(0, 5) : c.dataHora.substring(11, 16)
+                const vid = idDe(c)
+                const isSel = selection && vid ? selection.selectedKeys.has(vid.key) : false
+                const nivel = nivelCupom(c.riscoScore)
+                return (
+                  <tr
+                    key={c.vendaCodigo}
+                    className={cn('cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/40', c.riscoScore === 3 && 'border-l-2 border-red-400 dark:border-red-500/70', isSel && 'bg-blue-50/60 dark:bg-blue-900/20')}
+                    onClick={() => onOpen(lista, idx, adaptCupomMultiAbast, qi)}
+                  >
+                    {selection && vid && (
+                      <td className="px-3 py-1.5">
+                        <RowCheck checked={isSel} onChange={() => selection.onToggle(vid.key, vid.rotulo)} ariaLabel={`Selecionar ${vid.rotulo}`} />
+                      </td>
+                    )}
+                    <td className="px-3 py-1.5"><span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold', nivel.cls)}><span className={cn('h-1.5 w-1.5 rounded-full', nivel.dot)} />{nivel.label.replace('Risco ', '')}</span></td>
+                    <td className="px-3 py-1.5 font-mono tabular-nums text-blue-600 underline-offset-2 hover:underline dark:text-blue-400">{c.vendaCodigo}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-gray-900 dark:text-gray-100">{formatDate(day)} <span className="text-gray-500 dark:text-gray-400">{hora}</span></td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{c.abastecimentos.length}</td>
+                    <td className={cn('px-3 py-1.5', c.mixCombustiveis ? 'font-medium text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300')}>{combustiveisDe(c)}</td>
+                    <td className={cn('px-3 py-1.5 text-right tabular-nums', c.espalhado ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400')}>{minutosCurto(c.spreadMin) ?? '—'}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(c.totalVenda)}</td>
+                    <td className={cn('px-3 py-1.5 text-right tabular-nums', c.mixPagamentos ? 'font-semibold text-gray-900 dark:text-gray-100' : c.dinheiro > 0 ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400')}>{c.formasPagamento.length === 0 ? 'sem registro' : formatCurrency(c.dinheiro)}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      <span className="inline-flex items-center gap-0.5" title={`${c.nSinais} de 4 sinais`}>
+                        {[true, c.mixCombustiveis, c.espalhado, c.mixPagamentos].map((on, i) => <span key={i} className={cn('h-1.5 w-1.5 rounded-full', on ? nivel.dot : 'bg-gray-200 dark:bg-gray-700')} />)}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {!fechado && g.cupons.length > LIMITE_POR_GRUPO && (
+                <tr><td colSpan={nCols} className="px-3 py-1.5 text-[11px] text-gray-400">… e mais {g.cupons.length - LIMITE_POR_GRUPO} cupons de {nomeBonito(g.nome)} neste período. Reduza o período para ver todos.</td></tr>
+              )}
+            </tbody>
+          )
+        })}
       </table>
     </div>
   )

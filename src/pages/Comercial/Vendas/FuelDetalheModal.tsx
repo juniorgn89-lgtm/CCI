@@ -18,6 +18,7 @@ const isoDiffDays = (a: string, b: string): number => {
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
 }
 import type { AbastecimentoRow } from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
+import { GUIAS } from '@/lib/guiasModais'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
 
 interface FuelDetalheModalProps {
@@ -141,7 +142,7 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, loading = false, dataInic
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.fuelDetalhe} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2">
@@ -186,9 +187,9 @@ const FuelDetalheModal = ({ open, onClose, fuel, rows, loading = false, dataInic
               <Kpi Icon={DollarSign} label="Faturamento" value={formatCurrencyInt(fuel.faturamento)} />
               <Kpi Icon={TrendingUp} label="Lucro bruto" value={formatCurrencyInt(fuel.lucroBruto)} />
               <Kpi Icon={Percent} label="Margem" value={`${fuel.margem.toFixed(2).replace('.', ',')}%`} />
-              <Kpi Icon={Receipt} label="Ticket / litro" value={formatCurrency(ticketPorLitro)} />
+              <Kpi Icon={Receipt} label="Preço médio/L" value={formatCurrency(ticketPorLitro)} />
               <Kpi Icon={DollarSign} label="L.B./Litro" value={formatCurrency(fuel.lbPorLitro)} />
-              <Kpi Icon={Wallet} label="Custo méd." value={formatCurrency(fuel.precoCustoMedio)} />
+              <Kpi Icon={Wallet} label="Custo médio/L" value={formatCurrency(fuel.precoCustoMedio)} />
             </div>
           </section>
 

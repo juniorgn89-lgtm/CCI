@@ -263,8 +263,11 @@ const offsetMonths = (dateStr: string, monthsBack: number): string => {
 
 /* ── Hook ────────────────────────────────────────────────── */
 
-const useOperacaoData = (empresaCodigoOverride?: number | null) => {
-  const { empresaCodigos, dataInicial, dataFinal, comparisonMode, abastDateMode } = useFilterStore()
+const useOperacaoData = (empresaCodigoOverride?: number | null, periodo?: { dataInicial: string; dataFinal: string }) => {
+  const { empresaCodigos, dataInicial: diStore, dataFinal: dfStore, comparisonMode, abastDateMode } = useFilterStore()
+  // Período próprio (Manutenção: desde a última manutenção até hoje); senão o filtro.
+  const dataInicial = periodo?.dataInicial ?? diStore
+  const dataFinal = periodo?.dataFinal ?? dfStore
   // Operação é por-posto. `undefined` = legado (1º posto do filtro); um número =
   // posto explícito (telas que mostram um posto por vez via seletor).
   const empresaCodigo = empresaCodigoOverride !== undefined ? empresaCodigoOverride : (empresaCodigos[0] ?? null)

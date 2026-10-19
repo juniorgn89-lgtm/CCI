@@ -61,6 +61,8 @@ export interface AfericaoRow {
   empresaCodigo: number
   empresaNome: string
   bicoCodigo: number
+  /** Número do bico no posto (o que aparece na bomba). */
+  bicoNumero?: string
   bombaDescricao: string
   frentistaCodigo: number
   frentistaNome: string

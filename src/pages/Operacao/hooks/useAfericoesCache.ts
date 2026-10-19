@@ -23,30 +23,30 @@ const useAfericoesCache = (empresaCodigos?: number[]) => {
   const { dataInicial, dataFinal } = useFilterStore()
   const scoped = empresaCodigos ?? []
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading: carregandoRows } = useQuery({
     queryKey: ['apuracao-afericoes', scoped.join(','), dataInicial, dataFinal],
     queryFn: () => fetchApuracaoAfericoes({ empresaCodigos: scoped, dataInicial, dataFinal }),
     enabled: !!dataInicial && !!dataFinal,
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: produtosData } = useQuery({
+  const { data: produtosData, isLoading: carregandoProdutos } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages((p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 100),
     staleTime: 30 * 60 * 1000,
   })
-  const { data: funcionariosData } = useQuery({
+  const { data: funcionariosData, isLoading: carregandoFuncionarios } = useQuery({
     queryKey: ['funcionarios'],
     queryFn: () => fetchAllPages((p) => fetchFuncionarios({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
     staleTime: 30 * 60 * 1000,
   })
-  const { data: bombasData } = useQuery({ queryKey: ['bombas'], queryFn: () => fetchBombas(), staleTime: 30 * 60 * 1000 })
-  const { data: bicosData } = useQuery({
+  const { data: bombasData, isLoading: carregandoBombas } = useQuery({ queryKey: ['bombas'], queryFn: () => fetchBombas(), staleTime: 30 * 60 * 1000 })
+  const { data: bicosData, isLoading: carregandoBicos } = useQuery({
     queryKey: ['bicos'],
     queryFn: () => fetchAllPages((p) => fetchBicos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 1000, 10),
     staleTime: 30 * 60 * 1000,
   })
-  const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 10 * 60 * 1000 })
+  const { data: empresasData, isLoading: carregandoEmpresas } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 10 * 60 * 1000 })
 
   const afericoes = useMemo<AfericaoRow[]>(() => {
     const productMap = new Map<number, string>()
@@ -57,8 +57,10 @@ const useAfericoesCache = (empresaCodigos?: number[]) => {
     }
     const bicoProdutoMap = new Map<number, number>()
     const bicoDescMap = new Map<number, string>()
+    const bicoNumMap = new Map<number, string>()
     for (const bico of bicosData ?? []) {
       bicoProdutoMap.set(bico.bicoCodigo, bico.produtoCodigo)
+      bicoNumMap.set(bico.bicoCodigo, String(bico.bicoNumero ?? ''))
       const bomba = bombasData?.resultados?.find((b) => b.bombaCodigo === bico.bombaCodigo)
       bicoDescMap.set(bico.bicoCodigo, bomba ? `${bomba.descricao || bomba.bombaReferencia} - Bico ${bico.bicoNumero}` : `Bico ${bico.bicoNumero}`)
     }
@@ -88,6 +90,7 @@ const useAfericoesCache = (empresaCodigos?: number[]) => {
           empresaCodigo: r.empresa_codigo,
           empresaNome: empresaMap.get(r.empresa_codigo) ?? `Empresa ${r.empresa_codigo}`,
           bicoCodigo: bico,
+          bicoNumero: bicoNumMap.get(bico),
           bombaDescricao: bicoDescMap.get(bico) ?? `Bico ${bico}`,
           frentistaCodigo: frentista,
           frentistaNome: funcionarioMap.get(frentista) ?? (frentista ? `Frentista ${frentista}` : '—'),
@@ -100,7 +103,32 @@ const useAfericoesCache = (empresaCodigos?: number[]) => {
       .sort((x, y) => (y.dataHora || '').localeCompare(x.dataHora || ''))
   }, [rows, produtosData, funcionariosData, bombasData, bicosData, empresasData])
 
-  return { afericoes, isLoading }
+  // Bicos cadastrados dos postos do escopo — base do "N de M bicos aferidos".
+  const bicos = useMemo(() => {
+    const prod = new Map<number, string>()
+    for (const p of produtosData ?? []) { prod.set(p.produtoCodigo, p.nome); if (p.produtoLmcCodigo) prod.set(p.produtoLmcCodigo, p.nome) }
+    const emp = new Map((empresasData?.resultados ?? []).map((e) => [e.codigo, e.fantasia]))
+    return (bicosData ?? [])
+      .filter((b) => scoped.length === 0 || scoped.includes(b.empresaCodigo))
+      .map((b) => {
+        const bomba = bombasData?.resultados?.find((x) => x.bombaCodigo === b.bombaCodigo)
+        return {
+          empresaCodigo: b.empresaCodigo,
+          empresaNome: emp.get(b.empresaCodigo) ?? `Posto ${b.empresaCodigo}`,
+          bicoCodigo: b.bicoCodigo,
+          bicoNumero: String(b.bicoNumero ?? ''),
+          bomba: bomba ? bomba.descricao || bomba.bombaReferencia : '',
+          combustivel: prod.get(b.produtoCodigo) ?? prod.get(b.produtoLmcCodigo) ?? '—',
+        }
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- scoped é derivado do array recebido (join estável abaixo)
+  }, [bicosData, bombasData, produtosData, empresasData, scoped.join(',')])
+
+  // Carregando até os catálogos chegarem: sem eles os nomes saem genéricos e as
+  // contagens (produtos por rodada, bicos) ficam erradas — melhor esqueleto que número falso.
+  const isLoading = carregandoRows || carregandoProdutos || carregandoFuncionarios || carregandoBombas || carregandoBicos || carregandoEmpresas
+
+  return { afericoes, bicos, isLoading }
 }
 
 export default useAfericoesCache

@@ -28,7 +28,8 @@ export const MODULOS: ModuloInfo[] = [
   { id: 'estoques', label: 'Estoques', path: '/estoques' },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
   { id: 'qualidade-dados', label: 'Qualidade de Dados', path: '/qualidade-dados' },
-  { id: 'pessoas', label: 'Pessoas', path: '/pessoas' },
+  // 'pessoas' saiu do catálogo em 17/10/2026 (tela removida; cadastro vive em
+  // Configuração › Cadastros). Grants antigos com esse id são ignorados.
   { id: 'comercial', label: 'Comercial · Lucro', path: '/comercial' },
   { id: 'inteligencia', label: 'Inteligência', path: '/inteligencia' },
   // Compliance ANP ocultado (fora do menu/rota). Reativar: repor este item + rota + navConfig/appStructure.

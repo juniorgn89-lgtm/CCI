@@ -240,6 +240,17 @@ export const atualizarRotina = async (id: string, patch: Partial<RotinaInput>) =
   if (error) throw erro(error)
 }
 
+/**
+ * Exclui a rotina de vez (gestor/diretor — a RLS barra os demais). As tarefas
+ * já geradas FICAM no histórico, só perdem o vínculo (rotina_id → null); nada
+ * mais é gerado. Pra parar sem apagar, use `ativa: false`.
+ */
+export const excluirRotina = async (id: string) => {
+  const { data, error } = await need().from('gestao_rotinas').delete().eq('id', id).select('id')
+  if (error) throw erro(error)
+  if (!data?.length) throw new Error('Nada foi excluído: só gestor ou diretor podem excluir rotinas.')
+}
+
 /** Gera (idempotente) as tarefas das rotinas para um dia. Default: hoje em Brasília. */
 export const gerarTarefasDeRotinas = async (dia?: string): Promise<number> => {
   const { data, error } = await need().rpc('gerar_tarefas_de_rotinas', dia ? { p_data: dia } : {})
@@ -376,6 +387,20 @@ export const removerAnexo = async (a: AnexoRow) => {
  * Salva o checklist. Marcar a primeira etapa de uma tarefa "A fazer" passa
  * ela pra "Em andamento" sozinho (ninguém precisa clicar em Iniciar).
  */
+/**
+ * Exclui a tarefa de vez (gestor/diretor — a RLS barra os demais). Apaga os
+ * arquivos do bucket antes; atividades e registros de anexo caem em cascata.
+ */
+export const excluirTarefa = async (t: TarefaRow) => {
+  const sb = need()
+  const { data: anexos } = await sb.from('gestao_anexos').select('path').eq('tarefa_id', t.id)
+  const paths = ((anexos as { path: string }[] | null) ?? []).map((a) => a.path)
+  if (paths.length) await sb.storage.from(BUCKET).remove(paths).catch(() => undefined)
+  const { data, error } = await sb.from('gestao_tarefas').delete().eq('id', t.id).select('id')
+  if (error) throw erro(error)
+  if (!data?.length) throw new Error('Nada foi excluído: só gestor ou diretor podem excluir tarefas.')
+}
+
 export const salvarChecklist = async (t: TarefaRow, checklist: ChecklistItem[], autor: Autor) => {
   const feitos = checklist.filter((c) => c.feito).length
   const inicia = t.status === 'a_fazer' && feitos > 0

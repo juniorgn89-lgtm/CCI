@@ -9,6 +9,7 @@ import { useGestaoBase, containerCls, hojeLocal, somaDias, fmtDataHora } from '.
 import { Segmentos } from './comumUi'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
+import ResumoDoDia from './ResumoDoDia'
 
 /**
  * Gestão → Painel de tarefas: execução das rotinas e tarefas por empresa,
@@ -135,6 +136,9 @@ const Painel = () => {
       </div>
 
       {tarefasQ.isLoading && <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>}
+
+      {/* Briefing da manhã (ontem · hoje · atrasadas) pronto pro WhatsApp / PDF. */}
+      {!tarefasQ.isLoading && <ResumoDoDia tarefas={tarefasQ.data ?? []} agora={agora} hoje={hoje} usuarios={base.usuarios} nomePosto={base.nomePosto} nomeSetor={base.nomeSetor} />}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpi(Gauge, 'Execução', r.execucao === null ? '—' : `${r.execucao}%`, r.vencidas.length ? `${r.vencidasPrazo.length} de ${r.vencidas.length} vencidas concluídas no prazo` : 'nenhuma tarefa vencida no período',

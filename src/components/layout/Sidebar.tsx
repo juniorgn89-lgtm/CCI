@@ -16,7 +16,6 @@ import {
   Store,
   LayoutDashboard,
   Package,
-  RefreshCw,
   ShoppingCart,
   ClipboardList,
   ArrowDownCircle,
@@ -28,7 +27,7 @@ import {
   Tag,
   Sun,
   Repeat,
-} from 'lucide-react'
+  Stethoscope, ArrowLeftRight, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
@@ -84,18 +83,22 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Gestão de Preços', to: '/dashboard?tab=precos', Icon: Tag },
   ],
   '/comercial': [
-    { label: 'Oportunidades', to: '/comercial', Icon: Sparkles },
+    { label: 'Radar de Preços', to: '/comercial?tab=radar', Icon: Radar },
     { label: 'Margem por posto', to: '/comercial?tab=margem', Icon: Trophy },
     { label: 'Concorrência', to: '/comercial?tab=concorrencia', Icon: Building2 },
-    { label: 'Radar de Preços', to: '/comercial?tab=radar', Icon: Radar },
   ],
   '/inteligencia': [
     { label: 'Cadu IA', to: '/inteligencia', Icon: Sparkles },
+    { label: 'Diagnóstico do posto', to: '/diagnostico', Icon: Stethoscope },
   ],
   '/operacao': [
     { label: 'Visão Geral', to: '/operacao', Icon: LayoutGrid },
-    { label: 'Bombas', to: '/operacao?tab=bombas', Icon: Gauge },
-    { label: 'Reabastecimento', to: '/operacao?tab=reabastecimento', Icon: Fuel },
+    { label: 'Manutenção', to: '/operacao?tab=bombas', Icon: Gauge },
+    { label: 'Aferições', to: '/operacao?tab=afericoes', Icon: FlaskConical },
+  ],
+  '/compras': [
+    { label: 'Pedidos de compra', to: '/compras?tab=pedidos', Icon: ShoppingCart },
+    { label: 'Transferências', to: '/compras?tab=transferencias', Icon: ArrowLeftRight },
   ],
   '/gestao': [
     { label: 'Painel', to: '/gestao', Icon: LayoutGrid },
@@ -109,10 +112,8 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   ],
   '/estoques': [
     { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },
-    { label: 'Estoque geral', to: '/estoques?tab=geral', Icon: Package },
-    { label: 'Giro', to: '/estoques?tab=giro', Icon: RefreshCw },
-    { label: 'Média de venda (6m)', to: '/estoques?tab=mediaVendas', Icon: ShoppingCart },
-    { label: 'Necessidade', to: '/estoques?tab=necessidade', Icon: ClipboardList },
+    { label: 'Produtos', to: '/estoques?tab=produtos', Icon: Package },
+    { label: 'Comprar', to: '/estoques?tab=comprar', Icon: ShoppingCart },
   ],
   '/financeiro': [
     { label: 'Dashboard', to: '/financeiro', Icon: LayoutDashboard },
@@ -339,16 +340,17 @@ const Sidebar = () => {
   // dentro do grupo pela ordem personalizada. Itens fora do registro
   // (ex.: Selecionar Rede) ficam intactos (index 999 → no fim, sem ocultar).
   const gestaoOn = !!useTenantStore((s) => s.rede)?.gestao_habilitado
+  const comprasOn = !!useTenantStore((s) => s.rede)?.compras_habilitado
   // Bolinha no item Tarefas: abertas vencidas ou vencendo hoje (0 = sem bolinha).
   const tarefasAtencao = useTarefasAtencao()
   const visibleNavGroups = navGroups
     .map((group) => {
       // Módulo Gestão (tarefas) só em redes com o módulo ligado — master inclusive.
-      let items = group.items.filter((item) => !item.requerGestao || gestaoOn)
+      let items = group.items.filter((item) => (!item.requerGestao || gestaoOn) && (!item.requerCompras || comprasOn))
       if (!isMaster) {
-        // "Selecionar Rede" (masterOnly) também aparece pra não-master que pode
-        // trocar de rede (acesso a várias ou todas).
-        items = items.filter((item) => !item.masterOnly || (podeTrocarRede && item.path === '/selecionar-rede'))
+        // "Configuração" (painel, masterOnly) também aparece pra não-master que
+        // pode trocar de rede (acesso a várias ou todas): o Selecionar rede fica lá.
+        items = items.filter((item) => !item.masterOnly || (podeTrocarRede && item.path === '/painel'))
         if (modulosPermitidos && modulosPermitidos.length > 0) {
           items = items.filter((item) => {
             const id = moduloIdByPath.get(item.path)
@@ -615,7 +617,7 @@ const Sidebar = () => {
               >
                 <span className="flex items-center gap-2">
                   <Settings className="h-4 w-4 text-gray-500" />
-                  Configurações
+                  Parâmetros
                 </span>
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
               </button>

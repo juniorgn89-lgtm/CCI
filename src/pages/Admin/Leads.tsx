@@ -37,11 +37,16 @@ const Leads = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 pb-16">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Leads</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Captados pelo chat da landing page.</p>
+    <div className="mx-auto max-w-none space-y-4 pb-16">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
+            <Inbox className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Leads</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Captados pelo chat da landing page.</p>
+          </div>
         </div>
         {!isLoading && (
           <div className="flex gap-2 text-center">
@@ -74,7 +79,7 @@ const Leads = () => {
           {leads.map((l) => {
             const wa = waLink(l)
             return (
-              <div key={l.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+              <div key={l.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{l.nome}</span>

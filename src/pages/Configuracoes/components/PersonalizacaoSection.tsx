@@ -129,7 +129,7 @@ const PersonalizacaoSection = () => {
           <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500">
             {g.label}
           </p>
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+          <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             {g.modules.map((m, index) => {
               const isHidden = hidden.includes(m.path)
               // Só as abas dentro do plano são personalizáveis.

@@ -1,481 +1,301 @@
 import { useMemo, useState } from 'react'
-import {
-  AlertTriangle, AlertCircle, RefreshCw, Package, ShoppingCart, Boxes,
-  DollarSign, Hourglass, BarChart3, ChevronRight, CalendarRange, TrendingUp, TrendingDown,
-} from 'lucide-react'
+import { Fuel, Wrench, Store, DollarSign, AlertTriangle, Clock, Zap, TrendingUp, TrendingDown, BarChart3, Target, Layers, Star, Gem, Cog, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt, formatNumber } from '@/lib/formatters'
+import { todayLocal } from '@/lib/period'
 import InfoHint from '@/components/ui/InfoHint'
-import type { ProductAnalyticsRow, EstoqueValorMensal } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
+import { SETOR_ESTOQUE_LABEL, type SetorEstoque } from '@/pages/Estoques/hooks/useSetorProduto'
+import {
+  DIAS_PARADO, FATOR_EXCESSO, custoUnit, precoUnit, ehParado, ehRuptura, ehCritico, valorExcedente, fmtUnidades, fmtDataBR, type SituacaoProduto,
+} from '@/pages/Estoques/components/estoqueComum'
+
+export interface AbrirProdutos { situacao?: SituacaoProduto; categoria?: string; setor?: SetorEstoque }
 
 interface Props {
   data: ProductAnalyticsRow[]
-  categorias: string[]
-  valorMensal: EstoqueValorMensal[]
+  setorDe: (codigo: number) => SetorEstoque
+  coberturaDias: number
   janelaDias: number
-  onJanelaChange: (v: 30 | 60 | 90) => void
-  onNavigateTab?: (tab: string) => void
+  onAbrirProdutos: (f: AbrirProdutos) => void
 }
 
-type SaldoFiltro = 'todos' | 'comSaldo' | 'zerado' | 'negativo'
+const SETORES: { id: SetorEstoque; Icon: typeof Fuel }[] = [
+  { id: 'combustivel', Icon: Fuel },
+  { id: 'automotivos', Icon: Wrench },
+  { id: 'conveniencia', Icon: Store },
+]
 
-const fmtUnidades = (v: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v)
-const fmtPct = (v: number) => `${v.toFixed(0)}%`
+const painelCls = 'rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black'
+const pct = (v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+const mediana = (v: number[]) => { if (!v.length) return 0; const s = [...v].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
 
-const fmtJanelaPeriodo = (janelaDias: number): string => {
-  const fim = new Date()
-  const ini = new Date()
-  ini.setDate(ini.getDate() - (janelaDias - 1))
-  const f = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-  return `${f(ini)} a ${f(fim)}`
-}
+/** Margem bruta % do que foi vendido; sem venda no período, a do cadastro. */
+const margemPct = (r: ProductAnalyticsRow) =>
+  r.precoMedioVenda > 0 && r.custoMedio > 0 ? ((r.precoMedioVenda - r.custoMedio) / r.precoMedioVenda) * 100 : r.lucroBrutoPctCadastro
 
-const CAT_PALETTE = ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#cbd5e1']
+/**
+ * Visão Geral do Estoques — UM posto, um setor por vez: quanto vale o estoque,
+ * quanto está em risco (parado + excesso), o que está faltando, e onde o
+ * dinheiro está (Curva ABC, Giro × Margem, grupos). Cada bloco abre a aba
+ * Produtos com o mesmo filtro, então os números batem.
+ */
+const EstoqueVisaoGeral = ({ data, setorDe, coberturaDias, janelaDias, onAbrirProdutos }: Props) => {
+  const hoje = todayLocal()
+  const porSetor = useMemo(() => {
+    const m: Record<SetorEstoque, ProductAnalyticsRow[]> = { combustivel: [], automotivos: [], conveniencia: [] }
+    for (const r of data) m[setorDe(r.produtoCodigo)].push(r)
+    return m
+  }, [data, setorDe])
+  // Setor inicial: o de maior valor em estoque.
+  const [setorSel, setSetorSel] = useState<SetorEstoque | null>(null)
+  const setor: SetorEstoque = (setorSel && porSetor[setorSel].length > 0 ? setorSel : null) ?? (SETORES.map((s) => s.id).sort((a, b) =>
+    porSetor[b].reduce((n, r) => n + Math.max(0, r.valorEstoque), 0) - porSetor[a].reduce((n, r) => n + Math.max(0, r.valorEstoque), 0))[0])
+  const rows = porSetor[setor]
+  const ehComb = setor === 'combustivel'
 
-/* ── Sparkline (6 meses) ── */
-const Sparkline = ({ values, color = '#93c5fd' }: { values: number[]; color?: string }) => {
-  const W = 120, H = 32, pad = 3
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const range = max - min || 1
-  const coords = values
-    .map((v, i) => {
-      const x = values.length > 1 ? (i / (values.length - 1)) * (W - 2 * pad) + pad : W / 2
-      const y = H - pad - ((v - min) / range) * (H - 2 * pad)
-      return `${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-8 w-full" preserveAspectRatio="none">
-      <polyline points={coords} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
+  const m = useMemo(() => {
+    const comSaldo = rows.filter((r) => r.saldoAtual > 0)
+    const valor = comSaldo.reduce((n, r) => n + r.saldoAtual * custoUnit(r), 0)
+    const semCustoMedio = comSaldo.filter((r) => r.custoMedio <= 0).length
+    const valorCustoMedio = comSaldo.reduce((n, r) => n + r.saldoAtual * (r.custoMedio > 0 ? r.custoMedio : custoUnit(r)), 0)
+    const valorVenda = comSaldo.reduce((n, r) => n + r.saldoAtual * precoUnit(r), 0)
 
-const EstoqueVisaoGeral = ({ data: allData, valorMensal, janelaDias, onJanelaChange, onNavigateTab }: Props) => {
-  const [saldoFiltro, setSaldoFiltro] = useState<SaldoFiltro>('todos')
+    const parados = comSaldo.filter((r) => ehParado(r, hoje)).sort((a, b) => b.saldoAtual * custoUnit(b) - a.saldoAtual * custoUnit(a))
+    const valorParado = parados.reduce((n, r) => n + r.saldoAtual * custoUnit(r), 0)
+    const excesso = rows.map((r) => ({ r, v: valorExcedente(r, coberturaDias, hoje) })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v)
+    const valorExcesso = excesso.reduce((n, x) => n + x.v, 0)
 
-  const data = useMemo(
-    () => allData.filter((r) => {
-      if (saldoFiltro === 'comSaldo' && !(r.saldoAtual > 0)) return false
-      if (saldoFiltro === 'zerado' && r.saldoAtual !== 0) return false
-      if (saldoFiltro === 'negativo' && !(r.saldoAtual < 0)) return false
-      return true
-    }),
-    [allData, saldoFiltro],
-  )
+    const ruptura = rows.filter(ehRuptura)
+    const criticos = rows.filter(ehCritico)
+    const faltando = [...ruptura, ...criticos].sort((a, b) => b.mediaDiariaVendas * precoUnit(b) - a.mediaDiariaVendas * precoUnit(a))
+    const vendaPerdidaDia = ruptura.reduce((n, r) => n + r.mediaDiariaVendas * precoUnit(r), 0)
 
-  // Seções analíticas só fazem sentido com saldo positivo no escopo.
-  const showSecoes = saldoFiltro === 'todos' || saldoFiltro === 'comSaldo'
+    // Cobertura: só quem vende (os parados entram à parte, senão viram "210 dias").
+    const vendem = comSaldo.filter((r) => r.mediaDiariaVendas > 0)
+    const vendaDiaValor = vendem.reduce((n, r) => n + r.mediaDiariaVendas * custoUnit(r), 0)
+    const cobertura = vendaDiaValor > 0 ? vendem.reduce((n, r) => n + r.saldoAtual * custoUnit(r), 0) / vendaDiaValor : null
+    const semVenda = comSaldo.length - vendem.length
+    const vendidoJanelaCusto = rows.reduce((n, r) => n + r.vendasJanela * custoUnit(r), 0)
+    const giroAno = valor > 0 ? (vendidoJanelaCusto / valor) * (365 / janelaDias) : null
 
-  const stats = useMemo(() => {
-    const negativos = data.filter((r) => r.saldoAtual < 0).length
-    const rupturas = data.filter((r) => r.saldoAtual === 0 && r.vendasUltimos6m > 0).length
-    const criticos = data.filter((r) => r.necessidadeStatus === 'critico' || r.necessidadeStatus === 'negativo').length
-    const semMovimento = data.filter((r) => r.necessidadeStatus === 'sem_movimento' && r.saldoAtual > 0).length
-    const giros = data.filter((r) => r.estoqueMedioJanela > 0 && r.giroJanela > 0).map((r) => r.giroJanela)
-    const giroMedio = giros.length > 0 ? giros.reduce((s, x) => s + x, 0) / giros.length : 0
-    const unidades = data.reduce((s, r) => s + r.saldoAtual, 0)
-    const valorTotal = data.reduce((s, r) => s + r.valorEstoque, 0)
-
-    const proximosZerar = [...data]
-      .filter((r) => r.saldoAtual > 0 && r.mediaDiariaVendas > 0 && isFinite(r.diasCobertura) && r.diasCobertura > 0)
-      .sort((a, b) => a.diasCobertura - b.diasCobertura)
-      .slice(0, 3)
-
-    return { negativos, rupturas, criticos, semMovimento, giroMedio, unidades, valorTotal, proximosZerar }
-  }, [data])
-
-  // ── Curva ABC (concentração de valor) ──
-  const abc = useMemo(() => {
-    const items = data.filter((r) => r.valorEstoque > 0).sort((a, b) => b.valorEstoque - a.valorEstoque)
-    const total = items.reduce((s, r) => s + r.valorEstoque, 0)
-    const classes = { A: { prod: 0, valor: 0 }, B: { prod: 0, valor: 0 }, C: { prod: 0, valor: 0 } }
-    let acc = 0
-    for (const r of items) {
-      const pctAntes = total > 0 ? (acc / total) * 100 : 0
-      const cls = pctAntes < 80 ? 'A' : pctAntes < 95 ? 'B' : 'C'
-      classes[cls].prod++
-      classes[cls].valor += r.valorEstoque
-      acc += r.valorEstoque
+    // Curva ABC pela receita de 6 meses.
+    const porReceita = [...rows].sort((a, b) => b.receitaUltimos6m - a.receitaUltimos6m)
+    const receitaTotal = porReceita.reduce((n, r) => n + r.receitaUltimos6m, 0)
+    const abc = { A: { n: 0, receita: 0, imob: 0 }, B: { n: 0, receita: 0, imob: 0 }, C: { n: 0, receita: 0, imob: 0 } }
+    let acum = 0
+    for (const r of porReceita) {
+      acum += r.receitaUltimos6m
+      const share = receitaTotal > 0 ? acum / receitaTotal : 1
+      const cls = r.receitaUltimos6m <= 0 ? 'C' : share <= 0.8 ? 'A' : share <= 0.95 ? 'B' : 'C'
+      abc[cls].n += 1; abc[cls].receita += r.receitaUltimos6m; abc[cls].imob += Math.max(0, r.saldoAtual) * custoUnit(r)
     }
-    return { total, classes, count: items.length }
-  }, [data])
 
-  // ── Capital girando / lento / parado ──
-  const capital = useMemo(() => {
-    let girando = 0, lento = 0, parado = 0
-    for (const r of data) {
-      if (r.valorEstoque <= 0) continue
-      if (r.necessidadeStatus === 'sem_movimento') parado += r.valorEstoque
-      else if (r.giroJanela >= 1) girando += r.valorEstoque
-      else lento += r.valorEstoque
+    // Matriz Giro × Margem: só quem vendeu na janela; corte na mediana do setor.
+    const comVenda = rows.filter((r) => r.vendasJanela > 0)
+    const giroMed = mediana(comVenda.map((r) => r.giroJanela))
+    const margMed = mediana(comVenda.map(margemPct))
+    const quad = { estrelas: { n: 0, v: 0 }, mina: { n: 0, v: 0 }, tracao: { n: 0, v: 0 }, reduzir: { n: 0, v: 0 } }
+    for (const r of comVenda) {
+      const altoGiro = r.giroJanela >= giroMed, altaMarg = margemPct(r) >= margMed
+      const k = altoGiro && altaMarg ? 'estrelas' : !altoGiro && altaMarg ? 'mina' : altoGiro ? 'tracao' : 'reduzir'
+      quad[k].n += 1; quad[k].v += Math.max(0, r.saldoAtual) * custoUnit(r)
     }
-    return { girando, lento, parado, total: girando + lento + parado }
-  }, [data])
 
-  // ── Valor por categoria (top 5 + Outros) ──
-  const categoria = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const r of data) if (r.valorEstoque > 0) m.set(r.categoria, (m.get(r.categoria) ?? 0) + r.valorEstoque)
-    const all = [...m].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor)
-    const total = all.reduce((s, c) => s + c.valor, 0)
-    const top = all.slice(0, 5)
-    const outros = all.slice(5).reduce((s, c) => s + c.valor, 0)
-    const rows = outros > 0 ? [...top, { nome: 'Outros', valor: outros }] : top
-    return { rows, total, max: Math.max(...rows.map((r) => r.valor), 0) }
-  }, [data])
+    // Imobilizado por grupo (top 10).
+    const g = new Map<string, number>()
+    for (const r of comSaldo) g.set(r.categoria, (g.get(r.categoria) ?? 0) + r.saldoAtual * custoUnit(r))
+    const grupos = [...g.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
 
-  // ── Tendência (sparkline) ──
-  const trend = useMemo(() => {
-    const pts = valorMensal ?? []
-    const validos = pts.filter((p) => p.valor > 0).length
-    const last = pts[pts.length - 1]?.valor ?? 0
-    const prev = pts[pts.length - 2]?.valor ?? 0
-    const variacao = prev > 0 ? ((last - prev) / prev) * 100 : null
-    return { values: pts.map((p) => p.valor), show: validos >= 3, variacao }
-  }, [valorMensal])
+    return {
+      comSaldo: comSaldo.length, valor, valorCustoMedio, semCustoMedio, valorVenda,
+      parados, valorParado, excesso, valorExcesso, risco: valorParado + valorExcesso,
+      faltando, nRuptura: ruptura.length, nCritico: criticos.length, vendaPerdidaDia,
+      cobertura, semVenda, giroAno, abc, receitaTotal, quad, comVenda: comVenda.length, semVendaJanela: rows.length - comVenda.length, grupos,
+    }
+  }, [rows, coberturaDias, janelaDias, hoje])
+
+  const abrir = (f: Omit<AbrirProdutos, 'setor'>) => onAbrirProdutos({ ...f, setor })
+  const maxGrupo = Math.max(1, ...m.grupos.map(([, v]) => v))
 
   return (
     <div className="space-y-4">
-      {/* ── Controles: Saldo (esq.) + Janela (dir.) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-            Saldo
-            <InfoHint text="Filtra os produtos pelo saldo atual: todos, só com saldo (>0), zerados ou negativos." />
-          </span>
-          <Segmented
-            value={saldoFiltro}
-            onChange={setSaldoFiltro}
-            options={[
-              { value: 'todos', label: 'Todo saldo' },
-              { value: 'comSaldo', label: 'Com saldo' },
-              { value: 'zerado', label: 'Zerados' },
-              { value: 'negativo', label: 'Negativos' },
-            ]}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-            <CalendarRange className="h-3.5 w-3.5" /> Janela
-          </span>
-          <Segmented
-            value={janelaDias as 30 | 60 | 90}
-            onChange={(v) => onJanelaChange(v)}
-            options={[
-              { value: 30, label: '30 dias' },
-              { value: 60, label: '60 dias' },
-              { value: 90, label: '90 dias' },
-            ]}
-          />
-          <span className="text-[11px] tabular-nums text-gray-400/80 dark:text-gray-500/80">{fmtJanelaPeriodo(janelaDias)}</span>
-        </div>
+      {/* Setor */}
+      <div className={cn(painelCls, 'flex flex-wrap gap-1 p-1.5')}>
+        {SETORES.filter(({ id }) => porSetor[id].length > 0 || id === setor).map(({ id, Icon }) => (
+          <button key={id} type="button" onClick={() => setSetorSel(id)} className={cn('inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+            setor === id ? 'bg-[#1e3a5f] text-white dark:bg-blue-600' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/60')}>
+            <Icon className="h-4 w-4" />{SETOR_ESTOQUE_LABEL[id]}<span className={cn('text-[11px] font-normal tabular-nums', setor === id ? 'text-white/75' : 'text-gray-400')}>{formatNumber(porSetor[id].length)}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ── 4 KPI cards ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Hero navy — valor em estoque */}
-        <div className="flex flex-col rounded-2xl border border-[#1e3a5f]/30 bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="flex items-center gap-1 text-[13px] font-semibold text-white">
-                Valor em estoque
-                <InfoHint text="Saldo atual × custo de cadastro (fallback custo médio 6m) somado. Capital parado em estoque." className="text-white/60 hover:text-white" />
+      {rows.length === 0 ? (
+        <p className={cn(painelCls, 'px-4 py-8 text-center text-[13px] text-gray-500')}>Nenhum produto de {SETOR_ESTOQUE_LABEL[setor].toLowerCase()} neste posto.</p>
+      ) : (<>
+        {/* Cards */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Card label="Valor do inventário" hint="Soma de saldo × custo do cadastro (o mesmo valor do imobilizado no ERP). Só produtos com saldo positivo."
+            valor={formatCurrency(m.valor)} sub={`${formatNumber(m.comSaldo)} produtos com saldo`} Icon={DollarSign} tom="verde" onClick={() => abrir({ situacao: 'com_saldo' })} />
+          <Card label="Valor em risco" hint={`Dinheiro empatado sem retorno: produtos parados (com saldo e sem venda há mais de ${DIAS_PARADO} dias) + o que passa da meta de ${coberturaDias} dias nos produtos que duram mais de ${FATOR_EXCESSO * coberturaDias} dias (excesso). O mesmo produto não conta duas vezes.`}
+            valor={formatCurrency(m.risco)} sub={`parado ${formatCurrencyInt(m.valorParado)} · excesso ${formatCurrencyInt(m.valorExcesso)}`} Icon={AlertTriangle} tom="vermelho" />
+          <Card label="Cobertura média" hint={`Quantos dias o estoque dura no ritmo de venda dos últimos ${janelaDias} dias, ponderado pelo valor. Só conta quem vende: produtos com saldo e sem venda ficam à parte (senão a média vira centenas de dias). Giro por ano = custo do que vendeu ÷ valor do estoque, anualizado.`}
+            valor={m.cobertura == null ? '—' : `${Math.round(m.cobertura)} dias`} sub={[m.giroAno != null ? `giro ${m.giroAno.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}× por ano` : null, m.semVenda > 0 ? `+ ${formatNumber(m.semVenda)} sem venda em ${janelaDias}d` : null].filter(Boolean).join(' · ')} Icon={Clock} tom="ambar" />
+          <Card label="Ruptura + crítico" hint="Ruptura = zerado (ou negativo) e ainda vende: está perdendo venda. Crítico = tem saldo, mas dura menos da metade da meta de cobertura."
+            valor={formatNumber(m.nRuptura + m.nCritico)} sub={`${formatNumber(m.nRuptura)} ruptura · ${formatNumber(m.nCritico)} crítico`} Icon={Zap} tom="laranja" onClick={() => abrir({ situacao: 'ruptura' })} />
+        </div>
+
+        {/* Valorização */}
+        <section className={cn(painelCls, 'p-4')}>
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100"><DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Valorização do estoque <span className="text-[11px] font-normal text-gray-400">{SETOR_ESTOQUE_LABEL[setor]} · saldo de agora</span></p>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <Valoriz titulo="A custo médio" valor={m.valorCustoMedio} sub={`custo médio do que foi vendido (6 meses)${m.semCustoMedio > 0 ? ` · ${formatNumber(m.semCustoMedio)} sem venda usam o do cadastro` : ''}`} cls="border-teal-200 bg-teal-50/50 dark:border-teal-800/50 dark:bg-teal-950/20" tituloCls="text-teal-700 dark:text-teal-300" />
+            <Valoriz titulo="A custo atual" selo="ERP" valor={m.valor} sub="custo do cadastro · base dos cálculos · = imobilizado do ERP" cls="border-emerald-400 bg-emerald-50/60 ring-1 ring-emerald-400/40 dark:border-emerald-600 dark:bg-emerald-950/25" tituloCls="text-emerald-700 dark:text-emerald-300" />
+            <Valoriz titulo="A preço de venda" valor={m.valorVenda} sub="preço do cadastro (tabela A); sem ele, o preço médio vendido" cls="border-violet-200 bg-violet-50/50 dark:border-violet-800/50 dark:bg-violet-950/20" tituloCls="text-violet-700 dark:text-violet-300" />
+          </div>
+        </section>
+
+        {/* Listas */}
+        <div className={cn('grid gap-3', ehComb ? 'md:grid-cols-1' : 'lg:grid-cols-3')}>
+          <Lista titulo="Em ruptura ou crítico" Icon={Zap} tom="vermelho" vazio="Nada faltando: tudo que vende tem saldo."
+            itens={m.faltando.slice(0, 5).map((r) => ({ k: r.produtoCodigo, nome: r.produtoNome, dir: `${fmtUnidades(r.saldoAtual)} un · vende ${fmtUnidades(r.mediaDiariaVendas)}/dia` }))}
+            rodape={m.vendaPerdidaDia > 0 ? <>Venda perdida estimada: <b className="font-semibold">{formatCurrency(m.vendaPerdidaDia)} por dia</b> enquanto zerados <InfoHint text="Estimativa: venda média por dia × preço, somada dos produtos zerados que vendem. É quanto deixa de entrar por dia, não um valor apurado." /></> : null}
+            total={m.faltando.length} onVerTodos={() => abrir({ situacao: 'ruptura' })} />
+          {!ehComb && (<>
+            <Lista titulo="Excesso de estoque" Icon={TrendingUp} tom="azul" vazio={`Nenhum produto dura mais de ${FATOR_EXCESSO * coberturaDias} dias.`}
+              itens={m.excesso.slice(0, 5).map((x) => ({ k: x.r.produtoCodigo, nome: x.r.produtoNome, dir: `${formatCurrencyInt(x.v)} · ${Math.round(x.r.diasCobertura)}d` }))}
+              rodape={m.valorExcesso > 0 ? <>Acima da meta de {coberturaDias} dias: <b className="font-semibold">{formatCurrency(m.valorExcesso)}</b> <InfoHint text={`Produtos que vendem, mas duram mais de ${FATOR_EXCESSO * coberturaDias} dias. O valor é só a parte que passa da meta de ${coberturaDias} dias, a custo do cadastro.`} /></> : null}
+              total={m.excesso.length} onVerTodos={() => abrir({ situacao: 'excesso' })} />
+            <Lista titulo="Produtos parados" Icon={TrendingDown} tom="roxo" vazio={`Nenhum produto com saldo está sem venda há mais de ${DIAS_PARADO} dias.`}
+              itens={m.parados.slice(0, 5).map((r) => ({ k: r.produtoCodigo, nome: r.produtoNome, dir: `${formatCurrencyInt(r.saldoAtual * custoUnit(r))} · ${r.ultimaVenda ? `últ. ${fmtDataBR(r.ultimaVenda).slice(0, 5)}` : 'sem venda em 6m'}` }))}
+              rodape={m.valorParado > 0 ? <>Sem venda há +{DIAS_PARADO} dias: <b className="font-semibold">{formatCurrency(m.valorParado)}</b></> : null}
+              total={m.parados.length} onVerTodos={() => abrir({ situacao: 'parados' })} />
+          </>)}
+        </div>
+
+        {/* Onde está o dinheiro */}
+        {!ehComb && (
+          <div className="grid gap-3 lg:grid-cols-3">
+            <section className={cn(painelCls, 'p-4')}>
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100"><BarChart3 className="h-4 w-4 text-[#2563eb]" /> Curva ABC
+                <InfoHint text="Produtos em ordem de faturamento dos últimos 6 meses. A = os que somam os primeiros 80% do faturamento; B = até 95%; C = o resto (e quem não vendeu). Imobilizado = valor em estoque de cada classe." />
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-white/60">Capital parado</p>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-              <DollarSign className="h-5 w-5 text-white/90" />
-            </div>
-          </div>
-          <p className="mt-3 text-3xl font-bold tabular-nums text-white">{formatCurrency(stats.valorTotal)}</p>
-          {showSecoes && trend.show && (
-            <div className="mt-2 flex items-end gap-2">
-              <div className="min-w-0 flex-1"><Sparkline values={trend.values} /></div>
-              {trend.variacao !== null && (
-                <span className={cn(
-                  'mb-0.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                  trend.variacao >= 0 ? 'bg-emerald-400/20 text-[#6ee7b7]' : 'bg-red-400/20 text-red-300',
-                )}>
-                  {trend.variacao >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {trend.variacao >= 0 ? '+' : ''}{trend.variacao.toFixed(1).replace('.', ',')}%
-                </span>
-              )}
-            </div>
-          )}
-          <div className="mt-auto border-t border-white/15 pt-3">
-            <span className="text-[11px] text-white/60">a custo médio · 6 meses · vs mês anterior</span>
-          </div>
-        </div>
-
-        <KpiCard label="Produtos" sub="não-combustíveis" value={formatNumber(data.length)} Icon={Package}
-          chipBg="bg-[#dbeafe] dark:bg-blue-900/30" chipColor="text-[#2563eb] dark:text-blue-400"
-          footer="com saldo ou movimentação"
-          hint="Nº de produtos não-combustíveis com saldo atual ou venda nos últimos 6 meses (no filtro de saldo)." />
-        <KpiCard label="Unidades" sub="Saldo somado" value={fmtUnidades(stats.unidades)} Icon={Boxes}
-          chipBg="bg-[#e0e7ff] dark:bg-indigo-900/30" chipColor="text-[#4f46e5] dark:text-indigo-400"
-          footer="total de itens em estoque"
-          hint="Soma do saldo atual (unidades) de todos os produtos do filtro. Não inclui combustível." />
-        <KpiCard label="Giro médio" sub={`Janela ${janelaDias}d`} value={stats.giroMedio.toFixed(2).replace('.', ',')} Icon={RefreshCw}
-          chipBg="bg-[#dcfce7] dark:bg-emerald-900/30" chipColor="text-[#16a34a] dark:text-emerald-400"
-          footer={`${formatNumber(stats.semMovimento)} sem movimento`}
-          hint={`Quantas vezes o estoque girou na janela de ${janelaDias} dias (unidades vendidas ÷ estoque médio).`} />
-      </div>
-
-      {/* ── Alarmes (3, clicáveis) ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <AlarmCard label="Saldo negativo" value={formatNumber(stats.negativos)} sub="produto(s) com saldo < 0"
-          Icon={AlertCircle} tone={stats.negativos > 0 ? 'danger' : 'neutral'}
-          hint="Saldo menor que zero — quase sempre erro de lançamento. Corrigir antes de comprar."
-          onClick={onNavigateTab ? () => onNavigateTab('geral') : undefined} />
-        <AlarmCard label="Ruptura" value={formatNumber(stats.rupturas)} sub="zerado com vendas no 6m"
-          Icon={AlertTriangle} tone={stats.rupturas > 0 ? 'warning' : 'neutral'}
-          hint="Produtos zerados que venderam nos últimos 6 meses — deixando de vender por falta de estoque."
-          onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined} />
-        <AlarmCard label="Necessidade crítica" value={formatNumber(stats.criticos)} sub="compra urgente"
-          Icon={ShoppingCart} tone={stats.criticos > 0 ? 'danger' : 'neutral'}
-          hint="Compra urgente: zerado com venda, ou cobertura abaixo de metade dos dias-alvo."
-          onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined} />
-      </div>
-
-      {/* ── Curva ABC + Capital em estoque ── */}
-      {showSecoes && abc.count > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Curva ABC */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-            <div className="flex items-center gap-1.5">
-              <BarChart3 className="h-4 w-4 text-[#1e3a5f] dark:text-gray-300" />
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Curva ABC</h3>
-              <InfoHint text="Concentração do valor de estoque por classe: A = até 80% do valor, B = até 95%, C = o resto. Poucos produtos (A) costumam concentrar a maior parte do capital." align="start" />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Concentração do valor de estoque por classe</p>
-            <div className="mt-4 flex h-3 overflow-hidden rounded-md">
-              {(['A', 'B', 'C'] as const).map((c, i) => {
-                const w = abc.total > 0 ? (abc.classes[c].valor / abc.total) * 100 : 0
-                return w > 0 ? <div key={c} style={{ width: `${w}%`, backgroundColor: ['#1e3a5f', '#3b82f6', '#93c5fd'][i] }} /> : null
-              })}
-            </div>
-            <div className="mt-4 space-y-2.5">
-              {(['A', 'B', 'C'] as const).map((c, i) => {
-                const cl = abc.classes[c]
-                const pctProd = abc.count > 0 ? (cl.prod / abc.count) * 100 : 0
-                const pctValor = abc.total > 0 ? (cl.valor / abc.total) * 100 : 0
-                return (
-                  <div key={c} className="flex items-center gap-3 text-sm">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ['#1e3a5f', '#3b82f6', '#93c5fd'][i] }} />
-                    <span className="w-16 shrink-0 font-semibold text-gray-900 dark:text-gray-100">Classe {c}</span>
-                    <span className="flex-1 text-xs text-gray-500 dark:text-gray-400">{formatNumber(cl.prod)} produtos · {fmtPct(pctProd)}</span>
-                    <span className="shrink-0 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(cl.valor)}</span>
-                    <span className="w-10 shrink-0 text-right text-xs tabular-nums text-gray-400">{fmtPct(pctValor)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Capital em estoque */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-            <div className="flex items-center gap-1.5">
-              <RefreshCw className="h-4 w-4 text-[#16a34a]" />
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Capital em estoque</h3>
-              <InfoHint text="Quanto do valor parado está girando (giro ≥ 1 na janela), com giro baixo (lento) ou sem nenhum movimento (parado)." align="start" />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Quanto do valor está girando vs. parado</p>
-            <div className="mt-4 flex h-3 overflow-hidden rounded-md">
-              {([['girando', '#16a34a'], ['lento', '#f59e0b'], ['parado', '#ef4444']] as const).map(([k, color]) => {
-                const w = capital.total > 0 ? (capital[k] / capital.total) * 100 : 0
-                return w > 0 ? <div key={k} style={{ width: `${w}%`, backgroundColor: color }} /> : null
-              })}
-            </div>
-            <div className="mt-4 space-y-2.5">
-              {([
-                ['girando', '#16a34a', 'Girando', 'giro saudável'],
-                ['lento', '#f59e0b', 'Lento', 'giro baixo'],
-                ['parado', '#ef4444', 'Parado', 'sem movimento'],
-              ] as const).map(([k, color, label, sub]) => {
-                const pct = capital.total > 0 ? (capital[k] / capital.total) * 100 : 0
-                return (
-                  <div key={k} className="flex items-center gap-3 text-sm">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="w-16 shrink-0 font-semibold text-gray-900 dark:text-gray-100">{label}</span>
-                    <span className="flex-1 text-xs text-gray-500 dark:text-gray-400">{sub}</span>
-                    <span className="shrink-0 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(capital[k])}</span>
-                    <span className="w-10 shrink-0 text-right text-xs tabular-nums text-gray-400">{fmtPct(pct)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Vão zerar + Valor por categoria ── */}
-      {showSecoes && (stats.proximosZerar.length > 0 || categoria.rows.length > 0) && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Vão zerar em breve */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-            <div className="flex items-center gap-1.5">
-              <Hourglass className="h-4 w-4 text-red-500" />
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Vão zerar em breve</h3>
-              <InfoHint text="Projeção pela média diária de vendas (saldo atual ÷ venda/dia). Vermelho < 7 dias, âmbar < 15." align="start" />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Projeção pela média diária de vendas · saldo ÷ venda/dia</p>
-            {stats.proximosZerar.length === 0 ? (
-              <p className="mt-4 text-sm text-gray-400 dark:text-gray-500">Nenhum produto em risco de zerar no curto prazo. 🎉</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {stats.proximosZerar.map((p) => {
-                  const dias = Math.max(0, Math.round(p.diasCobertura))
-                  const tone = dias < 7 ? 'text-[#b91c1c] dark:text-red-400' : dias < 15 ? 'text-[#b45309] dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'
-                  const barColor = dias < 7 ? 'bg-[#ef4444]' : dias < 15 ? 'bg-[#f59e0b]' : 'bg-gray-400'
-                  const w = Math.min(100, (dias / 30) * 100)
+              <div className="mt-3 space-y-3">
+                {(['A', 'B', 'C'] as const).map((k) => {
+                  const c = m.abc[k]
+                  const share = m.receitaTotal > 0 ? c.receita / m.receitaTotal : 0
+                  const cor = k === 'A' ? 'bg-emerald-500' : k === 'B' ? 'bg-amber-500' : 'bg-gray-400'
                   return (
-                    <button
-                      key={p.produtoCodigo}
-                      type="button"
-                      onClick={onNavigateTab ? () => onNavigateTab('necessidade') : undefined}
-                      disabled={!onNavigateTab}
-                      className={cn('flex w-full items-center gap-3 rounded-lg border border-gray-100 p-2.5 text-left dark:border-gray-800', onNavigateTab && 'transition-colors hover:bg-[#eff6ff] dark:hover:bg-blue-950/20')}
-                    >
-                      <div className="shrink-0 text-center">
-                        <p className={cn('text-xl font-bold tabular-nums leading-none', tone)}>{dias}</p>
-                        <p className="text-[9px] uppercase tracking-wide text-gray-400">dias</p>
-                      </div>
+                    <div key={k} className="flex items-start gap-3">
+                      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold text-white', cor)}>{k}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-gray-900 dark:text-gray-100" title={p.produtoNome}>{p.produtoNome}</p>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                          <div className={cn('h-full rounded-full', barColor)} style={{ width: `${w}%` }} />
-                        </div>
-                        <p className="mt-1 text-[10px] tabular-nums text-gray-400">{fmtUnidades(p.saldoAtual)} un. · {p.mediaDiariaVendas.toFixed(1).replace('.', ',')}/dia</p>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Valor por categoria */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-            <div className="flex items-center gap-1.5">
-              <BarChart3 className="h-4 w-4 text-[#2563eb]" />
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Valor por categoria</h3>
-              <InfoHint text="Maiores categorias por capital em estoque (saldo × custo). Top 5 + Outros." align="start" />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Onde o capital está parado · maiores categorias</p>
-            {categoria.rows.length === 0 ? (
-              <p className="mt-4 text-sm text-gray-400 dark:text-gray-500">Sem valor por categoria no escopo.</p>
-            ) : (
-              <div className="mt-4 space-y-2.5">
-                {categoria.rows.map((c, i) => {
-                  const w = categoria.max > 0 ? (c.valor / categoria.max) * 100 : 0
-                  const pct = categoria.total > 0 ? (c.valor / categoria.total) * 100 : 0
-                  return (
-                    <div key={c.nome}>
-                      <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="truncate font-medium text-gray-700 dark:text-gray-300" title={c.nome}>{c.nome}</span>
-                        <span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">
-                          {formatCurrency(c.valor)} <span className="text-gray-400">· {fmtPct(pct)}</span>
-                        </span>
-                      </div>
-                      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div className="h-full rounded-full" style={{ width: `${w}%`, backgroundColor: CAT_PALETTE[Math.min(i, CAT_PALETTE.length - 1)] }} />
+                        <p className="flex items-baseline justify-between gap-2 text-[12px]"><span className="text-gray-700 dark:text-gray-200">{formatNumber(c.n)} produtos · {pct(rows.length ? (c.n / rows.length) * 100 : 0)}</span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(c.receita)}</span></p>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><div className={cn('h-full rounded-full', cor)} style={{ width: `${share * 100}%` }} /></div>
+                        <p className="mt-0.5 text-[10.5px] text-gray-400">{pct(share * 100)} do faturamento · imobilizado {formatCurrencyInt(c.imob)}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            )}
+            </section>
+
+            <section className={cn(painelCls, 'p-4')}>
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100"><Target className="h-4 w-4 text-violet-500" /> Giro × Margem
+                <InfoHint text={`Só os ${formatNumber(m.comVenda)} produtos que venderam nos últimos ${janelaDias} dias (os outros estão em Parados). Alto/baixo = acima/abaixo da mediana deste setor no posto. Margem = (preço médio vendido − custo médio) ÷ preço. O valor é o que está em estoque em cada grupo.`} />
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Quad titulo="Estrelas" sub="vende muito · margem alta" Icon={Star} q={m.quad.estrelas} cls="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-950/20" />
+                <Quad titulo="Mina de ouro" sub="vende pouco · margem alta" Icon={Gem} q={m.quad.mina} cls="border-amber-200 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-950/20" />
+                <Quad titulo="Tração" sub="vende muito · margem baixa" Icon={Cog} q={m.quad.tracao} cls="border-sky-200 bg-sky-50/50 dark:border-sky-800/50 dark:bg-sky-950/20" />
+                <Quad titulo="Reduzir" sub="vende pouco · margem baixa" Icon={AlertTriangle} q={m.quad.reduzir} cls="border-red-200 bg-red-50/50 dark:border-red-800/50 dark:bg-red-950/20" />
+              </div>
+            </section>
+
+            <section className={cn(painelCls, 'p-4')}>
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100"><Layers className="h-4 w-4 text-[#2563eb]" /> Imobilizado por grupo <span className="text-[11px] font-normal text-gray-400">top 10</span></p>
+              <ul className="mt-3 space-y-1.5">
+                {m.grupos.map(([nome, v]) => (
+                  <li key={nome}>
+                    <button type="button" onClick={() => abrir({ categoria: nome })} className="group block w-full text-left">
+                      <span className="flex items-baseline justify-between gap-2 text-[11.5px]"><span className="truncate text-gray-700 group-hover:text-[#2563eb] dark:text-gray-200 dark:group-hover:text-blue-300">{nome}</span><span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(v)}</span></span>
+                      <span className="mt-0.5 block h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><span className="block h-full rounded-full bg-[#2563eb]" style={{ width: `${(v / maxGrupo) * 100}%` }} /></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
-        </div>
-      )}
+        )}
+      </>)}
     </div>
   )
 }
 
-/* ── KPI card sólido ── */
-const KpiCard = ({ label, sub, value, footer, Icon, chipBg, chipColor, hint }: {
-  label: string; sub: string; value: string; footer: string
-  Icon: typeof Package; chipBg: string; chipColor: string; hint?: string
-}) => (
-  <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-gray-100">
-          {label}
-          {hint && <InfoHint text={hint} />}
-        </p>
-        <p className="text-[11px] uppercase tracking-wide text-gray-400">{sub}</p>
+const TONS = {
+  verde: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+  vermelho: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  ambar: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+  laranja: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+  azul: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  roxo: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+}
+
+const Card = ({ label, hint, valor, sub, Icon, tom, onClick }: { label: string; hint: string; valor: string; sub: string; Icon: typeof Fuel; tom: keyof typeof TONS; onClick?: () => void }) => {
+  const corpo = (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}<InfoHint text={hint} /></p>
+        <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg', TONS[tom])}><Icon className="h-4 w-4" /></span>
       </div>
-      <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', chipBg)}>
-        <Icon className={cn('h-5 w-5', chipColor)} />
-      </div>
-    </div>
-    <p className="mt-3 text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-    <div className="mt-auto border-t border-gray-100 pt-3 dark:border-gray-800">
-      <span className="text-[11px] text-gray-400">{footer}</span>
-    </div>
+      <p className="mt-1.5 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{valor}</p>
+      <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{sub}</p>
+    </>
+  )
+  const cls = cn(painelCls, 'p-4 text-left')
+  return onClick ? <div role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => { if (e.key === 'Enter') onClick() }} className={cn(cls, 'cursor-pointer transition-colors hover:border-[#2563eb]/50')}>{corpo}</div> : <div className={cls}>{corpo}</div>
+}
+
+const Valoriz = ({ titulo, selo, valor, sub, cls, tituloCls }: { titulo: string; selo?: string; valor: number; sub: string; cls: string; tituloCls: string }) => (
+  <div className={cn('rounded-lg border px-4 py-3', cls)}>
+    <p className={cn('flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide', tituloCls)}>{titulo}{selo && <span className="rounded bg-emerald-600 px-1.5 py-px text-[9.5px] text-white">{selo}</span>}</p>
+    <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(valor)}</p>
+    <p className="mt-0.5 text-[10.5px] text-gray-500 dark:text-gray-400">{sub}</p>
   </div>
 )
 
-/* ── Alarme horizontal clicável ── */
-const AlarmCard = ({ label, value, sub, Icon, tone, hint, onClick }: {
-  label: string; value: string; sub: string; Icon: typeof Package
-  tone: 'danger' | 'warning' | 'neutral'; hint?: string; onClick?: () => void
-}) => {
-  const interactive = !!onClick
-  const toneCls = tone === 'danger'
-    ? { border: 'border-[#fecaca] dark:border-red-900/40', chip: 'bg-[#fee2e2] dark:bg-red-900/30', icon: 'text-[#dc2626] dark:text-red-400', value: 'text-[#b91c1c] dark:text-red-400' }
-    : tone === 'warning'
-      ? { border: 'border-[#fde68a] dark:border-amber-900/40', chip: 'bg-[#fef3c7] dark:bg-amber-900/30', icon: 'text-[#d97706] dark:text-amber-400', value: 'text-[#b45309] dark:text-amber-400' }
-      : { border: 'border-gray-200 dark:border-gray-700', chip: 'bg-gray-100 dark:bg-gray-800', icon: 'text-gray-500', value: 'text-gray-900 dark:text-gray-100' }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!interactive}
-      className={cn('flex items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', toneCls.border, interactive ? 'hover:border-gray-300 hover:shadow-md dark:hover:border-gray-600' : 'cursor-default')}
-    >
-      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', toneCls.chip)}>
-        <Icon className={cn('h-5 w-5', toneCls.icon)} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          {label}{hint && <InfoHint text={hint} />}
-        </span>
-        <p className={cn('text-[26px] font-bold leading-tight tabular-nums', toneCls.value)}>{value}</p>
-        <p className="text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>
-      </div>
-      {interactive && <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />}
-    </button>
-  )
+const LISTA_TOM = {
+  vermelho: 'border-red-200 dark:border-red-900/50',
+  azul: 'border-blue-200 dark:border-blue-900/50',
+  roxo: 'border-violet-200 dark:border-violet-900/50',
 }
 
-/* ── Segmented control ── */
-const Segmented = <T extends string | number>({
-  value, onChange, options,
-}: {
-  value: T
-  onChange: (v: T) => void
-  options: { value: T; label: string }[]
+const Lista = ({ titulo, Icon, tom, itens, rodape, vazio, total, onVerTodos }: {
+  titulo: string; Icon: typeof Fuel; tom: keyof typeof LISTA_TOM; itens: { k: number; nome: string; dir: string }[]; rodape: React.ReactNode; vazio: string; total: number; onVerTodos: () => void
 }) => (
-  <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
-    {options.map((o) => (
-      <button
-        key={String(o.value)}
-        type="button"
-        onClick={() => onChange(o.value)}
-        className={cn(
-          'h-7 whitespace-nowrap rounded-md px-2.5 text-xs font-medium transition-all',
-          value === o.value
-            ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-gray-900 dark:text-gray-100'
-            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
-        )}
-      >
-        {o.label}
-      </button>
-    ))}
+  <section className={cn(painelCls, LISTA_TOM[tom], 'flex flex-col p-4')}>
+    <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100"><span className={cn('flex h-6 w-6 items-center justify-center rounded-md', TONS[tom])}><Icon className="h-3.5 w-3.5" /></span>{titulo}
+      {total > 0 && <button type="button" onClick={onVerTodos} className="ml-auto inline-flex items-center text-[11.5px] font-semibold text-[#2563eb] hover:underline dark:text-blue-300">Ver os {formatNumber(total)} <ChevronRight className="h-3.5 w-3.5" /></button>}
+    </p>
+    {itens.length === 0 ? <p className="mt-3 text-[12px] text-gray-400">{vazio}</p> : (
+      <ul className="mt-2 space-y-1">
+        {itens.map((i) => (
+          <li key={i.k} className="flex items-baseline justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-1.5 text-[11.5px] dark:bg-gray-800/40">
+            <span className="min-w-0 truncate font-medium text-gray-800 dark:text-gray-200">{i.nome}</span>
+            <span className="shrink-0 tabular-nums text-gray-600 dark:text-gray-300">{i.dir}</span>
+          </li>
+        ))}
+      </ul>
+    )}
+    {rodape && <p className="mt-auto pt-2 text-[11px] text-gray-500 dark:text-gray-400">{rodape}</p>}
+  </section>
+)
+
+const Quad = ({ titulo, sub, Icon, q, cls }: { titulo: string; sub: string; Icon: typeof Fuel; q: { n: number; v: number }; cls: string }) => (
+  <div className={cn('rounded-lg border px-3 py-2.5', cls)}>
+    <p className="flex items-center gap-1 text-[12px] font-semibold text-gray-900 dark:text-gray-100"><Icon className="h-3.5 w-3.5" /> {titulo}</p>
+    <p className="text-[10px] text-gray-500 dark:text-gray-400">{sub}</p>
+    <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(q.n)}</p>
+    <p className="text-[10.5px] tabular-nums text-gray-500 dark:text-gray-400">{formatCurrencyInt(q.v)} em estoque</p>
   </div>
 )
 

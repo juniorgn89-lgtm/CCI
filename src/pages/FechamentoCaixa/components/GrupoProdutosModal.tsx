@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import BarCell from '@/components/tables/BarCell'
 import { cn } from '@/lib/utils'
+import { GUIAS } from '@/lib/guiasModais'
 import { fmt } from './formatters'
 
 export interface GrupoProduto {
@@ -60,7 +61,7 @@ const GrupoProdutosModal = ({ open, onClose, grupo, produtos }: GrupoProdutosMod
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.grupoProdutos} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{grupo ?? ''}</DialogTitle>
           <DialogDescription>

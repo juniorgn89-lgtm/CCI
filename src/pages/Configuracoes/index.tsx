@@ -13,7 +13,6 @@ import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
 import {
-  useManutencaoStore,
   type ManutencaoConfig,
   DEFAULT_CONFIG,
 } from '@/store/manutencao'
@@ -21,6 +20,8 @@ import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
 import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
 import { NovidadesModal } from '@/components/feedback/Novidades'
+import InfoHint from '@/components/ui/InfoHint'
+import { useManutencaoConfigs } from '@/pages/Operacao/hooks/useManutencaoBombas'
 import { RELEASE_NOTES } from '@/releaseNotes'
 
 const APP_VERSION = `v${__APP_VERSION__}`
@@ -89,7 +90,9 @@ const ManutencaoBombasSection = () => {
     staleTime: 10 * 60 * 1000,
   })
 
-  const { configs, setConfig, clearConfig } = useManutencaoStore()
+  // Config salva no SISTEMA (vale para toda a rede); cai no navegador/padrão.
+  const mc = useManutencaoConfigs()
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null)
   const [openCodigo, setOpenCodigo] = useState<number | null>(null)
   const [buffer, setBuffer] = useState<ManutencaoConfig>(DEFAULT_CONFIG)
   const [showHelp, setShowHelp] = useState(false)
@@ -101,16 +104,19 @@ const ManutencaoBombasSection = () => {
       setOpenCodigo(null)
       return
     }
-    setBuffer(configs[codigo] ?? DEFAULT_CONFIG)
+    const info = mc.get(codigo)
+    setBuffer(info.fonte === 'padrao' ? DEFAULT_CONFIG : info.config)
+    setErroSalvar(null)
     setOpenCodigo(codigo)
   }
 
-  const handleSave = (codigo: number) => {
-    setConfig(codigo, {
+  const handleSave = async (codigo: number) => {
+    const res = await mc.salvar(codigo, {
       intervaloLitros: Number(buffer.intervaloLitros) || DEFAULT_CONFIG.intervaloLitros,
       avisarAoAtingirPct: Number(buffer.avisarAoAtingirPct) || DEFAULT_CONFIG.avisarAoAtingirPct,
       responsavel: buffer.responsavel || '',
     })
+    if (!res.ok) { setErroSalvar(res.error?.includes('row-level security') ? 'Sem permissão para salvar nesta rede.' : (res.error ?? 'Erro ao salvar.')); return }
     setOpenCodigo(null)
   }
 
@@ -180,7 +186,7 @@ const ManutencaoBombasSection = () => {
         </div>
       )}
 
-      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {isLoading ? (
           <div className="p-5 text-sm text-gray-400">Carregando postos…</div>
         ) : empresas.length === 0 ? (
@@ -188,8 +194,9 @@ const ManutencaoBombasSection = () => {
         ) : (
           empresas.map((emp) => {
             const codigo = emp.empresaCodigo
-            const config = configs[codigo]
-            const hasConfig = !!config
+            const info = mc.get(codigo)
+            const config = info.config
+            const hasConfig = info.fonte !== 'padrao'
             const isOpen = openCodigo === codigo
             const nome = emp.fantasia || emp.razao || `Posto ${codigo}`
             return (
@@ -207,6 +214,8 @@ const ManutencaoBombasSection = () => {
                       <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                         Configurado · intervalo {formatLiters(config.intervaloLitros)}, aviso {config.avisarAoAtingirPct}%
                         {config.responsavel ? ` · ${config.responsavel}` : ''}
+                        {info.fonte === 'navegador' && <span className="ml-1 font-medium text-amber-600 dark:text-amber-400">· salvo só neste navegador: clique em Editar e salve para valer para todos</span>}
+                        {info.fonte === 'sistema' && info.porNome && <span className="text-gray-400"> · por {info.porNome}</span>}
                       </p>
                     ) : (
                       <p className="text-xs text-gray-400">Sem configuração</p>
@@ -230,7 +239,7 @@ const ManutencaoBombasSection = () => {
                   <div className="border-t border-gray-100 bg-gray-50/50 px-5 py-4 dark:border-gray-800 dark:bg-gray-800/30">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <label className="block">
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Intervalo (litros)</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">Intervalo (litros)<InfoHint text="Quantos litros cada bomba deste posto pode vender entre uma manutenção preventiva e outra. Ex.: 100.000 L. O desgaste mostrado na Manutenção é litros vendidos no período ÷ este intervalo." /></span>
                         <input
                           type="number"
                           min={0}
@@ -241,7 +250,7 @@ const ManutencaoBombasSection = () => {
                         />
                       </label>
                       <label className="block">
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Avisar ao atingir (%)</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">Avisar ao atingir (%)<InfoHint text="A partir de quanto do intervalo a bomba aparece como Manutenção próxima. Ex.: com 100.000 L e 80%, o aviso aparece quando a bomba passa de 80.000 L. Acima de 90% ela vira Verificar agora." /></span>
                         <input
                           type="number"
                           min={0}
@@ -253,7 +262,7 @@ const ManutencaoBombasSection = () => {
                         />
                       </label>
                       <label className="block">
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Responsável</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">Responsável<InfoHint text="Quem cuida da manutenção das bombas deste posto (gerente, técnico ou empresa contratada). É só para referência: não dispara nenhum aviso nem envio." /></span>
                         <input
                           type="text"
                           placeholder="Ex: João Silva"
@@ -271,15 +280,16 @@ const ManutencaoBombasSection = () => {
                         <Save className="h-3.5 w-3.5" />
                         Salvar configuração
                       </button>
+                      {erroSalvar && <span className="text-[11px] text-red-600 dark:text-red-400">{erroSalvar}</span>}
                       {hasConfig && (
                         <button
-                          onClick={() => {
-                            clearConfig(codigo)
+                          onClick={async () => {
+                            await mc.voltarAoPadrao(codigo)
                             setOpenCodigo(null)
                           }}
                           className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                         >
-                          Remover
+                          Voltar ao padrão
                         </button>
                       )}
                     </div>
@@ -343,7 +353,7 @@ const MeuPlanoSection = () => {
       </h2>
 
       {/* Banner do plano atual + o que está incluído (acumulado) */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {atual ? (
           <>
             <div className="flex items-start gap-3">
@@ -409,7 +419,7 @@ const MeuPlanoSection = () => {
               <div
                 key={p.id}
                 className={cn(
-                  'flex flex-col rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-900',
+                  'flex flex-col rounded-xl border bg-white p-4 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
                   isAtual ? cn(T.ring, 'ring-2 ring-blue-500/20') : 'border-gray-200 dark:border-gray-700',
                 )}
               >
@@ -471,11 +481,21 @@ const Configuracoes = () => {
   useEffect(() => {
     if (!location.hash) return
     const id = location.hash.slice(1)
-    // Pequeno delay para garantir que a seção já está montada
-    const timer = setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-    return () => clearTimeout(timer)
+    // A página monta por partes (listas chegam depois): tenta por até ~3s até a
+    // seção existir e rola; uma segunda rolagem corrige o deslocamento quando o
+    // conteúdo acima termina de carregar.
+    let tentativas = 0
+    let ajuste: ReturnType<typeof setTimeout> | undefined
+    const timer = setInterval(() => {
+      const el = document.getElementById(id)
+      tentativas++
+      if (el) {
+        clearInterval(timer)
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        ajuste = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 700)
+      } else if (tentativas > 30) clearInterval(timer)
+    }, 100)
+    return () => { clearInterval(timer); if (ajuste) clearTimeout(ajuste) }
   }, [location])
 
   return (
@@ -486,7 +506,7 @@ const Configuracoes = () => {
           <Settings className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Configurações</h1>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Parâmetros</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">Preferências da conta e do sistema</p>
         </div>
       </div>
@@ -576,7 +596,7 @@ const Configuracoes = () => {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Conta
         </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-3 px-5 py-4">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
               <User className="h-4 w-4 text-gray-500" />
@@ -621,7 +641,7 @@ const Configuracoes = () => {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Ferramentas
         </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Link
             to="/frentista"
             className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -660,7 +680,7 @@ const Configuracoes = () => {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Sobre
         </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <div className="flex items-center gap-3 px-5 py-4">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
               <Info className="h-4 w-4 text-gray-500" />

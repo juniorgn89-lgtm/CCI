@@ -2,6 +2,7 @@ import { CreditCard } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { GUIAS } from '@/lib/guiasModais'
 import type { CartaoLinha } from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 
 interface CartaoDetalheModalProps {
@@ -35,7 +36,7 @@ const CartaoDetalheModal = ({ open, onClose, linhas, total, pdvs, isLoading }: C
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className={cn('flex max-h-[88vh] flex-col overflow-hidden', splitPdv ? 'w-[96vw] max-w-3xl' : 'w-[95vw] max-w-2xl')}>
+      <DialogContent guia={GUIAS.cartaoDetalhe} className={cn('flex max-h-[88vh] flex-col overflow-hidden', splitPdv ? 'w-[96vw] max-w-3xl' : 'w-[95vw] max-w-2xl')}>
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2">

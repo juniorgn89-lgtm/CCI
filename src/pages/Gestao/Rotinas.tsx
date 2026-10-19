@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Repeat, Plus, Layers, Loader2, Check, Power, Copy, Pencil, X } from 'lucide-react'
+import { Repeat, Plus, Layers, Loader2, Check, Power, Copy, Pencil, X, Trash2 } from 'lucide-react'
 import {
-  fetchRotinas, criarRotina, atualizarRotina, criarSetor, atualizarSetor, gerarTarefasDeRotinas, proximaGeracao,
+  fetchRotinas, criarRotina, atualizarRotina, excluirRotina, criarSetor, atualizarSetor, gerarTarefasDeRotinas, proximaGeracao,
   RECORRENCIA_LABEL, REFERENTE_LABEL, DIAS_SEMANA,
   type RotinaRow, type RotinaInput, type Recorrencia, type ReferenteA,
 } from '@/api/supabase/gestaoTarefas'
 import { useGestaoBase, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, hojeLocal, fmtData } from './comum'
 import { Modal, ModalRodape, Erro } from './comumUi'
 import { cn } from '@/lib/utils'
+import { GUIAS } from '@/lib/guiasModais'
 import InfoHint from '@/components/ui/InfoHint'
 
 /**
@@ -27,6 +28,9 @@ const Rotinas = () => {
   const [editando, setEditando] = useState<RotinaRow | null>(null)
   // Duplicar: abre o formulário preenchido com a rotina-modelo, mas cria uma nova.
   const [copiaDe, setCopiaDe] = useState<RotinaRow | null>(null)
+  // Excluir de vez: pede confirmação num modal (as tarefas já geradas ficam).
+  const [excluindo, setExcluindo] = useState<RotinaRow | null>(null)
+  const [excluindoSalva, setExcluindoSalva] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   const rotinas = useQuery({
@@ -53,6 +57,11 @@ const Rotinas = () => {
     void qc.invalidateQueries({ queryKey: ['gestao-tarefas', base.redeId] })
   }
 
+  const confirmarExclusao = async () => {
+    if (!excluindo) return
+    setExcluindoSalva(true); setErro(null)
+    try { await excluirRotina(excluindo.id); setExcluindo(null); invalidar() } catch (e) { setErro(e instanceof Error ? e.message : String(e)) } finally { setExcluindoSalva(false) }
+  }
   const alternarAtiva = async (r: RotinaRow) => {
     setErro(null)
     try { await atualizarRotina(r.id, { ativa: !r.ativa }); invalidar() } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
@@ -79,7 +88,7 @@ const Rotinas = () => {
         </select>
         <button type="button" className={btnGhost} onClick={() => setSetoresAberto(true)}><Layers className="h-4 w-4" /> Setores</button>
         <button type="button" className={btnPrimary} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Nova rotina</button>
-        <InfoHint text="Rotina é o modelo: diz o que fazer, em quais postos, quem faz e com que frequência. Todo dia à meia-noite ela gera as tarefas do dia, uma por posto. Pausar (botão de energia) para de gerar sem apagar o histórico; Duplicar cria uma cópia para ajustar." />
+        <InfoHint text="Rotina é o modelo: diz o que fazer, em quais postos, quem faz e com que frequência. Todo dia à meia-noite ela gera as tarefas do dia, uma por posto. Pausar (botão de energia) para de gerar sem apagar o histórico; Duplicar cria uma cópia para ajustar; a lixeira exclui de vez (as tarefas já geradas ficam)." />
       </div>
 
       <Erro msg={erro} />
@@ -125,6 +134,9 @@ const Rotinas = () => {
                 <button type="button" className={cn(btnGhost, 'h-8 px-2')} onClick={() => void alternarAtiva(r)} title={r.ativa ? 'Pausar rotina' : 'Reativar rotina'}>
                   <Power className="h-3.5 w-3.5" />
                 </button>
+                <button type="button" className={cn(btnGhost, 'h-8 px-2 text-red-600 hover:text-red-700 dark:text-red-400')} onClick={() => setExcluindo(r)} title="Excluir rotina de vez (só gestor ou diretor)">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </li>
             ))}
           </ul>
@@ -144,6 +156,25 @@ const Rotinas = () => {
         />
       )}
       {setoresAberto && <SetoresDialog onClose={() => setSetoresAberto(false)} />}
+      {excluindo && (
+        <Modal
+          open
+          onClose={() => { if (!excluindoSalva) setExcluindo(null) }}
+          titulo={<span className="inline-flex items-center gap-2 text-red-600 dark:text-red-400"><Trash2 className="h-4 w-4" /> Excluir esta rotina de vez?</span>}
+          descricao="Esta ação não tem volta."
+        >
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            <b className="text-gray-800 dark:text-gray-100">{excluindo.nome}</b> deixa de existir e nada mais é gerado a partir dela. As tarefas que ela já criou continuam no histórico, só sem o vínculo. Se a ideia é só parar por um tempo, use Pausar (botão de energia).
+          </p>
+          <Erro msg={erro} />
+          <ModalRodape className="static mt-2">
+            <button type="button" className={btnGhost} onClick={() => setExcluindo(null)} disabled={excluindoSalva}>Cancelar</button>
+            <button type="button" className={cn(btnPrimary, 'bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700')} onClick={() => void confirmarExclusao()} disabled={excluindoSalva}>
+              {excluindoSalva ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Excluir de vez
+            </button>
+          </ModalRodape>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -202,7 +233,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
   }
 
   return (
-    <Modal open onClose={onClose} titulo={<span className="inline-flex items-center gap-2"><Repeat className="h-4 w-4" /> {editando ? 'Editar rotina' : copiaDe ? 'Duplicar rotina' : 'Nova rotina'}</span>} largura="max-w-2xl">
+    <Modal guia={GUIAS.rotinaForm} open onClose={onClose} titulo={<span className="inline-flex items-center gap-2"><Repeat className="h-4 w-4" /> {editando ? 'Editar rotina' : copiaDe ? 'Duplicar rotina' : 'Nova rotina'}</span>} largura="max-w-2xl">
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Nome</label>
@@ -356,7 +387,7 @@ export const SetoresDialog = ({ onClose }: { onClose: () => void }) => {
   }
 
   return (
-    <Modal open onClose={onClose} titulo={<span className="inline-flex items-center gap-2"><Layers className="h-4 w-4" /> Setores</span>} descricao="Agrupam rotinas e tarefas (ex.: Pista, Loja, Financeiro). Um setor inativo some das listas mas mantém o histórico.">
+    <Modal guia={GUIAS.setores} open onClose={onClose} titulo={<span className="inline-flex items-center gap-2"><Layers className="h-4 w-4" /> Setores</span>} descricao="Agrupam rotinas e tarefas (ex.: Pista, Loja, Financeiro). Um setor inativo some das listas mas mantém o histórico.">
       <div className="space-y-3">
         <div className="flex gap-2">
           <input className={inputCls} placeholder="Novo setor…" value={nome} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void criar() }} />

@@ -19,7 +19,7 @@ const OperacaoMobile = () => {
       {canVerReab && (
         <ScrollTabs
           tabs={[
-            { id: 'bombas', label: 'Bombas' },
+            { id: 'bombas', label: 'Manutenção' },
             { id: 'reabastecimento', label: 'Reabastecimento' },
           ]}
           value={activeTab}

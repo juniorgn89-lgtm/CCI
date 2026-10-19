@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import RowActionButton from '@/components/tables/RowAction'
 import {
   Sparkles,
-  ArrowLeft,
+
   Edit3,
   CheckCircle2,
   XCircle,
@@ -20,6 +19,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { fetchRedes, updateAssistenteConfig, type RedeRow, type AssistenteTier } from '@/api/supabase/redes'
 import { validateApiKey } from '@/pages/Inteligencia/components/AssistenteInteligente/ai/claudeClient'
+import { GUIAS } from '@/lib/guiasModais'
 import { cn } from '@/lib/utils'
 
 /**
@@ -137,21 +137,14 @@ const AssistenteConfig = () => {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link
-          to="/selecionar-rede"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
-          title="Voltar"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
           <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Assistente IA · Configuração por rede</h1>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Assistente IA</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Defina tier, limite mensal e contato responsável pra cada cliente.
           </p>
@@ -159,7 +152,7 @@ const AssistenteConfig = () => {
       </div>
 
       {/* Tabela de referência: tiers + custos + sugestão de cobrança */}
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-gray-500" />
@@ -222,15 +215,15 @@ const AssistenteConfig = () => {
         )}
 
         {isLoading ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-xl border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <p className="text-sm text-gray-500 dark:text-gray-400">Carregando…</p>
           </div>
         ) : redes.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <p className="text-sm text-gray-500 dark:text-gray-400">Nenhuma rede cadastrada.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
                 <tr>
@@ -414,7 +407,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
 
   return (
     <Dialog open={!!rede} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent guia={GUIAS.assistenteConfig} className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-gray-500" />
@@ -486,7 +479,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
                   onChange={(e) => { setChaveAnthropic(e.target.value); setResultadoTeste(null) }}
                   placeholder="sk-ant-api03-…"
                   disabled={!habilitado}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-9 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-9 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 />
                 <button
                   type="button"
@@ -532,7 +525,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={limiteUsd}
               onChange={(e) => setLimiteUsd(e.target.value)}
               disabled={!habilitado}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:disabled:bg-gray-800"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:disabled:bg-gray-800"
             />
             <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
               Em R$ ≈ {fmtBRL((parseFloat(limiteUsd) || 0) * USD_BRL)} (câmbio referência R$ {USD_BRL}/USD)
@@ -549,7 +542,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={contato}
               onChange={(e) => setContato(e.target.value)}
               placeholder="contato@cliente.com.br"
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
@@ -563,7 +556,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
               placeholder="wrk_..."
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
             <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
               Pra rastrear qual workspace na Anthropic foi criado pra essa rede.
@@ -580,7 +573,7 @@ const ConfigModal = ({ rede, onClose, onSaved }: ConfigModalProps) => {
               onChange={(e) => setObservacoes(e.target.value)}
               rows={2}
               placeholder="Ex: cliente piloto, free trial até 30/06, etc."
-              className="mt-1 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 

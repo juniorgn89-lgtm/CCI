@@ -1,8 +1,11 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CloudOff } from 'lucide-react'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useConcorrencia from '@/pages/Comercial/hooks/useConcorrencia'
+import UsoVizinhosToggle from '@/pages/Comercial/components/UsoVizinhosToggle'
+import useReguaPreco from '@/pages/Comercial/hooks/useReguaPreco'
 import { Skeleton } from '@/components/ui/skeleton'
 import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
@@ -40,6 +43,10 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
   // concorrente ao drill por combustível. Lê o mesmo `concorrencia_precos` da aba
   // Concorrência; não depende da Quality (é dado manual em Supabase).
   const concorrencia = useConcorrencia(selectedCodigo)
+  // Régua da Visão Geral (cache fiscal, já carregada): o veredito do posto tem
+  // de ser o MESMO da lista, e o simulador abre já com o valor sugerido.
+  const regua = useReguaPreco()
+  const reguaPosto = useMemo(() => regua.cards.filter((c) => c.empresaCodigo === selectedCodigo), [regua.cards, selectedCodigo])
 
   return (
     <div className="space-y-3">
@@ -57,6 +64,10 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
           </div>
         )}
       </div>
+
+      {selectedCodigo != null && !concorrencia.trocandoPosto && (
+        <UsoVizinhosToggle compacto empresaCodigo={selectedCodigo} posto={postos.find((p) => p.codigo === selectedCodigo)?.fantasia ?? 'posto'} temVizinhos={concorrencia.hasPraca} />
+      )}
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {isLoading ? (
@@ -77,7 +88,7 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
             </div>
           </div>
         ) : (
-          <GuerraPreco rows={rows} fuelTypes={fuelTypeData} dataInicial={monthStart} fuelInicial={fuelInicial} concorrenciaByFuel={concorrencia.byFuel} />
+          <GuerraPreco rows={rows} fuelTypes={fuelTypeData} dataInicial={monthStart} fuelInicial={fuelInicial} concorrenciaByFuel={concorrencia.byFuel} regua={reguaPosto} />
         )}
       </section>
     </div>

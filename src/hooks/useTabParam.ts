@@ -11,6 +11,8 @@ import { useSearchParams } from 'react-router-dom'
 export const useTabParam = <T extends string>(
   defaultTab: T,
   isValid: (v: string | null) => v is T,
+  /** Parâmetros que pertencem à aba e saem da URL ao trocar de aba (ex.: filtro vindo de um link). */
+  limparAoTrocar: string[] = [],
 ): [T, (tab: T) => void] => {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryTab = searchParams.get('tab')
@@ -26,6 +28,7 @@ export const useTabParam = <T extends string>(
   const setTab = (tab: T) => {
     setActive(tab)
     const next = new URLSearchParams(searchParams)
+    if (tab !== active) for (const k of limparAoTrocar) next.delete(k)
     if (tab === defaultTab) next.delete('tab')
     else next.set('tab', tab)
     setSearchParams(next, { replace: true })

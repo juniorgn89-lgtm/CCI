@@ -185,3 +185,71 @@ export const insertConcorrenciaPrecos = async (
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
+
+/* ── Uso dos vizinhos POR POSTO (concorrencia_posto_config) ─────────────────
+ * O dono decide, posto a posto, se o Radar compara com os vizinhos cadastrados
+ * ou com a média da própria rede. Sem linha = desligado. Ver
+ * docs/supabase-concorrencia-postos.sql. */
+
+export interface ConcorrenciaPostoConfigRow {
+  rede_id: string
+  empresa_codigo: number
+  usar: boolean
+  updated_by: string | null
+  updated_by_nome: string | null
+  updated_at: string
+}
+
+/** Lê a configuração de todos os postos da rede (RLS restringe à rede). */
+export const fetchConcorrenciaPostoConfig = async (redeId: string): Promise<ConcorrenciaPostoConfigRow[]> => {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('concorrencia_posto_config')
+    .select('*')
+    .eq('rede_id', redeId)
+  if (error) {
+    console.warn('[concorrencia] fetch posto config error:', error.message)
+    return []
+  }
+  return (data ?? []) as ConcorrenciaPostoConfigRow[]
+}
+
+/** Liga/desliga o uso dos vizinhos de UM posto (upsert imperativo, sem useMutation). */
+export const setConcorrenciaPostoUsar = async (params: {
+  redeId: string
+  empresaCodigo: number
+  usar: boolean
+  porNome: string | null
+}): Promise<{ ok: boolean; error?: string }> => {
+  if (!supabase) return { ok: false, error: 'Sem conexão com o banco.' }
+  const { error } = await supabase
+    .from('concorrencia_posto_config')
+    .upsert({ rede_id: params.redeId, empresa_codigo: params.empresaCodigo, usar: params.usar, updated_by_nome: params.porNome }, { onConflict: 'rede_id,empresa_codigo' })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+/* ── Preço de BOMBA atual (view preco_bomba_atual) ──────────────────────────
+ * Último preço de tabela carimbado no cache de abastecimentos, por posto ×
+ * produto (últimos 10 dias). É o "meu preço" de qualquer comparação com
+ * vizinho: vizinho é preço de bomba observado. Ver docs/supabase-preco-bomba-atual.sql. */
+
+export interface PrecoBombaRow {
+  empresa_codigo: number
+  codigo_produto: number
+  preco: number
+  data_fiscal: string
+}
+
+export const fetchPrecoBombaAtual = async (redeId: string): Promise<PrecoBombaRow[]> => {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('preco_bomba_atual')
+    .select('empresa_codigo, codigo_produto, preco, data_fiscal')
+    .eq('rede_id', redeId)
+  if (error) {
+    console.warn('[concorrencia] fetch preço de bomba error:', error.message)
+    return []
+  }
+  return ((data ?? []) as PrecoBombaRow[]).map((r) => ({ ...r, preco: Number(r.preco) }))
+}

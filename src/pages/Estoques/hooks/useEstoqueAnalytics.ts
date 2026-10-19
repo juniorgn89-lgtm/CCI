@@ -162,7 +162,7 @@ const useEstoqueAnalytics = (
   const periodoFinal = months[months.length - 1].final
 
   // Catálogo de produtos (cache compartilhado)
-  const { data: produtosData } = useQuery({
+  const { data: produtosData, isLoading: isLoadingProdutos } = useQuery({
     queryKey: ['produtos'],
     queryFn: () => fetchAllPages(
       (p) => fetchProdutos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
@@ -172,7 +172,7 @@ const useEstoqueAnalytics = (
   })
 
   // Grupos (cache compartilhado)
-  const { data: gruposData } = useQuery({
+  const { data: gruposData, isLoading: isLoadingGrupos } = useQuery({
     queryKey: ['grupos'],
     queryFn: () => fetchAllPages(
       (p) => fetchGrupos({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }),
@@ -246,7 +246,11 @@ const useEstoqueAnalytics = (
   })
 
   const isLoadingVendas = vendaItensQueries.some((q) => q.isLoading)
+  // Catálogo e grupos também: sem eles a lista sai VAZIA (cards zerados) enquanto
+  // o saldo já chegou — mostrava "0 produtos a comprar" por alguns segundos.
   const isLoading =
+    isLoadingProdutos ||
+    isLoadingGrupos ||
     isLoadingEstoque ||
     isLoadingPeriodo ||
     vendasCache.isChecking ||

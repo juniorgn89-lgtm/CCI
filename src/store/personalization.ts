@@ -169,12 +169,15 @@ export const usePersonalizationStore = create<PersonalizationState>()(
     }),
     {
       name: 'visor360-personalization-v1',
-      version: 1,
+      version: 2,
       // Re-sincroniza ordens com a estrutura atual (adiciona módulos/abas novos
       // no fim, remove os que sumiram) preservando a customização do usuário.
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
         if (!persisted) return persisted as PersonalizationState
-        const s = persisted as PersonalizationState
+        let s = persisted as PersonalizationState
+        // v2: a aba Cartões (Financeiro) deixou de nascer escondida — quem veio
+        // da v1 ganha ela visível (quem quiser esconde de novo na engrenagem).
+        if (version < 2) s = { ...s, hidden: (s.hidden ?? []).filter((h) => h !== tabKey('/financeiro', 'cartoes')) }
         const knownPaths = new Set(APP_STRUCTURE.map((m) => m.path))
         const mergedModules = [
           ...s.moduleOrder.filter((p) => knownPaths.has(p)),
@@ -213,7 +216,10 @@ export const orderedVisibleTabIds = (
   path: string,
   availableIds: string[],
 ): string[] => {
-  const order = tabOrder[path] ?? availableIds
+  // Ordem salva + abas novas no fim (aba renomeada/criada depois da personalização
+  // não pode sumir); ids que não existem mais são ignorados.
+  const salva = tabOrder[path] ?? []
+  const order = [...salva, ...availableIds.filter((id) => !salva.includes(id))]
   const avail = new Set(availableIds)
   return order.filter((id) => avail.has(id) && !hidden.includes(tabKey(path, id)))
 }

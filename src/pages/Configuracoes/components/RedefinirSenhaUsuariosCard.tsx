@@ -65,11 +65,11 @@ const RedefinirSenhaUsuariosCard = () => {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar por nome ou email…"
-          className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         />
       </div>
 
-      <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900">
+      <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {isLoading ? (
           <div className="p-5 text-sm text-gray-400">Carregando usuários…</div>
         ) : filtrados.length === 0 ? (

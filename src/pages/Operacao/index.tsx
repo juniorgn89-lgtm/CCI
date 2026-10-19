@@ -1,33 +1,28 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, Fuel, LayoutGrid, Building2 } from 'lucide-react'
+import { Gauge, LayoutGrid, FlaskConical } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
-import { useAuthStore } from '@/store/auth'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import useIsMobile from '@/hooks/useIsMobile'
-import { formatLitersShort } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
-import NotaLeitura from '@/components/ui/NotaLeitura'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
-import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
-import usePostosLitros from '@/pages/Operacao/hooks/usePostosLitros'
 import OperacaoMobile from '@/pages/Operacao/OperacaoMobile'
 
 const VisaoGeralOperacao = lazy(() => import('@/pages/Operacao/components/VisaoGeralOperacao'))
 const Bombas = lazy(() => import('@/pages/Bombas'))
-const Reabastecimento = lazy(() => import('@/pages/Reabastecimento'))
+const AfericoesTab = lazy(() => import('@/pages/Operacao/components/AfericoesTab'))
 
-type OperacaoTab = 'geral' | 'bombas' | 'reabastecimento'
+type OperacaoTab = 'geral' | 'bombas' | 'afericoes' | 'reabastecimento'
 const isOperacaoTab = (v: string | null): v is OperacaoTab =>
-  v === 'geral' || v === 'bombas' || v === 'reabastecimento'
+  v === 'geral' || v === 'bombas' || v === 'afericoes' || v === 'reabastecimento'
 
 const TabFallback = () => (
   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -36,14 +31,12 @@ const TabFallback = () => (
 )
 
 /**
- * Módulo Operação (grupo Posto) — Visão Geral (rede inteira) + Bombas +
- * Reabastecimento. A Visão Geral resume as duas abas de detalhe para TODOS os
- * postos; as abas de detalhe são por-posto, com o seletor em pílulas (badge =
- * litros do posto no período). O shell dona a seleção de posto (drill da Visão
- * Geral cai direto no posto certo). Reabastecimento respeita `canVerReabastecimento`.
+ * Módulo Operação (grupo Posto) — duas abas, todos os postos do filtro do topo:
+ * Visão Geral (quadro de tanques; o detalhe e o pedido
+ * sugerido de cada posto abrem no modal de tanques, o pedido só para quem tem
+ * `canVerReabastecimento`) e Manutenção (bombas em grupos por posto).
  */
 const Operacao = () => {
-  const canVerReab = useAuthStore((s) => s.canVerReabastecimento)
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const [tab, setTab] = useTabParam<OperacaoTab>('geral', isOperacaoTab)
   const isMobile = useIsMobile()
@@ -56,29 +49,16 @@ const Operacao = () => {
     ? empresasPermitidas
     : empresasPermitidas.filter((e) => empresaCodigos.includes(e.codigo))
 
-  const { byPosto } = usePostosLitros()
-  const badges = useMemo(() => {
-    const m = new Map<number, string>()
-    for (const p of postos) {
-      const l = byPosto.get(p.codigo)?.litros
-      if (l != null && l > 0) m.set(p.codigo, formatLitersShort(l))
-    }
-    return m
-  }, [postos, byPosto])
-
-  const [detailPosto, setDetailPosto] = useState<number | null>(null)
-  const postoCodes = postos.map((p) => p.codigo)
-  const selectedCodigo = detailPosto != null && postoCodes.includes(detailPosto)
-    ? detailPosto
-    : (postos[0]?.codigo ?? null)
 
   // ?tab=reabastecimento sem permissão → cai em Bombas.
-  const permTab: OperacaoTab = tab === 'reabastecimento' && !canVerReab ? 'bombas' : tab
+  // ?tab=reabastecimento (aba removida 18/10/2026: o pedido vive no modal de
+  // tanques da Visão Geral) → cai na Visão Geral.
+  const permTab: OperacaoTab = tab === 'reabastecimento' ? 'geral' : tab
 
   const tabs: TopBarTab[] = [
     { id: 'geral', label: 'Visão Geral', Icon: LayoutGrid },
-    { id: 'bombas', label: 'Bombas', Icon: Gauge },
-    ...(canVerReab ? [{ id: 'reabastecimento', label: 'Reabastecimento', Icon: Fuel }] : []),
+    { id: 'bombas', label: 'Manutenção', Icon: Gauge },
+    { id: 'afericoes', label: 'Aferições', Icon: FlaskConical },
   ]
   // Personalização (mostrar/ocultar/reordenar abas) — cai na 1ª visível se a ativa sumiu.
   const visibleTabs = usePersonalizedTabs('/operacao', tabs)
@@ -89,42 +69,23 @@ const Operacao = () => {
   if (isMobile) return <OperacaoMobile />
   if (postos.length === 0) return <SelectCompanyState />
 
-  const abrirPosto = (codigo: number, destino: 'bombas' | 'reabastecimento' = 'bombas') => {
-    setDetailPosto(codigo)
-    setTab(destino === 'reabastecimento' && !canVerReab ? 'bombas' : destino)
-  }
 
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
           <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={visibleTabs} />
-          <InfoHint side="bottom" text="Visão Geral: a rede inteira num quadro — litros, tanques e reposição de cada posto. Bombas: abre um posto e mostra litros por bomba, desgaste e aferições. Reabastecimento: abre um posto e mostra o nível dos tanques e quanto comprar até o fim do mês." />
+          <InfoHint side="bottom" text="Visão Geral: o nível dos tanques de cada posto; clique no posto para o detalhe e o pedido sugerido. Manutenção: o desgaste de cada bomba, em grupos por posto (todos os do filtro do topo). Aferições: os testes de bomba do período, por rodada (dia × posto), e os bicos sem teste." />
         </div>
       </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />
       </PageHeaderActions>
 
-      {/* Seletor de posto (pílulas + litros) — só nas abas de detalhe e com >1 posto. */}
-      {activeTab !== 'geral' && postos.length > 1 && (
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-              <Building2 className="h-3.5 w-3.5" /> Posto:
-            </span>
-            <PostoLocalSelect variant="pill" badges={badges} postos={postos} value={selectedCodigo} onChange={setDetailPosto} />
-          </div>
-          <NotaLeitura variant="box">
-            Bombas e Reabastecimento são <strong>por posto</strong> — escolha um aqui. O número na pílula é o volume de combustível do posto no período. A visão da rede inteira fica na aba <strong>Visão Geral</strong>.
-          </NotaLeitura>
-        </div>
-      )}
-
       <Suspense fallback={<TabFallback />}>
-        {activeTab === 'geral' && <VisaoGeralOperacao postos={postos} onOpenPosto={abrirPosto} canReabastecimento={canVerReab} />}
-        {activeTab === 'bombas' && <Bombas embedded empresaCodigo={selectedCodigo} />}
-        {activeTab === 'reabastecimento' && <Reabastecimento embedded empresaCodigo={selectedCodigo} />}
+        {activeTab === 'geral' && <VisaoGeralOperacao />}
+        {activeTab === 'bombas' && <Bombas embedded />}
+        {activeTab === 'afericoes' && <AfericoesTab postos={postos} />}
       </Suspense>
     </div>
   )

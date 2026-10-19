@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search, ClipboardList } from 'lucide-react'
+import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search, ClipboardList, ShoppingCart, BadgeCheck } from 'lucide-react'
+import { fetchCciServicosTodas, NOME_SERVICO_CCI } from '@/api/supabase/cciServicos'
+import ServicosCciModal from '@/pages/Admin/ServicosCciModal'
 import RowActionButton from '@/components/tables/RowAction'
 import {
   fetchRedes,
@@ -9,6 +11,7 @@ import {
   updateRede,
   toggleRedeAtivo,
   toggleRedeGestao,
+  toggleRedeCompras,
   deleteRede,
   type RedeRow,
 } from '@/api/supabase/redes'
@@ -21,6 +24,20 @@ const DEFAULT_API_BASE = 'https://web.qualityautomacao.com.br/INTEGRACAO'
 const Redes = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  // Serviços da CCI por rede (cópia do Prospecção): resumo "Consultoria 5" na linha.
+  const { data: cciTodas = [] } = useQuery({ queryKey: ['cci-servicos-todas'], queryFn: fetchCciServicosTodas, staleTime: 5 * 60 * 1000 })
+  const hojeIso = new Date().toISOString().slice(0, 10)
+  const cciResumo = useMemo(() => {
+    const m = new Map<string, Map<string, Set<number>>>()
+    for (const r of cciTodas) {
+      if (r.ate && r.ate < hojeIso) continue
+      const porServ = m.get(r.rede_id) ?? new Map<string, Set<number>>()
+      const set = porServ.get(r.servico) ?? new Set<number>()
+      set.add(r.empresa_codigo); porServ.set(r.servico, set); m.set(r.rede_id, porServ)
+    }
+    return m
+  }, [cciTodas, hojeIso])
+  const [servicosRede, setServicosRede] = useState<RedeRow | null>(null)
 
   // Gate: só master entra. Filtra por user_id (master vê todos os profiles
   // via RLS, então .single() sem filtro daria erro de múltiplas rows).
@@ -77,6 +94,18 @@ const Redes = () => {
     }
   }
 
+  const handleToggleCompras = async (rede: RedeRow) => {
+    setBusyId(rede.id)
+    try {
+      await toggleRedeCompras(rede.id, !rede.compras_habilitado)
+      queryClient.invalidateQueries({ queryKey: ['redes'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const handleToggleGestao = async (rede: RedeRow) => {
     setBusyId(rede.id)
     try {
@@ -115,7 +144,7 @@ const Redes = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
@@ -143,7 +172,7 @@ const Redes = () => {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         {/* Busca por rede — aparece com mais de 5 redes */}
         {redes.length > 5 && (
           <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
@@ -171,12 +200,14 @@ const Redes = () => {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+            <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
               <tr>
                 <th className="px-4 py-2.5 text-left font-medium">Nome</th>
                 <th className="px-4 py-2.5 text-left font-medium">CHAVE</th>
                 <th className="px-4 py-2.5 text-center font-medium">Status</th>
                 <th className="px-4 py-2.5 text-center font-medium" title="Módulo Gestão: Painel, Tarefas e Rotinas">Tarefas</th>
+                <th className="px-4 py-2.5 text-center font-medium" title="Módulo Compras: pedidos de compra com liberação">Compras</th>
+                <th className="px-4 py-2.5 text-left font-medium" title="Serviços da CCI contratados, por posto (vêm do Prospecção)">Serviços CCI</th>
                 <th className="px-4 py-2.5 text-right font-medium">Ação</th>
               </tr>
             </thead>
@@ -188,6 +219,9 @@ const Redes = () => {
                   busy={busyId === r.id}
                   onToggle={() => handleToggleAtivo(r)}
                   onToggleGestao={() => handleToggleGestao(r)}
+                  onToggleCompras={() => handleToggleCompras(r)}
+                  cci={[...(cciResumo.get(r.id) ?? new Map<string, Set<number>>()).entries()].map(([sv, set]) => ({ nome: NOME_SERVICO_CCI[sv] ?? sv, postos: set.size }))}
+                  onServicos={() => setServicosRede(r)}
                   onEdit={() => setEditingRede(r)}
                   onDelete={() => setDeletingRede(r)}
                 />
@@ -201,6 +235,8 @@ const Redes = () => {
         A CHAVE da rede é o token da API Quality. Cada rede tem sua chave própria.
         Os usuários (gerentes e frentistas) ficam vinculados a uma rede via `rede_id`.
       </p>
+
+      {servicosRede && <ServicosCciModal redeId={servicosRede.id} redeNome={servicosRede.nome} onClose={() => setServicosRede(null)} />}
 
       {showCreate && (
         <RedeFormModal
@@ -246,6 +282,9 @@ const RedeRowComp = ({
   busy,
   onToggle,
   onToggleGestao,
+  onToggleCompras,
+  cci,
+  onServicos,
   onEdit,
   onDelete,
 }: {
@@ -253,6 +292,10 @@ const RedeRowComp = ({
   busy: boolean
   onToggle: () => void
   onToggleGestao: () => void
+  onToggleCompras: () => void
+  /** Serviços CCI ativos na rede: nome + em quantos postos. */
+  cci: { nome: string; postos: number }[]
+  onServicos: () => void
   onEdit: () => void
   onDelete: () => void
 }) => {
@@ -318,7 +361,7 @@ const RedeRowComp = ({
             className={cn(
               'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-              rede.gestao_habilitado ? 'bg-[#1e3a5f]' : 'bg-gray-300 dark:bg-gray-700',
+              rede.gestao_habilitado ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-700',
               busy && 'opacity-50 cursor-wait'
             )}
           >
@@ -326,8 +369,38 @@ const RedeRowComp = ({
           </button>
         </div>
       </td>
+      {/* Módulo Compras (pedidos com liberação) — liga o menu "Compras" pra esta rede */}
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1.5">
+          <ShoppingCart className="h-3.5 w-3.5 text-gray-400" />
+          <button
+            onClick={onToggleCompras}
+            disabled={busy}
+            role="switch"
+            aria-checked={!!rede.compras_habilitado}
+            aria-label={rede.compras_habilitado ? 'Desligar módulo Compras' : 'Ligar módulo Compras'}
+            title={rede.compras_habilitado ? 'Compras: ligado pra esta rede — clique pra desligar' : 'Compras: desligado — clique pra ligar'}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+              rede.compras_habilitado ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700',
+              busy && 'opacity-50 cursor-wait'
+            )}
+          >
+            <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', rede.compras_habilitado ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+          </button>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        {cci.length === 0 ? <span className="text-[11px] text-gray-400">nenhum</span> : (
+          <div className="flex flex-wrap gap-1">
+            {cci.map((c) => <span key={c.nome} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{c.nome}<span className="font-normal opacity-70">{c.postos}</span></span>)}
+          </div>
+        )}
+      </td>
       <td className="px-4 py-3 text-right">
         <div className="inline-flex items-center gap-1.5">
+          <RowActionButton icon={BadgeCheck} label="Serviços" onClick={onServicos} />
           <RowActionButton icon={Edit2} label="Editar" onClick={onEdit} />
           <RowActionButton icon={Trash2} label="Excluir" tone="danger" onClick={onDelete} title="Excluir rede" />
         </div>
@@ -350,6 +423,8 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
   const [chave, setChave] = useState(rede?.chave ?? '')
   const [apiBaseUrl, setApiBaseUrl] = useState(rede?.api_base_url ?? DEFAULT_API_BASE)
   const [plano, setPlano] = useState<PlanoId>(rede?.plano ?? 'pro')
+  // Marco do "antes e depois da CCI" no Diagnóstico (data, yyyy-MM-dd).
+  const [clienteDesde, setClienteDesde] = useState<string>(rede?.cliente_desde ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const tenantRede = useTenantStore((s) => s.rede)
@@ -374,6 +449,7 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
           chave: chave.trim(),
           api_base_url: apiBaseUrl.trim(),
           plano,
+          cliente_desde: clienteDesde || null,
         }
         await updateRede(rede.id, novosCampos)
         // Se a rede editada é a tenant ativa, atualiza a store em memória
@@ -394,7 +470,7 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {mode === 'create' ? 'Nova rede' : 'Editar rede'}
@@ -444,6 +520,19 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
             />
             <p className="mt-1 text-[11px] text-gray-400">Raramente muda — use o padrão se não tiver certeza</p>
           </label>
+
+          {mode === 'edit' && (
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Cliente CCI desde</span>
+              <input
+                type="date"
+                value={clienteDesde}
+                onChange={(e) => setClienteDesde(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <p className="mt-1 text-[11px] text-gray-400">Marco do "antes e depois da CCI" no Diagnóstico. Vazio = usa a data de cadastro da rede no Visor{rede?.created_at ? ` (${new Date(rede.created_at).toLocaleDateString('pt-BR')})` : ''}.</p>
+            </label>
+          )}
 
           <div>
             <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Plano</span>
@@ -532,7 +621,7 @@ const DeleteRedeModal = ({ rede, onClose, onDeleted }: DeleteRedeModalProps) => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="flex items-center gap-2 text-base font-semibold text-red-600 dark:text-red-400">
             <AlertTriangle className="h-4 w-4" />

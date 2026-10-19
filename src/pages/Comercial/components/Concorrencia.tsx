@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, Clock, AlertTriangle, X, Trash2, Check, History, RotateCcw, User, ChevronDown,
+  TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, AlertTriangle, X, Trash2, Check, History, RotateCcw, User, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
@@ -9,12 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
-import { useComercialFlags } from '@/store/comercialFlags'
+import UsoVizinhosToggle from '@/pages/Comercial/components/UsoVizinhosToggle'
 import {
   insertConcorrenciaPrecos, deleteConcorrente, restoreConcorrente, fetchConcorrenciaExcluidos,
   type ConcorrenciaPrecoInsert, type FuelSlug,
 } from '@/api/supabase/concorrencia'
-import useConcorrencia, { type FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
+import useConcorrencia, { PRECO_VELHO_DIAS, type FuelView } from '@/pages/Comercial/hooks/useConcorrencia'
 
 const r3 = (v: number) => `R$ ${v.toFixed(3).replace('.', ',')}`
 /** yyyy-MM-dd | ISO → DD/MM/YYYY (só a parte de data). */
@@ -23,14 +23,13 @@ const dataBR = (iso?: string | null): string => {
   const [y, m, d] = iso.slice(0, 10).split('-')
   return d ? `${d}/${m}/${y}` : iso
 }
-const epochDay = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86_400_000 }
 
 /* ── Editor de praça (tabela editável → INSERT append-only). Keyed por posto. ── */
 const PrecoEditor = ({
   fuels, atual, autores, empresaCodigo, redeId,
 }: {
   fuels: FuelView[]
-  atual: Map<string, { postos: number; precos: Partial<Record<FuelSlug, number>> }>
+  atual: Map<string, { precos: Partial<Record<FuelSlug, number>> }>
   autores: Record<string, { porNome: string | null; em: string }>
   empresaCodigo: number
   redeId: string | null
@@ -39,16 +38,16 @@ const PrecoEditor = ({
   const user = useAuthStore((s) => s.user)
   const meuNome = user?.email ?? null
   const slugs = fuels.map((f) => f.slug)
-  type Draft = { postos: string; precos: Partial<Record<FuelSlug, string>> }
+  type Draft = { precos: Partial<Record<FuelSlug, string>> }
   const seed = useMemo(() => {
     const d: Record<string, Draft> = {}
     for (const [nome, v] of atual) {
-      d[nome] = { postos: String(v.postos), precos: Object.fromEntries(Object.entries(v.precos).map(([k, p]) => [k, p != null ? String(p).replace('.', ',') : ''])) }
+      d[nome] = { precos: Object.fromEntries(Object.entries(v.precos).map(([k, p]) => [k, p != null ? String(p).replace('.', ',') : ''])) }
     }
     return d
   }, [atual])
   const [draft, setDraft] = useState<Record<string, Draft>>(seed)
-  const [novos, setNovos] = useState<{ id: number; nome: string; postos: string; precos: Partial<Record<FuelSlug, string>> }[]>([])
+  const [novos, setNovos] = useState<{ id: number; nome: string; precos: Partial<Record<FuelSlug, string>> }[]>([])
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   // Exclusão de concorrente salvo (master-only via RLS): confirmação inline por linha.
@@ -89,7 +88,7 @@ const PrecoEditor = ({
         if (!isFinite(v) || v <= 0) continue
         const cur = base?.precos[slug]
         if (cur != null && Math.abs(cur - v) < 0.0005) continue // inalterado
-        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome.trim(), concorrente_postos: Math.max(1, Math.round(parse(d.postos)) || 1), preco: v, fonte: 'observado', created_by_nome: meuNome })
+        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome.trim(), concorrente_postos: 1, preco: v, fonte: 'observado', created_by_nome: meuNome })
       }
     }
     // novos concorrentes
@@ -99,7 +98,7 @@ const PrecoEditor = ({
       for (const slug of slugs) {
         const v = parse(n.precos[slug])
         if (!isFinite(v) || v <= 0) continue
-        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome, concorrente_postos: Math.max(1, Math.round(parse(n.postos)) || 1), preco: v, fonte: 'observado', created_by_nome: meuNome })
+        rows.push({ rede_id: redeId, empresa_codigo: empresaCodigo, combustivel: slug, concorrente_nome: nome, concorrente_postos: 1, preco: v, fonte: 'observado', created_by_nome: meuNome })
       }
     }
     if (rows.length === 0) { setSaving(false); setMsg({ ok: false, text: 'Nada alterado pra salvar.' }); return }
@@ -121,9 +120,6 @@ const PrecoEditor = ({
         <thead>
           <tr className="border-b border-gray-100 text-left text-[10px] uppercase tracking-wide text-gray-400 dark:border-gray-800">
             <th className="px-3 py-2 font-semibold">Concorrente</th>
-            <th className="px-2 py-2 text-center font-semibold">
-              <span className="inline-flex items-center gap-1">nº postos<InfoHint text="Quantos postos o concorrente opera — peso na média de praça ponderada (concorrente com mais postos pesa mais)." /></span>
-            </th>
             {fuels.map((f) => <th key={f.slug} className="px-2 py-2 text-right font-semibold">{f.label}</th>)}
           </tr>
         </thead>
@@ -161,14 +157,16 @@ const PrecoEditor = ({
                   </span>
                 )}
               </td>
-              <td className="px-2 py-2 text-center">
-                <input value={draft[nome].postos} onChange={(e) => setDraft((d) => ({ ...d, [nome]: { ...d[nome], postos: e.target.value } }))}
-                  className="w-12 rounded border border-gray-200 bg-white px-1.5 py-1 text-center tabular-nums dark:border-gray-700 dark:bg-gray-800" inputMode="numeric" />
-              </td>
               {fuels.map((f) => (
                 <td key={f.slug} className="px-2 py-1.5 text-right">
-                  <input value={draft[nome].precos[f.slug] ?? ''} onChange={(e) => setPreco(nome, f.slug, e.target.value)} placeholder="—"
-                    className="w-16 rounded border border-gray-200 bg-white px-1.5 py-1 text-right tabular-nums focus:border-[#2563eb] dark:border-gray-700 dark:bg-gray-800" inputMode="decimal" />
+                  {(() => {
+                    const c = f.competidores.find((x) => x.nome === nome)
+                    return (
+                      <input value={draft[nome].precos[f.slug] ?? ''} onChange={(e) => setPreco(nome, f.slug, e.target.value)} placeholder="—"
+                        title={c?.velho ? `Preço de ${c.staleDays} dias: fora da média até ser atualizado.` : undefined}
+                        className={cn('w-16 rounded border bg-white px-1.5 py-1 text-right tabular-nums focus:border-[#2563eb] dark:bg-gray-800', c?.velho ? 'border-red-400 text-red-600 dark:border-red-500/70 dark:text-red-300' : 'border-gray-200 dark:border-gray-700')} inputMode="decimal" />
+                    )
+                  })()}
                 </td>
               ))}
             </tr>
@@ -176,14 +174,14 @@ const PrecoEditor = ({
           {/* ★ meu posto (referência, não editável) */}
           <tr className="bg-blue-50/40 dark:bg-blue-950/15">
             <td className="px-3 py-2 font-bold text-[#2563eb] dark:text-blue-300">★ Meu posto</td>
-            <td className="px-2 py-2 text-center tabular-nums text-gray-500">1</td>
             {fuels.map((f) => <td key={f.slug} className="px-2 py-2 text-right font-bold tabular-nums text-[#2563eb] dark:text-blue-300">{f.myPrice != null ? r3(f.myPrice) : '—'}</td>)}
           </tr>
-          {/* média ponderada do mercado */}
+          {/* média simples dos vizinhos atualizados */}
           <tr className="border-t border-gray-200 dark:border-gray-700">
-            <td className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Média do mercado (ponderada)</td>
-            <td className="px-2 py-2 text-center tabular-nums text-gray-400">{fuels.reduce((s, f) => Math.max(s, f.competidores.reduce((x, c) => x + c.postos, 0)), 0) || '—'}</td>
-            {fuels.map((f) => <td key={f.slug} className="px-2 py-2 text-right font-semibold tabular-nums text-gray-700 dark:text-gray-200">{f.mediaPonderada != null ? r3(f.mediaPonderada) : '—'}</td>)}
+            <td className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              <span className="inline-flex items-center gap-1">Média dos vizinhos<InfoHint text={`Média simples dos vizinhos deste posto: cada um pesa igual. Só entram preços vistos há até ${PRECO_VELHO_DIAS} dias; os mais velhos ficam com a borda vermelha e fora da conta até serem atualizados.`} /></span>
+            </td>
+            {fuels.map((f) => <td key={f.slug} className="px-2 py-2 text-right font-semibold tabular-nums text-gray-700 dark:text-gray-200">{f.mediaVizinhos != null ? r3(f.mediaVizinhos) : '—'}</td>)}
           </tr>
           {/* novos concorrentes (draft) */}
           {novos.map((n) => (
@@ -199,10 +197,6 @@ const PrecoEditor = ({
                     className="w-36 rounded border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800" />
                 </div>
               </td>
-              <td className="px-2 py-2 text-center">
-                <input value={n.postos} onChange={(e) => setNovos((ns) => ns.map((x) => x.id === n.id ? { ...x, postos: e.target.value } : x))}
-                  className="w-12 rounded border border-gray-200 bg-white px-1.5 py-1 text-center tabular-nums dark:border-gray-700 dark:bg-gray-800" inputMode="numeric" />
-              </td>
               {fuels.map((f) => (
                 <td key={f.slug} className="px-2 py-1.5 text-right">
                   <input value={n.precos[f.slug] ?? ''} onChange={(e) => setNovoPreco(n.id, f.slug, e.target.value)} placeholder="—"
@@ -215,7 +209,7 @@ const PrecoEditor = ({
       </table>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
-        <button type="button" onClick={() => setNovos((ns) => [...ns, { id: Date.now() + ns.length, nome: '', postos: '1', precos: {} }])}
+        <button type="button" onClick={() => setNovos((ns) => [...ns, { id: Date.now() + ns.length, nome: '', precos: {} }])}
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">
           <Plus className="h-3.5 w-3.5" /> Concorrente
         </button>
@@ -230,24 +224,6 @@ const PrecoEditor = ({
   )
 }
 
-/* ── Histórico 30d de 1 combustível: minha linha (fato) + pontos do concorrente ── */
-const MiniHistorico = ({ f }: { f: FuelView }) => {
-  const all = [...f.minhaSerie.map((p) => p.data), ...f.pontos.map((p) => p.data)]
-  if (all.length === 0) return <p className="py-6 text-center text-[11px] text-gray-400">Sem histórico registrado ainda.</p>
-  const xs = all.map(epochDay)
-  const x0 = Math.min(...xs), x1 = Math.max(...xs)
-  const precos = [...f.minhaSerie.map((p) => p.preco), ...f.pontos.map((p) => p.preco)]
-  const y0 = Math.min(...precos) * 0.998, y1 = Math.max(...precos) * 1.002
-  const sx = (iso: string) => (x1 > x0 ? ((epochDay(iso) - x0) / (x1 - x0)) * 280 + 10 : 150)
-  const sy = (v: number) => (y1 > y0 ? 90 - ((v - y0) / (y1 - y0)) * 80 : 50)
-  const line = f.minhaSerie.map((p) => `${sx(p.data)},${sy(p.preco)}`).join(' ')
-  return (
-    <svg viewBox="0 0 300 100" className="h-28 w-full">
-      {f.minhaSerie.length > 1 && <polyline points={line} fill="none" stroke="#2563eb" strokeWidth="1.6" />}
-      {f.pontos.map((p, i) => <circle key={i} cx={sx(p.data)} cy={sy(p.preco)} r="2.4" fill="#94a3b8" />)}
-    </svg>
-  )
-}
 
 /* ── Auditoria: concorrentes excluídos (soft-delete) — quem excluiu + restaurar ── */
 const HistoricoExclusoes = ({ empresaCodigo }: { empresaCodigo: number }) => {
@@ -322,15 +298,12 @@ const Concorrencia = () => {
     setPosto(data.postos[0].empresaCodigo)
   }
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
-  const usarPraca = useComercialFlags((s) => s.usarPrecoPraca)
-  const [fuelSel, setFuelSel] = useState<FuelSlug | null>(null)
 
   const atualPivot = useMemo(() => {
-    const m = new Map<string, { postos: number; precos: Partial<Record<FuelSlug, number>> }>()
+    const m = new Map<string, { precos: Partial<Record<FuelSlug, number>> }>()
     for (const f of data.byFuel) {
       for (const c of f.competidores) {
-        const e = m.get(c.nome) ?? { postos: c.postos, precos: {} }
-        e.postos = c.postos
+        const e = m.get(c.nome) ?? { precos: {} }
         e.precos[f.slug] = c.preco
         m.set(c.nome, e)
       }
@@ -338,20 +311,9 @@ const Concorrencia = () => {
     return m
   }, [data.byFuel])
 
-  const fuelChart = useMemo(
-    () => data.byFuel.find((f) => f.slug === fuelSel) ?? data.byFuel.find((f) => f.pontos.length > 0) ?? data.byFuel[0] ?? null,
-    [data.byFuel, fuelSel],
-  )
-
   if (data.isLoading && data.byFuel.length === 0) {
     return <div className="space-y-4"><Skeleton className="h-10 w-72 rounded-lg" /><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /></div><Skeleton className="h-64 rounded-2xl" /></div>
   }
-
-  // Frescor do combustível SELECIONADO (não o global) — o badge fica ao lado do
-  // gráfico daquele combustível, então o stale precisa ser o dele.
-  const stale = fuelChart?.maxStaleDays ?? null
-  const frescorOk = stale != null && stale <= 3
-  const confianca = stale == null ? null : Math.min(100, Math.max(20, 100 - stale * 4)) // cai ~4pp/dia
 
   return (
     <div className="space-y-4">
@@ -360,7 +322,7 @@ const Concorrencia = () => {
         <span className="text-[12px] font-semibold text-gray-500 dark:text-gray-400">Meu posto:</span>
         <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
           {data.postos.map((p) => (
-            <button key={p.empresaCodigo} type="button" onClick={() => { setPosto(p.empresaCodigo); setFuelSel(null) }}
+            <button key={p.empresaCodigo} type="button" onClick={() => setPosto(p.empresaCodigo)}
               className={cn('rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors', posto === p.empresaCodigo ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300')}>
               {p.posto}
             </button>
@@ -368,15 +330,18 @@ const Concorrencia = () => {
         </div>
       </div>
 
-      {/* base do flag + compliance */}
+      {/* Liga/desliga POR POSTO: decisão do dono, salva para a rede toda */}
+      {posto != null && !data.trocandoPosto && (
+        <UsoVizinhosToggle empresaCodigo={posto} posto={data.postos.find((p) => p.empresaCodigo === posto)?.posto ?? 'posto'} temVizinhos={data.hasPraca} />
+      )}
+
+      {/* compliance */}
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium',
-          data.hasPraca ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300')}>
-          {data.hasPraca ? <ShieldCheck className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-          {data.hasPraca
-            ? (usarPraca ? 'Flag ligado: análises da rede usam o preço de praça cadastrado.' : 'Praça cadastrada — ligue o flag pra usá-la como referência da rede.')
-            : 'Sem praça cadastrada — a referência da rede segue a média interna (cadastre abaixo).'}
-        </span>
+        {!data.hasPraca && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5" /> Nenhum vizinho cadastrado para este posto: cadastre abaixo.
+          </span>
+        )}
         <span className="inline-flex items-center gap-1.5 text-gray-400">
           <ShieldCheck className="h-3.5 w-3.5" /> Preço público observado (placa/bomba) — nunca combinado entre concorrentes.
         </span>
@@ -386,7 +351,7 @@ const Concorrencia = () => {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-transparent bg-gradient-to-br from-[#1e3a5f] to-[#27496f] p-4 text-white shadow-sm">
           <div className="flex items-start justify-between">
-            <div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Índice de preço</p><InfoHint className="text-white/60 hover:text-white" text="Seu preço médio vs a média de praça (ponderada pelo nº de postos de cada concorrente), em base 100. Abaixo de 100 = mais barato que a praça; acima = mais caro." /></div><p className="text-[10px] text-white/50">meu vs praça · 100 = média</p></div>
+            <div><div className="flex items-center gap-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Índice de preço</p><InfoHint className="text-white/60 hover:text-white" text="Seu preço médio vs a média dos vizinhos deste posto (média simples, só preços de até 7 dias), em base 100. Abaixo de 100 = mais barato que os vizinhos; acima = mais caro." /></div><p className="text-[10px] text-white/50">meu vs praça · 100 = média</p></div>
             <DollarSign className="h-4 w-4 text-white/70" />
           </div>
           <p className="mt-2 text-3xl font-bold tabular-nums">{data.indiceGeral != null ? Math.round(data.indiceGeral) : '—'}</p>
@@ -410,7 +375,9 @@ const Concorrencia = () => {
       </div>
 
       {/* Tabela editável de praça */}
-      {posto != null && data.byFuel.length > 0 ? (
+      {posto != null && data.trocandoPosto ? (
+        <Skeleton className="h-48 rounded-2xl" />
+      ) : posto != null && data.byFuel.length > 0 ? (
         <PrecoEditor key={posto} fuels={data.byFuel} atual={atualPivot} autores={data.autores} empresaCodigo={posto} redeId={redeId} />
       ) : (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem combustíveis pra esse posto no período.</div>
@@ -419,48 +386,6 @@ const Concorrencia = () => {
       {/* Auditoria: concorrentes excluídos (quem excluiu + restaurar) */}
       {posto != null && <HistoricoExclusoes empresaCodigo={posto} />}
 
-      {/* Histórico 30d + frescor */}
-      {fuelChart && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-1">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Histórico de 30 dias</h3>
-                <InfoHint text="Evolução do preço nos últimos 30 dias. A linha azul é o seu preço médio realizado (fato); os pontos cinza são observações de preço dos concorrentes registradas na tabela acima." />
-              </div>
-              <p className="text-[11px] text-gray-400">Sua linha = preço médio realizado (fato) · pontos = observações de concorrentes</p>
-            </div>
-            <div className="flex items-center gap-0.5 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
-              {data.byFuel.map((f) => (
-                <button key={f.slug} type="button" onClick={() => setFuelSel(f.slug)}
-                  className={cn('rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors', fuelChart.slug === f.slug ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400')}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mb-2 flex flex-wrap items-center gap-3 text-[12px]">
-            <span className="tabular-nums text-gray-600 dark:text-gray-300">Meu: <strong>{fuelChart.myPrice != null ? r3(fuelChart.myPrice) : '—'}</strong></span>
-            <span className="tabular-nums text-gray-600 dark:text-gray-300">Praça: <strong>{fuelChart.mediaPonderada != null ? r3(fuelChart.mediaPonderada) : '—'}</strong></span>
-            {fuelChart.indice != null && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums dark:bg-gray-800">índice {Math.round(fuelChart.indice)}</span>}
-            {stale != null && (
-              <span className={cn('ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                frescorOk ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300')}>
-                <Clock className="h-3 w-3" /> alterado há {stale}d · confiança {confianca}%
-              </span>
-            )}
-          </div>
-          {/* Sem observação de concorrente = gráfico só com a minha linha fica
-              vazio e sem sentido; troca por uma nota (o histórico é comparativo). */}
-          {fuelChart.pontos.length > 0 ? (
-            <MiniHistorico f={fuelChart} />
-          ) : (
-            <p className="py-8 text-center text-[12px] text-gray-400 dark:text-gray-500">
-              Sem observação de concorrente neste combustível nos últimos 30 dias — cadastre um preço de praça na tabela acima pra ver o histórico comparado.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }

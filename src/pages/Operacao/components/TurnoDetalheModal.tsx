@@ -9,6 +9,7 @@ import { formatCurrency, formatNumber, formatLiters, formatDate } from '@/lib/fo
 import { formatDateTimeBR } from '@/lib/datetime'
 import NotaLeitura from '@/components/ui/NotaLeitura'
 import type { TurnoGroup } from '@/pages/Operacao/hooks/useOperacaoData'
+import { GUIAS } from '@/lib/guiasModais'
 import useCartaoBreakdown from '@/pages/FechamentoCaixa/hooks/useCartaoBreakdown'
 
 interface TurnoDetalheModalProps {
@@ -70,7 +71,7 @@ const TurnoDetalheModal = ({ open, onClose, turno }: TurnoDetalheModalProps) => 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.turnoDetalhe} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2">

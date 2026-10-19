@@ -3,6 +3,7 @@ import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatDate, formatNumber } from '@/lib/formatters'
+import { GUIAS } from '@/lib/guiasModais'
 import BarCell from '@/components/tables/BarCell'
 
 export interface FuelLineDetalhe {
@@ -64,7 +65,7 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.detalheDia} className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{formatDate(detail.data)}</DialogTitle>
           <DialogDescription>
@@ -202,7 +203,7 @@ const DetalheDiaModal = ({ open, onClose, detail, fuelColor }: DetalheDiaModalPr
             <table className="w-full text-sm">
               <tbody>
                 <DetailRow label="Preço médio de venda" value={formatCurrency(precoVenda)} />
-                <DetailRow label="Preço médio de custo" value={formatCurrency(precoCusto)} />
+                <DetailRow label="Custo médio" value={formatCurrency(precoCusto)} />
                 <DetailRow label="L.B. por litro" value={formatCurrency(lbLitro)} />
                 <DetailRow label="Acréscimos" value={formatCurrency(detail.acrescimos)} muted />
                 <DetailRow label="Descontos" value={formatCurrency(detail.descontos)} muted />

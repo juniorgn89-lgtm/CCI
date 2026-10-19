@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Percent, Trophy, TrendingDown, ArrowUpRight, ChevronDown,
-  ShieldCheck, AlertTriangle, Sparkles,
+  ShieldCheck, AlertTriangle, Sparkles, Radar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLitersShort } from '@/lib/formatters'
@@ -89,56 +89,109 @@ const KpiCard = ({
   )
 }
 
-const FuelDrill = ({ posto, redeMargemL }: { posto: ComercialPostoRow; redeMargemL: number }) => {
-  // Escala das barras = da MAIOR margem entre os combustíveis (ou a média da rede,
-  // pra a marca caber). Barra verde = acima da média; vermelha = abaixo.
-  const maxM = Math.max(redeMargemL, ...posto.produtos.filter((f) => f.comCusto).map((f) => f.margemL), 0.001)
-  const redePct = Math.min(100, (redeMargemL / maxM) * 100)
+/** Margem % = LB ÷ faturamento — mesma conta e mesmas faixas do Radar de Preços
+ *  (vermelho < 5%, âmbar < 9%), pra as duas abas contarem a mesma história. */
+const margemPctDe = (f: { lucroBruto: number; faturamento: number }) => (f.faturamento > 0 ? (f.lucroBruto / f.faturamento) * 100 : 0)
+const FAIXA = (pct: number) => (pct < 5 ? 'red' : pct < 9 ? 'amber' : 'green') as 'red' | 'amber' | 'green'
+const FAIXA_CLS = {
+  red: { text: 'text-red-600 dark:text-red-400', border: 'border-red-400', dot: 'bg-red-400', bar: 'bg-red-400' },
+  amber: { text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400', dot: 'bg-amber-400', bar: 'bg-amber-400' },
+  green: { text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-400', dot: 'bg-emerald-400', bar: 'bg-emerald-400' },
+}
+const pctBR = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
+
+/** Média da rede POR COMBUSTÍVEL (R$/L ponderado por volume). Comparar o diesel
+ *  com a média de todos os combustíveis misturados enganava (diesel sempre "abaixo"). */
+const mediaPorProduto = (postos: ComercialPostoRow[]) => {
+  const acc = new Map<number, { lb: number; litros: number; postos: number }>()
+  for (const p of postos) for (const f of p.produtos) {
+    if (!f.comCusto || f.litros <= 0) continue
+    const e = acc.get(f.produtoCodigo) ?? { lb: 0, litros: 0, postos: 0 }
+    e.lb += f.lucroBruto; e.litros += f.litros; e.postos += 1
+    acc.set(f.produtoCodigo, e)
+  }
+  const m = new Map<number, { margemL: number; postos: number }>()
+  for (const [k, e] of acc) m.set(k, { margemL: e.litros > 0 ? e.lb / e.litros : 0, postos: e.postos })
+  return m
+}
+
+const FuelDrill = ({ posto, mediaProduto, onAnalisar }: { posto: ComercialPostoRow; mediaProduto: Map<number, { margemL: number; postos: number }>; onAnalisar?: (postoCodigo: number, fuel: string) => void }) => {
+  // Escala das barras = maior entre as margens do posto e as médias dos combustíveis.
+  const maxM = Math.max(0.001, ...posto.produtos.filter((f) => f.comCusto).flatMap((f) => [f.margemL, mediaProduto.get(f.produtoCodigo)?.margemL ?? 0]))
   return (
     <div className="space-y-2 bg-gray-50 px-4 py-3 dark:bg-[#161616]">
+      <div className="flex items-center gap-1.5 rounded-md border border-blue-100 bg-blue-50/70 px-2.5 py-1.5 text-[11px] text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+        <span><b className="font-semibold">Comparação justa:</b> cada combustível é comparado com a média da rede <b className="font-semibold">no mesmo combustível</b> (diesel com diesel, gasolina com gasolina), não com a média de todos misturados.</span>
+        <InfoHint align="end" text="A marca cinza na barra e o último % de cada linha usam a média por litro da rede naquele combustível, ponderada pelo volume de cada posto. Misturar tudo faria o diesel parecer sempre ruim, porque a margem por litro do diesel é naturalmente menor que a da gasolina. Quando só este posto vende o combustível, aparece único: não há com quem comparar." />
+      </div>
       {posto.produtos.map((f) => {
-        const vs = redeMargemL > 0 ? ((f.margemL - redeMargemL) / redeMargemL) * 100 : 0
-        const acima = f.margemL >= redeMargemL
+        const media = mediaProduto.get(f.produtoCodigo)
+        const sozinho = !media || media.postos < 2
+        const vs = media && media.margemL > 0 ? ((f.margemL - media.margemL) / media.margemL) * 100 : 0
+        const pct = margemPctDe(f)
+        const tom = FAIXA_CLS[FAIXA(pct)]
         const barPct = f.comCusto ? Math.max(2, Math.min(100, (f.margemL / maxM) * 100)) : 0
+        const mediaPct = media ? Math.min(100, (media.margemL / maxM) * 100) : 0
         const part = posto.litros > 0 ? (f.litros / posto.litros) * 100 : 0
         return (
-          <div key={f.produtoCodigo} className={cn(
-            'rounded-lg border-l-[3px] bg-white px-3 py-2 dark:bg-gray-900',
-            !f.comCusto ? 'border-gray-200 dark:border-gray-700' : acima ? 'border-emerald-400' : 'border-red-400',
-          )}>
+          // Linha clicável: abre o Radar de Preços já neste posto e combustível,
+          // pra sair do "está abaixo" direto pro "o que fazer".
+          <button
+            key={f.produtoCodigo}
+            type="button"
+            onClick={() => onAnalisar?.(posto.empresaCodigo, f.nome)}
+            disabled={!onAnalisar}
+            title={onAnalisar ? `Abrir ${f.nome} no Radar de Preços` : undefined}
+            className={cn(
+              'group block w-full rounded-lg border-l-[3px] bg-white px-3 py-2 text-left transition-colors dark:bg-gray-900',
+              onAnalisar && 'cursor-pointer hover:bg-blue-50/60 dark:hover:bg-blue-950/20',
+              !f.comCusto ? 'border-gray-200 dark:border-gray-700' : tom.border,
+            )}
+          >
             <div className="flex items-center gap-2">
-              <span className={cn('h-2 w-2 shrink-0 rounded-full', !f.comCusto ? 'bg-gray-300' : acima ? 'bg-emerald-400' : 'bg-red-400')} />
+              <span className={cn('h-2 w-2 shrink-0 rounded-full', !f.comCusto ? 'bg-gray-300' : tom.dot)} />
               <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-gray-800 dark:text-gray-200">{f.nome}</span>
+              {onAnalisar && (
+                <span className="hidden shrink-0 items-center gap-1 text-[10px] font-semibold text-[#2563eb] opacity-0 transition-opacity group-hover:opacity-100 sm:inline-flex dark:text-blue-300">
+                  <Radar className="h-3 w-3" />Ver no Radar
+                </span>
+              )}
               <span className="shrink-0 text-[10px] tabular-nums text-gray-400">{formatLitersShort(f.litros)} · {part.toFixed(0)}% do vol.</span>
-              <span className={cn('w-16 shrink-0 text-right text-[12.5px] font-bold tabular-nums',
-                !f.comCusto ? 'text-gray-400' : acima ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+              <span className={cn('w-12 shrink-0 text-right text-[12.5px] font-bold tabular-nums', !f.comCusto ? 'text-gray-400' : tom.text)}>
+                {f.comCusto ? pctBR(pct) : ''}
+              </span>
+              <span className="w-16 shrink-0 text-right text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">
                 {f.comCusto ? margemL(f.margemL) : 'sem custo'}
               </span>
-              <span className={cn('w-12 shrink-0 text-right text-[10px] font-semibold tabular-nums', vs >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                {f.comCusto ? `${vs >= 0 ? '+' : ''}${vs.toFixed(0)}%` : ''}
+              <span
+                className={cn('w-16 shrink-0 text-right text-[10px] font-semibold tabular-nums', sozinho ? 'text-gray-400' : vs >= 0 ? 'text-emerald-500' : 'text-red-500')}
+                title={sozinho ? 'Só este posto vende este combustível: não há média da rede para comparar.' : `Média da rede neste combustível: ${margemL(media!.margemL)} (${media!.postos} postos)`}
+              >
+                {!f.comCusto ? '' : sozinho ? 'único' : `${vs >= 0 ? '+' : ''}${vs.toFixed(0)}%`}
               </span>
             </div>
             {f.comCusto && (
               <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div className={cn('h-full rounded-full', acima ? 'bg-emerald-400' : 'bg-red-400')} style={{ width: `${barPct}%` }} />
-                {/* marca da média da rede */}
-                <div className="absolute top-1/2 h-3 w-[2px] -translate-y-1/2 bg-gray-500 dark:bg-gray-300" style={{ left: `calc(${redePct}% - 1px)` }} />
+                <div className={cn('h-full rounded-full', tom.bar)} style={{ width: `${barPct}%` }} />
+                {/* marca da média da rede NESTE combustível */}
+                {!sozinho && <div className="absolute top-1/2 h-3 w-[2px] -translate-y-1/2 bg-gray-500 dark:bg-gray-300" style={{ left: `calc(${mediaPct}% - 1px)` }} />}
               </div>
             )}
-          </div>
+          </button>
         )
       })}
       <p className="pl-1 text-[10px] text-gray-400 dark:text-gray-500">
-        Barra = margem por litro · a marca cinza é a média da rede ({margemL(redeMargemL)}) · % = participação no volume do posto.
+        Mesmos números do Radar de Preços: margem em % (vermelho abaixo de 5%, âmbar abaixo de 9%) e em R$ por litro · barra = margem por litro, a marca cinza é a média da rede no mesmo combustível · último % = diferença para essa média (único = só este posto vende).{onAnalisar && ' Clique num combustível pra abrir no Radar de Preços e ver o que fazer.'}
       </p>
     </div>
   )
 }
 
-const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void }) => {
+const MargemPosto = ({ onGoToOportunidades, onAnalisar }: { onGoToOportunidades?: () => void; onAnalisar?: (postoCodigo: number, fuel: string) => void }) => {
   const data = useComercialData()
   const [sort, setSort] = useState<SortKey>('margemL')
   const [open, setOpen] = useState<number | null>(null)
+  const mediaProduto = useMemo(() => mediaPorProduto(data.postos), [data.postos])
 
   const rows = useMemo(() => {
     const arr = [...data.postos]
@@ -283,7 +336,7 @@ const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void
                   onClick={onGoToOportunidades}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700"
                 >
-                  Ver ação priorizada
+                  Ver no Radar de Preços
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -392,7 +445,7 @@ const MargemPosto = ({ onGoToOportunidades }: { onGoToOportunidades?: () => void
                     </span>
                   )}
                 </button>
-                {isOpen && <FuelDrill posto={p} redeMargemL={data.redeMargemL} />}
+                {isOpen && <FuelDrill posto={p} mediaProduto={mediaProduto} onAnalisar={onAnalisar} />}
               </div>
             )
           })}

@@ -64,7 +64,9 @@ export function useModuleTabSettings(path: string): {
   const tabs = useMemo<ModuleTabSetting[]>(() => {
     // Só as abas dentro do plano são personalizáveis.
     const defs = (moduleByPath(path)?.tabs ?? []).filter((t) => tabAllowedByPlano(path, t.id, plano))
-    const order = tabOrder[path] ?? defs.map((t) => t.id)
+    // Ordem salva + abas novas no fim (renomeadas/criadas depois não somem).
+    const salva = tabOrder[path] ?? []
+    const order = [...salva, ...defs.map((t) => t.id).filter((id) => !salva.includes(id))]
     const byId = new Map(defs.map((t) => [t.id, t]))
     return order
       .map((id) => byId.get(id))

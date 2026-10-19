@@ -5,17 +5,21 @@ import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import useTabParam from '@/hooks/useTabParam'
+import { useSearchParams } from 'react-router-dom'
+import { lerFiltroLink, PARAMS_FILTRO_LINK } from '@/pages/Financeiro/lib/filtroLink'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
-import PosicaoAberto from '@/pages/Financeiro/components/PosicaoAberto'
+import ContasRedeCard from '@/pages/Dashboard/components/ContasRedeCard'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
+import ReceberCalendario from '@/pages/Financeiro/components/ReceberCalendario'
+import PagarCalendario from '@/pages/Financeiro/components/PagarCalendario'
+import CollapseTransition from '@/components/ui/CollapseTransition'
 import PeriodFilterLocal, { type LocalPeriod } from '@/pages/Financeiro/components/PeriodFilterLocal'
 // Conteúdo das abas em chunks separados (recharts só baixa quando a aba abre).
 const ReceivablesIntel = lazy(() => import('@/pages/Financeiro/components/ReceivablesIntel'))
 const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesIntel'))
 // Módulo Cartões (conciliação) embutido como aba do Financeiro.
-const CartoesModule = lazy(() => import('@/pages/Cartoes'))
 // Aba Fechamento — copiloto por exceção + seletor de posto LOCAL (não usa o
 // filtro global, pra não vazar o posto pras outras abas/módulos).
 const FechamentoTab = lazy(() => import('@/pages/Financeiro/components/FechamentoTab'))
@@ -36,7 +40,6 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   receber: Receipt,
   pagar: CreditCard,
   fechamento: ClipboardCheck,
-  cartoes: CreditCard,
 }
 
 const TableSkeleton = () => (
@@ -58,6 +61,7 @@ const Financeiro = () => {
   const [tabParam, setActiveTab] = useTabParam<string>(
     'visao',
     (v): v is string => v != null && layoutTabs.some((t) => t.id === v),
+    PARAMS_FILTRO_LINK,
   )
   const activeTab = visibleTabs.some((t) => t.id === tabParam) ? tabParam : (visibleTabs[0]?.id ?? tabParam)
 
@@ -65,6 +69,19 @@ const Financeiro = () => {
   // completo do que está em aberto ("Todo o período"), já que são pendências.
   const hojeISO = new Date().toISOString().split('T')[0]
   const inicioAnoISO = `${hojeISO.slice(0, 4)}-01-01`
+  // "Ver detalhamento" das abas Receber/Pagar: aberto → o calendário recolhe (como os gráficos da Central).
+  // Veio do modal de contas com filtro na URL → já abre o detalhamento (a lista filtrada).
+  const [searchParams] = useSearchParams()
+  // A tela já pode estar montada (o modal fica no Dashboard daqui) → reage à troca do filtro.
+  const filtroKey = lerFiltroLink(searchParams) != null ? `${tabParam}|${searchParams.toString()}` : ''
+  const [detalheReceber, setDetalheReceber] = useState(() => !!filtroKey && tabParam === 'receber')
+  const [detalhePagar, setDetalhePagar] = useState(() => !!filtroKey && tabParam === 'pagar')
+  const [filtroKeyVisto, setFiltroKeyVisto] = useState(filtroKey)
+  if (filtroKey !== filtroKeyVisto) {
+    setFiltroKeyVisto(filtroKey)
+    if (filtroKey && tabParam === 'receber') setDetalheReceber(true)
+    if (filtroKey && tabParam === 'pagar') setDetalhePagar(true)
+  }
   const [localPeriod, setLocalPeriod] = useState<LocalPeriod>({
     allPeriod: true,
     dataInicial: inicioAnoISO,
@@ -155,16 +172,10 @@ const Financeiro = () => {
                 <Suspense fallback={<TableSkeleton />}>
                   {activeTab === 'dashboard' && (
                     <div className="space-y-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Saldo em aberto</h2>
-                        <PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />
-                      </div>
-                      <PosicaoAberto
-                        titulos={receivablesAtraso}
-                        cartoes={cartoesAVencer}
-                        payables={payablesAtraso}
-                        periodo={localPeriod}
-                      />
+                      {/* Saldo da janela + Contas a pagar + Contas a receber (mesmos cards da
+                          Central). Os cards de posição por instrumento saíram: diziam o mesmo
+                          em outro corte e confundiam. */}
+                      <ContasRedeCard />
                     </div>
                   )}
                   {activeTab === 'receber' && (
@@ -174,7 +185,12 @@ const Financeiro = () => {
                         pagos={receivablesPagos}
                         pmr={pmr}
                       />
+                      <CollapseTransition open={!detalheReceber}>
+                        <ReceberCalendario data={receivablesAtraso} />
+                      </CollapseTransition>
                       <ReceberTabela
+                        detalheAberto={detalheReceber}
+                        onToggleDetalhe={() => setDetalheReceber((v) => !v)}
                         titulos={receivablesAtraso}
                         cartoes={cartoesAVencer}
                         periodoLocal={localPeriod}
@@ -185,7 +201,12 @@ const Financeiro = () => {
                   {activeTab === 'pagar' && (
                     <div className="space-y-3">
                       <PayablesIntel data={payablesAtraso} saldoEmCaixa={saldoEmCaixa} />
+                      <CollapseTransition open={!detalhePagar}>
+                        <PagarCalendario data={payablesAtraso} />
+                      </CollapseTransition>
                       <PagarTabela
+                        detalheAberto={detalhePagar}
+                        onToggleDetalhe={() => setDetalhePagar((v) => !v)}
                         payables={payablesAtraso}
                         periodoLocal={localPeriod}
                         dateFilter={<PeriodFilterLocal value={localPeriod} onChange={setLocalPeriod} />}
@@ -193,9 +214,6 @@ const Financeiro = () => {
                     </div>
                   )}
                   {activeTab === 'fechamento' && <FechamentoTab />}
-                  {activeTab === 'cartoes' && (
-                    <CartoesModule embedded />
-                  )}
                 </Suspense>
               )}
             </>

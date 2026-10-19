@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { GuiaModal } from '@/components/guia/tipos'
 import { cn } from '@/lib/utils'
 
 /**
@@ -7,7 +10,7 @@ import { cn } from '@/lib/utils'
  * desktop. Rodapé de botões: use <ModalRodape> pra ficar fixo embaixo.
  */
 export const Modal = ({
-  open, onClose, titulo, descricao, children, largura = 'max-w-xl',
+  open, onClose, titulo, descricao, children, largura = 'max-w-xl', fundo = '', guia,
 }: {
   open: boolean
   onClose: () => void
@@ -15,9 +18,13 @@ export const Modal = ({
   descricao?: React.ReactNode
   children: React.ReactNode
   largura?: string
+  /** Fundo no modo escuro. Padrão '' = degradê do Dialog (o padrão do sistema); passe uma classe pra sobrescrever. */
+  fundo?: string
+  /** Personagem com balão explicando o modal (ver src/lib/guiasModais.ts). */
+  guia?: GuiaModal
 }) => (
   <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-    <DialogContent className={cn('top-[calc(50%-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto md:top-[50%] md:max-h-[92vh] dark:border-gray-700 dark:bg-gray-900', largura)}>
+    <DialogContent guia={guia} className={cn('top-[calc(50%-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto md:top-[50%] md:max-h-[92vh] dark:border-gray-700', fundo, largura)}>
       <DialogHeader className="text-left">
         <DialogTitle className="pr-6 text-gray-900 dark:text-gray-100">{titulo}</DialogTitle>
         {descricao && <DialogDescription>{descricao}</DialogDescription>}
@@ -33,6 +40,44 @@ export const ModalRodape = ({ children, className }: { children: React.ReactNode
     {children}
   </div>
 )
+
+/**
+ * Confirmação dentro da própria tela (no lugar do confirm()/prompt() do navegador).
+ * Use no lugar dos botões do <ModalRodape> enquanto a pessoa decide.
+ * `comMotivo` mostra um campo de texto opcional que vai para onConfirmar.
+ */
+export const ConfirmaAcao = ({
+  titulo, texto, rotulo, perigo = false, comMotivo = false, placeholder = 'Motivo (opcional)', ocupado = false, onConfirmar, onVoltar,
+}: {
+  titulo: React.ReactNode
+  texto?: React.ReactNode
+  rotulo: string
+  perigo?: boolean
+  comMotivo?: boolean
+  placeholder?: string
+  ocupado?: boolean
+  onConfirmar: (motivo: string | null) => void
+  onVoltar: () => void
+}) => {
+  const [motivo, setMotivo] = useState('')
+  return (
+    <div className={cn('w-full rounded-lg border px-3 py-2.5', perigo ? 'border-red-200 bg-red-50/70 dark:border-red-900/50 dark:bg-red-950/20' : 'border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] dark:border-blue-400/30 dark:bg-blue-400/10')}>
+      <p className={cn('text-[13px] font-semibold', perigo ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-gray-100')}>{titulo}</p>
+      {texto && <p className="mt-0.5 text-[12px] text-gray-600 dark:text-gray-300">{texto}</p>}
+      {comMotivo && (
+        <textarea autoFocus value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} placeholder={placeholder}
+          className="mt-2 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-[12.5px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" />
+      )}
+      <div className="mt-2 flex flex-wrap justify-end gap-2">
+        <button type="button" onClick={onVoltar} disabled={ocupado} className="inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">Voltar</button>
+        <button type="button" autoFocus={!comMotivo} onClick={() => onConfirmar(motivo.trim() || null)} disabled={ocupado}
+          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold text-white disabled:opacity-60', perigo ? 'bg-red-600 hover:bg-red-700' : 'bg-[#1e3a5f] hover:bg-[#162d4a] dark:bg-[#2563eb] dark:hover:bg-blue-500')}>
+          {ocupado && <Loader2 className="h-4 w-4 animate-spin" />} {rotulo}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export const Erro = ({ msg }: { msg: string | null }) =>
   msg ? (

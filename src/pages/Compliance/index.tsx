@@ -30,6 +30,7 @@ import useComplianceMargens, {
   type FuelDailyPoint,
   type TrocaLogRow,
 } from '@/pages/Compliance/hooks/useComplianceMargens'
+import { GUIAS } from '@/lib/guiasModais'
 import useComplianceVisaoGeral, {
   type VisaoGeralCell,
 } from '@/pages/Compliance/hooks/useComplianceVisaoGeral'
@@ -981,7 +982,7 @@ const ComplianceDesktop = () => {
 
       {/* Modal — justificar reajuste (Fase 2 · defesa documentada) */}
       <Dialog open={justificar !== null} onOpenChange={(o) => { if (!o) setJustificar(null) }}>
-        <DialogContent className="w-[95vw] max-w-lg">
+        <DialogContent guia={GUIAS.complianceJustificar} className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f] text-white dark:bg-blue-700"><ShieldCheck className="h-4 w-4" /></span>

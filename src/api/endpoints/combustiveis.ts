@@ -95,6 +95,9 @@ export interface CompraItem {
   precoCusto: number
   /** Data de entrada da nota (yyyy-MM-dd...). */
   dataEntrada: string
+  /** Preço de compra unitário na nota (sem os impostos agregados ao custo). */
+  precoCompra?: number
+  unidadeCompra?: string
 }
 
 export const fetchCompraItem = (params?: FetchCompraItemParams) =>

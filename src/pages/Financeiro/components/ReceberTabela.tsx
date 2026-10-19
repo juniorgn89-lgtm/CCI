@@ -1,4 +1,8 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { lerFiltroLink, casaFiltroLink, semFiltroLink } from '@/pages/Financeiro/lib/filtroLink'
+import FiltroLinkBar from '@/pages/Financeiro/components/shared/FiltroLinkBar'
+import TituloDetalheModal, { type TituloDetalhe } from '@/pages/Financeiro/components/shared/TituloDetalheModal'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, ReceiptText, MoreHorizontal, Layers,
@@ -9,6 +13,7 @@ import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import RowActionButton from '@/components/tables/RowAction'
 import ShareReportButton from '@/components/feedback/ShareReportButton'
+import VerDetalhamentoButton from '@/components/ui/VerDetalhamentoButton'
 import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchAdministradoras } from '@/api/endpoints/financeiro'
@@ -68,6 +73,9 @@ interface Props {
   /** Período local (por dataMovimento) — recorta as faturas igual ao dashboard.
    *  Nome "Local" pra não colidir com o state `periodo` das pílulas internas. */
   periodoLocal?: LocalPeriodFilter
+  /** "Ver detalhamento" controlado pelo pai (pra ele recolher o calendário junto). */
+  detalheAberto?: boolean
+  onToggleDetalhe?: () => void
 }
 
 /**
@@ -77,7 +85,7 @@ interface Props {
  * tabela com seus vencimentos; desligado, só cobrança de cliente — assim o usuário vê
  * o a receber COM e SEM cartões. READ-ONLY (Ações = ver detalhe).
  */
-const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) => {
+const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal, detalheAberto: detalheProp, onToggleDetalhe }: Props) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
     () => new Map((empresasData?.resultados ?? []).map((e) => [e.empresaCodigo, e.fantasia || e.razao || `Posto ${e.empresaCodigo}`])),
@@ -100,7 +108,11 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
     return m
   }, [admData])
 
-  const [inst, setInst] = useState<FiltroInst>('todos')
+  // Filtro vindo do modal de contas (URL): faixa de vencimento, categoria e busca.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filtroLink = useMemo(() => lerFiltroLink(searchParams, 'receber'), [searchParams])
+  const [inst, setInst] = useState<FiltroInst>(() => (filtroLink?.cat && INSTR.some((i) => i.id === filtroLink.cat) ? filtroLink.cat as FiltroInst : 'todos'))
+  const limparFiltroLink = () => { setSearchParams(semFiltroLink(searchParams), { replace: true }); setInst('todos') }
   const [incluirCartoes, setIncluirCartoes] = useState(true)
   const [periodo, setPeriodo] = useState<Periodo>('todos')
   const [clientesSel, setClientesSel] = useState<string[]>([])
@@ -156,8 +168,9 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
     })
     if (clientesSel.length > 0) base = base.filter((r) => clientesSel.includes(r.cliente))
     if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
+    if (filtroLink) base = base.filter((r) => casaFiltroLink(filtroLink, { vencimento: r.vencimento, textos: [r.cliente, r.documento, String(r.sub ?? '')] }))
     return base
-  }, [rows, periodo, clientesSel, planoSel, planoNome])
+  }, [rows, periodo, clientesSel, planoSel, planoNome, filtroLink])
 
   // Visão = escopo com/sem cartões/app conforme o toggle. Base dos cards e da tabela.
   const escopoView = useMemo(
@@ -355,6 +368,11 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
     }
   }
 
+  // Tabela recolhida por padrão: o calendário acima responde o "quando"; o detalhe abre sob demanda.
+  const [detalheLocal, setDetalheLocal] = useState(false)
+  const detalheAberto = detalheProp ?? detalheLocal
+  const setDetalheAberto = (fn: (v: boolean) => boolean) => { if (onToggleDetalhe) onToggleDetalhe(); else setDetalheLocal(fn) }
+  const totalAbertoResumo = rowsAll.reduce((acc, r) => acc + r.valor, 0)
   const selCls = 'rounded-lg border border-gray-200 bg-white py-2 pl-3 pr-8 text-[13px] text-gray-700 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200'
 
   return (
@@ -366,6 +384,8 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
           <InfoHint text="Recebíveis em aberto dos 3 streams (Cartões /CARTAO · Títulos /TITULO_RECEBER · Faturas /DUPLICATA) numa tabela só. Clique num card de instrumento pra filtrar. Sem dupla contagem (título faturado vira duplicata). Somente leitura." />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!detalheAberto && <span className="text-[11px] text-gray-500 dark:text-gray-400">{rowsAll.length} recebíveis em aberto · <b className="text-gray-700 dark:text-gray-300">{formatCurrencyInt(totalAbertoResumo)}</b></span>}
+          <VerDetalhamentoButton aberto={detalheAberto} onToggle={() => setDetalheAberto((v) => !v)} />
           {dateFilter}
           <ShareReportButton filename="contas-a-receber.pdf" build={buildReport} />
           <button type="button" onClick={exportar} disabled={rowsAll.length === 0}
@@ -374,6 +394,9 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
           </button>
         </div>
       </div>
+      {filtroLink && <FiltroLinkBar filtro={filtroLink} catLabel={filtroLink.cat ? INSTR.find((i) => i.id === filtroLink.cat)?.label : undefined} onLimpar={limparFiltroLink} />}
+      {detalheAberto && (
+        <>
 
       {/* Cards de instrumento (filtro) — Passo 1 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -573,7 +596,6 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
               <tr><td colSpan={nCols} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhum recebível encontrado</td></tr>
             ) : pageRows.map((r) => {
               const m = instMeta(r.instrumento)
-              const aberto = detalhe === r.key
               return (
                 <Fragment key={r.key}>
                   <tr className="border-b border-gray-100 last:border-0 dark:border-gray-800">
@@ -604,73 +626,9 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
                       </span>
                     </td>
                     <td className="py-2.5 pl-3 text-right">
-                      <RowActionButton icon={Eye} label={aberto ? 'Ocultar' : 'Ver detalhe'} onClick={() => setDetalhe(aberto ? null : r.key)} />
+                      <RowActionButton icon={Eye} label="Ver detalhe" onClick={() => setDetalhe(r.key)} />
                     </td>
                   </tr>
-                  {aberto && (
-                    <tr className="bg-gray-50/60 dark:bg-gray-800/30">
-                      <td colSpan={nCols} className="px-3 py-2.5">
-                        {r.titulos ? (
-                          <div className="space-y-1.5">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                              {r.titulos.length} {r.titulos.length === 1 ? 'nota' : 'notas'} nesta fatura
-                            </p>
-                            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                              <table className="w-full text-[12px]">
-                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                  {r.titulos.map((t) => (
-                                    <tr key={t.key} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                                      <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">Nota {t.docNumero || '—'}</td>
-                                      <td className="px-3 py-1.5 tabular-nums text-gray-500 dark:text-gray-400">{brDate(t.vencimento)}</td>
-                                      <td className="px-3 py-1.5 text-right tabular-nums font-medium text-gray-900 dark:text-gray-100">{formatCurrency(t.valor)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            {(() => {
-                              // A fatura mostra o SALDO; as notas somam o BRUTO. Expõe a ponte
-                              // (ajustes da duplicata + baixa parcial) pra a soma fechar com a linha-mãe.
-                              const bruto = r.bruto ?? (r.titulos ?? []).reduce((s, x) => s + x.valor, 0)
-                              const pago = r.pago ?? 0
-                              const ajuste = r.valor + pago - bruto // líquido − bruto (desconto/acréscimo/imposto)
-                              const temAjuste = Math.abs(ajuste) >= 0.005
-                              const temPago = pago >= 0.005
-                              if (!temAjuste && !temPago) return null
-                              return (
-                                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-0.5 border-t border-gray-100 pt-1.5 text-[11px] tabular-nums text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                                  <span>Bruto <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(bruto)}</span></span>
-                                  {temAjuste && <span>{ajuste < 0 ? 'Descontos/impostos' : 'Acréscimos'} <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(ajuste)}</span></span>}
-                                  {temPago && <span>Pago <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(-pago)}</span></span>}
-                                  <span>Saldo <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</span></span>
-                                </div>
-                              )
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-                            <DetItem label="Nº do documento" value={r.docNumero ? String(r.docNumero) : '—'} />
-                            <DetItem label="Cliente" value={r.cliente} />
-                            <DetItem label="Posto" value={nomePosto(r.empresa)} />
-                            <DetItem label="Instrumento" value={m.label} />
-                            <DetItem label="Documento" value={r.documento || '—'} />
-                            <DetItem label="Detalhe" value={r.sub || '—'} />
-                            <DetItem label="Vencimento" value={brDate(r.vencimento)} />
-                            <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
-                            {r.instrumento === 'faturas' ? (
-                              <>
-                                <DetItem label="Valor bruto" value={formatCurrency(r.bruto ?? r.valor)} />
-                                <DetItem label="Valor pago" value={r.pago ? formatCurrency(r.pago) : '—'} />
-                                <DetItem label="Saldo a receber" value={formatCurrency(r.valor)} />
-                              </>
-                            ) : (
-                              <DetItem label="Valor" value={formatCurrency(r.valor)} />
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )}
                 </Fragment>
               )
             })}
@@ -699,15 +657,28 @@ const ReceberTabela = ({ titulos, cartoes, dateFilter, periodoLocal }: Props) =>
           )}
         </div>
       )}
+        </>
+      )}
+      {(() => {
+        const r = detalhe ? rowsAll.find((x) => x.key === detalhe) : null
+        if (!r) return null
+        const m = instMeta(r.instrumento)
+        const d: TituloDetalhe = {
+          lado: 'receber', nome: r.cliente, sub: r.sub, posto: nomePosto(r.empresa), instrumento: m,
+          vencimento: r.vencimento, vencido: r.vencido, diasAtraso: r.diasAtraso, saldo: r.valor,
+          bruto: r.instrumento === 'faturas' || r.bruto != null ? r.bruto ?? r.valor : undefined, pago: r.pago,
+          campos: [
+            { label: 'Nº do documento', value: r.docNumero ? String(r.docNumero) : '—' },
+            { label: 'Documento', value: r.documento || '—' },
+            ...(r.planoContaCod ? [{ label: 'Plano de contas', value: planoNome(r.planoContaCod) }] : []),
+            ...(r.bruto != null && r.instrumento !== 'faturas' ? [{ label: 'Valor bruto (antes da taxa)', value: formatCurrency(r.bruto) }] : []),
+          ],
+          notas: r.titulos?.map((t) => ({ key: t.key, numero: `Nota ${t.docNumero || '—'}`, vencimento: t.vencimento, valor: t.valor })),
+        }
+        return <TituloDetalheModal t={d} onClose={() => setDetalhe(null)} />
+      })()}
     </section>
   )
 }
-
-const DetItem = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
-    <p className="tabular-nums text-gray-700 dark:text-gray-200">{value}</p>
-  </div>
-)
 
 export default ReceberTabela

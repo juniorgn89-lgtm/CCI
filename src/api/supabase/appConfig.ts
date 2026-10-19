@@ -22,6 +22,11 @@ export interface AppConfigRow {
   contrato_aliquota_pct?: number | string | null
   contrato_inicio?: string | null
   contrato_observacoes?: string | null
+  /* ─── Modelo de indicação (docs/supabase-contrato-modelo-indicacao.sql) ─── */
+  /** % do valor recebido por posto indicado que a CCI repassa ao WebPosto. */
+  contrato_pct_repasse?: number | string | null
+  /** % após 12 meses de cada cliente (Opção A). null = percentual único. */
+  contrato_pct_apos_12m?: number | string | null
   updated_at: string
 }
 

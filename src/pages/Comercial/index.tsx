@@ -1,68 +1,46 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Flag, Sparkles, Trophy, Building2, Radar } from 'lucide-react'
+import { Trophy, Building2, Radar } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import useTabParam from '@/hooks/useTabParam'
 import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useComercialFlags } from '@/store/comercialFlags'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import TopBarTabs from '@/components/layout/TopBarTabs'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 
 const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'))
-const Oportunidades = lazy(() => import('@/pages/Comercial/components/Oportunidades'))
 const Concorrencia = lazy(() => import('@/pages/Comercial/components/Concorrencia'))
 const RadarPrecos = lazy(() => import('@/pages/Comercial/components/RadarPrecos'))
 
-type TabId = 'oportunidades' | 'margem' | 'concorrencia' | 'radar'
+type TabId = 'margem' | 'concorrencia' | 'radar'
 
 const TABS: { id: TabId; label: string; Icon: typeof Trophy; subtitle: string }[] = [
-  { id: 'oportunidades', label: 'Oportunidades', Icon: Sparkles, subtitle: 'Oportunidades de lucro priorizadas por IA' },
+  // Radar primeiro: é a régua de preço (subir / segurar / ceder) — a antiga aba
+  // "Oportunidades" foi fundida aqui, pra não haver duas leituras que discordam.
+  { id: 'radar', label: 'Radar de Preços', Icon: Radar, subtitle: 'Régua de preço por posto e combustível: subir, segurar ou ceder, com o número' },
   { id: 'margem', label: 'Margem por posto', Icon: Trophy, subtitle: 'Onde a margem vaza — placar e drill por combustível' },
-  { id: 'concorrencia', label: 'Concorrência', Icon: Building2, subtitle: 'Inteligência de preço de praça' },
-  { id: 'radar', label: 'Radar de Preços', Icon: Radar, subtitle: 'Guerra de preço — margem, elasticidade e simulação até o fechamento' },
+  { id: 'concorrencia', label: 'Concorrência', Icon: Building2, subtitle: 'Preço de praça por posto: a referência da régua' },
 ]
 
 const isTabId = (v: string | null): v is TabId =>
-  v === 'oportunidades' || v === 'margem' || v === 'concorrencia' || v === 'radar'
-
-/** Faixa azul do flag global — estado ÚNICO (useComercialFlags), no topo de
- *  TODAS as abas. Ligado → análises usam preço de praça; desligado → média
- *  interna da rede. */
-const FlagBand = () => {
-  const usar = useComercialFlags((s) => s.usarPrecoPraca)
-  const toggle = useComercialFlags((s) => s.toggleUsarPrecoPraca)
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 dark:border-blue-900/40 dark:bg-blue-950/20">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white">
-        <Flag className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">Usar preços de concorrência nas análises da rede</p>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400">
-          {usar
-            ? 'Ligado — as análises usam o preço de praça como referência (em vez da média interna).'
-            : 'Desligado — as análises usam a média interna da rede como referência.'}
-        </p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={usar}
-        onClick={toggle}
-        className={cn('relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400', usar ? 'bg-[#2563eb]' : 'bg-gray-300 dark:bg-gray-600')}
-        aria-label="Usar preços de concorrência"
-      >
-        <span className={cn('inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', usar ? 'translate-x-[22px]' : 'translate-x-0.5')} />
-      </button>
-    </div>
-  )
-}
+  v === 'margem' || v === 'concorrencia' || v === 'radar'
 
 const Comercial = () => {
-  const [activeTab, setActiveTab] = useTabParam<TabId>('oportunidades', isTabId)
+  // "?tab=oportunidades" (links antigos) cai no Radar, que absorveu a aba.
+  const [activeTab, setActiveTab] = useTabParam<TabId>('radar', isTabId)
   const visibleTabs = usePersonalizedTabs('/comercial', TABS)
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Margem por posto → Radar já no posto/combustível (mesmos `?posto=&fuel=`
+  // que o "Analisar" da Visão Geral do Radar usa). Radar é a aba default, então
+  // o `?tab=` sai da URL e o useTabParam cai nele sozinho.
+  const abrirNoRadar = (postoCodigo: number, fuel: string) => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('tab')
+    next.set('posto', String(postoCodigo))
+    if (fuel) next.set('fuel', fuel); else next.delete('fuel')
+    setSearchParams(next)
+  }
 
   // Aba ativa foi ocultada na personalização → cai na 1ª visível.
   useEffect(() => {
@@ -82,17 +60,11 @@ const Comercial = () => {
       </PageHeaderTitle>
 
       <PageHeaderActions>
-        {/* Radar trava no mês corrente (decisão pra frente) → sem filtro de data. */}
-        {activeTab !== 'radar' && <DateRangeToolbar />}
+        <DateRangeToolbar />
       </PageHeaderActions>
 
-      {/* Flag global — no topo de todas as abas, EXCETO Radar (que usa dados da
-          própria rede, não preço de praça). */}
-      {activeTab !== 'radar' && <FlagBand />}
-
       <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
-        {activeTab === 'margem' && <MargemPosto onGoToOportunidades={() => setActiveTab('oportunidades')} />}
-        {activeTab === 'oportunidades' && <Oportunidades />}
+        {activeTab === 'margem' && <MargemPosto onGoToOportunidades={() => setActiveTab('radar')} onAnalisar={abrirNoRadar} />}
         {activeTab === 'concorrencia' && <Concorrencia />}
         {activeTab === 'radar' && <RadarPrecos />}
       </Suspense>

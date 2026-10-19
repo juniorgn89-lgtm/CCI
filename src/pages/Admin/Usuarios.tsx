@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList, ShoppingCart } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -16,7 +16,7 @@ import {
   updateProfileModulos,
   updateProfilePodeApurar,
   updateProfilePodeVerReabastecimento,
-  updateProfilePodeDemonstrar, updateProfilePodeGerirTarefas,
+  updateProfilePodeDemonstrar, updateProfilePodeGerirTarefas, updateProfilePodeLiberarCompras,
   createUser,
   deleteUser,
   generateRecoveryLink,
@@ -228,6 +228,19 @@ const Usuarios = () => {
     setBusyUserId(row.user_id)
     try {
       await updateProfilePodeApurar(row.user_id, !row.pode_apurar)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleTogglePodeLiberarCompras = async (row: ProfileRow) => {
+    if (row.is_master) { alert('Administrador já libera compras — não precisa do flag.'); return }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeLiberarCompras(row.user_id, !row.pode_liberar_compras)
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -512,17 +525,17 @@ const Usuarios = () => {
             value={userSearch}
             onChange={(e) => setUserSearch(e.target.value)}
             placeholder="Buscar por nome ou email..."
-            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           />
         </div>
       )}
 
       {isLoading ? (
-        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
       ) : naoMaster.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {userSearch.trim()
               ? 'Nenhum usuário encontrado pra essa busca.'
@@ -534,7 +547,7 @@ const Usuarios = () => {
           {gruposPorRede.map((g) => (
             <div
               key={g.key}
-              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black"
             >
               <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
                 <Network className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -547,7 +560,7 @@ const Usuarios = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+                  <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <th className="px-3 py-2.5 text-left font-medium">Usuário</th>
                       <th className="px-3 py-2.5 text-center font-medium">Acesso</th>
@@ -577,6 +590,7 @@ const Usuarios = () => {
                         onTogglePodeReabast={() => handleTogglePodeReabast(p)}
                         onTogglePodeDemo={() => handleTogglePodeDemo(p)}
                         onTogglePodeGerirTarefas={() => handleTogglePodeGerirTarefas(p)}
+                        onTogglePodeLiberarCompras={() => handleTogglePodeLiberarCompras(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
                         onResetSenha={() => handleResetSenha(p)}
                         onDelete={() => handleDelete(p)}
@@ -693,7 +707,7 @@ const CreateUserModal = ({ redes, onClose, onCreated }: CreateUserModalProps) =>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Novo usuário</h2>
           <button
@@ -947,12 +961,13 @@ interface UserRowProps {
   onTogglePodeReabast: () => void
   onTogglePodeDemo: () => void
   onTogglePodeGerirTarefas: () => void
+  onTogglePodeLiberarCompras: () => void
   onToggleAtivo: () => void
   onResetSenha: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1185,13 +1200,36 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                 className={cn(
                   'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
-                  p.pode_gerir_tarefas ? 'bg-[#1e3a5f]' : 'bg-gray-300 dark:bg-gray-600',
+                  p.pode_gerir_tarefas ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600',
                   busy && 'opacity-50 cursor-not-allowed'
                 )}
               >
                 <span className={cn(
                   'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
                   p.pode_gerir_tarefas ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {/* Liberação de compras (aprova pedidos e define tetos no módulo Compras) */}
+            <div className="flex items-center gap-1.5">
+              <ShoppingCart className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeLiberarCompras}
+                disabled={busy}
+                role="switch"
+                aria-checked={!!p.pode_liberar_compras}
+                aria-label={p.pode_liberar_compras ? 'Revogar liberação de compras' : 'Conceder liberação de compras'}
+                title={p.pode_liberar_compras ? 'Compras: libera pedidos — clique pra revogar' : 'Compras: só pede — clique pra liberar aprovar pedidos e definir tetos'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_liberar_compras ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_liberar_compras ? 'translate-x-[14px]' : 'translate-x-0.5'
                 )} />
               </button>
             </div>
@@ -1342,7 +1380,7 @@ const EmpresasModal = ({ profile, redes, onClose, onSave }: EmpresasModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Postos permitidos</h2>
@@ -1487,7 +1525,7 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Módulos liberados</h2>
@@ -1659,7 +1697,7 @@ const DeleteUserModal = ({ profile, onClose, onConfirm }: DeleteUserModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <h2 className="flex items-center gap-2 text-base font-semibold text-red-600 dark:text-red-400">
             <AlertTriangle className="h-4 w-4" />

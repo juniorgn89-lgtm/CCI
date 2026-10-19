@@ -10,6 +10,7 @@ import { formatCurrencyInt, formatLiters } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import NotaLeitura from '@/components/ui/NotaLeitura'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GUIAS } from '@/lib/guiasModais'
 import { cn } from '@/lib/utils'
 
 const r3 = (v: number) => `${v < 0 ? '−' : ''}R$ ${Math.abs(v).toFixed(3).replace('.', ',')}`
@@ -195,7 +196,7 @@ const AbaDesvio = ({ rows, cedidoGlobal, entidade, baratao, barataoCruz }: {
 
       {/* Modal "de onde cedeu" — composição + quebra pela outra dimensão (com preços) */}
       <Dialog open={!!aberto} onOpenChange={(o) => { if (!o) setAberto(null) }}>
-        <DialogContent className="max-w-2xl gap-0 overflow-hidden rounded-2xl p-0">
+        <DialogContent guia={GUIAS.gestaoPrecosCedeu} className="max-w-2xl gap-0 overflow-hidden rounded-2xl p-0">
           {aberto && (() => {
             const maxDet = Math.max(...aberto.detalhe.map((d) => d.lbCedido), 1)
             const totalCedida = (aberto.acresDesc ?? 0) - aberto.lbCedido

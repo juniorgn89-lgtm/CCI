@@ -14,7 +14,7 @@ import type { PlanoId } from '@/lib/planos'
  *
  * Só entram aqui as abas que o app REALMENTE esconde/reordena (as que passam por
  * moduleLayout ou por um filtro no TopBarTabs). Módulos de aba única (Ao Vivo,
- * Inteligência, Qualidade, Compliance, Pessoas) ficam só no nível de módulo.
+ * Inteligência, Qualidade, Compliance) ficam só no nível de módulo.
  */
 
 export interface AppTab {
@@ -29,13 +29,14 @@ export interface AppTab {
 
 /** Grupos do menu lateral (batem com navConfig). A reordenação da
  * personalização acontece DENTRO do grupo — o Sidebar mantém as seções. */
-export type NavGroupId = 'geral' | 'analise' | 'posto' | 'gestao'
+export type NavGroupId = 'geral' | 'analise' | 'posto' | 'gestao' | 'sistema'
 
 export const NAV_GROUPS: { id: NavGroupId; label: string }[] = [
   { id: 'geral', label: 'Geral' },
   { id: 'analise', label: 'Análise' },
   { id: 'posto', label: 'Posto' },
   { id: 'gestao', label: 'Gestão' },
+  { id: 'sistema', label: 'Sistema' },
 ]
 
 export interface AppModule {
@@ -77,7 +78,7 @@ export const APP_STRUCTURE: AppModule[] = [
   {
     path: '/rede',
     label: 'Rede',
-    group: 'geral',
+    group: 'sistema',
     plano: 'basic',
     tabs: [
       { id: 'tabela', label: 'Tabela', plano: 'basic' },
@@ -91,10 +92,9 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'premium',
     permId: 'comercial',
     tabs: [
-      { id: 'oportunidades', label: 'Oportunidades', plano: 'premium' },
+      { id: 'radar', label: 'Radar de Preços', plano: 'premium' },
       { id: 'margem', label: 'Margem por posto', plano: 'premium' },
       { id: 'concorrencia', label: 'Concorrência', plano: 'premium' },
-      { id: 'radar', label: 'Radar de Preços', plano: 'pro' },
     ],
   },
   {
@@ -113,8 +113,8 @@ export const APP_STRUCTURE: AppModule[] = [
     permId: 'bombas',
     tabs: [
       { id: 'geral', label: 'Visão Geral', plano: 'premium' },
-      { id: 'bombas', label: 'Bombas', plano: 'premium' },
-      { id: 'reabastecimento', label: 'Reabastecimento', plano: 'premium' },
+      { id: 'bombas', label: 'Manutenção', plano: 'premium' },
+      { id: 'afericoes', label: 'Aferições', plano: 'premium' },
     ],
   },
   {
@@ -130,6 +130,17 @@ export const APP_STRUCTURE: AppModule[] = [
     ],
   },
   {
+    path: '/compras',
+    label: 'Compras',
+    group: 'gestao',
+    plano: 'pro',
+    permId: 'compras',
+    tabs: [
+      { id: 'pedidos', label: 'Pedidos', plano: 'pro' },
+      { id: 'transferencias', label: 'Transferências', plano: 'pro' },
+    ],
+  },
+  {
     path: '/estoques',
     label: 'Estoques',
     group: 'gestao',
@@ -137,10 +148,8 @@ export const APP_STRUCTURE: AppModule[] = [
     permId: 'estoques',
     tabs: [
       { id: 'visao', label: 'Visão Geral', plano: 'pro' },
-      { id: 'geral', label: 'Estoque geral', plano: 'pro' },
-      { id: 'giro', label: 'Giro', plano: 'pro' },
-      { id: 'mediaVendas', label: 'Média de venda (6m)', plano: 'pro' },
-      { id: 'necessidade', label: 'Necessidade', plano: 'pro' },
+      { id: 'produtos', label: 'Produtos', plano: 'pro' },
+      { id: 'comprar', label: 'Comprar', plano: 'pro' },
     ],
   },
   {
@@ -154,7 +163,6 @@ export const APP_STRUCTURE: AppModule[] = [
       { id: 'receber', label: 'Receber', plano: 'pro' },
       { id: 'pagar', label: 'Pagar', plano: 'pro' },
       { id: 'fechamento', label: 'Fechamento', plano: 'pro', defaultHidden: true },
-      { id: 'cartoes', label: 'Cartões', plano: 'pro', defaultHidden: true },
     ],
   },
   {
@@ -163,14 +171,6 @@ export const APP_STRUCTURE: AppModule[] = [
     group: 'gestao',
     plano: 'pro',
     permId: 'qualidade-dados',
-    tabs: [],
-  },
-  {
-    path: '/pessoas',
-    label: 'Pessoas',
-    group: 'gestao',
-    plano: 'pro',
-    permId: 'pessoas',
     tabs: [],
   },
 ]

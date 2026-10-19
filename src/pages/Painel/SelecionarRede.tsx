@@ -63,7 +63,7 @@ const SelecionarRede = () => {
           'group flex items-center gap-3 rounded-[15px] border px-5 py-[18px] transition-all hover:-translate-y-px hover:border-[#c3d0e0] hover:shadow-[0_8px_22px_rgba(15,23,42,0.09)]',
           conectada
             ? 'border-[#bfdbfe] bg-[#f4f8ff] dark:border-blue-800 dark:bg-blue-950/30'
-            : 'border-[#e7ecf3] bg-white dark:border-gray-700 dark:bg-gray-900',
+            : 'border-[#e7ecf3] bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
           !rede.ativo && 'opacity-75',
         )}
       >
@@ -122,13 +122,13 @@ const SelecionarRede = () => {
     <div className="space-y-5">
       {/* Cabeçalho */}
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1e3a5f]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
           <Network className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Selecionar rede</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">
-            Escolha qual rede deseja acessar — ou use a navegação acima pra ir direto a <strong>Usuários</strong> e <strong>Configurações</strong> sem conectar.
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Selecionar rede</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Escolha qual rede deseja acessar — ou use a navegação acima pra ir direto a <strong>Cadastros</strong> e <strong>Parâmetros</strong> sem conectar.
           </p>
         </div>
       </div>
@@ -144,7 +144,7 @@ const SelecionarRede = () => {
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
       ) : redes.length === 0 ? (
-        <div className="rounded-[15px] border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+        <div className="rounded-[15px] border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
           <Network className="mx-auto h-8 w-8 text-gray-400" />
           <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Nenhuma rede cadastrada</p>
           <button
@@ -163,12 +163,12 @@ const SelecionarRede = () => {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder={`Buscar entre ${redes.length} redes…`}
-                className="h-10 w-full rounded-[10px] border border-[#e7ecf3] bg-white pl-9 pr-3 text-sm outline-none transition-colors focus:border-[#c3d0e0] focus:ring-2 focus:ring-[#2563eb]/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                className="h-10 w-full rounded-[10px] border border-[#e7ecf3] bg-white pl-9 pr-3 text-sm outline-none transition-colors focus:border-[#c3d0e0] focus:ring-2 focus:ring-[#2563eb]/30 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
             </div>
           )}
           {redesFiltradas.length === 0 ? (
-            <p className="rounded-[15px] border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+            <p className="rounded-[15px] border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black dark:text-gray-400">
               Nenhuma rede encontrada para “{busca}”.
             </p>
           ) : (

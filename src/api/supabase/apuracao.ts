@@ -431,6 +431,9 @@ export interface AfericaoCacheRow {
 
 /** Lê aferições do cache pra um período (mesma paginação por data_fiscal do
  *  fetchAbastecimentosCache — bate no índice idx_apuracao_afer_rede_data). */
+/** 'yyyy-MM-dd' + 1 dia (limite exclusivo do filtro por timestamp). */
+const diaSeguinte = (ymd: string) => { const d = new Date(`${ymd}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10) }
+
 export const fetchApuracaoAfericoes = async (
   params: FetchAbastCacheParams
 ): Promise<AfericaoCacheRow[]> => {
@@ -444,9 +447,10 @@ export const fetchApuracaoAfericoes = async (
     let query = supabase
       .from('apuracao_afericoes')
       .select('empresa_codigo,abastecimento_codigo,data_fiscal,data_hora_abastecimento,codigo_produto,codigo_frentista,codigo_bico,quantidade,valor_unitario')
-      .gte('data_fiscal', params.dataInicial)
-      .lte('data_fiscal', params.dataFinal)
-      .order('data_fiscal', { ascending: true })
+      // Linhas gravadas sem data_fiscal (cron publicado antes da correção de 31/07)
+      // entram pela data/hora do abastecimento — senão somem da tela.
+      .or(`and(data_fiscal.gte.${params.dataInicial},data_fiscal.lte.${params.dataFinal}),and(data_fiscal.is.null,data_hora_abastecimento.gte.${params.dataInicial},data_hora_abastecimento.lt.${diaSeguinte(params.dataFinal)})`)
+      .order('data_fiscal', { ascending: true, nullsFirst: false })
       .order('empresa_codigo', { ascending: true })
       .order('abastecimento_codigo', { ascending: true })
       .range(from, from + pageSize - 1)
@@ -1606,4 +1610,118 @@ export const splitPeriodAtToday = (dataInicial: string, dataFinal: string): Peri
 
   const hasFutureDays = dataFinal > today
   return { closedDays, todayPart, hasFutureDays }
+}
+
+/* ─── View mensal por produto (Diagnóstico do posto) ─────────────────────── */
+
+/** Linha da VIEW `apuracao_vendas_produto_mensal` — 1 por (rede, empresa, mês, produto). */
+export interface ApuracaoVendaProdutoMensalRow {
+  rede_id: string
+  empresa_codigo: number
+  mes: string // YYYY-MM
+  setor: string
+  produto_codigo: number
+  produto_nome: string | null
+  quantidade: number
+  total_venda: number
+  total_custo: number
+  cupons_produto: number
+  dias: number
+}
+
+/**
+ * Lê o agregado MENSAL por produto (view `apuracao_vendas_produto_mensal`,
+ * ver docs/supabase-apuracao-vendas-produto-mensal.sql). Base do Diagnóstico
+ * do posto: 24 meses de um posto com loja viram poucos milhares de linhas em
+ * vez de ~100 mil do detalhe diário. `mesInicial`/`mesFinal` em YYYY-MM.
+ */
+export const fetchVendasProdutoMensal = async (
+  params: { empresaCodigos: number[]; mesInicial: string; mesFinal: string; setor?: string },
+): Promise<ApuracaoVendaProdutoMensalRow[]> => {
+  if (!supabase) return []
+  const __t0 = perfNow()
+  const redeId = currentRedeId()
+  const all: ApuracaoVendaProdutoMensalRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_vendas_produto_mensal')
+      .select('*')
+      .gte('mes', params.mesInicial)
+      .lte('mes', params.mesFinal)
+      .order('mes', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('produto_codigo', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.setor) query = query.eq('setor', params.setor)
+    if (redeId) query = query.eq('rede_id', redeId)
+    if (params.empresaCodigos.length > 0) query = query.in('empresa_codigo', params.empresaCodigos)
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_vendas_produto_mensal] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoVendaProdutoMensalRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return perfDone('fetchVendasProdutoMensal', 'apuracao_vendas_produto_mensal', all, __t0)
+}
+
+/* ─── View mensal por setor (Evolução da rede por mês / ano) ─────────────── */
+
+/** Linha da VIEW `apuracao_vendas_setor_mensal` — 1 por (rede, empresa, mês, setor). */
+export interface ApuracaoVendaSetorMensalRow {
+  rede_id: string
+  empresa_codigo: number
+  mes: string // YYYY-MM
+  setor: string
+  quantidade: number
+  total_venda: number
+  total_custo: number
+  /** Dias do mês com venda apurada no setor (marca mês incompleto). */
+  dias: number
+}
+
+/**
+ * Lê o agregado MENSAL por setor (view `apuracao_vendas_setor_mensal`, ver
+ * docs/supabase-apuracao-vendas-setor-mensal.sql). Base da "Evolução da rede"
+ * por mês e por ano: 12 meses da rede inteira viram dezenas de linhas.
+ * `mesInicial`/`mesFinal` em YYYY-MM.
+ */
+export const fetchVendasSetorMensal = async (
+  params: { empresaCodigos: number[]; mesInicial: string; mesFinal: string; setor?: string },
+): Promise<ApuracaoVendaSetorMensalRow[]> => {
+  if (!supabase) return []
+  const __t0 = perfNow()
+  const redeId = currentRedeId()
+  const all: ApuracaoVendaSetorMensalRow[] = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let query = supabase
+      .from('apuracao_vendas_setor_mensal')
+      .select('*')
+      .gte('mes', params.mesInicial)
+      .lte('mes', params.mesFinal)
+      .order('mes', { ascending: true })
+      .order('empresa_codigo', { ascending: true })
+      .order('setor', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (params.setor) query = query.eq('setor', params.setor)
+    if (redeId) query = query.eq('rede_id', redeId)
+    if (params.empresaCodigos.length > 0) query = query.in('empresa_codigo', params.empresaCodigos)
+    const { data, error } = await query
+    if (error) {
+      console.warn('[apuracao_vendas_setor_mensal] fetch error:', error.message)
+      break
+    }
+    const rows = (data ?? []) as ApuracaoVendaSetorMensalRow[]
+    all.push(...rows)
+    if (rows.length < pageSize) break
+    from += pageSize
+  }
+  return perfDone('fetchVendasSetorMensal', 'apuracao_vendas_setor_mensal', all, __t0)
 }

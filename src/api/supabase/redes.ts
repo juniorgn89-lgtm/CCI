@@ -22,6 +22,10 @@ export interface RedeRow {
   repasse_webposto?: boolean
   /** Módulo Gestão (tarefas/rotinas) ligado pra esta rede (docs/supabase-gestao-tarefas-2.sql). */
   gestao_habilitado?: boolean
+  /** Módulo Compras (pedidos com liberação) ligado pra esta rede (docs/supabase-compras.sql). */
+  compras_habilitado?: boolean
+  /** Desde quando a rede é cliente da CCI (yyyy-MM-dd) — marco do "antes e depois" no Diagnóstico. docs/supabase-redes-cliente-desde.sql */
+  cliente_desde?: string | null
   created_at: string
   updated_at: string
   /* ─── Assistente IA · configuração por rede (migration: supabase-assistente-config.sql) ─── */
@@ -103,6 +107,8 @@ interface UpdateRedeInput {
   apuracao_auto?: boolean
   repasse_webposto?: boolean
   gestao_habilitado?: boolean
+  compras_habilitado?: boolean
+  cliente_desde?: string | null
   assistente_habilitado?: boolean
   assistente_tier?: AssistenteTier
   assistente_limite_mensal_usd?: number | null
@@ -155,6 +161,10 @@ export const updateRedePlano = (id: string, plano: PlanoId) =>
 /** Liga/desliga o módulo Gestão (tarefas e rotinas) pra uma rede. */
 export const toggleRedeGestao = (id: string, gestao_habilitado: boolean) =>
   updateRede(id, { gestao_habilitado })
+
+/** Liga/desliga o módulo Compras (pedidos com liberação) de uma rede. */
+export const toggleRedeCompras = (id: string, compras_habilitado: boolean) =>
+  updateRede(id, { compras_habilitado })
 
 /** Marca a origem comercial da rede: WebPosto (repasse) ou cliente próprio da CCI. */
 export const toggleRedeRepasseWebposto = (id: string, repasse_webposto: boolean) =>

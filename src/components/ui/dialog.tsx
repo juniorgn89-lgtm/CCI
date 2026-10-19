@@ -3,6 +3,11 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import GuiaDoModal from "@/components/guia/GuiaDoModal"
+import { GUIA_ATTR, type GuiaModal } from "@/components/guia/tipos"
+
+/** Clique/foco dentro do balão do guia (portal fora do modal) não fecha o modal. */
+const noGuia = (e: Event) => (e.target instanceof Element && !!e.target.closest(`[${GUIA_ATTR}]`))
 
 const Dialog = DialogPrimitive.Root
 
@@ -29,12 +34,37 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /** Personagem com balão explicando o modal (fora dele) + botão "Dica". */
+    guia?: GuiaModal
+  }
+>(({ className, children, guia, onPointerDownOutside, onInteractOutside, onFocusOutside, onOpenAutoFocus, ...props }, ref) => {
+  const localRef = React.useRef<HTMLDivElement | null>(null)
+  const setRefs = (el: HTMLDivElement | null) => {
+    localRef.current = el
+    if (typeof ref === "function") ref(el)
+    else if (ref) ref.current = el
+  }
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
-      ref={ref}
+      ref={setRefs}
+      onPointerDownOutside={(e) => { if (guia && noGuia(e)) { e.preventDefault(); return } onPointerDownOutside?.(e) }}
+      onInteractOutside={(e) => { if (guia && noGuia(e)) { e.preventDefault(); return } onInteractOutside?.(e) }}
+      onFocusOutside={(e) => { if (guia && noGuia(e)) { e.preventDefault(); return } onFocusOutside?.(e) }}
+      // Ao abrir, o Radix foca o 1º botão — muitas vezes um "?" (InfoHint), que
+      // abre o balão sozinho. Foca o 1º campo de digitação, se houver; senão o
+      // próprio modal (teclado continua funcionando, nada abre sem querer).
+      onOpenAutoFocus={(e) => {
+        onOpenAutoFocus?.(e)
+        if (e.defaultPrevented) return
+        e.preventDefault()
+        const el = localRef.current
+        const campo = el?.querySelector<HTMLElement>('[autofocus], input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])')
+        if (campo) campo.focus()
+        else el?.focus()
+      }}
       className={cn(
         // Fundo padrão dos modais = mesmo dos containers do restyle escuro:
         // branco no claro, gradiente gray-900→black no escuro, borda gray-200/700.
@@ -44,13 +74,15 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
+      {guia && <GuiaDoModal guia={guia} contentRef={localRef} />}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

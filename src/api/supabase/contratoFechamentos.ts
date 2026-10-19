@@ -10,6 +10,10 @@ export interface FechamentoRow {
   aliquota_pct: number | string
   liquido: number | string
   faturado: number | string
+  /* Modelo de indicação (docs/supabase-contrato-modelo-indicacao.sql) */
+  pct_repasse?: number | string | null
+  repasse?: number | string | null
+  fica_cci?: number | string | null
   detalhes: { rede: string; postos: number; liquido: number }[]
   observacao: string | null
   criado_em: string

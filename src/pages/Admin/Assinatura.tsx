@@ -16,9 +16,9 @@ import { ASSINATURA_DEFAULTS } from '@/pages/Landing/assinatura'
  */
 
 const inputCls =
-  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500'
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500'
 const labelCls = 'block text-xs font-semibold text-gray-500 dark:text-gray-400'
-const cardCls = 'rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900'
+const cardCls = 'rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black'
 
 interface FormState {
   assinatura_manutencao: boolean
@@ -119,9 +119,14 @@ const Assinatura = () => {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-24">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Assinatura</h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Configuração da tela pública de contratação — links de pagamento, contatos e manutenção.</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]">
+          <CreditCard className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Assinatura</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Configuração da tela pública de contratação — links de pagamento, contatos e manutenção.</p>
+        </div>
       </div>
 
       {/* Manutenção */}

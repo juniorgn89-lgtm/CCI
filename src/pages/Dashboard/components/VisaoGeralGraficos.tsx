@@ -7,6 +7,21 @@ import InfoHint from '@/components/ui/InfoHint'
 import { useChartTheme } from '@/lib/chartTheme'
 import { formatCurrencyInt, formatCurrencyShort, formatLiters, formatNumber } from '@/lib/formatters'
 import useRedeSetores, { type RedeSetor } from '@/pages/Dashboard/hooks/useRedeSetores'
+import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
+import SetorPostosModal from '@/pages/Dashboard/components/modais/SetorPostosModal'
+import useEvolucaoRede, { type Granularidade, type PontoEvolucao } from '@/pages/Dashboard/hooks/useEvolucaoRede'
+
+/** Troca de granularidade da "Evolução da rede". */
+const GRAN_TABS: { id: Granularidade; label: string }[] = [
+  { id: 'dia', label: 'Dia' },
+  { id: 'mes', label: 'Mês' },
+  { id: 'ano', label: 'Ano' },
+]
+const GRAN_SUBTITULO: Record<Granularidade, string> = {
+  dia: 'Por dia, no período do filtro, em R$ · margem no detalhe ao passar o mouse',
+  mes: 'Últimos 12 meses, em R$ · mês em andamento em barra clara · margem no detalhe ao passar o mouse',
+  ano: 'Últimos 5 anos, em R$ · ano em andamento em barra clara · margem no detalhe ao passar o mouse',
+}
 
 /**
  * Gráficos EXECUTIVOS da Visão Geral (modo "quero saber rápido como a rede está").
@@ -101,12 +116,14 @@ const Sparkline = ({ serie, color, id }: { serie: number[]; color: string; id: s
   )
 }
 
-const Donut = ({ title, dados, total, totalLabel, fmt }: {
+const Donut = ({ title, dados, total, totalLabel, fmt, onSetor }: {
   title: string
   dados: { id: SetorKey; valor: number }[]
   total: number
   totalLabel: string
   fmt: (v: number) => string
+  /** Clique num setor da legenda → modal posto a posto. */
+  onSetor?: (id: SetorKey) => void
 }) => {
   const ct = useChartTheme()
   const ordenados = [...dados].sort((a, b) => b.valor - a.valor)
@@ -145,7 +162,8 @@ const Donut = ({ title, dados, total, totalLabel, fmt }: {
         </div>
         <ul className="min-w-0 flex-1 space-y-2">
           {ordenados.map((d) => (
-            <li key={d.id} className="flex items-center justify-between gap-2 text-[12px]">
+            <li key={d.id}>
+              <button type="button" onClick={() => onSetor?.(d.id)} title="Ver o setor posto a posto" className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-0.5 text-[12px] transition-colors hover:bg-gray-50 dark:hover:bg-white/5">
               <span className="inline-flex min-w-0 items-center gap-2 text-gray-600 dark:text-gray-300">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SETOR_COR[d.id] }} />
                 <span className="truncate">{SETOR_LABEL[d.id]}</span>
@@ -154,6 +172,7 @@ const Donut = ({ title, dados, total, totalLabel, fmt }: {
                 <span className="block font-bold tabular-nums text-gray-900 dark:text-gray-100">{total > 0 ? pct((d.valor / total) * 100, 1) : '—'}</span>
                 <span className="block text-[10.5px] tabular-nums text-gray-400">{fmt(d.valor)}</span>
               </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -168,6 +187,12 @@ const VisaoGeralGraficos = () => {
   const rede = useRedeSetores()
   const ct = useChartTheme()
   const [rankMetric, setRankMetric] = useState<RankMetric>('lucroBruto')
+  // Evolução por dia (período do filtro) ou por mês / ano (série longa do cache).
+  const [gran, setGran] = useState<Granularidade>('dia')
+  const evoLonga = useEvolucaoRede(gran)
+  // Modais de detalhe (posto / setor) — abrem em cima da Visão Geral.
+  const [postoSel, setPostoSel] = useState<number | null>(null)
+  const [setorSel, setSetorSel] = useState<SetorKey | null>(null)
   const cmpLabel = rede.comparisonMode === 'prevYear' ? 'vs AA' : 'vs MA'
   const cmpLongo = rede.comparisonMode === 'prevYear' ? 'mesmo período do ano anterior' : 'mês anterior'
 
@@ -189,8 +214,11 @@ const VisaoGeralGraficos = () => {
     }
     return [...porDia.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([data, v], idx) => ({ idx, data, faturamento: v.fat, lucroBruto: v.lb, margem: v.fat > 0 ? (v.lb / v.fat) * 100 : 0 }))
+      .map(([data, v], idx): PontoEvolucao => ({ idx, data, rotulo: ddmm(data), faturamento: v.fat, lucroBruto: v.lb, margem: v.fat > 0 ? (v.lb / v.fat) * 100 : 0, parcial: false }))
   }, [setores])
+
+  // Série desenhada: por dia vem do período do filtro; mês/ano vêm da view mensal.
+  const serie = gran === 'dia' ? evolucao : evoLonga.pontos
 
   // Faixas de fim de semana (sáb+dom contíguos) em índices do eixo numérico
   // escondido: [i-0.5, i+0.5] cobre o slot inteiro da barra (o ReferenceArea no
@@ -212,10 +240,10 @@ const VisaoGeralGraficos = () => {
   // Ranking por posto: LB e faturamento somam os 3 setores; margem = LB total ÷
   // faturamento total (NUNCA média de percentuais); litros = só combustível.
   const ranking = useMemo(() => {
-    const porPosto = new Map<number, { posto: string; lucroBruto: number; faturamento: number; litros: number }>()
+    const porPosto = new Map<number, { empresaCodigo: number; posto: string; lucroBruto: number; faturamento: number; litros: number }>()
     for (const { id, obj } of setores) {
       for (const p of obj.postos) {
-        const e = porPosto.get(p.empresaCodigo) ?? { posto: p.posto, lucroBruto: 0, faturamento: 0, litros: 0 }
+        const e = porPosto.get(p.empresaCodigo) ?? { empresaCodigo: p.empresaCodigo, posto: p.posto, lucroBruto: 0, faturamento: 0, litros: 0 }
         e.lucroBruto += p.lucroBruto
         e.faturamento += p.faturamento
         if (id === 'combustivel') e.litros += p.qtd
@@ -281,28 +309,47 @@ const VisaoGeralGraficos = () => {
       <Card
         Icon={Activity}
         title="Evolução da rede"
-        hint="Faturamento (barras, eixo esquerdo) e lucro bruto (linha, eixo direito) por dia, somando os três setores. Fins de semana em faixa clara. A margem do dia aparece ao passar o mouse."
+        hint="Faturamento (barras, eixo esquerdo) e lucro bruto (linha, eixo direito), somando os três setores. Por dia: o período do filtro, com fins de semana em faixa clara. Por mês: os últimos 12 meses. Por ano: os últimos 5 anos. Mês/ano em andamento ou com dias sem apuração aparecem em barra clara. A margem aparece ao passar o mouse."
         className="lg:col-span-2 xl:col-span-7"
         right={
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Faturamento</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full bg-[#10b981]" />Lucro bruto</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-100 ring-1 ring-amber-200/70 dark:bg-amber-400/15 dark:ring-amber-300/20" />Fim de semana</span>
+            {gran === 'dia' && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-100 ring-1 ring-amber-200/70 dark:bg-amber-400/15 dark:ring-amber-300/20" />Fim de semana</span>}
+            <div className="inline-flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+              {GRAN_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setGran(t.id)}
+                  className={cn('rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors', gran === t.id ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-600' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white')}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       >
-        <p className="-mt-2 mb-2 text-[11px] text-gray-400">Por dia, em R$ · margem no detalhe ao passar o mouse</p>
+        <p className="-mt-2 mb-2 text-[11px] text-gray-400">{GRAN_SUBTITULO[gran]}</p>
         {/* Ocupa a altura da linha (os dois donuts empilhados ao lado ditam a
             altura); nunca menos de 230px. */}
         <div className="min-h-[230px] flex-1">
+        {gran !== 'dia' && evoLonga.isLoading ? (
+          <Skeleton className="h-[230px] w-full rounded-lg" />
+        ) : gran !== 'dia' && serie.length === 0 ? (
+          <div className="flex h-[230px] items-center justify-center rounded-lg border border-dashed border-gray-200 px-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            {evoLonga.isError ? 'Não foi possível ler a apuração mensal.' : 'Ainda não há meses apurados para esta rede.'}
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%" minHeight={230} initialDimension={{ width: 600, height: 230 }}>
-          <ComposedChart data={evolucao} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+          <ComposedChart data={serie} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
-            <XAxis dataKey="data" tickFormatter={ddmm} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={18} />
+            <XAxis dataKey="rotulo" tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} interval={gran === 'dia' ? 'preserveStartEnd' : 0} minTickGap={18} />
             {/* Eixo numérico ESCONDIDO só pras faixas de fim de semana: domínio
                 [-0.5, n-0.5] alinha o valor i ao centro da categoria i. */}
-            <XAxis xAxisId="idx" type="number" dataKey="idx" domain={[-0.5, Math.max(0.5, evolucao.length - 0.5)]} hide />
-            {faixasFimSemana.map((f) => (
+            <XAxis xAxisId="idx" type="number" dataKey="idx" domain={[-0.5, Math.max(0.5, serie.length - 0.5)]} hide />
+            {gran === 'dia' && faixasFimSemana.map((f) => (
               <ReferenceArea key={f.x1} xAxisId="idx" yAxisId="rs" x1={f.x1} x2={f.x2} fill={ct.dark ? 'rgba(251,191,36,0.07)' : 'rgba(251,191,36,0.10)'} stroke="none" ifOverflow="visible" />
             ))}
             {/* Ticks sem "R$ " (a moeda está no subtítulo): com o prefixo o rótulo
@@ -310,16 +357,23 @@ const VisaoGeralGraficos = () => {
             <YAxis yAxisId="rs" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} width={44} />
             <YAxis yAxisId="lb" orientation="right" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.dark ? '#34d399' : '#059669' }} axisLine={false} tickLine={false} width={44} domain={[0, 'auto']} />
             <Tooltip
-              labelFormatter={((l: string) => ddmm(l)) as never}
+              labelFormatter={((l: string, payload: { payload?: PontoEvolucao }[]) => {
+                const nota = payload?.[0]?.payload?.nota
+                return nota ? `${l} · ${nota}` : l
+              }) as never}
               formatter={((v: number, name: string) => name === 'Margem' ? [pct(v), name] : [formatCurrencyInt(v), name]) as never}
               contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
             />
-            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[3, 3, 0, 0]} maxBarSize={gran === 'dia' ? 22 : 40} isAnimationActive={false}>
+              {/* Período em andamento / incompleto em barra clara: não é queda, é falta de dias. */}
+              {serie.map((p) => <Cell key={p.data} fillOpacity={p.parcial ? 0.4 : 1} />)}
+            </Bar>
             <Line yAxisId="lb" type="monotone" dataKey="lucroBruto" name="Lucro bruto" stroke="#10b981" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: '#10b981' }} activeDot={{ r: 4 }} isAnimationActive={false} />
             {/* Margem só no tooltip: série sem traço (o eixo não importa, ela não é desenhada). */}
             <Line yAxisId="lb" dataKey="margem" name="Margem" stroke="none" dot={false} activeDot={false} legendType="none" isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
+        )}
         </div>
       </Card>
 
@@ -328,6 +382,7 @@ const VisaoGeralGraficos = () => {
           sumiam) ── */}
       <div className="grid grid-cols-1 gap-4 xl:col-span-5">
         <Donut
+          onSetor={setSetorSel}
           title="Participação no faturamento"
           dados={setores.map(({ id, obj }) => ({ id, valor: obj.faturamento }))}
           total={rede.global.faturamento}
@@ -335,6 +390,7 @@ const VisaoGeralGraficos = () => {
           fmt={formatCurrencyInt}
         />
         <Donut
+          onSetor={setSetorSel}
           title="Participação no lucro bruto"
           dados={setores.map(({ id, obj }) => ({ id, valor: obj.lucroBruto }))}
           total={rede.global.lucroBruto}
@@ -369,7 +425,8 @@ const VisaoGeralGraficos = () => {
         ) : (
           <ol className="max-h-[300px] space-y-2.5 overflow-y-auto pr-1">
             {ranking.linhas.map((p, i) => (
-              <li key={p.posto} className="flex items-center gap-3 text-[12.5px]">
+              <li key={p.empresaCodigo}>
+                <button type="button" onClick={() => setPostoSel(p.empresaCodigo)} title="Ver o resumo do posto" className="flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-[12.5px] transition-colors hover:bg-gray-50 dark:hover:bg-white/5">
                 <span className="w-4 shrink-0 text-right tabular-nums text-gray-400">{i + 1}</span>
                 <span className="inline-flex w-[38%] min-w-0 shrink-0 items-center gap-1.5 font-medium text-gray-800 dark:text-gray-100">
                   <span className="truncate">{p.posto}</span>
@@ -379,6 +436,7 @@ const VisaoGeralGraficos = () => {
                   <span className="block h-full rounded-sm bg-gradient-to-r from-emerald-500 to-emerald-400 dark:from-emerald-500 dark:to-emerald-300" style={{ width: `${ranking.max > 0 ? Math.max(2, (ranking.valor(p) / ranking.max) * 100) : 0}%` }} />
                 </span>
                 <span className="w-[88px] shrink-0 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{ranking.fmt(ranking.valor(p))}</span>
+                </button>
               </li>
             ))}
           </ol>
@@ -411,6 +469,7 @@ const VisaoGeralGraficos = () => {
         <ul className="space-y-4 pt-1">
           {margens.map((m) => (
             <li key={m.id}>
+              <button type="button" onClick={() => setSetorSel(m.id)} title="Ver o setor posto a posto" className="w-full rounded-md px-1 py-0.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5">
               <div className="mb-1.5 flex items-center justify-between text-[12.5px]">
                 <span className="font-medium text-gray-700 dark:text-gray-200">{SETOR_LABEL[m.id]}</span>
                 <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{pct(m.margem)}</span>
@@ -418,10 +477,14 @@ const VisaoGeralGraficos = () => {
               <div className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                 <div className="h-full rounded-full" style={{ width: `${Math.max(2, (m.margem / maxMargem) * 100)}%`, background: SETOR_COR[m.id] }} />
               </div>
+              </button>
             </li>
           ))}
         </ul>
       </Card>
+
+      <PostoResumoModal empresaCodigo={postoSel} onClose={() => setPostoSel(null)} />
+      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorSel(null); setPostoSel(c) }} />
     </div>
   )
 }

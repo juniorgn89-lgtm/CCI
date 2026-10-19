@@ -48,6 +48,8 @@ export interface ProfileRow {
   pode_demonstrar?: boolean
   /** Gere tarefas e rotinas do módulo Gestão (docs/supabase-gestao-tarefas.sql). */
   pode_gerir_tarefas?: boolean
+  /** Libera/recusa pedidos de compra e define tetos (docs/supabase-compras.sql). */
+  pode_liberar_compras?: boolean
   created_at: string
 }
 
@@ -207,6 +209,13 @@ export const updateProfilePodeDemonstrar = async (userId: string, pode: boolean)
     .from('profiles')
     .update({ pode_demonstrar: pode })
     .eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Concede/revoga a liberação de compras (aprovar pedidos, definir tetos). Master sempre pode. */
+export const updateProfilePodeLiberarCompras = async (userId: string, pode: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('profiles').update({ pode_liberar_compras: pode }).eq('user_id', userId)
   if (error) throw error
 }
 

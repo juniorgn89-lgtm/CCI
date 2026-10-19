@@ -24,7 +24,7 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/estoques',
     label: 'Estoques',
-    glossario: `Abas: Visão Geral, Estoque geral, Giro, Estoque médio, Média de venda (6m), Necessidade.
+    glossario: `Abas (um posto por vez): Visão Geral (por setor Automotivos/Conveniência: valor do inventário, valor em risco = parado sem venda há +90 dias + excesso acima de 2× a meta de cobertura, cobertura média só de quem vende, ruptura + crítico, valorização a custo médio/atual/venda, Curva ABC por faturamento 6m, Giro × Margem pela mediana, imobilizado por grupo), Produtos, Comprar.
 - Saldo/Qtd: saldo ATUAL do produto (não muda com a data). Não inclui combustível.
 - P. Custo / P. Venda: médias REALIZADAS dos últimos 6 meses (podem divergir do cadastro).
 - Markup %, Marg. Luc.: margem sobre custo / lucro por unidade.
@@ -80,11 +80,6 @@ const SCREENS: ScreenInfo[] = [
     path: '/ao-vivo',
     label: 'Ao Vivo Rede',
     glossario: `Módulo "ao vivo" (separado da Central): caixas ABERTOS agora e faturamento fiscal de HOJE, posto a posto. SEM filtros — é sempre o agora (hoje, rede inteira) e atualiza sozinho a cada 60s. "Parcial" = faturamento do dia em curso.`,
-  },
-  {
-    path: '/pessoas',
-    label: 'Pessoas',
-    glossario: `Funcionários da rede e vínculos.`,
   },
 ]
 

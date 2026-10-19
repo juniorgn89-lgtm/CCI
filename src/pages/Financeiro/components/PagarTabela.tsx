@@ -1,4 +1,8 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { lerFiltroLink, casaFiltroLink, semFiltroLink } from '@/pages/Financeiro/lib/filtroLink'
+import FiltroLinkBar from '@/pages/Financeiro/components/shared/FiltroLinkBar'
+import TituloDetalheModal, { type TituloDetalhe } from '@/pages/Financeiro/components/shared/TituloDetalheModal'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Landmark, Smartphone, ArrowLeftRight, Building2, MoreHorizontal, Layers,
@@ -9,6 +13,7 @@ import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import RowActionButton from '@/components/tables/RowAction'
 import ShareReportButton from '@/components/feedback/ShareReportButton'
+import VerDetalhamentoButton from '@/components/ui/VerDetalhamentoButton'
 import { escopoLabel, periodoLabel, type ReportPayload } from '@/lib/report/reportTypes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import type { PayableRow, LocalPeriodFilter } from '@/pages/Financeiro/hooks/useFinanceData'
@@ -55,6 +60,9 @@ interface Props {
   dateFilter?: ReactNode
   /** Período local — só pro rótulo do PDF de compartilhamento. */
   periodoLocal?: LocalPeriodFilter
+  /** "Ver detalhamento" controlado pelo pai (pra ele recolher o calendário junto). */
+  detalheAberto?: boolean
+  onToggleDetalhe?: () => void
 }
 
 /**
@@ -63,7 +71,7 @@ interface Props {
  * (passo 1) + período (passo 2) filtram uma tabela única, com Posto, fornecedor
  * multi, ordenação, faixa de atraso, paginação e export. READ-ONLY.
  */
-const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
+const PagarTabela = ({ payables, dateFilter, periodoLocal, detalheAberto: detalheProp, onToggleDetalhe }: Props) => {
   const scopedCodes = useScopedEmpresaCodes()
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresaNome = useMemo(
@@ -75,7 +83,11 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
   const planoMap = usePlanoContasMap()
   const planoNome = useCallback((cod: number) => planoMap.get(cod) || 'Sem plano', [planoMap])
 
-  const [inst, setInst] = useState<FiltroInst>('todos')
+  // Filtro vindo do modal de contas (URL): faixa de vencimento, categoria e busca.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filtroLink = useMemo(() => lerFiltroLink(searchParams, 'pagar'), [searchParams])
+  const [inst, setInst] = useState<FiltroInst>(() => (filtroLink?.cat && INSTR.some((i) => i.id === filtroLink.cat) ? filtroLink.cat as FiltroInst : 'todos'))
+  const limparFiltroLink = () => { setSearchParams(semFiltroLink(searchParams), { replace: true }); setInst('todos') }
   const [periodo, setPeriodo] = useState<Periodo>('todos')
   const [fornSel, setFornSel] = useState<string[]>([])
   const [buscaForn, setBuscaForn] = useState('')
@@ -106,8 +118,9 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
     })
     if (fornSel.length > 0) base = base.filter((r) => fornSel.includes(r.fornecedor))
     if (planoSel.length > 0) base = base.filter((r) => planoSel.includes(planoNome(r.planoContaCod)))
+    if (filtroLink) base = base.filter((r) => casaFiltroLink(filtroLink, { vencimento: r.vencimento, textos: [r.fornecedor, r.documento, String(r.sub ?? '')] }))
     return base
-  }, [rows, periodo, fornSel, planoSel, planoNome])
+  }, [rows, periodo, fornSel, planoSel, planoNome, filtroLink])
 
   const cards = useMemo(() => {
     const acc: Record<FiltroInst, { total: number; count: number }> = {
@@ -302,6 +315,11 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
     }
   }
 
+  // Tabela recolhida por padrão: o calendário acima responde o "quando"; o detalhe abre sob demanda.
+  const [detalheLocal, setDetalheLocal] = useState(false)
+  const detalheAberto = detalheProp ?? detalheLocal
+  const setDetalheAberto = (fn: (v: boolean) => boolean) => { if (onToggleDetalhe) onToggleDetalhe(); else setDetalheLocal(fn) }
+  const totalAbertoResumo = rowsAll.reduce((acc, r) => acc + r.valor, 0)
   const selCls = 'rounded-lg border border-gray-200 bg-white py-2 pl-3 pr-8 text-[13px] text-gray-700 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200'
 
   return (
@@ -312,6 +330,8 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
           <InfoHint text="Títulos a pagar em aberto (/TITULO_PAGAR) por instrumento (tipoLancamento: Boleto · Tributo · PIX · Transferência · Convênio · Outros). Clique num card pra filtrar. Somente leitura." />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!detalheAberto && <span className="text-[11px] text-gray-500 dark:text-gray-400">{rowsAll.length} títulos em aberto · <b className="text-gray-700 dark:text-gray-300">{formatCurrencyInt(totalAbertoResumo)}</b></span>}
+          <VerDetalhamentoButton aberto={detalheAberto} onToggle={() => setDetalheAberto((v) => !v)} />
           {dateFilter}
           <ShareReportButton filename="contas-a-pagar.pdf" build={buildReport} />
           <button type="button" onClick={exportar} disabled={rowsAll.length === 0}
@@ -320,6 +340,9 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
           </button>
         </div>
       </div>
+      {filtroLink && <FiltroLinkBar filtro={filtroLink} catLabel={filtroLink.cat ? INSTR.find((i) => i.id === filtroLink.cat)?.label : undefined} onLimpar={limparFiltroLink} />}
+      {detalheAberto && (
+        <>
 
       <p className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
         <MousePointerClick className="h-3.5 w-3.5 text-[#2563eb]" />
@@ -499,7 +522,6 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
               <tr><td colSpan={9} className="py-10 text-center text-[13px] text-gray-400 dark:text-gray-500">Nenhuma conta a pagar encontrada</td></tr>
             ) : pageRows.map((r, i) => {
               const m = instMeta(r.instrumento)
-              const aberto = detalhe === r.key
               // Agrupador (por posto OU fornecedor): cabeçalho com o total do grupo
               // quando a chave muda (ou na 1ª linha da página).
               const agrupPosto = ordenar === 'posto'
@@ -545,27 +567,9 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
                       </span>
                     </td>
                     <td className="py-2.5 pl-3 text-right">
-                      <RowActionButton icon={Eye} label={aberto ? 'Ocultar' : 'Ver detalhe'} onClick={() => setDetalhe(aberto ? null : r.key)} />
+                      <RowActionButton icon={Eye} label="Ver detalhe" onClick={() => setDetalhe(r.key)} />
                     </td>
                   </tr>
-                  {aberto && (
-                    <tr className="bg-gray-50/60 dark:bg-gray-800/30">
-                      <td colSpan={9} className="px-3 py-2.5">
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-                          <DetItem label="Fornecedor" value={r.fornecedor} />
-                          <DetItem label="Posto" value={nomePosto(r.empresa)} />
-                          <DetItem label="Instrumento" value={m.label} />
-                          <DetItem label="Documento" value={r.documento || '—'} />
-                          <DetItem label="Detalhe" value={r.sub || '—'} />
-                          <DetItem label="Vencimento" value={brDate(r.vencimento)} />
-                          <DetItem label="Status" value={r.vencido ? `Atrasado ${r.diasAtraso} dias` : 'A vencer'} />
-                          <DetItem label="Valor" value={formatCurrency(r.valorTotal)} />
-                          <DetItem label="Pago" value={formatCurrency(r.valorPago)} />
-                          <DetItem label="A pagar" value={formatCurrency(r.valor)} />
-                        </div>
-                      </td>
-                    </tr>
-                  )}
                 </Fragment>
               )
             })}
@@ -593,15 +597,23 @@ const PagarTabela = ({ payables, dateFilter, periodoLocal }: Props) => {
           )}
         </div>
       )}
+        </>
+      )}
+      {(() => {
+        const r = detalhe ? rowsAll.find((x) => x.key === detalhe) : null
+        if (!r) return null
+        const d: TituloDetalhe = {
+          lado: 'pagar', nome: r.fornecedor, sub: r.sub, posto: nomePosto(r.empresa), instrumento: instMeta(r.instrumento),
+          vencimento: r.vencimento, vencido: r.vencido, diasAtraso: r.diasAtraso, saldo: r.valor, bruto: r.valorTotal, pago: r.valorPago,
+          campos: [
+            { label: 'Documento', value: r.documento || '—' },
+            ...(r.planoContaCod ? [{ label: 'Plano de contas', value: planoNome(r.planoContaCod) }] : []),
+          ],
+        }
+        return <TituloDetalheModal t={d} onClose={() => setDetalhe(null)} />
+      })()}
     </section>
   )
 }
-
-const DetItem = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
-    <p className="tabular-nums text-gray-700 dark:text-gray-200">{value}</p>
-  </div>
-)
 
 export default PagarTabela

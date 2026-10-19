@@ -900,6 +900,8 @@ const useConvenienceData = (empresaCodigoOverride?: number | null) => {
       projComparativo: sz.cmpAnterior.faturamento > 0
         ? { anterior: sz.cmpAnterior.faturamento, label: sz.cmpLabel }
         : undefined,
+      /** Mês comparativo INTEIRO (faturamento e lucro) + rótulo — pro ritmo dos cards. */
+      projCheioAnterior: { faturamento: sz.cmpAnterior.faturamento, lucro: sz.cmpAnterior.lucro, label: sz.cmpLabel },
       dailyData,
       dailyChartData,
       salesByDay,

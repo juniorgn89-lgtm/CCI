@@ -27,6 +27,12 @@ export interface Rede {
   plano?: PlanoId | null
   /** Módulo Gestão (tarefas/rotinas) ligado pra esta rede (docs/supabase-gestao-tarefas-2.sql). */
   gestao_habilitado?: boolean
+  /** Módulo Compras (pedidos com liberação) ligado pra esta rede (docs/supabase-compras.sql). */
+  compras_habilitado?: boolean
+  /** Desde quando a rede é cliente da CCI (yyyy-MM-dd). Vazio = o app usa created_at e diz isso. */
+  cliente_desde?: string | null
+  /** Cadastro da rede no Visor (fallback do marco da CCI). */
+  created_at?: string
 }
 
 interface TenantState {

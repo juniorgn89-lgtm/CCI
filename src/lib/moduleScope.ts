@@ -9,7 +9,13 @@
 // /produtividade saiu do gate: virou rede-wide (Resumos somam o filtro; pódios
 // cross-posto). Precisa oferecer "Todos os postos" no seletor — senão, depois de
 // filtrar 1 posto, não havia como voltar pra rede consolidada de dentro do módulo.
-const GATED_PREFIXES = ['/operacao', '/estoques', '/caixas-turnos']
+// /operacao e /estoques saíram do gate (18/10/2026): as duas abrem na Visão Geral
+// da rede inteira e as abas de detalhe têm seletor de posto PRÓPRIO (pílulas).
+// No gate, o cabeçalho escondia "Todos os postos" e mostrava "Selecione um
+// posto" com a tela exibindo a rede toda — seletor diferente da Central.
+// /estoques voltou ao gate (18/10/2026): a Visão Geral virou o painel de UM posto
+// e a pílula própria saiu — o posto vem só do seletor do cabeçalho.
+const GATED_PREFIXES = ['/caixas-turnos', '/estoques']
 
 /** True se a rota permite "Todos os postos" ([]). False = exige posto específico. */
 export const moduloPermiteTodos = (pathname: string): boolean =>

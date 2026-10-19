@@ -3,10 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useFilters } from '@/hooks/useFilters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Layers, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat,
+  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2,
 } from 'lucide-react'
 import {
-  fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, estaAtrasada,
+  fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, estaAtrasada,
   STATUS_LABEL, ATIVIDADE_VERBO,
   type TarefaRow, type TarefaStatus, type ChecklistItem, type TarefaInput,
 } from '@/api/supabase/gestaoTarefas'
@@ -17,6 +17,7 @@ import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
+import { GUIAS } from '@/lib/guiasModais'
 import HeaderHint from '@/components/tables/HeaderHint'
 
 /**
@@ -26,10 +27,16 @@ import HeaderHint from '@/components/tables/HeaderHint'
  * Criar e editar é só gestor/diretor; executar e adiar é o responsável (ou gestor).
  */
 
-type Aba = 'todas' | 'atrasadas' | 'hoje' | 'andamento' | 'minhas'
+type Aba = 'todas' | 'atrasadas' | 'hoje' | 'andamento' | 'minhas' | 'canceladas'
 type Periodo = 7 | 14 | 30
 type Visao = 'lista' | 'kanban' | 'agenda'
 
+const STATUS_DOT: Record<TarefaStatus, string> = {
+  a_fazer: 'bg-gray-400',
+  em_andamento: 'bg-blue-500',
+  concluida: 'bg-emerald-500',
+  cancelada: 'bg-gray-300 dark:bg-gray-600',
+}
 const STATUS_CLS: Record<TarefaStatus, string> = {
   a_fazer: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   em_andamento: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -68,7 +75,7 @@ const Tarefas = () => {
   // null = "automática": resolvida na hora de usar, porque o perfil (podeGerir)
   // pode chegar depois do primeiro render num reload da página.
   const [abaEscolhida, setAba] = useState<Aba | null>(
-    abaInicial === 'atrasadas' || abaInicial === 'hoje' || abaInicial === 'andamento' || abaInicial === 'minhas' || abaInicial === 'todas' ? abaInicial : null,
+    abaInicial === 'atrasadas' || abaInicial === 'hoje' || abaInicial === 'andamento' || abaInicial === 'minhas' || abaInicial === 'todas' || abaInicial === 'canceladas' ? abaInicial : null,
   )
   const aba: Aba = abaEscolhida ?? (base.podeGerir ? 'todas' : 'minhas')
   const [busca, setBusca] = useState('')
@@ -89,6 +96,8 @@ const Tarefas = () => {
   const [novaAberta, setNovaAberta] = useState(false)
   const [editando, setEditando] = useState<TarefaRow | null>(null)
   const [detalhe, setDetalhe] = useState<TarefaRow | null>(null)
+  // Abrir o detalhe já com a confirmação de exclusão (vindo do botão da lista).
+  const [excluindoDaLista, setExcluindoDaLista] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   // Janela: últimos N dias até 7 dias à frente (as próximas sempre aparecem).
@@ -108,6 +117,7 @@ const Tarefas = () => {
     hoje: todas.filter((t) => t.vence_dia === hoje && t.status !== 'concluida' && t.status !== 'cancelada').length,
     andamento: todas.filter((t) => t.status === 'em_andamento').length,
     minhas: todas.filter((t) => t.responsavel_id === base.userId && (t.status === 'a_fazer' || t.status === 'em_andamento')).length,
+    canceladas: todas.filter((t) => t.status === 'cancelada').length,
   }), [todas, hoje, base.userId])
 
   // Filtro da página (abas + selects + busca + posto global). A Agenda usa o
@@ -119,6 +129,7 @@ const Tarefas = () => {
       if (aba === 'hoje' && !(t.vence_dia === hoje && t.status !== 'concluida' && t.status !== 'cancelada')) return false
       if (aba === 'andamento' && t.status !== 'em_andamento') return false
       if (aba === 'minhas' && !(t.responsavel_id === base.userId && (t.status === 'a_fazer' || t.status === 'em_andamento'))) return false
+      if (aba === 'canceladas' && t.status !== 'cancelada') return false
       if (respSel === 'sem' ? t.responsavel_id !== null : respSel !== 'todos' && t.responsavel_id !== respSel) return false
       if (setorSel !== 'todos' && t.setor_id !== setorSel) return false
       if (postoSel === 'sem' ? t.empresa_codigo !== null : postoSel !== 'todos' && t.empresa_codigo !== Number(postoSel)) return false
@@ -156,6 +167,15 @@ const Tarefas = () => {
       }
     } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
   }
+  const excluir = async (t: TarefaRow) => {
+    setErro(null)
+    try {
+      await excluirTarefa(t)
+      setDetalhe(null)
+      setExcluindoDaLista(false)
+      invalidar()
+    } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
+  }
   const voltarAtras = async () => {
     if (!desfazer) return
     const { t, anterior } = desfazer
@@ -177,6 +197,7 @@ const Tarefas = () => {
     { id: 'hoje', label: 'Vencem hoje', n: contagem.hoje, cor: 'text-amber-600 dark:text-amber-400' },
     { id: 'andamento', label: 'Em andamento', n: contagem.andamento },
     { id: 'minhas', label: 'Minhas pendentes', n: contagem.minhas },
+    { id: 'canceladas', label: 'Canceladas', n: contagem.canceladas, cor: 'text-gray-400' },
   ]
 
   const tarefaAtual = detalhe ? (todas.find((t) => t.id === detalhe.id) ?? detalhe) : null
@@ -193,7 +214,7 @@ const Tarefas = () => {
               <span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', aba === a.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800')}>{a.n}</span>
             </button>
           ))}
-          <InfoHint className="ml-1" text="Atrasadas: abertas que passaram do vencimento. Vencem hoje: abertas com prazo hoje. Em andamento: alguém já começou. Minhas pendentes: as suas abertas. Os números contam o período escolhido à direita." />
+          <InfoHint className="ml-1" text="Atrasadas: abertas que passaram do vencimento. Vencem hoje: abertas com prazo hoje. Em andamento: alguém já começou. Minhas pendentes: as suas abertas. Canceladas: as que saíram do caminho (dá para reabrir ou, sendo gestor, excluir de vez). Os números contam o período escolhido à direita." />
         </div>
         <span className="ml-auto flex flex-wrap items-center gap-2">
           <Segmentos<Visao> opcoes={[{ value: 'lista', label: 'Lista' }, { value: 'kanban', label: 'Kanban' }, { value: 'agenda', label: 'Agenda' }]} valor={visao} onChange={setVisao} />
@@ -232,7 +253,7 @@ const Tarefas = () => {
       <Erro msg={erro} />
 
       {visao === 'kanban' && !tarefas.isLoading && (
-        <Kanban tarefas={lista.filter((t) => t.status !== 'cancelada')} ctx={base} onAbrir={setDetalhe} onMudar={mudar} />
+        <Kanban tarefas={lista} ctx={base} onAbrir={setDetalhe} onMudar={mudar} />
       )}
       {visao === 'agenda' && <Agenda ctx={{ redeId: base.redeId, nomePosto: base.nomePosto, nomeUsuario: base.nomeUsuario }} filtro={filtro} onAbrir={setDetalhe} />}
 
@@ -275,58 +296,70 @@ const Tarefas = () => {
                         {t.checklist.length > 0 && <span>{feitos}/{t.checklist.length} etapas</span>}
                       </span>
                     </button>
-                    <div className="flex justify-end"><AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} /></div>
+                    <div className="flex justify-end"><AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} onExcluir={base.podeGerir ? (x) => { setDetalhe(x); setExcluindoDaLista(true) } : undefined} /></div>
                   </li>
                 )
               })}
             </ul>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:bg-transparent dark:text-gray-400">
-                    <th className="px-4 py-2 font-semibold">Tarefa</th>
-                    <th className="px-3 py-2 font-semibold">Posto</th>
-                    <th className="px-3 py-2 font-semibold">Responsável</th>
-                    <HeaderHint align="left" className="font-semibold" label="Vence" help="Prazo em palavras: hoje, amanhã ou há quanto tempo está atrasada. Passe o mouse para ver a data e a hora exatas. Atrasadas vêm primeiro, depois as de hoje." />
-                    <HeaderHint align="left" className="font-semibold" label="Status" help="A fazer: ninguém começou. Em andamento: alguém começou (marcar a primeira etapa do checklist já faz isso). Concluída e Cancelada fecham a tarefa; Reabrir volta para A fazer." />
+                <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
+                  <tr className="text-left">
+                    <HeaderHint align="left" className="px-4 font-semibold" label="Status" help="A fazer: ninguém começou. Em andamento: alguém começou (marcar a primeira etapa do checklist já faz isso). Atrasada: aberta e passou do prazo. Concluída e Cancelada fecham a tarefa; Reabrir volta para A fazer." />
+                    <th className="px-3 py-2.5 font-semibold">Tarefa</th>
+                    <th className="px-3 py-2.5 font-semibold">Posto</th>
+                    <th className="px-3 py-2.5 font-semibold">Responsável</th>
+                    <HeaderHint align="left" className="font-semibold" label="Vencimento" help="Data e hora do prazo; embaixo, em palavras: hoje, amanhã ou há quanto tempo está atrasada. Atrasadas vêm primeiro, depois as de hoje." />
                     <HeaderHint align="right" className="px-4 font-semibold" label="Ação" help="Sem checklist: Concluir direto, com Desfazer por alguns segundos. Com checklist pendente: Abrir checklist, para marcar as etapas antes de concluir. Adiar, editar e cancelar ficam dentro da tarefa." />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {lista.map((t) => {
                     const atrasada = estaAtrasada(t)
+                    const aberta = t.status === 'a_fazer' || t.status === 'em_andamento'
                     const feitos = t.checklist.filter((c) => c.feito).length
+                    const posto = base.nomePosto(t.empresa_codigo)
+                    const setor = base.nomeSetor(t.setor_id)
                     return (
-                      <tr key={t.id} onClick={() => setDetalhe(t)} className="cursor-pointer text-gray-800 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.03]">
-                        <td className="px-4 py-2.5">
+                      <tr key={t.id} onClick={() => setDetalhe(t)} className="cursor-pointer text-gray-800 hover:bg-gray-50/60 dark:text-gray-200 dark:hover:bg-gray-800/30">
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>
+                            <span className={cn('h-1.5 w-1.5 rounded-full', atrasada ? 'bg-red-500' : STATUS_DOT[t.status])} />
+                            {atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
                           <button type="button" onClick={() => setDetalhe(t)} className="text-left">
-                            <span className="block font-medium hover:underline">{t.titulo}</span>
-                            <span className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500">
-                              {t.setor_id && <span className="inline-flex items-center gap-1"><Layers className="h-3 w-3" />{base.nomeSetor(t.setor_id)}</span>}
-                              {t.checklist.length > 0 && <span>{feitos}/{t.checklist.length} etapas</span>}
-                              {t.rotina_id && <span>rotina</span>}
+                            <span className={cn('block font-semibold hover:underline', !aberta && 'text-gray-500 dark:text-gray-400')}>{t.titulo}</span>
+                            <span className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400">
+                              <span>{t.rotina_id ? 'rotina' : 'avulsa'}</span>
+                              {t.checklist.length > 0 && <span className={cn('inline-flex items-center gap-0.5', feitos === t.checklist.length && 'text-emerald-600 dark:text-emerald-400')}><ListChecks className="h-3 w-3" />{feitos}/{t.checklist.length} etapas</span>}
                               {t.data_ref && t.data_ref !== t.vence_dia && <span>ref. {fmtData(t.data_ref)}</span>}
                             </span>
                           </button>
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300">{base.nomePosto(t.empresa_codigo) ?? '—'}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300">{base.nomeUsuario(t.responsavel_id) ?? <span className="text-gray-400">sem responsável</span>}</td>
-                        <td className={cn('whitespace-nowrap px-3 py-2.5 text-xs tabular-nums', atrasada ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300')} title={fmtDataHora(t.vence_em)}>
-                          {atrasada && <AlertTriangle className="mr-1 inline h-3 w-3" />}{fmtPrazo(t.vence_em, t.status === 'a_fazer' || t.status === 'em_andamento')}
+                        <td className="px-3 py-3 text-xs">
+                          <span className="block uppercase text-gray-700 dark:text-gray-200">{posto ?? 'Rede'}</span>
+                          {setor && <span className="block text-[11px] text-gray-400 dark:text-gray-500">{setor}</span>}
                         </td>
-                        <td className="px-3 py-2.5">
-                          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>
-                            {atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}
+                        <td className="px-3 py-3 text-xs text-gray-700 dark:text-gray-200">{base.nomeUsuario(t.responsavel_id) ?? <span className="text-gray-400">sem responsável</span>}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-xs">
+                          <span className={cn('block tabular-nums', atrasada ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200')}>
+                            {atrasada && <AlertTriangle className="mr-1 inline h-3 w-3" />}{fmtDataHora(t.vence_em)}
                           </span>
+                          {aberta && <span className={cn('block text-[11px]', atrasada ? 'text-red-500/80' : 'text-gray-400 dark:text-gray-500')}>{fmtPrazo(t.vence_em, true)}</span>}
                         </td>
-                        <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
-                          <AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} />
+                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} onExcluir={base.podeGerir ? (x) => { setDetalhe(x); setExcluindoDaLista(true) } : undefined} />
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="border-t border-gray-100 px-4 py-2 text-[11px] text-gray-400 dark:border-gray-800 dark:text-gray-500">
+              {lista.length} tarefa{lista.length === 1 ? '' : 's'} · ordenadas por urgência (atrasadas, depois as de hoje, depois por prazo)
             </div>
           </>
         )}
@@ -354,9 +387,11 @@ const Tarefas = () => {
         <TarefaDetalhe
           key={`${tarefaAtual.id}-${tarefaAtual.atualizado_em}`}
           tarefa={tarefaAtual}
-          onClose={() => setDetalhe(null)}
+          onClose={() => { setDetalhe(null); setExcluindoDaLista(false) }}
           onMudar={mudar}
           onAdiar={adiar}
+          onExcluir={base.podeGerir ? excluir : undefined}
+          excluindoInicial={excluindoDaLista}
           onEditar={base.podeGerir ? (t) => setEditando(t) : undefined}
           onChecklist={async (t, lista) => {
             setErro(null)
@@ -376,8 +411,10 @@ const Tarefas = () => {
  * detalhe, onde as etapas ficam visíveis); sem checklist, Concluir direto.
  * Iniciar fica só no detalhe. Errou? Reabrir, e o histórico guarda os dois.
  */
-const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir }: {
+const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir }: {
   t: TarefaRow; onMudar: (t: TarefaRow, s: TarefaStatus) => void; compacto?: boolean; destaque?: boolean; onAbrir?: (t: TarefaRow) => void
+  /** Só gestor/diretor: aparece nas canceladas da lista. */
+  onExcluir?: (t: TarefaRow) => void
 }) => {
   const b = cn(btnGhost, compacto ? 'h-7 px-2 text-xs' : 'h-9')
   const concluirCls = destaque
@@ -408,17 +445,25 @@ const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir }: {
     <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
   )
   return (
-    <button type="button" className={b} onClick={() => onMudar(t, 'a_fazer')}><RotateCcw className="h-3.5 w-3.5" /> Reabrir</button>
+    <span className="inline-flex gap-1">
+      <button type="button" className={b} onClick={() => onMudar(t, 'a_fazer')}><RotateCcw className="h-3.5 w-3.5" /> Reabrir</button>
+      {compacto && onExcluir && t.status === 'cancelada' && (
+        <button type="button" className={cn(b, 'text-red-600 dark:text-red-400')} onClick={() => onExcluir(t)} title="Excluir de vez (só gestor ou diretor)"><Trash2 className="h-3.5 w-3.5" /> Excluir</button>
+      )}
+    </span>
   )
 }
 
 /* ─── detalhe ─────────────────────────────────────────────────────────── */
 
-const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onChecklist }: {
+const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExcluir, excluindoInicial, onChecklist }: {
   tarefa: TarefaRow; onClose: () => void
   onMudar: (t: TarefaRow, s: TarefaStatus, obs?: string) => void
   onAdiar: (t: TarefaRow, novoVenceEm: string, motivo?: string) => Promise<void>
   onEditar?: (t: TarefaRow) => void
+  /** Só gestor/diretor. Apaga de vez: histórico e anexos vão junto. */
+  onExcluir?: (t: TarefaRow) => Promise<void>
+  excluindoInicial?: boolean
   onChecklist: (t: TarefaRow, lista: ChecklistItem[]) => Promise<void>
 }) => {
   const base = useGestaoBase()
@@ -439,6 +484,14 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
 
   // Cancelar pede confirmação (sai das listas; o histórico fica).
   const [cancelando, setCancelando] = useState(false)
+  // Excluir pede confirmação (apaga de vez, com histórico e anexos).
+  const [excluindo, setExcluindo] = useState(!!excluindoInicial)
+  const [excluindoSalva, setExcluindoSalva] = useState(false)
+  const confirmarExcluir = async () => {
+    if (!onExcluir) return
+    setExcluindoSalva(true)
+    try { await onExcluir(t) } finally { setExcluindoSalva(false) }
+  }
   // Adiar: painel pequeno com nova data/hora; o motivo é a observação.
   const [adiando, setAdiando] = useState(false)
   const [novaData, setNovaData] = useState(somaDias(hojeLocal(), 1))
@@ -456,7 +509,7 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
   const historico = useQuery({ queryKey: ['gestao-atividades-tarefa', t.id], queryFn: () => fetchAtividadesDaTarefa(t.id) })
 
   return (
-    <Modal open onClose={onClose} titulo={t.titulo} largura="max-w-lg">
+    <Modal guia={GUIAS.tarefaDetalhe} open onClose={onClose} titulo={t.titulo} largura="max-w-lg">
       <div className="space-y-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
           <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>{atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}</span>
@@ -495,6 +548,18 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
         )}
         {checklistCompleto && (
           <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">Checklist completo. Falta só concluir.</p>
+        )}
+        {excluindo && (
+          <div className="space-y-2 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-950/30">
+            <p className="text-xs font-semibold text-red-800 dark:text-red-300">Excluir esta tarefa de vez?</p>
+            <p className="text-[11px] text-red-700 dark:text-red-400">Some da lista, do painel e da agenda, e leva junto o histórico e os anexos. Não dá para desfazer. Se a ideia é só tirar do caminho, prefira Cancelar: ela fica no histórico.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" className={cn(btnGhost, 'h-8 text-xs')} onClick={() => setExcluindo(false)} disabled={excluindoSalva}>Voltar</button>
+              <button type="button" className={cn(btnGhost, 'h-8 border-red-400 bg-red-600 text-xs text-white hover:bg-red-700 dark:border-red-700 dark:bg-red-700')} onClick={() => void confirmarExcluir()} disabled={excluindoSalva}>
+                {excluindoSalva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Sim, excluir
+              </button>
+            </div>
+          </div>
         )}
         {cancelando && (
           <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/20">
@@ -557,6 +622,9 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onCheck
             {podeAdiar && !adiando && (
               <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs')} onClick={() => setAdiando(true)}><CalendarClock className="h-3.5 w-3.5" /> Adiar</button>
             )}
+            {onExcluir && (
+              <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs text-red-600 dark:text-red-400')} onClick={() => { setCancelando(false); setAdiando(false); setExcluindo(true) }} disabled={excluindo} title="Só gestor ou diretor"><Trash2 className="h-3.5 w-3.5" /> Excluir</button>
+            )}
           </span>
           <AcoesTarefa t={t} onMudar={mudarComObs} destaque={checklistCompleto} />
         </ModalRodape>
@@ -616,7 +684,7 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
   }
 
   return (
-    <Modal open onClose={onClose} titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
+    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
       <div className="space-y-3">
         <div>
           <label className={labelCls} htmlFor="tf-titulo">Título</label>

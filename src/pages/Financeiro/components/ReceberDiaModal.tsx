@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
+import { GUIAS } from '@/lib/guiasModais'
 import type { ReceivableRow } from '@/pages/Financeiro/hooks/useFinanceData'
 
 interface Props {
@@ -40,7 +41,7 @@ const ReceberDiaModal = ({ open, onClose, dia, titulos }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="flex max-h-[88vh] w-[95vw] max-w-3xl flex-col overflow-hidden">
+      <DialogContent guia={GUIAS.receberDia} className="flex max-h-[88vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="tabular-nums">{brDate(dia)}</span>
@@ -64,14 +65,14 @@ const ReceberDiaModal = ({ open, onClose, dia, titulos }: Props) => {
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[760px] text-xs">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800/60">
                 <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  <th className="px-3 py-2 font-medium">Cliente</th>
+                  <th className="min-w-[260px] px-3 py-2 font-medium">Cliente</th>
                   <th className="px-3 py-2 font-medium">Documento</th>
                   <th className="px-3 py-2 font-medium">Emissão</th>
                   <th className="px-3 py-2 text-right font-medium">Valor</th>
-                  <th className="px-3 py-2 text-right font-medium">Dias atraso</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Atraso</th>
                   <th className="px-3 py-2 text-center font-medium">Status</th>
                 </tr>
               </thead>
@@ -85,8 +86,8 @@ const ReceberDiaModal = ({ open, onClose, dia, titulos }: Props) => {
                         {doc && <p className="text-[10px] tabular-nums text-gray-400">{doc}</p>}
                       </td>
                       <td className="px-3 py-2 font-medium tabular-nums text-gray-700 dark:text-gray-300">{numTitulo(r)}</td>
-                      <td className="px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{brDate(r.dataMovimento)}</td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-gray-500 dark:text-gray-400">{brDate(r.dataMovimento)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(r.valor)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">{r.diasAtraso > 0 ? `${r.diasAtraso}d` : '—'}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold', r.statusTag === 'vencido'
