@@ -12,7 +12,7 @@ import {
 } from '@/api/supabase/compras'
 import { useComprasBase, inputCls, selectCls, labelCls, btnPrimary, btnGhost, nomeProprio, fmtCnpj, qtdFmt } from './comum'
 import { usePedidos, liberadoNoMes } from './hooks/usePedidos'
-import { useFornecedores, type FornecedorOpcao } from './hooks/useFornecedores'
+import { useFornecedores, type FornecedorOpcao, type FaixaFornecedor } from './hooks/useFornecedores'
 import { useSugestoes, COBERTURA_PADRAO, LEAD_TIME_PADRAO, type Sugestao, type StatusSugestao } from './hooks/useSugestoes'
 import { GUIAS } from '@/lib/guiasModais'
 import { useCatalogoFornecedor } from './hooks/useCatalogoFornecedor'
@@ -46,6 +46,13 @@ const fmtDias = (v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDig
  * itens, teto do mês, observações; salvar rascunho ou enviar.
  */
 /** Pedido já começado em outra tela (ex.: Estoques › Comprar): posto e itens. */
+const ROTULO_FAIXA: Record<FaixaFornecedor, string> = {
+  posto: 'Vendeu para este posto',
+  rede: 'Vendeu para outros postos da rede',
+  cadastro: 'Outros do cadastro (sem nota no ano)',
+}
+const fmtDiaCurto = (iso: string) => { const [a, m, d] = iso.split('-'); return `${d}/${m}/${a.slice(2)}` }
+
 export interface PedidoInicial { empresa: number; itens: ItemInput[]; /** Categoria já definida (ex.: Combustível, vindo dos tanques). */ setor?: SetorCompra }
 
 const NovoPedidoModal = ({ open, onClose, pedido, onSalvo, tetos, pedidos, inicial }: { open: boolean; onClose: () => void; pedido: PedidoRow | null; onSalvo: () => void; tetos: TetoRow[]; pedidos: PedidoRow[]; inicial?: PedidoInicial }) => {
@@ -94,6 +101,9 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const mesmaUnidade = (custoNota: number, custoUnit: number) => custoUnit <= 0 || (custoNota <= custoUnit * 3 && custoNota >= custoUnit / 3)
   // Produto → de quem foi comprado por último (posto primeiro, senão a rede).
   const ultimo = useUltimoFornecedor(base.redeId, empresa)
+  const listaForn = useMemo(() => (listaAberta ? forn.buscar(buscaF, empresa) : []),
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- buscar deriva de forn.opcoes
+  [listaAberta, buscaF, empresa, forn.opcoes])
   const nomePorCodigo = useMemo(() => new Map(forn.opcoes.filter((o) => o.codigo_erp != null).map((o) => [o.codigo_erp as number, o])), [forn.opcoes])
   const fornDe = (produtoCodigo: number): FornItem | null => {
     const u = ultimo.porProduto.get(produtoCodigo)
@@ -342,7 +352,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
           <div className="relative">
             <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Fornecedor
               {fornecedor ? <span className="font-normal normal-case text-gray-400">{fornecedor.codigo_erp ? <> · cód <b className="font-semibold text-[#1e3a5f] dark:text-blue-300">{fornecedor.codigo_erp}</b></> : ' · novo'}{fornecedor.cnpj ? ` · CNPJ ${fmtCnpj(fornecedor.cnpj)}` : ''}</span>
-                : <InfoHint text="Lista das notas lançadas no ERP nos últimos 12 meses e do cadastro deste módulo. Ao adicionar o primeiro produto, o fornecedor da última compra dele já entra aqui." />}
+                : <InfoHint text="A lista mostra quem emitiu nota de compra para a rede no último ano (primeiro quem vendeu para este posto). Qualquer outro fornecedor cadastrado no ERP aparece ao digitar o nome, razão social, código ou CNPJ. Ao adicionar o primeiro produto, o fornecedor da última compra dele já entra aqui." />}
             </span>
             {fornecedor ? (
               <div className="flex h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-[#0f0f0f]">
@@ -353,18 +363,39 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
               </div>
             ) : (
               <>
-                <span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={buscaF} onFocus={() => setListaAberta(true)} onBlur={() => setTimeout(() => setListaAberta(false), 150)} onChange={(e) => { setBuscaF(e.target.value); setListaAberta(true) }} placeholder={itens.length > 0 && ultimo.carregando ? "Buscando o fornecedor da última compra…" : "Nome, código ou CNPJ (ou adicione um produto)"} autoFocus={listaAberta} className={cn(inputCls, 'h-10 pl-9')} /></span>
+                <span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={buscaF} onFocus={() => setListaAberta(true)} onBlur={() => setTimeout(() => setListaAberta(false), 150)} onChange={(e) => { setBuscaF(e.target.value); setListaAberta(true) }} placeholder={itens.length > 0 && ultimo.carregando ? "Buscando o fornecedor da última compra…" : "Digite para buscar qualquer fornecedor: nome, código ou CNPJ"} autoFocus={listaAberta} className={cn(inputCls, 'h-10 pl-9')} /></span>
                 {listaAberta && (
                   <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                    {forn.buscar(buscaF, 40).map((o) => (
-                      <button key={o.chave} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => escolherFornecedor(o)} className="grid w-full grid-cols-[56px_1fr_auto] items-center gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                        <span className="font-mono text-[10.5px] text-gray-400">{o.codigo_erp ?? '—'}</span>
-                        <span className="truncate font-medium text-gray-900 dark:text-gray-100">{o.nome}</span>
-                        <span className="font-mono text-[10px] text-gray-400">{o.cnpj ? fmtCnpj(o.cnpj) : ''}</span>
-                      </button>
+                    {!buscaF.trim() && (
+                      <p className="flex items-start gap-1.5 border-b border-blue-100 bg-blue-50 px-3 py-2 text-[11.5px] text-[#1e3a5f] dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+                        <Search className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>Aqui aparecem só os que emitiram nota no último ano. <b>Não achou? Digite o nome, código ou CNPJ</b>: a busca procura em todos os fornecedores cadastrados no ERP.</span>
+                      </p>
+                    )}
+                    {listaForn.map(({ o, faixa }, i) => (
+                      <div key={o.chave}>
+                        {faixa !== listaForn[i - 1]?.faixa && (
+                          <p className="border-b border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
+                            {ROTULO_FAIXA[faixa]} <span className="font-normal normal-case tracking-normal">({listaForn.filter((x) => x.faixa === faixa).length})</span>
+                          </p>
+                        )}
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => escolherFornecedor(o)} className="grid w-full grid-cols-[56px_1fr_auto] items-center gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                          <span className="font-mono text-[10.5px] text-gray-400">{o.codigo_erp ?? '—'}</span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-gray-900 dark:text-gray-100">{o.nome}</span>
+                            {(o.razao || o.cidade) && <span className="block truncate text-[10.5px] text-gray-400">{[o.razao, o.cidade].filter(Boolean).join(' · ')}</span>}
+                          </span>
+                          <span className="text-right text-[10px] leading-tight text-gray-400">
+                            <span className="block font-mono">{o.cnpj ? fmtCnpj(o.cnpj) : ''}</span>
+                            {o.ultimaCompra && <span className="block">última nota {fmtDiaCurto(o.ultimaCompra)}</span>}
+                          </span>
+                        </button>
+                      </div>
                     ))}
+                    {!forn.carregandoErp && listaForn.length === 0 && <p className="px-3 py-2 text-[11px] text-gray-500">{buscaF.trim() ? 'Nenhum fornecedor do cadastro com esse nome, código ou CNPJ.' : 'Nenhuma nota de compra nos últimos 12 meses. Digite para buscar no cadastro.'}</p>}
+                    {forn.erroCadastro && <p className="px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">Não deu para ler o cadastro de fornecedores do ERP agora: a lista mostra só quem tem nota no ano, pelo código.</p>}
                     {buscaF.trim() && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={usarNovo} className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-[12px] font-semibold text-[#1e3a5f] hover:bg-gray-50 dark:border-gray-800 dark:text-blue-300 dark:hover:bg-gray-800/60"><Plus className="h-3.5 w-3.5" /> Usar "{buscaF.trim()}" como novo fornecedor</button>}
-                    {forn.carregandoErp && <p className="px-3 py-2 text-[11px] text-gray-400">Buscando fornecedores nas notas do ERP…</p>}
+                    {forn.carregandoErp && <p className="px-3 py-2 text-[11px] text-gray-400">Buscando o cadastro de fornecedores e as notas do ERP…</p>}
                   </div>
                 )}
               </>
