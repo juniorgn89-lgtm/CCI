@@ -70,5 +70,13 @@ const invocar = async <T>(body: Record<string, unknown>): Promise<T> => {
 export const fetchCciPostosAdmin = (redeId: string) => invocar<{ postos: CciPostoAdmin[] }>({ acao: 'postos', rede_id: redeId }).then((r) => r.postos)
 
 /** Liga ou encerra um serviço num posto: grava no Prospecção e na cópia do Visor. Só master. */
-export const marcarCciServico = (redeId: string, empresaCodigo: number, servico: string, ligado: boolean) =>
-  invocar<{ ok: true }>({ acao: 'marcar', rede_id: redeId, empresa_codigo: empresaCodigo, servico, ligado })
+export const marcarCciServico = (redeId: string, empresaCodigo: number, servico: string, ligado: boolean, desde?: string) =>
+  invocar<{ ok: true }>({ acao: 'marcar', rede_id: redeId, empresa_codigo: empresaCodigo, servico, ligado, desde })
+
+/**
+ * Corrige a data de início de um serviço já ligado (um ou vários postos). Para
+ * a Consultoria, é o marco do "antes e depois da CCI" no Diagnóstico. Só master.
+ * `falhas` = postos onde o Prospecção não achou o serviço ativo.
+ */
+export const datarCciServico = (redeId: string, empresas: number[], servico: string, desde: string) =>
+  invocar<{ ok: true; falhas: string[] }>({ acao: 'datar', rede_id: redeId, empresas, servico, desde })

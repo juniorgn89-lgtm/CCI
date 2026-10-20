@@ -5,7 +5,8 @@
 // Chamada pelo app (supabase.functions.invoke) com o JWT do usuário: só
 // MASTER do Visor pode. Ações:
 //   { acao: 'postos', rede_id }                      → postos da rede (ERP) + se é lead no Prospecção + serviços ativos
-//   { acao: 'marcar', rede_id, empresa_codigo, servico, ligado } → grava no Prospecção e na cópia local
+//   { acao: 'marcar', rede_id, empresa_codigo, servico, ligado, desde? } → grava no Prospecção e na cópia local
+//   { acao: 'datar', rede_id, empresas: number[], servico, desde } → corrige a data de início (marco do Diagnóstico)
 // Segredos: PROSPECCAO_URL, PROSPECCAO_ANON_KEY, PROSPECCAO_SEGREDO (os mesmos da sincronização).
 // Deploy COM verificação de JWT (padrão; NÃO usar --no-verify-jwt aqui).
 // ============================================================================
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
   if (!perfil?.is_master) return json({ error: 'só administrador' }, 403)
   const autor = (perfil.full_name as string | null) || u.user.email || 'administrador'
 
-  const body = await req.json().catch(() => ({})) as { acao?: string; rede_id?: string; empresa_codigo?: number; servico?: string; ligado?: boolean }
+  const body = await req.json().catch(() => ({})) as { acao?: string; rede_id?: string; empresa_codigo?: number; servico?: string; ligado?: boolean; desde?: string; empresas?: number[] }
   if (!body.rede_id) return json({ error: 'rede_id obrigatório' }, 400)
   const { data: rede } = await supa.from('redes').select('id, nome, chave, api_base_url').eq('id', body.rede_id).maybeSingle()
   if (!rede) return json({ error: 'rede não encontrada' }, 404)
@@ -82,7 +83,10 @@ Deno.serve(async (req) => {
     if (body.acao === 'marcar') {
       const e = empresas.find((x) => x.codigo === body.empresa_codigo)
       if (!e || !body.servico || typeof body.ligado !== 'boolean') return json({ error: 'posto ou serviço inválido' }, 400)
-      const d = hoje()
+      // Ligar aceita a data real de início (não no futuro); encerrar é sempre hoje.
+      const pedida = typeof body.desde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.desde) ? body.desde : null
+      if (pedida && pedida > hoje()) return json({ error: 'A data de início não pode ser no futuro.' }, 400)
+      const d = body.ligado && pedida ? pedida : hoje()
       const r = await rpc('marcar_servico_cci', { p_cnpj: e.cnpj, p_servico: body.servico, p_ligado: body.ligado, p_data: d, p_autor: autor })
       if (r === 'sem_lead') return json({ error: 'Este posto não está cadastrado como lead no Prospecção (CNPJ não encontrado).' }, 409)
       // Cópia local na hora (a sincronização da madrugada confirma depois).
@@ -97,6 +101,21 @@ Deno.serve(async (req) => {
         if (up.error) throw new Error(up.error.message)
       }
       return json({ ok: true })
+    }
+
+    if (body.acao === 'datar') {
+      const desde = typeof body.desde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.desde) ? body.desde : null
+      if (!desde || desde > hoje()) return json({ error: 'Data de início inválida (não pode ser no futuro).' }, 400)
+      const alvos = empresas.filter((x) => Array.isArray(body.empresas) && body.empresas.includes(x.codigo))
+      if (!alvos.length || !body.servico) return json({ error: 'posto ou serviço inválido' }, 400)
+      const falhas: string[] = []
+      for (const e of alvos) {
+        const r = await rpc('datar_servico_cci', { p_cnpj: e.cnpj, p_servico: body.servico, p_desde: desde, p_autor: autor })
+        if (r !== 'ok') { falhas.push(e.nome || `Posto ${e.codigo}`); continue }
+        const up = await supa.from('cci_servicos_posto').update({ desde }).eq('rede_id', rede.id).eq('empresa_codigo', e.codigo).eq('servico', body.servico).is('ate', null)
+        if (up.error) throw new Error(up.error.message)
+      }
+      return json({ ok: true, falhas })
     }
 
     return json({ error: 'ação desconhecida' }, 400)

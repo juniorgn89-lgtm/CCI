@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, AlertTriangle, Check, Copy, ExternalLink } from 'lucide-react'
+import { Loader2, AlertTriangle, Check, Copy, ExternalLink, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Modal, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
-import { fetchCciPostosAdmin, marcarCciServico, NOME_SERVICO_CCI, SERVICOS_MARCAVEIS } from '@/api/supabase/cciServicos'
+import { fetchCciPostosAdmin, marcarCciServico, datarCciServico, NOME_SERVICO_CCI, SERVICOS_MARCAVEIS } from '@/api/supabase/cciServicos'
+import { todayLocal } from '@/lib/period'
 
 const fmtData = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/')
 const fmtCnpj = (c: string) => (c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : c)
@@ -18,9 +19,11 @@ const copiar = async (texto: string) => {
 
 /**
  * Admin › Redes › Serviços: a grade postos × serviços da CCI. Marcar aqui grava
- * no Prospecção360 (a fonte) e atualiza a cópia do Visor na hora. Ligar cria o
- * serviço com a data de hoje; desligar encerra (pede confirmação, o histórico
- * fica lá). Posto que não é lead no Prospecção não dá para marcar.
+ * no Prospecção360 (a fonte) e atualiza a cópia do Visor na hora. Ligar pede a
+ * data REAL de início (a da Consultoria é o marco do "antes e depois da CCI" no
+ * Diagnóstico); a data de um serviço ligado se corrige clicando nela, num posto
+ * ou em todos. Desligar encerra (pede confirmação, o histórico fica lá). Posto
+ * que não é lead no Prospecção não dá para marcar.
  */
 const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeNome: string; onClose: () => void }) => {
   const qc = useQueryClient()
@@ -28,6 +31,9 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [encerrar, setEncerrar] = useState<{ empresa: number; posto: string; servico: string } | null>(null)
+  // Ligar (data de início) ou corrigir a data de um serviço já ligado.
+  const [datar, setDatar] = useState<{ modo: 'ligar' | 'datar'; empresa: number; posto: string; servico: string; desde: string; todos: boolean } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
   // Feedback "copiado" por chave (CNPJ de um posto ou 'todos').
   const [copiado, setCopiado] = useState<string | null>(null)
   const copiarCom = async (chave: string, texto: string) => {
@@ -51,6 +57,39 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
     }
   }
 
+  const atualizar = async () => {
+    await postosQ.refetch()
+    qc.invalidateQueries({ queryKey: ['cci-servicos'] })
+    qc.invalidateQueries({ queryKey: ['cci-servicos-todas'] })
+  }
+
+  const salvarData = async () => {
+    if (!datar) return
+    const hoje = todayLocal()
+    if (!datar.desde || datar.desde > hoje) { setErro('Informe a data de início (hoje ou antes).'); return }
+    const k = `${datar.empresa}|${datar.servico}`
+    setOcupado(k); setErro(null); setAviso(null)
+    try {
+      if (datar.modo === 'ligar') {
+        await marcarCciServico(redeId, datar.empresa, datar.servico, true, datar.desde)
+      }
+      // Corrigir (ou "ligar" com a mesma data nos outros postos que já têm o serviço).
+      const alvos = datar.todos
+        ? postos.filter((p) => p.ativos.some((a) => a.servico === datar.servico) || p.empresa_codigo === datar.empresa).map((p) => p.empresa_codigo)
+        : datar.modo === 'datar' ? [datar.empresa] : []
+      if (alvos.length) {
+        const r = await datarCciServico(redeId, alvos, datar.servico, datar.desde)
+        if (r.falhas.length) setAviso(`Não deu para ajustar a data em: ${r.falhas.join(', ')} (o serviço não está ativo no Prospecção).`)
+      }
+      await atualizar()
+      setDatar(null)
+    } catch (e) {
+      setErro((e as Error).message)
+    } finally {
+      setOcupado(null)
+    }
+  }
+
   const postos = postosQ.data ?? []
   const semLead = postos.filter((p) => !p.no_prospeccao).length
 
@@ -58,6 +97,7 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
     <Modal open onClose={onClose} titulo={`Serviços CCI · ${redeNome}`} descricao="O que cada posto contratou com a CCI. Marcar aqui grava no Prospecção e aparece na hora no Visor." largura="max-w-4xl">
       <div className="space-y-3">
         <Erro msg={erro} />
+        {aviso && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">{aviso}</p>}
         {postosQ.isLoading ? (
           <p className="inline-flex items-center gap-2 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Lendo os postos da rede e o Prospecção…</p>
         ) : postosQ.error ? (
@@ -123,7 +163,7 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
                               aria-checked={!!ativo}
                               aria-label={`${NOME_SERVICO_CCI[s]} em ${p.nome}`}
                               disabled={!p.no_prospeccao || ocupado != null}
-                              onClick={() => (ativo ? setEncerrar({ empresa: p.empresa_codigo, posto: p.nome, servico: s }) : marcar(p.empresa_codigo, s, true))}
+                              onClick={() => { setEncerrar(null); setDatar(null); if (ativo) setEncerrar({ empresa: p.empresa_codigo, posto: p.nome, servico: s }); else setDatar({ modo: 'ligar', empresa: p.empresa_codigo, posto: p.nome, servico: s, desde: todayLocal(), todos: false }) }}
                               className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40',
                                 ativo ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700')}
                             >
@@ -131,7 +171,13 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
                                 ? <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin text-white" />
                                 : <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', ativo ? 'translate-x-[18px]' : 'translate-x-0.5')} />}
                             </button>
-                            {ativo && <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">desde {fmtData(ativo.desde)}</p>}
+                            {ativo && (
+                              <button type="button" disabled={ocupado != null} title="Corrigir a data de início"
+                                onClick={() => { setEncerrar(null); setDatar({ modo: 'datar', empresa: p.empresa_codigo, posto: p.nome, servico: s, desde: ativo.desde.slice(0, 10), todos: false }) }}
+                                className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 text-[10px] tabular-nums text-gray-400 hover:bg-gray-100 hover:text-[#1e3a5f] dark:hover:bg-gray-800 dark:hover:text-blue-300">
+                                desde {fmtData(ativo.desde)} <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                            )}
                           </td>
                         )
                       })}
@@ -140,13 +186,39 @@ const ServicosCciModal = ({ redeId, redeNome, onClose }: { redeId: string; redeN
                 </tbody>
               </table>
             </div>
+            {datar && (() => {
+              const outros = postos.filter((p) => p.empresa_codigo !== datar.empresa && p.ativos.some((a) => a.servico === datar.servico)).length
+              const nome = NOME_SERVICO_CCI[datar.servico]
+              return (
+                <ConfirmaAcao
+                  titulo={datar.modo === 'ligar' ? `Ligar ${nome} em ${datar.posto}` : `Data de início de ${nome} em ${datar.posto}`}
+                  texto={<>
+                    <span className="flex flex-wrap items-center gap-2">
+                      Começou em
+                      <input type="date" value={datar.desde} max={todayLocal()} onChange={(e) => setDatar({ ...datar, desde: e.target.value })}
+                        className="h-8 rounded-lg border border-gray-300 bg-white px-2 text-[12.5px] text-gray-900 focus:border-[#1e3a5f] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:[color-scheme:dark]" />
+                    </span>
+                    {outros > 0 && (
+                      <label className="mt-1.5 flex items-center gap-1.5 text-[12px]">
+                        <input type="checkbox" checked={datar.todos} onChange={(e) => setDatar({ ...datar, todos: e.target.checked })} />
+                        Usar a mesma data nos outros {outros === 1 ? 'posto' : `${outros} postos`} com {nome}
+                      </label>
+                    )}
+                    {datar.servico === 'consultoria' && <span className="mt-1.5 block text-[11px] text-gray-500 dark:text-gray-400">É o marco do "antes e depois da CCI" no Diagnóstico: use a data em que a consultoria realmente começou.</span>}
+                  </>}
+                  rotulo={datar.modo === 'ligar' ? 'Ligar serviço' : 'Salvar data'}
+                  ocupado={ocupado != null}
+                  onVoltar={() => setDatar(null)}
+                  onConfirmar={() => void salvarData()} />
+              )
+            })()}
             {encerrar && (
               <ConfirmaAcao perigo titulo={`Encerrar ${NOME_SERVICO_CCI[encerrar.servico]} em ${encerrar.posto}?`}
                 texto="O serviço fica encerrado com a data de hoje no Prospecção. O histórico continua lá."
                 rotulo="Encerrar serviço" ocupado={ocupado != null}
                 onVoltar={() => setEncerrar(null)} onConfirmar={() => marcar(encerrar.empresa, encerrar.servico, false)} />
             )}
-            <p className="flex items-center gap-1 text-[11px] text-gray-400"><Check className="h-3 w-3" /> Ligar cria o serviço com a data de hoje, origem "manual" e o seu nome na observação do Prospecção.</p>
+            <p className="flex items-center gap-1 text-[11px] text-gray-400"><Check className="h-3 w-3" /> Ligar pede a data em que o serviço começou e grava no Prospecção com o seu nome. Para corrigir a data, clique nela.</p>
           </>
         )}
       </div>

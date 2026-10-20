@@ -26,12 +26,13 @@ import AlemDoVisor from '@/pages/Diagnostico/components/AlemDoVisor'
 import Recomendacoes from '@/pages/Diagnostico/components/Recomendacoes'
 import { recomendar, type Recomendacao } from '@/pages/Diagnostico/lib/recomendacoes'
 import useCciServicos from '@/hooks/useCciServicos'
+import { todayLocal } from '@/lib/period'
 import { NOME_SERVICO_CCI } from '@/api/supabase/cciServicos'
 import { SecaoTitulo, NumeroBola, Sobrelinha, SimboloCCI } from '@/pages/Diagnostico/components/Marca'
 import { CCI, FONTE_TITULO, carregarFonteMarca } from '@/pages/Diagnostico/lib/marca'
 import { calcularSaude, rotuloNivel } from '@/pages/Diagnostico/lib/saude'
-import { todayLocal } from '@/lib/period'
 
+const fmtDiaBr = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/')
 const CHAVE_INTRO = 'visor360.diagnostico.intro.v1'
 const lerIntro = () => { try { return localStorage.getItem(CHAVE_INTRO) !== 'ok' } catch { return true } }
 
@@ -123,14 +124,33 @@ const Diagnostico = () => {
 
   const escopoRede = empresa === 'rede'
   const codes = useMemo<number[] | null>(() => (escopoRede ? empresas.map((e) => e.codigo) : typeof empresa === 'number' ? [empresa] : null), [escopoRede, empresas, empresa])
-  // Marco do "antes e depois da CCI": data informada em Admin › Redes; sem ela, o cadastro da rede no Visor.
-  const marcoCci = rede?.cliente_desde ?? (rede?.created_at ? rede.created_at.slice(0, 10) : null)
-  const marcoOrigem: 'admin' | 'cadastro' | null = rede?.cliente_desde ? 'admin' : rede?.created_at ? 'cadastro' : null
-  const { diagnostico: d, mesAnterior, postos, achadosPorPosto, isLoading, isError, a, b } = useDiagnostico(codes, modo, modo === 'custom' ? custom : undefined, modo === 'mes' ? mesSel : null, escopoRede ? 'rede' : 'posto', nomeDe, marcoCci)
-  const mesesFaltando = d ? [...d.cobertura.faltamB, ...d.cobertura.faltamA] : []
-  const extras = useDiagnosticoExtras(codes, d?.temDados ? d : null)
   // Serviços da CCI contratados por posto (cópia diária do Prospecção360).
   const cci = useCciServicos()
+  // Marco do "antes e depois da CCI", nesta ordem: início da Consultoria no
+  // Prospecção (por posto; na rede, o mais antigo) → "Cliente CCI desde" de
+  // Admin › Redes → cadastro da rede no Visor (dito na tela).
+  const consultoria = useMemo(() => {
+    const hoje = todayLocal()
+    const porPosto = new Map<number, string>()
+    for (const s of cci.servicos) {
+      if (s.servico !== 'consultoria' || (s.ate && s.ate < hoje) || !codes?.includes(s.empresa_codigo)) continue
+      const dia = s.desde.slice(0, 10)
+      const cur = porPosto.get(s.empresa_codigo)
+      if (!cur || dia < cur) porPosto.set(s.empresa_codigo, dia)
+    }
+    const datas = [...porPosto.values()].sort()
+    return { inicio: datas[0] ?? null, ultimo: datas[datas.length - 1] ?? null, postos: porPosto.size, total: codes?.length ?? 0 }
+  }, [cci.servicos, codes])
+  const marcoCci = consultoria.inicio ?? rede?.cliente_desde ?? (rede?.created_at ? rede.created_at.slice(0, 10) : null)
+  const marcoOrigem: 'consultoria' | 'admin' | 'cadastro' | null = consultoria.inicio ? 'consultoria' : rede?.cliente_desde ? 'admin' : rede?.created_at ? 'cadastro' : null
+  const { diagnostico: dBruto, mesAnterior, postos, achadosPorPosto, isLoading, isError, a, b } = useDiagnostico(codes, modo, modo === 'custom' ? custom : undefined, modo === 'mes' ? mesSel : null, escopoRede ? 'rede' : 'posto', nomeDe, marcoCci)
+  // A CCI entrou depois do último mês fechado (ou na 2ª quinzena dele): não há
+  // mês "com a CCI" ainda. Sem isso, a janela cairia num mês ANTES da CCI.
+  const mesEntradaCci = marcoCci ? (Number(marcoCci.slice(8, 10)) > 15 ? addMeses(marcoCci.slice(0, 7), 1) : marcoCci.slice(0, 7)) : null
+  const cciSemMes = modo === 'cci' && !!mesEntradaCci && mesEntradaCci > ultimoFechado
+  const d = cciSemMes ? null : dBruto
+  const mesesFaltando = d ? [...d.cobertura.faltamB, ...d.cobertura.faltamA] : []
+  const extras = useDiagnosticoExtras(codes, d?.temDados ? d : null)
   const nomeRede = rede?.nome ? (/^rede\b/i.test(rede.nome) ? rede.nome : `Rede ${rede.nome}`) : 'Toda a rede'
   const nomePosto = escopoRede ? nomeRede : typeof empresa === 'number' ? nomeDe(empresa) : ''
   // Modo "mês": leitura extra contra o mês imediatamente anterior.
@@ -214,7 +234,7 @@ const Diagnostico = () => {
               <SimboloCCI className="h-6 w-6 shrink-0" claro />
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold leading-tight">{escopoRede ? 'Diagnóstico da rede' : 'Diagnóstico do posto'}</p>
-                <p className="truncate text-[11px] text-white/70">{modo === 'cci' ? 'o que mudou desde que a CCI entrou · ' : ''}{a.rotulo} <span className="text-white/45">contra</span> {b.rotulo}{modo === 'mes' ? <> <span className="text-white/45">e contra</span> {mesLabelExtenso(addMeses(mesSel, -1))}</> : null}{modo === 'custom' ? <> · {a.meses.length} {a.meses.length === 1 ? 'mês' : 'meses'}</> : null}</p>
+                <p className="truncate text-[11px] text-white/70">{modo === 'cci' ? 'o que mudou desde que a CCI entrou · ' : ''}{cciSemMes ? 'aguardando o primeiro mês fechado com a CCI' : <>{a.rotulo} <span className="text-white/45">contra</span> {b.rotulo}</>}{modo === 'mes' ? <> <span className="text-white/45">e contra</span> {mesLabelExtenso(addMeses(mesSel, -1))}</> : null}{modo === 'custom' ? <> · {a.meses.length} {a.meses.length === 1 ? 'mês' : 'meses'}</> : null}</p>
               </div>
             </div>
             {d?.temDados && <ShareReportButton filename={`diagnostico-${(nomePosto || 'posto').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`} build={build} className="ml-auto h-9 shrink-0 border-white/20 bg-white/10 text-white hover:border-white hover:text-white dark:border-white/20 dark:bg-white/10 dark:text-white" />}
@@ -247,8 +267,14 @@ const Diagnostico = () => {
             {modo === 'cci' && (
               <p className="pb-2 text-[11px] text-white/70">
                 {marcoCci
-                  ? <>Cliente CCI desde <b className="text-white">{new Date(`${marcoCci}T12:00:00`).toLocaleDateString('pt-BR')}</b>{marcoOrigem === 'cadastro' ? <span className="text-white/50"> (data do cadastro no Visor; a data real se ajusta em Admin › Redes)</span> : null}</>
-                  : 'Sem data de início da CCI cadastrada: informe em Admin › Redes.'}
+                  ? <>{marcoOrigem === 'consultoria' ? 'Consultoria CCI desde' : 'Cliente CCI desde'} <b className="text-white">{fmtDiaBr(marcoCci)}</b>
+                      {marcoOrigem === 'consultoria' && escopoRede && consultoria.ultimo && consultoria.ultimo !== consultoria.inicio
+                        ? <span className="text-white/50"> (o posto mais antigo; os outros começaram até {fmtDiaBr(consultoria.ultimo)})</span> : null}
+                      {marcoOrigem === 'consultoria' && escopoRede && consultoria.postos < consultoria.total
+                        ? <span className="text-white/50"> · {consultoria.postos} de {consultoria.total} postos com consultoria</span> : null}
+                      {marcoOrigem === 'admin' ? <span className="text-white/50"> (data da rede em Admin › Redes; a Consultoria deste posto não está marcada em Serviços)</span> : null}
+                      {marcoOrigem === 'cadastro' ? <span className="text-white/50"> (data do cadastro no Visor: marque a Consultoria com a data real em Admin › Redes › Serviços)</span> : null}</>
+                  : 'Sem data de início da CCI: marque a Consultoria com a data real em Admin › Redes › Serviços.'}
               </p>
             )}
             {modo === 'custom' && (
@@ -304,8 +330,15 @@ const Diagnostico = () => {
           </div>
         )}
 
-        {isLoading && <div className={cn(card, 'flex items-center gap-2 text-sm text-gray-500')}><Loader2 className="h-4 w-4 animate-spin" /> Lendo os meses apurados…</div>}
+        {isLoading && !cciSemMes && <div className={cn(card, 'flex items-center gap-2 text-sm text-gray-500')}><Loader2 className="h-4 w-4 animate-spin" /> Lendo os meses apurados…</div>}
         {isError && <div className={cn(card, 'text-sm text-red-600')}>Não foi possível ler a apuração deste posto.</div>}
+
+        {cciSemMes && marcoCci && mesEntradaCci && (
+          <div className={cn(card, 'border-amber-300 dark:border-amber-800')}>
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-200"><AlertTriangle className="h-4 w-4" /> Ainda não há mês fechado com a CCI.</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">A consultoria começou em {fmtDiaBr(marcoCci)}; o primeiro mês que conta é {mesLabelExtenso(mesEntradaCci)}, e o antes e depois aparece quando ele fechar. Se a data não é essa, corrija em Admin › Redes › Serviços.</p>
+          </div>
+        )}
 
         {d && !d.temDados && (
           <div className={cn(card, 'border-amber-300 dark:border-amber-800')}>
