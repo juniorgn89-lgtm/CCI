@@ -180,7 +180,9 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
       if (!vivo) return
       if (publicadas) {
         setVersaoNova(publicadas.versao)
-        setReleases(novidadesDesde(__APP_VERSION__, publicadas.notas))
+        // Mesma versão (deploy só com ajustes): nada novo para ler; não repete a
+        // lista inteira da versão atual a cada publicação.
+        setReleases(publicadas.versao === __APP_VERSION__ ? [] : novidadesDesde(__APP_VERSION__, publicadas.notas))
         // Já vistas aqui → o reinício não repete o modal.
         gravar(sessionStorage, CHAVE_VISTAS, publicadas.versao)
       } else {
@@ -279,6 +281,7 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
             </div>
           ) : (
             <>
+              {releases.length === 0 && <p className="text-[13px] leading-snug text-white/75">Esta atualização traz só ajustes e correções. Nada novo para ler: é só reiniciar.</p>}
               {releases[0] && <p className="mb-4 text-[13px] leading-snug text-white/75">{releases[0].resumo}</p>}
               <NovidadesLista itens={itens} tom="escuro" />
             </>
