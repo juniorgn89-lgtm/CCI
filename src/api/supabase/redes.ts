@@ -1,8 +1,26 @@
 import axios from 'axios'
 import { supabase } from '@/lib/supabase'
 import type { PlanoId } from '@/lib/planos'
+import type { Rede } from '@/store/tenant'
 
 export type AssistenteTier = 'light' | 'medium' | 'heavy' | 'custom'
+
+/**
+ * Linha do cadastro → rede ativa (tenant). Ponto ÚNICO de conversão: toda troca
+ * de rede passa por aqui, senão uma flag de módulo (Compras, Tarefas) fica de
+ * fora e o item some do menu até recarregar a página.
+ */
+export const redeParaTenant = (r: RedeRow): Rede => ({
+  id: r.id,
+  nome: r.nome,
+  chave: r.chave,
+  api_base_url: r.api_base_url,
+  plano: r.plano,
+  gestao_habilitado: !!r.gestao_habilitado,
+  compras_habilitado: !!r.compras_habilitado,
+  cliente_desde: r.cliente_desde ?? null,
+  created_at: r.created_at,
+})
 
 export interface RedeRow {
   id: string

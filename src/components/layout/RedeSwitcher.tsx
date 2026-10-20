@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
-import { fetchRedes, fetchEmpresasCountForRede } from '@/api/supabase/redes'
+import { fetchRedes, fetchEmpresasCountForRede, redeParaTenant } from '@/api/supabase/redes'
 import { useFilterStore } from '@/store/filters'
 import { useDemoStore } from '@/store/demo'
 import { DEMO_REDE_NOME } from '@/lib/demoMask'
@@ -66,14 +66,7 @@ const RedeSwitcher = () => {
     if (!target || target.id === tenant.id) return
 
     // Troca o tenant em memória
-    setRede({
-      id: target.id,
-      nome: target.nome,
-      chave: target.chave,
-      api_base_url: target.api_base_url,
-      plano: target.plano,
-      gestao_habilitado: !!target.gestao_habilitado,
-    })
+    setRede(redeParaTenant(target))
 
     // Limpa filtro de empresa selecionada (códigos da Quality são diferentes por rede)
     setEmpresas([])

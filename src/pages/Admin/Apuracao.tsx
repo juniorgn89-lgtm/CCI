@@ -7,7 +7,7 @@ import {
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
-import { fetchRedes, fetchRedeApuracaoAuto, toggleRedeApuracaoAuto, type RedeRow } from '@/api/supabase/redes'
+import { fetchRedes, fetchRedeApuracaoAuto, toggleRedeApuracaoAuto, redeParaTenant, type RedeRow } from '@/api/supabase/redes'
 import {
   fetchApuracaoStatusByMonth,
   upsertApuracaoDiaria,
@@ -185,7 +185,7 @@ const Apuracao = () => {
   const handleConectar = (r: RedeRow) => {
     queryClient.clear()
     setEmpresas([])
-    setRede({ id: r.id, nome: r.nome, chave: r.chave, api_base_url: r.api_base_url, plano: r.plano })
+    setRede(redeParaTenant(r))
   }
 
   // Status do ano selecionado — mapa mês → metadata (count + last apuração).

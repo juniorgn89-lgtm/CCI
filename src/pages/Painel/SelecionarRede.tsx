@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Network, Loader2, CheckCircle2, Power, ArrowRight, Search } from 'lucide-react'
-import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
+import { fetchRedes, redeParaTenant, type RedeRow } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
 import { useAuthStore } from '@/store/auth'
 import { useFilterStore } from '@/store/filters'
@@ -51,7 +51,7 @@ const SelecionarRede = () => {
   const handleConectar = (rede: RedeRow) => {
     queryClient.clear()
     setEmpresas([])
-    setRede({ id: rede.id, nome: rede.nome, chave: rede.chave, api_base_url: rede.api_base_url, plano: rede.plano, gestao_habilitado: !!rede.gestao_habilitado })
+    setRede(redeParaTenant(rede))
   }
 
   const renderRede = (rede: RedeRow) => {

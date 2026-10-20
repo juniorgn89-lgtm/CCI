@@ -98,6 +98,9 @@ const Redes = () => {
     setBusyId(rede.id)
     try {
       await toggleRedeCompras(rede.id, !rede.compras_habilitado)
+      // Rede conectada agora: o menu reflete na hora, sem recarregar.
+      const t = useTenantStore.getState()
+      if (t.rede?.id === rede.id) t.setRede({ ...t.rede, compras_habilitado: !rede.compras_habilitado })
       queryClient.invalidateQueries({ queryKey: ['redes'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
@@ -110,6 +113,8 @@ const Redes = () => {
     setBusyId(rede.id)
     try {
       await toggleRedeGestao(rede.id, !rede.gestao_habilitado)
+      const t = useTenantStore.getState()
+      if (t.rede?.id === rede.id) t.setRede({ ...t.rede, gestao_habilitado: !rede.gestao_habilitado })
       queryClient.invalidateQueries({ queryKey: ['redes'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
