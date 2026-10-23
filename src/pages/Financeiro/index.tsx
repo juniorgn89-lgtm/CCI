@@ -1,5 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { Receipt, CreditCard, Settings, LayoutDashboard, ClipboardCheck } from 'lucide-react'
+import { Receipt, CreditCard, Settings, LayoutDashboard, ClipboardCheck, BadgeCheck } from 'lucide-react'
+import { useAuthStore } from '@/store/auth'
+import { podeVerConciliacaoCartao } from '@/pages/Financeiro/lib/acessoConciliacao'
 import { Skeleton } from '@/components/ui/skeleton'
 import ModuleSettings from '@/components/layout/ModuleSettings'
 import HeaderTray from '@/components/layout/HeaderTray'
@@ -23,6 +25,9 @@ const PayablesIntel = lazy(() => import('@/pages/Financeiro/components/PayablesI
 // Aba Fechamento — copiloto por exceção + seletor de posto LOCAL (não usa o
 // filtro global, pra não vazar o posto pras outras abas/módulos).
 const FechamentoTab = lazy(() => import('@/pages/Financeiro/components/FechamentoTab'))
+// Conciliação de cartão (e-extrato): fora da engrenagem de abas, só para diretores
+// e a conta da CCI enquanto a integração não está ligada para os clientes.
+const ConciliacaoCartaoTab = lazy(() => import('@/pages/Financeiro/components/ConciliacaoCartaoTab'))
 import useFinanceData from '@/pages/Financeiro/hooks/useFinanceData'
 import useDuplicatasReceber from '@/pages/Financeiro/hooks/useDuplicatasReceber'
 import useScopedEmpresaCodes from '@/pages/Financeiro/hooks/useScopedEmpresaCodes'
@@ -40,6 +45,7 @@ const TAB_ICONS: Record<string, typeof Receipt> = {
   receber: Receipt,
   pagar: CreditCard,
   fechamento: ClipboardCheck,
+  conciliacao: BadgeCheck,
 }
 
 const TableSkeleton = () => (
@@ -54,7 +60,14 @@ const TableSkeleton = () => (
 )
 
 const Financeiro = () => {
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/financeiro')
+  const { tabs: tabsPersonalizaveis, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/financeiro')
+  const isMaster = useAuthStore((s) => s.isMaster)
+  const email = useAuthStore((s) => s.user?.email ?? null)
+  const verConciliacao = podeVerConciliacaoCartao(isMaster, email)
+  const layoutTabs = useMemo(
+    () => (verConciliacao ? [...tabsPersonalizaveis, { id: 'conciliacao', label: 'Conciliação de cartão', visible: true }] : tabsPersonalizaveis),
+    [tabsPersonalizaveis, verConciliacao],
+  )
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível.
@@ -153,7 +166,7 @@ const Financeiro = () => {
         </PageHeaderTitle>
       )}
       <HeaderTray>
-        <ModuleSettings title="Financeiro" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
+        <ModuleSettings title="Financeiro" tabs={tabsPersonalizaveis} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
       </HeaderTray>
       {/* Conteúdo — consolidado rede-wide (respeita o filtro de posto). */}
       {(
@@ -214,6 +227,7 @@ const Financeiro = () => {
                     </div>
                   )}
                   {activeTab === 'fechamento' && <FechamentoTab />}
+                  {activeTab === 'conciliacao' && verConciliacao && <ConciliacaoCartaoTab />}
                 </Suspense>
               )}
             </>
