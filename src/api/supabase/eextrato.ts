@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
  * normalização de supabase/functions/_shared/eextrato.ts (mudou lá, muda aqui).
  */
 
-export type TipoRetornoEextrato = 'venda' | 'vendaDetalhada' | 'pagamento' | 'ajuste' | 'recebivel'
+export type TipoRetornoEextrato = 'venda' | 'vendaDetalhada' | 'pagamento' | 'ajuste' | 'recebivel' | 'dataPrevistaCredito'
 export type StatusParcelaEextrato = 'PRE' | 'PAG' | 'ANT' | 'CAN' | 'CTP' | 'CPP'
 
 export interface FiltroEextrato {
@@ -14,6 +14,8 @@ export interface FiltroEextrato {
   dataVendaFim?: string
   dataPagamentoInicio?: string
   dataPagamentoFim?: string
+  dataCreditoInicio?: string
+  dataCreditoFim?: string
   statusConciliacao?: number
 }
 
@@ -34,6 +36,11 @@ interface BaseEextrato {
   statusConciliacao: number | null
   modoCaptura: string | null
   horaVenda: string | null
+  /** Nomes como a e-extrato manda (v9.3.11); preferidos ao código da tabela. */
+  descricaoRede: string | null
+  descricaoBandeira: string | null
+  dataConciliacao: string | null
+  dataCancelamento: string | null
 }
 
 export interface VendaEextrato extends BaseEextrato {
@@ -58,8 +65,21 @@ export interface AjusteEextrato extends BaseEextrato {
   credito: number | null
   debito: number | null
   historico: number | null
+  descricaoHistorico: string | null
   mesReferencia: string | null
   tipoProduto: string | null
+  statusPagamento: string | null
+}
+
+/** Parcela com a data prevista do crédito (retorno 5.6): a agenda do que vai cair. */
+export interface PrevisaoCreditoEextrato extends BaseEextrato {
+  dataCredito: string | null
+  valorBruto: number | null
+  valorAdministracao: number | null
+  valorAntecipacao: number | null
+  valorLiquido: number | null
+  taxaAdministracao: number | null
+  status: StatusParcelaEextrato | null
 }
 
 export interface RecebivelEextrato {

@@ -7,10 +7,10 @@ import RowActionButton from '@/components/tables/RowAction'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
-import { nomeBandeira, nomeMotivoAjuste, nomeOperadora, nomeProduto, STATUS_PARCELA } from '@/lib/eextrato/codigos'
+import { nomeProduto, STATUS_PARCELA } from '@/lib/eextrato/codigos'
 import type { VendaEextrato } from '@/api/supabase/eextrato'
 import useConciliacaoCartao, { DIAS_AGENDA } from '@/pages/Financeiro/hooks/useConciliacaoCartao'
-import { agendaPorDia, ajustesPorMotivo, motivoLegivel, resumir, taxaLinha, valorLinha } from '@/pages/Financeiro/lib/conciliacaoCartao'
+import { agendaPorDia, ajustesPorMotivo, motivoLegivel, resumir, rotuloBandeira, rotuloRede, taxaLinha, valorLinha } from '@/pages/Financeiro/lib/conciliacaoCartao'
 
 const painelCls = 'rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black'
 const brData = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—')
@@ -81,8 +81,8 @@ const VendaModal = ({ v, onClose }: { v: VendaEextrato; onClose: () => void }) =
           </section>
           <section>
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Cartão e repasse</p>
-            <Campo rotulo="Adquirente" valor={nomeOperadora(v.rede)} />
-            <Campo rotulo="Bandeira" valor={`${nomeBandeira(v.bandeira)} · ${nomeProduto(v.produto)}`} />
+            <Campo rotulo="Adquirente" valor={rotuloRede(v)} />
+            <Campo rotulo="Bandeira" valor={`${rotuloBandeira(v)} · ${nomeProduto(v.produto)}`} />
             <Campo rotulo="Parcela" valor={v.plano && v.plano > 1 ? `${v.parcela ?? '?'} de ${v.plano}` : 'À vista'} />
             <Campo rotulo="Valor da venda" valor={v.valorVenda != null ? formatCurrency(v.valorVenda) : null} />
             {v.valorParcela != null && <Campo rotulo="Valor da parcela" valor={formatCurrency(v.valorParcela)} />}
@@ -109,12 +109,12 @@ const VendaModal = ({ v, onClose }: { v: VendaEextrato; onClose: () => void }) =
 const ConciliacaoCartaoTab = () => {
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
-  const { status, configurado, vendas, ajustes, recebiveis } = useConciliacaoCartao(dataInicial, dataFinal)
+  const { status, configurado, vendas, ajustes, previsoes } = useConciliacaoCartao(dataInicial, dataFinal)
   const [aba, setAba] = useState<Aba>('pendentes')
   const [aberta, setAberta] = useState<VendaEextrato | null>(null)
 
   const resumo = useMemo(() => (vendas.data ? resumir(vendas.data.itens) : null), [vendas.data])
-  const agenda = useMemo(() => (recebiveis.data ? agendaPorDia(recebiveis.data.itens) : null), [recebiveis.data])
+  const agenda = useMemo(() => (previsoes.data ? agendaPorDia(previsoes.data.itens) : null), [previsoes.data])
   const grupos = useMemo(() => (ajustes.data ? ajustesPorMotivo(ajustes.data.itens) : null), [ajustes.data])
 
   if (status.isLoading) {
@@ -142,7 +142,7 @@ const ConciliacaoCartaoTab = () => {
   const chargebacks = grupos?.find((g) => g.historico === 6)
   const tarifasTotal = grupos?.reduce((n, g) => n + g.debito, 0) ?? 0
   const proxCreditos = agenda?.reduce((n, d) => n + d.liquido, 0) ?? 0
-  const parcial = [vendas.data, ajustes.data, recebiveis.data].some((d) => d && !d.completo)
+  const parcial = [vendas.data, ajustes.data, previsoes.data].some((d) => d && !d.completo)
 
   return (
     <div className="space-y-4">
@@ -171,9 +171,9 @@ const ConciliacaoCartaoTab = () => {
               sub={`${naoConc.length.toLocaleString('pt-BR')} ${naoConc.length === 1 ? 'venda' : 'vendas'} para conferir`}
               hint="Vendas que a e-extrato não conseguiu casar. Cada uma tem o motivo (valor, bandeira, parcelas…) e os dados para conferir no caixa." />
             <Card label="A receber" Icon={CalendarClock} tom="sky"
-              valor={recebiveis.isLoading ? '…' : recebiveis.isError ? '—' : formatCurrencyInt(proxCreditos)}
-              sub={recebiveis.isError ? 'A agenda não veio da e-extrato' : `créditos dos próximos ${DIAS_AGENDA} dias`}
-              hint={`Soma do que as adquirentes vão depositar nos próximos ${DIAS_AGENDA} dias, já descontados os débitos agendados.`} />
+              valor={previsoes.isLoading ? '…' : previsoes.isError ? '—' : formatCurrencyInt(proxCreditos)}
+              sub={previsoes.isError ? 'A agenda não veio da e-extrato' : `créditos previstos nos próximos ${DIAS_AGENDA} dias`}
+              hint={`Soma do que as adquirentes vão depositar nos próximos ${DIAS_AGENDA} dias, pela data prevista de crédito de cada parcela, já sem as taxas.`} />
             <Card label="Taxa efetiva" Icon={Percent} tom="violet"
               valor={resumo.brutoComTaxa > 0 ? pct((resumo.taxa / resumo.brutoComTaxa) * 100) : '—'}
               sub={resumo.brutoComTaxa > 0 ? `${formatCurrencyInt(resumo.taxa)} em taxas${resumo.brutoComTaxa < resumo.bruto ? ' (parte das vendas sem taxa informada)' : ''}` : 'Taxa não informada nas vendas'}
@@ -218,7 +218,7 @@ const ConciliacaoCartaoTab = () => {
                     {naoConc.map((v, i) => (
                       <tr key={`${v.nsu}-${v.autorizacao}-${v.parcela}-${i}`} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                         <td className="px-2 py-2 tabular-nums">{brData(v.dataVenda)}{v.horaVenda ? <span className="text-gray-400"> {v.horaVenda.slice(0, 5)}</span> : null}</td>
-                        <td className="px-2 py-2">{nomeOperadora(v.rede)} · {nomeBandeira(v.bandeira)} <span className="text-gray-400">{nomeProduto(v.produto)}</span></td>
+                        <td className="px-2 py-2">{rotuloRede(v)} · {rotuloBandeira(v)} <span className="text-gray-400">{nomeProduto(v.produto)}</span></td>
                         <td className="px-2 py-2 font-mono text-[11.5px]">{v.nsu ?? '—'} · {v.autorizacao ?? '—'}</td>
                         <td className="px-2 py-2">{motivoLegivel(v) ?? <span className="text-gray-400">não informado</span>}</td>
                         <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatCurrency(valorLinha(v))}</td>
@@ -231,8 +231,8 @@ const ConciliacaoCartaoTab = () => {
           )}
 
           {aba === 'agenda' && (
-            recebiveis.isLoading ? <Skeleton className="h-40 w-full" />
-              : recebiveis.isError ? <Aviso tom="red">A agenda não veio da e-extrato: {(recebiveis.error as Error).message}</Aviso>
+            previsoes.isLoading ? <Skeleton className="h-40 w-full" />
+              : previsoes.isError ? <Aviso tom="red">A agenda não veio da e-extrato: {(previsoes.error as Error).message}</Aviso>
                 : !agenda?.length ? <p className="px-2 py-8 text-center text-[13px] text-gray-500">Nenhum crédito agendado para os próximos {DIAS_AGENDA} dias.</p>
                   : (
                     <table className="w-full min-w-[560px] text-[12.5px]">
@@ -240,8 +240,9 @@ const ConciliacaoCartaoTab = () => {
                         <tr className="border-b border-gray-100 dark:border-gray-800">
                           <th className="px-2 py-2 text-left font-semibold">Dia do crédito</th>
                           <th className="px-2 py-2 text-left font-semibold">Adquirentes</th>
-                          <th className="px-2 py-2 text-right font-semibold">Créditos</th>
-                          <th className="px-2 py-2 text-right font-semibold">Débitos</th>
+                          <th className="px-2 py-2 text-right font-semibold">Parcelas</th>
+                          <th className="px-2 py-2 text-right font-semibold">Bruto</th>
+                          <th className="px-2 py-2 text-right font-semibold">Taxas</th>
                           <th className="px-2 py-2 text-right font-semibold">Cai na conta</th>
                         </tr>
                       </thead>
@@ -249,9 +250,10 @@ const ConciliacaoCartaoTab = () => {
                         {agenda.map((d) => (
                           <tr key={d.dia}>
                             <td className="px-2 py-2 tabular-nums">{brData(d.dia)}</td>
-                            <td className="px-2 py-2 text-gray-600 dark:text-gray-300">{[...d.porOperadora.entries()].sort((a, b) => b[1] - a[1]).map(([op, v]) => `${nomeOperadora(op)} ${formatCurrencyInt(v)}`).join(' · ')}</td>
-                            <td className="px-2 py-2 text-right tabular-nums">{formatCurrencyInt(d.credito)}</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-red-600 dark:text-red-400">{d.debito ? `− ${formatCurrencyInt(d.debito)}` : '—'}</td>
+                            <td className="px-2 py-2 text-gray-600 dark:text-gray-300">{[...d.porOperadora.entries()].sort((a, b) => b[1] - a[1]).map(([op, v]) => `${op} ${formatCurrencyInt(v)}`).join(' · ')}</td>
+                            <td className="px-2 py-2 text-right tabular-nums">{d.parcelas}{d.antecipadas ? <span className="text-gray-400"> ({d.antecipadas} antecip.)</span> : null}</td>
+                            <td className="px-2 py-2 text-right tabular-nums">{formatCurrencyInt(d.bruto)}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-red-600 dark:text-red-400">{d.taxas ? `− ${formatCurrencyInt(d.taxas)}` : '—'}</td>
                             <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatCurrencyInt(d.liquido)}</td>
                           </tr>
                         ))}
@@ -277,7 +279,7 @@ const ConciliacaoCartaoTab = () => {
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {grupos.map((g) => (
                           <tr key={String(g.historico)}>
-                            <td className={cn('px-2 py-2 font-medium', g.historico === 6 && 'text-red-600 dark:text-red-400')}>{nomeMotivoAjuste(g.historico)}</td>
+                            <td className={cn('px-2 py-2 font-medium', g.historico === 6 && 'text-red-600 dark:text-red-400')}>{g.nome}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{g.qtd}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{g.debito ? formatCurrencyInt(g.debito) : '—'}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{g.credito ? formatCurrencyInt(g.credito) : '—'}</td>

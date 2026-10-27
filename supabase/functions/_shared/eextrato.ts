@@ -1,6 +1,6 @@
 // ============================================================================
 // e-extrato (Boavista) — conciliadora de cartão. Manual "Integração Web
-// Services v9.3.2". Módulo PURO (sem Deno, sem rede): monta o filtro em XML,
+// Services v9.3.11" (01/09/2026; respostas JSON no layout V10). Módulo PURO (sem Deno, sem rede): monta o filtro em XML,
 // lê a resposta JSON e normaliza os registros. Quem chama (Edge Function)
 // faz o fetch com as chaves; os testes rodam no Node com os exemplos do manual
 // (node supabase/functions/_shared/eextrato.test.ts).
@@ -13,7 +13,7 @@
 
 export const EEXTRATO_BASE = 'https://integracao.eextrato.com.br/conciliador/rest'
 
-export type TipoRetorno = 'venda' | 'vendaDetalhada' | 'pagamento' | 'ajuste' | 'recebivel'
+export type TipoRetorno = 'venda' | 'vendaDetalhada' | 'pagamento' | 'ajuste' | 'recebivel' | 'dataPrevistaCredito'
 
 export const CAMINHO_RETORNO: Record<TipoRetorno, string> = {
   venda: '/retorno/v9/venda',
@@ -21,20 +21,35 @@ export const CAMINHO_RETORNO: Record<TipoRetorno, string> = {
   pagamento: '/retorno/v9/pagamento',
   ajuste: '/retorno/v9/ajuste',
   recebivel: '/retorno/v9/recebivel',
+  // 5.6 — a URL vem cortada no PDF ("…/dataPrevistaCredi"); o nome do endpoint
+  // está no controle de versão (9.3.2). Confirmar na primeira chamada real.
+  dataPrevistaCredito: '/retorno/v9/dataPrevistaCredito',
 }
 
-/** Filtro dos retornos (manual 5.1–5.5). Datas yyyy-MM-dd. */
+/** Filtro dos retornos (manual 5.1–5.6). Datas yyyy-MM-dd. */
 export interface FiltroEextrato {
   dataVendaInicio?: string
   dataVendaFim?: string
   dataPagamentoInicio?: string
   dataPagamentoFim?: string
-  /** Tabela IV (ajuste/recebível): 1 pagamento de parcelas, 2 vendas, 3 antecipação, 4 ajustes e tarifas, 5 cessão, 6 gravame. */
+  /** Data (prevista) do crédito — filtra o retorno 5.6; nos recebíveis só cumpre a exigência de período. */
+  dataCreditoInicio?: string
+  dataCreditoFim?: string
+  /** Quando a e-extrato processou / atualizou o registro — base de uma cópia incremental. */
+  dataProcessamentoInicio?: string
+  dataProcessamentoFim?: string
+  dataAtualizacaoInicio?: string
+  dataAtualizacaoFim?: string
+  /** Tabela IV. Pagamento: 1 pagamentos, 3 antecipações. Recebível: 5 cessão, 6 gravame. */
   tipoArquivo?: number
   /** Tabela V: 1 todas, 2 débito, 3 crédito. */
   tipoVenda?: number
-  /** Só recebível: tipo de produto (C/D ou Tabela V). */
-  tipoProduto?: string
+  /** Tabela V (1 todas, 2 débito, 3 crédito); tem precedência sobre tipoVenda onde existe. */
+  tipoProduto?: number
+  /** Ajuste: Tabela III (1–7; 7 = tarifa). */
+  historico?: number
+  /** Ajuste: PENDENTE ou CONFIRMADO. */
+  statusPagamento?: 'PENDENTE' | 'CONFIRMADO'
   dadosCliente?: string
   pagina?: number
   /** Tabela VI: 1 conciliada, 2 não conciliada. Vazio = todas. */
@@ -50,15 +65,18 @@ export interface FiltroEextrato {
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/
 
-/** Erro de filtro antes de chamar a API (a API recusaria do mesmo jeito). */
-export const validarFiltro = (tipo: TipoRetorno, f: FiltroEextrato): string | null => {
-  for (const k of ['dataVendaInicio', 'dataVendaFim', 'dataPagamentoInicio', 'dataPagamentoFim'] as const) {
+const PERIODOS = [
+  ['dataVendaInicio', 'dataVendaFim'], ['dataPagamentoInicio', 'dataPagamentoFim'], ['dataCreditoInicio', 'dataCreditoFim'],
+  ['dataProcessamentoInicio', 'dataProcessamentoFim'], ['dataAtualizacaoInicio', 'dataAtualizacaoFim'],
+] as const
+
+/** Erro de filtro antes de chamar a API (a API recusaria do mesmo jeito): pelo menos um período completo. */
+export const validarFiltro = (_tipo: TipoRetorno, f: FiltroEextrato): string | null => {
+  for (const par of PERIODOS) for (const k of par) {
     if (f[k] != null && !DATA.test(f[k]!)) return `${k} deve estar no formato AAAA-MM-DD`
   }
-  const venda = !!(f.dataVendaInicio && f.dataVendaFim)
-  const pagto = !!(f.dataPagamentoInicio && f.dataPagamentoFim)
-  if (tipo === 'recebivel') return pagto ? null : 'Recebíveis exigem o período de pagamento (início e fim).'
-  return venda || pagto ? null : 'Informe pelo menos um período: de venda ou de pagamento (início e fim).'
+  for (const [ini, fim] of PERIODOS) if (!!f[ini] !== !!f[fim]) return `${ini} e ${fim} vão juntos`
+  return PERIODOS.some(([ini, fim]) => f[ini] && f[fim]) ? null : 'Informe pelo menos um período completo (início e fim).'
 }
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
@@ -72,9 +90,17 @@ export const montarFiltroXml = (f: FiltroEextrato): string => {
     tag('dataVendaFim', f.dataVendaFim) +
     tag('dataPagamentoInicio', f.dataPagamentoInicio) +
     tag('dataPagamentoFim', f.dataPagamentoFim) +
+    tag('dataCreditoInicio', f.dataCreditoInicio) +
+    tag('dataCreditoFim', f.dataCreditoFim) +
+    tag('dataProcessamentoInicio', f.dataProcessamentoInicio) +
+    tag('dataProcessamentoFim', f.dataProcessamentoFim) +
+    tag('dataAtualizacaoInicio', f.dataAtualizacaoInicio) +
+    tag('dataAtualizacaoFim', f.dataAtualizacaoFim) +
     tag('tipoArquivo', f.tipoArquivo) +
     tag('tipoVenda', f.tipoVenda) +
     tag('tipoProduto', f.tipoProduto) +
+    tag('historico', f.historico) +
+    tag('statusPagamento', f.statusPagamento) +
     tag('dadosCliente', f.dadosCliente) +
     tag('pagina', f.pagina ?? 1) +
     tag('statusConciliacao', f.statusConciliacao) +
@@ -145,6 +171,11 @@ interface Base {
   statusConciliacao: number | null
   modoCaptura: string | null
   horaVenda: string | null
+  /** Nome da adquirente/bandeira como a e-extrato manda (v9.3.11); a tela prefere ao código. */
+  descricaoRede: string | null
+  descricaoBandeira: string | null
+  dataConciliacao: string | null
+  dataCancelamento: string | null
 }
 
 const base = (r: Bruto): Base => ({
@@ -169,6 +200,10 @@ const base = (r: Bruto): Base => ({
   statusConciliacao: int(r.statusConciliacao),
   modoCaptura: txt(r.modoCaptura),
   horaVenda: txt(r.horaVenda),
+  descricaoRede: txt(r.descricaoRede),
+  descricaoBandeira: txt(r.descricaoBandeira),
+  dataConciliacao: dia(r.dataConciliacao),
+  dataCancelamento: dia(r.dataCancelamento),
 })
 
 export interface VendaEextrato extends Base {
@@ -192,6 +227,9 @@ export interface VendaEextrato extends Base {
 
 export interface PagamentoEextrato extends Base {
   dataPagamento: string | null
+  /** Data do crédito (no 5.6, a data PREVISTA do crédito da parcela). */
+  dataCredito: string | null
+  dataPrevistaCredito: string | null
   valorBruto: number | null
   taxaAdministracao: number | null
   valorAdministracao: number | null
@@ -208,8 +246,14 @@ export interface AjusteEextrato extends Base {
   debito: number | null
   /** Tabela III: 1 aluguel POS inativo, 2 cancelamento, 3 aluguel POS, 4 ajuste, 5 consulta de cheques, 6 chargeback, 7 tarifa. */
   historico: number | null
+  descricaoHistorico: string | null
   mesReferencia: string | null
   tipoProduto: string | null
+  /** PENDENTE ou CONFIRMADO. */
+  statusPagamento: string | null
+  /** Só recebível (UR): vencimento e chave da unidade de recebível. */
+  dataVencimento: string | null
+  chaveUr: string | null
 }
 
 export type RecebivelEextrato = Omit<AjusteEextrato, 'dataVenda' | 'nsu' | 'autorizacao' | 'tid' | 'plano' | 'parcela' | 'areaCliente' | 'mesReferencia' | 'modoCaptura' | 'horaVenda'>
@@ -238,6 +282,8 @@ const venda = (r: Bruto): VendaEextrato => {
 const pagamento = (r: Bruto): PagamentoEextrato => ({
   ...base(r),
   dataPagamento: dia(r.dataPagamento),
+  dataCredito: dia(r.dataCredito),
+  dataPrevistaCredito: dia(r.dataPrevistaCredito),
   valorBruto: num(r.valorBruto),
   taxaAdministracao: num(r.taxaAdministracao),
   valorAdministracao: num(r.valorAdministracao),
@@ -254,8 +300,12 @@ const ajuste = (r: Bruto): AjusteEextrato => ({
   credito: num(r.credito),
   debito: num(r.debito),
   historico: int(r.historico),
+  descricaoHistorico: txt(r.descricaoHistorico),
   mesReferencia: txt(r.mesReferencia),
   tipoProduto: txt(r.tipoProduto),
+  statusPagamento: txt(r.statusPagamento),
+  dataVencimento: dia(r.dataVencimento),
+  chaveUr: txt(r.chaveUr),
 })
 
 const recebivel = (r: Bruto): RecebivelEextrato => {
@@ -269,13 +319,15 @@ export interface ItensPorTipo {
   pagamento: PagamentoEextrato
   ajuste: AjusteEextrato
   recebivel: RecebivelEextrato
+  /** 5.6: cada parcela com a data prevista do crédito (mesmo formato do pagamento). */
+  dataPrevistaCredito: PagamentoEextrato
 }
 
 const NORMALIZA: { [K in TipoRetorno]: (r: Bruto) => ItensPorTipo[K] } = {
-  venda, vendaDetalhada: venda, pagamento, ajuste, recebivel,
+  venda, vendaDetalhada: venda, pagamento, ajuste, recebivel, dataPrevistaCredito: pagamento,
 }
 
-/** Onde a lista vem no JSON (manual): vendas.vendasV9, pagamentos.pagamentosV9, ajustes.ajustesV9, recebiveis.recebivelV9. */
+/** Onde a lista vem no JSON: vendas.vendasV10, pagamentos.pagamentosV10, ajustes.ajustesV10, recebiveis.recebiveisV10, dataCreditoPrevistos.dataCreditoPrevistoV10 (V9 também é aceito). */
 const RAIZ: Record<TipoRetorno, string[]> = {
   venda: ['vendas'],
   vendaDetalhada: ['vendas'],
@@ -283,6 +335,7 @@ const RAIZ: Record<TipoRetorno, string[]> = {
   ajuste: ['ajustes'],
   // O exemplo do manual traz a chave com espaço ("recebiveis ").
   recebivel: ['recebiveis', 'recebiveis '],
+  dataPrevistaCredito: ['dataCreditoPrevistos'],
 }
 
 /** Primeira lista dentro do bloco (vendasV9, venda[], …), tolerante a nomes. */

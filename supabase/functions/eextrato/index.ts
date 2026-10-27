@@ -27,6 +27,9 @@ const TIPOS = Object.keys(CAMINHO_RETORNO) as TipoRetorno[]
 /** Teto de páginas por consulta: acima disso a resposta diz "incompleto". */
 const MAX_PAGINAS = 50
 const TIMEOUT_MS = 30_000
+/** 429 = limite de requisições: espera e tenta de novo (manual v9.3.11). */
+const ESPERAS_429 = [2_000, 5_000, 12_000]
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -56,16 +59,23 @@ Deno.serve(async (req) => {
     const invalido = validarFiltro(tipo, filtro)
     if (invalido) return json({ error: invalido }, 400)
 
-    const buscar = async (pagina: number) => {
-      const ctrl = new AbortController()
-      const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
-      try {
-        const res = await fetch(EEXTRATO_BASE + CAMINHO_RETORNO[tipo], {
-          method: 'POST', headers: cabecalhos(acesso, secreta), body: montarFiltroXml({ ...filtro, pagina }), signal: ctrl.signal,
-        })
-        const texto = await res.text()
-        try { return JSON.parse(texto) } catch { throw new Error(`e-extrato ${res.status}: resposta fora do formato JSON (${texto.slice(0, 160)})`) }
-      } finally { clearTimeout(t) }
+    const buscar = async (pagina: number): Promise<unknown> => {
+      for (let tentativa = 0; ; tentativa++) {
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+        try {
+          const res = await fetch(EEXTRATO_BASE + CAMINHO_RETORNO[tipo], {
+            method: 'POST', headers: cabecalhos(acesso, secreta), body: montarFiltroXml({ ...filtro, pagina }), signal: ctrl.signal,
+          })
+          if (res.status === 429 && tentativa < ESPERAS_429.length) { await dormir(ESPERAS_429[tentativa]); continue }
+          if (res.status === 429) throw new Error('A e-extrato limitou as consultas agora (muitas seguidas). Tente de novo em alguns minutos.')
+          const texto = await res.text()
+          try { return JSON.parse(texto) } catch {
+            if (res.status === 400) throw new Error('A e-extrato recusou a consulta: filtro inválido ou chave de acesso incorreta.')
+            throw new Error(`e-extrato ${res.status}: resposta fora do formato JSON (${texto.slice(0, 160)})`)
+          }
+        } finally { clearTimeout(t) }
+      }
     }
 
     try {

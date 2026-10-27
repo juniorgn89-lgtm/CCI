@@ -1,5 +1,9 @@
-import type { AjusteEextrato, RecebivelEextrato, VendaEextrato } from '@/api/supabase/eextrato'
-import { nomeDivergencia } from '@/lib/eextrato/codigos'
+import type { AjusteEextrato, PrevisaoCreditoEextrato, VendaEextrato } from '@/api/supabase/eextrato'
+import { nomeBandeira, nomeDivergencia, nomeMotivoAjuste, nomeOperadora } from '@/lib/eextrato/codigos'
+
+/** Nome da adquirente/bandeira: o que a e-extrato mandou; sem isso, a tabela do manual. */
+export const rotuloRede = (x: { descricaoRede?: string | null; rede: number | null }) => x.descricaoRede || nomeOperadora(x.rede)
+export const rotuloBandeira = (x: { descricaoBandeira?: string | null; bandeira: number | null }) => x.descricaoBandeira || nomeBandeira(x.bandeira)
 
 /**
  * Contas da aba Conciliação de cartão, sobre os retornos da e-extrato.
@@ -63,29 +67,37 @@ export const resumir = (vendas: VendaEextrato[]): ResumoConciliacao => {
   return r
 }
 
-export interface DiaAgenda { dia: string; credito: number; debito: number; liquido: number; porOperadora: Map<number | null, number> }
+export interface DiaAgenda { dia: string; parcelas: number; bruto: number; taxas: number; liquido: number; antecipadas: number; porOperadora: Map<string, number> }
 
-/** Agenda de créditos: o que cai por dia (crédito − débito), com a quebra por adquirente. */
-export const agendaPorDia = (recebiveis: RecebivelEextrato[]): DiaAgenda[] => {
+/**
+ * Agenda de créditos: o que cai por dia, das parcelas com data prevista
+ * (retorno 5.6). Cancelada não entra; líquido sem valor informado usa
+ * bruto − taxas. A quebra por adquirente é pelo líquido.
+ */
+export const agendaPorDia = (previsoes: PrevisaoCreditoEextrato[]): DiaAgenda[] => {
   const m = new Map<string, DiaAgenda>()
-  for (const r of recebiveis) {
-    if (!r.dataCreditoDebito) continue
-    const d = m.get(r.dataCreditoDebito) ?? { dia: r.dataCreditoDebito, credito: 0, debito: 0, liquido: 0, porOperadora: new Map() }
-    const c = r.credito ?? 0, db = r.debito ?? 0
-    d.credito += c; d.debito += db; d.liquido += c - db
-    d.porOperadora.set(r.rede, (d.porOperadora.get(r.rede) ?? 0) + c - db)
-    m.set(r.dataCreditoDebito, d)
+  for (const p of previsoes) {
+    if (!p.dataCredito || p.status === 'CAN') continue
+    const d = m.get(p.dataCredito) ?? { dia: p.dataCredito, parcelas: 0, bruto: 0, taxas: 0, liquido: 0, antecipadas: 0, porOperadora: new Map() }
+    const bruto = p.valorBruto ?? 0
+    const taxas = (p.valorAdministracao ?? 0) + (p.valorAntecipacao ?? 0)
+    const liquido = p.valorLiquido ?? bruto - taxas
+    d.parcelas++; d.bruto += bruto; d.taxas += taxas; d.liquido += liquido
+    if (p.status === 'ANT') d.antecipadas++
+    const nome = rotuloRede(p)
+    d.porOperadora.set(nome, (d.porOperadora.get(nome) ?? 0) + liquido)
+    m.set(p.dataCredito, d)
   }
   return [...m.values()].sort((a, b) => a.dia.localeCompare(b.dia))
 }
 
-export interface GrupoAjuste { historico: number | null; qtd: number; credito: number; debito: number; itens: AjusteEextrato[] }
+export interface GrupoAjuste { historico: number | null; nome: string; qtd: number; credito: number; debito: number; itens: AjusteEextrato[] }
 
 /** Ajustes e tarifas agrupados pelo motivo (Tabela III). Chargeback = 6. */
 export const ajustesPorMotivo = (ajustes: AjusteEextrato[]): GrupoAjuste[] => {
   const m = new Map<number | null, GrupoAjuste>()
   for (const a of ajustes) {
-    const g = m.get(a.historico) ?? { historico: a.historico, qtd: 0, credito: 0, debito: 0, itens: [] }
+    const g = m.get(a.historico) ?? { historico: a.historico, nome: a.descricaoHistorico || nomeMotivoAjuste(a.historico), qtd: 0, credito: 0, debito: 0, itens: [] }
     g.qtd++; g.credito += a.credito ?? 0; g.debito += a.debito ?? 0; g.itens.push(a)
     m.set(a.historico, g)
   }

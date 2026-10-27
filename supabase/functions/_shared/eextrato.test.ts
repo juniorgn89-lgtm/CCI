@@ -1,4 +1,4 @@
-// Testes do módulo e-extrato com os exemplos do manual v9.3.2 (as vírgulas e
+// Testes do módulo e-extrato com os exemplos dos manuais v9.3.2 e v9.3.11 (as vírgulas e
 // aspas que faltam no PDF foram corrigidas; os valores são os do manual).
 // Rodar: node supabase/functions/_shared/eextrato.test.ts
 import assert from 'node:assert/strict'
@@ -20,11 +20,13 @@ await caso('filtro: escapa caracteres de XML', () => {
   assert.ok(montarFiltroXml({ dataPagamentoInicio: '2024-01-01', dataPagamentoFim: '2024-01-31', dadosCliente: 'A&B<1>' }).includes('A&amp;B&lt;1&gt;'))
 })
 
-await caso('filtro: exige período (e período de pagamento nos recebíveis)', () => {
+await caso('filtro: exige pelo menos um período completo', () => {
   assert.ok(validarFiltro('venda', {}))
   assert.equal(validarFiltro('venda', { dataVendaInicio: '2024-01-01', dataVendaFim: '2024-01-31' }), null)
   assert.equal(validarFiltro('pagamento', { dataPagamentoInicio: '2024-01-01', dataPagamentoFim: '2024-01-31' }), null)
-  assert.ok(validarFiltro('recebivel', { dataVendaInicio: '2024-01-01', dataVendaFim: '2024-01-31' }))
+  assert.equal(validarFiltro('recebivel', { dataVendaInicio: '2024-01-01', dataVendaFim: '2024-01-31' }), null)
+  assert.equal(validarFiltro('dataPrevistaCredito', { dataCreditoInicio: '2026-10-27', dataCreditoFim: '2026-12-26' }), null)
+  assert.ok(validarFiltro('venda', { dataCreditoInicio: '2026-10-27' }), 'período pela metade')
   assert.ok(validarFiltro('venda', { dataVendaInicio: '01/01/2024', dataVendaFim: '2024-01-31' }))
 })
 
@@ -136,6 +138,58 @@ await caso('paginação: teto marca a leitura como incompleta (nunca soma como s
 await caso('paginação: erro no meio para e diz em que página', async () => {
   const r = await buscarTodasPaginas('venda', async (p) => (p === 2 ? { rejeitado: true, erro: { status: 'ERRO', descricao: 'falhou' } } : { totalPaginas: 3, vendas: { vendasV9: [{}] } }))
   assert.deepEqual(r, { ok: false, erro: 'falhou', pagina: 2 })
+})
+
+await caso('v9.3.11: vendas por parcela no layout V10, com descrição de rede/bandeira', () => {
+  const r = lerResposta('vendaDetalhada', { paginaAtual: 1, totalPaginas: 1, rejeitado: false, vendas: { vendasV10: [{
+    dataVenda: '2013-09-02', nsu: '12345', autorizacao: '12345', plano: '3', rede: '2', bandeira: '1', produto: 'D', statusConciliacao: 1,
+    dataCredito: '2013-09-03', valorVenda: 39.9, parcela: 3, valorParcela: 33.9, valorLiquidoParcela: 33.0, status: 'PAG',
+    descricaoRede: 'CIELO', descricaoBandeira: 'MASTERCARD', dataConciliacao: '2013-09-03',
+  }] } })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  assert.equal(r.itens[0].descricaoRede, 'CIELO'); assert.equal(r.itens[0].descricaoBandeira, 'MASTERCARD')
+  assert.equal(r.itens[0].dataConciliacao, '2013-09-03'); assert.equal(r.itens[0].valorParcela, 33.9)
+})
+
+await caso('v9.3.11: status "null" como texto vira vazio', () => {
+  const r = lerResposta('venda', { vendas: { vendasV10: [{ status: 'null', valorVenda: 1 }] } })
+  assert.ok(r.ok && r.itens[0].status === null)
+})
+
+await caso('v9.3.11: ajuste com descrição do histórico e status do pagamento', () => {
+  const r = lerResposta('ajuste', { ajustes: { ajustesV10: [{ historico: 4, descricaoHistorico: 'Ajuste Credito/Debito', statusPagamento: 'CONFIRMADO', debito: 26.45, dataCreditoDebito: '2013-09-04' }] } })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  assert.equal(r.itens[0].descricaoHistorico, 'Ajuste Credito/Debito'); assert.equal(r.itens[0].statusPagamento, 'CONFIRMADO')
+})
+
+await caso('v9.3.11: recebíveis V10 (unidade de recebível com vencimento e chave UR)', () => {
+  const r = lerResposta('recebivel', { recebiveis: { recebiveisV10: [{ rede: '6', dataCreditoDebito: '2013-09-04', debito: 26.45, historico: 9, dataVencimento: '2013-09-04', chaveUr: '' }] } })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  assert.equal(r.itens[0].dataVencimento, '2013-09-04'); assert.equal(r.itens[0].chaveUr, null)
+})
+
+await caso('v9.3.11: data prevista de crédito (5.6)', () => {
+  const r = lerResposta('dataPrevistaCredito', { paginaAtual: 1, totalPaginas: 1, rejeitado: false, dataCreditoPrevistos: { dataCreditoPrevistoV10: [{
+    dataVenda: '2026-01-30', nsu: '00123456', autorizacao: '123456', plano: '10', rede: '6', bandeira: '2', produto: 'C',
+    codigoLojaErp: '001', codigoEstabelecimento: '0012345678', statusConciliacao: 2, dataCredito: '2026-09-01', parcela: 7,
+    valorBruto: 43.6, valorAdministracao: 0.7, valorAntecipacao: 0, status: 'PRE', valorLiquido: 42.9, taxaAdministracao: 1.61,
+    descricaoRede: 'REDE', descricaoBandeira: 'MASTERCARD',
+  }] } })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  const p = r.itens[0]
+  assert.equal(p.dataCredito, '2026-09-01'); assert.equal(p.status, 'PRE'); assert.equal(p.valorLiquido, 42.9)
+  assert.equal(p.nsu, '00123456', 'zeros à esquerda preservados'); assert.equal(p.codigoLojaErp, '001')
+})
+
+await caso('v9.3.11: filtro XML com período de crédito e de atualização', () => {
+  const xml = montarFiltroXml({ dataCreditoInicio: '2026-10-27', dataCreditoFim: '2026-12-26', dataAtualizacaoInicio: '2026-10-26', dataAtualizacaoFim: '2026-10-27', historico: 6 })
+  assert.ok(xml.includes('<dataCreditoInicio>2026-10-27</dataCreditoInicio>'))
+  assert.ok(xml.includes('<dataAtualizacaoFim>2026-10-27</dataAtualizacaoFim>'))
+  assert.ok(xml.includes('<historico>6</historico>'))
 })
 
 console.log(`\n${n} casos passaram.`)

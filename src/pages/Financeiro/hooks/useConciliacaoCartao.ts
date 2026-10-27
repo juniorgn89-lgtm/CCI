@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTenantStore } from '@/store/tenant'
 import {
   consultarEextrato, fetchEextratoStatus,
-  type AjusteEextrato, type RecebivelEextrato, type VendaEextrato,
+  type AjusteEextrato, type PrevisaoCreditoEextrato, type VendaEextrato,
 } from '@/api/supabase/eextrato'
 import { todayLocal } from '@/lib/period'
 
@@ -17,7 +17,8 @@ export const DIAS_AGENDA = 60
 
 /**
  * Retornos da e-extrato para a aba Conciliação de cartão: vendas por parcela e
- * ajustes no período do filtro, e a agenda de créditos dos próximos dias.
+ * ajustes no período do filtro, e a agenda de créditos dos próximos dias
+ * (retorno 5.6 "data prevista de crédito"; o de recebíveis é cessão/gravame).
  * Só busca depois de confirmar que a integração tem chave (senão a tela diz isso).
  */
 const useConciliacaoCartao = (dataInicial: string, dataFinal: string) => {
@@ -37,13 +38,13 @@ const useConciliacaoCartao = (dataInicial: string, dataFinal: string) => {
     queryFn: () => consultarEextrato<AjusteEextrato>('ajuste', { dataPagamentoInicio: dataInicial, dataPagamentoFim: dataFinal }),
     enabled: ativo, staleTime: 15 * 60_000, retry: false,
   })
-  const recebiveis = useQuery({
-    queryKey: ['eextrato', 'recebivel', redeId, hoje],
-    queryFn: () => consultarEextrato<RecebivelEextrato>('recebivel', { dataPagamentoInicio: hoje, dataPagamentoFim: somarDias(hoje, DIAS_AGENDA) }),
+  const previsoes = useQuery({
+    queryKey: ['eextrato', 'dataPrevistaCredito', redeId, hoje],
+    queryFn: () => consultarEextrato<PrevisaoCreditoEextrato>('dataPrevistaCredito', { dataCreditoInicio: hoje, dataCreditoFim: somarDias(hoje, DIAS_AGENDA) }),
     enabled: ativo, staleTime: 15 * 60_000, retry: false,
   })
 
-  return { status, configurado: status.data?.configurado ?? null, vendas, ajustes, recebiveis }
+  return { status, configurado: status.data?.configurado ?? null, vendas, ajustes, previsoes }
 }
 
 export default useConciliacaoCartao

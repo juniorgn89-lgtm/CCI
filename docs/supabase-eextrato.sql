@@ -26,10 +26,10 @@ create index if not exists eextrato_postos_rede_idx on public.eextrato_postos (r
 --    da Boavista ainda pode trazer campos a mais).
 create table if not exists public.eextrato_registros (
   rede_id         uuid not null references public.redes(id) on delete cascade,
-  tipo            text not null check (tipo in ('venda', 'vendaDetalhada', 'pagamento', 'ajuste', 'recebivel')),
+  tipo            text not null check (tipo in ('venda', 'vendaDetalhada', 'pagamento', 'ajuste', 'recebivel', 'dataPrevistaCredito')),
   chave           text not null,          -- identidade da linha (montada pela função: nsu/autorização/parcela/data/estabelecimento…)
   empresa_codigo  integer,                -- posto do Visor (via eextrato_postos); null = loja ainda não ligada
-  data_ref        date not null,          -- data da venda, do pagamento ou do crédito/débito, conforme o tipo
+  data_ref        date not null,          -- data da venda, do pagamento, do crédito previsto ou do crédito/débito, conforme o tipo
   valor           numeric(14, 2),         -- bruto (venda/parcela/pagamento) ou crédito − débito (ajuste/recebível)
   status          text,                   -- PRE/PAG/ANT/CAN/CTP/CPP quando houver
   conciliado      boolean,                -- statusConciliacao = 1
