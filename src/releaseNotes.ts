@@ -33,6 +33,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.8',
+    data: '2026-11-13',
+    resumo: 'Tarefas: foto ou documento obrigatório para concluir, prioridade, novas recorrências nas rotinas e o módulo pronto para o celular.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Tarefas: foto ou documento obrigatório',
+        descricao: 'Na rotina ou na tarefa avulsa, marque "Exigir foto ou documento para concluir". Dá para dar nome a cada anexo obrigatório (ex.: PDF do fechamento de caixa): cada um vira um item com o próprio botão, e a tarefa só conclui com todos. A trava vale de verdade: ninguém conclui sem anexar. No celular, o botão Foto abre a câmera direto.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Rotinas: dias do mês, datas no ano e escala',
+        descricao: 'Além dos dias da semana, a recorrência personalizada agora aceita dias do mês (ex.: todo dia 5, ou o último dia do mês), datas no ano (ex.: 31/12) e escala de trabalho (12×36, 5×1, 6×1, 5×2 ou a sua). O resumo em verde mostra a regra e a próxima geração.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Prioridade nas tarefas',
+        descricao: 'Rotinas e tarefas ganharam prioridade (baixa, média, alta e urgente). Alta e Urgente aparecem com selo e sobem na lista dentro do mesmo prazo. Mudar a prioridade ou os anexos exigidos de uma rotina também atualiza as tarefas dela que ainda estão em aberto.',
+      },
+      {
+        icone: 'mobile',
+        titulo: 'Tarefas no celular',
+        descricao: 'No celular, as abas Painel, Tarefas e Rotinas aparecem no topo do módulo, as situações (Atrasadas, Vencem hoje, Minhas pendentes...) correm de lado, os filtros ficam recolhidos num botão e o botão de concluir ocupa a largura toda.',
+      },
+    ],
+  },
+  {
     versao: '1.2.7',
     data: '2026-10-20',
     resumo: 'Antes e depois da CCI pela data real da consultoria, fornecedores do pedido de compra direto do cadastro do ERP e o menu Compras firme ao trocar de rede.',

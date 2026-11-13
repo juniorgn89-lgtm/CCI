@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useRedePostos } from '@/pages/Rede/hooks/useRedePostos'
-import { fetchSetores, fetchUsuariosDaRede, type SetorRow, type UsuarioRede } from '@/api/supabase/gestaoTarefas'
+import {
+  fetchSetores, fetchUsuariosDaRede, fetchAnexos, RECORRENCIA_LABEL, DIAS_SEMANA, MESES_CURTOS,
+  type SetorRow, type UsuarioRede, type RotinaRow,
+} from '@/api/supabase/gestaoTarefas'
 
 /* Peças compartilhadas pelas telas de Gestão (Tarefas, Rotinas, Painel). */
 
@@ -107,4 +110,26 @@ export const somaDias = (dia: string, n: number) => {
   const [y, m, d] = dia.split('-').map(Number)
   const dt = new Date(y, m - 1, d + n)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+/** Anexos da tarefa (mesma chave em todo o módulo: o detalhe usa pra liberar o Concluir). */
+export const useAnexosTarefa = (tarefaId: string) =>
+  useQuery({ queryKey: ['gestao-anexos', tarefaId], queryFn: () => fetchAnexos(tarefaId) })
+
+type Regra = Pick<RotinaRow, 'recorrencia' | 'modo_personalizado' | 'dias_semana' | 'dias_mes' | 'datas_ano' | 'escala_trabalha' | 'escala_folga'>
+
+export const fmtMmdd = (mmdd: string) => { const [m, d] = mmdd.split('-').map(Number); return `${d} ${MESES_CURTOS[m - 1]}` }
+/** A regra em palavras: "Toda Seg, Qua", "Todo dia 5 e último dia do mês", "Trabalha 1, folga 1". */
+export const descreverRegra = (r: Regra): string => {
+  if (r.recorrencia !== 'personalizada') return RECORRENCIA_LABEL[r.recorrencia]
+  const modo = r.modo_personalizado ?? 'semana'
+  if (modo === 'semana') return r.dias_semana.length ? `Toda ${r.dias_semana.slice().sort().map((d) => DIAS_SEMANA[d]).join(', ')}` : 'nenhum dia escolhido'
+  if (modo === 'mes') {
+    if (!r.dias_mes.length) return 'nenhum dia do mês escolhido'
+    const nums = r.dias_mes.filter((d) => d > 0).sort((a, b) => a - b).map(String)
+    const partes = [...(nums.length ? [`dia${nums.length > 1 ? 's' : ''} ${nums.join(', ')}`] : []), ...(r.dias_mes.includes(0) ? ['último dia'] : [])]
+    return `Todo mês: ${partes.join(' e ')}`
+  }
+  if (modo === 'ano') return r.datas_ano.length ? `Todo ano: ${r.datas_ano.slice().sort().map(fmtMmdd).join(', ')}` : 'nenhuma data escolhida'
+  return r.escala_trabalha ? `Escala: trabalha ${r.escala_trabalha} dia${r.escala_trabalha > 1 ? 's' : ''}, folga ${r.escala_folga ?? 0}` : 'escala sem dias definidos'
 }

@@ -3,18 +3,21 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useFilters } from '@/hooks/useFilters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2,
+  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal,
 } from 'lucide-react'
 import {
   fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, estaAtrasada,
-  STATUS_LABEL, ATIVIDADE_VERBO,
-  type TarefaRow, type TarefaStatus, type ChecklistItem, type TarefaInput,
+  exigeAnexo, anexosFaltando, STATUS_LABEL, ATIVIDADE_VERBO, PRIORIDADE_LABEL, PRIORIDADE_PESO,
+  type TarefaRow, type TarefaStatus, type ChecklistItem, type TarefaInput, type Prioridade,
 } from '@/api/supabase/gestaoTarefas'
-import { useGestaoBase, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, fmtDataHora, fmtData, fmtPrazo, hojeLocal, somaDias } from './comum'
+import { useGestaoBase, useAnexosTarefa, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, fmtDataHora, fmtData, fmtPrazo, hojeLocal, somaDias } from './comum'
 import { Modal, ModalRodape, Erro, Segmentos } from './comumUi'
 import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
+import { SeloPrioridade } from './Prioridade'
+import { ExigirAnexoCampos } from './Rotinas'
+import useIsMobile from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
 import { GUIAS } from '@/lib/guiasModais'
@@ -65,7 +68,10 @@ const Tarefas = () => {
   // Lidas uma vez na montagem (lazy state, não ref: a regra de hooks proíbe ler ref no render).
   const [prefs] = useState(lerPrefs)
   const [periodo, setPeriodoState] = useState<Periodo>(prefs.periodo === 7 || prefs.periodo === 14 || prefs.periodo === 30 ? prefs.periodo : 30)
-  const [visao, setVisaoState] = useState<Visao>(prefs.visao === 'kanban' || prefs.visao === 'agenda' ? prefs.visao : 'lista')
+  const [visaoPref, setVisaoState] = useState<Visao>(prefs.visao === 'kanban' || prefs.visao === 'agenda' ? prefs.visao : 'lista')
+  const isMobile = useIsMobile()
+  const visao: Visao = isMobile && visaoPref === 'kanban' ? 'lista' : visaoPref
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const setPeriodo = (p: Periodo) => { setPeriodoState(p); salvarPrefs({ periodo: p }) }
   const setVisao = (v: Visao) => { setVisaoState(v); salvarPrefs({ visao: v }) }
   // ?aba= vem dos links do Painel (atrasadas / hoje).
@@ -142,7 +148,8 @@ const Tarefas = () => {
   const lista = useMemo(() => {
     return todas.filter(filtro).sort((a, b) => {
       const peso = (t: TarefaRow) => (estaAtrasada(t) ? 0 : t.vence_dia === hoje && t.status !== 'concluida' && t.status !== 'cancelada' ? 1 : 2)
-      return peso(a) - peso(b) || a.vence_em.localeCompare(b.vence_em)
+      // Mesma urgência: a de prioridade maior sobe; depois o prazo.
+      return peso(a) - peso(b) || PRIORIDADE_PESO[a.prioridade ?? 'media'] - PRIORIDADE_PESO[b.prioridade ?? 'media'] || a.vence_em.localeCompare(b.vence_em)
     })
   }, [todas, filtro, hoje])
 
@@ -206,41 +213,52 @@ const Tarefas = () => {
     <div className="space-y-4">
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
           {abas.map((a) => (
             <button key={a.id} type="button" onClick={() => setAba(a.id)}
-              className={cn('inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors', aba === a.id ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : cn('text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800', a.cor))}>
+              className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors', aba === a.id ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : cn('text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800', a.cor))}>
               {a.label}
               <span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', aba === a.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800')}>{a.n}</span>
             </button>
           ))}
-          <InfoHint className="ml-1" text="Atrasadas: abertas que passaram do vencimento. Vencem hoje: abertas com prazo hoje. Em andamento: alguém já começou. Minhas pendentes: as suas abertas. Canceladas: as que saíram do caminho (dá para reabrir ou, sendo gestor, excluir de vez). Os números contam o período escolhido à direita." />
+          <InfoHint className="ml-1 hidden md:inline-flex" text="Atrasadas: abertas que passaram do vencimento. Vencem hoje: abertas com prazo hoje. Em andamento: alguém já começou. Minhas pendentes: as suas abertas. Canceladas: as que saíram do caminho (dá para reabrir ou, sendo gestor, excluir de vez). Os números contam o período escolhido à direita." />
         </div>
-        <span className="ml-auto flex flex-wrap items-center gap-2">
-          <Segmentos<Visao> opcoes={[{ value: 'lista', label: 'Lista' }, { value: 'kanban', label: 'Kanban' }, { value: 'agenda', label: 'Agenda' }]} valor={visao} onChange={setVisao} />
-          <Segmentos<Periodo> opcoes={[{ value: 7, label: '7 dias' }, { value: 14, label: '14 dias' }, { value: 30, label: '30 dias' }]} valor={periodo} onChange={setPeriodo} />
-          <InfoHint text="Lista, Kanban (arraste entre colunas) ou Agenda (calendário do mês). O período é quantos dias para trás a lista mostra; os próximos 7 dias aparecem sempre." />
-          {base.podeGerir && <button type="button" className={btnPrimary} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Nova tarefa</button>}
+        <span className="flex w-full flex-wrap items-center gap-2 md:ml-auto md:w-auto">
+          <Segmentos<Visao> opcoes={isMobile ? [{ value: 'lista', label: 'Lista' }, { value: 'agenda', label: 'Agenda' }] : [{ value: 'lista', label: 'Lista' }, { value: 'kanban', label: 'Kanban' }, { value: 'agenda', label: 'Agenda' }]} valor={visao} onChange={setVisao} />
+          <span className="hidden md:contents">
+            <Segmentos<Periodo> opcoes={[{ value: 7, label: '7 dias' }, { value: 14, label: '14 dias' }, { value: 30, label: '30 dias' }]} valor={periodo} onChange={setPeriodo} />
+            <InfoHint text="Lista, Kanban (arraste entre colunas) ou Agenda (calendário do mês). O período é quantos dias para trás a lista mostra; os próximos 7 dias aparecem sempre." />
+          </span>
+          {isMobile && (() => {
+            const ativos = [postoSel !== 'todos', respSel !== 'todos', setorSel !== 'todos', statusSel !== 'todos'].filter(Boolean).length
+            return (
+              <button type="button" className={cn(btnGhost, 'h-9 px-2.5', (filtrosAbertos || ativos > 0) && 'border-[#1e3a5f] text-[#1e3a5f] dark:border-blue-500 dark:text-blue-300')} onClick={() => setFiltrosAbertos((v) => !v)} aria-expanded={filtrosAbertos}>
+                <SlidersHorizontal className="h-4 w-4" /> Filtrar{ativos > 0 && <span className="rounded-full bg-[#1e3a5f] px-1.5 text-[10px] font-bold text-white dark:bg-blue-600">{ativos}</span>}
+              </button>
+            )
+          })()}
+          {base.podeGerir && <button type="button" className={cn(btnPrimary, 'ml-auto md:ml-0')} onClick={() => setNovaAberta(true)}><Plus className="h-4 w-4" /> Nova<span className="hidden sm:inline"> tarefa</span></button>}
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={cn('flex-wrap items-center gap-2', isMobile && !filtrosAbertos ? 'hidden' : 'flex')}>
         <input className={cn(inputCls, 'h-9 min-w-[12rem] flex-1')} placeholder="Buscar tarefa…" value={busca} onChange={(e) => setBusca(e.target.value)} />
-        <select className={cn(selectCls, 'h-9 w-auto')} value={postoSel} onChange={(e) => setPostoSel(e.target.value)}>
+        {isMobile && <Segmentos<Periodo> opcoes={[{ value: 7, label: '7 dias' }, { value: 14, label: '14 dias' }, { value: 30, label: '30 dias' }]} valor={periodo} onChange={setPeriodo} />}
+        <select className={cn(selectCls, 'h-9 w-full sm:w-auto')} value={postoSel} onChange={(e) => setPostoSel(e.target.value)}>
           <option value="todos">Todos os postos</option>
           <option value="sem">Sem posto (rede)</option>
           {base.postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia || p.razao || `Posto ${p.codigo}`}</option>)}
         </select>
-        <select className={cn(selectCls, 'h-9 w-auto')} value={respSel} onChange={(e) => setRespSel(e.target.value)}>
+        <select className={cn(selectCls, 'h-9 w-full sm:w-auto')} value={respSel} onChange={(e) => setRespSel(e.target.value)}>
           <option value="todos">Todos os responsáveis</option>
           <option value="sem">Sem responsável</option>
           {base.usuarios.map((u) => <option key={u.user_id} value={u.user_id}>{u.nome}</option>)}
         </select>
-        <select className={cn(selectCls, 'h-9 w-auto')} value={setorSel} onChange={(e) => setSetorSel(e.target.value)}>
+        <select className={cn(selectCls, 'h-9 w-full sm:w-auto')} value={setorSel} onChange={(e) => setSetorSel(e.target.value)}>
           <option value="todos">Todos os setores</option>
           {base.setores.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </select>
-        <select className={cn(selectCls, 'h-9 w-auto')} value={statusSel} onChange={(e) => setStatusSel(e.target.value as typeof statusSel)}>
+        <select className={cn(selectCls, 'h-9 w-full sm:w-auto')} value={statusSel} onChange={(e) => setStatusSel(e.target.value as typeof statusSel)}>
           <option value="todos">Todos os status</option>
           <option value="a_fazer">A fazer</option>
           <option value="em_andamento">Em andamento</option>
@@ -284,7 +302,7 @@ const Tarefas = () => {
                   <li key={t.id} className="space-y-2 px-4 py-3 text-gray-800 dark:text-gray-200">
                     <button type="button" onClick={() => setDetalhe(t)} className="block w-full text-left">
                       <span className="flex items-start justify-between gap-2">
-                        <span className="font-medium leading-snug">{t.titulo}</span>
+                        <span className="font-medium leading-snug">{t.titulo} <SeloPrioridade p={t.prioridade} className="ml-1 align-middle" /></span>
                         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>
                           {atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}
                         </span>
@@ -294,9 +312,10 @@ const Tarefas = () => {
                         {t.empresa_codigo !== null && <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{base.nomePosto(t.empresa_codigo)}</span>}
                         <span className="inline-flex items-center gap-1"><User className="h-3 w-3" />{base.nomeUsuario(t.responsavel_id) ?? 'sem responsável'}</span>
                         {t.checklist.length > 0 && <span>{feitos}/{t.checklist.length} etapas</span>}
+                        {exigeAnexo(t) && <span className="inline-flex items-center gap-1"><Camera className="h-3 w-3" />{t.documentos_exigidos?.length ? `${t.documentos_exigidos.length} doc.` : 'foto'}</span>}
                       </span>
                     </button>
-                    <div className="flex justify-end"><AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} onExcluir={base.podeGerir ? (x) => { setDetalhe(x); setExcluindoDaLista(true) } : undefined} /></div>
+                    <div className="flex justify-end [&>button]:w-full [&>button]:h-10 [&>span]:w-full [&>span>button]:h-10 [&>span>button]:flex-1"><AcoesTarefa t={t} onMudar={mudar} compacto onAbrir={setDetalhe} onExcluir={base.podeGerir ? (x) => { setDetalhe(x); setExcluindoDaLista(true) } : undefined} /></div>
                   </li>
                 )
               })}
@@ -330,11 +349,12 @@ const Tarefas = () => {
                         </td>
                         <td className="px-3 py-3">
                           <button type="button" onClick={() => setDetalhe(t)} className="text-left">
-                            <span className={cn('block font-semibold hover:underline', !aberta && 'text-gray-500 dark:text-gray-400')}>{t.titulo}</span>
+                            <span className={cn('flex items-center gap-1.5 font-semibold', !aberta && 'text-gray-500 dark:text-gray-400')}><span className="hover:underline">{t.titulo}</span><SeloPrioridade p={t.prioridade} /></span>
                             <span className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400">
                               <span>{t.rotina_id ? 'rotina' : 'avulsa'}</span>
                               {t.checklist.length > 0 && <span className={cn('inline-flex items-center gap-0.5', feitos === t.checklist.length && 'text-emerald-600 dark:text-emerald-400')}><ListChecks className="h-3 w-3" />{feitos}/{t.checklist.length} etapas</span>}
                               {t.data_ref && t.data_ref !== t.vence_dia && <span>ref. {fmtData(t.data_ref)}</span>}
+                              {exigeAnexo(t) && <span className="inline-flex items-center gap-0.5"><Camera className="h-3 w-3" />{t.documentos_exigidos?.length ? `${t.documentos_exigidos.length} documento(s) exigido(s)` : 'foto obrigatória'}</span>}
                             </span>
                           </button>
                         </td>
@@ -411,10 +431,12 @@ const Tarefas = () => {
  * detalhe, onde as etapas ficam visíveis); sem checklist, Concluir direto.
  * Iniciar fica só no detalhe. Errou? Reabrir, e o histórico guarda os dois.
  */
-const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir }: {
+const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir, bloqueio }: {
   t: TarefaRow; onMudar: (t: TarefaRow, s: TarefaStatus) => void; compacto?: boolean; destaque?: boolean; onAbrir?: (t: TarefaRow) => void
   /** Só gestor/diretor: aparece nas canceladas da lista. */
   onExcluir?: (t: TarefaRow) => void
+  /** Motivo de não poder concluir ainda (ex.: falta anexo). Desliga o Concluir. */
+  bloqueio?: string | null
 }) => {
   const b = cn(btnGhost, compacto ? 'h-7 px-2 text-xs' : 'h-9')
   const concluirCls = destaque
@@ -431,19 +453,29 @@ const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir }: {
         </button>
       )
     }
+    if (exigeAnexo(t) && onAbrir) {
+      return (
+        <button type="button" className={b} onClick={() => onAbrir(t)} title="Esta tarefa só conclui com foto ou documento">
+          <Camera className="h-3.5 w-3.5" /> Anexar e concluir
+        </button>
+      )
+    }
     return (
       <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
     )
   }
+  const concluir = (
+    <button type="button" className={cn(concluirCls, bloqueio && 'cursor-not-allowed opacity-50')} onClick={() => { if (!bloqueio) onMudar(t, 'concluida') }} aria-disabled={!!bloqueio} title={bloqueio ?? undefined}>
+      <Check className="h-3.5 w-3.5" /> Concluir
+    </button>
+  )
   if (t.status === 'a_fazer') return (
     <span className="inline-flex gap-1">
       <button type="button" className={b} onClick={() => onMudar(t, 'em_andamento')}><Play className="h-3.5 w-3.5" /> Iniciar</button>
-      <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
+      {concluir}
     </span>
   )
-  if (t.status === 'em_andamento') return (
-    <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
-  )
+  if (t.status === 'em_andamento') return concluir
   return (
     <span className="inline-flex gap-1">
       <button type="button" className={b} onClick={() => onMudar(t, 'a_fazer')}><RotateCcw className="h-3.5 w-3.5" /> Reabrir</button>
@@ -480,6 +512,11 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
     setItens(lista)
     void onChecklist(t, lista)
   }
+  const anexos = useAnexosTarefa(t.id)
+  const faltam = aberta && exigeAnexo(t) ? anexosFaltando(t, anexos.data ?? []) : []
+  const bloqueio = anexos.isLoading && exigeAnexo(t)
+    ? 'Conferindo os anexos…'
+    : faltam.length ? (faltam[0] === '' ? 'Anexe uma foto ou documento para concluir.' : `Para concluir, anexe: ${faltam.join(', ')}.`) : null
   const checklistCompleto = aberta && itens.length > 0 && itens.every((c) => c.feito)
 
   // Cancelar pede confirmação (sai das listas; o histórico fica).
@@ -515,6 +552,7 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
           <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>{atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}</span>
           <span className={cn('inline-flex items-center gap-1 text-xs', atrasada ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-500')} title={fmtDataHora(t.vence_em)}><Clock className="h-3.5 w-3.5" /> {atrasada ? fmtPrazo(t.vence_em, true) : `vence ${fmtPrazo(t.vence_em, aberta)}`}</span>
           {t.data_ref && t.data_ref !== t.vence_dia && <span className="text-xs text-gray-500">· referente a {fmtData(t.data_ref)}</span>}
+          <SeloPrioridade p={t.prioridade} />
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div><dt className="text-gray-500">Posto</dt><dd className="inline-flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200"><Building2 className="h-3 w-3" />{base.nomePosto(t.empresa_codigo) ?? '—'}</dd></div>
@@ -546,7 +584,10 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
             <textarea id="obs-tarefa" rows={2} className={inputCls} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: tanque 2 sem leitura, bomba em manutenção" />
           </div>
         )}
-        {checklistCompleto && (
+        {bloqueio && !anexos.isLoading && (
+          <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"><Camera className="mt-0.5 h-3.5 w-3.5 shrink-0" />{bloqueio}</p>
+        )}
+        {checklistCompleto && !bloqueio && (
           <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">Checklist completo. Falta só concluir.</p>
         )}
         {excluindo && (
@@ -626,7 +667,7 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
               <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs text-red-600 dark:text-red-400')} onClick={() => { setCancelando(false); setAdiando(false); setExcluindo(true) }} disabled={excluindo} title="Só gestor ou diretor"><Trash2 className="h-3.5 w-3.5" /> Excluir</button>
             )}
           </span>
-          <AcoesTarefa t={t} onMudar={mudarComObs} destaque={checklistCompleto} />
+          <AcoesTarefa t={t} onMudar={mudarComObs} destaque={checklistCompleto && !bloqueio} bloqueio={bloqueio} />
         </ModalRodape>
       </div>
     </Modal>
@@ -651,6 +692,11 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
   const [checklist, setChecklist] = useState<ChecklistItem[]>(tarefa ? tarefa.checklist : [])
   const [novaEtapa, setNovaEtapa] = useState('')
   const addEtapa = () => { const t = novaEtapa.trim(); if (!t) return; setChecklist((xs) => [...xs, { texto: t, feito: false }]); setNovaEtapa('') }
+  const [prioridade, setPrioridade] = useState<Prioridade>(tarefa?.prioridade ?? 'media')
+  const [exigeFoto, setExigeFoto] = useState(tarefa?.exige_anexo ?? false)
+  const [documentos, setDocumentos] = useState<string[]>(tarefa?.documentos_exigidos ?? [])
+  const [novoDoc, setNovoDoc] = useState('')
+  const addDoc = () => { const d = novoDoc.trim(); if (!d || documentos.includes(d)) return; setDocumentos((xs) => [...xs, d]); setNovoDoc(''); setExigeFoto(true) }
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
@@ -673,6 +719,9 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
         empresa_codigo: empresa ? Number(empresa) : null, responsavel_id: responsavel || null, setor_id: setor || null,
         vence_em: venceEm,
         checklist,
+        prioridade,
+        exige_anexo: exigeFoto || documentos.length > 0,
+        documentos_exigidos: exigeFoto || documentos.length > 0 ? documentos : [],
       }
       if (tarefa) await editarTarefa(tarefa, input, base.autor)
       else await criarTarefa(base.redeId!, input, base.autor)
@@ -704,11 +753,17 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
             </select>
             {tentou && respInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Escolha quem vai fazer.</p>}
           </div>
-          <div><label className={labelCls} htmlFor="tf-setor">Setor</label>
-            <select id="tf-setor" className={selectCls} value={setor} onChange={(e) => setSetor(e.target.value)}>
-              <option value="">Sem setor</option>
-              {base.setores.filter((s) => s.ativo || s.id === setor).map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className={labelCls} htmlFor="tf-setor">Setor</label>
+              <select id="tf-setor" className={selectCls} value={setor} onChange={(e) => setSetor(e.target.value)}>
+                <option value="">Sem setor</option>
+                {base.setores.filter((s) => s.ativo || s.id === setor).map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+              </select></div>
+            <div><label className={labelCls} htmlFor="tf-prio">Prioridade</label>
+              <select id="tf-prio" className={selectCls} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)}>
+                {(Object.keys(PRIORIDADE_LABEL) as Prioridade[]).map((p) => <option key={p} value={p}>{PRIORIDADE_LABEL[p]}</option>)}
+              </select></div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div><label className={labelCls} htmlFor="tf-data">Vence em</label><input id="tf-data" type="date" className={cn(inputCls, tentou && !data && campoErro)} value={data} onChange={(e) => setData(e.target.value)} /></div>
             <div><label className={labelCls} htmlFor="tf-hora">Horário</label><input id="tf-hora" type="time" className={inputCls} value={hora} onChange={(e) => setHora(e.target.value)} /></div>
@@ -743,6 +798,7 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
           </div>
           <p className="mt-1 text-[11px] text-gray-400">Digite a etapa e aperte Enter ou "Etapa". Com checklist, a tarefa só conclui pela lista de etapas.</p>
         </div>
+        <ExigirAnexoCampos exige={exigeFoto} onExige={setExigeFoto} documentos={documentos} onDocumentos={setDocumentos} novoDoc={novoDoc} onNovoDoc={setNovoDoc} onAdd={addDoc} />
         <Erro msg={erro} />
         <ModalRodape>
           <button type="button" className={btnGhost} onClick={onClose}>Cancelar</button>

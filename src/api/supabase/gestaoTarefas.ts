@@ -9,6 +9,25 @@ import { supabase } from '@/lib/supabase'
 export type TarefaStatus = 'a_fazer' | 'em_andamento' | 'concluida' | 'cancelada'
 export type Recorrencia = 'diaria' | 'dias_uteis' | 'personalizada'
 export type ReferenteA = 'proprio_dia' | 'dia_anterior' | 'dia_util_anterior' | 'mes_anterior'
+/** Como a recorrência personalizada escolhe os dias (docs/supabase-gestao-tarefas-4.sql). */
+export type ModoPersonalizado = 'semana' | 'mes' | 'ano' | 'escala'
+export type Prioridade = 'baixa' | 'media' | 'alta' | 'urgente'
+
+export const MODO_PERSONALIZADO_LABEL: Record<ModoPersonalizado, string> = {
+  semana: 'Dias da semana',
+  mes: 'Dias do mês',
+  ano: 'Datas no ano',
+  escala: 'Escala',
+}
+export const PRIORIDADE_LABEL: Record<Prioridade, string> = {
+  baixa: 'Baixa',
+  media: 'Média',
+  alta: 'Alta',
+  urgente: 'Urgente',
+}
+/** Peso para ordenar: urgente primeiro. */
+export const PRIORIDADE_PESO: Record<Prioridade, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 }
+export const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 export const STATUS_LABEL: Record<TarefaStatus, string> = {
   a_fazer: 'A fazer',
@@ -62,6 +81,16 @@ export interface RotinaRow {
   referente_a: ReferenteA
   checklist: string[]
   ativa: boolean
+  modo_personalizado: ModoPersonalizado
+  /** 1–31; 0 = último dia do mês. */
+  dias_mes: number[]
+  /** 'MM-DD'. */
+  datas_ano: string[]
+  escala_trabalha: number | null
+  escala_folga: number | null
+  prioridade: Prioridade
+  exige_anexo: boolean
+  documentos_exigidos: string[]
   criado_por: string | null
   criado_em: string
   atualizado_em: string
@@ -81,6 +110,11 @@ export interface TarefaRow {
   vence_dia: string
   data_ref: string | null
   checklist: ChecklistItem[]
+  prioridade: Prioridade
+  /** Só conclui com anexo (foto ou documento). */
+  exige_anexo: boolean
+  /** Nome de cada anexo obrigatório; vazio + exige_anexo = basta um anexo qualquer. */
+  documentos_exigidos: string[]
   concluida_em: string | null
   concluida_por: string | null
   criado_por: string | null
@@ -182,25 +216,57 @@ export const fetchAtividadesDaTarefa = async (tarefaId: string, limite = 30): Pr
   return (data as AtividadeRow[]) ?? []
 }
 
+type RegraGeracao = Pick<RotinaRow, 'recorrencia' | 'dias_semana' | 'inicio_em' | 'modo_personalizado' | 'dias_mes' | 'datas_ano' | 'escala_trabalha' | 'escala_folga'>
+
+const iso = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+const diasEntre = (de: string, ate: string) => {
+  const [a, b, c] = de.split('-').map(Number); const [x, y, z] = ate.split('-').map(Number)
+  return Math.round((Date.UTC(x, y - 1, z) - Date.UTC(a, b - 1, c)) / 86_400_000)
+}
+
+/** A rotina gera tarefa neste dia? Espelha o gerar_tarefas_de_rotinas (SQL). */
+export const geraNoDia = (r: RegraGeracao, dia: string): boolean => {
+  if (dia < r.inicio_em) return false
+  const [y, m, d] = dia.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  const dow = dt.getDay()
+  if (r.recorrencia === 'diaria') return true
+  if (r.recorrencia === 'dias_uteis') return dow >= 1 && dow <= 5
+  const modo = r.modo_personalizado ?? 'semana'
+  if (modo === 'semana') return r.dias_semana.includes(dow)
+  if (modo === 'mes') {
+    const ultimo = new Date(y, m, 0).getDate()
+    return r.dias_mes.includes(d) || (r.dias_mes.includes(0) && d === ultimo)
+  }
+  if (modo === 'ano') return r.datas_ano.includes(dia.slice(5))
+  const trab = r.escala_trabalha ?? 0
+  const folga = r.escala_folga ?? 0
+  if (trab <= 0) return false
+  return diasEntre(r.inicio_em, dia) % (trab + folga) < trab
+}
+
 /**
  * Próximo dia (yyyy-MM-dd) em que a rotina gera tarefa, a partir de `aPartirDe`
- * (inclusive). Espelha a regra do gerar_tarefas_de_rotinas: diária = todo dia,
- * dias úteis = seg–sex, personalizada = dias_semana (0 = domingo). null = nunca.
+ * (inclusive). Procura até um ano à frente (datas no ano). null = nunca.
  */
-export const proximaGeracao = (
-  r: Pick<RotinaRow, 'recorrencia' | 'dias_semana' | 'inicio_em'>,
-  aPartirDe: string,
-): string | null => {
+export const proximaGeracao = (r: RegraGeracao, aPartirDe: string): string | null => {
   const base = r.inicio_em > aPartirDe ? r.inicio_em : aPartirDe
   const [y, m, d] = base.split('-').map(Number)
-  for (let i = 0; i < 14; i++) {
-    const dt = new Date(y, m - 1, d + i)
-    const dow = dt.getDay()
-    const gera = r.recorrencia === 'diaria' ? true : r.recorrencia === 'dias_uteis' ? dow >= 1 && dow <= 5 : r.dias_semana.includes(dow)
-    if (gera) return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  for (let i = 0; i < 400; i++) {
+    const dia = iso(new Date(y, m - 1, d + i))
+    if (geraNoDia(r, dia)) return dia
   }
   return null
 }
+
+/** Anexos que ainda faltam para concluir: os nomes exigidos sem arquivo, ou [''] quando basta um qualquer e não há nenhum. */
+export const anexosFaltando = (t: Pick<TarefaRow, 'exige_anexo' | 'documentos_exigidos'>, anexos: Pick<AnexoRow, 'documento'>[]): string[] => {
+  const docs = t.documentos_exigidos ?? []
+  if (docs.length > 0) return docs.filter((d) => !anexos.some((a) => a.documento === d))
+  return t.exige_anexo && anexos.length === 0 ? [''] : []
+}
+/** A tarefa pede anexo para concluir? */
+export const exigeAnexo = (t: Pick<TarefaRow, 'exige_anexo' | 'documentos_exigidos'>) => !!t.exige_anexo || (t.documentos_exigidos ?? []).length > 0
 
 /* ─── escritas ─────────────────────────────────────────────────────────── */
 
@@ -235,9 +301,22 @@ export const criarRotina = async (redeId: string, input: RotinaInput): Promise<R
   return data as RotinaRow
 }
 
+/**
+ * Salva a rotina. Prioridade e anexos exigidos também valem para as tarefas
+ * dela que ainda estão em aberto (o resto só nas próximas geradas).
+ */
 export const atualizarRotina = async (id: string, patch: Partial<RotinaInput>) => {
-  const { error } = await need().from('gestao_rotinas').update(patch).eq('id', id)
+  const sb = need()
+  const { error } = await sb.from('gestao_rotinas').update(patch).eq('id', id)
   if (error) throw erro(error)
+  const emAberto: Record<string, unknown> = {}
+  if (patch.prioridade !== undefined) emAberto.prioridade = patch.prioridade
+  if (patch.exige_anexo !== undefined) emAberto.exige_anexo = patch.exige_anexo
+  if (patch.documentos_exigidos !== undefined) emAberto.documentos_exigidos = patch.documentos_exigidos
+  if (Object.keys(emAberto).length) {
+    const { error: e2 } = await sb.from('gestao_tarefas').update(emAberto).eq('rotina_id', id).in('status', ['a_fazer', 'em_andamento'])
+    if (e2) console.warn('[gestao] tarefas em aberto não atualizadas:', e2.message)
+  }
 }
 
 /**
@@ -267,6 +346,9 @@ export interface TarefaInput {
   /** ISO completo do vencimento. */
   vence_em: string
   checklist: ChecklistItem[]
+  prioridade: Prioridade
+  exige_anexo: boolean
+  documentos_exigidos: string[]
 }
 
 export const criarTarefa = async (redeId: string, input: TarefaInput, autor: Autor): Promise<TarefaRow> => {
@@ -300,6 +382,8 @@ export const editarTarefa = async (t: TarefaRow, patch: Partial<TarefaInput>, au
   if (patch.setor_id !== undefined && patch.setor_id !== t.setor_id) mudou.push('setor')
   if (patch.descricao !== undefined && (patch.descricao ?? '') !== (t.descricao ?? '')) mudou.push('descrição')
   if (patch.checklist !== undefined && JSON.stringify(patch.checklist.map((c) => c.texto)) !== JSON.stringify(t.checklist.map((c) => c.texto))) mudou.push('checklist')
+  if (patch.prioridade !== undefined && patch.prioridade !== t.prioridade) mudou.push('prioridade')
+  if ((patch.exige_anexo !== undefined && patch.exige_anexo !== t.exige_anexo) || (patch.documentos_exigidos !== undefined && JSON.stringify(patch.documentos_exigidos) !== JSON.stringify(t.documentos_exigidos ?? []))) mudou.push('anexos exigidos')
   await registrarAtividade(t.rede_id, t.id, 'editada', autor, mudou.length ? `${t.titulo} — ${mudou.join(', ')}` : t.titulo)
 }
 
@@ -337,6 +421,8 @@ export interface AnexoRow {
   tipo: string | null
   autor_id: string | null
   autor_nome: string | null
+  /** Documento exigido que este arquivo cumpre (null = anexo livre). */
+  documento: string | null
   criado_em: string
 }
 
@@ -349,8 +435,8 @@ export const fetchAnexos = async (tarefaId: string): Promise<AnexoRow[]> => {
   return (data as AnexoRow[]) ?? []
 }
 
-/** Sobe o arquivo no bucket privado e registra na tabela. */
-export const enviarAnexo = async (t: TarefaRow, file: File, autor: Autor): Promise<AnexoRow> => {
+/** Sobe o arquivo no bucket privado e registra na tabela. `documento` = qual documento exigido ele cumpre. */
+export const enviarAnexo = async (t: TarefaRow, file: File, autor: Autor, documento?: string | null): Promise<AnexoRow> => {
   if (file.size > ANEXO_MAX_BYTES) throw new Error('Arquivo acima de 15 MB.')
   const sb = need()
   const seguro = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-80)
@@ -359,7 +445,7 @@ export const enviarAnexo = async (t: TarefaRow, file: File, autor: Autor): Promi
   if (upErr) throw new Error(`Não foi possível enviar o arquivo: ${upErr.message}`)
   const { data, error } = await sb
     .from('gestao_anexos')
-    .insert({ rede_id: t.rede_id, tarefa_id: t.id, nome: file.name, path, tamanho: file.size, tipo: file.type || null, autor_id: autor.userId, autor_nome: autor.nome })
+    .insert({ rede_id: t.rede_id, tarefa_id: t.id, nome: file.name, path, tamanho: file.size, tipo: file.type || null, autor_id: autor.userId, autor_nome: autor.nome, ...(documento ? { documento } : {}) })
     .select()
     .single()
   if (error) {
