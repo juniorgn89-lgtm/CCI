@@ -22,7 +22,7 @@ export interface ChartTheme {
   /** Linha de média (tracejada). */
   mediaLine: string
   /** Tooltip (Recharts `contentStyle` / tooltip HTML). */
-  tooltip: { backgroundColor: string; border: string; color: string }
+  tooltip: { backgroundColor: string; border: string; color: string; boxShadow: string }
   /** Sequência categórica (séries múltiplas). */
   series: string[]
 }
@@ -34,7 +34,7 @@ const LIGHT: ChartTheme = {
   axis: '#94a3b8',
   label: '#374151',
   mediaLine: '#cbd5e1',
-  tooltip: { backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827' },
+  tooltip: { backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)' },
   series: ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'],
 }
 
@@ -47,7 +47,9 @@ const DARK: ChartTheme = {
   axis: '#8b98a9',
   label: '#cbd5e1',
   mediaLine: '#4b5768',
-  tooltip: { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#f3f4f6' },
+  // Balão opaco e quase preto (combina com o restyle escuro: cards pretos),
+  // borda clara o bastante pra destacar do card, sombra pra descolar do gráfico.
+  tooltip: { backgroundColor: '#161616', border: '1px solid #3a3a3a', color: '#f5f5f5', boxShadow: '0 10px 28px rgba(0, 0, 0, 0.6)' },
   series: ['#60a5fa', '#3b82f6', '#2563eb', '#93c5fd', '#a5b4fc'],
 }
 

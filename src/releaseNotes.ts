@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.11',
+    data: '2026-11-16',
+    resumo: 'Balões dos gráficos mais fáceis de ler no tema escuro.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Balão dos gráficos legível',
+        descricao: 'Ao passar o mouse num gráfico, o balão com os valores agora tem fundo escuro sólido e letra clara no tema escuro, em todas as telas.',
+      },
+    ],
+  },
+  {
     versao: '1.2.10',
     data: '2026-11-16',
     resumo: 'O FleetPass chegou ao menu de apps da CCI.',
