@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.9',
+    data: '2026-11-16',
+    resumo: 'Central da Rede organizada por assuntos e os serviços da CCI à vista, com o motivo tirado dos seus números.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Central da Rede separada por títulos',
+        descricao: 'A Visão Geral agora tem seções com nome: Resultado do período, Vendas e lucro, Estoque de combustível, Financeiro e Posto a posto. Fica mais fácil achar cada assunto rolando a tela.',
+      },
+      {
+        icone: 'apps',
+        titulo: 'Serviços CCI na Central',
+        descricao: 'Logo abaixo do resultado, você vê quais serviços da CCI sua rede já tem e quais ainda pode contratar. Quando um número da tela pede atenção, como contas vencidas, o serviço que resolve aparece em destaque. Visível só para dono e diretor, e dá para recolher.',
+      },
+    ],
+  },
+  {
     versao: '1.2.8',
     data: '2026-11-13',
     resumo: 'Tarefas: foto ou documento obrigatório para concluir, prioridade, novas recorrências nas rotinas e o módulo pronto para o celular.',

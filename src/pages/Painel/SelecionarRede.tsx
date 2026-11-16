@@ -59,8 +59,15 @@ const SelecionarRede = () => {
     return (
       <div
         key={rede.id}
+        // A linha inteira conecta (não só o botão); a já conectada não faz nada.
+        role={conectada ? undefined : 'button'}
+        tabIndex={conectada ? undefined : 0}
+        title={conectada ? undefined : `Conectar à ${rede.nome}`}
+        onClick={conectada ? undefined : () => handleConectar(rede)}
+        onKeyDown={conectada ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleConectar(rede) } }}
         className={cn(
           'group flex items-center gap-3 rounded-[15px] border px-5 py-[18px] transition-all hover:-translate-y-px hover:border-[#c3d0e0] hover:shadow-[0_8px_22px_rgba(15,23,42,0.09)]',
+          !conectada && 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]',
           conectada
             ? 'border-[#bfdbfe] bg-[#f4f8ff] dark:border-blue-800 dark:bg-blue-950/30'
             : 'border-[#e7ecf3] bg-white dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
@@ -108,7 +115,9 @@ const SelecionarRede = () => {
           </span>
         ) : (
           <button
-            onClick={() => handleConectar(rede)}
+            type="button"
+            tabIndex={-1}
+            onClick={(e) => { e.stopPropagation(); handleConectar(rede) }}
             className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] bg-[#1e3a5f] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#27496f]"
           >
             Conectar <ArrowRight className="h-3.5 w-3.5" />

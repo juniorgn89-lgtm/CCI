@@ -25,7 +25,7 @@ export interface Recomendacao {
   contratado?: { em: string[]; total: number }
 }
 
-const CATALOGO: Record<ServicoId, { nome: string; resumo: string; incluso: string[] }> = {
+export const CATALOGO: Record<ServicoId, { nome: string; resumo: string; incluso: string[] }> = {
   'bpo-financeiro': { nome: 'BPO Financeiro', resumo: 'A CCI executa a rotina financeira de ponta a ponta: o posto para de gastar o dia com conferência e passa a olhar resultado.', incluso: ['Fechamento diário de caixa por turno', 'Conciliação bancária', 'Contas a pagar e a receber em dia'] },
   fleetpass: { nome: 'FleetPass', resumo: 'Abastecimento de frota pré-aprovado: a transportadora libera antes, o frentista valida por QR e o posto recebe só o que foi autorizado.', incluso: ['Requisição pré-aprovada com limite', 'Validação na pista por QR', 'Faturamento por transportadora'] },
   relatorios: { nome: 'Relatórios Inteligentes', resumo: 'DRE gerencial, fluxo de caixa e análise por produto entregues prontos, com o que mudou e por quê.', incluso: ['DRE gerencial mensal', 'Fluxo de caixa com tendência de 6 meses', 'Análise de margem por produto'] },

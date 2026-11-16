@@ -5,6 +5,8 @@ import { useFilterStore } from '@/store/filters'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
+import SecaoTitulo from './components/SecaoTitulo'
+import ServicosCci from './components/ServicosCci'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -135,6 +137,7 @@ const Dashboard = () => {
               {/* Ações desta tela (diagnóstico anual e PDF) ficam no conteúdo, à
                   direita, acima dos cartões — a barra do topo fica só com abas e
                   filtros, sem espremer nada em telas menores. */}
+              <SecaoTitulo titulo="Resultado do período" subtitulo="Lucro bruto por setor e a projeção de fechamento do mês">
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 <a
                   href={diagnosticoHref}
@@ -147,7 +150,9 @@ const Dashboard = () => {
                 </a>
                 <Suspense fallback={null}><CentralCompartilhar /></Suspense>
               </div>
+              </SecaoTitulo>
               <ProjecoesPainel />
+              <ServicosCci />
             </>
           )}
 
@@ -162,13 +167,17 @@ const Dashboard = () => {
                       gráficos ficam MONTADOS e só recolhem (sem refetch/flicker). */}
                   <CollapseTransition open={!detalhe}>
                     <div className="space-y-4">
+                      <SecaoTitulo titulo="Vendas e lucro" subtitulo="Evolução, participação de cada setor e ranking dos postos" />
                       <VisaoGeralGraficos />
+                      <SecaoTitulo titulo="Estoque de combustível" subtitulo="Nível dos tanques de cada posto" />
                       {/* Tanques da rede: nível de cada tanque por posto (abaixo dos gráficos). */}
                       <TanquesRedeCard />
                       {/* Contas a pagar × a receber da rede (abaixo dos tanques). */}
+                      <SecaoTitulo titulo="Financeiro" subtitulo="Contas a pagar e a receber da rede" />
                       <ContasRedeCard />
                     </div>
                   </CollapseTransition>
+                  <SecaoTitulo titulo="Posto a posto" subtitulo="Vendas de cada setor detalhadas por posto, grupo e produto" />
                   <BenchmarkSetor expanded={detalhe} onToggle={() => setDetalhe(!detalhe)} />
                 </div>
               )}
