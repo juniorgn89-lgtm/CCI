@@ -1,4 +1,4 @@
-import { LayoutDashboard, Target, ShieldCheck, Building2, ClipboardCheck, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Target, ShieldCheck, Building2, Fuel, type LucideIcon } from 'lucide-react'
 
 /**
  * Registro dos apps da suíte CCI — alimenta o launcher (botão de grade no
@@ -86,15 +86,13 @@ export const CCI_APPS: CciApp[] = [
     tile: 'from-[#f59e0b] to-[#FCB619]',
   },
   {
-    // Gestão360: rotina do escritório (caixa, conciliação, contas a pagar,
-    // fiscal). Next.js com backend próprio, por isso é app SEPARADO da suíte.
-    // URL provisória da Vercel até o domínio gestao360.cci.app.br.
-    id: 'gestao360',
-    nome: 'Gestão360',
-    descricao: 'Conferência de caixa, conciliação, contas a pagar e fiscal',
-    url: 'https://gestao360-nine.vercel.app/login',
-    Icon: ClipboardCheck,
-    tile: 'from-[#4338ca] to-[#6366f1]',
+    // FleetPass: abastecimento B2B entre postos e transportadoras.
+    id: 'fleetpass',
+    nome: 'FleetPass',
+    descricao: 'Abastecimento B2B entre postos e transportadoras',
+    url: 'https://fleetpass.cci.app.br/',
+    Icon: Fuel,
+    tile: 'from-[#0f766e] to-[#fcb619]',
   },
   {
     id: 'portal-admin',

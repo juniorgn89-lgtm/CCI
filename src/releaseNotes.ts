@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.10',
+    data: '2026-11-16',
+    resumo: 'O FleetPass chegou ao menu de apps da CCI.',
+    itens: [
+      {
+        icone: 'apps',
+        titulo: 'FleetPass no menu de apps',
+        descricao: 'No botão de apps do topo, o FleetPass (abastecimento de frota entre postos e transportadoras) entrou no lugar do Gestão360.',
+      },
+    ],
+  },
+  {
     versao: '1.2.9',
     data: '2026-11-16',
     resumo: 'Central da Rede organizada por assuntos e os serviços da CCI à vista, com o motivo tirado dos seus números.',
