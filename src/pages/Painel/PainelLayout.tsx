@@ -1,7 +1,7 @@
 import { Outlet, Link, NavLink, Navigate, useLocation } from 'react-router-dom'
 import {
   Network, Users, User, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard, Inbox,
-  FileSignature, UserCog, Building2, Handshake,
+  FileSignature, UserCog, Building2, Handshake, Bug,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -42,6 +42,9 @@ const GRUPOS: Grupo[] = [
   ] },
   { id: 'acesso', label: 'Controle de acesso', Icon: ShieldCheck, itens: [
     { to: '/painel/controle-acesso', label: 'Controle de acesso', Icon: ShieldCheck },
+  ] },
+  { id: 'chamados', label: 'Chamados', Icon: Bug, itens: [
+    { to: '/painel/chamados', label: 'Chamados', Icon: Bug },
   ] },
   { id: 'config', label: 'Parâmetros', Icon: Settings, itens: [
     { to: '/painel/config', label: 'Parâmetros', Icon: Settings },

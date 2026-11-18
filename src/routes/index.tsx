@@ -44,6 +44,7 @@ const AdminLeads = lazy(() => import('@/pages/Admin/Leads'))
 const AdminContratoWebPosto = lazy(() => import('@/pages/Admin/ContratoWebPosto'))
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
+const AdminChamados = lazy(() => import('@/pages/Admin/Chamados'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
 
 // Frentista pages
@@ -125,6 +126,7 @@ const AppRoutes = () => {
             <Route path="assinatura" element={<Suspense fallback={<RouteFallback />}><AdminAssinatura /></Suspense>} />
             <Route path="leads" element={<Suspense fallback={<RouteFallback />}><AdminLeads /></Suspense>} />
             <Route path="contrato" element={<Suspense fallback={<RouteFallback />}><AdminContratoWebPosto /></Suspense>} />
+            <Route path="chamados" element={<Suspense fallback={<RouteFallback />}><AdminChamados /></Suspense>} />
           </Route>
           {/* Rota órfã (ex.: /comercial/vendas removido) pousa no hub. */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
