@@ -95,6 +95,16 @@ export const CCI_APPS: CciApp[] = [
     tile: 'from-[#0f766e] to-[#fcb619]',
   },
   {
+    // NotaOK: recebimento e lançamento de notas fiscais de entrada (PWA).
+    id: 'notaok',
+    nome: 'NotaOK',
+    descricao: 'O NotaOK organiza o caminho de cada nota fiscal da sua rede de postos: do caminhão na porta até o lançamento no ERP, com conferência pelo celular e uma fila clara para o escritório.',
+    url: 'https://notaok.cci.app.br/',
+    pwa: true,
+    manifest: 'https://notaok.cci.app.br/manifest.webmanifest',
+    img: '/brand/notaok-icon-192.png',
+  },
+  {
     id: 'portal-admin',
     nome: 'Portal Admin',
     descricao: 'Financeiro, clientes, notas fiscais, boletos e parametrizações do escritório',

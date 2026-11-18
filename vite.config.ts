@@ -69,6 +69,7 @@ export default defineConfig({
         related_applications: [
           { platform: 'webapp', url: 'https://visor360.cci.app.br/manifest.webmanifest' },
           { platform: 'webapp', url: 'https://prospeccao360.cci.app.br/manifest.webmanifest' },
+          { platform: 'webapp', url: 'https://notaok.cci.app.br/manifest.webmanifest' },
         ],
         icons: [
           {

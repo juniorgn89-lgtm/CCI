@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.12',
+    data: '2026-11-18',
+    resumo: 'O NotaOK chegou ao menu de apps da CCI.',
+    itens: [
+      {
+        icone: 'apps',
+        titulo: 'NotaOK no menu de apps',
+        descricao: 'No botão de apps do topo agora tem o NotaOK: o caminho de cada nota fiscal, do caminhão na porta até o lançamento no ERP, com conferência pelo celular. Dá pra instalar no celular direto dali.',
+      },
+    ],
+  },
+  {
     versao: '1.2.11',
     data: '2026-11-16',
     resumo: 'Balões dos gráficos mais fáceis de ler no tema escuro.',
