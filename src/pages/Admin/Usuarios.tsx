@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList, ShoppingCart } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList, ShoppingCart, Bug } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -16,7 +16,7 @@ import {
   updateProfileModulos,
   updateProfilePodeApurar,
   updateProfilePodeVerReabastecimento,
-  updateProfilePodeDemonstrar, updateProfilePodeGerirTarefas, updateProfilePodeLiberarCompras,
+  updateProfilePodeDemonstrar, updateProfilePodeGerirTarefas, updateProfilePodeLiberarCompras, updateProfilePodeAbrirChamados,
   createUser,
   deleteUser,
   generateRecoveryLink,
@@ -244,6 +244,20 @@ const Usuarios = () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
     } catch (e) {
       alert(`Erro: ${(e as Error).message}`)
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  const handleTogglePodeAbrirChamados = async (row: ProfileRow) => {
+    if (row.is_master) { alert('Administrador já abre chamados — não precisa do flag.'); return }
+    setBusyUserId(row.user_id)
+    try {
+      await updateProfilePodeAbrirChamados(row.user_id, !row.pode_abrir_chamados)
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (e) {
+      const m = (e as Error).message
+      alert(/pode_abrir_chamados/.test(m) ? 'Falta rodar docs/supabase-chamados-acesso.sql no Supabase.' : `Erro: ${m}`)
     } finally {
       setBusyUserId(null)
     }
@@ -591,6 +605,7 @@ const Usuarios = () => {
                         onTogglePodeDemo={() => handleTogglePodeDemo(p)}
                         onTogglePodeGerirTarefas={() => handleTogglePodeGerirTarefas(p)}
                         onTogglePodeLiberarCompras={() => handleTogglePodeLiberarCompras(p)}
+                        onTogglePodeAbrirChamados={() => handleTogglePodeAbrirChamados(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
                         onResetSenha={() => handleResetSenha(p)}
                         onDelete={() => handleDelete(p)}
@@ -962,12 +977,13 @@ interface UserRowProps {
   onTogglePodeDemo: () => void
   onTogglePodeGerirTarefas: () => void
   onTogglePodeLiberarCompras: () => void
+  onTogglePodeAbrirChamados: () => void
   onToggleAtivo: () => void
   onResetSenha: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onTogglePodeAbrirChamados, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1230,6 +1246,29 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                 <span className={cn(
                   'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
                   p.pode_liberar_compras ? 'translate-x-[14px]' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {/* Chamados (botão do topo: bug/melhoria com print → Painel › Chamados) */}
+            <div className="flex items-center gap-1.5">
+              <Bug className="h-3 w-3 text-gray-400" />
+              <button
+                onClick={onTogglePodeAbrirChamados}
+                disabled={busy}
+                role="switch"
+                aria-checked={!!p.pode_abrir_chamados}
+                aria-label={p.pode_abrir_chamados ? 'Revogar abertura de chamados' : 'Conceder abertura de chamados'}
+                title={p.pode_abrir_chamados ? 'Chamados: vê o botão de reportar — clique pra revogar' : 'Chamados: sem botão — clique pra liberar reportar bug/melhoria com print'}
+                className={cn(
+                  'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+                  p.pode_abrir_chamados ? 'bg-rose-500' : 'bg-gray-300 dark:bg-gray-600',
+                  busy && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform',
+                  p.pode_abrir_chamados ? 'translate-x-[14px]' : 'translate-x-0.5'
                 )} />
               </button>
             </div>

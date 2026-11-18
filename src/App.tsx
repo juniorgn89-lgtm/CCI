@@ -202,6 +202,13 @@ const loadTenantForUser = async () => {
       useAuthStore.getState().setCanGerirTarefas(isMaster || (!pdErr && !!flags?.pode_gerir_tarefas))
       // Compras: libera pedidos quem foi marcado em Usuários; master sempre.
       useAuthStore.getState().setCanLiberarCompras(isMaster || (!pdErr && !!flags?.pode_liberar_compras))
+      // Chamados: query SEPARADA (coluna de docs/supabase-chamados-acesso.sql); master sempre.
+      if (isMaster) useAuthStore.getState().setCanAbrirChamados(true)
+      else {
+        const { data: pc, error: pcErr } = await supabase
+          .from('profiles').select('pode_abrir_chamados').eq('user_id', user.id).maybeSingle()
+        useAuthStore.getState().setCanAbrirChamados(!pcErr && !!(pc as { pode_abrir_chamados?: boolean | null } | null)?.pode_abrir_chamados)
+      }
       // Nome de exibição vem do profile (fonte da verdade do app), evita ficar
       // exibindo o user_metadata.full_name antigo do Supabase auth.
       useAuthStore.getState().setFullName(typed.full_name)

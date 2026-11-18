@@ -27,7 +27,7 @@ const TIPOS: ChamadoTipo[] = ['bug', 'melhoria', 'numero', 'duvida']
 const MIN_LADO = 16
 
 const ReportarChamado = () => {
-  const isMaster = useAuthStore((s) => s.isMaster)
+  const podeAbrir = useAuthStore((s) => s.canAbrirChamados)
   const [fase, setFase] = useState<Fase | null>(null)
   const [shot, setShot] = useState<HTMLCanvasElement | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -82,7 +82,7 @@ const ReportarChamado = () => {
 
   const fechar = () => { setFase(null); setShot(null); setErro(null) }
 
-  if (!isMaster) return null
+  if (!podeAbrir) return null
   return (
     <>
       <button

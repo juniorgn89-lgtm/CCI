@@ -50,6 +50,8 @@ export interface ProfileRow {
   pode_gerir_tarefas?: boolean
   /** Libera/recusa pedidos de compra e define tetos (docs/supabase-compras.sql). */
   pode_liberar_compras?: boolean
+  /** Abre chamados pelo botão do topo (docs/supabase-chamados-acesso.sql). Master sempre. */
+  pode_abrir_chamados?: boolean
   created_at: string
 }
 
@@ -216,6 +218,13 @@ export const updateProfilePodeDemonstrar = async (userId: string, pode: boolean)
 export const updateProfilePodeLiberarCompras = async (userId: string, pode: boolean) => {
   if (!supabase) throw new Error('Supabase não configurado')
   const { error } = await supabase.from('profiles').update({ pode_liberar_compras: pode }).eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Concede/revoga o botão de chamados (bug/melhoria com print). Master sempre pode. */
+export const updateProfilePodeAbrirChamados = async (userId: string, pode: boolean) => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.from('profiles').update({ pode_abrir_chamados: pode }).eq('user_id', userId)
   if (error) throw error
 }
 

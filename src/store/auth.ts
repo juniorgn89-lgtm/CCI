@@ -54,6 +54,8 @@ interface AuthState {
   canGerirTarefas: boolean
   /** Libera/recusa pedidos de compra e define tetos (profiles.pode_liberar_compras). Master sempre. */
   canLiberarCompras: boolean
+  /** Abre chamados pelo botão do topo (profiles.pode_abrir_chamados). Master sempre. */
+  canAbrirChamados: boolean
   /**
    * Nome de exibição do usuário (de `profiles.full_name`). Usado no avatar
    * da sidebar e em qualquer lugar que mostre quem está logado. Quando null,
@@ -89,6 +91,7 @@ interface AuthState {
   setCanDemonstrar: (v: boolean) => void
   setCanGerirTarefas: (v: boolean) => void
   setCanLiberarCompras: (v: boolean) => void
+  setCanAbrirChamados: (v: boolean) => void
   setFullName: (name: string | null) => void
   setOnboardingSeen: (v: boolean) => void
   setBriefingSeenToday: (v: boolean) => void
@@ -111,6 +114,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   canDemonstrar: false,
   canGerirTarefas: false,
   canLiberarCompras: false,
+  canAbrirChamados: false,
   fullName: null,
   onboardingSeen: true,
   briefingSeenToday: true,
@@ -125,6 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setCanDemonstrar: (canDemonstrar) => set({ canDemonstrar }),
   setCanGerirTarefas: (canGerirTarefas) => set({ canGerirTarefas }),
   setCanLiberarCompras: (canLiberarCompras) => set({ canLiberarCompras }),
+  setCanAbrirChamados: (canAbrirChamados) => set({ canAbrirChamados }),
   setFullName: (fullName) => set({ fullName }),
   setOnboardingSeen: (onboardingSeen) => set({ onboardingSeen }),
   setBriefingSeenToday: (briefingSeenToday) => set({ briefingSeenToday }),
