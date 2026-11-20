@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.14',
+    data: '2026-11-20',
+    resumo: 'Acompanhe os chamados que você abriu.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Meus chamados',
+        descricao: 'No menu do seu perfil, veja os problemas e pedidos que você mandou pelo inseto no topo: em que pé está cada um e a resposta da CCI. Mudou de ideia? Dá para cancelar, contando o motivo.',
+      },
+    ],
+  },
+  {
     versao: '1.2.13',
     data: '2026-11-19',
     resumo: 'O app se ajusta sozinho quando não consegue entrar.',

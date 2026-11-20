@@ -2,11 +2,14 @@ import { supabase } from '@/lib/supabase'
 
 /**
  * Chamados internos (bug / melhoria / número estranho / dúvida), abertos pelo
- * botão do topo. Só diretores da CCI (RLS: profiles.is_master). O print vai
- * para o bucket PRIVADO "chamados". SQL: docs/supabase-chamados.sql.
+ * botão do topo. Diretores veem todos; quem tem a permissão de abrir chamado
+ * vê os próprios ("Meus chamados"). O print vai para o bucket PRIVADO
+ * "chamados" e, depois que a Central CCI confirma, vive só lá.
+ * Status e resposta são da Central (o Visor só espelha); o autor pode cancelar.
+ * SQL: docs/supabase-chamados*.sql.
  */
 export type ChamadoTipo = 'bug' | 'melhoria' | 'numero' | 'duvida'
-export type ChamadoStatus = 'novo' | 'analise' | 'resolvido' | 'descartado'
+export type ChamadoStatus = 'novo' | 'analise' | 'resolvido' | 'descartado' | 'cancelado'
 
 export const TIPO_LABEL: Record<ChamadoTipo, string> = {
   bug: 'Bug',
@@ -25,7 +28,15 @@ export const STATUS_LABEL: Record<ChamadoStatus, string> = {
   analise: 'Em análise',
   resolvido: 'Resolvido',
   descartado: 'Descartado',
+  cancelado: 'Cancelado',
 }
+/** Encerrados: não dá mais para cancelar. */
+export const STATUS_FINAL: ChamadoStatus[] = ['resolvido', 'descartado', 'cancelado']
+export const ehAberto = (s: ChamadoStatus) => s === 'novo' || s === 'analise'
+
+/** Data e hora curtas (dd/mm/aa hh:mm). */
+export const fmtQuando = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
 
 export interface ChamadoContexto {
   url: string
@@ -58,6 +69,13 @@ export interface ChamadoRow {
   central_id?: string | null
   central_enviado_em?: string | null
   central_erro?: string | null
+  /** Meus chamados / cancelamento / status da Central (docs/supabase-chamados-meus.sql). */
+  cancelado_motivo?: string | null
+  cancelado_em?: string | null
+  cancelado_por?: string | null
+  central_cancelado_em?: string | null
+  resolvido_por_nome?: string | null
+  central_sincronizado_em?: string | null
 }
 
 const BUCKET = 'chamados'
@@ -109,22 +127,25 @@ export const criarChamado = async (input: {
   void enviarParaCentral(id).catch(() => undefined)
 }
 
+/** Lê a mensagem de erro que a Edge Function devolveu no corpo. */
+const erroDaFuncao = async (error: { message: string }, funcao: string) => {
+  let msg = error.message
+  try {
+    const ctx = (error as { context?: Response }).context
+    const j = ctx ? await ctx.json() : null
+    if (j?.erro) msg = j.erro
+  } catch { /* mantém a mensagem genérica */ }
+  if (/not found|404/i.test(msg) && !/Chamado/.test(msg)) msg = `A função ${funcao} ainda não foi publicada no Supabase do Visor.`
+  return new Error(msg)
+}
+
 /**
  * Pede à Edge Function do Visor (enviar-chamado-central) que mande este chamado
  * para a Central CCI. Pode repetir à vontade: a Central não duplica.
  */
 export const enviarParaCentral = async (id: string): Promise<{ centralId: string }> => {
   const { data, error } = await need().functions.invoke('enviar-chamado-central', { body: { chamado_id: id } })
-  if (error) {
-    let msg = error.message
-    try {
-      const ctx = (error as { context?: Response }).context
-      const j = ctx ? await ctx.json() : null
-      if (j?.erro) msg = j.erro
-    } catch { /* mantém a mensagem genérica */ }
-    if (/not found|404/i.test(msg) && !/Chamado/.test(msg)) msg = 'A função enviar-chamado-central ainda não foi publicada no Supabase do Visor.'
-    throw new Error(msg)
-  }
+  if (error) throw await erroDaFuncao(error, 'enviar-chamado-central')
   const r = data as { ok?: boolean; central_id?: string; erro?: string }
   if (!r?.ok || !r.central_id) throw new Error(r?.erro ?? 'A Central não confirmou o recebimento.')
   return { centralId: r.central_id }
@@ -136,19 +157,57 @@ export const fetchChamados = async (): Promise<ChamadoRow[]> => {
   return (data ?? []) as ChamadoRow[]
 }
 
+/** Meus chamados: só os que EU abri (a RLS libera para quem tem a permissão). */
+export const fetchMeusChamados = async (meuId: string): Promise<ChamadoRow[]> => {
+  const { data, error } = await need().from('chamados').select('*').eq('autor_id', meuId)
+    .order('criado_em', { ascending: false }).limit(200)
+  if (error) throw erro(error)
+  return (data ?? []) as ChamadoRow[]
+}
+
+export interface ResultadoCentral { ok: boolean; atualizados?: number; indisponivel?: boolean; local?: boolean; erro?: string }
+
+/**
+ * Pergunta à Central o status e a resposta (e reenvia cancelamentos pendentes).
+ * Em silêncio: se falhar, fica o que já tinha.
+ */
+export const sincronizarComCentral = async (ids?: string[]): Promise<ResultadoCentral> => {
+  try {
+    const { data, error } = await need().functions.invoke('chamados-central', { body: { acao: 'sincronizar', ...(ids?.length ? { ids } : {}) } })
+    if (error) return { ok: false }
+    return data as ResultadoCentral
+  } catch { return { ok: false } }
+}
+
+/**
+ * Cancela (motivo obrigatório, mín. 5 letras) e avisa a Central. Se a Central
+ * não puder ser avisada agora, o cancelamento vale aqui e é reenviado na
+ * próxima sincronização.
+ */
+export const cancelarChamado = async (id: string, motivo: string): Promise<ResultadoCentral> => {
+  const { error } = await need().rpc('chamado_cancelar', { p_id: id, p_motivo: motivo })
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('O cancelamento ainda não foi ativado: rode docs/supabase-chamados-meus.sql no Supabase.')
+    throw erro(error)
+  }
+  try {
+    const { data, error: fnErr } = await need().functions.invoke('chamados-central', { body: { acao: 'cancelar', chamado_id: id } })
+    if (fnErr) return { ok: false, erro: (await erroDaFuncao(fnErr, 'chamados-central')).message }
+    return data as ResultadoCentral
+  } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : String(e) } }
+}
+
+/** Exclui um chamado que ainda não foi para a Central (só diretor). Linha primeiro, depois o print. */
+export const excluirChamado = async (c: Pick<ChamadoRow, 'id' | 'print_path'>) => {
+  const { data, error } = await need().from('chamados').delete().eq('id', c.id).select('id')
+  if (error) throw erro(error)
+  if (!data?.length) throw new Error('Nada foi excluído: sem permissão para excluir este chamado.')
+  if (c.print_path) await need().storage.from(BUCKET).remove([c.print_path]).catch(() => undefined)
+}
+
 /** URL temporária (1 h) do print. */
 export const urlPrint = async (path: string): Promise<string> => {
   const { data, error } = await need().storage.from(BUCKET).createSignedUrl(path, 3600)
   if (error || !data) throw new Error(error?.message ?? 'Não foi possível abrir o print.')
   return data.signedUrl
-}
-
-export const atualizarChamado = async (id: string, patch: Partial<Pick<ChamadoRow, 'status' | 'resposta'>>) => {
-  const { data, error } = await need()
-    .from('chamados')
-    .update({ ...patch, atualizado_em: new Date().toISOString() })
-    .eq('id', id)
-    .select('id')
-  if (error) throw erro(error)
-  if (!data?.length) throw new Error('Nada foi salvo: sem permissão para alterar este chamado.')
 }

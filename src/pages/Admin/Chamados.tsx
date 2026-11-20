@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bug, Loader2, X, ImageOff, ExternalLink, Cloud, CloudOff } from 'lucide-react'
+import { Bug, Loader2, X, ImageOff, ExternalLink, Cloud, CloudOff, Ban, Trash2, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import {
-  fetchChamados, urlPrint, atualizarChamado, enviarParaCentral,
-  TIPO_LABEL, STATUS_LABEL, type ChamadoRow, type ChamadoStatus, type ChamadoTipo,
+  fetchChamados, urlPrint, enviarParaCentral, excluirChamado, sincronizarComCentral,
+  TIPO_LABEL, STATUS_FINAL, ehAberto, fmtQuando, type ChamadoRow, type ChamadoStatus, type ChamadoTipo,
 } from '@/api/supabase/chamados'
+import { SeloStatus, RespostaCCI, ModalCancelar } from '@/components/chamados/SituacaoChamado'
 
 /**
  * Painel → Chamados (só diretores): o que foi reportado pelo botão do topo,
  * com print, contexto (tela, filtros, rede, versão, erros) e status.
+ * O status e a resposta são da Central CCI (aqui só aparecem; sincroniza ao
+ * abrir). Daqui dá para reenviar/excluir o que não chegou e cancelar.
  */
 
 const TIPO_CLS: Record<ChamadoTipo, string> = {
@@ -20,12 +23,6 @@ const TIPO_CLS: Record<ChamadoTipo, string> = {
   numero: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300',
   duvida: 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300',
 }
-const STATUS_CLS: Record<ChamadoStatus, string> = {
-  novo: 'bg-[#1e3a5f] text-white dark:bg-blue-600',
-  analise: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
-  resolvido: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
-  descartado: 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400',
-}
 type Filtro = 'abertos' | ChamadoStatus | 'todos'
 const FILTROS: { id: Filtro; label: string }[] = [
   { id: 'abertos', label: 'Abertos' },
@@ -33,28 +30,54 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: 'analise', label: 'Em análise' },
   { id: 'resolvido', label: 'Resolvidos' },
   { id: 'descartado', label: 'Descartados' },
+  { id: 'cancelado', label: 'Cancelados' },
   { id: 'todos', label: 'Todos' },
 ]
-
-const fmtQuando = (iso: string) =>
-  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 const Chamados = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const { data, isLoading, error } = useQuery({ queryKey: ['chamados'], queryFn: fetchChamados, enabled: isMaster })
   const [filtro, setFiltro] = useState<Filtro>('abertos')
-  const [aberto, setAberto] = useState<ChamadoRow | null>(null)
+  const [abertoId, setAbertoId] = useState<string | null>(null)
+  const [sincronizando, setSincronizando] = useState(false)
 
   const todos = useMemo(() => data ?? [], [data])
   const contagem = useMemo(() => {
-    const c: Record<Filtro, number> = { abertos: 0, novo: 0, analise: 0, resolvido: 0, descartado: 0, todos: todos.length }
-    for (const ch of todos) { c[ch.status]++; if (ch.status === 'novo' || ch.status === 'analise') c.abertos++ }
+    const c: Record<Filtro, number> = { abertos: 0, novo: 0, analise: 0, resolvido: 0, descartado: 0, cancelado: 0, todos: todos.length }
+    for (const ch of todos) { c[ch.status]++; if (ehAberto(ch.status)) c.abertos++ }
     return c
   }, [todos])
   // Central CCI: undefined = coluna ainda não existe (SQL não rodado) → não mostra nada.
   const integrado = todos.some((c) => c.central_id !== undefined)
   const pendentes = todos.filter((c) => c.central_id === null)
   const qc = useQueryClient()
+  // O detalhe acompanha a lista (depois de sincronizar / salvar).
+  const aberto = abertoId ? todos.find((c) => c.id === abertoId) ?? null : null
+
+  // Ao abrir: pergunta à Central o status/resposta (e reenvia cancelamentos pendentes).
+  const sincronizar = async () => {
+    setSincronizando(true)
+    const r = await sincronizarComCentral()
+    if (r?.atualizados) await qc.invalidateQueries({ queryKey: ['chamados'] })
+    setSincronizando(false)
+  }
+  useEffect(() => {
+    if (isMaster) void sincronizar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMaster])
+
+  const excluir = async (c: ChamadoRow) => {
+    if (!confirm(`Excluir o chamado "${c.descricao.slice(0, 80)}"?\n\nEle ainda não foi para a Central CCI e será apagado de vez, com o print.`)) return false
+    try {
+      await excluirChamado(c)
+      await qc.invalidateQueries({ queryKey: ['chamados'] })
+      return true
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e))
+      return false
+    }
+  }
+
   const [enviando, setEnviando] = useState<{ feitos: number; total: number; falhas: number } | null>(null)
   const enviarPendentes = async () => {
     const fila = pendentes.map((c) => c.id)
@@ -68,7 +91,7 @@ const Chamados = () => {
     setEnviando(null)
     if (falhas) alert(`${falhas} chamado(s) não chegaram na Central. Abra um deles para ver o motivo.`)
   }
-  const lista = todos.filter((c) => filtro === 'todos' || (filtro === 'abertos' ? c.status === 'novo' || c.status === 'analise' : c.status === filtro))
+  const lista = todos.filter((c) => filtro === 'todos' || (filtro === 'abertos' ? ehAberto(c.status) : c.status === filtro))
 
   if (!isMaster) return <Navigate to="/dashboard" replace />
 
@@ -78,8 +101,16 @@ const Chamados = () => {
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f] text-white"><Bug className="h-4 w-4" /></span>
         <div>
           <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Chamados</h1>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">Bugs, melhorias, números estranhos e dúvidas enviados pelo botão de inseto no topo</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">Bugs, melhorias, números estranhos e dúvidas enviados pelo botão de inseto no topo. O status vem da Central CCI.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => void sincronizar()}
+          disabled={sincronizando}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', sincronizando && 'animate-spin')} /> Atualizar
+        </button>
       </div>
 
       <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
@@ -133,8 +164,8 @@ const Chamados = () => {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {lista.map((c) => (
-                <tr key={c.id} onClick={() => setAberto(c)} className="cursor-pointer text-gray-800 hover:bg-gray-50/60 dark:text-gray-200 dark:hover:bg-gray-800/30">
-                  <td className="whitespace-nowrap px-4 py-3"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', STATUS_CLS[c.status])}>{STATUS_LABEL[c.status]}</span></td>
+                <tr key={c.id} onClick={() => setAbertoId(c.id)} className="cursor-pointer text-gray-800 hover:bg-gray-50/60 dark:text-gray-200 dark:hover:bg-gray-800/30">
+                  <td className="whitespace-nowrap px-4 py-3"><SeloStatus status={c.status} /></td>
                   <td className="whitespace-nowrap px-3 py-3"><span className={cn('rounded-md px-2 py-0.5 text-[11px] font-semibold', TIPO_CLS[c.tipo])}>{TIPO_LABEL[c.tipo]}</span></td>
                   <td className="max-w-[420px] px-3 py-3"><span className="line-clamp-2">{c.descricao}</span></td>
                   <td className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
@@ -144,10 +175,23 @@ const Chamados = () => {
                   <td className="whitespace-nowrap px-3 py-3 text-xs">{c.autor_nome ?? '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">{fmtQuando(c.criado_em)}</td>
                   {integrado && (
-                    <td className="whitespace-nowrap px-4 py-3 text-xs">
+                    <td className="whitespace-nowrap px-4 py-3 text-xs" onClick={(e) => e.stopPropagation()}>
                       {c.central_id
                         ? <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Cloud className="h-3.5 w-3.5" /> Enviado</span>
-                        : <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400" title={c.central_erro ?? 'Ainda não enviado'}><CloudOff className="h-3.5 w-3.5" /> Pendente</span>}
+                        : (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><CloudOff className="h-3.5 w-3.5" /> Pendente</span>
+                            <button
+                              type="button"
+                              onClick={() => void excluir(c)}
+                              disabled={!!enviando}
+                              aria-label={`Excluir o chamado "${c.descricao.slice(0, 40)}"`}
+                              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-gray-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40 dark:hover:bg-rose-500/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Excluir
+                            </button>
+                          </span>
+                        )}
                     </td>
                   )}
                 </tr>
@@ -157,7 +201,13 @@ const Chamados = () => {
         </div>
       )}
 
-      {aberto && <Detalhe chamado={aberto} onClose={() => setAberto(null)} onSalvo={(c) => setAberto(c)} />}
+      {aberto && (
+        <Detalhe
+          chamado={aberto}
+          onClose={() => setAbertoId(null)}
+          onExcluir={async (c) => { if (await excluir(c)) setAbertoId(null) }}
+        />
+      )}
     </div>
   )
 }
@@ -169,7 +219,7 @@ const Linha = ({ rotulo, children }: { rotulo: string; children: React.ReactNode
   </div>
 )
 
-const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClose: () => void; onSalvo: (c: ChamadoRow) => void }) => {
+const Detalhe = ({ chamado: c, onClose, onExcluir }: { chamado: ChamadoRow; onClose: () => void; onExcluir: (c: ChamadoRow) => void }) => {
   const qc = useQueryClient()
   const { data: url, isLoading: carregandoPrint, error: erroPrint } = useQuery({
     queryKey: ['chamado-print', c.print_path],
@@ -177,28 +227,16 @@ const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClos
     enabled: !!c.print_path,
     staleTime: 50 * 60 * 1000,
   })
-  const [resposta, setResposta] = useState(c.resposta ?? '')
-  const [salvando, setSalvando] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const ctx = c.contexto ?? ({} as ChamadoRow['contexto'])
   const [enviandoCentral, setEnviandoCentral] = useState(false)
   const enviarCentral = async () => {
     setErro(null); setEnviandoCentral(true)
     try {
-      const { centralId } = await enviarParaCentral(c.id)
+      await enviarParaCentral(c.id)
       await qc.invalidateQueries({ queryKey: ['chamados'] })
-      onSalvo({ ...c, central_id: centralId, central_enviado_em: new Date().toISOString(), central_erro: null })
     } catch (e) { setErro(e instanceof Error ? e.message : String(e)) } finally { setEnviandoCentral(false) }
-  }
-
-  const mudar = async (status: ChamadoStatus) => {
-    setErro(null); setSalvando(true)
-    try {
-      const r = resposta.trim() || null
-      await atualizarChamado(c.id, { status, resposta: r })
-      await qc.invalidateQueries({ queryKey: ['chamados'] })
-      onSalvo({ ...c, status, resposta: r })
-    } catch (e) { setErro(e instanceof Error ? e.message : String(e)) } finally { setSalvando(false) }
   }
 
   return (
@@ -208,7 +246,7 @@ const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClos
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-semibold', TIPO_CLS[c.tipo])}>{TIPO_LABEL[c.tipo]}</span>
-              <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', STATUS_CLS[c.status])}>{STATUS_LABEL[c.status]}</span>
+              <SeloStatus status={c.status} />
             </div>
             <p className="mt-1.5 whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100">{c.descricao}</p>
           </div>
@@ -248,6 +286,9 @@ const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClos
                     <button type="button" disabled={enviandoCentral} onClick={() => void enviarCentral()} className="rounded-md border border-amber-500 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:text-amber-300 dark:hover:bg-amber-950/40">
                       {enviandoCentral ? 'Enviando…' : 'Enviar agora'}
                     </button>
+                    <button type="button" disabled={enviandoCentral} onClick={() => onExcluir(c)} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-gray-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-500/10">
+                      <Trash2 className="h-3 w-3" /> Excluir
+                    </button>
                   </span>
                 )}
               </Linha>
@@ -263,37 +304,30 @@ const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClos
             </Linha>
           </div>
 
-          <div>
-            <label htmlFor="chamado-resp" className="mb-1.5 block text-[12px] font-semibold text-gray-700 dark:text-gray-300">Nota de quem resolveu (opcional)</label>
-            <textarea
-              id="chamado-resp"
-              value={resposta}
-              onChange={(e) => setResposta(e.target.value)}
-              rows={2}
-              placeholder="Ex.: corrigido na versão 1.2.12"
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2563eb] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-100"
-            />
-          </div>
+          {/* Status e resposta são da Central CCI (aqui só aparecem). */}
+          <RespostaCCI chamado={c} />
           {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:bg-red-950/40 dark:text-red-300">{erro}</p>}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
-          {(['novo', 'analise', 'resolvido', 'descartado'] as ChamadoStatus[]).map((s) => (
-            <button
-              key={s}
-              type="button"
-              disabled={salvando || (s === c.status && resposta.trim() === (c.resposta ?? ''))}
-              onClick={() => void mudar(s)}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-40',
-                s === c.status ? 'border border-[#2563eb] text-[#2563eb] dark:border-blue-500 dark:text-blue-300' : s === 'resolvido' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800',
-              )}
-            >
-              {s === c.status ? `${STATUS_LABEL[s]} (salvar nota)` : `Marcar ${STATUS_LABEL[s].toLowerCase()}`}
+          <p className="mr-auto text-[12px] text-gray-500 dark:text-gray-400">O status é dado pela Central CCI.</p>
+          {!STATUS_FINAL.includes(c.status) && (
+            <button type="button" onClick={() => setCancelando(true)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10">
+              <Ban className="h-3.5 w-3.5" /> Cancelar chamado
             </button>
-          ))}
+          )}
+          <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+            Fechar
+          </button>
         </div>
       </div>
+      {cancelando && (
+        <ModalCancelar
+          chamado={c}
+          onFechar={() => setCancelando(false)}
+          onCancelado={() => { setCancelando(false); void qc.invalidateQueries({ queryKey: ['chamados'] }) }}
+        />
+      )}
     </div>
   )
 }

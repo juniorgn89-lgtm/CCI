@@ -8,7 +8,7 @@
  * Usado pelo AppLayout (sub-bar) e pelo Header (controles) — fonte única pra
  * os dois não dessincronizarem.
  */
-const ROTAS_SEM_FILTROS = ['/inteligencia', '/configuracoes', '/selecionar-rede']
+const ROTAS_SEM_FILTROS = ['/inteligencia', '/configuracoes', '/selecionar-rede', '/meus-chamados']
 
 export const showsGlobalFilters = (pathname: string): boolean =>
   !ROTAS_SEM_FILTROS.includes(pathname)

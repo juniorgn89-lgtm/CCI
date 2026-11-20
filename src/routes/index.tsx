@@ -45,6 +45,7 @@ const AdminContratoWebPosto = lazy(() => import('@/pages/Admin/ContratoWebPosto'
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
 const AdminChamados = lazy(() => import('@/pages/Admin/Chamados'))
+const MeusChamados = lazy(() => import('@/pages/MeusChamados'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
 
 // Frentista pages
@@ -96,6 +97,7 @@ const AppRoutes = () => {
           <Route path="/gestao/tarefas" element={<Navigate to="/gestao?tab=tarefas" replace />} />
           <Route path="/gestao/rotinas" element={<Navigate to="/gestao?tab=rotinas" replace />} />
           <Route path="/compras" element={<Suspense fallback={<RouteFallback />}><Compras /></Suspense>} />
+          <Route path="/meus-chamados" element={<Suspense fallback={<RouteFallback />}><MeusChamados /></Suspense>} />
           <Route path="/inteligencia" element={<Suspense fallback={<RouteFallback />}><Inteligencia /></Suspense>} />
           <Route path="/comercial" element={<Suspense fallback={<RouteFallback />}><Comercial /></Suspense>} />
           {/* Operação = Bombas + Reabastecimento em abas. As rotas antigas redirecionam. */}

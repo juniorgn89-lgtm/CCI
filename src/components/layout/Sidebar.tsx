@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
-import {
+import { Bug,
   Settings,
   LogOut,
   Users,
@@ -133,6 +133,7 @@ const Sidebar = () => {
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
   const podeTrocarRede = acessoTodasRedes || redesPermitidas.length > 1
   const canApurar = useAuthStore((s) => s.canApurar)
+  const canAbrirChamados = useAuthStore((s) => s.canAbrirChamados)
   const canVerReabastecimento = useAuthStore((s) => s.canVerReabastecimento)
   const canGerirTarefas = useAuthStore((s) => s.canGerirTarefas)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
@@ -276,6 +277,11 @@ const Sidebar = () => {
   const handleReabrirBriefing = () => {
     setMenuOpen(false)
     useAuthStore.getState().setBriefingSeenToday(false)
+  }
+
+  const handleMeusChamados = () => {
+    setMenuOpen(false)
+    navigate('/meus-chamados')
   }
 
   const handleAssistente = () => {
@@ -621,6 +627,17 @@ const Sidebar = () => {
                 </span>
                 <kbd className="font-mono text-[10px] text-gray-400">⇧+Ctrl+,</kbd>
               </button>
+
+              {canAbrirChamados && (
+                <button
+                  role="menuitem"
+                  onClick={handleMeusChamados}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <Bug className="h-4 w-4 text-gray-500" />
+                  Meus chamados
+                </button>
+              )}
 
               <button
                 role="menuitem"

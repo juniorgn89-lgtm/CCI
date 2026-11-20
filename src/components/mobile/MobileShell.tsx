@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight } from 'lucide-react'
+import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight, Bug } from 'lucide-react'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
@@ -49,6 +49,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const fullName = useAuthStore((s) => s.fullName)
   const isMaster = useAuthStore((s) => s.isMaster)
   const canApurar = useAuthStore((s) => s.canApurar)
+  const canAbrirChamados = useAuthStore((s) => s.canAbrirChamados)
   const [filterOpen, setFilterOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
 
@@ -164,6 +165,18 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
               <span className="flex-1 text-left">Parâmetros</span>
               <ChevronRight className="h-4 w-4 text-gray-400" />
             </button>
+
+            {canAbrirChamados && (
+              <button
+                type="button"
+                onClick={() => go('/meus-chamados')}
+                className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+              >
+                <Bug className="h-5 w-5 shrink-0 text-gray-500" />
+                <span className="flex-1 text-left">Meus chamados</span>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              </button>
+            )}
 
             {(isMaster || canApurar) && (
               <button

@@ -46,6 +46,7 @@ const isSafeWithoutRede = (path: string): boolean =>
   || path.startsWith('/painel')
   || path.startsWith('/admin/')
   || path === '/configuracoes'
+  || path === '/meus-chamados'
 
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
 
