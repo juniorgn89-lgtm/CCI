@@ -54,6 +54,10 @@ export interface ChamadoRow {
   resposta: string | null
   criado_em: string
   atualizado_em: string
+  /** Central CCI (docs/supabase-chamados-central.sql). undefined = SQL ainda não rodado. */
+  central_id?: string | null
+  central_enviado_em?: string | null
+  central_erro?: string | null
 }
 
 const BUCKET = 'chamados'
@@ -100,6 +104,30 @@ export const criarChamado = async (input: {
     if (path) await sb.storage.from(BUCKET).remove([path]).catch(() => undefined)
     throw erro(error)
   }
+  // Repassa pra Central CCI em segundo plano: quem abriu não espera e não vê
+  // erro — se falhar, fica "pendente" no Painel › Chamados pra reenviar.
+  void enviarParaCentral(id).catch(() => undefined)
+}
+
+/**
+ * Pede à Edge Function do Visor (enviar-chamado-central) que mande este chamado
+ * para a Central CCI. Pode repetir à vontade: a Central não duplica.
+ */
+export const enviarParaCentral = async (id: string): Promise<{ centralId: string }> => {
+  const { data, error } = await need().functions.invoke('enviar-chamado-central', { body: { chamado_id: id } })
+  if (error) {
+    let msg = error.message
+    try {
+      const ctx = (error as { context?: Response }).context
+      const j = ctx ? await ctx.json() : null
+      if (j?.erro) msg = j.erro
+    } catch { /* mantém a mensagem genérica */ }
+    if (/not found|404/i.test(msg) && !/Chamado/.test(msg)) msg = 'A função enviar-chamado-central ainda não foi publicada no Supabase do Visor.'
+    throw new Error(msg)
+  }
+  const r = data as { ok?: boolean; central_id?: string; erro?: string }
+  if (!r?.ok || !r.central_id) throw new Error(r?.erro ?? 'A Central não confirmou o recebimento.')
+  return { centralId: r.central_id }
 }
 
 export const fetchChamados = async (): Promise<ChamadoRow[]> => {
