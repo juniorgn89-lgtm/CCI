@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.13',
+    data: '2026-11-19',
+    resumo: 'O app se ajusta sozinho quando não consegue entrar.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Entrar sem ficar voltando para o login',
+        descricao: 'Se o app instalado no computador ou no celular aceitar a sua senha e voltar para a tela de entrada, ele agora se ajusta sozinho. Se precisar, tem também o link "Ajustar o app" embaixo do botão Entrar. Sua senha e seus dados não mudam.',
+      },
+    ],
+  },
+  {
     versao: '1.2.12',
     data: '2026-11-18',
     resumo: 'O NotaOK chegou ao menu de apps da CCI.',

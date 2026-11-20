@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
+import { marcarLoginOk, limparMarcaLogin } from '@/lib/repararApp'
 import { getLoginThrottleStatus, registerLoginFailure, resetLoginThrottle } from '@/lib/loginThrottle'
 
 /**
@@ -88,6 +89,9 @@ export const useAuth = () => {
       }
 
       resetLoginThrottle()
+      // Se o app cair de volta no login logo depois disto, o Login detecta o
+      // loop e se repara sozinho (src/lib/repararApp.ts).
+      marcarLoginOk()
       // Mobile e desktop entram no MESMO app (shell responsivo via AppLayout).
       // O app Gerente legado (/gerente) segue no código, mas sem rota de entrada.
       navigate('/dashboard')
@@ -96,6 +100,7 @@ export const useAuth = () => {
   )
 
   const logout = useCallback(async () => {
+    limparMarcaLogin()
     if (supabase) await supabase.auth.signOut()
     // Limpa também o legacy flag — defensivo, cobre caso de gerente que ainda
     // tinha sessionStorage do fluxo antigo

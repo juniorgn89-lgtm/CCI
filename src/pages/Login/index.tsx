@@ -10,6 +10,8 @@ import { prefetchPrincipais } from '@/routes/prefetch'
 import LoginQrCode from '@/pages/Login/components/LoginQrCode'
 import EsqueciSenhaModal from '@/pages/Login/components/EsqueciSenhaModal'
 import SecurityBadge from '@/pages/Login/components/SecurityBadge'
+import { useAuthStore } from '@/store/auth'
+import { caiuDeVoltaNoLogin, limparMarcaLogin, repararApp } from '@/lib/repararApp'
 
 type LoginMode = 'gerente' | 'frentista'
 
@@ -74,6 +76,23 @@ const Login = () => {
   const [forgotOpen, setForgotOpen] = useState(false)
 
   useEffect(() => schedulePrefetch(prefetchPrincipais), [])
+
+  // Auto-reparo: entrou com a senha certa e o app devolveu pro login em
+  // segundos = dado velho preso no aparelho (comum no app instalado). Limpa e
+  // reabre sozinho, uma vez; o ?reparado=1 impede repetir em loop.
+  const [reparando, setReparando] = useState(false)
+  const reparado = new URLSearchParams(window.location.search).get('reparado') === '1'
+  const authCarregando = useAuthStore((s) => s.isLoading)
+  const temSessao = useAuthStore((s) => !!s.session)
+  useEffect(() => {
+    if (authCarregando || temSessao) return
+    if (!caiuDeVoltaNoLogin()) return
+    limparMarcaLogin()
+    if (reparado) return
+    setReparando(true)
+    void repararApp()
+  }, [authCarregando, temSessao, reparado])
+  const reparar = () => { setReparando(true); void repararApp() }
 
   const handleGerenteSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -339,6 +358,14 @@ const Login = () => {
                   </div>
                 </div>
 
+                {reparado && !error && (
+                  <div className="rounded-[11px] border border-emerald-200 bg-emerald-50 px-4 py-2.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                    <p className="text-center text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      Ajustamos o app neste aparelho. Entre de novo.
+                    </p>
+                  </div>
+                )}
+
                 {error && (
                   <div className="rounded-[11px] border border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-900/50 dark:bg-red-950/30">
                     <p className="text-center text-xs font-medium text-red-600 dark:text-red-400">
@@ -369,6 +396,18 @@ const Login = () => {
                     </span>
                   )}
                 </Button>
+
+                <p className="text-center text-xs text-[#64748b] dark:text-gray-400">
+                  Entra e volta para esta tela?{' '}
+                  <button
+                    type="button"
+                    onClick={reparar}
+                    disabled={reparando}
+                    className="font-semibold text-[#2563eb] hover:underline disabled:opacity-60 dark:text-blue-400"
+                  >
+                    {reparando ? 'Ajustando o app…' : 'Ajustar o app'}
+                  </button>
+                </p>
               </form>
             )}
 

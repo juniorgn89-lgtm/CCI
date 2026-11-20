@@ -80,6 +80,17 @@ const useAuthBootstrap = () => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session)
+      // Sessão guardada que o servidor NÃO aceita mais (usuário apagado/recriado,
+      // sessão revogada): descarta só neste aparelho, em paralelo (não atrasa o
+      // boot). Sem isso ela fica presa e derruba o próximo login (19/11/2026).
+      // Falha de rede NÃO conta — offline não pode deslogar ninguém.
+      if (session && supabase) {
+        const sb = supabase
+        sb.auth.getUser().then(({ error }) => {
+          const st = (error as { status?: number } | null)?.status
+          if (error && (st === 401 || st === 403)) void sb.auth.signOut({ scope: 'local' })
+        })
+      }
     })
 
     const {
