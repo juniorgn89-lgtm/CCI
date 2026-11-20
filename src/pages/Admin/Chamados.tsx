@@ -226,7 +226,7 @@ const Detalhe = ({ chamado: c, onClose, onSalvo }: { chamado: ChamadoRow; onClos
               </a>
             )
           ) : (
-            <p className="inline-flex items-center gap-1.5 text-[12px] text-gray-500"><ImageOff className="h-3.5 w-3.5" /> Sem print</p>
+            <p className="inline-flex items-center gap-1.5 text-[12px] text-gray-500"><ImageOff className="h-3.5 w-3.5" /> {c.central_id ? 'O print fica só na Central CCI (apagado 90 dias depois).' : 'Sem print'}</p>
           )}
 
           <div className="space-y-1.5 rounded-lg bg-gray-50 p-3 dark:bg-white/[0.03]">

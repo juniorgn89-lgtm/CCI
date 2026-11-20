@@ -13,6 +13,9 @@
 //  - O autor e a rede saem do BANCO (não do corpo da requisição).
 //  - Idempotente: id_origem = id do chamado no Visor; reenviar não duplica.
 //  - Resultado gravado no chamado (central_id / central_enviado_em / central_erro).
+//  - Depois que a Central CONFIRMA, a cópia local do print é apagada: o print
+//    passa a viver só na Central, que o apaga em 90 dias (Edge Function
+//    limpar-prints de lá). Reenviar um chamado já entregue só faz essa limpeza.
 //
 // Deploy:  supabase functions deploy enviar-chamado-central
 //          (COM verificação de JWT: quem chama é um usuário logado do Visor)
@@ -103,7 +106,18 @@ Deno.serve(async (req) => {
   }
 
   if ((status === 200 || status === 201) && resp.id) {
-    await admin.from('chamados').update({ central_id: resp.id, central_enviado_em: new Date().toISOString(), central_erro: null }).eq('id', ch.id)
+    let printLocalApagado = false
+    if (ch.print_path) {
+      const { error: rmErr } = await admin.storage.from('chamados').remove([ch.print_path])
+      printLocalApagado = !rmErr
+      if (rmErr) console.error('enviar-chamado-central: não apagou o print local', rmErr.message)
+    }
+    await admin.from('chamados').update({
+      central_id: resp.id,
+      central_enviado_em: ch.central_enviado_em ?? new Date().toISOString(),
+      central_erro: null,
+      ...(printLocalApagado ? { print_path: null } : {}),
+    }).eq('id', ch.id)
     return json(200, { ok: true, central_id: resp.id, duplicado: !!resp.duplicado })
   }
   const erro = resp.erro || `A Central respondeu ${status || 'sem resposta'}.`

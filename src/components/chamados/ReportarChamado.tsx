@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router-dom'
-import { Bug, Loader2, Maximize2, Pencil, Undo2, X, Send, CheckCircle2 } from 'lucide-react'
+import { Bug, Loader2, Maximize2, Pencil, Undo2, X, Send, CheckCircle2, Timer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -341,7 +341,11 @@ const Formulario = ({ shot, recorte, erroInicial, onFechar, onRefazer }: {
           {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:bg-red-950/40 dark:text-red-300">{erro}</p>}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+          <p className="mr-auto inline-flex items-center gap-1.5 text-[11.5px] text-gray-500 dark:text-gray-400">
+            <Timer className="h-3.5 w-3.5 shrink-0" />
+            O print fica guardado por 90 dias e depois é apagado automaticamente.
+          </p>
           {enviado ? (
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" /> Chamado enviado</span>
           ) : (
