@@ -8,13 +8,14 @@ import { supabase } from '@/lib/supabase'
  */
 
 export type SetorCompra = 'conveniencia' | 'automotivos' | 'combustivel' | 'outros'
-export type StatusPedido = 'rascunho' | 'aguardando' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido' | 'cancelado'
+export type StatusPedido = 'rascunho' | 'aguardando' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido_parcial' | 'recebido' | 'cancelado'
 export type TipoEvento = 'criado' | 'editado' | 'enviado' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido' | 'cancelado' | 'reaberto' | 'comentario'
+  | 'nota_vinculada' | 'nota_desvinculada' | 'recebimento_encerrado'
 
 export const SETOR_LABEL: Record<SetorCompra, string> = { conveniencia: 'Conveniência', automotivos: 'Automotivos', combustivel: 'Combustível', outros: 'Outros' }
 export const STATUS_LABEL: Record<StatusPedido, string> = {
   rascunho: 'Rascunho', aguardando: 'Aguardando liberação', liberado: 'Liberado', liberado_parcial: 'Liberado parcial',
-  recusado: 'Recusado', recebido: 'Recebido', cancelado: 'Cancelado',
+  recusado: 'Recusado', recebido_parcial: 'Recebido parcial', recebido: 'Recebido', cancelado: 'Cancelado',
 }
 /** Cor só no selo: texto + ponto. */
 export const STATUS_META: Record<StatusPedido, { cls: string; dot: string }> = {
@@ -23,15 +24,19 @@ export const STATUS_META: Record<StatusPedido, { cls: string; dot: string }> = {
   liberado: { cls: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
   liberado_parcial: { cls: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400' },
   recusado: { cls: 'text-red-700 dark:text-red-300', dot: 'bg-red-500' },
+  recebido_parcial: { cls: 'text-blue-700 dark:text-blue-300', dot: 'bg-blue-300' },
   recebido: { cls: 'text-blue-700 dark:text-blue-300', dot: 'bg-blue-500' },
   cancelado: { cls: 'text-gray-500', dot: 'bg-gray-300' },
 }
 export const EVENTO_VERBO: Record<TipoEvento, string> = {
   criado: 'criou o pedido', editado: 'editou o pedido', enviado: 'enviou para liberação', liberado: 'liberou', liberado_parcial: 'liberou parcialmente',
   recusado: 'recusou', recebido: 'marcou como recebido', cancelado: 'cancelou', reaberto: 'reabriu como rascunho', comentario: 'comentou',
+  nota_vinculada: 'recebeu a nota', nota_desvinculada: 'tirou a nota do pedido', recebimento_encerrado: 'encerrou o recebimento',
 }
+/** Liberado e ainda sem nota, ou já com parte das notas: conta no teto do mês. */
+export const STATUS_LIBERADOS: StatusPedido[] = ['liberado', 'liberado_parcial', 'recebido_parcial', 'recebido']
 /** Pedido ainda em jogo (conta para duplicidade e para o teto do mês). */
-export const STATUS_ABERTOS: StatusPedido[] = ['rascunho', 'aguardando', 'liberado', 'liberado_parcial']
+export const STATUS_ABERTOS: StatusPedido[] = ['rascunho', 'aguardando', 'liberado', 'liberado_parcial', 'recebido_parcial']
 
 export interface FornecedorRow {
   id: string
@@ -324,6 +329,40 @@ export const apagarPedido = async (p: PedidoRow) => {
   const { data, error } = await need().from('compras_pedidos').delete().eq('id', p.id).select('id')
   if (error) throw erro(error)
   if (!data?.length) throw new Error('Sem permissão para apagar este pedido.')
+}
+
+/** Recebido parcial que não vai mais completar: fecha como recebido. */
+export const encerrarRecebimento = async (p: PedidoRow, autor: Autor, motivo?: string | null) => {
+  const { error } = await need().from('compras_pedidos').update({ status: 'recebido', recebido_em: new Date().toISOString() }).eq('id', p.id)
+  if (error) throw erro(error)
+  await evento(p.rede_id, p.id, 'recebimento_encerrado', autor, motivo)
+}
+
+// ─── Notas fiscais vinculadas pelo NotaOK (docs/supabase-compras-notas.sql) ──
+export type SituacaoNota = 'vinculada' | 'conferida' | 'lancada' | 'devolvida'
+export const SITUACAO_NOTA_LABEL: Record<SituacaoNota, string> = {
+  vinculada: 'Em conferência', conferida: 'Conferida', lancada: 'Lançada no ERP', devolvida: 'Devolvida p/ correção',
+}
+export interface PedidoNotaRow {
+  id: string
+  pedido_id: string
+  nota_chave: string
+  nota_numero: number | null
+  nota_serie: number | null
+  nota_valor: number | null
+  nota_emissao: string | null
+  completa: boolean
+  situacao: SituacaoNota
+  vinculado_por_nome: string | null
+  vinculado_em: string
+  conferida_em: string | null
+  lancada_em: string | null
+}
+/** Notas do pedido. Tabela ausente (SQL não rodado) = lista vazia, sem quebrar a tela. */
+export const fetchNotasDoPedido = async (pedidoId: string): Promise<PedidoNotaRow[]> => {
+  const { data, error } = await need().from('compras_pedido_notas').select('*').eq('pedido_id', pedidoId).order('vinculado_em')
+  if (error) { if (error.code === '42P01' || error.code === 'PGRST205') return []; throw erro(error) }
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({ ...(r as unknown as PedidoNotaRow), nota_valor: r.nota_valor == null ? null : num(r.nota_valor) }))
 }
 
 export const comentarPedido = async (p: PedidoRow, texto: string, autor: Autor) => evento(p.rede_id, p.id, 'comentario', autor, texto)

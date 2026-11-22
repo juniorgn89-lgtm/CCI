@@ -33,6 +33,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.15',
+    data: '2026-11-21',
+    resumo: 'Pedido de compra mais fácil de montar e ligado às notas que chegam.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Pedido de compra mais fácil',
+        descricao: 'A quantidade agora aceita qualquer número de uma vez e tem setinhas para subir e descer. O botão de pôr no pedido virou "Adicionar", e os campos de prazo explicam a conta da sugestão de compra.',
+      },
+      {
+        icone: 'relatorio',
+        titulo: 'Lista de pedidos por prioridade',
+        descricao: 'Abre primeiro nos pedidos aguardando liberação, depois os liberados. Cada coluna tem filtro, como no Excel.',
+      },
+      {
+        icone: 'apps',
+        titulo: 'A nota fiscal chega no pedido',
+        descricao: 'Na rede que usa o NotaOK, quem recebe a mercadoria liga a nota ao pedido. O pedido mostra as notas que chegaram e fica "Recebido parcial" enquanto faltar parte. Se o resto não vier, use "Encerrar recebimento".',
+      },
+    ],
+  },
+  {
     versao: '1.2.14',
     data: '2026-11-20',
     resumo: 'Acompanhe os chamados que você abriu.',

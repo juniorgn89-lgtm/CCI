@@ -5,6 +5,8 @@ import { Modal, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
+import { CabecalhoFiltro, AvisoFiltros } from '@/components/tables/FiltroColuna'
+import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
 import { SETOR_LABEL, STATUS_LABEL, STATUS_META, apagarPedido, type PedidoRow, type SetorCompra, type StatusPedido } from '@/api/supabase/compras'
 import { useComprasBase, containerCls, inputCls, selectCls, btnPrimary, btnGhost, fmtDataHora, nomeProprio } from './comum'
 import { usePedidos } from './hooks/usePedidos'
@@ -13,13 +15,16 @@ import PedidoModal from './PedidoModal'
 import TetosModal from './TetosModal'
 
 type Aba = 'todos' | 'rascunho' | 'aguardando' | 'liberados' | 'recebidos' | 'encerrados'
+// Ordem = o que pede atenção primeiro: os novos (aguardando liberação), depois
+// os liberados (a caminho), recebidos, rascunhos (ainda não enviados), encerrados.
+// "Todos" fica por último.
 const ABAS: { id: Aba; label: string; status: StatusPedido[] | null }[] = [
-  { id: 'todos', label: 'Todos', status: null },
-  { id: 'rascunho', label: 'Rascunhos', status: ['rascunho'] },
-  { id: 'aguardando', label: 'Aguardando', status: ['aguardando'] },
+  { id: 'aguardando', label: 'Aguardando liberação', status: ['aguardando'] },
   { id: 'liberados', label: 'Liberados', status: ['liberado', 'liberado_parcial'] },
-  { id: 'recebidos', label: 'Recebidos', status: ['recebido'] },
+  { id: 'recebidos', label: 'Recebidos', status: ['recebido_parcial', 'recebido'] },
+  { id: 'rascunho', label: 'Rascunhos', status: ['rascunho'] },
   { id: 'encerrados', label: 'Recusados e cancelados', status: ['recusado', 'cancelado'] },
+  { id: 'todos', label: 'Todos', status: null },
 ]
 
 export const Selo = ({ status }: { status: StatusPedido }) => (
@@ -32,7 +37,8 @@ export const Selo = ({ status }: { status: StatusPedido }) => (
 const Pedidos = () => {
   const base = useComprasBase()
   const { pedidos, tetos, carregando, erro, invalidar } = usePedidos(base.redeId)
-  const [aba, setAba] = useState<Aba>('todos')
+  // null = automática: a primeira aba (na ordem acima) que tem pedido.
+  const [abaEscolhida, setAba] = useState<Aba | null>(null)
   const [busca, setBusca] = useState('')
   const [posto, setPosto] = useState<number | ''>('')
   const [setor, setSetor] = useState<SetorCompra | ''>('')
@@ -51,6 +57,16 @@ const Pedidos = () => {
   }
   const [tetosAberto, setTetosAberto] = useState(false)
 
+  // Filtros de coluna (estilo Excel). Os valores são o que aparece na célula.
+  const colunas = useMemo((): Record<'posto' | 'fornecedor' | 'setor' | 'situacao' | 'solicitante' | 'data', DefColuna<PedidoRow>> => ({
+    posto: (p) => base.nomePosto(p.empresa_codigo),
+    fornecedor: (p) => nomeProprio(p.fornecedor_nome),
+    setor: (p) => SETOR_LABEL[p.setor],
+    situacao: (p) => STATUS_LABEL[p.status],
+    solicitante: (p) => p.solicitante_nome,
+    // Por dia; ordem pela data (não pelo texto dd/mm).
+    data: { valor: (p) => p.criado_em.slice(0, 10).split('-').reverse().join('/'), ordem: (p) => p.criado_em.slice(0, 10) },
+  }), [base])
   const solicitantes = useMemo(() => [...new Set(pedidos.map((p) => p.solicitante_nome).filter((x): x is string => !!x))].sort(), [pedidos])
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase()
@@ -64,8 +80,10 @@ const Pedidos = () => {
       return true
     })
   }, [pedidos, busca, posto, setor, solicitante, de, ate, base])
-  const contagem = (a: Aba) => filtrados.filter((p) => !ABAS.find((x) => x.id === a)!.status || ABAS.find((x) => x.id === a)!.status!.includes(p.status)).length
-  const visiveis = filtrados.filter((p) => { const st = ABAS.find((x) => x.id === aba)!.status; return !st || st.includes(p.status) })
+  const fc = useFiltrosColuna(filtrados, colunas)
+  const contagem = (a: Aba) => fc.filtradas.filter((p) => !ABAS.find((x) => x.id === a)!.status || ABAS.find((x) => x.id === a)!.status!.includes(p.status)).length
+  const aba: Aba = abaEscolhida ?? ABAS.find((a) => contagem(a.id) > 0)?.id ?? 'todos'
+  const visiveis = fc.filtradas.filter((p) => { const st = ABAS.find((x) => x.id === aba)!.status; return !st || st.includes(p.status) })
   const aguardandoMeus = pedidos.filter((p) => p.status === 'aguardando').length
   // Pedido aberto a partir da lista atualizada (depois de uma ação o objeto muda).
   const abertoAtual = aberto ? pedidos.find((p) => p.id === aberto.id) ?? aberto : null
@@ -132,28 +150,28 @@ const Pedidos = () => {
               {a.label} <span className={cn('rounded-full px-1.5 text-[10px] tabular-nums', aba === a.id ? 'bg-[#1e3a5f]/10 dark:bg-blue-400/20' : 'bg-gray-100 dark:bg-gray-800')}>{contagem(a.id)}</span>
             </button>
           ))}
-          <span className="ml-auto self-center pb-1 text-[11px] text-gray-400">Clique num pedido para abrir <InfoHint text="Rascunho: ainda não enviado. Aguardando: na fila de quem libera. Liberado / parcial: aprovado inteiro ou com cortes. Recebido: a mercadoria chegou. Recusado e cancelado: encerrados sem compra." /></span>
+          <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400"><AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} /> Clique num pedido para abrir <InfoHint text="Aguardando liberação: pedido novo, na fila de quem libera. Rascunho: pedido salvo mas ainda não enviado para liberação; abra e clique em “Enviar para liberação” quando estiver pronto. Liberado / parcial: aprovado inteiro ou com cortes. Recebido: a mercadoria chegou. Recusado e cancelado: encerrados sem compra." /></span>
         </div>
         {carregando ? (
           <p className="inline-flex items-center gap-2 px-5 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando pedidos…</p>
         ) : erro ? (
           <p className="px-5 py-6 text-sm text-red-600">Não foi possível ler os pedidos: {erro.message}</p>
         ) : visiveis.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-500">{pedidos.length === 0 ? 'Nenhum pedido ainda. Comece por "Novo pedido": o Visor sugere o que repor a partir do estoque.' : 'Nenhum pedido com estes filtros.'}</p>
+          <p className="px-5 py-8 text-center text-sm text-gray-500">{pedidos.length === 0 ? 'Nenhum pedido ainda. Comece por "Novo pedido": o Visor sugere o que repor a partir do estoque.' : fc.qtdAtivos > 0 || aba !== 'todos' ? 'Nenhum pedido nesta aba com estes filtros.' : 'Nenhum pedido com estes filtros.'}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead className="text-[10px] uppercase tracking-wider text-gray-400">
                 <tr>
                   <th className="px-4 py-2 text-left font-semibold">Nº</th>
-                  <th className="px-3 py-2 text-left font-semibold">Posto</th>
-                  <th className="px-3 py-2 text-left font-semibold">Fornecedor</th>
-                  <th className="px-3 py-2 text-left font-semibold">Setor</th>
-                  <th className="px-3 py-2 text-left font-semibold">Situação</th>
-                  <th className="px-3 py-2 text-left font-semibold">Solicitante</th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Posto" filtro={fc.de('posto')} /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Fornecedor" filtro={fc.de('fornecedor')} /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Setor" filtro={fc.de('setor')} /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Solicitante" filtro={fc.de('solicitante')} /></th>
                   <th className="px-3 py-2 text-right font-semibold">Solicitado</th>
                   <th className="px-3 py-2 text-right font-semibold">Liberado</th>
-                  <th className="px-4 py-2 text-right font-semibold">Data</th>
+                  <th className="px-4 py-2 text-right font-semibold"><CabecalhoFiltro rotulo="Data" filtro={fc.de('data')} alinhar="direita" /></th>
                   {base.podeApagar && <th className="px-4 py-2 text-right font-semibold">Ação</th>}
                 </tr>
               </thead>

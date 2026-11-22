@@ -4,6 +4,7 @@ import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, Truck, PackageCheck
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import ShareReportButton from '@/components/feedback/ShareReportButton'
+import BalaoAcao from '@/components/ui/BalaoAcao'
 import type { ReportPayload } from '@/lib/report/reportTypes'
 import { Modal, ModalRodape, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
 import {
@@ -122,9 +123,9 @@ const TransferenciaModal = ({ transferencia: t, onClose, onMudou, onEditar, modo
             onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('cancelar', async () => { await cancelarTransferencia(t, m, base.autor); setConfirma(null) })} />
         ) : (<>
         <div className="flex flex-wrap gap-2">
-          <a href={`https://wa.me/?text=${encodeURIComponent(texto())}`} target="_blank" rel="noreferrer" className={btnGhost}><MessageCircle className="h-4 w-4" /> WhatsApp</a>
-          <button type="button" onClick={copiar} className={btnGhost}>{copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copiado ? 'Copiado' : 'Copiar texto'}</button>
-          <ShareReportButton filename={`transferencia-${t.numero}.pdf`} build={buildPdf} label="PDF" />
+          <BalaoAcao texto="Abre o WhatsApp com a transferência já escrita (de qual posto, para qual, itens e quantidades). Você escolhe o contato, normalmente o gerente do outro posto, e envia."><a href={`https://wa.me/?text=${encodeURIComponent(texto())}`} target="_blank" rel="noreferrer" className={btnGhost}><MessageCircle className="h-4 w-4" /> WhatsApp</a></BalaoAcao>
+          <BalaoAcao texto="Copia o mesmo texto do WhatsApp para você colar onde quiser: e-mail, grupo ou outro sistema."><button type="button" onClick={copiar} className={btnGhost}>{copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copiado ? 'Copiado' : 'Copiar texto'}</button></BalaoAcao>
+          <BalaoAcao texto="Gera a transferência em PDF para imprimir e acompanhar a mercadoria ou arquivar. Abre uma prévia: dali você compartilha ou baixa o arquivo."><ShareReportButton filename={`transferencia-${t.numero}.pdf`} build={buildPdf} label="PDF" /></BalaoAcao>
         </div>
         <div className="flex flex-wrap gap-2">
           {(t.status === 'rascunho' || t.status === 'solicitada') && <button type="button" onClick={onEditar} className={btnGhost}><Pencil className="h-4 w-4" /> Editar</button>}

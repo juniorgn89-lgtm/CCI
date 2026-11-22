@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, Truck, Calendar, Package, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, Package, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
 import InfoHint from '@/components/ui/InfoHint'
+import RowActionButton from '@/components/tables/RowAction'
+import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Modal, Erro } from '@/pages/Gestao/comumUi'
 import {
   SETOR_LABEL, STATUS_LABEL, criarPedido, editarPedido, garantirFornecedor, fetchItensAbertosDoPosto, fetchItensDoPedido,
@@ -38,6 +40,69 @@ const STATUS_SUG: Record<StatusVisual, { label: string; cls: string }> = {
   negativo: { label: 'Negativo', cls: 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700' },
 }
 const fmtDias = (v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: v < 10 ? 1 : 0 })}d`
+
+/**
+ * Quantidade com setas ▲▼ (e as setas do teclado): soma/subtrai 1, nunca abaixo de 0.
+ * Declarado fora do modal de propósito: componente criado dentro do render é
+ * recriado a cada tecla e o campo perde o foco.
+ */
+/**
+ * Campo de dias: deixa APAGAR tudo e digitar de novo (o mínimo só volta se sair
+ * do campo vazio), seleciona o número ao clicar, para digitar por cima.
+ */
+const DiasInput = ({ value, onChange, min, max, label, className }: {
+  value: number; onChange: (v: number) => void; min: number; max: number; label: string; className?: string
+}) => {
+  const [texto, setTexto] = useState<string | null>(null)
+  return (
+    <input
+      inputMode="numeric" aria-label={label} className={className}
+      value={texto ?? String(value)}
+      onFocus={(e) => { setTexto(String(value)); e.currentTarget.select() }}
+      onChange={(e) => {
+        const t = e.target.value.replace(/\D/g, '').slice(0, 3)
+        setTexto(t)
+        if (t !== '') onChange(Math.max(min, Math.min(max, Number(t))))
+      }}
+      onBlur={() => { if (texto === '' || Number(texto) < min) onChange(min); setTexto(null) }}
+    />
+  )
+}
+
+const QtdStepper = ({ value, onChange, label, disabled, className }: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  disabled?: boolean
+  className?: string
+}) => {
+  const passo = (d: number) => {
+    const n = Number(value.replace(',', '.')) || 0
+    onChange(String(Math.max(0, Math.round((n + d) * 1000) / 1000)))
+  }
+  const seta = 'flex h-1/2 w-4 items-center justify-center text-gray-400 hover:text-gray-800 disabled:opacity-40 dark:hover:text-gray-100'
+  return (
+    <span className={cn('relative inline-flex', className)}>
+      <input
+        inputMode="decimal"
+        aria-label={label}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp') { e.preventDefault(); passo(1) }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); passo(-1) }
+        }}
+        onFocus={(e) => e.target.select()}
+        className={cn(inputCls, 'h-full w-full pl-2 pr-5 text-right font-semibold tabular-nums', disabled && 'opacity-60')}
+      />
+      <span className="absolute inset-y-0.5 right-0.5 flex flex-col">
+        <button type="button" tabIndex={-1} aria-label="Aumentar" disabled={disabled} onClick={() => passo(1)} className={seta}><ChevronUp className="h-3 w-3" /></button>
+        <button type="button" tabIndex={-1} aria-label="Diminuir" disabled={disabled} onClick={() => passo(-1)} className={seta}><ChevronDown className="h-3 w-3" /></button>
+      </span>
+    </span>
+  )
+}
 
 /**
  * Novo pedido / edição, no modelo da referência: posto e fornecedor; busca no
@@ -210,7 +275,15 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const escolherFornecedor = (o: FornecedorOpcao) => { setFornecedor({ id: o.id, codigo_erp: o.codigo_erp, nome: o.nome, cnpj: o.cnpj }); setBuscaF(''); setListaAberta(false); setSoFornecedor(true); setSetorSel(null) }
   // Trocar = limpar SÓ a escolha anterior do fornecedor e voltar pra busca, já aberta e com foco. Itens, filtros e observações ficam.
   const trocarFornecedor = () => { setFornecedor(null); setSemSugestaoForn(true); setBuscaF(''); setListaAberta(true) }
-  const usarNovo = () => { const nome = buscaF.trim(); if (!nome) return; setFornecedor({ id: null, codigo_erp: null, nome, cnpj: null }); setBuscaF(''); setListaAberta(false) }
+  // Digitou um CNPJ/CPF (só números e pontuação, 14 ou 11 dígitos)? O novo fornecedor guarda o documento,
+  // que é o que liga o pedido à nota no NotaOK.
+  const docDigitado = (() => { const t = buscaF.trim(); const d = t.replace(/\D/g, ''); return /^[\d.\-/\s]+$/.test(t) && (d.length === 14 || d.length === 11) ? d : null })()
+  const fmtDoc = (d: string) => d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  const usarNovo = () => {
+    const nome = buscaF.trim(); if (!nome) return
+    setFornecedor(docDigitado ? { id: null, codigo_erp: null, nome: `${docDigitado.length === 14 ? 'CNPJ' : 'CPF'} ${fmtDoc(docDigitado)}`, cnpj: docDigitado } : { id: null, codigo_erp: null, nome, cnpj: null })
+    setBuscaF(''); setListaAberta(false)
+  }
 
   const podeSalvar = empresa != null && !!fornecedor && itens.length > 0 && itens.every((i) => i.qtd_solicitada > 0)
   // Itens comprados por último de OUTRO fornecedor (≠ o escolhido): viram pedidos à parte.
@@ -263,14 +336,16 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const totalSugestoes = sug.sugestoes.length
   const campoNum = cn(inputCls, 'h-10 pl-9 tabular-nums')
 
-  const LinhaProduto = ({ s, comStatus }: { s: Sugestao; comStatus?: boolean }) => {
+  // Funções de render (não componentes): assim o React não recria a linha a cada
+  // tecla e o campo de quantidade não perde o foco.
+  const linhaProduto = (s: Sugestao, comStatus?: boolean) => {
     const ja = noPedido.has(s.produtoCodigo)
     const dup = duplicado(s.produtoCodigo)
     const meta = STATUS_SUG[statusVisual(s)]
     const fi = fornDe(s.produtoCodigo)
     const u = ultimo.porProduto.get(s.produtoCodigo)
     return (
-      <tr className="text-[12.5px] text-gray-800 dark:text-gray-200">
+      <tr key={s.produtoCodigo} className="text-[12.5px] text-gray-800 dark:text-gray-200">
         <td className="py-1.5 pl-3 pr-2">
           <p className="font-semibold">{comStatus && <span className={cn('mr-1.5 inline-flex rounded px-1 py-px align-middle text-[9px] font-bold uppercase tracking-wider ring-1', meta.cls)}>{meta.label}</span>}{nomeProprio(s.nome)}</p>
           {fi && u ? (
@@ -282,15 +357,21 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <td className={cn('px-2 py-1.5 text-right font-semibold tabular-nums', s.status === 'critico' ? 'text-red-600 dark:text-red-400' : s.status === 'baixo' ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500')}>{s.vendaDia > 0 ? fmtDias(s.diasCobertura) : '—'}</td>
         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(s.custo)}</td>
         <td className="px-2 py-1.5 text-right">
-          <input inputMode="decimal" aria-label={`Quantidade de ${s.nome}`} value={qtds[s.produtoCodigo] ?? String(Math.max(1, s.qtdSugerida))} onChange={(e) => setQtds({ ...qtds, [s.produtoCodigo]: e.target.value })} disabled={ja} className={cn(inputCls, 'h-8 w-16 px-2 text-right font-semibold tabular-nums', ja && 'opacity-60')} />
+          <QtdStepper label={`Quantidade de ${s.nome}`} value={qtds[s.produtoCodigo] ?? String(Math.max(1, s.qtdSugerida))} onChange={(v) => setQtds((q) => ({ ...q, [s.produtoCodigo]: v }))} disabled={ja} className="h-8 w-20" />
         </td>
         <td className="py-1.5 pl-1 pr-3 text-right">
-          <button type="button" aria-label={ja ? 'Já está no pedido' : 'Adicionar ao pedido'} onClick={() => adicionar(s)} disabled={ja} className={cn('inline-flex h-7 w-7 items-center justify-center rounded-md', ja ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-[#1e3a5f] text-white hover:bg-[#172d4a] dark:bg-blue-600 dark:hover:bg-blue-500')}>{ja ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}</button>
+          <BalaoAcao lado="left" texto={ja ? 'Este item já está no pedido. Para mudar a quantidade, use o campo no pedido ao lado.' : 'Adicionar item ao pedido com a quantidade informada em "Comprar".'}>
+            {ja ? (
+                    <RowActionButton icon={Check} label="No pedido" disabled className="border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300" />
+                  ) : (
+                    <RowActionButton icon={ShoppingCart} label="Adicionar" onClick={() => adicionar(s)} className="border-[#1e3a5f] bg-[#1e3a5f] text-white hover:border-[#172d4a] hover:bg-[#172d4a] hover:text-white dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white" />
+                  )}
+          </BalaoAcao>
         </td>
       </tr>
     )
   }
-  const Cabecalho = () => (
+  const cabecalho = () => (
     <thead className="sticky top-0 z-[1] bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-900 dark:text-gray-400">
       <tr>
         <th className="py-2 pl-3 pr-2 text-left font-semibold">Produto</th>
@@ -298,7 +379,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <th className="px-2 py-2 text-right font-semibold">Dura</th>
         <th className="px-2 py-2 text-right font-semibold">Custo</th>
         <th className="px-2 py-2 text-right font-semibold">Comprar</th>
-        <th className="py-2 pl-1 pr-3" />
+        <th className="py-2 pl-1 pr-3 text-right font-semibold">Ação</th>
       </tr>
     </thead>
   )
@@ -310,10 +391,10 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     : [{ titulo: null, itens }]
   const subtotalBloco = (l: ItemLocal[]) => l.reduce((n, i) => n + i.qtd_solicitada * i.custo_unit, 0)
 
-  const ItemPedido = ({ i }: { i: ItemLocal }) => {
+  const itemPedido = (i: ItemLocal) => {
     const dup = i.produto_codigo > 0 ? duplicado(i.produto_codigo) : undefined
     return (
-      <li className="px-3 py-2">
+      <li key={i.key} className="px-3 py-2">
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 text-[12.5px] font-medium leading-snug text-gray-900 dark:text-gray-100">
             {nomeProprio(i.produto_nome)}
@@ -324,7 +405,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         </div>
         {dup && <p className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> Já pedido no nº {dup.numero} ({STATUS_LABEL[dup.status].toLowerCase()}): {qtdFmt(dup.qtd_liberada ?? dup.qtd_solicitada)}{i.unidade ? ` ${i.unidade.toLowerCase()}` : ''}.</p>}
         <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-400">
-          <input inputMode="decimal" aria-label="Quantidade" value={String(i.qtd_solicitada)} onChange={(e) => mudar(i.key, { qtd_solicitada: Number(e.target.value.replace(',', '.')) || 0 })} className={cn(inputCls, 'h-7 w-16 px-2 text-right text-[12px] tabular-nums')} />
+          <QtdStepper label="Quantidade" value={String(i.qtd_solicitada)} onChange={(v) => mudar(i.key, { qtd_solicitada: Number(v.replace(',', '.')) || 0 })} className="h-7 w-20 text-[12px]" />
           <span>×</span>
           <span className="relative"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px]">R$</span><input inputMode="decimal" aria-label="Custo unitário" value={String(i.custo_unit)} onChange={(e) => mudar(i.key, { custo_unit: Number(e.target.value.replace(',', '.')) || 0 })} onBlur={() => mudar(i.key, { custo_unit: Number(i.custo_unit.toFixed(2)) })} className={cn(inputCls, 'h-7 w-24 pl-7 pr-2 text-right text-[12px] tabular-nums')} /></span>
           <span className="ml-auto text-[12.5px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(i.qtd_solicitada * i.custo_unit)}</span>
@@ -392,10 +473,12 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                         </button>
                       </div>
                     ))}
-                    {!forn.carregandoErp && listaForn.length === 0 && <p className="px-3 py-2 text-[11px] text-gray-500">{buscaF.trim() ? 'Nenhum fornecedor do cadastro com esse nome, código ou CNPJ.' : 'Nenhuma nota de compra nos últimos 12 meses. Digite para buscar no cadastro.'}</p>}
+                    {!forn.carregandoErp && listaForn.length === 0 && <p className="px-3 py-2 text-[11px] text-gray-500">{docDigitado ? 'Esse CNPJ não está no cadastro de fornecedores do ERP desta rede (fornecedor novo?). Use o botão abaixo: o pedido guarda o CNPJ e liga com a nota no NotaOK.' : buscaF.trim() ? 'Nenhum fornecedor do cadastro com esse nome, código ou CNPJ.' : 'Nenhuma nota de compra nos últimos 12 meses. Digite para buscar no cadastro.'}</p>}
                     {forn.erroCadastro && <p className="px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">Não deu para ler o cadastro de fornecedores do ERP agora: a lista mostra só quem tem nota no ano, pelo código.</p>}
-                    {buscaF.trim() && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={usarNovo} className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-[12px] font-semibold text-[#1e3a5f] hover:bg-gray-50 dark:border-gray-800 dark:text-blue-300 dark:hover:bg-gray-800/60"><Plus className="h-3.5 w-3.5" /> Usar "{buscaF.trim()}" como novo fornecedor</button>}
+                    {buscaF.trim() && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={usarNovo} className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-[12px] font-semibold text-[#1e3a5f] hover:bg-gray-50 dark:border-gray-800 dark:text-blue-300 dark:hover:bg-gray-800/60"><Plus className="h-3.5 w-3.5" /> {docDigitado ? `Usar o ${docDigitado.length === 14 ? 'CNPJ' : 'CPF'} ${fmtDoc(docDigitado)} como novo fornecedor` : `Usar "${buscaF.trim()}" como novo fornecedor`}</button>}
                     {forn.carregandoErp && <p className="px-3 py-2 text-[11px] text-gray-400">Buscando o cadastro de fornecedores e as notas do ERP…</p>}
+                    {!forn.carregandoErp && buscaF.trim() && listaForn.length === 0 && !forn.erroCadastro && <p className="px-3 pb-2 text-[10px] text-gray-400">Procurado em {forn.totalCadastro.toLocaleString('pt-BR')} fornecedores do cadastro do ERP desta rede.</p>}
+                    {forn.cadastroCortado && <p className="px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">O cadastro do ERP é grande demais e veio cortado: fornecedores cadastrados mais recentemente podem não aparecer.</p>}
                   </div>
                 )}
               </>
@@ -404,12 +487,12 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
          </div>
          <div className="grid grid-cols-2 items-end gap-3">
           <label>
-            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Entrega <InfoHint text="Quantos dias o fornecedor leva para entregar. Entra na conta da quantidade: comprar o que cobre a cobertura mais a entrega." /></span>
-            <span className="relative block"><Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input inputMode="numeric" aria-label="Dias de entrega" value={leadTime} onChange={(e) => setLeadTime(Math.max(0, Math.min(90, Number(e.target.value.replace(/\D/g, '')) || 0)))} className={campoNum} /></span>
+            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Fornecedor entrega em <InfoHint text="Não é filtro: é um ajuste da conta da quantidade sugerida. Informe quantos dias o fornecedor leva do pedido até a mercadoria chegar. O sistema soma esses dias para o produto não acabar enquanto a entrega não chega. Ex.: vende 10/dia e o fornecedor leva 7 dias → entram mais 70 na sugestão." /></span>
+            <span className="relative block"><Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de entrega" value={leadTime} onChange={setLeadTime} min={0} max={90} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
           </label>
           <label>
-            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Cobrir <InfoHint text="Por quantos dias de venda o estoque deve durar depois da compra. Abaixo da metade disso o produto fica Crítico; abaixo do total, Baixo." /></span>
-            <span className="relative block"><Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input inputMode="numeric" aria-label="Dias de cobertura" value={cobertura} onChange={(e) => setCobertura(Math.max(1, Math.min(180, Number(e.target.value.replace(/\D/g, '')) || 0)))} className={campoNum} /></span>
+            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Estoque para durar <InfoHint text="Não é filtro: é a sua meta de estoque. Quantos dias de venda você quer ter na prateleira depois que a compra chegar. A sugestão de compra = venda por dia × (estes dias + dias de entrega) − o que já tem. Ex.: vende 10/dia, quer 30 dias, entrega em 7, tem 100 → comprar 10 × 37 − 100 = 270. Também define os alertas: estoque para menos da metade desses dias = Crítico; menos que esses dias = Baixo." /></span>
+            <span className="relative block"><Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de cobertura" value={cobertura} onChange={setCobertura} min={1} max={180} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
           </label>
          </div>
         </div>
@@ -503,8 +586,8 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                 : buscaProd.trim() ? (
                   resultados.length === 0 ? <p className="p-4 text-[12px] text-gray-400">Nenhum produto com esses termos neste posto.</p> : (
                     <table className="w-full">
-                      <Cabecalho />
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{resultados.map((s) => <LinhaProduto key={s.produtoCodigo} s={s} comStatus />)}</tbody>
+                      {cabecalho()}
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{resultados.map((s) => linhaProduto(s, true))}</tbody>
                       {resultados.length === 30 && <tbody><tr><td colSpan={6} className="px-3 py-2 text-[11px] text-gray-400">Mostrando os primeiros 30. Use mais termos para afinar.</td></tr></tbody>}
                     </table>
                   )
@@ -512,11 +595,11 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                 : sugestoesSetor.length === 0 ? <p className="m-3 rounded-lg border border-dashed border-gray-200 px-4 py-4 text-center text-[12px] text-gray-500 dark:border-gray-700">{gruposSel != null && nGruposMarcados === 0 ? 'Nenhum grupo marcado. Marque um grupo ou use "Marcar todos".' : daCategoria.length > 0 ? 'Nada com esses filtros. Troque o grupo ou o status.' : recorteAtivo ? <>Nenhum produto deste fornecedor está abaixo da cobertura de {cobertura} dias. <button type="button" onClick={() => setSoFornecedor(false)} className="font-semibold text-[#1e3a5f] hover:underline dark:text-blue-300">Ver todos os produtos do posto</button></> : `Nada abaixo da cobertura de ${cobertura} dias nesta categoria. Use a busca do catálogo se precisar.`}</p>
                 : (
                   <table className="w-full">
-                    <Cabecalho />
+                    {cabecalho()}
                     {grupos.map((g) => (
                       <tbody key={g.st} className="divide-y divide-gray-100 dark:divide-gray-800">
                         <tr className="bg-gray-50/70 dark:bg-gray-800/30"><td colSpan={6} className="px-3 py-1.5"><span className={cn('inline-flex rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ring-1', STATUS_SUG[g.st].cls)}>{STATUS_SUG[g.st].label}</span><span className="ml-2 text-[11px] text-gray-500">{g.lista.length} {g.lista.length === 1 ? 'produto' : 'produtos'}</span></td></tr>
-                        {g.lista.map((s) => <LinhaProduto key={s.produtoCodigo} s={s} />)}
+                        {g.lista.map((s) => linhaProduto(s))}
                       </tbody>
                     ))}
                   </table>
@@ -541,7 +624,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                       <Truck className="h-3 w-3" /><span className="min-w-0 flex-1 truncate">{b.titulo}</span><span className="tabular-nums normal-case tracking-normal">{formatCurrency(subtotalBloco(b.itens))}</span>
                     </p>
                   )}
-                  <ul className="divide-y divide-gray-100 dark:divide-gray-800">{b.itens.map((i) => <ItemPedido key={i.key} i={i} />)}</ul>
+                  <ul className="divide-y divide-gray-100 dark:divide-gray-800">{b.itens.map((i) => itemPedido(i))}</ul>
                 </div>
               ))}
             </div>

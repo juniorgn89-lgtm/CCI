@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, PackageCheck, MessageCircle, Copy, AlertTriangle, FileCheck2 } from 'lucide-react'
+import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, PackageCheck, MessageCircle, Copy, AlertTriangle, FileCheck2, Receipt, Flag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { fetchTitulosPagar } from '@/api/endpoints/financeiro'
@@ -8,11 +8,14 @@ import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import type { TituloPagar } from '@/api/types/financeiro'
 import { todayLocal } from '@/lib/period'
 import ShareReportButton from '@/components/feedback/ShareReportButton'
+import BalaoAcao from '@/components/ui/BalaoAcao'
+import InfoHint from '@/components/ui/InfoHint'
 import type { ReportPayload } from '@/lib/report/reportTypes'
 import { Modal, ModalRodape, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
 import {
   SETOR_LABEL, STATUS_LABEL, EVENTO_VERBO, fetchItensDoPedido, fetchEventos, enviarPedido, liberarPedido, recusarPedido, cancelarPedido, reabrirPedido, marcarRecebido, excluirRascunho, comentarPedido,
   type ItemRow, type PedidoRow, type TetoRow,
+  encerrarRecebimento, fetchNotasDoPedido, SITUACAO_NOTA_LABEL, type PedidoNotaRow,
 } from '@/api/supabase/compras'
 import { useComprasBase, inputCls, btnPrimary, btnGhost, fmtDataHora, nomeProprio, fmtCnpj, qtdFmt } from './comum'
 import { liberadoNoMes } from './hooks/usePedidos'
@@ -36,10 +39,13 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
   const [motivo, setMotivo] = useState('')
   const [comentario, setComentario] = useState('')
   const [copiado, setCopiado] = useState(false)
-  const [confirma, setConfirma] = useState<'excluir' | 'cancelar' | null>(null)
+  const [confirma, setConfirma] = useState<'excluir' | 'cancelar' | 'encerrar' | null>(null)
 
   // Nota lançada no ERP depois da liberação, do mesmo fornecedor e posto.
-  const liberado = p.status === 'liberado' || p.status === 'liberado_parcial' || p.status === 'recebido'
+  const liberado = p.status === 'liberado' || p.status === 'liberado_parcial' || p.status === 'recebido_parcial' || p.status === 'recebido'
+  // Notas vinculadas pelo recebimento no NotaOK (um pedido pode ter várias).
+  const nfsQ = useQuery({ queryKey: ['compras-pedido-notas', p.id, p.status], enabled: liberado, queryFn: () => fetchNotasDoPedido(p.id) })
+  const nfs: PedidoNotaRow[] = nfsQ.data ?? []
   const notaQ = useQuery({
     queryKey: ['compras-nota', p.id, p.liberado_em],
     enabled: liberado && !!p.fornecedor_codigo_erp && !!p.liberado_em,
@@ -98,10 +104,10 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           <Info k="Solicitante" v={p.solicitante_nome ?? '—'} />
         </div>
 
-        {notaDetectada && (
+        {nfs.length === 0 && notaDetectada && (
           <p className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[12px] text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"><FileCheck2 className="h-4 w-4" /> Nota lançada no ERP: título {notaDetectada.numeroTitulo || `#${notaDetectada.tituloPagarCodigo}`} de {formatCurrency(notaDetectada.valor)} em {fmtDataHora(notaDetectada.dataMovimento)}.</p>
         )}
-        {liberado && !notaDetectada && !notaQ.isLoading && p.fornecedor_codigo_erp && <p className="text-[11px] text-gray-400">Ainda não apareceu nota deste fornecedor para este posto no ERP depois da liberação. O aviso é automático quando aparecer.</p>}
+        {liberado && nfs.length === 0 && !notaDetectada && !notaQ.isLoading && p.fornecedor_codigo_erp && <p className="text-[11px] text-gray-400">Ainda não apareceu nota deste fornecedor para este posto no ERP depois da liberação. O aviso é automático quando aparecer.</p>}
         {p.motivo_recusa && p.status === 'recusado' && <p className="rounded-lg border border-red-200 bg-red-50/70 px-3 py-2 text-[12px] text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"><b className="font-semibold">Motivo da recusa:</b> {p.motivo_recusa}</p>}
         {teto > 0 && (
           <p className={cn('inline-flex items-center gap-2 text-[11.5px]', estoura ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400')}>
@@ -142,6 +148,30 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           )}
           {p.observacoes && <p className="border-t border-gray-100 px-4 py-2 text-[12px] text-gray-600 dark:border-gray-800 dark:text-gray-300"><b className="font-semibold text-gray-800 dark:text-gray-200">Observações:</b> {p.observacoes}</p>}
         </section>
+
+        {/* Notas fiscais (vinculadas no NotaOK pelo recebimento) */}
+        {nfs.length > 0 && (
+          <section className="rounded-xl border border-gray-200 dark:border-gray-700">
+            <header className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+              <Receipt className="h-4 w-4 text-gray-400" />
+              <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-100">Notas fiscais ({nfs.length})</p>
+              <InfoHint text="Notas que o recebimento ligou a este pedido no NotaOK, ao conferir a mercadoria. Um pedido pode chegar em várias notas: enquanto faltar, ele fica como Recebido parcial." />
+              <span className="ml-auto text-[12px] tabular-nums text-gray-600 dark:text-gray-300">Total das notas <b className="font-semibold text-gray-900 dark:text-white">{formatCurrency(nfs.reduce((t, n) => t + (n.nota_valor ?? 0), 0))}</b></span>
+            </header>
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {nfs.map((n) => (
+                <li key={n.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-2 text-[12.5px]">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">NF {n.nota_numero ?? n.nota_chave.slice(25, 34)}{n.nota_serie != null ? <span className="font-normal text-gray-400"> / {n.nota_serie}</span> : null}</span>
+                  <span className="tabular-nums text-gray-700 dark:text-gray-300">{n.nota_valor != null ? formatCurrency(n.nota_valor) : '—'}</span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-semibold', n.situacao === 'lancada' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : n.situacao === 'devolvida' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300')}>{SITUACAO_NOTA_LABEL[n.situacao]}</span>
+                  {n.completa && <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">completou o pedido</span>}
+                  <span className="ml-auto text-[11px] text-gray-500 dark:text-gray-400">{n.nota_emissao ? `emitida ${n.nota_emissao.split('-').reverse().join('/')} · ` : ''}recebida por {n.vinculado_por_nome ?? 'recebimento'} em {fmtDataHora(n.vinculado_em)}{n.lancada_em ? ` · lançada ${fmtDataHora(n.lancada_em)}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+            {p.status === 'recebido_parcial' && <p className="border-t border-gray-100 px-4 py-2 text-[11.5px] text-gray-500 dark:border-gray-800 dark:text-gray-400">Ainda falta chegar parte do pedido. Se o fornecedor não vai mandar o resto, use “Encerrar recebimento”.</p>}
+          </section>
+        )}
 
         {/* Liberação */}
         {podeLiberar && p.status === 'aguardando' && (
@@ -198,11 +228,14 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
         ) : confirma === 'cancelar' ? (
           <ConfirmaAcao perigo comMotivo placeholder="Motivo do cancelamento (opcional, fica no histórico)" titulo={`Cancelar o pedido nº ${p.numero}?`} texto={p.status === 'aguardando' ? 'Ele sai da fila de liberação.' : 'Ele já foi liberado: avise o fornecedor se o pedido já foi mandado.'} rotulo="Cancelar pedido" ocupado={ocupado === 'cancelar'}
             onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('cancelar', async () => { await cancelarPedido(p, m, base.autor); setConfirma(null) })} />
+        ) : confirma === 'encerrar' ? (
+          <ConfirmaAcao comMotivo placeholder="Motivo (opcional, fica no histórico). Ex.: fornecedor sem estoque do resto" titulo={`Encerrar o recebimento do pedido nº ${p.numero}?`} texto="O pedido passa a Recebido com as notas que chegaram até agora." rotulo="Encerrar recebimento" ocupado={ocupado === 'encerrar'}
+            onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('encerrar', async () => { await encerrarRecebimento(p, base.autor, m); setConfirma(null) })} />
         ) : (<>
         <div className="flex flex-wrap gap-2">
-          <a href={`https://wa.me/?text=${encodeURIComponent(textoWhats())}`} target="_blank" rel="noreferrer" className={btnGhost} title="Abre o WhatsApp com o pedido pronto para mandar ao fornecedor"><MessageCircle className="h-4 w-4" /> WhatsApp</a>
-          <button type="button" onClick={copiar} className={btnGhost}>{copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copiado ? 'Copiado' : 'Copiar texto'}</button>
-          <ShareReportButton filename={`pedido-${p.numero}.pdf`} build={buildPdf} label="PDF" />
+          <BalaoAcao texto="Abre o WhatsApp com o pedido já escrito (itens, quantidades e total). Você escolhe o contato, normalmente o vendedor do fornecedor, e envia."><a href={`https://wa.me/?text=${encodeURIComponent(textoWhats())}`} target="_blank" rel="noreferrer" className={btnGhost}><MessageCircle className="h-4 w-4" /> WhatsApp</a></BalaoAcao>
+          <BalaoAcao texto="Copia o mesmo texto do WhatsApp (itens, quantidades e total) para você colar onde quiser: e-mail, site ou sistema do fornecedor."><button type="button" onClick={copiar} className={btnGhost}>{copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copiado ? 'Copiado' : 'Copiar texto'}</button></BalaoAcao>
+          <BalaoAcao texto="Gera o pedido em PDF, com cara de documento, para imprimir, arquivar ou mandar ao fornecedor. Abre uma prévia: dali você compartilha ou baixa o arquivo."><ShareReportButton filename={`pedido-${p.numero}.pdf`} build={buildPdf} label="PDF" /></BalaoAcao>
         </div>
         <div className="flex flex-wrap gap-2">
           {(souSolicitante || podeLiberar) && (p.status === 'rascunho' || p.status === 'aguardando') && <button type="button" onClick={onEditar} className={btnGhost}><Pencil className="h-4 w-4" /> Editar</button>}
@@ -210,6 +243,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           {(souSolicitante || podeLiberar) && p.status === 'rascunho' && <button type="button" onClick={() => setConfirma('excluir')} disabled={!!ocupado} className={cn(btnGhost, 'text-red-600 dark:text-red-400')}><Trash2 className="h-4 w-4" /> Excluir</button>}
           {(souSolicitante || podeLiberar) && (p.status === 'aguardando' || p.status === 'liberado' || p.status === 'liberado_parcial') && <button type="button" onClick={() => setConfirma('cancelar')} disabled={!!ocupado} className={cn(btnGhost, 'text-red-600 dark:text-red-400')}><X className="h-4 w-4" /> Cancelar pedido</button>}
           {(souSolicitante || podeLiberar) && (p.status === 'liberado' || p.status === 'liberado_parcial') && <button type="button" onClick={() => rodar('receber', () => marcarRecebido(p, base.autor))} disabled={!!ocupado} className={btnPrimary}><PackageCheck className="h-4 w-4" /> Marcar como recebido</button>}
+          {(souSolicitante || podeLiberar) && p.status === 'recebido_parcial' && <button type="button" onClick={() => setConfirma('encerrar')} disabled={!!ocupado} className={btnGhost}><Flag className="h-4 w-4" /> Encerrar recebimento</button>}
           {(souSolicitante || podeLiberar) && p.status === 'recusado' && <button type="button" onClick={() => rodar('reabrir', () => reabrirPedido(p, base.autor))} disabled={!!ocupado} className={btnGhost}><RotateCcw className="h-4 w-4" /> Reabrir como rascunho</button>}
           <button type="button" onClick={onClose} className={btnGhost}>Fechar</button>
         </div>

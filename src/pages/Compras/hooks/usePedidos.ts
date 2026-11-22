@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchPedidos, fetchTetos, fetchFornecedores, type PedidoRow } from '@/api/supabase/compras'
+import { fetchPedidos, fetchTetos, fetchFornecedores, STATUS_LIBERADOS, type PedidoRow } from '@/api/supabase/compras'
 import { mesAtualYm, ymDe } from '@/pages/Compras/comum'
 
 /** Pedidos, tetos e fornecedores da rede, com a invalidação num lugar só. */
@@ -22,6 +22,6 @@ export const usePedidos = (redeId: string | null) => {
 export const liberadoNoMes = (pedidos: PedidoRow[], empresaCodigo: number, setor: string, excetoId?: string) => {
   const ym = mesAtualYm()
   return pedidos
-    .filter((p) => p.empresa_codigo === empresaCodigo && p.setor === setor && p.id !== excetoId && (p.status === 'liberado' || p.status === 'liberado_parcial' || p.status === 'recebido') && p.liberado_em && ymDe(p.liberado_em) === ym)
+    .filter((p) => p.empresa_codigo === empresaCodigo && p.setor === setor && p.id !== excetoId && STATUS_LIBERADOS.includes(p.status) && p.liberado_em && ymDe(p.liberado_em) === ym)
     .reduce((s, p) => s + (p.total_liberado ?? p.total_solicitado), 0)
 }

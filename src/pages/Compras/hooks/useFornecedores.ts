@@ -27,6 +27,7 @@ export interface FornecedorOpcao {
 /** Faixas da lista: quem vendeu pro posto, quem vendeu pra rede, o resto do cadastro. */
 export type FaixaFornecedor = 'posto' | 'rede' | 'cadastro'
 
+const MAX_PAG_CADASTRO = 50
 const umAnoAtras = () => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10) }
 const doc = (v: string | null | undefined) => { const d = (v ?? '').replace(/\D/g, ''); return d || null }
 const limpo = (v: string | null | undefined) => (v ?? '').trim()
@@ -44,7 +45,8 @@ export const useFornecedores = (redeId: string | null, cadastro: FornecedorRow[]
     queryKey: ['compras-fornecedores-cadastro', redeId],
     enabled: !!redeId,
     staleTime: 60 * 60_000,
-    queryFn: () => fetchAllPages<FornecedorErp>((p) => fetchFornecedoresErp({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 2000, 10),
+    // Teto alto (100k): o cursor avança pelo código, então o corte cairia nos cadastrados mais NOVOS.
+    queryFn: () => fetchAllPages<FornecedorErp>((p) => fetchFornecedoresErp({ ultimoCodigo: p.ultimoCodigo, limite: p.limite }), 2000, MAX_PAG_CADASTRO),
   })
   const notas = useQuery({
     queryKey: ['compras-erp-cabecalhos', redeId],
@@ -117,5 +119,9 @@ export const useFornecedores = (redeId: string | null, cadastro: FornecedorRow[]
     carregandoErp: reg.isLoading || notas.isLoading,
     /** O cadastro do ERP não veio: a lista fica só com quem tem nota (pelo código) e o cadastro do módulo. */
     erroCadastro: reg.isError,
+    /** Quantos fornecedores vieram do cadastro do ERP (diagnóstico na lista). */
+    totalCadastro: reg.data?.length ?? 0,
+    /** Bateu no teto de páginas: os cadastrados mais novos podem ter ficado de fora. */
+    cadastroCortado: (reg.data?.length ?? 0) >= 2000 * MAX_PAG_CADASTRO,
   }
 }
