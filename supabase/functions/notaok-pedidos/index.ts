@@ -16,7 +16,8 @@
 //   candidatos   { empresa_codigo, cnpj, data_emissao, chave? } → pedidos que podem ser desta nota
 //   vincular     { nota, pedido_id, completa, por_nome }        → liga a nota ao pedido
 //   desvincular  { chave, pedido_id, motivo?, por_nome }        → desfaz (recebedor errou o pedido)
-//   status_nota  { chave, situacao, quando?, por_nome? }        → conferida | lancada | devolvida | vinculada
+//   status_nota  { chave, situacao, quando?, por_nome?, devolucao? } → conferida | lancada | devolvida | vinculada
+//                devolucao = { geral?, nf?, boleto?, itens?: [{ codigo, descricao, motivo }] } (só em "devolvida")
 //   sem_pedido   { nota, motivo?, por_nome, desfazer? }         → registra (ou tira) "nota sem pedido"
 //   Todas as escritas são idempotentes (o NotaOK reenvia o que ficou pendente).
 //
@@ -278,9 +279,40 @@ Deno.serve(async (req) => {
       if (situacao === 'conferida') patch.conferida_em = quando
       if (situacao === 'lancada') patch.lancada_em = quando
       if (situacao === 'vinculada') { patch.conferida_em = null; patch.lancada_em = null }
-      const { data, error } = await admin.from('compras_pedido_notas').update(patch)
+      // Devolução: o porquê (observação geral, NF, boletos, itens) e quem devolveu.
+      let devolucao: { geral: string | null; nf: string | null; boleto: string | null; itens: { codigo: string | null; descricao: string | null; motivo: string }[] } | null = null
+      const porNome = texto(dados.por_nome, 120)
+      if (situacao === 'devolvida') {
+        const d = ehObjeto(dados.devolucao) ? dados.devolucao : {}
+        const itens = (Array.isArray(d.itens) ? d.itens : []).filter(ehObjeto).slice(0, 200)
+          .map((i) => ({ codigo: texto(i.codigo, 40), descricao: texto(i.descricao, 200), motivo: texto(i.motivo, 500) ?? '' }))
+          .filter((i) => i.motivo)
+        devolucao = { geral: texto(d.geral, 1000), nf: texto(d.nf, 500), boleto: texto(d.boleto, 500), itens }
+        Object.assign(patch, { devolucao, devolvida_em: quando, devolvida_por_nome: porNome })
+      }
+      // Situação anterior: o histórico só ganha "devolveu" quando ela muda (reenvio não duplica).
+      const { data: antes } = await admin.from('compras_pedido_notas').select('pedido_id, situacao, nota_numero')
+        .eq('rede_id', redeId).eq('nota_chave', chave)
+      let { data, error } = await admin.from('compras_pedido_notas').update(patch)
         .eq('rede_id', redeId).eq('nota_chave', chave).select('pedido_id')
+      if (error && situacao === 'devolvida' && /devolucao|devolvida_|column/i.test(error.message)) {
+        // SQL da devolução (docs/supabase-compras-notas-devolucao.sql) ainda não rodado: grava só a situação.
+        delete patch.devolucao; delete patch.devolvida_em; delete patch.devolvida_por_nome
+        ;({ data, error } = await admin.from('compras_pedido_notas').update(patch).eq('rede_id', redeId).eq('nota_chave', chave).select('pedido_id'))
+      }
       if (error) throw new Error(error.message)
+      if (situacao === 'devolvida' && devolucao) {
+        const partes = [
+          devolucao.geral,
+          devolucao.nf && `NF: ${devolucao.nf}`,
+          devolucao.boleto && `Boletos: ${devolucao.boleto}`,
+          devolucao.itens.length ? `${devolucao.itens.length} ${devolucao.itens.length === 1 ? 'item apontado' : 'itens apontados'}` : null,
+        ].filter(Boolean).join(' · ')
+        for (const a of antes ?? []) {
+          if (a.situacao === 'devolvida') continue
+          await evento(a.pedido_id, 'nota_devolvida', porNome, `NF ${a.nota_numero ?? ''}${partes ? ` · ${partes}` : ''}`.slice(0, 500))
+        }
+      }
       return json(200, { ok: true, ligado: true, atualizadas: data?.length ?? 0 })
     }
 

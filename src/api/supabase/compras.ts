@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 export type SetorCompra = 'conveniencia' | 'automotivos' | 'combustivel' | 'outros'
 export type StatusPedido = 'rascunho' | 'aguardando' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido_parcial' | 'recebido' | 'cancelado'
 export type TipoEvento = 'criado' | 'editado' | 'enviado' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido' | 'cancelado' | 'reaberto' | 'comentario'
-  | 'nota_vinculada' | 'nota_desvinculada' | 'recebimento_encerrado'
+  | 'nota_vinculada' | 'nota_desvinculada' | 'recebimento_encerrado' | 'nota_devolvida'
 
 export const SETOR_LABEL: Record<SetorCompra, string> = { conveniencia: 'Conveniência', automotivos: 'Automotivos', combustivel: 'Combustível', outros: 'Outros' }
 export const STATUS_LABEL: Record<StatusPedido, string> = {
@@ -31,7 +31,7 @@ export const STATUS_META: Record<StatusPedido, { cls: string; dot: string }> = {
 export const EVENTO_VERBO: Record<TipoEvento, string> = {
   criado: 'criou o pedido', editado: 'editou o pedido', enviado: 'enviou para liberação', liberado: 'liberou', liberado_parcial: 'liberou parcialmente',
   recusado: 'recusou', recebido: 'marcou como recebido', cancelado: 'cancelou', reaberto: 'reabriu como rascunho', comentario: 'comentou',
-  nota_vinculada: 'recebeu a nota', nota_desvinculada: 'tirou a nota do pedido', recebimento_encerrado: 'encerrou o recebimento',
+  nota_vinculada: 'recebeu a nota', nota_desvinculada: 'tirou a nota do pedido', recebimento_encerrado: 'encerrou o recebimento', nota_devolvida: 'devolveu a nota para correção',
 }
 /** Liberado e ainda sem nota, ou já com parte das notas: conta no teto do mês. */
 export const STATUS_LIBERADOS: StatusPedido[] = ['liberado', 'liberado_parcial', 'recebido_parcial', 'recebido']
@@ -357,6 +357,16 @@ export interface PedidoNotaRow {
   vinculado_em: string
   conferida_em: string | null
   lancada_em: string | null
+  /** O que o escritório apontou ao devolver (docs/supabase-compras-notas-devolucao.sql). */
+  devolucao?: DevolucaoNota | null
+  devolvida_em?: string | null
+  devolvida_por_nome?: string | null
+}
+export interface DevolucaoNota {
+  geral: string | null
+  nf: string | null
+  boleto: string | null
+  itens: { codigo: string | null; descricao: string | null; motivo: string }[]
 }
 /** Notas do pedido. Tabela ausente (SQL não rodado) = lista vazia, sem quebrar a tela. */
 export const fetchNotasDoPedido = async (pedidoId: string): Promise<PedidoNotaRow[]> => {

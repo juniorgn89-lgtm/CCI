@@ -50,7 +50,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         icone: 'apps',
         titulo: 'A nota fiscal chega no pedido',
-        descricao: 'Na rede que usa o NotaOK, quem recebe a mercadoria liga a nota ao pedido. O pedido mostra as notas que chegaram e fica "Recebido parcial" enquanto faltar parte. Se o resto não vier, use "Encerrar recebimento".',
+        descricao: 'Na rede que usa o NotaOK, quem recebe a mercadoria liga a nota ao pedido. O pedido mostra as notas que chegaram e fica "Recebido parcial" enquanto faltar parte. Se o resto não vier, use "Encerrar recebimento". Se o escritório devolver a nota para correção, o pedido mostra o que foi apontado e quem pediu a compra recebe um aviso.',
       },
     ],
   },

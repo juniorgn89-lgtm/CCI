@@ -116,6 +116,8 @@ const Pedidos = () => {
   const visiveis = fc.filtradas.filter((p) => naAba(p, aba))
   if (aba === 'concluido') visiveis.sort((a, b) => Number(notas.has(a.id)) - Number(notas.has(b.id)))
   const aguardandoMeus = pedidos.filter((p) => p.status === 'aguardando').length
+  // Nota devolvida pelo escritório: avisa quem pediu (e quem libera vê os da rede).
+  const comDevolvida = pedidos.filter((p) => notas.get(p.id)?.pior === 'devolvida' && (base.podeLiberar || p.solicitante_id === base.autor.userId))
   // Pedido aberto a partir da lista atualizada (depois de uma ação o objeto muda).
   const abertoAtual = aberto ? pedidos.find((p) => p.id === aberto.id) ?? aberto : null
 
@@ -137,6 +139,13 @@ const Pedidos = () => {
         <button type="button" onClick={() => setAba('aguardando')} className="flex w-full items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5 text-left text-[13px] text-amber-900 hover:bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
           <span><b className="font-semibold">{aguardandoMeus} {aguardandoMeus === 1 ? 'pedido aguarda' : 'pedidos aguardam'} sua liberação.</b> Clique para ver.</span>
+        </button>
+      )}
+
+      {comDevolvida.length > 0 && (
+        <button type="button" onClick={() => { setAba('conferencia'); fc.limpar() }} className="flex w-full items-center gap-3 rounded-xl border border-red-200 bg-red-50/70 px-4 py-2.5 text-left text-[13px] text-red-900 hover:bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+          <span><b className="font-semibold">{comDevolvida.length === 1 ? `O pedido nº ${comDevolvida[0].numero} tem nota devolvida para correção.` : `${comDevolvida.length} pedidos têm nota devolvida para correção.`}</b> Abra o pedido para ver o que o escritório apontou.</span>
         </button>
       )}
 

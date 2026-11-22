@@ -164,9 +164,10 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
                 <li key={n.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-2 text-[12.5px]">
                   <span className="font-semibold text-gray-900 dark:text-gray-100">NF {n.nota_numero ?? n.nota_chave.slice(25, 34)}{n.nota_serie != null ? <span className="font-normal text-gray-400"> / {n.nota_serie}</span> : null}</span>
                   <span className="tabular-nums text-gray-700 dark:text-gray-300">{n.nota_valor != null ? formatCurrency(n.nota_valor) : '—'}</span>
-                  <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-semibold', n.situacao === 'lancada' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : n.situacao === 'devolvida' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300')}>{SITUACAO_NOTA_LABEL[n.situacao]}</span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-semibold', n.situacao === 'lancada' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : n.situacao === 'devolvida' ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300')}>{SITUACAO_NOTA_LABEL[n.situacao]}</span>
                   {n.completa && <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">completou o pedido</span>}
                   <span className="ml-auto text-[11px] text-gray-500 dark:text-gray-400">{n.nota_emissao ? `emitida ${n.nota_emissao.split('-').reverse().join('/')} · ` : ''}recebida por {n.vinculado_por_nome ?? 'recebimento'} em {fmtDataHora(n.vinculado_em)}{n.lancada_em ? ` · lançada ${fmtDataHora(n.lancada_em)}` : ''}</span>
+                  {n.situacao === 'devolvida' && <DevolucaoBox n={n} />}
                 </li>
               ))}
             </ul>
@@ -251,6 +252,24 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
         </>)}
       </ModalRodape>
     </Modal>
+  )
+}
+
+/** O que o escritório apontou ao devolver a nota no NotaOK. */
+const DevolucaoBox = ({ n }: { n: PedidoNotaRow }) => {
+  const d = n.devolucao
+  const linhas = d ? [d.geral && { r: 'Observação', t: d.geral }, d.nf && { r: 'Nota fiscal', t: d.nf }, d.boleto && { r: 'Boletos', t: d.boleto }].filter((x): x is { r: string; t: string } => !!x) : []
+  return (
+    <div className="mt-1.5 w-full rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-[12px] text-red-900 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
+      <p className="font-semibold">Devolvida para correção{n.devolvida_por_nome ? ` por ${n.devolvida_por_nome}` : ''}{n.devolvida_em ? ` em ${fmtDataHora(n.devolvida_em)}` : ''}</p>
+      {!d ? <p className="text-red-800/80 dark:text-red-200/80">O motivo está no NotaOK, na própria nota.</p> : (
+        <ul className="mt-1 space-y-0.5">
+          {linhas.map((l) => <li key={l.r}><span className="font-semibold">{l.r}:</span> {l.t}</li>)}
+          {d.itens.map((i, k) => <li key={k}><span className="font-mono text-[11px] text-red-700/80 dark:text-red-300/80">{i.codigo ?? 'sem código'}</span> {i.descricao ?? 'Item'}: {i.motivo}</li>)}
+        </ul>
+      )}
+      <p className="mt-1 text-[11px] text-red-800/70 dark:text-red-200/70">Se o erro é do fornecedor (preço, item ou quantidade), fale com ele. A nota continua ligada a este pedido.</p>
+    </div>
   )
 }
 
