@@ -7,25 +7,51 @@ import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { CabecalhoFiltro, AvisoFiltros } from '@/components/tables/FiltroColuna'
 import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
-import { SETOR_LABEL, STATUS_LABEL, STATUS_META, apagarPedido, type PedidoRow, type SetorCompra, type StatusPedido } from '@/api/supabase/compras'
+import { SETOR_LABEL, STATUS_LABEL, STATUS_META, SITUACAO_NOTA_LABEL, apagarPedido, etapaDoPedido, type EtapaPedido, type PedidoRow, type ResumoNotas, type SetorCompra, type SituacaoNota, type StatusPedido } from '@/api/supabase/compras'
 import { useComprasBase, containerCls, inputCls, selectCls, btnPrimary, btnGhost, fmtDataHora, nomeProprio } from './comum'
 import { usePedidos } from './hooks/usePedidos'
 import NovoPedidoModal from './NovoPedidoModal'
 import PedidoModal from './PedidoModal'
 import TetosModal from './TetosModal'
 
-type Aba = 'todos' | 'rascunho' | 'aguardando' | 'liberados' | 'recebidos' | 'encerrados'
-// Ordem = o que pede atenção primeiro: os novos (aguardando liberação), depois
-// os liberados (a caminho), recebidos, rascunhos (ainda não enviados), encerrados.
-// "Todos" fica por último.
-const ABAS: { id: Aba; label: string; status: StatusPedido[] | null }[] = [
-  { id: 'aguardando', label: 'Aguardando liberação', status: ['aguardando'] },
-  { id: 'liberados', label: 'Liberados', status: ['liberado', 'liberado_parcial'] },
-  { id: 'recebidos', label: 'Recebidos', status: ['recebido_parcial', 'recebido'] },
-  { id: 'rascunho', label: 'Rascunhos', status: ['rascunho'] },
-  { id: 'encerrados', label: 'Recusados e cancelados', status: ['recusado', 'cancelado'] },
-  { id: 'todos', label: 'Todos', status: null },
+type Aba = EtapaPedido | 'todos'
+// Uma aba por etapa, na ordem do trabalho: liberar → chegar → conferir/lançar →
+// concluído. Rascunhos, encerrados e "Todos" por último.
+const ABAS: { id: Aba; label: string }[] = [
+  { id: 'aguardando', label: 'Aguardando liberação' },
+  { id: 'entrega', label: 'Aguardando entrega' },
+  { id: 'conferencia', label: 'Em conferência' },
+  { id: 'concluido', label: 'Concluídos' },
+  { id: 'rascunho', label: 'Rascunhos' },
+  { id: 'encerrado', label: 'Recusados e cancelados' },
+  { id: 'todos', label: 'Todos' },
 ]
+
+// Cor da etapa da nota (a mais atrasada do pedido).
+const COR_NOTA: Record<SituacaoNota, string> = {
+  devolvida: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+  vinculada: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  conferida: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300',
+  lancada: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+}
+/** Texto da coluna Nota (também é o valor do filtro). */
+const rotuloNota = (p: PedidoRow, r: ResumoNotas | undefined): string => {
+  if (p.status === 'recebido_parcial') return 'Falta chegar'
+  if (r) return SITUACAO_NOTA_LABEL[r.pior]
+  if (p.status === 'recebido') return 'Sem nota ligada'
+  return '—'
+}
+const CelulaNota = ({ p, r }: { p: PedidoRow; r: ResumoNotas | undefined }) => {
+  const txt = rotuloNota(p, r)
+  if (txt === '—') return <span className="text-gray-300 dark:text-gray-600">—</span>
+  const cls = p.status === 'recebido_parcial' ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : r ? COR_NOTA[r.pior] : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-semibold', cls)}>{txt}</span>
+      {r && r.qtd > 1 && <span className="text-[10.5px] text-gray-400">{r.qtd} notas</span>}
+    </span>
+  )
+}
 
 export const Selo = ({ status }: { status: StatusPedido }) => (
   <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold', STATUS_META[status].cls)}>
@@ -36,7 +62,7 @@ export const Selo = ({ status }: { status: StatusPedido }) => (
 /** Lista de pedidos com filtros, abas por situação e os modais de novo pedido, detalhe e tetos. */
 const Pedidos = () => {
   const base = useComprasBase()
-  const { pedidos, tetos, carregando, erro, invalidar } = usePedidos(base.redeId)
+  const { pedidos, tetos, notas, carregando, erro, invalidar } = usePedidos(base.redeId)
   // null = automática: a primeira aba (na ordem acima) que tem pedido.
   const [abaEscolhida, setAba] = useState<Aba | null>(null)
   const [busca, setBusca] = useState('')
@@ -58,15 +84,16 @@ const Pedidos = () => {
   const [tetosAberto, setTetosAberto] = useState(false)
 
   // Filtros de coluna (estilo Excel). Os valores são o que aparece na célula.
-  const colunas = useMemo((): Record<'posto' | 'fornecedor' | 'setor' | 'situacao' | 'solicitante' | 'data', DefColuna<PedidoRow>> => ({
+  const colunas = useMemo((): Record<'posto' | 'fornecedor' | 'setor' | 'situacao' | 'nota' | 'solicitante' | 'data', DefColuna<PedidoRow>> => ({
     posto: (p) => base.nomePosto(p.empresa_codigo),
     fornecedor: (p) => nomeProprio(p.fornecedor_nome),
     setor: (p) => SETOR_LABEL[p.setor],
     situacao: (p) => STATUS_LABEL[p.status],
+    nota: (p) => rotuloNota(p, notas.get(p.id)),
     solicitante: (p) => p.solicitante_nome,
     // Por dia; ordem pela data (não pelo texto dd/mm).
     data: { valor: (p) => p.criado_em.slice(0, 10).split('-').reverse().join('/'), ordem: (p) => p.criado_em.slice(0, 10) },
-  }), [base])
+  }), [base, notas])
   const solicitantes = useMemo(() => [...new Set(pedidos.map((p) => p.solicitante_nome).filter((x): x is string => !!x))].sort(), [pedidos])
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase()
@@ -81,9 +108,13 @@ const Pedidos = () => {
     })
   }, [pedidos, busca, posto, setor, solicitante, de, ate, base])
   const fc = useFiltrosColuna(filtrados, colunas)
-  const contagem = (a: Aba) => fc.filtradas.filter((p) => !ABAS.find((x) => x.id === a)!.status || ABAS.find((x) => x.id === a)!.status!.includes(p.status)).length
+  const naAba = (p: PedidoRow, a: Aba) => a === 'todos' || etapaDoPedido(p, notas.get(p.id)) === a
+  const contagem = (a: Aba) => fc.filtradas.filter((p) => naAba(p, a)).length
   const aba: Aba = abaEscolhida ?? ABAS.find((a) => contagem(a.id) > 0)?.id ?? 'todos'
-  const visiveis = fc.filtradas.filter((p) => { const st = ABAS.find((x) => x.id === aba)!.status; return !st || st.includes(p.status) })
+  // Em Concluídos, os recebidos SEM nota ligada vêm primeiro (são os que pedem um
+  // olhar); depois os com nota. Dentro de cada grupo, a ordem de sempre.
+  const visiveis = fc.filtradas.filter((p) => naAba(p, aba))
+  if (aba === 'concluido') visiveis.sort((a, b) => Number(notas.has(a.id)) - Number(notas.has(b.id)))
   const aguardandoMeus = pedidos.filter((p) => p.status === 'aguardando').length
   // Pedido aberto a partir da lista atualizada (depois de uma ação o objeto muda).
   const abertoAtual = aberto ? pedidos.find((p) => p.id === aberto.id) ?? aberto : null
@@ -150,7 +181,7 @@ const Pedidos = () => {
               {a.label} <span className={cn('rounded-full px-1.5 text-[10px] tabular-nums', aba === a.id ? 'bg-[#1e3a5f]/10 dark:bg-blue-400/20' : 'bg-gray-100 dark:bg-gray-800')}>{contagem(a.id)}</span>
             </button>
           ))}
-          <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400"><AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} /> Clique num pedido para abrir <InfoHint text="Aguardando liberação: pedido novo, na fila de quem libera. Rascunho: pedido salvo mas ainda não enviado para liberação; abra e clique em “Enviar para liberação” quando estiver pronto. Liberado / parcial: aprovado inteiro ou com cortes. Recebido: a mercadoria chegou. Recusado e cancelado: encerrados sem compra." /></span>
+          <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400"><AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} /> Clique num pedido para abrir <InfoHint text="Aguardando liberação: pedido novo, na fila de quem libera. Aguardando entrega: liberado, a mercadoria ainda não chegou. Em conferência: a nota chegou (NotaOK) e ainda não foi lançada no ERP, ou falta chegar parte do pedido. Concluídos: todas as notas lançadas no ERP (ou recebido à mão, sem nota). Rascunho: salvo mas ainda não enviado; abra e clique em “Enviar para liberação”. Recusado e cancelado: encerrados sem compra." /></span>
         </div>
         {carregando ? (
           <p className="inline-flex items-center gap-2 px-5 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando pedidos…</p>
@@ -168,6 +199,7 @@ const Pedidos = () => {
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Fornecedor" filtro={fc.de('fornecedor')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Setor" filtro={fc.de('setor')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Nota" filtro={fc.de('nota')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Solicitante" filtro={fc.de('solicitante')} /></th>
                   <th className="px-3 py-2 text-right font-semibold">Solicitado</th>
                   <th className="px-3 py-2 text-right font-semibold">Liberado</th>
@@ -183,6 +215,7 @@ const Pedidos = () => {
                     <td className="px-3 py-2 font-medium">{nomeProprio(p.fornecedor_nome)}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{SETOR_LABEL[p.setor]}</td>
                     <td className="px-3 py-2"><Selo status={p.status} /></td>
+                    <td className="px-3 py-2"><CelulaNota p={p} r={notas.get(p.id)} /></td>
                     <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{p.solicitante_nome ?? '—'}</td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatCurrencyInt(p.total_solicitado)}</td>
                     <td className={cn('px-3 py-2 text-right tabular-nums', p.total_liberado != null ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-gray-400')}>{p.total_liberado != null ? formatCurrencyInt(p.total_liberado) : '—'}</td>

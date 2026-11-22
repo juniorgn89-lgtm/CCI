@@ -365,6 +365,40 @@ export const fetchNotasDoPedido = async (pedidoId: string): Promise<PedidoNotaRo
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({ ...(r as unknown as PedidoNotaRow), nota_valor: r.nota_valor == null ? null : num(r.nota_valor) }))
 }
 
+/** Resumo das notas ligadas a um pedido: quantas e a situação mais atrasada. */
+export interface ResumoNotas { qtd: number; pior: SituacaoNota }
+// Mais atrasada primeiro: devolvida (voltou p/ correção) → em conferência → conferida → lançada.
+const RANK_NOTA: Record<SituacaoNota, number> = { devolvida: 0, vinculada: 1, conferida: 2, lancada: 3 }
+/** Notas de todos os pedidos da rede, resumidas por pedido. Tabela ausente = nenhum resumo. */
+export const fetchNotasDaRede = async (redeId: string): Promise<Map<string, ResumoNotas>> => {
+  const { data, error } = await need().from('compras_pedido_notas').select('pedido_id, situacao').eq('rede_id', redeId)
+  if (error) { if (error.code === '42P01' || error.code === 'PGRST205') return new Map(); throw erro(error) }
+  const m = new Map<string, ResumoNotas>()
+  for (const r of (data ?? []) as { pedido_id: string; situacao: SituacaoNota }[]) {
+    const cur = m.get(r.pedido_id)
+    if (!cur) m.set(r.pedido_id, { qtd: 1, pior: r.situacao })
+    else { cur.qtd += 1; if (RANK_NOTA[r.situacao] < RANK_NOTA[cur.pior]) cur.pior = r.situacao }
+  }
+  return m
+}
+
+/**
+ * Etapa do pedido na lista (não é gravada: sai do status + notas).
+ * Recebido só vira "concluído" quando todas as notas foram lançadas no ERP, ou
+ * quando foi marcado à mão sem nota ligada (rede sem NotaOK).
+ */
+export type EtapaPedido = 'rascunho' | 'aguardando' | 'entrega' | 'conferencia' | 'concluido' | 'encerrado'
+export const etapaDoPedido = (p: PedidoRow, notas?: ResumoNotas): EtapaPedido => {
+  switch (p.status) {
+    case 'rascunho': return 'rascunho'
+    case 'aguardando': return 'aguardando'
+    case 'liberado': case 'liberado_parcial': return 'entrega'
+    case 'recebido_parcial': return 'conferencia'
+    case 'recebido': return !notas || notas.pior === 'lancada' ? 'concluido' : 'conferencia'
+    default: return 'encerrado'
+  }
+}
+
 export const comentarPedido = async (p: PedidoRow, texto: string, autor: Autor) => evento(p.rede_id, p.id, 'comentario', autor, texto)
 
 export const salvarTeto = async (redeId: string, empresaCodigo: number, setor: SetorCompra, valor: number, autor: Autor) => {

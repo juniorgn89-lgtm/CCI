@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchPedidos, fetchTetos, fetchFornecedores, STATUS_LIBERADOS, type PedidoRow } from '@/api/supabase/compras'
+import { fetchPedidos, fetchTetos, fetchFornecedores, fetchNotasDaRede, STATUS_LIBERADOS, type PedidoRow } from '@/api/supabase/compras'
 import { mesAtualYm, ymDe } from '@/pages/Compras/comum'
 
 /** Pedidos, tetos e fornecedores da rede, com a invalidação num lugar só. */
@@ -8,14 +8,18 @@ export const usePedidos = (redeId: string | null) => {
   const pedidos = useQuery({ queryKey: ['compras-pedidos', redeId], queryFn: () => fetchPedidos(redeId!), enabled: !!redeId, staleTime: 30_000, refetchOnWindowFocus: true })
   const tetos = useQuery({ queryKey: ['compras-tetos', redeId], queryFn: () => fetchTetos(redeId!), enabled: !!redeId, staleTime: 5 * 60_000 })
   const fornecedores = useQuery({ queryKey: ['compras-fornecedores', redeId], queryFn: () => fetchFornecedores(redeId!), enabled: !!redeId, staleTime: 5 * 60_000 })
+  // Notas chegam pelo NotaOK (fora deste navegador): relê ao voltar para a aba.
+  const notas = useQuery({ queryKey: ['compras-notas-rede', redeId], queryFn: () => fetchNotasDaRede(redeId!), enabled: !!redeId, staleTime: 30_000, refetchOnWindowFocus: true })
   const invalidar = () => {
+    qc.invalidateQueries({ queryKey: ['compras-notas-rede', redeId] })
+    qc.invalidateQueries({ queryKey: ['compras-pedido-notas'] })
     qc.invalidateQueries({ queryKey: ['compras-pedidos', redeId] })
     qc.invalidateQueries({ queryKey: ['compras-tetos', redeId] })
     qc.invalidateQueries({ queryKey: ['compras-fornecedores', redeId] })
     qc.invalidateQueries({ queryKey: ['compras-itens'] })
     qc.invalidateQueries({ queryKey: ['compras-eventos'] })
   }
-  return { pedidos: pedidos.data ?? [], tetos: tetos.data ?? [], fornecedores: fornecedores.data ?? [], carregando: pedidos.isLoading, erro: pedidos.error as Error | null, invalidar }
+  return { pedidos: pedidos.data ?? [], tetos: tetos.data ?? [], fornecedores: fornecedores.data ?? [], notas: notas.data ?? new Map(), carregando: pedidos.isLoading, erro: pedidos.error as Error | null, invalidar }
 }
 
 /** Quanto já foi LIBERADO no mês corrente num posto × setor (base do teto). */

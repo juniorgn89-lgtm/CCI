@@ -26,7 +26,7 @@ import { Selo } from './Pedidos'
 const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: { pedido: PedidoRow; onClose: () => void; onMudou: () => void; onEditar: () => void; tetos: TetoRow[]; pedidos: PedidoRow[] }) => {
   const base = useComprasBase()
   const itensQ = useQuery({ queryKey: ['compras-itens', p.id], queryFn: () => fetchItensDoPedido(p.id) })
-  const eventosQ = useQuery({ queryKey: ['compras-eventos', p.id], queryFn: () => fetchEventos(p.id) })
+  const eventosQ = useQuery({ queryKey: ['compras-eventos', p.id, p.status], queryFn: () => fetchEventos(p.id) })
   const itens = itensQ.data ?? []
   const souSolicitante = !!base.userId && p.solicitante_id === base.userId
   const podeLiberar = base.podeLiberar
@@ -94,7 +94,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
   const Info = ({ k, v }: { k: string; v: React.ReactNode }) => <div><p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{k}</p><p className="text-[12.5px] text-gray-800 dark:text-gray-200">{v}</p></div>
 
   return (
-    <Modal guia={GUIAS.pedido} fundo="" open onClose={onClose} titulo={<span className="inline-flex flex-wrap items-center gap-3">Pedido nº {p.numero} <Selo status={p.status} /></span>} descricao={`Criado em ${fmtDataHora(p.criado_em)}${p.enviado_em ? ` · enviado em ${fmtDataHora(p.enviado_em)}` : ''}${p.liberado_em ? ` · ${p.status === 'recusado' ? 'recusado' : 'liberado'} em ${fmtDataHora(p.liberado_em)} por ${p.liberador_nome ?? ''}` : ''}`} largura="max-w-4xl">
+    <Modal guia={GUIAS.pedido} fundo="" open onClose={onClose} titulo={<span className="inline-flex flex-wrap items-center gap-3">Pedido nº {p.numero} <Selo status={p.status} /></span>} descricao={`Criado em ${fmtDataHora(p.criado_em)}${p.enviado_em ? ` · enviado em ${fmtDataHora(p.enviado_em)}` : ''}${p.liberado_em ? ` · ${p.status === 'recusado' ? 'recusado' : 'liberado'} em ${fmtDataHora(p.liberado_em)} por ${p.liberador_nome ?? ''}` : ''}`} largura="max-w-6xl">
       <div className="space-y-4">
         <Erro msg={erro} />
         <div className="grid gap-3 rounded-xl border border-gray-200 p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-gray-700">
@@ -124,14 +124,15 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           {itensQ.isLoading ? <p className="inline-flex items-center gap-2 px-4 py-3 text-[12px] text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[12.5px]">
-                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="px-4 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Solicitado</th><th className="px-2 py-1.5 text-right font-semibold">Liberado</th><th className="px-2 py-1.5 text-right font-semibold">Custo un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
+                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="w-20 py-1.5 pl-4 pr-2 text-left font-semibold">Código</th><th className="px-2 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Solicitado</th><th className="px-2 py-1.5 text-right font-semibold">Liberado</th><th className="px-2 py-1.5 text-right font-semibold">Custo un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {itens.map((i: ItemRow) => {
                     const lib = liberando ? (Number((liberadas[i.id] ?? '').replace(',', '.')) || 0) : i.qtd_liberada
                     const cortado = lib != null && lib < i.qtd_solicitada
                     return (
                       <tr key={i.id} className={cn(lib === 0 && 'opacity-60')}>
-                        <td className="px-4 py-1.5"><p className="font-medium text-gray-900 dark:text-gray-100">{nomeProprio(i.produto_nome)}</p>{i.justificativa && <p className="text-[10.5px] text-gray-400">{i.justificativa}</p>}</td>
+                        <td className="py-1.5 pl-4 pr-2 align-top tabular-nums text-gray-500 dark:text-gray-400">{i.produto_codigo}</td>
+                        <td className="px-2 py-1.5"><p className="font-medium text-gray-900 dark:text-gray-100">{nomeProprio(i.produto_nome)}</p>{i.justificativa && <p className="text-[10.5px] text-gray-400">{i.justificativa}</p>}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{qtdFmt(i.qtd_solicitada)}{i.unidade ? <span className="text-[10px] text-gray-400"> {i.unidade.toLowerCase()}</span> : null}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
                           {liberando ? <input inputMode="decimal" value={liberadas[i.id] ?? ''} onChange={(e) => setLiberadas({ ...liberadas, [i.id]: e.target.value })} className={cn(inputCls, 'h-8 w-20 px-2 text-right tabular-nums')} />
