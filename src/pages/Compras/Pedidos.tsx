@@ -20,7 +20,7 @@ type Aba = EtapaPedido | 'todos'
 const ABAS: { id: Aba; label: string }[] = [
   { id: 'aguardando', label: 'Aguardando liberação' },
   { id: 'entrega', label: 'Aguardando entrega' },
-  { id: 'conferencia', label: 'Em conferência' },
+  { id: 'conferencia', label: 'Aguardando lançamento' },
   { id: 'concluido', label: 'Concluídos' },
   { id: 'rascunho', label: 'Rascunhos' },
   { id: 'encerrado', label: 'Recusados e cancelados' },
@@ -181,7 +181,7 @@ const Pedidos = () => {
               {a.label} <span className={cn('rounded-full px-1.5 text-[10px] tabular-nums', aba === a.id ? 'bg-[#1e3a5f]/10 dark:bg-blue-400/20' : 'bg-gray-100 dark:bg-gray-800')}>{contagem(a.id)}</span>
             </button>
           ))}
-          <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400"><AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} /> Clique num pedido para abrir <InfoHint text="Aguardando liberação: pedido novo, na fila de quem libera. Aguardando entrega: liberado, a mercadoria ainda não chegou. Em conferência: a nota chegou (NotaOK) e ainda não foi lançada no ERP, ou falta chegar parte do pedido. Concluídos: todas as notas lançadas no ERP (ou recebido à mão, sem nota). Rascunho: salvo mas ainda não enviado; abra e clique em “Enviar para liberação”. Recusado e cancelado: encerrados sem compra." /></span>
+          <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400"><AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} /> Clique num pedido para abrir <InfoHint text="Aguardando liberação: pedido novo, na fila de quem libera. Aguardando entrega: liberado, a mercadoria ainda não chegou. Aguardando lançamento: a mercadoria chegou e a nota está no NotaOK, mas ainda não foi lançada no ERP (ou falta chegar parte do pedido). Concluídos: todas as notas lançadas no ERP (ou recebido à mão, sem nota). Rascunho: salvo mas ainda não enviado; abra e clique em “Enviar para liberação”. Recusado e cancelado: encerrados sem compra." /></span>
         </div>
         {carregando ? (
           <p className="inline-flex items-center gap-2 px-5 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando pedidos…</p>

@@ -341,7 +341,7 @@ export const encerrarRecebimento = async (p: PedidoRow, autor: Autor, motivo?: s
 // ─── Notas fiscais vinculadas pelo NotaOK (docs/supabase-compras-notas.sql) ──
 export type SituacaoNota = 'vinculada' | 'conferida' | 'lancada' | 'devolvida'
 export const SITUACAO_NOTA_LABEL: Record<SituacaoNota, string> = {
-  vinculada: 'Em conferência', conferida: 'Conferida', lancada: 'Lançada no ERP', devolvida: 'Devolvida p/ correção',
+  vinculada: 'Conferindo no NotaOK', conferida: 'Conferida no NotaOK', lancada: 'Lançada no ERP', devolvida: 'Devolvida no NotaOK',
 }
 export interface PedidoNotaRow {
   id: string

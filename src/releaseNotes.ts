@@ -45,7 +45,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         icone: 'relatorio',
         titulo: 'Lista de pedidos por prioridade',
-        descricao: 'Uma aba para cada etapa: aguardando liberação, aguardando entrega, em conferência e concluídos. A coluna Nota mostra em que pé está a nota de cada pedido, e cada coluna tem filtro, como no Excel.',
+        descricao: 'Uma aba para cada etapa: aguardando liberação, aguardando entrega, aguardando lançamento e concluídos. A coluna Nota mostra em que pé está a nota de cada pedido, e cada coluna tem filtro, como no Excel.',
       },
       {
         icone: 'apps',
