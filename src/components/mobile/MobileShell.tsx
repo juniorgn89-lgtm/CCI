@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight, Bug } from 'lucide-react'
+import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight, Bug, Bell } from 'lucide-react'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
@@ -163,6 +163,17 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             >
               <Settings className="h-5 w-5 shrink-0 text-gray-500" />
               <span className="flex-1 text-left">Parâmetros</span>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </button>
+
+            {/* Atalho para ligar os avisos no celular (seção #avisos das Configurações). */}
+            <button
+              type="button"
+              onClick={() => go('/configuracoes#avisos')}
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+            >
+              <Bell className="h-5 w-5 shrink-0 text-gray-500" />
+              <span className="flex-1 text-left">Avisos no celular</span>
               <ChevronRight className="h-4 w-4 text-gray-400" />
             </button>
 

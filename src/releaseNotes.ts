@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.20',
+    data: '2026-11-23',
+    resumo: 'Atalho para os avisos no celular e telas de configuração melhores no celular.',
+    itens: [
+      {
+        icone: 'mobile',
+        titulo: 'Avisos no celular mais fáceis de achar',
+        descricao: 'Toque no seu nome no topo do app e em “Avisos no celular” para ligar os avisos neste aparelho e escolher o que quer receber.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Configuração no celular sem escorregar',
+        descricao: 'A aba escolhida fica à vista ao trocar de tela, e tabelas largas rolam dentro da própria caixa, sem empurrar a página para o lado.',
+      },
+    ],
+  },
+  {
     versao: '1.2.19',
     data: '2026-11-23',
     resumo: 'O Visor agora avisa no celular quando você precisa agir.',

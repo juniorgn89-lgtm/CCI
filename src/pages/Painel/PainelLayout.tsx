@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Outlet, Link, NavLink, Navigate, useLocation } from 'react-router-dom'
 import {
   Network, Users, User, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard, Inbox,
@@ -64,6 +65,13 @@ const PainelLayout = () => {
   const profileLoaded = useAuthStore((s) => s.profileLoaded)
   const rede = useTenantStore((s) => s.rede)
   const redeNome = useRedeNomeExibicao(rede?.nome)
+  // Celular: a fila de abas rola na horizontal; ao trocar de tela, traz a aba
+  // escolhida para a frente (antes voltava sempre para a primeira).
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const ativa = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')
+    ativa?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [pathname, profileLoaded])
 
   // ESPERA o perfil carregar antes de avaliar a trava. Sem isso, em F5/link-direto
   // o guard rodava com os defaults (isMaster=false, acessoTodas=false) porque o
@@ -89,7 +97,7 @@ const PainelLayout = () => {
   const grupoAtivo = grupos.find((g) => g.itens.some((i) => ativo(i.to))) ?? null
 
   return (
-    <div className="mx-auto max-w-none space-y-5">
+    <div className="mx-auto min-w-0 max-w-none space-y-5">
       {/* Marca + rede conectada (conforme handoff). No CELULAR fica oculto: o
           MobileShell já mostra a marca Visor360 no topo — senão duplica feio. */}
       <header className="hidden items-center justify-between gap-3 sm:flex">
@@ -114,6 +122,7 @@ const PainelLayout = () => {
 
       {/* Grupos (pills, rolam na horizontal). Cada pill leva à 1ª tela do grupo. */}
       <nav
+        ref={navRef}
         aria-label="Módulos"
         className="flex gap-[7px] overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
@@ -136,7 +145,7 @@ const PainelLayout = () => {
       {/* Sub-abas do grupo ativo (só quando o grupo tem mais de uma tela). */}
       {grupoAtivo && grupoAtivo.itens.length > 1 && (
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]">
+          <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-0.5 [scrollbar-width:none] dark:border-gray-700 dark:bg-[#0f0f0f]">
             {grupoAtivo.itens.map((i) => (
               <NavLink
                 key={i.to}
@@ -157,8 +166,11 @@ const PainelLayout = () => {
         </div>
       )}
 
-      {/* Conteúdo da tela ativa */}
-      <Outlet />
+      {/* Conteúdo da tela ativa. Tabela larga rola DENTRO desta caixa: no celular
+          a página inteira não pode escorregar para o lado. */}
+      <div className="min-w-0 max-w-full overflow-x-auto">
+        <Outlet />
+      </div>
     </div>
   )
 }
