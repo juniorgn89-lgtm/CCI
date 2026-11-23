@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.18',
+    data: '2026-11-23',
+    resumo: 'Apagar várias tarefas de uma vez.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Apagar tarefas em massa',
+        descricao: 'Na lista de Tarefas, supervisores e diretores marcam várias tarefas (ou todas da lista) e apagam de uma vez. Só conta o que está aparecendo com os filtros atuais.',
+      },
+    ],
+  },
+  {
     versao: '1.2.17',
     data: '2026-11-23',
     resumo: 'Na conveniência, o Visor mostra só o que é da loja.',

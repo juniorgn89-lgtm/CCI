@@ -4,8 +4,7 @@ import { useTenantStore } from '@/store/tenant'
 import { useRedePostos } from '@/pages/Rede/hooks/useRedePostos'
 import {
   fetchSetores, fetchUsuariosDaRede, fetchAnexos, RECORRENCIA_LABEL, DIAS_SEMANA, MESES_CURTOS,
-  type SetorRow, type UsuarioRede, type RotinaRow,
-} from '@/api/supabase/gestaoTarefas'
+  type SetorRow, type UsuarioRede, type RotinaRow, fetchMeuPapel } from '@/api/supabase/gestaoTarefas'
 
 /* Peças compartilhadas pelas telas de Gestão (Tarefas, Rotinas, Painel). */
 
@@ -42,6 +41,7 @@ export const useGestaoBase = () => {
     enabled: !!redeId,
   })
   const { postos } = useRedePostos()
+  const papel = useQuery({ queryKey: ['gestao-meu-papel', user?.id], queryFn: fetchMeuPapel, enabled: !!user?.id && !isMaster, staleTime: 10 * 60 * 1000 })
 
   // Quem está logado se vê como "Você" — bate o olho e sabe o que é seu.
   const nomeUsuario = (id: string | null | undefined) =>
@@ -61,6 +61,8 @@ export const useGestaoBase = () => {
     autor: { userId: user?.id ?? '', nome: fullName || user?.email || 'Usuário' },
     // Decisão 15/10: só gestor (profiles.pode_gerir_tarefas) e diretor (master) criam.
     podeGerir: isMaster || canGerirTarefas,
+    /** Apagar várias de uma vez: só supervisor (que gere tarefas) e diretor. */
+    podeApagarEmMassa: isMaster || (canGerirTarefas && papel.data === 'supervisor'),
     profileLoaded,
     usuarios: (usuarios.data ?? []) as UsuarioRede[],
     setores: (setores.data ?? []) as SetorRow[],

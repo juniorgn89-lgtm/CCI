@@ -6,12 +6,12 @@ import {
   ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal,
 } from 'lucide-react'
 import {
-  fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, estaAtrasada,
+  fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, excluirTarefas, estaAtrasada,
   exigeAnexo, anexosFaltando, STATUS_LABEL, ATIVIDADE_VERBO, PRIORIDADE_LABEL, PRIORIDADE_PESO,
   type TarefaRow, type TarefaStatus, type ChecklistItem, type TarefaInput, type Prioridade,
 } from '@/api/supabase/gestaoTarefas'
 import { useGestaoBase, useAnexosTarefa, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, fmtDataHora, fmtData, fmtPrazo, hojeLocal, somaDias } from './comum'
-import { Modal, ModalRodape, Erro, Segmentos } from './comumUi'
+import { Modal, ModalRodape, Erro, Segmentos, ConfirmaAcao } from './comumUi'
 import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
@@ -153,6 +153,9 @@ const Tarefas = () => {
     })
   }, [todas, filtro, hoje])
 
+  // Seleção para apagar várias (hooks antes do return antecipado).
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const [apagandoMassa, setApagandoMassa] = useState<'confirmar' | 'rodando' | null>(null)
   if (!base.redeId) return <div className="p-6 text-sm text-gray-500">Selecione uma rede para ver as tarefas.</div>
 
   const invalidar = (tarefaId?: string) => {
@@ -183,6 +186,20 @@ const Tarefas = () => {
       invalidar()
     } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
   }
+  // Seleção para apagar várias (supervisor e acima).
+  // Só conta o que está na lista agora (trocar o filtro não apaga escondida).
+  const selVis = lista.filter((t) => selecionadas.has(t.id))
+  const alternar = (id: string) => setSelecionadas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const apagarSelecionadas = async () => {
+    setErro(null); setApagandoMassa('rodando')
+    try {
+      await excluirTarefas(selVis.map((t) => t.id))
+      setSelecionadas(new Set())
+      setApagandoMassa(null)
+      invalidar()
+    } catch (e) { setErro(e instanceof Error ? e.message : String(e)); setApagandoMassa('confirmar') }
+  }
+
   const voltarAtras = async () => {
     if (!desfazer) return
     const { t, anterior } = desfazer
@@ -275,6 +292,21 @@ const Tarefas = () => {
       )}
       {visao === 'agenda' && <Agenda ctx={{ redeId: base.redeId, nomePosto: base.nomePosto, nomeUsuario: base.nomeUsuario }} filtro={filtro} onAbrir={setDetalhe} />}
 
+      {visao === 'lista' && base.podeApagarEmMassa && selVis.length > 0 && (
+        apagandoMassa ? (
+          <ConfirmaAcao perigo titulo={`Apagar ${selVis.length} ${selVis.length === 1 ? 'tarefa' : 'tarefas'} de vez?`}
+            texto="Some a tarefa com o checklist, os anexos e o histórico. Não dá para desfazer. Para só tirar do caminho, use Cancelar dentro da tarefa."
+            rotulo={`Apagar ${selVis.length}`} ocupado={apagandoMassa === 'rodando'}
+            onVoltar={() => setApagandoMassa(null)} onConfirmar={apagarSelecionadas} />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-[13px] text-red-900 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-100">
+            <span className="font-semibold">{selVis.length} {selVis.length === 1 ? 'tarefa selecionada' : 'tarefas selecionadas'}</span>
+            <button type="button" onClick={() => setSelecionadas(new Set())} className="text-[12px] text-red-700 underline-offset-2 hover:underline dark:text-red-300">Limpar seleção</button>
+            <button type="button" onClick={() => setApagandoMassa('confirmar')} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-[12.5px] font-semibold text-white hover:bg-red-700"><Trash2 className="h-4 w-4" /> Apagar selecionadas</button>
+          </div>
+        )
+      )}
+
       {visao === 'lista' && <div className={cn(containerCls, 'overflow-hidden')}>
         {tarefas.isLoading ? (
           <div className="flex items-center gap-2 p-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando tarefas…</div>
@@ -324,6 +356,14 @@ const Tarefas = () => {
               <table className="w-full text-sm">
                 <thead className="border-b border-gray-100 bg-gray-50/50 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                   <tr className="text-left">
+                    {base.podeApagarEmMassa && (
+                      <th className="w-10 py-2.5 pl-4">
+                        <input type="checkbox" aria-label="Selecionar todas as tarefas da lista" className="h-4 w-4 cursor-pointer accent-red-600"
+                          checked={lista.length > 0 && lista.every((t) => selecionadas.has(t.id))}
+                          ref={(el) => { if (el) el.indeterminate = lista.some((t) => selecionadas.has(t.id)) && !lista.every((t) => selecionadas.has(t.id)) }}
+                          onChange={(e) => setSelecionadas(e.target.checked ? new Set(lista.map((t) => t.id)) : new Set())} />
+                      </th>
+                    )}
                     <HeaderHint align="left" className="px-4 font-semibold" label="Status" help="A fazer: ninguém começou. Em andamento: alguém começou (marcar a primeira etapa do checklist já faz isso). Atrasada: aberta e passou do prazo. Concluída e Cancelada fecham a tarefa; Reabrir volta para A fazer." />
                     <th className="px-3 py-2.5 font-semibold">Tarefa</th>
                     <th className="px-3 py-2.5 font-semibold">Posto</th>
@@ -340,7 +380,12 @@ const Tarefas = () => {
                     const posto = base.nomePosto(t.empresa_codigo)
                     const setor = base.nomeSetor(t.setor_id)
                     return (
-                      <tr key={t.id} onClick={() => setDetalhe(t)} className="cursor-pointer text-gray-800 hover:bg-gray-50/60 dark:text-gray-200 dark:hover:bg-gray-800/30">
+                      <tr key={t.id} onClick={() => setDetalhe(t)} className={cn('cursor-pointer text-gray-800 hover:bg-gray-50/60 dark:text-gray-200 dark:hover:bg-gray-800/30', selecionadas.has(t.id) && 'bg-red-50/50 dark:bg-red-950/20')}>
+                        {base.podeApagarEmMassa && (
+                          <td className="py-3 pl-4" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" aria-label={`Selecionar ${t.titulo}`} className="h-4 w-4 cursor-pointer accent-red-600" checked={selecionadas.has(t.id)} onChange={() => alternar(t.id)} />
+                          </td>
+                        )}
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>
                             <span className={cn('h-1.5 w-1.5 rounded-full', atrasada ? 'bg-red-500' : STATUS_DOT[t.status])} />

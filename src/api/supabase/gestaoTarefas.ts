@@ -487,6 +487,36 @@ export const excluirTarefa = async (t: TarefaRow) => {
   if (!data?.length) throw new Error('Nada foi excluído: só gestor ou diretor podem excluir tarefas.')
 }
 
+/**
+ * Exclui várias tarefas de uma vez (supervisor/diretor; a RLS de delete ainda
+ * exige gestor). Remove os arquivos do bucket antes. Devolve quantas saíram.
+ */
+export const excluirTarefas = async (ids: string[]): Promise<number> => {
+  if (!ids.length) return 0
+  const sb = need()
+  let apagadas = 0
+  for (let i = 0; i < ids.length; i += 100) {
+    const lote = ids.slice(i, i + 100)
+    const { data: anexos } = await sb.from('gestao_anexos').select('path').in('tarefa_id', lote)
+    const paths = ((anexos as { path: string }[] | null) ?? []).map((a) => a.path)
+    if (paths.length) await sb.storage.from(BUCKET).remove(paths).catch(() => undefined)
+    const { data, error } = await sb.from('gestao_tarefas').delete().in('id', lote).select('id')
+    if (error) throw erro(error)
+    apagadas += data?.length ?? 0
+  }
+  if (!apagadas) throw new Error('Nada foi excluído: só gestor ou diretor podem excluir tarefas.')
+  return apagadas
+}
+
+/** Papel do usuário logado (profiles.role). */
+export const fetchMeuPapel = async (): Promise<string | null> => {
+  const sb = need()
+  const { data: u } = await sb.auth.getUser()
+  if (!u.user) return null
+  const { data } = await sb.from('profiles').select('role').eq('user_id', u.user.id).maybeSingle()
+  return (data as { role?: string } | null)?.role ?? null
+}
+
 export const salvarChecklist = async (t: TarefaRow, checklist: ChecklistItem[], autor: Autor) => {
   const feitos = checklist.filter((c) => c.feito).length
   const inicia = t.status === 'a_fazer' && feitos > 0
