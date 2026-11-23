@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.16',
+    data: '2026-11-23',
+    resumo: 'Pedido liberado com erro? Agora dá para desfazer a liberação, e cancelar sempre pede o motivo.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Desfazer liberação ou recebimento, e cancelar com motivo',
+        descricao: 'Supervisores podem desfazer a liberação de um pedido (ele volta para a fila, pronto para corrigir) e desfazer um recebimento marcado por engano, sempre com motivo. Pedido liberado não se cancela direto, e todo cancelamento pede o motivo.',
+      },
+    ],
+  },
+  {
     versao: '1.2.15',
     data: '2026-11-21',
     resumo: 'Pedido de compra mais fácil de montar e ligado às notas que chegam.',

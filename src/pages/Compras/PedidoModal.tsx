@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, PackageCheck, MessageCircle, Copy, AlertTriangle, FileCheck2, Receipt, Flag } from 'lucide-react'
+import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, Undo2, PackageCheck, MessageCircle, Copy, AlertTriangle, FileCheck2, Receipt, Flag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { fetchTitulosPagar } from '@/api/endpoints/financeiro'
@@ -13,7 +13,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import type { ReportPayload } from '@/lib/report/reportTypes'
 import { Modal, ModalRodape, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
 import {
-  SETOR_LABEL, STATUS_LABEL, EVENTO_VERBO, fetchItensDoPedido, fetchEventos, enviarPedido, liberarPedido, recusarPedido, cancelarPedido, reabrirPedido, marcarRecebido, excluirRascunho, comentarPedido,
+  SETOR_LABEL, STATUS_LABEL, EVENTO_VERBO, fetchItensDoPedido, fetchEventos, enviarPedido, liberarPedido, recusarPedido, cancelarPedido, desfazerLiberacao, desfazerRecebimento, reabrirPedido, marcarRecebido, excluirRascunho, comentarPedido,
   type ItemRow, type PedidoRow, type TetoRow,
   encerrarRecebimento, fetchNotasDoPedido, SITUACAO_NOTA_LABEL, type PedidoNotaRow,
 } from '@/api/supabase/compras'
@@ -30,6 +30,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
   const itens = itensQ.data ?? []
   const souSolicitante = !!base.userId && p.solicitante_id === base.userId
   const podeLiberar = base.podeLiberar
+  const podeDesfazer = base.podeDesfazer
   const [erro, setErro] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [liberando, setLiberando] = useState(false)
@@ -39,7 +40,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
   const [motivo, setMotivo] = useState('')
   const [comentario, setComentario] = useState('')
   const [copiado, setCopiado] = useState(false)
-  const [confirma, setConfirma] = useState<'excluir' | 'cancelar' | 'encerrar' | null>(null)
+  const [confirma, setConfirma] = useState<'excluir' | 'cancelar' | 'encerrar' | 'desfazer' | 'desfazerReceb' | null>(null)
 
   // Nota lançada no ERP depois da liberação, do mesmo fornecedor e posto.
   const liberado = p.status === 'liberado' || p.status === 'liberado_parcial' || p.status === 'recebido_parcial' || p.status === 'recebido'
@@ -228,8 +229,14 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           <ConfirmaAcao perigo titulo={`Excluir o rascunho nº ${p.numero}?`} texto="Ele some da lista. Não dá para desfazer." rotulo="Excluir rascunho" ocupado={ocupado === 'excluir'}
             onVoltar={() => setConfirma(null)} onConfirmar={() => rodar('excluir', async () => { await excluirRascunho(p); onClose() })} />
         ) : confirma === 'cancelar' ? (
-          <ConfirmaAcao perigo comMotivo placeholder="Motivo do cancelamento (opcional, fica no histórico)" titulo={`Cancelar o pedido nº ${p.numero}?`} texto={p.status === 'aguardando' ? 'Ele sai da fila de liberação.' : 'Ele já foi liberado: avise o fornecedor se o pedido já foi mandado.'} rotulo="Cancelar pedido" ocupado={ocupado === 'cancelar'}
+          <ConfirmaAcao perigo comMotivo motivoObrigatorio placeholder="Por que está cancelando? (obrigatório, fica no histórico)" titulo={`Cancelar o pedido nº ${p.numero}?`} texto="Ele sai da fila de liberação e não pode ser reaberto." rotulo="Cancelar pedido" ocupado={ocupado === 'cancelar'}
             onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('cancelar', async () => { await cancelarPedido(p, m, base.autor); setConfirma(null) })} />
+        ) : confirma === 'desfazer' ? (
+          <ConfirmaAcao comMotivo motivoObrigatorio placeholder="O que está errado no pedido? (obrigatório, fica no histórico)" titulo={`Desfazer a liberação do pedido nº ${p.numero}?`} texto="Ele volta para Aguardando liberação: dá para editar, liberar de novo ou cancelar. O valor sai do teto do mês. Se o pedido já foi mandado ao fornecedor, avise-o." rotulo="Desfazer liberação" ocupado={ocupado === 'desfazer'}
+            onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('desfazer', async () => { await desfazerLiberacao(p, m ?? '', base.autor); setConfirma(null) })} />
+        ) : confirma === 'desfazerReceb' ? (
+          <ConfirmaAcao comMotivo motivoObrigatorio placeholder="Por que o recebimento está sendo desfeito? (obrigatório, fica no histórico)" titulo={`Desfazer o recebimento do pedido nº ${p.numero}?`} texto="Ele volta para Liberado (aguardando entrega). Use quando marcaram como recebido por engano." rotulo="Desfazer recebimento" ocupado={ocupado === 'desfazerReceb'}
+            onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('desfazerReceb', async () => { await desfazerRecebimento(p, m ?? '', base.autor); setConfirma(null) })} />
         ) : confirma === 'encerrar' ? (
           <ConfirmaAcao comMotivo placeholder="Motivo (opcional, fica no histórico). Ex.: fornecedor sem estoque do resto" titulo={`Encerrar o recebimento do pedido nº ${p.numero}?`} texto="O pedido passa a Recebido com as notas que chegaram até agora." rotulo="Encerrar recebimento" ocupado={ocupado === 'encerrar'}
             onVoltar={() => setConfirma(null)} onConfirmar={(m) => rodar('encerrar', async () => { await encerrarRecebimento(p, base.autor, m); setConfirma(null) })} />
@@ -243,7 +250,16 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           {(souSolicitante || podeLiberar) && (p.status === 'rascunho' || p.status === 'aguardando') && <button type="button" onClick={onEditar} className={btnGhost}><Pencil className="h-4 w-4" /> Editar</button>}
           {souSolicitante && p.status === 'rascunho' && <button type="button" onClick={() => rodar('enviar', () => enviarPedido(p, base.autor))} disabled={!!ocupado} className={btnPrimary}><Send className="h-4 w-4" /> Enviar para liberação</button>}
           {(souSolicitante || podeLiberar) && p.status === 'rascunho' && <button type="button" onClick={() => setConfirma('excluir')} disabled={!!ocupado} className={cn(btnGhost, 'text-red-600 dark:text-red-400')}><Trash2 className="h-4 w-4" /> Excluir</button>}
-          {(souSolicitante || podeLiberar) && (p.status === 'aguardando' || p.status === 'liberado' || p.status === 'liberado_parcial') && <button type="button" onClick={() => setConfirma('cancelar')} disabled={!!ocupado} className={cn(btnGhost, 'text-red-600 dark:text-red-400')}><X className="h-4 w-4" /> Cancelar pedido</button>}
+          {podeDesfazer && p.status === 'recebido' && nfs.length === 0 && <button type="button" onClick={() => setConfirma('desfazerReceb')} disabled={!!ocupado || nfsQ.isLoading} className={btnGhost}><Undo2 className="h-4 w-4" /> Desfazer recebimento</button>}
+          {podeDesfazer && (p.status === 'liberado' || p.status === 'liberado_parcial') && nfs.length === 0 && <button type="button" onClick={() => setConfirma('desfazer')} disabled={!!ocupado || nfsQ.isLoading} className={btnGhost}><Undo2 className="h-4 w-4" /> Desfazer liberação</button>}
+          {/* Liberado: cancelar exige desfazer a liberação antes (só quem libera). Botão travado explica o porquê. */}
+          {podeDesfazer && (p.status === 'liberado' || p.status === 'liberado_parcial') && nfs.length > 0 && (
+            <BalaoAcao texto="Este pedido já tem nota ligada pelo NotaOK. Para desfazer a liberação, tire a nota do pedido no NotaOK antes."><button type="button" disabled className={cn(btnGhost, 'opacity-50')}><Undo2 className="h-4 w-4" /> Desfazer liberação</button></BalaoAcao>
+          )}
+          {!podeDesfazer && (souSolicitante || podeLiberar) && (p.status === 'liberado' || p.status === 'liberado_parcial') && (
+            <BalaoAcao texto="O pedido já foi liberado. Para cancelar, um supervisor precisa primeiro desfazer a liberação."><button type="button" disabled className={cn(btnGhost, 'text-red-600 opacity-50 dark:text-red-400')}><X className="h-4 w-4" /> Cancelar pedido</button></BalaoAcao>
+          )}
+          {(souSolicitante || podeLiberar) && p.status === 'aguardando' && <button type="button" onClick={() => setConfirma('cancelar')} disabled={!!ocupado} className={cn(btnGhost, 'text-red-600 dark:text-red-400')}><X className="h-4 w-4" /> Cancelar pedido</button>}
           {(souSolicitante || podeLiberar) && (p.status === 'liberado' || p.status === 'liberado_parcial') && <button type="button" onClick={() => rodar('receber', () => marcarRecebido(p, base.autor))} disabled={!!ocupado} className={btnPrimary}><PackageCheck className="h-4 w-4" /> Marcar como recebido</button>}
           {(souSolicitante || podeLiberar) && p.status === 'recebido_parcial' && <button type="button" onClick={() => setConfirma('encerrar')} disabled={!!ocupado} className={btnGhost}><Flag className="h-4 w-4" /> Encerrar recebimento</button>}
           {(souSolicitante || podeLiberar) && p.status === 'recusado' && <button type="button" onClick={() => rodar('reabrir', () => reabrirPedido(p, base.autor))} disabled={!!ocupado} className={btnGhost}><RotateCcw className="h-4 w-4" /> Reabrir como rascunho</button>}

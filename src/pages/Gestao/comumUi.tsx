@@ -47,19 +47,22 @@ export const ModalRodape = ({ children, className }: { children: React.ReactNode
  * `comMotivo` mostra um campo de texto opcional que vai para onConfirmar.
  */
 export const ConfirmaAcao = ({
-  titulo, texto, rotulo, perigo = false, comMotivo = false, placeholder = 'Motivo (opcional)', ocupado = false, onConfirmar, onVoltar,
+  titulo, texto, rotulo, perigo = false, comMotivo = false, motivoObrigatorio = false, placeholder = 'Motivo (opcional)', ocupado = false, onConfirmar, onVoltar,
 }: {
   titulo: React.ReactNode
   texto?: React.ReactNode
   rotulo: string
   perigo?: boolean
   comMotivo?: boolean
+  /** Só confirma com o motivo preenchido (mínimo 10 letras, para não virar "ok"). */
+  motivoObrigatorio?: boolean
   placeholder?: string
   ocupado?: boolean
   onConfirmar: (motivo: string | null) => void
   onVoltar: () => void
 }) => {
   const [motivo, setMotivo] = useState('')
+  const faltaMotivo = comMotivo && motivoObrigatorio && motivo.trim().length < 10
   return (
     <div className={cn('w-full rounded-lg border px-3 py-2.5', perigo ? 'border-red-200 bg-red-50/70 dark:border-red-900/50 dark:bg-red-950/20' : 'border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] dark:border-blue-400/30 dark:bg-blue-400/10')}>
       <p className={cn('text-[13px] font-semibold', perigo ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-gray-100')}>{titulo}</p>
@@ -70,7 +73,8 @@ export const ConfirmaAcao = ({
       )}
       <div className="mt-2 flex flex-wrap justify-end gap-2">
         <button type="button" onClick={onVoltar} disabled={ocupado} className="inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">Voltar</button>
-        <button type="button" autoFocus={!comMotivo} onClick={() => onConfirmar(motivo.trim() || null)} disabled={ocupado}
+        {faltaMotivo && <span className="mr-auto self-center text-[11.5px] text-gray-500 dark:text-gray-400">Escreva o motivo para continuar.</span>}
+        <button type="button" autoFocus={!comMotivo} onClick={() => onConfirmar(motivo.trim() || null)} disabled={ocupado || faltaMotivo}
           className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold text-white disabled:opacity-60', perigo ? 'bg-red-600 hover:bg-red-700' : 'bg-[#1e3a5f] hover:bg-[#162d4a] dark:bg-[#2563eb] dark:hover:bg-blue-500')}>
           {ocupado && <Loader2 className="h-4 w-4 animate-spin" />} {rotulo}
         </button>

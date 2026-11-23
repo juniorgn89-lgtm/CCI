@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 export type SetorCompra = 'conveniencia' | 'automotivos' | 'combustivel' | 'outros'
 export type StatusPedido = 'rascunho' | 'aguardando' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido_parcial' | 'recebido' | 'cancelado'
 export type TipoEvento = 'criado' | 'editado' | 'enviado' | 'liberado' | 'liberado_parcial' | 'recusado' | 'recebido' | 'cancelado' | 'reaberto' | 'comentario'
-  | 'nota_vinculada' | 'nota_desvinculada' | 'recebimento_encerrado' | 'nota_devolvida'
+  | 'nota_vinculada' | 'nota_desvinculada' | 'recebimento_encerrado' | 'nota_devolvida' | 'liberacao_desfeita' | 'recebimento_desfeito'
 
 export const SETOR_LABEL: Record<SetorCompra, string> = { conveniencia: 'Conveniência', automotivos: 'Automotivos', combustivel: 'Combustível', outros: 'Outros' }
 export const STATUS_LABEL: Record<StatusPedido, string> = {
@@ -31,7 +31,7 @@ export const STATUS_META: Record<StatusPedido, { cls: string; dot: string }> = {
 export const EVENTO_VERBO: Record<TipoEvento, string> = {
   criado: 'criou o pedido', editado: 'editou o pedido', enviado: 'enviou para liberação', liberado: 'liberou', liberado_parcial: 'liberou parcialmente',
   recusado: 'recusou', recebido: 'marcou como recebido', cancelado: 'cancelou', reaberto: 'reabriu como rascunho', comentario: 'comentou',
-  nota_vinculada: 'recebeu a nota', nota_desvinculada: 'tirou a nota do pedido', recebimento_encerrado: 'encerrou o recebimento', nota_devolvida: 'devolveu a nota para correção',
+  nota_vinculada: 'recebeu a nota', nota_desvinculada: 'tirou a nota do pedido', recebimento_encerrado: 'encerrou o recebimento', nota_devolvida: 'devolveu a nota para correção', liberacao_desfeita: 'desfez a liberação', recebimento_desfeito: 'desfez o recebimento',
 }
 /** Liberado e ainda sem nota, ou já com parte das notas: conta no teto do mês. */
 export const STATUS_LIBERADOS: StatusPedido[] = ['liberado', 'liberado_parcial', 'recebido_parcial', 'recebido']
@@ -296,9 +296,44 @@ export const recusarPedido = async (p: PedidoRow, motivo: string, autor: Autor) 
 }
 
 export const cancelarPedido = async (p: PedidoRow, motivo: string | null, autor: Autor) => {
+  if (!motivo?.trim()) throw new Error('Informe o motivo do cancelamento.')
+  if (p.status !== 'aguardando') throw new Error('Só dá para cancelar pedido aguardando liberação. Se já foi liberado, desfaça a liberação antes.')
   const { error } = await need().from('compras_pedidos').update({ status: 'cancelado' }).eq('id', p.id)
   if (error) throw erro(error)
   await evento(p.rede_id, p.id, 'cancelado', autor, motivo)
+}
+
+/**
+ * Volta um pedido liberado para "Aguardando liberação" (quem libera percebeu um
+ * erro): limpa a liberação e as quantidades liberadas, devolve o teto do mês.
+ * Com nota já ligada pelo NotaOK não dá: tire a nota antes.
+ */
+export const desfazerLiberacao = async (p: PedidoRow, motivo: string, autor: Autor) => {
+  if (!motivo.trim()) throw new Error('Informe o motivo.')
+  if (p.status !== 'liberado' && p.status !== 'liberado_parcial') throw new Error('Este pedido não está liberado.')
+  const sb = need()
+  const { error } = await sb.from('compras_pedidos').update({ status: 'aguardando', total_liberado: null, liberador_id: null, liberador_nome: null, liberado_em: null }).eq('id', p.id).in('status', ['liberado', 'liberado_parcial'])
+  if (error) throw erro(error)
+  const { error: eItens } = await sb.from('compras_itens').update({ qtd_liberada: null }).eq('pedido_id', p.id)
+  if (eItens) throw erro(eItens)
+  await evento(p.rede_id, p.id, 'liberacao_desfeita', autor, motivo.trim())
+}
+
+/**
+ * Volta um pedido "Recebido" marcado À MÃO para liberado (com motivo). Se tem
+ * nota ligada pelo NotaOK, não: quem desfaz é o NotaOK (tirando a nota).
+ */
+export const desfazerRecebimento = async (p: PedidoRow, motivo: string, autor: Autor) => {
+  if (!motivo.trim()) throw new Error('Informe o motivo.')
+  if (p.status !== 'recebido') throw new Error('Este pedido não está recebido.')
+  const sb = need()
+  const { count, error: eN } = await sb.from('compras_pedido_notas').select('id', { count: 'exact', head: true }).eq('pedido_id', p.id)
+  if (eN && eN.code !== '42P01' && eN.code !== 'PGRST205') throw erro(eN)
+  if ((count ?? 0) > 0) throw new Error('Este pedido tem nota ligada pelo NotaOK. Tire a nota no NotaOK para desfazer o recebimento.')
+  const volta: StatusPedido = p.total_liberado != null && p.total_liberado < p.total_solicitado - 0.005 ? 'liberado_parcial' : 'liberado'
+  const { error } = await sb.from('compras_pedidos').update({ status: volta, recebido_em: null }).eq('id', p.id).eq('status', 'recebido')
+  if (error) throw erro(error)
+  await evento(p.rede_id, p.id, 'recebimento_desfeito', autor, motivo.trim())
 }
 
 export const reabrirPedido = async (p: PedidoRow, autor: Autor) => {
@@ -316,6 +351,15 @@ export const marcarRecebido = async (p: PedidoRow, autor: Autor, observacao?: st
 export const excluirRascunho = async (p: PedidoRow) => {
   const { error } = await need().from('compras_pedidos').delete().eq('id', p.id)
   if (error) throw erro(error)
+}
+
+/** Papel do usuário logado (profiles.role): "supervisor" desfaz liberação/recebimento. */
+export const fetchPapelCompras = async (): Promise<string | null> => {
+  const sb = need()
+  const { data: u } = await sb.auth.getUser()
+  if (!u.user) return null
+  const { data } = await sb.from('profiles').select('role').eq('user_id', u.user.id).maybeSingle()
+  return (data as { role?: string } | null)?.role ?? null
 }
 
 /** Flag por usuário (profiles.pode_apagar_compras) — limpeza de testes. Não vem do master. */

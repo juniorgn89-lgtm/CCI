@@ -2,7 +2,7 @@ import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useRedePostos } from '@/pages/Rede/hooks/useRedePostos'
 import { useQuery } from '@tanstack/react-query'
-import { fetchPodeApagarCompras, type Autor } from '@/api/supabase/compras'
+import { fetchPodeApagarCompras, fetchPapelCompras, type Autor } from '@/api/supabase/compras'
 
 export { containerCls, labelCls, btnPrimary, btnGhost, fmtDataHora, fmtData } from '@/pages/Gestao/comum'
 import { inputCls as inputBase, btnGhost as ghostBase } from '@/pages/Gestao/comum'
@@ -27,6 +27,7 @@ export const useComprasBase = () => {
   }
   const autor: Autor = { userId: user?.id ?? '', nome: fullName || user?.email || 'Usuário' }
   const apagar = useQuery({ queryKey: ['compras-pode-apagar', user?.id], queryFn: fetchPodeApagarCompras, enabled: !!user?.id, staleTime: 10 * 60_000 })
+  const papel = useQuery({ queryKey: ['compras-papel', user?.id], queryFn: fetchPapelCompras, enabled: !!user?.id && !isMaster, staleTime: 10 * 60_000 })
   return {
     rede,
     redeId: rede?.id ?? null,
@@ -34,6 +35,8 @@ export const useComprasBase = () => {
     userId: user?.id ?? null,
     autor,
     podeLiberar: isMaster || canLiberarCompras,
+    /** Desfazer liberação/recebimento: só supervisor e acima (diretor), e que também libere. O banco confere de novo. */
+    podeDesfazer: isMaster || (canLiberarCompras && papel.data === 'supervisor'),
     /** Apaga pedidos/transferências em qualquer situação (limpeza de testes; flag só de quem administra). */
     podeApagar: apagar.data === true,
     isMaster,
