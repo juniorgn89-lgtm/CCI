@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search, ClipboardList, ShoppingCart, BadgeCheck } from 'lucide-react'
+import { Network, Plus, ArrowLeft, X, Loader2, Edit2, Eye, EyeOff, Trash2, AlertTriangle, Search, ClipboardList, ShoppingCart, BadgeCheck, Building2 } from 'lucide-react'
 import { fetchCciServicosTodas, NOME_SERVICO_CCI } from '@/api/supabase/cciServicos'
 import ServicosCciModal from '@/pages/Admin/ServicosCciModal'
+import PostosRedeModal from '@/pages/Admin/PostosRedeModal'
 import RowActionButton from '@/components/tables/RowAction'
 import {
   fetchRedes,
@@ -38,6 +39,7 @@ const Redes = () => {
     return m
   }, [cciTodas, hojeIso])
   const [servicosRede, setServicosRede] = useState<RedeRow | null>(null)
+  const [postosRede, setPostosRede] = useState<RedeRow | null>(null)
 
   // Gate: só master entra. Filtra por user_id (master vê todos os profiles
   // via RLS, então .single() sem filtro daria erro de múltiplas rows).
@@ -227,6 +229,7 @@ const Redes = () => {
                   onToggleCompras={() => handleToggleCompras(r)}
                   cci={[...(cciResumo.get(r.id) ?? new Map<string, Set<number>>()).entries()].map(([sv, set]) => ({ nome: NOME_SERVICO_CCI[sv] ?? sv, postos: set.size }))}
                   onServicos={() => setServicosRede(r)}
+                  onPostos={() => setPostosRede(r)}
                   onEdit={() => setEditingRede(r)}
                   onDelete={() => setDeletingRede(r)}
                 />
@@ -241,6 +244,7 @@ const Redes = () => {
         Os usuários (gerentes e frentistas) ficam vinculados a uma rede via `rede_id`.
       </p>
 
+      {postosRede && <PostosRedeModal rede={postosRede} onClose={() => setPostosRede(null)} />}
       {servicosRede && <ServicosCciModal redeId={servicosRede.id} redeNome={servicosRede.nome} onClose={() => setServicosRede(null)} />}
 
       {showCreate && (
@@ -290,7 +294,7 @@ const RedeRowComp = ({
   onToggleCompras,
   cci,
   onServicos,
-  onEdit,
+  onPostos, onEdit,
   onDelete,
 }: {
   rede: RedeRow
@@ -301,6 +305,8 @@ const RedeRowComp = ({
   /** Serviços CCI ativos na rede: nome + em quantos postos. */
   cci: { nome: string; postos: number }[]
   onServicos: () => void
+  /** Abre a janela com os postos da rede (lidos do ERP com a chave dela). */
+  onPostos: () => void
   onEdit: () => void
   onDelete: () => void
 }) => {
@@ -309,7 +315,12 @@ const RedeRowComp = ({
 
   return (
     <tr>
-      <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{rede.nome}</td>
+      <td className="px-4 py-3">
+        <button type="button" onClick={onPostos} className="group inline-flex items-center gap-1.5 text-left font-medium text-gray-900 hover:text-[#1e3a5f] dark:text-gray-100 dark:hover:text-blue-300">
+          <span className="group-hover:underline">{rede.nome}</span>
+          <Building2 className="h-3.5 w-3.5 text-gray-300 group-hover:text-[#1e3a5f] dark:text-gray-600 dark:group-hover:text-blue-300" aria-hidden />
+        </button>
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <code className="font-mono text-xs text-gray-700 dark:text-gray-300">{chave}</code>

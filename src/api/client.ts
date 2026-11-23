@@ -32,6 +32,9 @@ client.interceptors.request.use((config) => {
   const chave = rede?.chave ?? (import.meta.env.VITE_API_KEY as string | undefined)
   const baseURL = rede?.api_base_url ?? (import.meta.env.VITE_API_BASE_URL as string | undefined)
 
+  // Chamada que já traz a CHAVE de outra rede (Painel › Redes, só master) segue
+  // com a chave e o endereço dela; o resto usa a rede atual.
+  if ((config.params as { CHAVE?: string } | undefined)?.CHAVE) return config
   if (chave) {
     config.params = { ...config.params, CHAVE: chave }
   }
