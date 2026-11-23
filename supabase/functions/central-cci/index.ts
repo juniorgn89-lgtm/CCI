@@ -237,13 +237,13 @@ Deno.serve(async (req) => {
 
   const gerarLink = async (email: string) => {
     const base = (Deno.env.get('VISOR_URL') || 'https://visor360.cci.app.br').replace(/\/$/, '')
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo: `${base}/redefinir-senha` },
-    })
-    if (error || !data?.properties?.action_link) throw new Error(error?.message ?? 'link não gerado')
-    return { link: data.properties.action_link, expira_em: new Date(Date.now() + LINK_VALIDADE_S * 1000).toISOString() }
+    const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email })
+    const hash = data?.properties?.hashed_token
+    if (error || !hash) throw new Error(error?.message ?? 'link não gerado')
+    // O token vai para a TELA do Visor, que confere (verifyOtp) só quando a pessoa abre:
+    // não depende das URLs liberadas no Supabase e a prévia do WhatsApp não gasta o link.
+    const link = `${base}/redefinir-senha?token_hash=${encodeURIComponent(hash)}&type=recovery`
+    return { link, expira_em: new Date(Date.now() + LINK_VALIDADE_S * 1000).toISOString() }
   }
 
   // ── anti-repetição (só escrita) ──────────────────────────────────────────
