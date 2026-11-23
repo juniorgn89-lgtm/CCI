@@ -12,7 +12,8 @@
 //          (--no-verify-jwt: o cron chama sem login; o usuário é conferido aqui dentro.)
 // Secrets: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY  (npx web-push generate-vapid-keys)
 //          VAPID_SUBJECT (opcional; padrão https://visor360.cci.app.br)
-//          CRON_SECRET (o mesmo do apurar-cron)
+//          NOTIFICACOES_CRON_SECRET (o mesmo valor do <NOTIFICACOES_CRON_SECRET> no SQL do cron).
+//          Se não existir, usa o CRON_SECRET (o do apurar-cron).
 import webpush from 'npm:web-push@3.6.7'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -138,7 +139,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: h })
   if (req.method !== 'POST') return json(405, { erro: 'Use POST.' })
   try {
-    const cron = Deno.env.get('CRON_SECRET')
+    // Segredo próprio dos avisos (não mexe no da apuração); cai no CRON_SECRET se não houver.
+    const cron = Deno.env.get('NOTIFICACOES_CRON_SECRET') || Deno.env.get('CRON_SECRET')
     if (cron && req.headers.get('x-cron-secret') === cron) return json(200, await processar())
 
     // Demais ações: usuário logado (conferido aqui; a função é --no-verify-jwt por causa do cron).

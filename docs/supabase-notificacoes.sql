@@ -18,11 +18,12 @@
 -- Fora dela NADA é enviado; o que acontecer entra no resumo da abertura.
 --
 -- A cada minuto o pg_cron chama a Edge Function `notificacoes` (--no-verify-jwt,
--- protegida por x-cron-secret), que pega a fila já agrupada por pessoa
+-- protegida por x-cron-secret = NOTIFICACOES_CRON_SECRET), que pega a fila já agrupada por pessoa
 -- (notificacao_preparar) e envia.
 --
 -- Rodar no SQL Editor do Visor. Pode rodar mais de uma vez.
--- ANTES de rodar: troque <CRON_SECRET> (no fim) pelo mesmo CRON_SECRET do apurar-cron.
+-- ANTES de rodar: troque <NOTIFICACOES_CRON_SECRET> (no fim) pelo valor do secret
+-- NOTIFICACOES_CRON_SECRET da Edge Function (um segredo só dos avisos; não salve o valor aqui).
 -- ============================================================================
 
 -- ─── Aparelhos inscritos ─────────────────────────────────────────────────────
@@ -371,7 +372,7 @@ select cron.schedule('visor-notificacoes', '* * * * *', $$
   select case when public.visor_notificacoes_pendentes() then
     net.http_post(
       url     := 'https://yzmorbfadoxowchkwspl.supabase.co/functions/v1/notificacoes',
-      headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', '<CRON_SECRET>'),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', '<NOTIFICACOES_CRON_SECRET>'),
       body    := '{"acao":"processar"}'::jsonb,
       timeout_milliseconds := 60000)
   end
