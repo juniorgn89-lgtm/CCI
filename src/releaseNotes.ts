@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.19',
+    data: '2026-11-23',
+    resumo: 'O Visor agora avisa no celular quando você precisa agir.',
+    itens: [
+      {
+        icone: 'mobile',
+        titulo: 'Avisos no celular',
+        descricao: 'Ligue em Configurações › Avisos no celular. Chegam avisos de pedido para liberar, pedido liberado ou recusado, nota do pedido devolvida, tarefa nova e um resumo das pendências de manhã. Cada pessoa escolhe o que quer receber, e o supervisor define os dias e o horário da rede.',
+      },
+    ],
+  },
+  {
     versao: '1.2.18',
     data: '2026-11-23',
     resumo: 'Apagar várias tarefas de uma vez.',

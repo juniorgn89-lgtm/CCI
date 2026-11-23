@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { marcarLoginOk, limparMarcaLogin } from '@/lib/repararApp'
 import { getLoginThrottleStatus, registerLoginFailure, resetLoginThrottle } from '@/lib/loginThrottle'
+import { aoSair as aoSairPush } from '@/lib/push'
 
 /**
  * Hook de auth do gerente — wrapper fino sobre Supabase Auth + auth store.
@@ -101,6 +102,8 @@ export const useAuth = () => {
 
   const logout = useCallback(async () => {
     limparMarcaLogin()
+    // Este aparelho para de receber os avisos de quem saiu (antes do signOut: precisa do login).
+    await aoSairPush()
     if (supabase) await supabase.auth.signOut()
     // Limpa também o legacy flag — defensivo, cobre caso de gerente que ainda
     // tinha sessionStorage do fluxo antigo

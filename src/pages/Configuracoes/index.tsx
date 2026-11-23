@@ -19,6 +19,7 @@ import {
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
 import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
 import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
+import NotificacoesSection from '@/pages/Configuracoes/components/NotificacoesSection'
 import { NovidadesModal } from '@/components/feedback/Novidades'
 import InfoHint from '@/components/ui/InfoHint'
 import { useManutencaoConfigs } from '@/pages/Operacao/hooks/useManutencaoBombas'
@@ -626,6 +627,9 @@ const Configuracoes = () => {
       {/* Personalização do menu — mostrar/ocultar/reordenar módulos e abas +
           preset reversível pelo plano da rede */}
       <PersonalizacaoSection />
+
+      {/* Avisos no celular (Web Push) */}
+      <NotificacoesSection />
 
       {/* Segurança — Alterar senha */}
       <AlterarSenhaCard />

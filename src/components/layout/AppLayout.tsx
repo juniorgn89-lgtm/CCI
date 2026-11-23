@@ -37,6 +37,7 @@ import MobileShell from '@/components/mobile/MobileShell'
 import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
 import { useEscopoSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
+import { sincronizar as sincronizarPush } from '@/lib/push'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -64,6 +65,16 @@ const AppLayout = () => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
+  // Avisos no celular: toque no aviso com o app aberto → vai para a tela certa;
+  // ao abrir logado, regrava a inscrição deste aparelho.
+  const userIdPush = useAuthStore((s) => s.user?.id ?? null)
+  useEffect(() => {
+    void sincronizarPush(userIdPush)
+    if (!('serviceWorker' in navigator)) return
+    const ouvir = (e: MessageEvent) => { if (e.data?.tipo === 'visor-abrir' && typeof e.data.url === 'string') navigate(e.data.url) }
+    navigator.serviceWorker.addEventListener('message', ouvir)
+    return () => navigator.serviceWorker.removeEventListener('message', ouvir)
+  }, [navigate, userIdPush])
 
   const showFilters = showsGlobalFilters(pathname)
   const isMobile = useIsMobile()

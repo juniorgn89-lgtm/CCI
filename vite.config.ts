@@ -92,6 +92,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Avisos no celular (Web Push): push e clique na notificação (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/web\.qualityautomacao\.com\.br\/.*/i,
