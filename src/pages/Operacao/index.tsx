@@ -15,6 +15,7 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
 import OperacaoMobile from '@/pages/Operacao/OperacaoMobile'
+import { useEscopoSegmento } from '@/hooks/useEscopoSegmento'
 
 const VisaoGeralOperacao = lazy(() => import('@/pages/Operacao/components/VisaoGeralOperacao'))
 const Bombas = lazy(() => import('@/pages/Bombas'))
@@ -40,6 +41,8 @@ const Operacao = () => {
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const [tab, setTab] = useTabParam<OperacaoTab>('geral', isOperacaoTab)
   const isMobile = useIsMobile()
+  // Escopo só de conveniência (CNPJ da loja): não há tanque nem bomba para mostrar.
+  const segmento = useEscopoSegmento()
 
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -66,6 +69,7 @@ const Operacao = () => {
     ? permTab
     : ((visibleTabs[0]?.id as OperacaoTab) ?? permTab)
 
+  if (segmento.soConveniencia) return <SoConvenienciaState />
   if (isMobile) return <OperacaoMobile />
   if (postos.length === 0) return <SelectCompanyState />
 
@@ -90,5 +94,13 @@ const Operacao = () => {
     </div>
   )
 }
+
+/** Escopo só de conveniência: explica em vez de mostrar tanques zerados. */
+const SoConvenienciaState = () => (
+  <div className="mx-auto mt-10 max-w-md rounded-xl border border-dashed border-gray-300 px-6 py-8 text-center dark:border-gray-700">
+    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Operação é dos postos de combustível</p>
+    <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">O que está escolhido no filtro do topo é conveniência (CNPJ da loja): não tem tanque, bomba nem aferição. Escolha um posto de combustível para ver a operação.</p>
+  </div>
+)
 
 export default Operacao

@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.17',
+    data: '2026-11-23',
+    resumo: 'Na conveniência, o Visor mostra só o que é da loja.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Conveniência sem telas de combustível',
+        descricao: 'Quando o filtro está só na conveniência (CNPJ da loja), o Visor esconde o que é de posto: abas de Combustível e Gestão de Preços, a Operação (tanques e bombas) e a aba Pista da Produtividade. Automotivo some se a loja não vende automotivos.',
+      },
+    ],
+  },
+  {
     versao: '1.2.16',
     data: '2026-11-23',
     resumo: 'Pedido liberado com erro? Agora dá para desfazer a liberação, e cancelar sempre pede o motivo.',

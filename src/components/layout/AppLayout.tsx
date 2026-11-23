@@ -36,6 +36,7 @@ import { useLogAcesso } from '@/hooks/useLogAcesso'
 import MobileShell from '@/components/mobile/MobileShell'
 import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
+import { useEscopoSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
 
 /**
  * Rotas safe pra master sem rede conectada — não dependem da CHAVE Quality.
@@ -159,6 +160,8 @@ const AppLayout = () => {
   // Personalização (mostrar/ocultar/reordenar) — igual ao desktop, vale pra todos.
   const hiddenModules = usePersonalizationStore((s) => s.hidden)
   const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
+  // Escopo só de conveniência: Operação (tanques/bombas) some do menu.
+  const segmento = useEscopoSegmento()
 
   // Itens visíveis no menu mobile: master vê tudo (inclusive masterOnly);
   // não-master perde masterOnly e módulos fora da lista permitida. Depois a
@@ -177,7 +180,7 @@ const AppLayout = () => {
     if (!isMaster) items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
     const orderIdx = new Map(moduleOrder.map((p, i) => [p, i]))
     return items
-      .filter((item) => !hiddenModules.includes(item.path))
+      .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento))
       .slice()
       .sort((a, b) => (orderIdx.get(a.path) ?? 999) - (orderIdx.get(b.path) ?? 999))
   })()

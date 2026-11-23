@@ -38,6 +38,7 @@ import { navGroups } from '@/components/layout/navConfig'
 import { usePersonalizationStore } from '@/store/personalization'
 import { useTenantStore } from '@/store/tenant'
 import { useTarefasAtencao } from '@/hooks/useTarefasAtencao'
+import { useEscopoSegmento, abaOcultaPorSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -349,6 +350,8 @@ const Sidebar = () => {
   const comprasOn = !!useTenantStore((s) => s.rede)?.compras_habilitado
   // Bolinha no item Tarefas: abertas vencidas ou vencendo hoje (0 = sem bolinha).
   const tarefasAtencao = useTarefasAtencao()
+  // Escopo só de conveniência (CNPJ da loja): some o que é de combustível.
+  const segmento = useEscopoSegmento()
   const visibleNavGroups = navGroups
     .map((group) => {
       // Módulo Gestão (tarefas) só em redes com o módulo ligado — master inclusive.
@@ -368,7 +371,7 @@ const Sidebar = () => {
         items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
       }
       items = items
-        .filter((item) => !hiddenModules.includes(item.path))
+        .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento))
         .slice()
         // Tarefas (requerGestao) fica sempre em primeiro no grupo; o resto segue a
         // ordem personalizada (itens fora do registro vão pro fim).
@@ -408,6 +411,8 @@ const Sidebar = () => {
                   : rawSub
                 // Rotinas é de gestor/diretor — some do submenu de Tarefas pros demais.
                 if (subOptions && !canGerirTarefas) subOptions = subOptions.filter((s) => s.to !== '/gestao?tab=rotinas')
+                // Abas sem sentido no escopo (combustível numa conveniência).
+                if (subOptions) subOptions = subOptions.filter((s) => { const [rota, q] = s.to.split('?tab='); return !q || !abaOcultaPorSegmento(rota, q, segmento) })
                 // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
                 // abre o menu de opções (em vez de navegar direto). Só vale pros
                 // módulos com abas deep-linkáveis; os demais navegam normal.

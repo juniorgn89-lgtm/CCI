@@ -17,6 +17,7 @@ import { CombustivelTab, ConvenienciaTab } from '@/pages/Comercial/Vendas/mobile
 import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 import { TanquesMobileSection, ContasMobileSection } from '@/pages/Dashboard/components/mobile/CentralMobileExtras'
+import { useEscopoSegmento, abaOcultaPorSegmento } from '@/hooks/useEscopoSegmento'
 
 /**
  * Visão Geral da Central — versão mobile. Rede-wide, venda fiscal
@@ -224,11 +225,15 @@ const CENTRAL_TABS = [
  * via o seletor exposto na barra de filtro do MobileShell).
  */
 const CentralMobile = () => {
-  const [tab, setTab] = useState('geral')
+  const [tabEscolhida, setTab] = useState('geral')
+  // Escopo só de conveniência: some Combustível (e Automotivo sem venda).
+  const segmento = useEscopoSegmento()
+  const abas = CENTRAL_TABS.filter((t) => !abaOcultaPorSegmento('/dashboard', t.id, segmento))
+  const tab = abas.some((t) => t.id === tabEscolhida) ? tabEscolhida : 'geral'
   return (
     <div className="space-y-3 pb-2">
       <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
-      <ScrollTabs tabs={CENTRAL_TABS} value={tab} onChange={setTab} />
+      <ScrollTabs tabs={abas} value={tab} onChange={setTab} />
       {tab === 'geral' ? (
         <CentralOverview />
       ) : tab === 'combustivel' ? (
