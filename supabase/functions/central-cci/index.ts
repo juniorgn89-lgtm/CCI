@@ -11,7 +11,7 @@
 //   x-cci-diretor    e-mail do diretor que pediu (log)
 //
 // Ações:
-//   leitura  — catalogo, listar, opcoes (postos de uma ou mais redes, via Quality GET)
+//   leitura  — catalogo, listar, opcoes (postos de uma ou mais redes, via Quality GET), clientes (redes com postos/plano/usuários)
 //   escrita  — criar, alterar, desativar, reativar, link_senha  (etapa 2, 20/11/2026)
 //
 // Regras da escrita (decisão do dono):
@@ -310,6 +310,53 @@ Deno.serve(async (req) => {
         if (error) throw error
         const usuarios = (perfis ?? []).map((p) => paraUsuario(p, usuariosAuth.get(p.user_id)))
         return json(200, { ok: true, dados: { usuarios, total: usuarios.length } })
+      }
+
+      case 'clientes': {
+        // Uma linha por rede: plano, módulos, postos (Quality /EMPRESAS, só GET), usuários e último acesso.
+        const { data: redes, error } = await admin.from('redes').select('*').order('nome')
+        if (error) throw error
+        const { data: perfis, error: pErr } = await admin.from('profiles').select('user_id, rede_id, redes_permitidas, is_master, acesso_todas_redes, ativo')
+        if (pErr) throw pErr
+        const ultimoDe = new Map<string, string | null>()
+        for (let page = 1; page <= 50; page++) {
+          const { data, error: aErr } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+          if (aErr) throw aErr
+          for (const u of data.users) ultimoDe.set(u.id, u.last_sign_in_at ?? null)
+          if (data.users.length < 1000) break
+        }
+        const falhas: string[] = []
+        const unidadesDe = new Map<string, { id: string; nome: string; cnpj: string | null; codigo: string }[]>()
+        await Promise.all((redes ?? []).filter((r) => r.chave && r.api_base_url).map(async (r) => {
+          try {
+            const base = String(r.api_base_url).replace(/\/$/, '')
+            const res = await fetch(`${base}/EMPRESAS?CHAVE=${encodeURIComponent(r.chave)}&limite=500`, { signal: AbortSignal.timeout(12_000) })
+            if (!res.ok) throw new Error(String(res.status))
+            const body = await res.json()
+            unidadesDe.set(r.id, (body.resultados ?? []).map((e: any) => {
+              const cod = e.codigo ?? e.empresaCodigo
+              return { id: String(cod), codigo: String(cod), nome: String(e.fantasia || e.razao || `Posto ${cod}`).trim(), cnpj: e.cnpj ? String(e.cnpj).replace(/\D/g, '') || null : null }
+            }))
+          } catch { falhas.push(r.nome) }
+        }))
+        const clientes = (redes ?? []).map((r) => {
+          // Usuários da rede = quem está ligado a ela (diretores e "todas as redes" ficam de fora).
+          const deles = (perfis ?? []).filter((p) => !p.is_master && !p.acesso_todas_redes && p.ativo !== false
+            && (p.rede_id === r.id || (p.redes_permitidas ?? []).includes(r.id)))
+          const ultimos = deles.map((p) => ultimoDe.get(p.user_id)).filter(Boolean) as string[]
+          const modulos = [r.compras_habilitado ? 'Compras' : null, r.gestao_habilitado ? 'Tarefas' : null, r.apuracao_auto === false ? null : 'Apuração automática'].filter(Boolean)
+          return {
+            tipo: 'rede', tipo_nome: 'Rede', id: r.id, nome: r.nome, ativo: r.ativo !== false,
+            plano: r.plano ? String(r.plano).replace(/^./, (c: string) => c.toUpperCase()) : null,
+            modulos, situacao: r.cliente_desde ? `Cliente desde ${String(r.cliente_desde).split('-').reverse().join('/')}` : null,
+            unidades: unidadesDe.get(r.id) ?? [],
+            unidades_lidas: unidadesDe.has(r.id),
+            usuarios: deles.length,
+            ultimo_acesso: ultimos.sort().at(-1) ?? null,
+            criado_em: r.created_at ?? null,
+          }
+        })
+        return json(200, { ok: true, dados: { clientes, ...(falhas.length ? { aviso: `Não foi possível ler os postos de: ${falhas.join(', ')}.` } : {}) } })
       }
 
       case 'opcoes': {
