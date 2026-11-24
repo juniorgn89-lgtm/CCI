@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { EyeOff, Eye, Pencil, ChevronRight, Loader2, X, Search, Building2, Globe2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
-import { APP_STRUCTURE, NAV_GROUPS, tabKey, type AppModule } from '@/lib/appStructure'
+import { APP_STRUCTURE, NAV_GROUPS, ABAS_RESTRITAS, tabKey, type AppModule } from '@/lib/appStructure'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { salvarAppOculto, removerAppOculto, type AppOculto } from '@/api/supabase/appOcultos'
 import { useAppOcultos, OCULTOS_QUERY_KEY } from '@/hooks/useOcultosCCI'
@@ -150,7 +150,8 @@ interface LinhaModuloProps {
   Acoes: (p: { alvo: Alvo }) => ReactElement
 }
 
-const LinhaModulo = ({ m, aberto, onAbrir, oculto, porChave, Status, Acoes }: LinhaModuloProps) => {
+const LinhaModulo = ({ m: mod, aberto, onAbrir, oculto, porChave, Status, Acoes }: LinhaModuloProps) => {
+  const m = { ...mod, tabs: [...mod.tabs, ...(ABAS_RESTRITAS[mod.path] ?? [])] }
   const abasOcultas = m.tabs.filter((t) => porChave.has(tabKey(m.path, t.id))).length
   return (
     <div>

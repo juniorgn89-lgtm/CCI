@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, Package, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
@@ -501,11 +501,16 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <div className="grid gap-4 md:h-[min(720px,calc(92vh-13rem))] md:grid-cols-[minmax(0,1fr)_370px]">
           {/* ── Esquerda: escolher produtos ── */}
           <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+            <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-gray-100 px-3 py-2.5 dark:border-gray-800">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11px] font-bold text-white dark:bg-blue-600">1</span>
+              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Encontre os produtos</p>
+              <p className="text-[11.5px] text-gray-500 dark:text-gray-400">busque no catálogo do posto ou escolha nas sugestões; <Plus className="inline h-3 w-3" /> leva para o pedido ao lado</p>
+            </header>
             <div className="space-y-2 border-b border-gray-100 p-3 dark:border-gray-800">
               <div className="flex gap-2">
-                <span className="relative block flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar no catálogo: nome ou código, ex.: 473 antar" className={cn(inputCls, 'h-9 pl-9')} disabled={empresa == null || sug.carregando} /></span>
-                {buscaProd.trim() && <button type="button" onClick={() => setBuscaProd('')} className={cn(btnGhost, 'h-9')}>Limpar</button>}
-                <button type="button" onClick={() => setNovoProd(novoProd ? null : { nome: '', qtd: '1', custo: '' })} className={cn(btnGhost, 'h-9')}><Plus className="h-4 w-4" /> Produto novo</button>
+                <span className="relative block flex-1"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#1e3a5f] dark:text-blue-300" /><input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar produto do posto pelo nome ou código (ex.: 473 antar)" aria-label="Buscar produto no catálogo do posto" className={cn(inputCls, 'h-11 border-[#1e3a5f]/30 pl-10 text-[14px] focus:border-[#1e3a5f] dark:border-blue-400/30')} disabled={empresa == null || sug.carregando} /></span>
+                {buscaProd.trim() && <button type="button" onClick={() => setBuscaProd('')} className={cn(btnGhost, 'h-11')}>Limpar</button>}
+                <button type="button" onClick={() => setNovoProd(novoProd ? null : { nome: '', qtd: '1', custo: '' })} className={cn(btnGhost, 'h-11')}><Plus className="h-4 w-4" /> Produto novo</button>
               </div>
               {novoProd && (
                 <div className="grid items-end gap-2 rounded-lg border border-dashed border-gray-300 p-2.5 md:grid-cols-[1fr_80px_110px_auto_auto] dark:border-gray-700">
@@ -605,18 +610,24 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                   </table>
                 )}
             </div>
+            {empresa != null && !sug.carregando && (
+              <p className="flex shrink-0 items-start gap-2 border-t border-gray-100 px-3 py-2 text-[11.5px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                <Search className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Não achou o produto? Procure pelo nome ou código no campo de busca acima. Item que não está no cadastro: use <b className="font-semibold">Produto novo</b>.</span>
+              </p>
+            )}
           </section>
 
           {/* ── Direita: o pedido ── */}
           <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#1e3a5f]/25 bg-[#1e3a5f]/[0.02] dark:border-blue-400/25 dark:bg-blue-400/[0.03]">
             <header className="flex items-center gap-2 border-b border-gray-100 px-3 py-2.5 dark:border-gray-800">
-              <Package className="h-4 w-4 text-[#1e3a5f] dark:text-blue-300" />
-              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Pedido <span className="font-normal text-gray-400">({itens.length} {itens.length === 1 ? 'item' : 'itens'})</span></p>
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11px] font-bold text-white dark:bg-blue-600">2</span>
+              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Seu pedido <span className="font-normal text-gray-400">({itens.length} {itens.length === 1 ? 'item' : 'itens'})</span></p>
               {vaiSeparar && <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-[#2563eb] dark:bg-blue-950/30 dark:text-blue-300">vira {nPedidos} pedidos</span>}
             </header>
             <div className="min-h-0 flex-1 overflow-auto max-md:max-h-[50vh]">
               {itens.length === 0 ? (
-                <p className="px-4 py-8 text-center text-[12px] text-gray-400">Nada no pedido ainda.<br />Clique no <Plus className="inline h-3 w-3" /> de um produto ao lado.</p>
+                <p className="px-4 py-8 text-center text-[12px] text-gray-400">Nada no pedido ainda.<br />Encontre os produtos ao lado e clique no <Plus className="inline h-3 w-3" /> para trazer para cá.</p>
               ) : blocosPedido.map((b, idx) => (
                 <div key={b.titulo ?? idx}>
                   {b.titulo && (

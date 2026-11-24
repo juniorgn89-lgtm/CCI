@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.27',
+    data: '2026-11-24',
+    resumo: 'Novo pedido de compra mais fácil de entender: primeiro você encontra os produtos, depois monta o pedido.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Onde achar os produtos no pedido',
+        descricao: 'No novo pedido de compra, a coluna da esquerda agora se chama 1 · Encontre os produtos, com a busca do catálogo maior e em destaque, e a da direita 2 · Seu pedido. No fim da lista há uma dica para quando o produto não aparece.',
+      },
+    ],
+  },
+  {
     versao: '1.2.26',
     data: '2026-11-24',
     resumo: 'Criar o pedido de compra ficou mais fácil de achar.',

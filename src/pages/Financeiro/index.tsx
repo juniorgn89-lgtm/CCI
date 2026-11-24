@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router-dom'
 import { lerFiltroLink, PARAMS_FILTRO_LINK } from '@/pages/Financeiro/lib/filtroLink'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
+import { useOcultosCCI } from '@/hooks/useOcultosCCI'
 import ContasRedeCard from '@/pages/Dashboard/components/ContasRedeCard'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
@@ -63,7 +64,9 @@ const Financeiro = () => {
   const { tabs: tabsPersonalizaveis, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/financeiro')
   const isMaster = useAuthStore((s) => s.isMaster)
   const email = useAuthStore((s) => s.user?.email ?? null)
-  const verConciliacao = podeVerConciliacaoCartao(isMaster, email)
+  // Diretores veem; a CCI pode ocultar em Painel › Parâmetros › Ocultar módulos e abas.
+  const ocultosCCI = useOcultosCCI()
+  const verConciliacao = podeVerConciliacaoCartao(isMaster, email) && !ocultosCCI.aba('/financeiro', 'conciliacao')
   const layoutTabs = useMemo(
     () => (verConciliacao ? [...tabsPersonalizaveis, { id: 'conciliacao', label: 'Conciliação de cartão', visible: true }] : tabsPersonalizaveis),
     [tabsPersonalizaveis, verConciliacao],

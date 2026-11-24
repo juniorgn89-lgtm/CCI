@@ -182,6 +182,15 @@ export const moduleByPath = (path: string): AppModule | undefined => MODULE_BY_P
 /** Chave composta de uma aba no store de personalização. */
 export const tabKey = (path: string, tabId: string): string => `${path}::${tabId}`
 
+/**
+ * Abas que NÃO entram na personalização de cada usuário (são restritas — ex.:
+ * só diretores), mas que a CCI pode ocultar em Painel › Parâmetros › Ocultar
+ * módulos e abas. A página respeita o oculto via useOcultosCCI().aba().
+ */
+export const ABAS_RESTRITAS: Record<string, { id: string; label: string }[]> = {
+  '/financeiro': [{ id: 'conciliacao', label: 'Conciliação de cartão (só diretores)' }],
+}
+
 /** Ordem dos planos pra comparar tiers (basic < premium < pro). */
 export const PLANO_RANK: Record<PlanoId, number> = { basic: 0, premium: 1, pro: 2 }
 
