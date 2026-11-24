@@ -18,6 +18,7 @@ import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 import { TanquesMobileSection, ContasMobileSection } from '@/pages/Dashboard/components/mobile/CentralMobileExtras'
 import { useEscopoSegmento, abaOcultaPorSegmento } from '@/hooks/useEscopoSegmento'
+import { useOcultosCCI } from '@/hooks/useOcultosCCI'
 
 /**
  * Visão Geral da Central — versão mobile. Rede-wide, venda fiscal
@@ -228,7 +229,8 @@ const CentralMobile = () => {
   const [tabEscolhida, setTab] = useState('geral')
   // Escopo só de conveniência: some Combustível (e Automotivo sem venda).
   const segmento = useEscopoSegmento()
-  const abas = CENTRAL_TABS.filter((t) => !abaOcultaPorSegmento('/dashboard', t.id, segmento))
+  const ocultosCCI = useOcultosCCI()
+  const abas = CENTRAL_TABS.filter((t) => !abaOcultaPorSegmento('/dashboard', t.id, segmento) && !ocultosCCI.aba('/dashboard', t.id))
   const tab = abas.some((t) => t.id === tabEscolhida) ? tabEscolhida : 'geral'
   return (
     <div className="space-y-3 pb-2">

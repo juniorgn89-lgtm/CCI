@@ -39,6 +39,7 @@ import { usePersonalizationStore } from '@/store/personalization'
 import { useTenantStore } from '@/store/tenant'
 import { useTarefasAtencao } from '@/hooks/useTarefasAtencao'
 import { useEscopoSegmento, abaOcultaPorSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
+import { useOcultosCCI } from '@/hooks/useOcultosCCI'
 
 /** Mapa path → id de módulo do catálogo, pra filtrar nav items pela permissão. */
 const moduloIdByPath = new Map(MODULOS.map((m) => [m.path, m.id]))
@@ -352,6 +353,7 @@ const Sidebar = () => {
   const tarefasAtencao = useTarefasAtencao()
   // Escopo só de conveniência (CNPJ da loja): some o que é de combustível.
   const segmento = useEscopoSegmento()
+  const ocultosCCI = useOcultosCCI()
   const visibleNavGroups = navGroups
     .map((group) => {
       // Módulo Gestão (tarefas) só em redes com o módulo ligado — master inclusive.
@@ -371,7 +373,7 @@ const Sidebar = () => {
         items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
       }
       items = items
-        .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento))
+        .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento) && !ocultosCCI.modulo(item.path))
         .slice()
         // Tarefas (requerGestao) fica sempre em primeiro no grupo; o resto segue a
         // ordem personalizada (itens fora do registro vão pro fim).
@@ -412,7 +414,7 @@ const Sidebar = () => {
                 // Rotinas é de gestor/diretor — some do submenu de Tarefas pros demais.
                 if (subOptions && !canGerirTarefas) subOptions = subOptions.filter((s) => s.to !== '/gestao?tab=rotinas')
                 // Abas sem sentido no escopo (combustível numa conveniência).
-                if (subOptions) subOptions = subOptions.filter((s) => { const [rota, q] = s.to.split('?tab='); return !q || !abaOcultaPorSegmento(rota, q, segmento) })
+                if (subOptions) subOptions = subOptions.filter((s) => { const [rota, q] = s.to.split('?tab='); return !q || (!abaOcultaPorSegmento(rota, q, segmento) && !ocultosCCI.aba(rota, q)) })
                 // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
                 // abre o menu de opções (em vez de navegar direto). Só vale pros
                 // módulos com abas deep-linkáveis; os demais navegam normal.

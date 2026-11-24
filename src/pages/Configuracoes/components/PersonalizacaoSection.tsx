@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { APP_STRUCTURE, NAV_GROUPS, tabKey } from '@/lib/appStructure'
+import { useOcultosCCI } from '@/hooks/useOcultosCCI'
 import { getPlano, type PlanoId } from '@/lib/planos'
 import { normalizePlano, moduloAllowedByPlano, tabAllowedByPlano } from '@/lib/access'
 import { usePersonalizationStore } from '@/store/personalization'
@@ -15,13 +16,16 @@ import { usePersonalizationStore } from '@/store/personalization'
 const useAccessibleModules = (effPlano: PlanoId | null) => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
+  // O que a CCI ocultou nem aparece aqui (volta pela tela de ocultar, no Painel).
+  const ocultosCCI = useOcultosCCI()
   return useMemo(() => {
     return APP_STRUCTURE.filter((m) => {
+      if (ocultosCCI.modulo(m.path)) return false
       if (isMaster) return true
       const permOk = !modulosPermitidos || modulosPermitidos.length === 0 || !m.permId || modulosPermitidos.includes(m.permId)
       return permOk && moduloAllowedByPlano(m.path, effPlano)
     })
-  }, [isMaster, modulosPermitidos, effPlano])
+  }, [isMaster, modulosPermitidos, effPlano, ocultosCCI])
 }
 
 const RowButton = ({
@@ -47,6 +51,7 @@ const PersonalizacaoSection = () => {
   const modules = useAccessibleModules(effPlano)
 
   const hidden = usePersonalizationStore((s) => s.hidden)
+  const ocultosCCI = useOcultosCCI()
   const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
   const tabOrder = usePersonalizationStore((s) => s.tabOrder)
   const planoApplied = usePersonalizationStore((s) => s.planoApplied)
@@ -133,7 +138,7 @@ const PersonalizacaoSection = () => {
             {g.modules.map((m, index) => {
               const isHidden = hidden.includes(m.path)
               // Só as abas dentro do plano são personalizáveis.
-              const planoTabs = m.tabs.filter((t) => tabAllowedByPlano(m.path, t.id, effPlano))
+              const planoTabs = m.tabs.filter((t) => tabAllowedByPlano(m.path, t.id, effPlano) && !ocultosCCI.aba(m.path, t.id))
               const hasTabs = planoTabs.length > 0
               const isOpen = expanded === m.path
               // Abas ordenadas pela personalização.

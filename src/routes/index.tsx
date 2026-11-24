@@ -45,6 +45,7 @@ const AdminContratoWebPosto = lazy(() => import('@/pages/Admin/ContratoWebPosto'
 // Painel de gestão (master) — shell standalone com navegação entre módulos.
 const PainelLayout = lazy(() => import('@/pages/Painel/PainelLayout'))
 const AdminChamados = lazy(() => import('@/pages/Admin/Chamados'))
+const AdminOcultarModulos = lazy(() => import('@/pages/Admin/OcultarModulos'))
 const MeusChamados = lazy(() => import('@/pages/MeusChamados'))
 const PainelSelecionarRede = lazy(() => import('@/pages/Painel/SelecionarRede'))
 
@@ -122,6 +123,7 @@ const AppRoutes = () => {
             <Route path="frentistas" element={<Suspense fallback={<RouteFallback />}><AdminFrentistas /></Suspense>} />
             <Route path="redes" element={<Suspense fallback={<RouteFallback />}><AdminRedes /></Suspense>} />
             <Route path="config" element={<Suspense fallback={<RouteFallback />}><Configuracoes /></Suspense>} />
+            <Route path="ocultar" element={<Suspense fallback={<RouteFallback />}><AdminOcultarModulos /></Suspense>} />
             <Route path="apuracao" element={<Suspense fallback={<RouteFallback />}><AdminApuracao /></Suspense>} />
             <Route path="ia" element={<Suspense fallback={<RouteFallback />}><AdminAssistente /></Suspense>} />
             <Route path="controle-acesso" element={<Suspense fallback={<RouteFallback />}><AdminControleAcesso /></Suspense>} />

@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.24',
+    data: '2026-11-24',
+    resumo: 'Menu mais enxuto e notificações com destaque mais discreto no computador.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Menu mais enxuto',
+        descricao: 'Algumas telas e abas pouco usadas podem sair do menu para deixar o Visor mais simples. Nada foi apagado: se precisar de alguma, fale com a CCI que ela volta na hora.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Notificações mais discretas no computador',
+        descricao: 'No computador, os avisos ainda não lidos ganham um realce leve, sem o fundo verde.',
+      },
+    ],
+  },
+  {
     versao: '1.2.23',
     data: '2026-11-24',
     resumo: 'Celular com cartões, abas e menus mais claros e letras maiores.',

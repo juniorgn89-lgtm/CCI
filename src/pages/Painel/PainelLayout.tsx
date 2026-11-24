@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Outlet, Link, NavLink, Navigate, useLocation } from 'react-router-dom'
 import {
   Network, Users, User, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard, Inbox,
-  FileSignature, UserCog, Building2, Handshake, Bug,
+  FileSignature, UserCog, Building2, Handshake, Bug, EyeOff,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
@@ -20,7 +20,7 @@ import { useRedeNomeExibicao } from '@/hooks/useDemo'
  *  · Controle de acesso · Parâmetros (antiga Configurações, rota /painel/config)
  */
 
-interface Item { to: string; label: string; Icon: typeof Network }
+interface Item { to: string; label: string; Icon: typeof Network; /** Só a CCI (master). */ masterOnly?: boolean }
 interface Grupo { id: string; label: string; Icon: typeof Network; itens: Item[] }
 
 const GRUPOS: Grupo[] = [
@@ -49,6 +49,7 @@ const GRUPOS: Grupo[] = [
   ] },
   { id: 'config', label: 'Parâmetros', Icon: Settings, itens: [
     { to: '/painel/config', label: 'Parâmetros', Icon: Settings },
+    { to: '/painel/ocultar', label: 'Ocultar módulos e abas', Icon: EyeOff, masterOnly: true },
   ] },
 ]
 
@@ -92,6 +93,7 @@ const PainelLayout = () => {
   const grupos = isMaster
     ? GRUPOS
     : GRUPOS.filter((g) => g.id === 'config' || (g.id === 'selecionar' && podeTrocar))
+        .map((g) => ({ ...g, itens: g.itens.filter((i) => !i.masterOnly) }))
 
   const ativo = (to: string) => pathname === to || pathname.startsWith(`${to}/`)
   const grupoAtivo = grupos.find((g) => g.itens.some((i) => ativo(i.to))) ?? null

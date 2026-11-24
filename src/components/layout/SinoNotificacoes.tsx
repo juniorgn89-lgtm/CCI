@@ -205,7 +205,8 @@ const SinoNotificacoes = ({ variant = 'desktop' }: Props) => {
             type="button"
             onClick={todas}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 font-medium text-teal-700 hover:bg-gray-100 dark:text-[#5eead4]/90 dark:hover:bg-white/[0.06]',
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 font-medium hover:bg-gray-100 dark:hover:bg-white/[0.06]',
+              celular ? 'text-teal-700 dark:text-[#5eead4]/90' : 'text-blue-600 dark:text-gray-200',
               celular ? 'text-[14.5px]' : 'text-[12.5px]',
             )}
           >
@@ -295,12 +296,17 @@ const Item = ({ celular, Icone, alerta, titulo, texto, quando, naoLida, onClick 
     className={cn(
       'flex w-full items-start gap-3.5 px-4 text-left transition-colors',
       celular ? 'py-[18px]' : 'py-3',
-      naoLida ? 'bg-teal-500/[0.08] hover:bg-teal-500/[0.12]' : 'hover:bg-gray-50 dark:hover:bg-white/[0.04]',
+      // Não lida: tinta petróleo no celular (padrão CCI); no computador, realce
+      // neutro — o verde destoava do escuro antigo do desktop.
+      naoLida
+        ? (celular ? 'bg-teal-500/[0.08] hover:bg-teal-500/[0.12]' : 'bg-gray-50 hover:bg-gray-100 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]')
+        : 'hover:bg-gray-50 dark:hover:bg-white/[0.04]',
     )}
   >
     <span className={cn(
       'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-      alerta ? 'bg-amber-400/15 text-amber-600 dark:text-amber-400' : 'bg-teal-500/[0.12] text-teal-600 dark:text-teal-500',
+      alerta ? 'bg-amber-400/15 text-amber-600 dark:text-amber-400'
+        : celular ? 'bg-teal-500/[0.12] text-teal-600 dark:text-teal-500' : 'bg-blue-50 text-blue-600 dark:bg-white/[0.06] dark:text-gray-300',
     )}>
       <Icone className="h-3.5 w-3.5" />
     </span>
@@ -308,7 +314,7 @@ const Item = ({ celular, Icone, alerta, titulo, texto, quando, naoLida, onClick 
       <span className="flex items-baseline gap-3">
         <span className={cn('min-w-0 flex-1 font-medium text-gray-900 dark:text-gray-100', celular ? 'text-[15.5px] leading-snug dark:text-[#f1f5f9]' : 'text-[13.5px]')}>{titulo}</span>
         <span className={cn('shrink-0 tabular-nums text-gray-400', celular ? 'text-[12.5px] dark:text-[#64748b]' : 'text-[11px] dark:text-gray-500')}>{quando}</span>
-        {naoLida && <span className="h-2 w-2 shrink-0 self-center rounded-full bg-[#0d9488]" />}
+        {naoLida && <span className={cn('h-2 w-2 shrink-0 self-center rounded-full', celular ? 'bg-[#0d9488]' : 'bg-blue-500 dark:bg-gray-300')} />}
       </span>
       {texto && (
         <span className={cn('mt-1 block leading-snug text-gray-600', celular ? 'text-[14.5px] dark:text-[#94a3b8]' : 'text-[12.5px] dark:text-gray-400')}>{texto}</span>

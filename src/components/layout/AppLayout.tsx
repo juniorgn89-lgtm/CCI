@@ -37,6 +37,7 @@ import MobileShell from '@/components/mobile/MobileShell'
 import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
 import { useEscopoSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
+import { useOcultosCCI } from '@/hooks/useOcultosCCI'
 import { sincronizar as sincronizarPush } from '@/lib/push'
 
 /**
@@ -173,6 +174,8 @@ const AppLayout = () => {
   const moduleOrder = usePersonalizationStore((s) => s.moduleOrder)
   // Escopo só de conveniência: Operação (tanques/bombas) some do menu.
   const segmento = useEscopoSegmento()
+  // Ocultos pela CCI (Painel › Parâmetros › Ocultar módulos e abas).
+  const ocultosCCI = useOcultosCCI()
 
   // Itens visíveis no menu mobile: master vê tudo (inclusive masterOnly);
   // não-master perde masterOnly e módulos fora da lista permitida. Depois a
@@ -191,7 +194,7 @@ const AppLayout = () => {
     if (!isMaster) items = items.filter((item) => moduloAllowedByPlano(item.path, plano))
     const orderIdx = new Map(moduleOrder.map((p, i) => [p, i]))
     return items
-      .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento))
+      .filter((item) => !hiddenModules.includes(item.path) && !moduloOcultoPorSegmento(item.path, segmento) && !ocultosCCI.modulo(item.path))
       .slice()
       .sort((a, b) => (orderIdx.get(a.path) ?? 999) - (orderIdx.get(b.path) ?? 999))
   })()
