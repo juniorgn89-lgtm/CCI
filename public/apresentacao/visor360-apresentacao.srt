@@ -1,0 +1,79 @@
+1
+00:00:00,300 --> 00:00:02,250
+Quanto sua rede lucrou ontem?
+
+2
+00:00:02,220 --> 00:00:03,610
+E em cada posto?
+
+3
+00:00:03,580 --> 00:00:06,050
+Com relatórios espalhados e planilhas,
+
+4
+00:00:06,020 --> 00:00:09,050
+a resposta chega tarde, quando chega.
+
+5
+00:00:09,500 --> 00:00:13,530
+O Visor360 lê os dados do seu ERP
+
+6
+00:00:13,500 --> 00:00:15,890
+e mostra a rede inteira numa tela:
+
+7
+00:00:15,860 --> 00:00:18,570
+o lucro de cada setor, de cada posto,
+
+8
+00:00:18,540 --> 00:00:20,650
+e como o mês deve fechar.
+
+9
+00:00:21,700 --> 00:00:25,010
+No Radar de Preços, cada posto e cada combustível
+
+10
+00:00:24,980 --> 00:00:26,890
+recebe uma indicação clara:
+
+11
+00:00:26,860 --> 00:00:29,570
+subir o preço, segurar ou ceder,
+
+12
+00:00:29,540 --> 00:00:31,810
+com o valor em reais por litro.
+
+13
+00:00:32,700 --> 00:00:36,890
+Bombas, aferições, caixa e estoque no mesmo lugar.
+
+14
+00:00:36,860 --> 00:00:40,330
+O Visor360 mostra o que precisa comprar
+
+15
+00:00:40,300 --> 00:00:43,290
+e monta o pedido para o responsável liberar.
+
+16
+00:00:44,500 --> 00:00:47,650
+No celular, você abre o dia com o resumo de ontem
+
+17
+00:00:47,620 --> 00:00:51,010
+e recebe os avisos do que precisa da sua atenção.
+
+18
+00:00:52,500 --> 00:00:54,730
+Visor360.
+
+19
+00:00:54,700 --> 00:00:57,117
+Sua rede de postos, à vista.
+
+20
+00:00:57,087 --> 00:00:59,700
+Solicite uma demonstração.
