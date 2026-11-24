@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.29',
+    data: '2026-11-24',
+    resumo: 'A rede aberta agora aparece sempre no topo, em qualquer tela.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Sempre à vista em qual rede você está',
+        descricao: 'O nome da rede fica fixo no topo, ao lado da logo, em todas as telas. Quem acessa mais de uma rede clica nele para trocar. O botão da direita passa a mostrar só o posto, e a aba do navegador mostra a rede e a tela abertas.',
+      },
+    ],
+  },
+  {
     versao: '1.2.28',
     data: '2026-11-24',
     resumo: 'Resumo de ontem da rede, novo e clicável, logo ao abrir o Visor.',

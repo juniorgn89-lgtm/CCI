@@ -106,10 +106,11 @@ const HeaderContextMenu = () => {
   const sobretitulo = {
     posto: 'Posto',
     varios: `${empresaCodigos.length} postos`,
-    rede: redeWide ? 'Rede · todos os postos' : 'Todos os postos',
+    rede: redeWide ? 'Este módulo usa' : 'Posto',
     escolher: 'Escolha o posto',
   }[tipo]
-  const titulo = tipo === 'escolher' ? 'Nenhum posto aberto' : nomeLegivel(label)
+  // A rede agora fica fixa no topo (RedeChip); aqui a pílula fala só do posto.
+  const titulo = tipo === 'escolher' ? 'Nenhum posto aberto' : tipo === 'rede' ? 'Todos os postos' : nomeLegivel(label)
   const Icone = { posto: Fuel, varios: Layers, rede: Network, escolher: MapPinOff }[tipo]
 
   // Fecha ao clicar fora — mas ignora cliques nos dropdowns portalizados

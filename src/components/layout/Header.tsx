@@ -11,6 +11,7 @@ import ReportarChamado from '@/components/chamados/ReportarChamado'
 import SinoNotificacoes from '@/components/layout/SinoNotificacoes'
 import HeaderInstallButton from '@/components/pwa/HeaderInstallButton'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
+import RedeChip from '@/components/layout/RedeChip'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
 import { HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 
@@ -125,6 +126,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
 
           {/* Slot de título do módulo no Header (ao lado do logo), preenchido por
               páginas com <PageHeaderTitle placement="header">. Piloto: Central da Rede. */}
+          {/* Rede aberta — fixa em todas as telas (o posto fica na pílula da barra do módulo). */}
+          <RedeChip />
           <div id={HEADER_TITLE_SLOT_ID} className="flex min-w-0 items-center" />
         </div>
 
