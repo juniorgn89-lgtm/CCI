@@ -35,7 +35,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     versao: '1.2.21',
     data: '2026-11-23',
-    resumo: 'Sino de notificações no topo e um modo escuro novo, mais confortável.',
+    resumo: 'Sino de notificações no topo e um modo escuro novo no celular.',
     itens: [
       {
         icone: 'ajuste',
@@ -44,8 +44,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       },
       {
         icone: 'ajuste',
-        titulo: 'Modo escuro novo',
-        descricao: 'O escuro ficou em tons de azul-ardósia, igual aos outros apps da CCI: menos cansativo para a vista e com as áreas mais fáceis de separar.',
+        titulo: 'Modo escuro novo no celular',
+        descricao: 'No celular, o escuro ficou em tons de azul-ardósia, igual aos outros apps da CCI: menos cansativo para a vista e com as áreas mais fáceis de separar. No computador ele continua como era.',
       },
     ],
   },

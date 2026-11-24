@@ -75,24 +75,24 @@
        input.background   = #313131 (19%)
      Hue 0, sat 0% (cinzas puros). */
   .dark {
-    --background: 222 47% 8%;          /* page bg — #1c1c1c (entre sideBar e editor) */
-    --foreground: 210 40% 96%;          /* texto principal — #e0e0e0 */
-    --card: 217 33% 17%;                /* cards — #242424 */
-    --card-foreground: 210 40% 96%;
-    --popover: 217 33% 17%;             /* popovers/menus — #2e2e2e */
-    --popover-foreground: 210 40% 96%;
-    --primary: 210 40% 96%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 215 25% 27%;           /* chips, secondary buttons — #383838 */
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 30% 21%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 215 25% 27%;
-    --accent-foreground: 210 40% 96%;
+    --background: 200 24% 6%;          /* page bg — #1c1c1c (entre sideBar e editor) */
+    --foreground: 200 20% 88%;          /* texto principal — #e0e0e0 */
+    --card: 200 22% 10%;                /* cards — #242424 */
+    --card-foreground: 200 20% 88%;
+    --popover: 200 22% 13%;             /* popovers/menus — #2e2e2e */
+    --popover-foreground: 200 20% 88%;
+    --primary: 200 20% 88%;
+    --primary-foreground: 200 20% 11%;
+    --secondary: 200 20% 22%;           /* chips, secondary buttons — #383838 */
+    --secondary-foreground: 200 20% 90%;
+    --muted: 200 20% 18%;
+    --muted-foreground: 200 20% 62%;
+    --accent: 200 20% 22%;
+    --accent-foreground: 200 20% 90%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 216 26% 24%;              /* borders — #3d3d3d */
-    --input: 216 26% 24%;
+    --destructive-foreground: 200 20% 98%;
+    --border: 200 20% 24%;              /* borders — #3d3d3d */
+    --input: 200 20% 24%;
     --ring: 174 62% 45%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -107,64 +107,64 @@
      ============================================= */
 
   /* Backgrounds (light grays remapeados pra dark) */
-  .dark .bg-white { background-color: #1e293b; }       /* cards */
-  .dark .bg-gray-50 { background-color: #0f172a; }     /* page bg interno */
-  .dark .bg-gray-100 { background-color: #273449; }    /* sub-accents */
-  .dark .bg-gray-200 { background-color: #334155; }    /* chips, badges */
+  .dark .bg-white { background-color: hsl(200 22% 10%); }       /* cards */
+  .dark .bg-gray-50 { background-color: hsl(200 24% 7%); }     /* page bg interno */
+  .dark .bg-gray-100 { background-color: hsl(200 20% 18%); }    /* sub-accents */
+  .dark .bg-gray-200 { background-color: hsl(200 20% 22%); }    /* chips, badges */
 
   /* Backgrounds (dark grays explícitos) */
-  .dark .bg-gray-700 { background-color: #334155; }
-  .dark .bg-gray-800 { background-color: #243047; }
-  .dark .bg-gray-900 { background-color: #1e293b; }
-  .dark .bg-gray-950 { background-color: #0b1220; }     /* outer frame — #171717 (igual sideBar VSCode) */
+  .dark .bg-gray-700 { background-color: hsl(200 20% 22%); }
+  .dark .bg-gray-800 { background-color: hsl(200 22% 14%); }
+  .dark .bg-gray-900 { background-color: hsl(200 22% 10%); }
+  .dark .bg-gray-950 { background-color: hsl(200 26% 5%); }     /* outer frame — #171717 (igual sideBar VSCode) */
 
   /* Backgrounds com opacity */
-  .dark .bg-gray-50\/50 { background-color: rgb(30 41 59 / 0.5); }
-  .dark .bg-gray-50\/70 { background-color: rgb(30 41 59 / 0.7); }
-  .dark .bg-gray-800\/30 { background-color: rgb(51 65 85 / 0.3); }
-  .dark .bg-gray-800\/40 { background-color: rgb(51 65 85 / 0.4); }
-  .dark .bg-gray-800\/50 { background-color: rgb(51 65 85 / 0.5); }
-  .dark .bg-gray-800\/60 { background-color: rgb(51 65 85 / 0.6); }
+  .dark .bg-gray-50\/50 { background-color: hsl(200 20% 13% / 0.5); }
+  .dark .bg-gray-50\/70 { background-color: hsl(200 20% 13% / 0.7); }
+  .dark .bg-gray-800\/30 { background-color: hsl(200 20% 18% / 0.3); }
+  .dark .bg-gray-800\/40 { background-color: hsl(200 20% 18% / 0.4); }
+  .dark .bg-gray-800\/50 { background-color: hsl(200 20% 18% / 0.5); }
+  .dark .bg-gray-800\/60 { background-color: hsl(200 20% 18% / 0.6); }
   .dark .bg-blue-50\/50 { background-color: hsl(220 40% 22% / 0.3); }
 
   /* Text — escala de cinzas neutra */
-  .dark .text-gray-50 { color: #f8fafc; }
-  .dark .text-gray-100 { color: #f1f5f9; }
-  .dark .text-gray-200 { color: #e2e8f0; }
-  .dark .text-gray-300 { color: #cbd5e1; }
-  .dark .text-gray-400 { color: #94a3b8; }
-  .dark .text-gray-500 { color: #8a99ae; }
-  .dark .text-gray-600 { color: #a3b1c4; }
-  .dark .text-gray-700 { color: #cbd5e1; }
-  .dark .text-gray-800 { color: #e2e8f0; }
-  .dark .text-gray-900 { color: #f1f5f9; }
+  .dark .text-gray-50 { color: hsl(200 20% 96%); }
+  .dark .text-gray-100 { color: hsl(200 20% 90%); }
+  .dark .text-gray-200 { color: hsl(200 20% 84%); }
+  .dark .text-gray-300 { color: hsl(200 20% 72%); }
+  .dark .text-gray-400 { color: hsl(200 20% 60%); }
+  .dark .text-gray-500 { color: hsl(200 20% 52%); }
+  .dark .text-gray-600 { color: hsl(200 20% 62%); }
+  .dark .text-gray-700 { color: hsl(200 20% 72%); }
+  .dark .text-gray-800 { color: hsl(200 20% 84%); }
+  .dark .text-gray-900 { color: hsl(200 20% 90%); }
 
   /* Borders */
-  .dark .border-gray-100 { border-color: #2a3649; }
-  .dark .border-gray-200 { border-color: #334155; }
-  .dark .border-gray-300 { border-color: #475569; }
-  .dark .border-gray-700 { border-color: #334155; }
-  .dark .border-gray-800 { border-color: #2a3649; }
+  .dark .border-gray-100 { border-color: hsl(200 20% 20%); }
+  .dark .border-gray-200 { border-color: hsl(200 20% 24%); }
+  .dark .border-gray-300 { border-color: hsl(200 20% 30%); }
+  .dark .border-gray-700 { border-color: hsl(200 20% 24%); }
+  .dark .border-gray-800 { border-color: hsl(200 20% 20%); }
 
   /* Divide */
-  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
-  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
-  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
-  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 20%); }
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 24%); }
+  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 24%); }
+  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 20%); }
 
   /* Hover states */
-  .dark .hover\:bg-gray-50:hover { background-color: #273449; }
-  .dark .hover\:bg-gray-100:hover { background-color: #2a3649; }
-  .dark .hover\:bg-gray-700:hover { background-color: #3b4a61; }
-  .dark .hover\:bg-gray-800:hover { background-color: #2a3649; }
-  .dark .hover\:bg-gray-800\/50:hover { background-color: rgb(51 65 85 / 0.5); }
-  .dark .hover\:text-gray-200:hover { color: #f1f5f9; }
-  .dark .hover\:text-gray-300:hover { color: #e2e8f0; }
-  .dark .hover\:text-gray-700:hover { color: #e2e8f0; }
+  .dark .hover\:bg-gray-50:hover { background-color: hsl(200 20% 18%); }
+  .dark .hover\:bg-gray-100:hover { background-color: hsl(200 20% 20%); }
+  .dark .hover\:bg-gray-700:hover { background-color: hsl(200 20% 26%); }
+  .dark .hover\:bg-gray-800:hover { background-color: hsl(200 20% 20%); }
+  .dark .hover\:bg-gray-800\/50:hover { background-color: hsl(200 20% 18% / 0.5); }
+  .dark .hover\:text-gray-200:hover { color: hsl(200 20% 88%); }
+  .dark .hover\:text-gray-300:hover { color: hsl(200 20% 78%); }
+  .dark .hover\:text-gray-700:hover { color: hsl(200 20% 80%); }
 
   /* Specific component patterns */
   /* Sidebar (dark:bg-[#1e3a5f]) — mais escuro que o resto pra criar separação clara */
-  .dark .bg-\[\#1e3a5f\] { background-color: #0f172a; }
+  .dark .bg-\[\#1e3a5f\] { background-color: hsl(200 20% 6%); }
   .dark .shadow-sm { --tw-shadow-color: hsl(200 20% 0% / 0.5); }
   .dark .shadow-lg { --tw-shadow-color: hsl(200 20% 0% / 0.6); }
 
@@ -275,35 +275,96 @@ tbody > tr[data-marcada] > th:first-child {
 }
 
 /* =============================================
-   Tema escuro ardósia — padrão dos apps CCI (igual ao NotaOK).
-   O restyle anterior era preto (#0f0f0f, gradiente até black, casca gray-950);
-   aqui as mesmas classes viram a escala ardósia sem mexer nos componentes:
+   Tema escuro ardósia SÓ NO CELULAR (<768px, onde entra o app mobile) —
+   padrão dos apps CCI no celular, igual ao NotaOK. No computador o escuro
+   continua o de antes (preto/ciano). Mesmas classes, outra escala:
      fundo #0b1220 · menu/recuo #0f172a · cartão #1e293b · borda #334155
-   Só .dark — o claro fica intacto.
    ============================================= */
-.dark .dark:bg-gray-950,
-.dark .dark:bg-black { background-color: #0b1220; }
-.dark .dark:bg-gray-900 { background-color: #1e293b; }
-.dark .dark:bg-gray-800 { background-color: #273449; }
-.dark .dark:bg-gray-700 { background-color: #334155; }
-.dark .dark:bg-[#0f0f0f],
-.dark .dark:bg-[#0b0b0b],
-.dark .dark:bg-[#111],
-.dark .dark:bg-[#161616],
-.dark .dark:bg-[#1c1c1c] { background-color: #0f172a; }
-.dark .dark:bg-[#131316],
-.dark .dark:bg-[#1f1f22] { background-color: #172234; }
-.dark .dark:bg-[#242424] { background-color: #1e293b; }
-.dark .dark:bg-[#303030] { background-color: #334155; }
-.dark .dark:border-[#3a3a3a],
-.dark .dark:border-[#303030],
-.dark .dark:border-gray-700 { border-color: #334155; }
-.dark .dark:border-gray-800 { border-color: #2a3649; }
-.dark .dark:divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
-.dark .dark:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
-.dark .dark:hover:bg-gray-800:hover { background-color: #273449; }
-.dark .dark:hover:bg-gray-700:hover { background-color: #334155; }
-/* Gradiente dos containers (gray-900 → black): só troca as pontas. */
-.dark .dark:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
-.dark .dark:to-black { --tw-gradient-to: #0f172a var(--tw-gradient-to-position); }
-.dark .dark:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+@media (max-width: 767px) {
+  .dark {
+    --background: 222 47% 8%;          /* page bg — #1c1c1c (entre sideBar e editor) */
+    --foreground: 210 40% 96%;          /* texto principal — #e0e0e0 */
+    --card: 217 33% 17%;                /* cards — #242424 */
+    --card-foreground: 210 40% 96%;
+    --popover: 217 33% 17%;             /* popovers/menus — #2e2e2e */
+    --popover-foreground: 210 40% 96%;
+    --primary: 210 40% 96%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 215 25% 27%;           /* chips, secondary buttons — #383838 */
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 30% 21%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 215 25% 27%;
+    --accent-foreground: 210 40% 96%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 216 26% 24%;              /* borders — #3d3d3d */
+    --input: 216 26% 24%;
+  }
+  .dark .bg-white { background-color: #1e293b; }       /* cards */
+  .dark .bg-gray-50 { background-color: #0f172a; }     /* page bg interno */
+  .dark .bg-gray-100 { background-color: #273449; }    /* sub-accents */
+  .dark .bg-gray-200 { background-color: #334155; }    /* chips, badges */
+  .dark .bg-gray-700 { background-color: #334155; }
+  .dark .bg-gray-800 { background-color: #243047; }
+  .dark .bg-gray-900 { background-color: #1e293b; }
+  .dark .bg-gray-950 { background-color: #0b1220; }     /* outer frame — #171717 (igual sideBar VSCode) */
+  .dark .bg-gray-50\/50 { background-color: rgb(30 41 59 / 0.5); }
+  .dark .bg-gray-50\/70 { background-color: rgb(30 41 59 / 0.7); }
+  .dark .bg-gray-800\/30 { background-color: rgb(51 65 85 / 0.3); }
+  .dark .bg-gray-800\/40 { background-color: rgb(51 65 85 / 0.4); }
+  .dark .bg-gray-800\/50 { background-color: rgb(51 65 85 / 0.5); }
+  .dark .bg-gray-800\/60 { background-color: rgb(51 65 85 / 0.6); }
+  .dark .text-gray-50 { color: #f8fafc; }
+  .dark .text-gray-100 { color: #f1f5f9; }
+  .dark .text-gray-200 { color: #e2e8f0; }
+  .dark .text-gray-300 { color: #cbd5e1; }
+  .dark .text-gray-400 { color: #94a3b8; }
+  .dark .text-gray-500 { color: #8a99ae; }
+  .dark .text-gray-600 { color: #a3b1c4; }
+  .dark .text-gray-700 { color: #cbd5e1; }
+  .dark .text-gray-800 { color: #e2e8f0; }
+  .dark .text-gray-900 { color: #f1f5f9; }
+  .dark .border-gray-100 { border-color: #2a3649; }
+  .dark .border-gray-200 { border-color: #334155; }
+  .dark .border-gray-300 { border-color: #475569; }
+  .dark .border-gray-700 { border-color: #334155; }
+  .dark .border-gray-800 { border-color: #2a3649; }
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
+  .dark .hover\:bg-gray-50:hover { background-color: #273449; }
+  .dark .hover\:bg-gray-100:hover { background-color: #2a3649; }
+  .dark .hover\:bg-gray-700:hover { background-color: #3b4a61; }
+  .dark .hover\:bg-gray-800:hover { background-color: #2a3649; }
+  .dark .hover\:bg-gray-800\/50:hover { background-color: rgb(51 65 85 / 0.5); }
+  .dark .hover\:text-gray-200:hover { color: #f1f5f9; }
+  .dark .hover\:text-gray-300:hover { color: #e2e8f0; }
+  .dark .hover\:text-gray-700:hover { color: #e2e8f0; }
+  .dark .bg-\[\#1e3a5f\] { background-color: #0f172a; }
+  .dark .dark\:bg-gray-950,
+  .dark .dark\:bg-black { background-color: #0b1220; }
+  .dark .dark\:bg-gray-900 { background-color: #1e293b; }
+  .dark .dark\:bg-gray-800 { background-color: #273449; }
+  .dark .dark\:bg-gray-700 { background-color: #334155; }
+  .dark .dark\:bg-\[\#0f0f0f\],
+  .dark .dark\:bg-\[\#0b0b0b\],
+  .dark .dark\:bg-\[\#111\],
+  .dark .dark\:bg-\[\#161616\],
+  .dark .dark\:bg-\[\#1c1c1c\] { background-color: #0f172a; }
+  .dark .dark\:bg-\[\#131316\],
+  .dark .dark\:bg-\[\#1f1f22\] { background-color: #172234; }
+  .dark .dark\:bg-\[\#242424\] { background-color: #1e293b; }
+  .dark .dark\:bg-\[\#303030\] { background-color: #334155; }
+  .dark .dark\:border-\[\#3a3a3a\],
+  .dark .dark\:border-\[\#303030\],
+  .dark .dark\:border-gray-700 { border-color: #334155; }
+  .dark .dark\:border-gray-800 { border-color: #2a3649; }
+  .dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+  .dark .dark\:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2a3649; }
+  .dark .dark\:hover\:bg-gray-800:hover { background-color: #273449; }
+  .dark .dark\:hover\:bg-gray-700:hover { background-color: #334155; }
+  .dark .dark\:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
+  .dark .dark\:to-black { --tw-gradient-to: #0f172a var(--tw-gradient-to-position); }
+  .dark .dark\:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+}
