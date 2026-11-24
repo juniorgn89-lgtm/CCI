@@ -8,6 +8,7 @@ import DemoModeToggle from '@/components/layout/DemoModeToggle'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 import AppLauncher from '@/components/layout/AppLauncher'
 import ReportarChamado from '@/components/chamados/ReportarChamado'
+import SinoNotificacoes from '@/components/layout/SinoNotificacoes'
 import HeaderInstallButton from '@/components/pwa/HeaderInstallButton'
 import UltimaAtualizacaoInfo from '@/components/layout/UltimaAtualizacaoInfo'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
@@ -148,6 +149,8 @@ const Header = ({ onMobileMenuOpen }: HeaderProps) => {
           <HeaderInstallButton />
           {/* Alternar tema (Claro/Sistema/Escuro) — mesmas opções das Configurações. */}
           <ThemeToggle />
+          {/* Sino: pendências pelo papel, novidades da versão e "Receber no celular". */}
+          <SinoNotificacoes />
           {/* Reportar bug/melhoria com print (só diretores da CCI). */}
           <ReportarChamado />
           {/* Launcher da suíte CCI (grade ⋮⋮⋮ estilo Google) — abre os outros apps. */}

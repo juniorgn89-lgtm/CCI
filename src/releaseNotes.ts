@@ -33,6 +33,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.21',
+    data: '2026-11-23',
+    resumo: 'Sino de notificações no topo e um modo escuro novo, mais confortável.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Sino de notificações no topo',
+        descricao: 'Mostra o que está esperando por você: pedidos para liberar, notas devolvidas pelo NotaOK, tarefas atrasadas ou que vencem hoje, e as novidades de cada versão. No rodapé, liga os avisos no celular com um toque.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Modo escuro novo',
+        descricao: 'O escuro ficou em tons de azul-ardósia, igual aos outros apps da CCI: menos cansativo para a vista e com as áreas mais fáceis de separar.',
+      },
+    ],
+  },
+  {
     versao: '1.2.20',
     data: '2026-11-23',
     resumo: 'Atalho para os avisos no celular e telas de configuração melhores no celular.',
