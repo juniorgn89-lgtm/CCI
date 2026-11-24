@@ -298,3 +298,20 @@ export const deleteUser = async (userId: string): Promise<void> => {
   if (error) throw new Error(error.message ?? 'Falha ao deletar usuário')
   if (data?.error) throw new Error(data.error)
 }
+
+/**
+ * Define a senha de PRIMEIRO ACESSO de um usuário (Edge Function
+ * `definir-senha-inicial`, só master). Também confirma o e-mail. A senha não é
+ * gravada em lugar nenhum além do Auth.
+ */
+export const definirSenhaInicial = async (userId: string, senha: string): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase.functions.invoke('definir-senha-inicial', { body: { user_id: userId, senha } })
+  if (error) {
+    let msg = error.message ?? 'Falha ao definir a senha'
+    try { const j = await (error as { context?: Response }).context?.json(); if (j?.error) msg = j.error } catch { /* mantém */ }
+    if (/Failed to send|not found|404/i.test(msg)) msg = 'A função de senha inicial ainda não foi publicada no servidor (definir-senha-inicial).'
+    throw new Error(msg)
+  }
+  if (data?.error) throw new Error(data.error)
+}

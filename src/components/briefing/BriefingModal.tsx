@@ -1,47 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { X, SlidersHorizontal, Calendar, ArrowRight } from 'lucide-react'
+import {
+  X, Sparkles, Users, Fuel, Package, Scale, Wallet, Gauge, TrendingUp, TrendingDown, ChevronRight, Droplets, Lock, LayoutDashboard,
+} from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
-import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import { fetchEmpresas } from '@/api/endpoints/empresas'
-import { MODULOS } from '@/lib/modulos'
-import { abasFor } from '@/lib/moduleRegistry'
-import { todayLocal } from '@/lib/period'
-import { formatCurrencyInt, formatNumber } from '@/lib/formatters'
-import useBriefingResumo from '@/components/briefing/useBriefingResumo'
-import useBriefingProjecaoCombustivel from '@/components/briefing/useBriefingProjecaoCombustivel'
+import { formatCurrency, formatNumber } from '@/lib/formatters'
+import { nomeLegivel } from '@/lib/nomeLegivel'
+import useResumoOntem, { type GrupoRecebimento } from '@/components/briefing/useResumoOntem'
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const isoMinusDays = (iso: string, n: number) => {
+/**
+ * Briefing do dia — "Resumo de ontem" da REDE (Central), no padrão visual dos
+ * apps CCI. Cada ponto, cartão, barra e linha é clicável: leva para a área do
+ * Visor já filtrada em ONTEM (todos os postos). Números só do que foi apurado;
+ * o que não tem fonte não aparece (nada de zero falso).
+ */
+
+const DIAS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+const dataLonga = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(y, m - 1, d - n)
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+  return `${DIAS[new Date(y, m - 1, d).getDay()]}, ${d} de ${MESES[m - 1]}`
 }
-const saudacao = () => {
-  const h = new Date().getHours()
-  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
-}
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const dataExtenso = (iso: string) => {
+const diaCurto = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
-  const wd = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'][new Date(y, m - 1, d).getDay()]
-  return `${wd} · ${d} ${MESES[m - 1].toUpperCase()} ${y}`
+  return DIAS[new Date(y, m - 1, d).getDay()].split('-')[0].toLowerCase()
 }
-const ddmmyyyy = (iso: string) => iso.split('-').reverse().join('/')
-/** yyyy-MM-dd → DD/MM (sem ano). */
-const ddmm = (iso: string) => iso.split('-').slice(1).reverse().join('/')
-/** R$/L com 2 casas (padrão do design do briefing). */
-const rl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
-/** Renderiza texto com **trechos** em negrito. */
-const rich = (s: string) => s.split('**').map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>))
-/** Fonte de display da marca (mesma da landing); cai no Inter se não carregar. */
-const BRICOLAGE = "'Bricolage Grotesque', Inter, system-ui, sans-serif"
+const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite' }
+const pct = (v: number) => `${Math.round(v)}%`
+const pct1 = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
+const litros = (v: number) => `${formatNumber(Math.round(v))} L`
+
+const SETOR = {
+  combustivel: { label: 'Combustíveis', cor: '#3b82f6', tab: 'combustivel' },
+  automotivos: { label: 'Automotivos (pista)', cor: '#f97316', tab: 'pista' },
+  conveniencia: { label: 'Conveniência', cor: '#10b981', tab: 'conveniencia' },
+} as const
+const RECEB: Record<GrupoRecebimento, string> = { cartao: 'Cartões e PIX', dinheiro: 'Dinheiro', outros: 'Outros', prazo: 'A prazo' }
+
+const CARD = 'rounded-2xl border border-[#2f3b4f] bg-[#1e293b]'
+const ROTULO = 'flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#94a3b8]'
+
+interface Ponto { chave: string; Icone: ComponentType<{ className?: string }>; texto: ReactNode; alerta?: boolean; ir: () => void }
 
 const BriefingModal = () => {
   const navigate = useNavigate()
@@ -49,15 +53,12 @@ const BriefingModal = () => {
   const setSeen = useAuthStore((s) => s.setBriefingSeenToday)
   const onboardingSeen = useAuthStore((s) => s.onboardingSeen)
   const fullName = useAuthStore((s) => s.fullName)
-  const isMaster = useAuthStore((s) => s.isMaster)
-  const modulosPermitidos = useAuthStore((s) => s.modulosPermitidos)
   const rede = useTenantStore((s) => s.rede)
   const setPeriodo = useFilterStore((s) => s.setPeriodo)
   const setEmpresas = useFilterStore((s) => s.setEmpresas)
 
-  // Fechamento de sessão: permite "fechar sem marcar" (checkbox desmarcado) sem
-  // reabrir na hora. Reabertura deliberada (menu "Briefing do dia") zera o store
-  // seenToday true→false → o efeito abaixo reabre.
+  // Fechar sem marcar não reabre na hora; reabrir pelo menu ("Briefing do dia")
+  // zera o seenToday e o efeito abaixo reabre.
   const [closed, setClosed] = useState(false)
   const prevSeen = useRef(seenToday)
   useEffect(() => {
@@ -66,91 +67,8 @@ const BriefingModal = () => {
   }, [seenToday])
 
   const open = !seenToday && onboardingSeen && !!rede && !closed
-  const resumo = useBriefingResumo(open)
-  const projComb = useBriefingProjecaoCombustivel(open)
-
-  const mods = useMemo(
-    () => MODULOS.filter((m) => isMaster || !modulosPermitidos || modulosPermitidos.length === 0 || modulosPermitidos.includes(m.id)),
-    [isMaster, modulosPermitidos],
-  )
-  const [modPath, setModPath] = useState('')
-  const modSel = modPath || mods.find((m) => m.id === 'dashboard')?.path || mods[0]?.path || '/dashboard'
-  // Abas (sub-tabs) do módulo escolhido — reseta pra default ao trocar de módulo.
-  const abas = useMemo(() => abasFor(modSel), [modSel])
-  const [abaSel, setAbaSel] = useState('')
-  useEffect(() => { setAbaSel('') }, [modSel])
-
-  // Fonte da marca (Bricolage) só enquanto o briefing está aberto — pra ter a
-  // "cara da landing". A CSP já libera fonts.googleapis/gstatic; cai no Inter se
-  // não carregar. Removida ao fechar pra não pesar no resto do app.
-  useEffect(() => {
-    if (!open) return
-    const l = document.createElement('link')
-    l.rel = 'stylesheet'
-    l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap'
-    document.head.appendChild(l)
-    return () => { l.remove() }
-  }, [open])
-
-  const { data: empresasData } = useQuery({
-    queryKey: ['empresas'],
-    queryFn: () => fetchEmpresas({ limite: 200 }),
-    staleTime: 30 * 60 * 1000,
-    enabled: open,
-  })
-  const postos = useEmpresasPermitidas(empresasData?.resultados ?? [])
-
-  const [periodo, setPeriodoSel] = useState<'atual' | 'passado'>('atual')
-  const [escopo, setEscopo] = useState<'fechado' | 'aberto'>('fechado')
-  const [postoSel, setPostoSel] = useState<number | null>(null)
+  const r = useResumoOntem(open)
   const [naoMostrar, setNaoMostrar] = useState(true)
-
-  const range = useMemo(() => {
-    const hoje = todayLocal()
-    const [y, m] = hoje.split('-').map(Number)
-    if (periodo === 'passado') {
-      const py = m === 1 ? y - 1 : y
-      const pm = m === 1 ? 12 : m - 1
-      const last = new Date(py, pm, 0).getDate()
-      return { ini: `${py}-${pad(pm)}-01`, fim: `${py}-${pad(pm)}-${pad(last)}` }
-    }
-    const ini = `${y}-${pad(m)}-01`
-    const ontem = isoMinusDays(hoje, 1)
-    const fim = escopo === 'aberto' ? hoje : (ontem >= ini ? ontem : ini)
-    return { ini, fim }
-  }, [periodo, escopo])
-
-  // Frase de leitura DETERMINÍSTICA (decomposição volume × margem da ΔLB). Sempre
-  // começa pelo PERÍODO COMPARADO (ontem vs mesmo dia da semana passada + data),
-  // já que os KPIs foram removidos e a frase carrega o contexto.
-  const leitura = useMemo(() => {
-    const { volumeEffect: vol, marginEffect: marg, deltaLB, deltaLitros, deltaLbPorLitroAbs, diaSemana, ontem } = resumo
-    if (!resumo.hasData || deltaLB == null) return null
-    // Concordância de gênero: domingo/sábado = masculino ("passado"); seg–sex = feminino ("passada").
-    const passado = diaSemana === 'domingo' || diaSemana === 'sábado' ? 'passado' : 'passada'
-    const cmpRef = `**${diaSemana} ${passado} (${ddmm(isoMinusDays(ontem, 7))})**`
-    const litrosTxt = deltaLitros != null ? `os litros ${deltaLitros >= 0 ? 'subiram' : 'caíram'} ${Math.abs(deltaLitros).toFixed(1)}%` : null
-    const rlTxt = deltaLbPorLitroAbs != null ? `${deltaLbPorLitroAbs >= 0 ? '+' : '−'}${rl(Math.abs(deltaLbPorLitroAbs))}/L` : null
-    if (deltaLB >= 0) {
-      const motivo = marg > vol
-        ? `, puxado por **margem**${rlTxt ? ` (${rlTxt})` : ''} e não por volume${litrosTxt ? ` — ${litrosTxt}` : ''}`
-        : (vol > 0 && marg <= 0)
-          ? ` por **volume**${litrosTxt ? ` (${litrosTxt})` : ''}; a margem por litro recuou${rlTxt ? ` (${rlTxt})` : ''}`
-          : ` — **volume e margem** somaram${litrosTxt ? ` (${litrosTxt})` : ''}`
-      return `Vs ${cmpRef}: o lucro subiu **${deltaLB.toFixed(1)}%**${motivo}.`
-    }
-    return `Vs ${cmpRef}: o lucro caiu **${Math.abs(deltaLB).toFixed(1)}%** — ${Math.abs(marg) >= Math.abs(vol) ? '**a margem por litro**' : '**o volume**'} puxou pra baixo${litrosTxt ? ` (${litrosTxt})` : ''}.`
-  }, [resumo])
-
-  // Análise (determinística, read-only) da projeção de combustível pro card.
-  const CONFIA_LABEL = { alta: 'Confiança alta', media: 'Confiança média', baixa: 'Confiança baixa' } as const
-  const analiseComb = projComb.hasData
-    ? `No ritmo atual, o mês fecha ${projComb.deltaVsMesAnt != null
-        ? (projComb.deltaVsMesAnt >= 0
-            ? `**${projComb.deltaVsMesAnt.toFixed(1).replace('.', ',')}% acima**`
-            : `**${Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% abaixo**`) + ' do mês passado'
-        : 'no mesmo nível do mês passado'} — ${rl(projComb.rbLitro)}/L de lucro. Faltam **${projComb.diasRestantes} dia${projComb.diasRestantes === 1 ? '' : 's'}** pra fechar.`
-    : ''
 
   const dismiss = () => {
     setClosed(true)
@@ -159,160 +77,218 @@ const BriefingModal = () => {
       supabase?.rpc('mark_briefing_seen').then(({ error }) => { if (error) console.warn('[briefing] mark error:', error.message) })
     }
   }
-  const analisar = () => {
-    setPeriodo(range.ini, range.fim)
-    setEmpresas(postoSel != null ? [postoSel] : [])
+  /** Vai para a área com ONTEM e todos os postos (períodoDeOntem=false: não mexe no período, ex.: títulos em aberto). */
+  const ir = (path: string, periodoDeOntem = true) => {
+    if (periodoDeOntem) setPeriodo(r.ontem, r.ontem)
+    setEmpresas([])
     dismiss()
-    navigate(abaSel ? `${modSel}?tab=${abaSel}` : modSel)
+    navigate(path)
   }
 
-  const Pill = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button type="button" onClick={onClick}
-      className={cn('rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors',
-        active ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/60 dark:text-gray-300')}>
-      {children}
-    </button>
-  )
-  const selCls = 'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[12px] font-medium dark:border-gray-700 dark:bg-gray-800'
+  // ── Principais pontos (alertas primeiro; no máximo 3) ──
+  const pontos: Ponto[] = []
+  if (r.prazo && r.prazo.vencidosQtd > 0) {
+    pontos.push({ chave: 'vencidos', Icone: Users, alerta: true, ir: () => ir('/financeiro?tab=receber', false),
+      texto: <>{formatNumber(r.prazo.vencidosQtd)} {r.prazo.vencidosQtd === 1 ? 'título vencido' : 'títulos vencidos'} de clientes a prazo · <b className="font-semibold">{formatCurrency(r.prazo.vencidosValor)}</b></> })
+  }
+  if (r.caixa && Math.abs(r.caixa.diferenca) >= 20) {
+    pontos.push({ chave: 'caixa', Icone: Scale, alerta: r.caixa.diferenca < 0, ir: () => ir('/fechamento-caixa'),
+      texto: <>Caixa {r.caixa.diferenca < 0 ? 'faltou' : 'sobrou'} <b className="font-semibold">{formatCurrency(Math.abs(r.caixa.diferenca))}</b> ontem, somando {r.caixa.caixas} {r.caixa.caixas === 1 ? 'caixa' : 'caixas'}</> })
+  }
+  if (r.caixa && r.caixa.abertos > 0) {
+    pontos.push({ chave: 'abertos', Icone: Lock, alerta: true, ir: () => ir('/fechamento-caixa'),
+      texto: <>{r.caixa.abertos} {r.caixa.abertos === 1 ? 'caixa de ontem ainda está aberto' : 'caixas de ontem ainda estão abertos'}</> })
+  }
+  if (r.vendasSemanaPassada) {
+    const d = ((r.vendas - r.vendasSemanaPassada) / r.vendasSemanaPassada) * 100
+    const dia = diaCurto(r.ontem)
+    const passada = dia === 'domingo' || dia === 'sábado' ? 'passado' : 'passada'
+    pontos.push({ chave: 'semana', Icone: d >= 0 ? TrendingUp : TrendingDown, alerta: d <= -10, ir: () => ir('/dashboard?tab=setor'),
+      texto: <>Vendas {d >= 0 ? 'subiram' : 'caíram'} <b className="font-semibold">{pct1(Math.abs(d))}</b> em relação a {dia} {passada}</> })
+  }
+  const comb = r.setores.find((s) => s.id === 'combustivel')
+  if (comb && r.vendas > 0) {
+    pontos.push({ chave: 'comb', Icone: Fuel, ir: () => ir('/dashboard?tab=combustivel'),
+      texto: <>Combustíveis foram <b className="font-semibold">{pct1((comb.valor / r.vendas) * 100)}</b> das vendas · {litros(r.litros)}</> })
+  }
+  if (r.topProduto) {
+    const tab = r.topProduto.setor === 'automotivos' ? 'pista' : 'conveniencia'
+    pontos.push({ chave: 'top', Icone: Package, ir: () => ir(`/dashboard?tab=${tab}`),
+      texto: <>Mais vendido fora os combustíveis: <b className="font-semibold">{nomeLegivel(r.topProduto.nome)}</b> · {formatCurrency(r.topProduto.valor)}</> })
+  }
+  const principais = [...pontos.filter((p) => p.alerta), ...pontos.filter((p) => !p.alerta)].slice(0, 3)
+
+  const nome = fullName ? fullName.split(' ')[0] : ''
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss() }}>
-      <DialogContent className="max-w-2xl gap-0 overflow-hidden rounded-[24px] border-0 p-0 shadow-2xl [&>button]:hidden">
-        {/* Header navy com glow âmbar — linguagem da landing */}
-        <div
-          className="relative overflow-hidden px-7 pb-6 pt-6"
-          style={{ background: 'radial-gradient(720px 340px at 82% -12%, #22456b 0%, #16293f 58%, #101f31 100%)' }}
-        >
-          <div
-            className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(252,182,25,.22) 0%, rgba(252,182,25,0) 70%)' }}
-          />
-          <div className="relative flex items-start gap-3">
+      <DialogContent className="flex max-h-[92dvh] max-w-xl flex-col gap-0 overflow-hidden rounded-[28px] border border-[#2f3b4f] bg-[#0f172a] p-0 text-[#f1f5f9] shadow-2xl [&>button]:hidden">
+        {/* Cabeçalho petróleo com a marca */}
+        <div className="relative shrink-0 overflow-hidden px-6 pb-5 pt-5" style={{ background: 'radial-gradient(520px 260px at 85% -20%, #2a7c74 0%, #134e4a 45%, #1e293b 100%)' }}>
+          <div className="flex items-start gap-3">
+            <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-11 w-11 shrink-0 rounded-xl bg-[#0f172a]/60 p-1.5" />
             <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#14b8a6]/40 bg-[#0f766e]/25 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#5eead4]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#14b8a6]" /> {dataExtenso(resumo.ontem)}
-              </span>
-              <DialogTitle
-                className="mt-2.5 text-[28px] font-extrabold leading-[1.05] tracking-[-0.02em] text-white"
-                style={{ fontFamily: BRICOLAGE }}
-              >
-                {saudacao()}{fullName ? `, ${fullName.split(' ')[0]}` : ''}
-              </DialogTitle>
-              <DialogDescription className="mt-2 max-w-md text-[13.5px] leading-snug text-white/70">
-                Aqui está o resumo de ontem — e um atalho pra começar sua análise do dia.
-              </DialogDescription>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Resumo de ontem</p>
+              <DialogTitle className="text-[19px] font-bold leading-tight text-white">{dataLonga(r.ontem)}</DialogTitle>
+              <DialogDescription className="text-[12.5px] text-white/75">{saudacao()}{nome ? `, ${nome}` : ''} · os principais pontos da rede{rede?.nome ? ` ${nomeLegivel(rede.nome)}` : ''}</DialogDescription>
             </div>
-            <button type="button" onClick={dismiss} aria-label="Fechar"
-              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white">
+            <button type="button" onClick={dismiss} aria-label="Fechar" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>
-        </div>
-
-        {/* Body */}
-        <div className="space-y-4 px-7 py-5">
-          {/* Leitura do dia (frase determinística). KPIs removidos — a frase
-              carrega o período comparado + a variação. */}
-          {resumo.isLoading ? (
-            <div className="h-14 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
-          ) : !resumo.hasData ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 p-4 text-center text-[12px] text-gray-400 dark:border-gray-700">
-              Ontem ainda não fechou no cache de apuração — confira mais tarde.
-            </div>
-          ) : leitura ? (
-            <div className="relative overflow-hidden rounded-2xl border border-[#e9eef4] bg-white px-4 py-3.5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-              <span className="absolute inset-y-0 left-0 w-1 bg-[#0F766E]" />
-              <p className="pl-2.5 text-[14px] leading-relaxed text-[#16293f] dark:text-gray-100">{rich(leitura)}</p>
-            </div>
-          ) : null}
-
-          {/* Projeção de fim do mês do combustível (heads-up) + análise da IA. */}
-          {projComb.hasData && (
-            <div
-              className="relative overflow-hidden rounded-2xl px-4 py-4 text-white shadow-[0_20px_44px_-26px_rgba(15,41,63,.75)]"
-              style={{ background: 'linear-gradient(150deg,#1c3a5c 0%,#16293f 100%)' }}
-            >
-              <div
-                className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full"
-                style={{ background: 'radial-gradient(circle, rgba(252,182,25,.20) 0%, rgba(252,182,25,0) 70%)' }}
-              />
-              <div className="relative">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-white/60">Projeção do combustível · fim do mês</p>
-                  <span className="shrink-0 rounded-full border border-[#FCB619]/40 bg-[#FCB619]/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#fcd77f]">{CONFIA_LABEL[projComb.confiabilidade]}</span>
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                  <span className="text-[27px] font-extrabold tabular-nums tracking-[-0.01em]" style={{ fontFamily: BRICOLAGE }}>{formatNumber(Math.round(projComb.litrosProj))} L</span>
-                  {projComb.deltaVsMesAnt != null && (
-                    <span className={cn('text-[11.5px] font-semibold tabular-nums', projComb.deltaVsMesAnt >= 0 ? 'text-emerald-300' : 'text-red-300')}>
-                      {projComb.deltaVsMesAnt >= 0 ? '▲ +' : '▼ '}{Math.abs(projComb.deltaVsMesAnt).toFixed(1).replace('.', ',')}% vs mês ant.
-                    </span>
-                  )}
-                  <span className="ml-auto text-[11.5px] text-white/60">LB estimado <strong className="font-bold text-[#fcd77f]">{formatCurrencyInt(projComb.lucroProj)}</strong></span>
-                </div>
-                <p className="mt-2 text-[12px] leading-snug text-white/85">{rich(analiseComb)}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Ajustar análise */}
-          <div>
-            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#0F766E] dark:text-[#14b8a6]">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Ajustar análise
-            </p>
-            <p className="mb-2 text-[12px] leading-snug text-gray-500 dark:text-gray-400">
-              Defina período, escopo, módulo e posto — ao tocar em <strong className="font-semibold text-gray-700 dark:text-gray-200">Analisar</strong>, o Visor já <strong className="font-semibold text-gray-700 dark:text-gray-200">abre a tela escolhida com tudo aplicado</strong>.
-            </p>
-            <div className="space-y-2.5 rounded-2xl border border-[#e9eef4] bg-[#f6f8fb] p-3.5 dark:border-gray-700 dark:bg-gray-800/40">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Período</span>
-                <div className="flex gap-1"><Pill active={periodo === 'atual'} onClick={() => setPeriodoSel('atual')}>Mês atual</Pill><Pill active={periodo === 'passado'} onClick={() => setPeriodoSel('passado')}>Mês passado</Pill></div>
-              </div>
-              {periodo === 'atual' && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Escopo</span>
-                  <div className="flex gap-1"><Pill active={escopo === 'fechado'} onClick={() => setEscopo('fechado')}>Fechado (até ontem)</Pill><Pill active={escopo === 'aberto'} onClick={() => setEscopo('aberto')}>Aberto (inclui hoje)</Pill></div>
-                </div>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+            <button type="button" onClick={() => ir('/dashboard?tab=setor')} className="group text-left">
+              <p className="text-[12px] text-white/75">Vendas do dia</p>
+              <p className="text-[34px] font-extrabold leading-none tracking-[-0.02em] tabular-nums text-white group-hover:underline group-hover:decoration-white/40 group-hover:underline-offset-4">
+                {r.carregando ? '…' : formatCurrency(r.vendas)}
+              </p>
+            </button>
+            <div className="flex gap-6 text-right">
+              {r.recebido > 0 && (
+                <button type="button" onClick={() => ir('/fechamento-caixa')} className="text-right hover:opacity-80">
+                  <p className="text-[11.5px] text-white/70">Recebido</p>
+                  <p className="text-[15px] font-bold tabular-nums text-white">{formatCurrency(r.recebido)}</p>
+                </button>
               )}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Módulo</span>
-                <select value={modSel} onChange={(e) => setModPath(e.target.value)} className={selCls}>
-                  {mods.map((m) => <option key={m.id} value={m.path}>{m.label}</option>)}
-                </select>
-              </div>
-              {abas.length > 1 && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Aba</span>
-                  <select value={abaSel} onChange={(e) => setAbaSel(e.target.value)} className={selCls}>
-                    {abas.map((a) => <option key={a.tab} value={a.tab}>{a.label}</option>)}
-                  </select>
-                </div>
+              {r.litros > 0 && (
+                <button type="button" onClick={() => ir('/dashboard?tab=combustivel')} className="text-right hover:opacity-80">
+                  <p className="text-[11.5px] text-white/70">Combustível</p>
+                  <p className="text-[15px] font-bold tabular-nums text-white">{litros(r.litros)}</p>
+                </button>
               )}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-medium text-gray-600 dark:text-gray-300">Posto</span>
-                <select value={postoSel ?? ''} onChange={(e) => setPostoSel(e.target.value ? Number(e.target.value) : null)} className={selCls}>
-                  <option value="">Todos os postos</option>
-                  {postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia}</option>)}
-                </select>
-              </div>
             </div>
-            <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-gray-400">
-              <Calendar className="h-3 w-3" /> Vai analisar {ddmmyyyy(range.ini)} – {ddmmyyyy(range.fim)}
-            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-7 py-3.5 dark:border-gray-800">
-          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-gray-500 dark:text-gray-400">
-            <input type="checkbox" checked={naoMostrar} onChange={(e) => setNaoMostrar(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb]" />
-            Não mostrar de novo hoje
-          </label>
-          <div className="flex items-center gap-2.5">
-            <button type="button" onClick={dismiss} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Fechar</button>
-            <button type="button" onClick={analisar}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#FCB619] px-5 py-2.5 text-[13.5px] font-bold text-[#16293f] shadow-[0_14px_30px_-12px_rgba(252,182,25,.85)] transition-transform hover:-translate-y-px">
-              Analisar <ArrowRight className="h-4 w-4" />
+        {/* Corpo */}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          {r.carregando ? (
+            <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#1e293b]" />)}</div>
+          ) : !r.temDados ? (
+            <div className={cn(CARD, 'p-6 text-center text-[13px] text-[#94a3b8]')}>Ontem ainda não fechou na apuração. Confira mais tarde.</div>
+          ) : (
+            <>
+              {principais.length > 0 && (
+                <section className={cn(CARD, 'p-4')}>
+                  <p className={ROTULO}><Sparkles className="h-4 w-4" /> Principais pontos</p>
+                  <div className="mt-3 space-y-2">
+                    {principais.map((p) => (
+                      <button key={p.chave} type="button" onClick={p.ir}
+                        className={cn('flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
+                          p.alerta ? 'border-rose-400/40 bg-rose-500/10 hover:bg-rose-500/15' : 'border-[#2f3b4f] bg-[#172234] hover:bg-[#1f2d44]')}>
+                        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', p.alerta ? 'bg-rose-500/20 text-[#fda4af]' : 'bg-white/[0.06] text-[#cbd5e1]')}>
+                          <p.Icone className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1 text-[13.5px] leading-snug text-[#e2e8f0]">{p.texto}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-[#64748b]" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                {r.caixa && (
+                  <Kpi Icone={Scale} titulo="Diferença de caixa" onClick={() => ir('/fechamento-caixa')}
+                    valor={`${r.caixa.diferenca > 0 ? '+' : r.caixa.diferenca < 0 ? '−' : ''}${formatCurrency(Math.abs(r.caixa.diferenca))}`}
+                    corValor={Math.abs(r.caixa.diferenca) < 1 ? 'text-[#5eead4]' : r.caixa.diferenca < 0 ? 'text-[#fda4af]' : 'text-[#5eead4]'}
+                    sub={Math.abs(r.caixa.diferenca) < 1 ? 'caixa batido' : `${r.caixa.caixas} ${r.caixa.caixas === 1 ? 'caixa' : 'caixas'}`} />
+                )}
+                {r.recebido > 0 && (
+                  <Kpi Icone={Wallet} titulo="Recebido" valor={formatCurrency(r.recebido)} onClick={() => ir('/fechamento-caixa')}
+                    sub={r.vendas > 0 ? `${pct((r.recebido / r.vendas) * 100)} das vendas` : undefined} />
+                )}
+                {r.litros > 0 && (
+                  <Kpi Icone={Droplets} titulo="Lucro no combustível" valor={formatCurrency(r.lucroBruto)} onClick={() => ir('/dashboard?tab=combustivel')}
+                    sub={`R$ ${(r.lucroBruto / r.litros).toFixed(2).replace('.', ',')} por litro`} />
+                )}
+                <Kpi Icone={Gauge} titulo="Aferições" valor={litros(r.afericoes.litros)} onClick={() => ir('/operacao?tab=afericoes')}
+                  sub={`${r.afericoes.qtd} ${r.afericoes.qtd === 1 ? 'aferição' : 'aferições'}`} />
+              </div>
+
+              {r.setores.length > 0 && (
+                <section className={cn(CARD, 'p-4')}>
+                  <p className={ROTULO}><TrendingUp className="h-4 w-4" /> Onde vendeu</p>
+                  <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-[#172234]">
+                    {r.setores.map((s) => (
+                      <button key={s.id} type="button" onClick={() => ir(`/dashboard?tab=${SETOR[s.id].tab}`)} aria-label={`Ver ${SETOR[s.id].label}`}
+                        className="h-full transition-opacity hover:opacity-80" style={{ width: `${(s.valor / r.vendas) * 100}%`, background: SETOR[s.id].cor }} />
+                    ))}
+                  </div>
+                  <div className="mt-2.5 grid gap-1 sm:grid-cols-2">
+                    {r.setores.map((s) => (
+                      <button key={s.id} type="button" onClick={() => ir(`/dashboard?tab=${SETOR[s.id].tab}`)}
+                        className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left text-[13px] hover:bg-white/[0.04]">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SETOR[s.id].cor }} />
+                        <span className="min-w-0 flex-1 truncate text-[#e2e8f0]">{SETOR[s.id].label}</span>
+                        <span className="text-[11.5px] tabular-nums text-[#64748b]">{pct((s.valor / r.vendas) * 100)}</span>
+                        <span className="font-semibold tabular-nums">{formatCurrency(s.valor)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {r.recebimento.length > 0 && (
+                <section className={cn(CARD, 'p-4')}>
+                  <p className={ROTULO}><Wallet className="h-4 w-4" /> Como recebeu</p>
+                  <div className="mt-3 space-y-2.5">
+                    {r.recebimento.map((x) => (
+                      <button key={x.grupo} type="button" onClick={() => ir('/fechamento-caixa')} className="block w-full rounded-lg px-1 py-0.5 text-left hover:bg-white/[0.04]">
+                        <span className="flex items-baseline gap-2 text-[13.5px]">
+                          <span className="min-w-0 flex-1 text-[#e2e8f0]">{RECEB[x.grupo]}</span>
+                          <span className="text-[11.5px] tabular-nums text-[#64748b]">{pct((x.valor / r.recebido) * 100)}</span>
+                          <span className="font-semibold tabular-nums">{formatCurrency(x.valor)}</span>
+                        </span>
+                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[#172234]">
+                          <span className="block h-full rounded-full bg-[#0d9488]" style={{ width: `${Math.max(2, (x.valor / r.recebido) * 100)}%` }} />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(r.prazo || r.carregandoPrazo) && (
+                <section className={cn(CARD, 'p-4')}>
+                  <div className="flex items-center justify-between">
+                    <p className={ROTULO}><Users className="h-4 w-4" /> Clientes a prazo</p>
+                    <button type="button" onClick={() => ir('/financeiro?tab=receber', false)} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-[#5eead4] hover:underline">
+                      Ver <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {r.prazo ? (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <Caixinha titulo="Vencidos" valor={formatCurrency(r.prazo.vencidosValor)} sub={`${r.prazo.vencidosQtd} ${r.prazo.vencidosQtd === 1 ? 'título' : 'títulos'}`}
+                        alerta={r.prazo.vencidosQtd > 0} onClick={() => ir('/financeiro?tab=receber', false)} />
+                      <Caixinha titulo="Vencem hoje" valor={formatCurrency(r.prazo.hojeValor)} sub={`${r.prazo.hojeQtd} ${r.prazo.hojeQtd === 1 ? 'título' : 'títulos'}`} onClick={() => ir('/financeiro?tab=receber', false)} />
+                      <Caixinha titulo="Em aberto" valor={formatCurrency(r.prazo.abertoValor)} onClick={() => ir('/financeiro?tab=receber', false)} />
+                    </div>
+                  ) : (
+                    <div className="mt-3 h-16 animate-pulse rounded-xl bg-[#172234]" />
+                  )}
+                </section>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Rodapé */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#2f3b4f] bg-[#111a2b] px-5 py-3.5">
+          <button type="button" role="switch" aria-checked={naoMostrar} onClick={() => setNaoMostrar((v) => !v)} className="flex items-center gap-2.5 text-[12.5px] text-[#94a3b8]">
+            <span className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', naoMostrar ? 'bg-[#0f766e]' : 'bg-[#3e4c63]')}>
+              <span className={cn('absolute top-1 h-4 w-4 rounded-full bg-[#fff] shadow transition-all', naoMostrar ? 'left-6' : 'left-1')} />
+            </span>
+            Não mostrar mais hoje
+          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => ir('/dashboard?tab=setor')}
+              className="hidden items-center gap-1.5 rounded-xl border border-[#2f3b4f] px-4 py-2.5 text-[13px] font-semibold text-[#e2e8f0] transition-colors hover:bg-white/[0.05] sm:inline-flex">
+              <LayoutDashboard className="h-4 w-4" /> Ver na Central
+            </button>
+            <button type="button" onClick={dismiss}
+              className="rounded-xl bg-[#0f766e] px-5 py-2.5 text-[13.5px] font-bold text-[#fff] transition-colors hover:bg-[#0d9488]">
+              Entendi
             </button>
           </div>
         </div>
@@ -320,5 +296,22 @@ const BriefingModal = () => {
     </Dialog>
   )
 }
+
+const Kpi = ({ Icone, titulo, valor, sub, corValor, onClick }: { Icone: ComponentType<{ className?: string }>; titulo: string; valor: string; sub?: string; corValor?: string; onClick: () => void }) => (
+  <button type="button" onClick={onClick} className={cn(CARD, 'p-3.5 text-left transition-colors hover:border-[#3e4c63] hover:bg-[#223049]')}>
+    <p className="flex items-center gap-1.5 text-[12px] text-[#94a3b8]"><Icone className="h-3.5 w-3.5" /> {titulo}</p>
+    <p className={cn('mt-1.5 text-[19px] font-bold tabular-nums leading-tight', corValor ?? 'text-[#f1f5f9]')}>{valor}</p>
+    {sub && <p className="mt-0.5 text-[11.5px] text-[#64748b]">{sub}</p>}
+  </button>
+)
+
+const Caixinha = ({ titulo, valor, sub, alerta, onClick }: { titulo: string; valor: string; sub?: string; alerta?: boolean; onClick: () => void }) => (
+  <button type="button" onClick={onClick}
+    className={cn('rounded-xl px-2 py-3 text-center transition-colors', alerta ? 'bg-rose-500/15 hover:bg-rose-500/20' : 'bg-[#0f172a] hover:bg-[#131d31]')}>
+    <p className={cn('text-[12px]', alerta ? 'text-[#fda4af]' : 'text-[#94a3b8]')}>{titulo}</p>
+    <p className={cn('mt-1 text-[14.5px] font-bold tabular-nums', alerta ? 'text-[#fda4af]' : 'text-[#f1f5f9]')}>{valor}</p>
+    {sub && <p className="mt-0.5 text-[11px] text-[#64748b]">{sub}</p>}
+  </button>
+)
 
 export default BriefingModal

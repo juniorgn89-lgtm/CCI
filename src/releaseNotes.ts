@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.28',
+    data: '2026-11-24',
+    resumo: 'Resumo de ontem da rede, novo e clicável, logo ao abrir o Visor.',
+    itens: [
+      {
+        icone: 'relatorio',
+        titulo: 'Resumo de ontem da rede',
+        descricao: 'O resumo que abre pela manhã foi refeito: vendas do dia, quanto foi recebido e os litros, os principais pontos (títulos vencidos, diferença de caixa, comparação com a mesma semana passada), onde vendeu, como recebeu e os clientes a prazo. Toque em qualquer bloco para ir direto à tela, já filtrada no dia de ontem.',
+      },
+    ],
+  },
+  {
     versao: '1.2.27',
     data: '2026-11-24',
     resumo: 'Novo pedido de compra mais fácil de entender: primeiro você encontra os produtos, depois monta o pedido.',

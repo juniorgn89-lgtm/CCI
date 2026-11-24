@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, Sparkles, Presentation, ClipboardList, ShoppingCart, Bug } from 'lucide-react'
+import { UserCog, Shield, ShieldCheck, Crown, ArrowLeft, Loader2, Plus, X, Eye, EyeOff, Trash2, Building2, LayoutGrid, Database, Fuel, AlertTriangle, Search, Network, UserX, UserCheck, ChevronDown, KeyRound, LockKeyhole, Sparkles, Presentation, ClipboardList, ShoppingCart, Bug } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -27,6 +27,7 @@ import {
  *  demais com acesso total (is_master) aparecem como "Diretor". */
 const DONO_EMAIL = 'contato@cci.app.br'
 import RecoveryLinkModal from '@/components/admin/RecoveryLinkModal'
+import SenhaInicialModal from '@/components/admin/SenhaInicialModal'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useTenantStore } from '@/store/tenant'
@@ -80,6 +81,8 @@ const Usuarios = () => {
   const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
   const [deletingUser, setDeletingUser] = useState<ProfileRow | null>(null)
   const [recoveryLink, setRecoveryLink] = useState<{ link: string; label: string } | null>(null)
+  // Senha de primeiro acesso definida pela CCI (sem link).
+  const [senhaInicialDe, setSenhaInicialDe] = useState<ProfileRow | null>(null)
 
   const handleToggleRole = async (row: ProfileRow) => {
     if (row.user_id === myUser?.id) {
@@ -608,6 +611,7 @@ const Usuarios = () => {
                         onTogglePodeAbrirChamados={() => handleTogglePodeAbrirChamados(p)}
                         onToggleAtivo={() => handleToggleAtivo(p)}
                         onResetSenha={() => handleResetSenha(p)}
+                        onSenhaInicial={() => setSenhaInicialDe(p)}
                         onDelete={() => handleDelete(p)}
                       />
                     ))}
@@ -659,6 +663,8 @@ const Usuarios = () => {
           onConfirm={() => handleConfirmDelete(deletingUser)}
         />
       )}
+
+      {senhaInicialDe && <SenhaInicialModal usuario={senhaInicialDe} onClose={() => setSenhaInicialDe(null)} />}
 
       <RecoveryLinkModal
         open={!!recoveryLink}
@@ -980,10 +986,11 @@ interface UserRowProps {
   onTogglePodeAbrirChamados: () => void
   onToggleAtivo: () => void
   onResetSenha: () => void
+  onSenhaInicial: () => void
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onTogglePodeAbrirChamados, onToggleAtivo, onResetSenha, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onTogglePodeAbrirChamados, onToggleAtivo, onResetSenha, onSenhaInicial, onDelete }: UserRowProps) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -1333,6 +1340,13 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
                   : inativo ? 'Reativar usuário' : 'Inativar usuário (bloqueia acesso, preserva o registro)'
             }
             aria-label={`${inativo ? 'Reativar' : 'Inativar'} ${p.full_name || p.email}`}
+          />
+          <RowActionButton
+            icon={LockKeyhole}
+            label="Senha inicial"
+            disabled={busy || (p.is_master && !isSelf)}
+            onClick={onSenhaInicial}
+            aria-label={`Definir a senha de primeiro acesso de ${p.full_name || p.email}`}
           />
           <RowActionButton
             icon={KeyRound}
